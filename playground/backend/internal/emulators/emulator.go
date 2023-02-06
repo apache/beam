@@ -16,7 +16,7 @@
 package emulators
 
 import (
-	"beam.apache.org/playground/backend/internal/environment"
+	"context"
 	"errors"
 	"os"
 	"path"
@@ -35,9 +35,9 @@ type EmulatorProducer interface {
 	ProduceDatasets(datasets []*DatasetDTO) error
 }
 
-func PrepareMockClustersAndGetPrepareParams(appEnvs *environment.ApplicationEnvs, request *pb.RunCodeRequest) ([]EmulatorMockCluster, map[string]string, error) {
+func PrepareMockClustersAndGetPrepareParams(datasetsPath string, datasets []*pb.Dataset) ([]EmulatorMockCluster, map[string]string, error) {
 	datasetsByEmulatorTypeMap := map[pb.EmulatorType][]*pb.Dataset{}
-	for _, dataset := range request.Datasets {
+	for _, dataset := range datasets {
 		datasets, ok := datasetsByEmulatorTypeMap[dataset.Type]
 		if !ok {
 			datasets = make([]*pb.Dataset, 0)
@@ -54,13 +54,13 @@ func PrepareMockClustersAndGetPrepareParams(appEnvs *environment.ApplicationEnvs
 	for emulatorType, datasets := range datasetsByEmulatorTypeMap {
 		switch emulatorType {
 		case pb.EmulatorType_EMULATOR_TYPE_KAFKA:
-			kafkaMockCluster, err := NewKafkaMockCluster()
+			kafkaMockCluster, err := NewKafkaMockCluster(context.Background())
 			if err != nil {
 				logger.Errorf("failed to run a kafka mock cluster, %v", err)
 				return nil, nil, err
 			}
 			mockClusters = append(mockClusters, kafkaMockCluster)
-			datasetDTOs, err := toDatasetDTOs(appEnvs, datasets)
+			datasetDTOs, err := toDatasetDTOs(datasetsPath, datasets)
 			if err != nil {
 				logger.Errorf("failed to get datasets from the repository, %v", err)
 				return nil, nil, err
@@ -68,10 +68,12 @@ func PrepareMockClustersAndGetPrepareParams(appEnvs *environment.ApplicationEnvs
 			producer, err := NewKafkaProducer(kafkaMockCluster)
 			if err != nil {
 				logger.Errorf("failed to create a producer, %v", err)
+				kafkaMockCluster.Stop()
 				return nil, nil, err
 			}
 			if err = producer.ProduceDatasets(datasetDTOs); err != nil {
 				logger.Errorf("failed to produce a dataset, %v", err)
+				kafkaMockCluster.Stop()
 				return nil, nil, err
 			}
 			for _, dataset := range datasets {
@@ -87,10 +89,10 @@ func PrepareMockClustersAndGetPrepareParams(appEnvs *environment.ApplicationEnvs
 	return mockClusters, prepareParams, nil
 }
 
-func toDatasetDTOs(appEnvs *environment.ApplicationEnvs, datasets []*pb.Dataset) ([]*DatasetDTO, error) {
+func toDatasetDTOs(datasetsPath string, datasets []*pb.Dataset) ([]*DatasetDTO, error) {
 	result := make([]*DatasetDTO, 0, len(datasets))
 	for _, dataset := range datasets {
-		datasetPath := path.Join(appEnvs.DatasetsPath(), dataset.DatasetPath)
+		datasetPath := path.Join(datasetsPath, dataset.DatasetPath)
 		data, err := os.ReadFile(datasetPath)
 		if err != nil {
 			return nil, err

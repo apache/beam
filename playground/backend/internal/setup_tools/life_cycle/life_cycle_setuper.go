@@ -29,7 +29,6 @@ import (
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
-	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
@@ -54,7 +53,7 @@ const (
 
 // Setup returns fs_tool.LifeCycle.
 // Also, prepares files and folders needed to code processing according to sdk
-func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workingDir, pipelinesFolder, preparedModDir string, mockCluster emulators.EmulatorMockCluster) (*fs_tool.LifeCycle, error) {
+func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workingDir, pipelinesFolder, preparedModDir string) (*fs_tool.LifeCycle, error) {
 	// create file system service
 	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, filepath.Join(workingDir, pipelinesFolder))
 	if err != nil {
@@ -74,25 +73,16 @@ func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workin
 	case pb.Sdk_SDK_GO:
 		if err = prepareGoFiles(lc, preparedModDir, pipelineId); err != nil {
 			lc.DeleteFolders()
-			if mockCluster != nil {
-				mockCluster.Stop()
-			}
 			return nil, fmt.Errorf("error during create necessary files for the Go sdk: %s", err.Error())
 		}
 	case pb.Sdk_SDK_JAVA:
 		if err = prepareJavaFiles(lc, workingDir, pipelineId); err != nil {
 			lc.DeleteFolders()
-			if mockCluster != nil {
-				mockCluster.Stop()
-			}
 			return nil, fmt.Errorf("error during create necessary files for the Java sdk: %s", err.Error())
 		}
 	case pb.Sdk_SDK_SCIO:
 		if lc, err = prepareSbtFiles(lc, lc.Paths.AbsoluteBaseFolderPath, workingDir); err != nil {
 			lc.DeleteFolders()
-			if mockCluster != nil {
-				mockCluster.Stop()
-			}
 			return nil, fmt.Errorf("error during create necessary files for the Scio sdk: %s", err.Error())
 		}
 	}
@@ -102,9 +92,6 @@ func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workin
 	if err != nil {
 		logger.Errorf("%s: RunCode(): CreateSourceCodeFile(): %s\n", pipelineId, err.Error())
 		lc.DeleteFolders()
-		if mockCluster != nil {
-			mockCluster.Stop()
-		}
 		return nil, errors.New("error during create file with code")
 	}
 	return lc, nil
@@ -126,6 +113,7 @@ func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uui
 
 // prepareJavaFiles prepares file for Java environment.
 // Copy log config file from /path/to/workingDir to /path/to/workingDir/pipelinesFolder/{pipelineId}
+//
 //	and update this file according to pipeline.
 func prepareJavaFiles(lc *fs_tool.LifeCycle, workingDir string, pipelineId uuid.UUID) error {
 	err := lc.CopyFile(javaLogConfigFileName, workingDir, lc.Paths.AbsoluteBaseFolderPath)
