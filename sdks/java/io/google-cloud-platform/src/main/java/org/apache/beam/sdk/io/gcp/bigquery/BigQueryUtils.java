@@ -66,6 +66,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -385,7 +386,7 @@ public class BigQueryUtils {
       FieldType type = schemaField.getType();
 
       TableFieldSchema field = new TableFieldSchema().setName(schemaField.getName());
-      if (schemaField.getDescription() != null && !"".equals(schemaField.getDescription())) {
+      if (!Strings.isNullOrEmpty(schemaField.getDescription())) {
         field.setDescription(schemaField.getDescription());
       }
 
@@ -512,7 +513,7 @@ public class BigQueryUtils {
     return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
   }
 
-  /** Convert a BigQuery TableRow to a Beam Row. */
+  /** Convert a Beam Row to a BigQuery TableRow. */
   public static TableRow toTableRow(Row row) {
     TableRow output = new TableRow();
     for (int i = 0; i < row.getFieldCount(); i++) {
@@ -686,6 +687,13 @@ public class BigQueryUtils {
       if (JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
         return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply(jsonBQString);
       } else if (fieldType.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
+        // Handle if datetime value is in micros
+       try {
+         Long value = Long.parseLong(jsonBQString);
+         return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(value);
+       } catch (NumberFormatException e) {
+       // This means value is not represented by a number, so we swallow and handle it as a String
+     }
         return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
       } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
         return LocalDate.parse(jsonBQString);
