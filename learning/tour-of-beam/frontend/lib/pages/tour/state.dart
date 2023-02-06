@@ -339,7 +339,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _authNotifier.removeListener(_onAuthChanged);
     playgroundController.snippetEditingController
         ?.removeListener(_onActiveFileControllerChanged);
-    // TODO(nausharipov): use stream events https://github.com/apache/beam/issues/25185
+    // TODO(nausharipov): Use stream events https://github.com/apache/beam/issues/25185
     playgroundController
         .snippetEditingController?.activeFileController?.codeController
         .removeListener(_onCodeChanged);
