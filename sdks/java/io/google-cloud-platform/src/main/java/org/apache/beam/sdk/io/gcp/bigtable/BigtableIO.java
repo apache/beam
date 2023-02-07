@@ -186,7 +186,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Cloud Bigtable change streams enable users to capture and stream out mutations from their
  * Cloud Bigtable tables in real-time. Cloud Bigtable change streams enable many use cases including
- * integrating with a user’s data analytics pipelines, support audit and archival requirements as
+ * integrating with a user's data analytics pipelines, support audit and archival requirements as
  * well as triggering downstream application logic on specific database changes.
  *
  * <p>Change stream connector creates and manages a metadata table to manage the state of the
@@ -198,7 +198,7 @@ import org.slf4j.LoggerFactory;
  * BigtableIO.ReadChangeStream#withMetadataTableAppProfileId}. The app profile for the metadata
  * table must be a single cluster app profile with single row transaction enabled.
  *
- * <p>Note - To prevent unforeseen stream stalls, the Dataflow connector outputs all data with an
+ * <p>Note - To prevent unforeseen stream stalls, the BigtableIO connector outputs all data with an
  * output timestamp of zero, making all data late, which will ensure that the stream will not stall.
  * However, it means that you may have to deal with all data as late data, and features that depend
  * on watermarks will not function. This means that Windowing functions and States and Timers are no
