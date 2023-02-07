@@ -16,26 +16,30 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+   id 'org.apache.beam.module'
+   id 'distribution'
+}
 
-applyJavaNature(
-        automaticModuleName: 'org.apache.beam.playground.kafka-emulator',
-        classesTriggerCheckerBugs: [
-                'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
-                'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
-                'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
-        ],
-        shadowClosure: {
-        },
-)
+applyJavaNature(exportJavadoc: false, publish: false)
 
 dependencies {
-    shadow 'io.github.embeddedkafka:embedded-kafka_2.11:2.4.1.1'
-    shadow "org.slf4j:slf4j-simple:1.7.30"
+   implementation 'io.github.embeddedkafka:embedded-kafka_2.11:2.4.1.1'
+   implementation 'org.scala-lang:scala-library:2.11.12'
 }
 
 jar {
-    manifest {
-        attributes 'Main-Class': 'org.apache.beam.playground.KafkaEmulator'
-    }
+   manifest {
+      attributes 'Main-Class': 'org.apache.beam.playground.KafkaEmulator'
+      attributes 'Class-Path': configurations.runtimeClasspath.collect { it.getName() }.join(' ')
+   }
+}
+
+distributions {
+   main {
+      contents {
+         from jar // copies your jar
+         from(project.configurations.runtimeClasspath) // copies dependency jars
+      }
+   }
 }

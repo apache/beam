@@ -55,7 +55,7 @@ const (
 	defaultSdk                         = pb.Sdk_SDK_JAVA
 	defaultBeamJarsPath                = "/opt/apache/beam/jars/*"
 	defaultDatasetsPath                = "/opt/playground/backend/datasets"
-	defaultKafkaEmulatorExecutablePath = "/opt/playground/backend/kafka-emulator/kafka-emulator.jar"
+	defaultKafkaEmulatorExecutablePath = "/opt/playground/backend/kafka-emulator/beam-playground-kafka-emulator.jar"
 	defaultCacheType                   = "local"
 	defaultCacheAddress                = "localhost:6379"
 	defaultCacheKeyExpirationTime      = time.Minute * 15

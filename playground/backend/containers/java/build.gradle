@@ -19,6 +19,7 @@
 
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'base'
+apply plugin: 'java'
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
@@ -34,6 +35,13 @@ dependencies {
 }
 
 task copyDockerfileDependencies(type: Copy) {
+   dependsOn(":playground:kafka-emulator:build")
+
+   copy {
+      from "../../../kafka-emulator/build/distributions/kafka-emulator-${project.version}.tar"
+      into 'build/kafka-emulator'
+      rename ("kafka-emulator-${project.version}.tar", "kafka-emulator.tar")
+   }
    copy {
       from '../../../backend/'
       into 'build/src'
