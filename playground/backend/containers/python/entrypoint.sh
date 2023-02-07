@@ -24,4 +24,6 @@ cp /home/appuser/.mitmproxy/mitmproxy-ca.crt /usr/local/share/ca-certificates/ex
 update-ca-certificates
 cat /home/appuser/.mitmproxy/mitmproxy-ca.pem >> /usr/local/lib/python3.7/site-packages/certifi/cacert.pem
 
-/opt/playground/backend/server_python_backend
+while true; do sleep 1; done
+
+# /opt/playground/backend/server_python_backend

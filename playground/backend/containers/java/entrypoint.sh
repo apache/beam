@@ -23,4 +23,6 @@ openssl x509 -in /home/appuser/.mitmproxy/mitmproxy-ca.pem -inform PEM -out /hom
 cp /home/appuser/.mitmproxy/mitmproxy-ca.crt /usr/local/share/ca-certificates/extra/
 update-ca-certificates
 
-/opt/playground/backend/server_java_backend
+while true; do sleep 1; done
+
+#/opt/playground/backend/server_java_backend

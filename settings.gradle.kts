@@ -73,6 +73,7 @@ include(":playground:backend:containers:go")
 include(":playground:backend:containers:python")
 include(":playground:backend:containers:router")
 include(":playground:backend:containers:scio")
+include(":playground:backend:containers:xtransform")
 include(":playground:terraform")
 
 include(":learning:tour-of-beam:frontend")

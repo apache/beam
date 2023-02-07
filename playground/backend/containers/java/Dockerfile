@@ -69,6 +69,9 @@ COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/da
 COPY --from=dep /pipeline-dependencies/target/dependency/ /opt/apache/beam/jars/
 
 # Install Beam Examples
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-multi-language/$BEAM_VERSION/beam-examples-multi-language-$BEAM_VERSION.jar &&\
+    mv beam-examples-multi-language-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-multi-language.jar
+# Install Xlang Beam Examples
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
     mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
 # Install jars for Playground graphs

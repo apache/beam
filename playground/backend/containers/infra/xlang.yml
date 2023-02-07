@@ -1,0 +1,230 @@
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: httpd-deployment
+# spec:
+#   selector:
+#     matchLabels:
+#       app: httpd
+#   replicas: 1
+#   template:
+#     metadata:
+#       labels:
+#         app: httpd
+#     spec:
+#       containers:
+#       - name: httpd
+#         image: httpd
+#         ports:
+#         - containerPort: 80
+# ---
+# kind: Service
+# apiVersion: v1
+# metadata:
+#   name: httpd
+# spec:
+#   selector:
+#     app: httpd
+#   ports:  
+#     - protocol: TCP
+#       port: 80
+#       name: httpd-port
+#   type: NodePort
+
+# ---
+
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: hello
+# spec:
+#   rules:
+#     - host: minikube.local
+#       http:
+#         paths:
+#           - path: /httpd
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: httpd
+#                 port:
+#                   number: 80
+# kind: Pod
+# apiVersion: v1
+# metadata:
+#   name: testpod
+# spec:
+#   containers:
+#     - name: runner
+#       image: apache/beam_playground-backend-python
+#       env:
+#         - name: PROTOCOL_TYPE
+#           value: "TCP"
+#         - name: SERVER_IP
+#           value: "0.0.0.0"
+#         - name: SERVER_PORT
+#           value: "8060"
+#       ports:
+#         - containerPort: 80
+#     - name: xtransform
+#       image: xtransform
+#       securityContext:
+#         privileged: true
+#       volumeMounts:
+#         - name: dind-storage
+#           mountPath: /var/lib/docker
+#   volumes:
+#     - name: dind-storage
+#       emptyDir: {}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: backend
+  name: backend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - image: apache/beam_playground-xtransform:latest
+        name: transform
+        imagePullPolicy: Never
+        securityContext:
+          privileged: true
+        ports:
+          - containerPort: 9091
+            name: jjs
+          - containerPort: 9092
+            name: jes
+          - containerPort: 9093
+            name: pjs
+          - containerPort: 9094
+            name: pes
+        # command: ["/bin/sh"]
+        # args: ["-c", "while true; do echo echo $(date -u) 'Hi I am from Sidecar container 1' >> /var/log/index.html; sleep 5;done"]
+        resources: {}
+        volumeMounts:
+          - name: dind-storage
+            mountPath: /var/lib/docker
+      - image: apache/beam_playground-backend-python
+        name: python-runner
+        imagePullPolicy: Never
+        env:
+        - name: PROTOCOL_TYPE
+          value: "TCP"
+        - name: SERVER_IP
+          value: "0.0.0.0"
+        - name: SERVER_PORT
+          value: "8090"
+        - name: CACHE_TYPE
+          value: "remote"
+        resources: {}
+        ports:
+          - containerPort: 8090
+            protocol: TCP
+      - image: apache/beam_playground-backend-java
+        name: java-runner
+        imagePullPolicy: Never
+        env:
+        - name: PROTOCOL_TYPE
+          value: "TCP"
+        - name: SERVER_IP
+          value: "0.0.0.0"
+        - name: SERVER_PORT
+          value: "8095"
+        - name: CACHE_TYPE
+          value: "remote"
+        resources: {}
+        ports:
+          - containerPort: 8095
+            protocol: TCP
+      - image: redis
+        name: redis
+        resources: {}
+        ports:
+          - containerPort: 6379
+
+      # - image: busybox
+      #   command: ["/bin/sh"]
+      #   args: ["-c", "while true; do echo echo $(date -u) 'Hi I am from Sidecar container 2' >> /var/log/index.html; sleep 5;done"]
+      #   name: sidecar-container2
+      #   resources: {}
+      #   volumeMounts:
+      #     - name: var-logs
+      #       mountPath: /var/log
+      dnsPolicy: Default
+      volumes:
+        - name: dind-storage
+          emptyDir: {}
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  labels:
+    run: backend
+spec:
+  ports:
+  # - name: grpc
+  #   port: 8080
+  #   targetPort: 80
+  #   protocol: TCP
+  - name: grpc-python
+    port: 8090
+    targetPort: 8090
+    protocol: TCP
+  - name: grpc-java
+    port: 8095
+    targetPort: 8095
+    protocol: TCP
+  - name: redis
+    port: 6379
+    protocol: TCP
+  selector:
+    app: backend
+  type: LoadBalancer
+
+---
+
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: python-ingress
+#   annotations:
+#     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+# spec:
+# # The certificate.
+#   # tls:
+#   # - hosts:
+#   #   - hello-world.info
+#   #   secretName: grpc-secret
+#   rules:
+#     - host: hello-world.info
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: python-backend
+#                 port:
+#                   number: 8090
+#           - path: /test
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: web
+#                 port:
+#                   number: 8080
