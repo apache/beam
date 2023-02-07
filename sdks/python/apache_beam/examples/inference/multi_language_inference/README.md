@@ -33,16 +33,35 @@ python -m multi_language_custom_transform.start_expansion_service  \
     --environment_type=DOCKER
 ```
 ## Running the Java pipeline
-In another terminal, run the following command to start the Java pipeline:
+Make sure you have Maven installed and added to PATH. Also make sure that JAVA_HOME
+points to the correct Java version.
+
+First we need to download the Maven arche-type for Beam. Run the following command:
 
 ```bash
-export JOB_SERVER_PORT= <port to host expansion service>
-export JAVA_HOME= <path to java HOME>
-export GCP_PROJECT= <your gcp project>
-export GCP_BUCKET= <your gcp bucker>
-export GCP_REGION= <region of bucket>
+export BEAM_VERSION=<Beam version>
 
-cd multi-language-beam
+mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.beam \
+    -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+    -DarchetypeVersion=$BEAM_VERSION \
+    -DgroupId=org.example \
+    -DartifactId=multi-language-beam \
+    -Dversion="0.1" \
+    -Dpackage=org.apache.beam.examples \
+    -DinteractiveMode=false
+```
+This will set up all the required dependencies for the Java pipeline. Next the pipeline needs to be 
+implemented. The logic of the pipeline is the file `MultiLangRunInference.java`. After this is done,
+run the following command to start the Java pipeline:
+
+```bash
+export GCP_PROJECT= <your gcp project>
+export GCP_REGION= <region of bucket>
+export GCP_BUCKET= <your gcp bucker>
+export MODEL_NAME=bert-base-uncased
+export PORT= <port to host expansion service>
+
 mvn compile exec:java -Dexec.mainClass=org.MultiLangRunInference \
     -Dexec.args="--runner=DataflowRunner --project=$GCP_PROJECT\
                  --region=$GCP_REGION \
@@ -55,6 +74,5 @@ mvn compile exec:java -Dexec.mainClass=org.MultiLangRunInference \
     -Pdataflow-runner \
     -e
 ```
+Make sure to run this in the `last_word_prediction` directory. This will start the Java pipeline.
 
-Make sure you have Maven installed and added to PATH. Also make sure that JAVA_HOME
-points to the correct Java version.

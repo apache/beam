@@ -71,16 +71,18 @@ public class MultiLangRunInference {
         Pipeline p = Pipeline.create(options);
         PCollection<String> input = p.apply("Read Input", TextIO.read().from(options.getInputFile()));
         
-        /* For 2.44.0 and on
-        List<String> local_packages=new ArrayList<String>(); 
-        local_packages.add("multi_language_custom_transform"); 
-        */
+
+        List<String> local_packages=new ArrayList<String>();
+        local_packages.add("transformers==4.26.0");
+        local_packages.add("torch==1.13.1");
+        local_packages.add("/Users/andresvervaecke/projects/client-work/Beam/beam/sdks/python/apache_beam/examples/inference/multi_language_inference/multi_language_custom_transform/dist/multi-language-custom-transform-0.1.tar.gz"); 
+
         List<String> packages=new ArrayList<String>();  
         input.apply("Predict", PythonExternalTransform.<PCollection<String>, PCollection<String>>from(
-                "multi_language_custom_transform.composite_transform.InferenceTransform", "localhost:" + options.getPort())
+                "multi_language_custom_transform.composite_transform.InferenceTransform")
                 .withKwarg("model", options.getModelName())
                 .withKwarg("model_path", options.getModelPath())
-                // .withExtraPackages(multi_language_custom_transform)
+                .withExtraPackages(local_packages)
                 )
                 .apply("Write Output", TextIO.write().to(options.getOutputFile()));
 
