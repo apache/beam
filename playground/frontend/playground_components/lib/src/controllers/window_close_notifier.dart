@@ -11,17 +11,20 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY IND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-class AnalyticsCategories {
-  static const common = 'Common';
-  // TODO(nausharipov): runCode and example are duplicated in PGC
-  static const example = 'Example';
-  static const feedback = 'Feedback';
-  static const link = 'Link';
-  static const runCode = 'Run Code';
-  static const sdk = 'SDK';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html';
+
+import 'package:flutter/material.dart';
+
+class WindowCloseNotifier extends ChangeNotifier {
+  WindowCloseNotifier() {
+    window.onBeforeUnload.listen((_) {
+      notifyListeners();
+    });
+  }
 }

@@ -17,9 +17,6 @@
  */
 
 import 'dart:async';
-// TODO(nausharipov): review
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html';
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
@@ -62,7 +59,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onUnitProgressChanged);
     _onUnitChanged();
-    window.onBeforeUnload.listen(_onTabClosed);
+    WindowCloseNotifier().addListener(_onTabClosed);
   }
 
   @override
@@ -128,7 +125,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  Future<void> _onTabClosed(_) async {
+  Future<void> _onTabClosed() async {
+    print(['_onTabClosed']);
     if (currentUnitController != null) {
       await TobGoogleAnalyticsService.get().closeUnit(
         currentUnitController!.sdk,

@@ -20,14 +20,6 @@ class AnalyticsEvents {
   static const selectSdk = 'select_new_sdk';
   static const selectExample = 'select_new_example';
   static const clickNewExample = 'click_new_example';
-  static const clickReset = 'click_reset';
-  static const clickToggleTheme = 'click_toggle_theme';
   static const openShortcutsModal = 'open_shortcuts_modal';
-  static const openLink = 'open_link';
   static const clickEnjoyPlayground = 'click_enjoy_playground';
-  static const clickCancelRun = 'click_cancel_run';
-  static const runTime = 'run_time';
-  static const clickReportIssue = 'click_report_issue';
-  static const clickSendPositiveFeedback = 'click_send_positive_feedback';
-  static const clickSendNegativeFeedback = 'click_send_negative_feedback';
 }

@@ -17,9 +17,9 @@
  */
 
 import 'package:playground/config.g.dart';
-import 'package:playground/modules/analytics/categories.dart';
 import 'package:playground/modules/analytics/events.dart';
 import 'package:playground/modules/analytics/service.dart';
+import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
@@ -42,7 +42,7 @@ class PlaygroundGoogleAnalyticsService extends BeamAnalyticsService
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk) {
     _safeSendEvent(AnalyticsEvent(
       action: AnalyticsEvents.selectSdk,
-      category: AnalyticsCategories.sdk,
+      category: BeamAnalyticsCategories.sdk,
       label: '${oldSdk?.title}_${newSdk.title}',
     ));
   }
@@ -51,7 +51,7 @@ class PlaygroundGoogleAnalyticsService extends BeamAnalyticsService
   void trackSelectExample(ExampleBase newExample) {
     _safeSendEvent(AnalyticsEvent(
       action: AnalyticsEvents.selectExample,
-      category: AnalyticsCategories.example,
+      category: BeamAnalyticsCategories.example,
       label: newExample.path,
     ));
   }
@@ -60,24 +60,7 @@ class PlaygroundGoogleAnalyticsService extends BeamAnalyticsService
   void trackClickNewExample() {
     _safeSendEvent(AnalyticsEvent(
       action: AnalyticsEvents.clickNewExample,
-      category: AnalyticsCategories.example,
-    ));
-  }
-
-  @override
-  void trackReset() {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.clickReset,
-      category: AnalyticsCategories.common,
-    ));
-  }
-
-  @override
-  void trackClickToggleTheme(bool isDark) {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.clickToggleTheme,
-      category: AnalyticsCategories.common,
-      label: isDark ? 'dark' : 'light',
+      category: BeamAnalyticsCategories.example,
     ));
   }
 
@@ -85,70 +68,16 @@ class PlaygroundGoogleAnalyticsService extends BeamAnalyticsService
   void trackOpenShortcutsModal() {
     _safeSendEvent(AnalyticsEvent(
       action: AnalyticsEvents.openShortcutsModal,
-      category: AnalyticsCategories.common,
+      category: BeamAnalyticsCategories.common,
     ));
   }
 
   @override
-  void trackOpenLink(String link) {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.openLink,
-      category: AnalyticsCategories.link,
-      label: link,
-    ));
-  }
-
-  @override
-  void trackClickEnjoyPlayground(bool isEnjoying) {
+  void trackClickEnjoyPlayground(FeedbackRating feedbackRating) {
     _safeSendEvent(AnalyticsEvent(
       action: AnalyticsEvents.clickEnjoyPlayground,
-      category: AnalyticsCategories.feedback,
-      label: 'isEnjoying = $isEnjoying',
-    ));
-  }
-
-  @override
-  void trackClickReportIssue() {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.clickReportIssue,
-      category: AnalyticsCategories.feedback,
-    ));
-  }
-
-  @override
-  void trackClickCancelRunEvent(String exampleName) {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.clickCancelRun,
-      category: AnalyticsCategories.runCode,
-      label: exampleName,
-    ));
-  }
-
-  @override
-  void trackClickSendPositiveFeedback(String feedback) {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.clickSendPositiveFeedback,
-      category: AnalyticsCategories.feedback,
-      label: feedback,
-    ));
-  }
-
-  @override
-  void trackClickSendNegativeFeedback(String feedback) {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.clickSendNegativeFeedback,
-      category: AnalyticsCategories.feedback,
-      label: feedback,
-    ));
-  }
-
-  @override
-  void trackRunTimeEvent(String exampleName, int runTimeMs) {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.runTime,
-      category: AnalyticsCategories.runCode,
-      label: exampleName,
-      value: runTimeMs,
+      category: BeamAnalyticsCategories.feedback,
+      label: 'isEnjoying = ${feedbackRating.name}',
     ));
   }
 

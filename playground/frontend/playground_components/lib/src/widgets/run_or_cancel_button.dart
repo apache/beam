@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/widgets.dart';
 
@@ -50,9 +52,11 @@ class RunOrCancelButton extends StatelessWidget {
               (_) => PlaygroundComponents.toastNotifier.add(_getErrorToast()),
             );
       },
-      runCode: () async {
-        await AnalyticsService.get().trackRunExample(
-          playgroundController.selectedExample!.name,
+      runCode: () {
+        unawaited(
+          AnalyticsService.get().trackRunExample(
+            playgroundController.selectedExample!.name,
+          ),
         );
         beforeRun?.call();
         playgroundController.codeRunner.runCode(

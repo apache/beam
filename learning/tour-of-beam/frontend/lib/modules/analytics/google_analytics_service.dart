@@ -78,28 +78,6 @@ class TobGoogleAnalyticsService extends BeamAnalyticsService
     );
   }
 
-  @override
-  Future<void> positiveFeedback(String feedback) async {
-    await _safeSendEvent(
-      AnalyticsEvent(
-        action: TobAnalyticsEvents.positiveFeedback,
-        category: TobAnalyticsCategories.feedback,
-        label: feedback,
-      ),
-    );
-  }
-
-  @override
-  Future<void> negativeFeedback(String feedback) async {
-    await _safeSendEvent(
-      AnalyticsEvent(
-        action: TobAnalyticsEvents.negativeFeedback,
-        category: TobAnalyticsCategories.feedback,
-        label: feedback,
-      ),
-    );
-  }
-
   Future<void> _safeSendEvent(AnalyticsEvent analyticsEvent) async {
     try {
       await _analytics.sendEvent(

@@ -16,7 +16,15 @@
  * limitations under the License.
  */
 
-class GenericAnalyticsEvents {
+class BeamAnalyticsEvents {
   static const run = 'click_run';
+  static const clickCancelRun = 'click_cancel_run';
   static const modifySnippet = 'modify_example';
+  static const clickSendPositiveFeedback = 'click_send_positive_feedback';
+  static const clickSendNegativeFeedback = 'click_send_negative_feedback';
+  static const runTime = 'run_time';
+  static const clickReportIssue = 'click_report_issue';
+  static const clickReset = 'click_reset';
+  static const clickToggleTheme = 'click_toggle_theme';
+  static const openLink = 'open_link';
 }

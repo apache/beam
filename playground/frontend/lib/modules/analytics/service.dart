@@ -17,6 +17,7 @@
  */
 
 import 'package:get_it/get_it.dart';
+import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
 import 'package:playground_components/playground_components.dart';
 
 abstract class PlaygroundAnalyticsService extends AnalyticsService {
@@ -27,14 +28,6 @@ abstract class PlaygroundAnalyticsService extends AnalyticsService {
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk);
   void trackSelectExample(ExampleBase newExample);
   void trackClickNewExample();
-  void trackReset();
-  void trackClickToggleTheme(bool isDark);
   void trackOpenShortcutsModal();
-  void trackOpenLink(String link);
-  void trackClickEnjoyPlayground(bool isEnjoying);
-  void trackClickReportIssue();
-  void trackClickCancelRunEvent(String exampleName);
-  void trackClickSendPositiveFeedback(String feedback);
-  void trackClickSendNegativeFeedback(String feedback);
-  void trackRunTimeEvent(String exampleName, int runTimeMs);
+  void trackClickEnjoyPlayground(FeedbackRating feedbackRating);
 }

@@ -39,8 +39,8 @@ class BeamAnalyticsService implements AnalyticsService {
   Future<void> trackRunExample(String exampleName) async {
     await _safeSendEvent(
       AnalyticsEvent(
-        action: GenericAnalyticsEvents.run,
-        category: GenericAnalyticsCategories.run,
+        action: BeamAnalyticsEvents.run,
+        category: BeamAnalyticsCategories.run,
         label: exampleName,
       ),
     );
@@ -50,9 +50,96 @@ class BeamAnalyticsService implements AnalyticsService {
   Future<void> trackModifyExample(String exampleName) async {
     await _safeSendEvent(
       AnalyticsEvent(
-        action: GenericAnalyticsEvents.modifySnippet,
-        category: GenericAnalyticsCategories.example,
+        action: BeamAnalyticsEvents.modifySnippet,
+        category: BeamAnalyticsCategories.example,
         label: exampleName,
+      ),
+    );
+  }
+
+  @override
+  Future<void> trackClickSendPositiveFeedback(String feedback) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: BeamAnalyticsEvents.clickSendPositiveFeedback,
+        category: BeamAnalyticsCategories.feedback,
+        label: feedback,
+      ),
+    );
+  }
+
+  @override
+  Future<void> trackClickSendNegativeFeedback(String feedback) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: BeamAnalyticsEvents.clickSendNegativeFeedback,
+        category: BeamAnalyticsCategories.feedback,
+        label: feedback,
+      ),
+    );
+  }
+
+  @override
+  Future<void> trackClickReportIssue() async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: BeamAnalyticsEvents.clickReportIssue,
+        category: BeamAnalyticsCategories.feedback,
+      ),
+    );
+  }
+
+  @override
+  Future<void> trackClickCancelRunEvent(String exampleName) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: BeamAnalyticsEvents.clickCancelRun,
+        category: BeamAnalyticsCategories.run,
+        label: exampleName,
+      ),
+    );
+  }
+
+  @override
+  Future<void> trackRunTimeEvent(String exampleName, int runTimeMs) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: BeamAnalyticsEvents.runTime,
+        category: BeamAnalyticsCategories.run,
+        label: exampleName,
+        value: runTimeMs,
+      ),
+    );
+  }
+
+  @override
+  Future<void> trackReset() async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: BeamAnalyticsEvents.clickReset,
+        category: BeamAnalyticsCategories.common,
+      ),
+    );
+  }
+
+  @override
+  Future<void> trackClickToggleTheme({required bool isDark}) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: BeamAnalyticsEvents.clickToggleTheme,
+        category: BeamAnalyticsCategories.common,
+        label: isDark ? 'dark' : 'light',
+      ),
+    );
+  }
+
+  @override
+  Future<void> trackOpenLink(String link) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: BeamAnalyticsEvents.openLink,
+        category: BeamAnalyticsCategories.link,
+        label: link,
       ),
     );
   }

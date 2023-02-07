@@ -35,8 +35,6 @@ class PlaygroundFeedback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEnjoying = _getFeedbackState(context, true).isEnjoying;
-    final isSelected = isEnjoying != null && isEnjoying;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -47,23 +45,24 @@ class PlaygroundFeedback extends StatelessWidget {
         FeedbackDropdownIconButton(
           key: thumbUpKey,
           feedbackRating: FeedbackRating.positive,
-          isSelected: isSelected,
-          onClick: _setEnjoying(context, true),
+          isSelected: _getFeedbackState(context, true).isSelected,
+          onClick: _setEnjoying(context, FeedbackRating.positive),
         ),
         FeedbackDropdownIconButton(
           key: thumbDownKey,
           feedbackRating: FeedbackRating.negative,
-          isSelected: isSelected,
-          onClick: _setEnjoying(context, false),
+          isSelected: _getFeedbackState(context, true).isSelected,
+          onClick: _setEnjoying(context, FeedbackRating.negative),
         ),
       ],
     );
   }
 
-  _setEnjoying(BuildContext context, bool isEnjoying) {
+  _setEnjoying(BuildContext context, FeedbackRating feedbackRating) {
     return () {
-      _getFeedbackState(context, false).setEnjoying(isEnjoying);
-      PlaygroundAnalyticsService.get().trackClickEnjoyPlayground(isEnjoying);
+      _getFeedbackState(context, false).setEnjoying(feedbackRating);
+      PlaygroundAnalyticsService.get()
+          .trackClickEnjoyPlayground(feedbackRating);
     };
   }
 

@@ -17,16 +17,19 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
 
 const kFeedbackKey = 'feedback';
 
 class FeedbackState with ChangeNotifier {
-  bool? isEnjoying;
+  FeedbackRating? feedbackRating;
+  bool get isSelected =>
+      feedbackRating != null && feedbackRating == FeedbackRating.positive;
 
   FeedbackState();
 
-  setEnjoying(bool isEnjoying) {
-    this.isEnjoying = isEnjoying;
+  setEnjoying(FeedbackRating feedbackRating) {
+    this.feedbackRating = feedbackRating;
     notifyListeners();
   }
 }

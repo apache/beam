@@ -21,6 +21,4 @@ class TobAnalyticsEvents {
   static const closeUnit = 'close_unit';
   static const completeUnit = 'complete_unit';
   static const completeModule = 'complete_module'; // ?
-  static const negativeFeedback = 'negative_feedback';
-  static const positiveFeedback = 'positive_feedback';
 }

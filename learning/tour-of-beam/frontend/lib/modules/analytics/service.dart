@@ -19,7 +19,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../models/module.dart';
 import '../../models/unit.dart';
 
 abstract class TobAnalyticsService extends AnalyticsService {
@@ -30,6 +29,4 @@ abstract class TobAnalyticsService extends AnalyticsService {
   Future<void> openUnit(Sdk sdk, UnitModel unit);
   Future<void> closeUnit(Sdk sdk, String unitId, Duration timeSpent);
   Future<void> completeUnit(Sdk sdk, UnitModel unit);
-  Future<void> positiveFeedback(String feedback);
-  Future<void> negativeFeedback(String feedback);
 }

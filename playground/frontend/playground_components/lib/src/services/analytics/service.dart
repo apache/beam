@@ -29,4 +29,12 @@ abstract class AnalyticsService {
 
   Future<void> trackRunExample(String exampleName);
   Future<void> trackModifyExample(String exampleName);
+  void trackClickSendPositiveFeedback(String feedback);
+  void trackClickSendNegativeFeedback(String feedback);
+  void trackReset();
+  void trackClickToggleTheme({required bool isDark});
+  void trackClickReportIssue();
+  void trackClickCancelRunEvent(String exampleName);
+  void trackRunTimeEvent(String exampleName, int runTimeMs);
+  void trackOpenLink(String link);
 }

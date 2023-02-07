@@ -23,6 +23,7 @@ export 'src/constants/sizes.dart';
 export 'src/controllers/example_loaders/examples_loader.dart';
 export 'src/controllers/playground_controller.dart';
 export 'src/controllers/public_notifier.dart';
+export 'src/controllers/window_close_notifier.dart';
 export 'src/enums/complexity.dart';
 export 'src/models/category_with_examples.dart';
 export 'src/models/dataset.dart';
@@ -52,6 +53,8 @@ export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';
 export 'src/router/router_delegate.dart';
 
+export 'src/services/analytics/beam/categories.dart';
+export 'src/services/analytics/beam/events.dart';
 export 'src/services/analytics/event.dart';
 export 'src/services/analytics/google_analytics_service.dart';
 export 'src/services/analytics/service.dart';

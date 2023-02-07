@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 
-class GenericAnalyticsCategories {
+class BeamAnalyticsCategories {
   static const run = 'Run Code';
   static const example = 'Example';
+  static const feedback = 'Feedback';
+  static const common = 'Common';
+  static const link = 'Link';
+  static const sdk = 'SDK';
 }
