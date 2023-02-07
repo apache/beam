@@ -71,7 +71,6 @@ def default_tensor_inference_fn(
 class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                        PredictionResult,
                                        tf.Module]):
-
   def __init__(
       self,
       model_uri: str,
@@ -151,7 +150,6 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
                                         tf.Module]):
-
   def __init__(
       self,
       model_uri: str,
