@@ -85,21 +85,9 @@ test.dependsOn "testPy38pyarrow-9"
 preCommitPyCoverage.dependsOn "testPy38pyarrow-9"
 
 // Create a test task for each minor version of pandas
-toxTask "testPy38pandas-11", "py38-pandas-11", "${posargs}"
-test.dependsOn "testPy38pandas-11"
-preCommitPyCoverage.dependsOn "testPy38pandas-11"
-
-toxTask "testPy38pandas-12", "py38-pandas-12", "${posargs}"
-test.dependsOn "testPy38pandas-12"
-preCommitPyCoverage.dependsOn "testPy38pandas-12"
-
-toxTask "testPy38pandas-13", "py38-pandas-13", "${posargs}"
-test.dependsOn "testPy38pandas-13"
-preCommitPyCoverage.dependsOn "testPy38pandas-13"
-
 toxTask "testPy38pandas-14", "py38-pandas-14", "${posargs}"
 test.dependsOn "testPy38pandas-14"
-preCommitPyCoverage.dependsOn "testPy38pandas-14"
+preCommitPy38.dependsOn "testPy38pandas-14"
 
 toxTask "testPy38pandas-15", "py38-pandas-15", "${posargs}"
 test.dependsOn "testPy38pandas-15"

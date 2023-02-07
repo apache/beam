@@ -276,7 +276,7 @@ if __name__ == '__main__':
             'freezegun>=0.3.12',
             'joblib>=1.0.1',
             'mock>=1.0.1,<3.0.0',
-            'pandas>=1.2.0,<2.0.0',
+            'pandas<2.0.0',
             'parameterized>=0.7.1,<0.9.0',
             'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
             'pyyaml>=3.12,<7.0.0',
@@ -345,15 +345,12 @@ if __name__ == '__main__':
             'azure-core >=1.7.0',
             'azure-identity >=1.12.0',
           ],
-        #(TODO): Some tests using Pandas implicitly calls inspect.stack()
-        # with python 3.10 leading to incorrect stacktrace.
-        # This can be removed once dill is updated to version > 0.3.5.1
-        # Issue: https://github.com/apache/beam/issues/23566
+        # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
         # Exclude 1.5.0 and 1.5.1 because of
         # https://github.com/pandas-dev/pandas/issues/45725
           'dataframe': [
-            'pandas>=1.2.0,<1.6,!=1.5.0,!=1.5.1;python_version<"3.10"',
-            'pandas>=1.4.3,<1.6,!=1.5.0,!=1.5.1;python_version>="3.10"'
+            'pandas<1.4.0;python_version=="3.7"',
+            'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
           ],
           'dask': [
             'dask >= 2022.6',
