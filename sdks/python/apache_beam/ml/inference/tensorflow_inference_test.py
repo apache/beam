@@ -21,11 +21,15 @@ import unittest
 
 
 import numpy
-import tensorflow as tf
 
-from apache_beam.ml.inference.sklearn_inference_test import compare_prediction_result
-from apache_beam.ml.inference.base import KeyedModelHandler, PredictionResult
-from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy, TFModelHandlerTensor
+try:
+  import tensorflow as tf
+  from apache_beam.ml.inference.sklearn_inference_test import compare_prediction_result
+  from apache_beam.ml.inference.base import KeyedModelHandler, PredictionResult
+  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy, TFModelHandlerTensor
+except ImportError:
+  raise unittest.SkipTest('PyTorch dependencies are not installed')
+
 
 class FakeTFNumpyModel:
   def predict(self, input: numpy.ndarray):

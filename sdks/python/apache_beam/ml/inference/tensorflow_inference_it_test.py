@@ -34,6 +34,7 @@ try:
 except ImportError as e:
   tf = None
 
+
 def process_outputs(filepath):
   with FileSystems().open(filepath) as f:
     lines = f.readlines()
@@ -42,8 +43,7 @@ def process_outputs(filepath):
 
 
 @unittest.skipIf(
-    tf is None,
-    'Missing dependencies. '
+    tf is None, 'Missing dependencies. '
     'Test depends on tensorflow')
 class TensorflowInference(unittest.TestCase):
   def process_input(self, row: str) -> Tuple[int, List[int]]:
@@ -51,7 +51,6 @@ class TensorflowInference(unittest.TestCase):
     label, pixels = int(data[0]), data[1:]
     pixels = [int(pixel) for pixel in pixels]
     return label, pixels
-
 
   def test_tf_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -84,7 +83,7 @@ class TensorflowInference(unittest.TestCase):
       true_label, expected_prediction = expected_outputs[i].split(',')
       self.assertEqual(predictions_dict[true_label], expected_prediction)
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
   unittest.main()
-  

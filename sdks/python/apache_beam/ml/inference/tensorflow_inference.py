@@ -32,17 +32,15 @@ from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 
-
 __all__ = [
     'TFModelHandlerNumpy',
     'TFModelHandlerTensor',
 ]
 
-TensorInferenceFn = Callable[
-    [tf.Module, Sequence[numpy.ndarray],
-      Optional[Dict[str, Any]],
-      Optional[str]],
-    Iterable[PredictionResult]]
+TensorInferenceFn = Callable[[
+  tf.Module, Sequence[numpy.ndarray], Optional[Dict[str, Any]], Optional[str]
+],
+                             Iterable[PredictionResult]]
 
 def _load_model(model_uri):
   return tf.keras.models.load_model(model_uri)
@@ -51,26 +49,26 @@ def _load_model(model_uri):
 def default_numpy_inference_fn(
     model: tf.Module,
     batch: Sequence[numpy.ndarray],
-    inference_args: Optional[Dict[str,Any]] = None,
+    inference_args: Optional[Dict[str, Any]] = None,
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = numpy.stack(batch, axis=0)
-  return  utils._convert_to_result(batch, model.predict(vectorized_batch),
-                                    model_id)
+  return  utils._convert_to_result(
+      batch, model.predict(vectorized_batch), model_id)
 
 
 def default_tensor_inference_fn(
     model: tf.Module,
     batch: Sequence[tf.Tensor],
-    inference_args: Optional[Dict[str,Any]] = None,
+    inference_args: Optional[Dict[str, Any]] = None,
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = tf.stack(batch, axis=0)
-  return utils._convert_to_result(batch, model.predict(vectorized_batch),
-                                  model_id)
+  return utils._convert_to_result(
+      batch, model.predict(vectorized_batch), model_id)
 
 
 class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
-                                             PredictionResult,
-                                             tf.Module]):
+                                       PredictionResult,
+                                       tf.Module]):
   def __init__(
       self,
       model_uri: str,
@@ -130,9 +128,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     pass
 
 
-class TFModelHandlerTensor(ModelHandler[tf.Tensor,
-                                             PredictionResult,
-                                             tf.Module]):
+class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
+                                        tf.Module]):
   def __init__(
       self,
       model_uri: str,
@@ -189,4 +186,3 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor,
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
-  
