@@ -34,7 +34,7 @@ BEAM_ROOT_DIR="../../" \
 SDK_CONFIG="../sdks.yaml" \
 BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
 BEAM_USE_WEBGRPC=yes \
-BEAM_CONCURRENCY=2 \
+BEAM_CONCURRENCY=4 \
 sdks=("java" "python" "go")
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
