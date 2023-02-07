@@ -932,7 +932,7 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
     List<ReadRowsResponse> responsesOne =
         Lists.newArrayList(
             createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.0, 0.5),
-            // Some responses may contain zero results, so we must ensure that we can are resilient
+            // Some responses may contain zero results, so we must ensure that we are resilient
             // to such responses.
             createResponse(AVRO_SCHEMA, Lists.newArrayList(), 0.5, 0.5),
             createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.5, 1.0));

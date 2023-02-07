@@ -172,7 +172,7 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
     // Values used for progress reporting.
     private double fractionConsumed;
-    private double fractionOfStreamsConsumed;
+
     private double progressAtResponseStart;
     private double progressAtResponseEnd;
     private long rowsConsumedFromCurrentResponse;
@@ -191,7 +191,6 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
       this.currentStreamIndex = 0;
       this.fractionConsumed = 0d;
-      this.fractionOfStreamsConsumed = 0d;
       this.progressAtResponseStart = 0d;
       this.progressAtResponseEnd = 0d;
       this.rowsConsumedFromCurrentResponse = 0L;
@@ -232,7 +231,10 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
     }
 
     private boolean readNextStream() throws IOException {
-      BigQueryStorageStreamBundleSource<T> source = getCurrentSource();
+      BigQueryStorageStreamBundleSource<T> source;
+      synchronized (this) {
+        source = getCurrentSource();
+      }
       if (currentStreamIndex == source.streamBundle.size()) {
         fractionConsumed = 1d;
         return false;
@@ -316,19 +318,14 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       // the rows in the current response have been consumed.
       rowsConsumedFromCurrentResponse++;
 
-      fractionConsumed =
+      double fractionOfCurrentStreamConsumed =
           progressAtResponseStart
-              + (progressAtResponseEnd - progressAtResponseStart)
-                  * rowsConsumedFromCurrentResponse
-                  * 1.0
-                  / totalRowsInCurrentResponse;
-
+              + ((progressAtResponseEnd - progressAtResponseStart)
+                  * (rowsConsumedFromCurrentResponse * 1.0 / totalRowsInCurrentResponse));
       // Assuming that each stream in the StreamBundle has approximately the same amount of data and
-      // normalizing the value of fractionConsumed.
-      fractionConsumed = fractionConsumed / source.streamBundle.size();
-
-      fractionOfStreamsConsumed = (double) currentStreamIndex / source.streamBundle.size();
-      fractionConsumed += fractionOfStreamsConsumed;
+      // NORMALIZING the value of fractionConsumed.
+      fractionConsumed =
+          (currentStreamIndex + fractionOfCurrentStreamConsumed) / source.streamBundle.size();
       return true;
     }
 
