@@ -145,7 +145,6 @@ class WatchFilePattern(beam.PTransform):
     self.file_pattern = file_pattern
     self.interval = interval
     self.stop_timestamp = stop_timestamp
-    self._latest_timestamp = None
     self._default_value = default_value
 
   def expand(self, pcoll) -> beam.PCollection[ModelMetdata]:
