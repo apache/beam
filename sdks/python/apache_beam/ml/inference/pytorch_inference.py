@@ -153,7 +153,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       model_params: Dict[str, Any],
       device: str = 'CPU',
       *,
-      inference_fn: TensorInferenceFn = default_tensor_inference_fn):
+      inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      batching_kwargs: Dict[str, Any] = {}):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -188,6 +189,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self._model_class = model_class
     self._model_params = model_params
     self._inference_fn = inference_fn
+    self._batching_kwargs = batching_kwargs
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -249,6 +251,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
 
 
 def default_keyed_tensor_inference_fn(
@@ -327,7 +332,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       model_params: Dict[str, Any],
       device: str = 'CPU',
       *,
-      inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn):
+      inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn,
+      batching_kwargs: Dict[str, Any] = {}):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage::
@@ -366,6 +372,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     self._model_class = model_class
     self._model_params = model_params
     self._inference_fn = inference_fn
+    self._batching_kwargs = batching_kwargs
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -429,3 +436,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
