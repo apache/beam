@@ -778,8 +778,8 @@ def python_sdk_docker_capabilities():
 
 
 def sdk_base_version_capability():
-  return SDK_VERSION_CAPABILITY_PREFIX + DockerEnvironment.default_docker_image(
-  )
+  return (
+      SDK_VERSION_CAPABILITY_PREFIX + DockerEnvironment.default_docker_image())
 
 
 def _python_sdk_capabilities_iter():

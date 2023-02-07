@@ -828,7 +828,7 @@ def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
   # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
 
   runtime_sdk = environments.sdk_base_version_capability()
-  for _, t in process_bundle_descriptor.transforms.items():
+  for t in process_bundle_descriptor.transforms.values():
     env = process_bundle_descriptor.environments[t.environment_id]
     for c in env.capabilities:
       if (c.startswith(environments.SDK_VERSION_CAPABILITY_PREFIX) and
