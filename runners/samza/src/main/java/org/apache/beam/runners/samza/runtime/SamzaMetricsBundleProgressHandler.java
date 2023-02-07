@@ -151,9 +151,7 @@ class SamzaMetricsBundleProgressHandler implements BundleProgressHandler {
         break;
 
       default:
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Unsupported metric type {}", monitoringInfo.getType());
-        }
+        LOG.debug("Unsupported metric type {}", monitoringInfo.getType());
     }
     return transformUniqueName;
   }
