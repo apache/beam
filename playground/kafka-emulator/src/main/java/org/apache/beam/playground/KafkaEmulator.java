@@ -15,56 +15,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.playground;
 
 import net.manub.embeddedkafka.EmbeddedK;
 import net.manub.embeddedkafka.EmbeddedKafka$;
 import net.manub.embeddedkafka.EmbeddedKafkaConfig;
 import net.manub.embeddedkafka.EmbeddedKafkaConfig$;
-
 import scala.collection.immutable.Map;
 
 public class KafkaEmulator {
   public static void main(java.lang.String[] args) {
-    EmbeddedKafkaConfig config = new EmbeddedKafkaConfig() {
-      @Override
-      public int numberOfThreads() {
-        return 1;
-      }
+    EmbeddedKafkaConfig config =
+        new EmbeddedKafkaConfig() {
+          @Override
+          public int numberOfThreads() {
+            return 1;
+          }
 
-      @Override
-      public Map<String, String> customProducerProperties() {
-        return EmbeddedKafkaConfig$.MODULE$.defaultConfig().customProducerProperties();
-      }
+          @Override
+          public Map<String, String> customProducerProperties() {
+            return EmbeddedKafkaConfig$.MODULE$.defaultConfig().customProducerProperties();
+          }
 
-      @Override
-      public int zooKeeperPort() {
-        return 0;
-      }
+          @Override
+          public int zooKeeperPort() {
+            return 0;
+          }
 
-      @Override
-      public Map<String, String> customBrokerProperties() {
-        return EmbeddedKafkaConfig$.MODULE$.defaultConfig().customBrokerProperties();
-      }
+          @Override
+          public Map<String, String> customBrokerProperties() {
+            return EmbeddedKafkaConfig$.MODULE$.defaultConfig().customBrokerProperties();
+          }
 
-      @Override
-      public int kafkaPort() {
-        return 0;
-      }
+          @Override
+          public int kafkaPort() {
+            return 0;
+          }
 
-      @Override
-      public Map<String, String> customConsumerProperties() {
-        return EmbeddedKafkaConfig$.MODULE$.defaultConfig().customConsumerProperties();
-      }
-    };
+          @Override
+          public Map<String, String> customConsumerProperties() {
+            return EmbeddedKafkaConfig$.MODULE$.defaultConfig().customConsumerProperties();
+          }
+        };
 
     EmbeddedK embeddedK = EmbeddedKafka$.MODULE$.start(config);
     System.out.println("Port: " + EmbeddedKafka$.MODULE$.kafkaPort(embeddedK.broker()));
 
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      System.out.println("Shutting down...");
-      EmbeddedKafka$.MODULE$.stop();
-    }));
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  System.out.println("Shutting down...");
+                  EmbeddedKafka$.MODULE$.stop();
+                }));
   }
 }

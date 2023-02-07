@@ -17,7 +17,7 @@ package emulators
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
-	"context"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,7 +35,6 @@ import (
 )
 
 const (
-	brokerCount        = 1
 	addressSeperator   = ":"
 	pauseDuration      = 100 * time.Millisecond
 	globalDuration     = 120 * time.Second
@@ -46,20 +45,14 @@ const (
 )
 
 type KafkaMockCluster struct {
-	cmd  *exec.Cmd
-	host string
-	port string
+	cmd                *exec.Cmd
+	host               string
+	port               string
+	preparerParameters map[string]string
 }
 
-func NewKafkaMockCluster(ctx context.Context) (*KafkaMockCluster, error) {
-	//cluster, err := kafka.NewMockCluster(brokerCount)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//bootstrapServers := cluster.BootstrapServers()
-
-	// TODO: read path from environment
-	cmd := exec.Command /*Context(ctx, */ ("java", "-jar", "/home/ts/src/beam/playground/kafka-emulator/build/libs/beam-playground-kafka-emulator-2.46.0-SNAPSHOT.jar")
+func NewKafkaMockCluster(emulatorExecutablePath string) (*KafkaMockCluster, error) {
+	cmd := exec.Command("java", "-jar", emulatorExecutablePath)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -70,59 +63,46 @@ func NewKafkaMockCluster(ctx context.Context) (*KafkaMockCluster, error) {
 		return nil, err
 	}
 
-	go func() {
-		for {
-			buf := make([]byte, 256)
-			n, _ := stderr.Read(buf)
-			if n > 0 {
-				logger.Infof("Emulator: %s", string(buf))
-			}
-		}
-	}()
-
-	//errChan := make(chan error) // TODO: So what?
-
-	//go func() {
-	//	err := cmd.Run()
-	//	if err != nil {
-	//		logger.Errorf("Emulator error: %v", err)
-	//		errChan <- err
-	//	}
-	//	logger.Infof("Emulator stopped")
-	//}()
-
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
 	}
 
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			logger.Infof("Emulator: %s", scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			logger.Errorf("Failed to read stderr: %s", err.Error())
+		}
+	}()
+
 	const host = "127.0.0.1"
 	var port string
 
-	// TODO: read timeout from constant
-	timeoutCtx, cancelFunc := context.WithTimeout(ctx, globalDuration)
-	defer cancelFunc()
+	stdoutScanner := bufio.NewScanner(stdout)
 
-	// Emulator prints port it's opened on stdout, wait for this data
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			return nil, timeoutCtx.Err()
-		default:
-		}
-
-		line := make([]byte, 12, 12)
-		n, err := stdout.Read(line)
-		if err != nil {
-			return nil, err
-		}
-		if n > 0 {
-			_, err = fmt.Sscanf(string(line), "Port: %s", &port)
-			if err != nil {
-				return nil, err
+	stdoutScanner.Scan()
+	line := stdoutScanner.Text()
+	if err := stdoutScanner.Err(); err != nil {
+		if cmd.ProcessState != nil && !cmd.ProcessState.Exited() {
+			if killErr := cmd.Process.Kill(); killErr != nil {
+				logger.Errorf("failed to kill emulator: %s", killErr.Error())
+				return nil, killErr
 			}
-			break
 		}
+		return nil, err
+	}
+	_, err = fmt.Sscanf(line, "Port: %s", &port)
+	if err != nil {
+		if cmd.ProcessState != nil && !cmd.ProcessState.Exited() {
+			if killErr := cmd.Process.Kill(); killErr != nil {
+				logger.Errorf("failed to kill emulator: %s", killErr.Error())
+				return nil, killErr
+			}
+		}
+		return nil, err
 	}
 
 	bootstrapServersArr := []string{host, port}
@@ -135,9 +115,10 @@ func NewKafkaMockCluster(ctx context.Context) (*KafkaMockCluster, error) {
 		case <-workTicker.C:
 			if _, err = net.DialTimeout(networkType, bootstrapServers, pauseDuration); err == nil {
 				return &KafkaMockCluster{
-					cmd:  cmd,
-					host: bootstrapServersArr[0],
-					port: bootstrapServersArr[1]}, nil
+					cmd:                cmd,
+					host:               bootstrapServersArr[0],
+					port:               bootstrapServersArr[1],
+					preparerParameters: make(map[string]string)}, nil
 			}
 		case <-globalTicker.C:
 			return nil, errors.New("timeout while a mock cluster is starting")
@@ -165,11 +146,12 @@ func (kmc *KafkaMockCluster) GetAddress() string {
 }
 
 type KafkaProducer struct {
-	//cluster  *KafkaMockCluster
+	cluster  *KafkaMockCluster
 	producer *kafka.Producer
 }
 
 func NewKafkaProducer(cluster *KafkaMockCluster) (*KafkaProducer, error) {
+	logger.Infof("Kafka server: %s", cluster.GetAddress())
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
 		bootstrapServerKey: cluster.GetAddress(),
 		"acks":             "all",
@@ -177,7 +159,7 @@ func NewKafkaProducer(cluster *KafkaMockCluster) (*KafkaProducer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &KafkaProducer{ /*cluster: cluster,*/ producer: p}, nil
+	return &KafkaProducer{cluster: cluster, producer: p}, nil
 }
 
 func (kp *KafkaProducer) ProduceDatasets(datasets []*DatasetDTO) error {
@@ -261,4 +243,8 @@ func unmarshallDatasets(dataset *DatasetDTO) ([]map[string]interface{}, error) {
 		return nil, errors.New("wrong dataset extension")
 	}
 	return entries, nil
+}
+
+func (kmc *KafkaMockCluster) GetPreparerParameters() map[string]string {
+	return kmc.preparerParameters
 }

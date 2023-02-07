@@ -16,7 +16,6 @@
 package emulators
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path"
@@ -29,15 +28,22 @@ import (
 type EmulatorMockCluster interface {
 	Stop()
 	GetAddress() string
+	GetPreparerParameters() map[string]string
 }
 
 type EmulatorProducer interface {
 	ProduceDatasets(datasets []*DatasetDTO) error
 }
 
-func PrepareMockClustersAndGetPrepareParams(datasetsPath string, datasets []*pb.Dataset) ([]EmulatorMockCluster, map[string]string, error) {
+type EmulatorConfiguration struct {
+	KafkaEmulatorExecutablePath string
+	DatasetsPath                string
+	Datasets                    []*pb.Dataset
+}
+
+func PrepareMockClusters(configuration EmulatorConfiguration) ([]EmulatorMockCluster, error) {
 	datasetsByEmulatorTypeMap := map[pb.EmulatorType][]*pb.Dataset{}
-	for _, dataset := range datasets {
+	for _, dataset := range configuration.Datasets {
 		datasets, ok := datasetsByEmulatorTypeMap[dataset.Type]
 		if !ok {
 			datasets = make([]*pb.Dataset, 0)
@@ -49,44 +55,44 @@ func PrepareMockClustersAndGetPrepareParams(datasetsPath string, datasets []*pb.
 		datasetsByEmulatorTypeMap[dataset.Type] = datasets
 	}
 
-	var prepareParams = make(map[string]string)
 	var mockClusters = make([]EmulatorMockCluster, 0)
 	for emulatorType, datasets := range datasetsByEmulatorTypeMap {
 		switch emulatorType {
 		case pb.EmulatorType_EMULATOR_TYPE_KAFKA:
-			kafkaMockCluster, err := NewKafkaMockCluster(context.Background())
+			kafkaMockCluster, err := NewKafkaMockCluster(configuration.KafkaEmulatorExecutablePath)
 			if err != nil {
 				logger.Errorf("failed to run a kafka mock cluster, %v", err)
-				return nil, nil, err
+				return nil, err
 			}
 			mockClusters = append(mockClusters, kafkaMockCluster)
-			datasetDTOs, err := toDatasetDTOs(datasetsPath, datasets)
+			datasetDTOs, err := toDatasetDTOs(configuration.DatasetsPath, datasets)
 			if err != nil {
 				logger.Errorf("failed to get datasets from the repository, %v", err)
-				return nil, nil, err
+				kafkaMockCluster.Stop()
+				return nil, err
 			}
 			producer, err := NewKafkaProducer(kafkaMockCluster)
 			if err != nil {
 				logger.Errorf("failed to create a producer, %v", err)
 				kafkaMockCluster.Stop()
-				return nil, nil, err
+				return nil, err
 			}
 			if err = producer.ProduceDatasets(datasetDTOs); err != nil {
 				logger.Errorf("failed to produce a dataset, %v", err)
 				kafkaMockCluster.Stop()
-				return nil, nil, err
+				return nil, err
 			}
 			for _, dataset := range datasets {
 				for k, v := range dataset.Options {
-					prepareParams[k] = v
+					kafkaMockCluster.preparerParameters[k] = v
 				}
 			}
-			prepareParams[constants.BootstrapServerKey] = kafkaMockCluster.GetAddress()
+			kafkaMockCluster.preparerParameters[constants.BootstrapServerKey] = kafkaMockCluster.GetAddress()
 		default:
-			return nil, nil, errors.New("unsupported emulator type")
+			return nil, errors.New("unsupported emulator type")
 		}
 	}
-	return mockClusters, prepareParams, nil
+	return mockClusters, nil
 }
 
 func toDatasetDTOs(datasetsPath string, datasets []*pb.Dataset) ([]*DatasetDTO, error) {

@@ -30,7 +30,6 @@ import (
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
-	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/executors"
@@ -56,7 +55,7 @@ const (
 // - In case of run step is failed saves playground.Status_STATUS_RUN_ERROR as cache.Status and run logs as cache.RunError into cache.
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
-func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string, datasets []*pb.Dataset) {
+func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string) {
 	pipelineLifeCycleCtx, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
@@ -74,25 +73,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	var kafkaMockCluster emulators.EmulatorMockCluster
-	defer func() {
-		if kafkaMockCluster != nil {
-			kafkaMockCluster.Stop()
-		}
-	}()
-
-	var prepareParams = make(map[string]string)
-	if len(datasets) != 0 {
-		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(appEnv.DatasetsPath(), datasets)
-		if err != nil {
-			logger.Errorf("Failed to start mock emulator: %v", err)
-			return
-		}
-		kafkaMockCluster = kafkaMockClusters[0]
-		prepareParams = prepareParamsVal
-	}
-
-	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel, prepareParams)
+	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel, lc.GetPreparerParameters())
 	if executor == nil {
 		return
 	}
@@ -523,6 +504,7 @@ func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 	if err := lc.DeleteFolders(); err != nil {
 		logger.Error("%s: DeleteResources(): %s\n", pipelineId, err.Error())
 	}
+	lc.StopEmulators()
 	logger.Infof("%s: DeleteResources() complete\n", pipelineId)
 	logger.Infof("%s: complete\n", pipelineId)
 

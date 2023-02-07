@@ -15,6 +15,7 @@
 package main
 
 import (
+	"beam.apache.org/playground/backend/internal/emulators"
 	"context"
 	"errors"
 
@@ -111,7 +112,13 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		})
 	}
 
-	lc, err := life_cycle.Setup(info.Sdk, sources, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir())
+	emulatorConfiguration := emulators.EmulatorConfiguration{
+		Datasets:                    info.Datasets,
+		DatasetsPath:                controller.env.ApplicationEnvs.DatasetsPath(),
+		KafkaEmulatorExecutablePath: controller.env.ApplicationEnvs.KafkaExecutablePath(),
+	}
+
+	lc, err := life_cycle.Setup(info.Sdk, sources, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), emulatorConfiguration)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, cerrors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
@@ -139,7 +146,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, cerrors.InternalError("Error during preparing", "Internal error")
 	}
 
-	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions, info.Datasets)
+	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
