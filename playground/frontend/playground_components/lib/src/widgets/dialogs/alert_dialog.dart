@@ -16,61 +16,64 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../playground_components.dart';
 
 class BeamAlertDialog extends StatelessWidget {
-  final String? body;
+  final String? text;
   final String continueLabel;
   final VoidCallback onContinue;
   final String title;
 
   const BeamAlertDialog({
-    this.body,
     required this.continueLabel,
     required this.onContinue,
     required this.title,
+    this.text,
   });
 
   @override
   Widget build(BuildContext context) {
-    return OverlayBody(
-      child: Container(
-        width: BeamSizes.popupWidth,
-        padding: const EdgeInsets.all(BeamSizes.size16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            if (body != null)
-              Padding(
-                padding: const EdgeInsets.only(top: BeamSizes.size8),
-                child: Text(body!),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: OverlayBody(
+        child: Container(
+          width: BeamSizes.popupWidth,
+          padding: const EdgeInsets.all(BeamSizes.size16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-            const SizedBox(height: BeamSizes.size8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  // TODO(nausharipov): review: translate in PGC?
-                  child: const Text('Cancel'),
+              if (text != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: BeamSizes.size8),
+                  child: Text(text!),
                 ),
-                const SizedBox(width: BeamSizes.size8),
-                TextButton(
-                  onPressed: onContinue,
-                  child: Text(continueLabel),
-                ),
-              ],
-            ),
-          ],
+              const SizedBox(height: BeamSizes.size8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text('dialogs.cancel').tr(),
+                  ),
+                  const SizedBox(width: BeamSizes.size8),
+                  TextButton(
+                    onPressed: onContinue,
+                    child: Text(continueLabel),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

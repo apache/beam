@@ -47,16 +47,13 @@ class SolutionButton extends StatelessWidget {
           // TODO(nausharipov): resolve the conflict with save user code
           showDialog(
             context: context,
-            builder: (context) => Dialog(
-              backgroundColor: Colors.transparent,
-              child: BeamAlertDialog(
-                continueLabel: 'pages.tour.showSolution'.tr(),
-                title: 'pages.tour.solveYourself'.tr(),
-                onContinue: () {
-                  tourNotifier.toggleShowingSolution();
-                  Navigator.pop(context);
-                },
-              ),
+            builder: (context) => BeamAlertDialog(
+              continueLabel: 'pages.tour.showSolution'.tr(),
+              title: 'pages.tour.solveYourself'.tr(),
+              onContinue: () {
+                tourNotifier.toggleShowingSolution();
+                Navigator.pop(context);
+              },
             ),
           );
         },

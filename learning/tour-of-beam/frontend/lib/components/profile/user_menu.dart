@@ -129,20 +129,17 @@ class _Buttons extends StatelessWidget {
             closeOverlayCallback();
             showDialog(
               context: context,
-              builder: (context) => Dialog(
-                backgroundColor: Colors.transparent,
-                child: BeamAlertDialog(
-                  body: 'dialogs.deleteAccountWarning'.tr(),
-                  continueLabel: 'ui.deleteMyAccount'.tr(),
-                  title: 'ui.deleteTobAccount'.tr(),
-                  onContinue: () {
-                    authNotifier.deleteAccount().then(
-                      (_) {
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
+              builder: (context) => BeamAlertDialog(
+                text: 'dialogs.deleteAccountWarning'.tr(),
+                continueLabel: 'ui.deleteMyAccount'.tr(),
+                title: 'ui.deleteTobAccount'.tr(),
+                onContinue: () {
+                  authNotifier.deleteAccount().then(
+                    (_) {
+                      Navigator.pop(context);
+                    },
+                  );
+                },
               ),
             );
           },
