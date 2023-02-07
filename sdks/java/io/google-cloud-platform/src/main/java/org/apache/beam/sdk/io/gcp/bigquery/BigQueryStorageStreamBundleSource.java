@@ -167,8 +167,8 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
     private @Nullable BigQueryServerStream<ReadRowsResponse> responseStream = null;
     private @Nullable Iterator<ReadRowsResponse> responseIterator = null;
     private @Nullable T current = null;
-    private int currentStreamIndex;
-    private long currentOffset;
+    private int currentStreamBundleIndex;
+    private long currentStreamOffset;
 
     // Values used for progress reporting.
     private double fractionOfStreamBundleConsumed;
@@ -189,7 +189,7 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       this.parseFn = source.parseFn;
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
-      this.currentStreamIndex = 0;
+      this.currentStreamBundleIndex = 0;
       this.fractionOfStreamBundleConsumed = 0d;
       this.progressAtResponseStart = 0d;
       this.progressAtResponseEnd = 0d;
@@ -207,12 +207,12 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
     @Override
     protected long getCurrentOffset() throws NoSuchElementException {
-      return currentStreamIndex;
+      return currentStreamBundleIndex;
     }
 
     @Override
     protected boolean isAtSplitPoint() throws NoSuchElementException {
-      if (currentOffset == 0) {
+      if (currentStreamOffset == 0) {
         return true;
       }
       return false;
@@ -226,26 +226,26 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
     @Override
     public boolean advanceImpl() throws IOException {
       Preconditions.checkStateNotNull(responseIterator);
-      currentOffset++;
+      currentStreamOffset++;
       return readNextRecord();
     }
 
     private synchronized boolean readNextStream() throws IOException {
       BigQueryStorageStreamBundleSource<T> source = getCurrentSource();
-      if (currentStreamIndex == source.streamBundle.size()) {
+      if (currentStreamBundleIndex == source.streamBundle.size()) {
         fractionOfStreamBundleConsumed = 1d;
         return false;
       }
       ReadRowsRequest request =
           ReadRowsRequest.newBuilder()
-              .setReadStream(source.streamBundle.get(currentStreamIndex).getName())
-              .setOffset(currentOffset)
+              .setReadStream(source.streamBundle.get(currentStreamBundleIndex).getName())
+              .setOffset(currentStreamOffset)
               .build();
       tableReference = BigQueryUtils.toTableReference(source.readSession.getTable());
       serviceCallMetric = BigQueryUtils.readCallMetric(tableReference);
       LOG.info(
           "Started BigQuery Storage API read from stream {}.",
-          source.streamBundle.get(currentStreamIndex).getName());
+          source.streamBundle.get(currentStreamBundleIndex).getName());
       responseStream = storageClient.readRows(request, source.readSession.getTable());
       responseIterator = responseStream.iterator();
       return readNextRecord();
@@ -255,13 +255,13 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
     private boolean readNextRecord() throws IOException {
       Iterator<ReadRowsResponse> responseIterator = this.responseIterator;
       if (responseIterator == null) {
-        LOG.info("Received null responseIterator for stream {}", currentStreamIndex);
+        LOG.info("Received null responseIterator for stream {}", currentStreamBundleIndex);
         return false;
       }
       while (reader.readyForNextReadResponse()) {
         if (!responseIterator.hasNext()) {
-          currentOffset = 0;
-          currentStreamIndex++;
+          currentStreamOffset = 0;
+          currentStreamBundleIndex++;
           return readNextStream();
         }
 
@@ -322,7 +322,7 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       // Assuming that each Stream in the StreamBundle has approximately the same amount of data and
       // NORMALIZING the value of fractionOfCurrentStreamConsumed.
       fractionOfStreamBundleConsumed =
-          (currentStreamIndex + fractionOfCurrentStreamConsumed) / source.streamBundle.size();
+          (currentStreamBundleIndex + fractionOfCurrentStreamConsumed) / source.streamBundle.size();
       return true;
     }
 
