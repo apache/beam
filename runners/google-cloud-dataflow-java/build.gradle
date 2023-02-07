@@ -556,11 +556,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
-  exclude '**/SpannerChangeStreamIT.class'
-  exclude '**/SpannerChangeStreamOrderedWithinKeyIT.class'
-  exclude '**/SpannerChangeStreamOrderedWithinKeyGloballyIT.class'
-  exclude '**/SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.class'
-  exclude '**/SpannerChangeStreamTransactionBoundariesIT.class'
+  exclude '**/gcp/spanner/changestreams/it/*.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)

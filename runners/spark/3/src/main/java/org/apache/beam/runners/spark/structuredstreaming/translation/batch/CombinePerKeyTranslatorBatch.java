@@ -69,6 +69,10 @@ class CombinePerKeyTranslatorBatch<K, InT, AccT, OutT>
     extends TransformTranslator<
         PCollection<KV<K, InT>>, PCollection<KV<K, OutT>>, Combine.PerKey<K, InT, OutT>> {
 
+  CombinePerKeyTranslatorBatch() {
+    super(0.2f);
+  }
+
   @Override
   public void translate(Combine.PerKey<K, InT, OutT> transform, Context cxt) {
     WindowingStrategy<?, ?> windowing = cxt.getInput().getWindowingStrategy();

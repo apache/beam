@@ -1553,7 +1553,7 @@ class BeamModulePlugin implements Plugin<Project> {
             if (project.file("/opt/cprof/profiler_java_agent.so").exists()) {
               def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
               def userName = System.getProperty("user.name").toLowerCase().replaceAll(" ", "_")
-              jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + System.currentTimeMillis() + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
+              jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + String.format('%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS_%1$tL', System.currentTimeMillis()) + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
             }
           } else {
             // We filter for only Apache Beam benchmarks to ensure that we aren't
@@ -2392,7 +2392,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "python_port": pythonPort
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
-      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
+      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
       def javaContainerSuffix
       if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
         javaContainerSuffix = 'java8'
@@ -2534,9 +2534,13 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn setupTask
         dependsOn config.startJobServer
       }
-      mainTask.configure{dependsOn goTask}
-      cleanupTask.configure{mustRunAfter goTask}
-      config.cleanupJobServer.configure{mustRunAfter goTask}
+      // CrossLanguageValidatesRunnerTask is setup under python sdk but also runs tasks not involving
+      // python versions. set 'skipNonPythonTask' property to avoid duplicated run of these tasks.
+      if (!(project.hasProperty('skipNonPythonTask') && project.skipNonPythonTask == 'true')) {
+        mainTask.configure { dependsOn goTask }
+      }
+      cleanupTask.configure { mustRunAfter goTask }
+      config.cleanupJobServer.configure { mustRunAfter goTask }
     }
 
     /** ***********************************************************************************************/
@@ -2795,7 +2799,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.getVersionSuffix = { String version ->
-        return version == '2.7' ? '2' : version.replace('.', '')
+        return version.replace('.', '')
       }
 
       project.ext.getVersionsAsList = { String propertyName ->
