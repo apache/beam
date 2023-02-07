@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-
 import argparse
 import logging
 from typing import Iterable, Tuple
@@ -42,10 +41,12 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
   """
+
   def process(self, element: Tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = numpy.argmax(prediction_result.inference, axis=0)
     yield '{},{}'.format(label, prediction)
+
 
 def parse_known_args(argv):
   """Parses args for the workflow."""
@@ -110,4 +111,3 @@ def run(
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   run()
-  
