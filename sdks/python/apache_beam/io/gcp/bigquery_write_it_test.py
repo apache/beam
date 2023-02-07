@@ -623,13 +623,9 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           self.project)
 
   @pytest.mark.it_postcommit
-<<<<<<< HEAD
   @pytest.mark.bq_xlang
   @pytest.mark.uses_python_expansion_service
   @pytest.mark.uses_java_expansion_service
-=======
-  @pytest.mark.uses_python_expansion_service
->>>>>>> e8719192b3f604eae1ab68d681953612c2d14528
   def test_xlang_storage_write(self):
     table_id = '{}:{}.python_xlang_storage_write'.format(
         self.project, self.dataset_id)
