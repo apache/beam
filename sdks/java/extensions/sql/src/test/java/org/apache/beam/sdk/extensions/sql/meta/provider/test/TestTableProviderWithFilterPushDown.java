@@ -68,8 +68,6 @@ public class TestTableProviderWithFilterPushDown {
   private static final List<RelOptRule> rulesWithPushDown =
       ImmutableList.of(
           BeamCalcRule.INSTANCE,
-          CoreRules.FILTER_CALC_MERGE,
-          CoreRules.PROJECT_CALC_MERGE,
           BeamIOPushDownRule.INSTANCE,
           CoreRules.FILTER_TO_CALC,
           CoreRules.PROJECT_TO_CALC,
