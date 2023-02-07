@@ -30,10 +30,10 @@
 #     - pytorch
 
 import requests
-import os 
+import os
 import os.path
 import urllib
-import json  
+import json
 import io
 import subprocess
 import shutil
@@ -74,29 +74,36 @@ dir_blip = os.getcwd() + "/BLIP"
 dir_clip = os.getcwd() + '/clip-vit-base-patch32'
 
 print("Installing CLIP dependencies\n")
-_ = subprocess.run(['git','clone', 'https://huggingface.co/openai/clip-vit-base-patch32'])
-clip_feature_extractor_config_path = os.getcwd()+ '/clip-vit-base-patch32/preprocessor_config.json'
-clip_tokenizer_vocab_config_path = os.getcwd()+ '/clip-vit-base-patch32/vocab.json'
-clip_merges_config_path = os.getcwd()+ '/clip-vit-base-patch32/merges.txt'
-clip_model_config_path = os.getcwd()+ '/clip-vit-base-patch32/config.json'
-clip_state_dict_path = os.getcwd()+ '/clip-vit-base-patch32/pytorch_model.bin'
+_ = subprocess.run(
+    ['git', 'clone', 'https://huggingface.co/openai/clip-vit-base-patch32'])
+clip_feature_extractor_config_path = os.getcwd(
+) + '/clip-vit-base-patch32/preprocessor_config.json'
+clip_tokenizer_vocab_config_path = os.getcwd() + '/clip-vit-base-patch32/vocab.json'
+clip_merges_config_path = os.getcwd() + '/clip-vit-base-patch32/merges.txt'
+clip_model_config_path = os.getcwd() + '/clip-vit-base-patch32/config.json'
+clip_state_dict_path = os.getcwd() + '/clip-vit-base-patch32/pytorch_model.bin'
 
 print("Installing BLIP dependencies\n")
-_=subprocess.run(['git','clone', 'https://github.com/salesforce/BLIP'])
+_ = subprocess.run(['git', 'clone', 'https://github.com/salesforce/BLIP'])
 os.chdir(dir_blip)
 sys.path.append(dir_blip)
 from models.blip import blip_decoder
 if not os.path.exists('model*_base_caption.pth'):
-  _ = subprocess.run(['gdown','https://storage.googleapis.com/sfr-vision-language-research/BLIP/models/model*_base_caption.pth'])
+  _ = subprocess.run(
+      ['gdown', 'https://storage.googleapis.com/sfr-vision-language-research/BLIP/models/model*_base_caption.pth'])
 blip_state_dict_path = 'blip_state_dict.pth'
-torch.save(torch.load('model*_base_caption.pth')['model'], blip_state_dict_path)
+torch.save(torch.load('model*_base_caption.pth')
+           ['model'], blip_state_dict_path)
 
 print("Installing I/O helper functions\n")
+
+
 class ReadImagesFromUrl(beam.DoFn):
   """
   Read an image from a given URL and return a tuple of the images_url
   and image data.
   """
+
   def process(self, element: str) -> Tuple[str, Image.Image]:
     response = requests.get(element)
     image = Image.open(BytesIO(response.content)).convert('RGB')
@@ -107,6 +114,7 @@ class FormatCaptions(beam.DoFn):
   """
   Print the image name and its most relevant captions after CLIP ranking.
   """
+
   def __init__(self, number_of_top_captions: int):
     self._number_of_top_captions = number_of_top_captions
 
@@ -117,9 +125,11 @@ class FormatCaptions(beam.DoFn):
     print(f'Image: {img_name}')
     print(f'\tTop {self._number_of_top_captions} captions ranked by CLIP:')
     for caption_rank, caption_prob_pair in enumerate(caption_list):
-      print(f'\t\t{caption_rank+1}: {caption_prob_pair[0]}. (Caption probability: {caption_prob_pair[1]:.2f})')
+      print(
+          f'\t\t{caption_rank+1}: {caption_prob_pair[0]}. (Caption probability: {caption_prob_pair[1]:.2f})')
     print('\n')
-     
+
+
 # Define the preprocessing and postprocessing functions for each of the models.
 print("Defining BLIP functions")
 
@@ -138,35 +148,40 @@ class PreprocessBLIPInput(beam.DoFn):
     self._captions_per_image = captions_per_image
 
   def setup(self):
-    
+
     # Initialize the image transformer.
     self._transform = transforms.Compose([
-      transforms.Resize((384, 384),interpolation=InterpolationMode.BICUBIC),
-      transforms.ToTensor(),
-      transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
+        transforms.Resize((384, 384), interpolation=InterpolationMode.BICUBIC),
+        transforms.ToTensor(),
+        transforms.Normalize((0.48145466, 0.4578275, 0.40821073),
+                             (0.26862954, 0.26130258, 0.27577711))
     ])
 
   def process(self, element):
-    image_url, image = element 
+    image_url, image = element
     # The following lines provide a workaround to turn off BatchElements.
     preprocessed_img = self._transform(image).unsqueeze(0)
-    preprocessed_img = preprocessed_img.repeat(self._captions_per_image, 1, 1, 1)
+    preprocessed_img = preprocessed_img.repeat(
+        self._captions_per_image, 1, 1, 1)
     # Parse the processed input to a dictionary to a format suitable for RunInference.
     preprocessed_dict = {'inputs': preprocessed_img}
 
     return [(image_url, preprocessed_dict)]
 
+
 class PostprocessBLIPOutput(beam.DoFn):
   """
   Process the PredictionResult to get the generated image captions
   """
-  def process(self, element : Tuple[str, Iterable[PredictionResult]]):
-    image_url, prediction = element 
+
+  def process(self, element: Tuple[str, Iterable[PredictionResult]]):
+    image_url, prediction = element
 
     return [(image_url, prediction.inference)]
-     
+
 
 print("Defining CLIP functions")
+
 
 class PreprocessCLIPInput(beam.DoFn):
 
@@ -183,35 +198,35 @@ class PreprocessCLIPInput(beam.DoFn):
                merges_file_config_path: str):
 
     self._feature_extractor_config_path = feature_extractor_config_path
-    self._tokenizer_vocab_config_path = tokenizer_vocab_config_path 
+    self._tokenizer_vocab_config_path = tokenizer_vocab_config_path
     self._merges_file_config_path = merges_file_config_path
 
-
   def setup(self):
-    
+
     # Initialize the CLIP feature extractor.
-    feature_extractor_config = CLIPConfig.from_pretrained(self._feature_extractor_config_path)
+    feature_extractor_config = CLIPConfig.from_pretrained(
+        self._feature_extractor_config_path)
     feature_extractor = CLIPFeatureExtractor(feature_extractor_config)
 
     # Initialize the CLIP tokenizer.
     tokenizer = CLIPTokenizer(self._tokenizer_vocab_config_path,
                               self._merges_file_config_path)
-    
+
     # Initialize the CLIP processor used to process the image-caption pair.
     self._processor = CLIPProcessor(feature_extractor=feature_extractor,
                                     tokenizer=tokenizer)
 
   def process(self, element: Tuple[str, Dict[str, List[Any]]]):
 
-    image_url, image_captions_pair = element 
+    image_url, image_captions_pair = element
     # Unpack the image and captions after grouping them with 'CoGroupByKey()'.
     image = image_captions_pair['image'][0]
     captions = image_captions_pair['captions'][0]
-    preprocessed_clip_input = self._processor(images = image,
-                                              text = captions,
+    preprocessed_clip_input = self._processor(images=image,
+                                              text=captions,
                                               return_tensors="pt",
                                               padding=True)
-    
+
     image_url_caption_pair = (image_url, captions)
     return [(image_url_caption_pair, preprocessed_clip_input)]
 
@@ -226,12 +241,14 @@ class RankCLIPOutput(beam.DoFn):
   order with respect to the probabilities as a caption-probability pair. 
   """
 
-  def process(self, element : Tuple[Tuple[str, List[str]], Iterable[PredictionResult]]):
+  def process(self, element: Tuple[Tuple[str, List[str]], Iterable[PredictionResult]]):
     (image_url, captions), prediction = element
     prediction_results = prediction.inference
-    prediction_probs = prediction_results.softmax(dim=-1).cpu().detach().numpy()
+    prediction_probs = prediction_results.softmax(
+        dim=-1).cpu().detach().numpy()
     ranking = np.argsort(-prediction_probs)
-    sorted_caption_prob_pair = [(captions[idx], prediction_probs[idx]) for idx in ranking]
+    sorted_caption_prob_pair = [
+        (captions[idx], prediction_probs[idx]) for idx in ranking]
 
     return [(image_url, sorted_caption_prob_pair)]
 
@@ -239,17 +256,19 @@ class RankCLIPOutput(beam.DoFn):
 
 
 class PytorchNoBatchModelHandlerKeyedTensor(PytorchModelHandlerKeyedTensor):
-      """Wrapper to PytorchModelHandler to limit batch size to 1.
-    The caption strings generated from the BLIP tokenizer might have different
-    lengths. Different length strings don't work with torch.stack() in the current RunInference
-    implementation, because stack() requires tensors to be the same size.
-    Restricting max_batch_size to 1 means there is only 1 example per `batch`
-    in the run_inference() call.
-    """
-      # The following lines provide a workaround to turn off BatchElements.
-      def batch_elements_kwargs(self):
-          return {'max_batch_size': 1}
-     
+  """Wrapper to PytorchModelHandler to limit batch size to 1.
+The caption strings generated from the BLIP tokenizer might have different
+lengths. Different length strings don't work with torch.stack() in the current RunInference
+implementation, because stack() requires tensors to be the same size.
+Restricting max_batch_size to 1 means there is only 1 example per `batch`
+in the run_inference() call.
+"""
+  # The following lines provide a workaround to turn off BatchElements.
+
+  def batch_elements_kwargs(self):
+    return {'max_batch_size': 1}
+
+
 print("Generating captions with BLIP")
 
 MAX_CAPTION_LENGTH = 80
@@ -264,9 +283,9 @@ class BLIPWrapper(torch.nn.Module):
    Wrapper around the BLIP model to overwrite the default "forward" method with the "generate" method, because BLIP uses the 
   "generate" method to produce the image captions.
   """
-  
+
   def __init__(self, base_model: blip_decoder, num_beams: int, max_length: int,
-                min_length: int):
+               min_length: int):
     super().__init__()
     self._model = base_model()
     self._num_beams = num_beams
@@ -296,8 +315,10 @@ BLIP_model_handler = PytorchNoBatchModelHandlerKeyedTensor(
     device='CPU')
 
 BLIP_keyed_model_handler = KeyedModelHandler(BLIP_model_handler)
-     
+
 print("Ranking captions with CLIP")
+
+
 class CLIPWrapper(CLIPModel):
 
   def forward(self, **kwargs: Dict[str, torch.Tensor]):
@@ -312,21 +333,23 @@ class CLIPWrapper(CLIPModel):
 CLIP_model_handler = PytorchNoBatchModelHandlerKeyedTensor(
     state_dict_path=clip_state_dict_path,
     model_class=CLIPWrapper,
-    model_params={'config': CLIPConfig.from_pretrained(clip_model_config_path)},
+    model_params={'config': CLIPConfig.from_pretrained(
+        clip_model_config_path)},
     device='CPU')
 
 CLIP_keyed_model_handler = KeyedModelHandler(CLIP_model_handler)
+
 
 def main():
   print("Running pipeline\n")
   images_url = ['https://storage.googleapis.com/apache-beam-samples/image_captioning/Paris-sunset.jpeg',
                 'https://storage.googleapis.com/apache-beam-samples/image_captioning/Wedges.jpeg',
                 'https://storage.googleapis.com/apache-beam-samples/image_captioning/Hamsters.jpeg']
-      
-  print('Input images:\n' \
-          'https://storage.googleapis.com/apache-beam-samples/image_captioning/Paris-sunset.jpeg\n' \
-          'https://storage.googleapis.com/apache-beam-samples/image_captioning/Wedges.jpeg\n' \
-          'https://storage.googleapis.com/apache-beam-samples/image_captioning/Hamsters.jpeg\n')
+
+  print('Input images:\n'
+        'https://storage.googleapis.com/apache-beam-samples/image_captioning/Paris-sunset.jpeg\n'
+        'https://storage.googleapis.com/apache-beam-samples/image_captioning/Wedges.jpeg\n'
+        'https://storage.googleapis.com/apache-beam-samples/image_captioning/Hamsters.jpeg\n')
   # Number of captions generated per image.
   NUM_CAPTIONS_PER_IMAGE = 10
 
@@ -335,28 +358,30 @@ def main():
   with beam.Pipeline() as pipeline:
 
     read_images = (
-              pipeline 
-              | "ReadUrl" >> beam.Create(images_url)
-              | "ReadImages" >> beam.ParDo(ReadImagesFromUrl()))
+        pipeline
+        | "ReadUrl" >> beam.Create(images_url)
+        | "ReadImages" >> beam.ParDo(ReadImagesFromUrl()))
 
     blip_caption_generation = (
-              read_images
-              | "PreprocessBlipInput" >> beam.ParDo(PreprocessBLIPInput(NUM_CAPTIONS_PER_IMAGE)) 
-              | "GenerateCaptions" >> RunInference(BLIP_keyed_model_handler)
-              | "PostprocessCaptions" >> beam.ParDo(PostprocessBLIPOutput()))
+        read_images
+        | "PreprocessBlipInput" >> beam.ParDo(PreprocessBLIPInput(NUM_CAPTIONS_PER_IMAGE))
+        | "GenerateCaptions" >> RunInference(BLIP_keyed_model_handler)
+        | "PostprocessCaptions" >> beam.ParDo(PostprocessBLIPOutput()))
 
     clip_captions_ranking = (
-              ({'image' : read_images, 'captions': blip_caption_generation})
-              | "CreateImageCaptionPair" >> beam.CoGroupByKey()
-              | "PreprocessClipInput" >> beam.ParDo(
-                  PreprocessCLIPInput(
-                      clip_feature_extractor_config_path,
-                      clip_tokenizer_vocab_config_path,
-                      clip_merges_config_path))
-              | "GetRankingLogits" >> RunInference(CLIP_keyed_model_handler)
-              | "RankClipOutput" >> beam.ParDo(RankCLIPOutput()))
+        ({'image': read_images, 'captions': blip_caption_generation})
+        | "CreateImageCaptionPair" >> beam.CoGroupByKey()
+        | "PreprocessClipInput" >> beam.ParDo(
+            PreprocessCLIPInput(
+                clip_feature_extractor_config_path,
+                clip_tokenizer_vocab_config_path,
+                clip_merges_config_path))
+        | "GetRankingLogits" >> RunInference(CLIP_keyed_model_handler)
+        | "RankClipOutput" >> beam.ParDo(RankCLIPOutput()))
 
-    clip_captions_ranking | "FormatCaptions" >> beam.ParDo(FormatCaptions(NUM_TOP_CAPTIONS_TO_DISPLAY))    
+    clip_captions_ranking | "FormatCaptions" >> beam.ParDo(
+        FormatCaptions(NUM_TOP_CAPTIONS_TO_DISPLAY))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
@@ -364,6 +389,8 @@ if __name__ == '__main__':
     main()
   finally:
     if os.path.exists(dir_clip):
+      pass
       shutil.rmtree(dir_clip)
-    if os.path.exists(dir_blip):  
+    if os.path.exists(dir_blip):
+      pass
       shutil.rmtree(dir_blip)
