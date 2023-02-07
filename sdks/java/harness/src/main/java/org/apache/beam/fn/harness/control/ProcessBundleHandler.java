@@ -156,7 +156,7 @@ public class ProcessBundleHandler {
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
   private final Set<String> runnerCapabilities;
 
-  private DataSampler dataSampler;
+  private final DataSampler dataSampler;
 
   public ProcessBundleHandler(
       PipelineOptions options,
