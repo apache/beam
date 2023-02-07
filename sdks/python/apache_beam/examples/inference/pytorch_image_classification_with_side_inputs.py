@@ -15,17 +15,14 @@
 # limitations under the License.
 #
 
-# pylint: skip-file
-
 import argparse
 import io
 import logging
 import os
 from typing import Iterable
-from typing import Tuple
+from typing import Iterator
 from typing import Optional
-
-import torchvision.models
+from typing import Tuple
 
 import apache_beam as beam
 import torch
@@ -34,11 +31,13 @@ from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
+from apache_beam.ml.inference.utils import WatchFilePattern
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 from apache_beam.transforms import window
-from apache_beam.ml.inference.utils import WatchFilePattern
 from PIL import Image
+from torchvision import models
 from torchvision import transforms
 
 
@@ -65,93 +64,129 @@ def preprocess_image(data: Image.Image) -> torch.Tensor:
   return transform(data)
 
 
+def filter_empty_lines(text: str) -> Iterator[str]:
+  if len(text.strip()) > 0:
+    yield text
+
+
 class PostProcessor(beam.DoFn):
-  """Process the PredictionResult to get the predicted label.
-  Returns a comma separated string with true label and predicted label.
-  """
-  def process(self, element: Tuple[int, PredictionResult]) -> Iterable[str]:
-    label, prediction_result = element
-    prediction = prediction_result.inference
-    yield '{},{}'.format(label, prediction)
-
-
-def run(argv=None, save_main_session=True, test_pipeline=None):
-  """Entry point for running the pipeline."""
-  known_args, pipeline_args = parse_known_args(argv)
-  pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-
-  interval = known_args.interval
-  file_pattern = known_args.file_pattern
-
-  pipeline = test_pipeline
-  if not test_pipeline:
-    pipeline = beam.Pipeline(options=pipeline_options)
-
-  si_pcoll = pipeline | WatchFilePattern(
-      file_pattern=file_pattern,
-      interval=interval,
-      default_value=known_args.model_path)
-
-  model_handler = KeyedModelHandler(
-      PytorchModelHandlerTensor(
-          state_dict_path=known_args.model_path,
-          model_class=torchvision.models.resnet152,
-          model_params={'num_classes': 1000}))
-
-  label_pixel_tuple = (
-      pipeline
-      | "ReadFromPubSub" >> beam.io.ReadFromPubSub(known_args.topic)
-      | "ApplyMainInputWindow" >> beam.WindowInto(
-          beam.transforms.window.FixedWindows(interval))
-      | "ReadImageData" >>
-      beam.Map(lambda image_name: read_image(image_file_name=image_name))
-      | "PreprocessImages" >> beam.MapTuple(
-          lambda file_name, data: (file_name, preprocess_image(data))))
-
-  predictions = (
-      label_pixel_tuple
-      | "RunInference" >> RunInference(
-          model_handler=model_handler, model_metadata_pcoll=si_pcoll)
-      | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
-
-  predictions | beam.Map(logging.info)
-
-  # _ = predictions | "WriteOutput" >> beam.io.WriteToText(
-  #     known_args.output, shard_name_template='', append_trailing_newlines=True)
-
-  result = pipeline.run().wait_until_finish()
-  return result
+  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
+    filename, prediction_result = element
+    prediction = torch.argmax(prediction_result.inference, dim=0)
+    yield filename + ',' + str(prediction.item())
 
 
 def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
+      '--topic',
+      dest='topic',
+      default='projects/apache-beam-testing/topics/anandinguva-model-updates',
+      help='Path to the text file containing image names.')
+  parser.add_argument(
       '--output',
       dest='output',
       required=True,
-      help='Path to save output predictions.')
+      help='Path where to save output predictions.'
+      ' text file.')
   parser.add_argument(
       '--model_path',
       dest='model_path',
       required=True,
-      help='Path to load the Sklearn model for Inference.')
+      help="Path to the model's state_dict.")
   parser.add_argument(
-      '--topic',
-      default='projects/apache-beam-testing/topics/anandinguva-model-updates',
-      help='Path to Pub/Sub topic.')
+      '--interval',
+      default=10,
+      type=int,
+      help='Path to the directory where images are stored.')
   parser.add_argument(
       '--file_pattern',
       default='gs://apache-beam-ml/tmp/side_input_test/*.pth',
       help='Glob pattern to watch for an update.')
-  parser.add_argument(
-      '--interval',
-      default=360,
-      type=int,
-      help='interval used to look for updates on a given file_pattern.')
   return parser.parse_known_args(argv)
 
 
+def run(
+    argv=None,
+    model_class=None,
+    model_params=None,
+    save_main_session=True,
+    device='CPU',
+    test_pipeline=None) -> PipelineResult:
+  """
+  Args:
+    argv: Command line arguments defined for this example.
+    model_class: Reference to the class definition of the model.
+    model_params: Parameters passed to the constructor of the model_class.
+                  These will be used to instantiate the model object in the
+                  RunInference API.
+    save_main_session: Used for internal testing.
+    device: Device to be used on the Runner. Choices are (CPU, GPU).
+    test_pipeline: Used for internal testing.
+  """
+  known_args, pipeline_args = parse_known_args(argv)
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+
+  # if not model_class:
+  # default model class will be mobilenet with pretrained weights.
+  if not model_class:
+    model_class = models.resnet152
+    model_params = {'num_classes': 1000}
+
+  class PytorchModelHandlerTensorWithBatchSize(PytorchModelHandlerTensor):
+    def batch_elements_kwargs(self):
+      return {'min_batch_size': 10, 'max_batch_size': 100}
+
+  # In this example we pass keyed inputs to RunInference transform.
+  # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
+  model_handler = KeyedModelHandler(
+      PytorchModelHandlerTensorWithBatchSize(
+          state_dict_path=known_args.model_path,
+          model_class=model_class,
+          model_params=model_params,
+          device=device))
+
+  pipeline = test_pipeline
+  if not test_pipeline:
+    pipeline = beam.Pipeline(options=pipeline_options)
+
+  side_input = pipeline | WatchFilePattern(
+      interval=known_args.interval,
+      default_value=known_args.model_path,
+      file_pattern=known_args.file_pattern)
+
+  filename_value_pair = (
+      pipeline
+      | 'ReadImageNamesFromPubSub' >> beam.io.ReadFromPubSub(known_args.topic)
+      | 'MainInputFixedWindows' >> beam.WindowInto(window.FixedWindows(1))
+      | 'DecodeBytes' >> beam.Map(lambda x: x.decode('utf-8'))
+      | 'ReadImageData' >>
+      beam.Map(lambda image_name: read_image(image_file_name=image_name))
+      | 'PreprocessImages' >> beam.MapTuple(
+          lambda file_name, data: (file_name, preprocess_image(data))))
+  predictions = (
+      filename_value_pair
+      | 'PyTorchRunInference' >> RunInference(
+          model_handler, model_metadata_pcoll=side_input)
+      # | 'ProcessOutput' >> beam.ParDo(PostProcessor())
+  )
+
+  _ = predictions | beam.Map(logging.info)
+
+  #  change this to ReadFromPubSub
+
+  # predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+  #   known_args.output,
+  #   shard_name_template='',
+  #   append_trailing_newlines=True)
+
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
+
+
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   run()
