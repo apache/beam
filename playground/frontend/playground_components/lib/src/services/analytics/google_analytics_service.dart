@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import 'package:usage/usage_html.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 import 'beam/categories.dart';
 import 'beam/events.dart';
@@ -24,13 +24,10 @@ import 'event.dart';
 import 'service.dart';
 
 class BeamAnalyticsService implements AnalyticsService {
-  late AnalyticsHtml _appAnalytics;
+  late FirebaseAnalytics _appAnalytics;
 
-  BeamAnalyticsService({
-    required AnalyticsHtml appAnalytics,
-  }) {
-    _appAnalytics = appAnalytics;
-  }
+  // TODO(nausharipov): review: removed usage package to make test tasks work.
+  BeamAnalyticsService();
 
   @override
   AnalyticsEvent? lastSentEvent;
@@ -146,12 +143,8 @@ class BeamAnalyticsService implements AnalyticsService {
 
   Future<void> _safeSendEvent(AnalyticsEvent analyticsEvent) async {
     try {
-      await _appAnalytics.sendEvent(
-        analyticsEvent.category,
-        analyticsEvent.action,
-        label: analyticsEvent.label,
-        value: analyticsEvent.value,
-        parameters: analyticsEvent.parameters,
+      await _appAnalytics.logEvent(
+        name: analyticsEvent.action,
       );
       lastSentEvent = analyticsEvent;
     } on Exception catch (e) {

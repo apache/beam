@@ -33,6 +33,7 @@ dependencies:
   easy_localization_ext: ^0.1.0
   easy_localization_loader: ^1.0.0
   equatable: ^2.0.5
+  firebase_analytics: ^10.1.0
   firebase_auth: ^4.1.1
   firebase_auth_platform_interface: ^6.11.7
   firebase_core: ^2.1.1

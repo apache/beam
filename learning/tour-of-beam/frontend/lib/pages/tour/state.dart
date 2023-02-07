@@ -31,6 +31,7 @@ import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 import '../../modules/analytics/google_analytics_service.dart';
 import '../../state.dart';
+import '../../window_close_notifier.dart';
 import 'controllers/content_tree.dart';
 import 'controllers/unit.dart';
 import 'path.dart';

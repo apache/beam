@@ -21,6 +21,14 @@ import 'dart:html';
 
 import 'package:flutter/material.dart';
 
+// TODO(nausharipov): review
+// Moved the file from PGC, because it causes test failure:
+// Error: The getter 'window' isn't defined for the class 'WindowCloseNotifier'.
+//  - 'WindowCloseNotifier' is from 'package:playground_components/src/controllers/window_close_notifier.dart' ('lib/src/controllers/window_close_notifier.dart').
+// Try correcting the name to the name of an existing getter, or defining a getter or field named 'window'.
+//     window.onBeforeUnload.listen((_) {
+//     ^^^^^^
+
 class WindowCloseNotifier extends ChangeNotifier {
   WindowCloseNotifier() {
     window.onBeforeUnload.listen((_) {

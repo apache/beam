@@ -36,14 +36,8 @@ class TobGoogleAnalyticsService extends BeamAnalyticsService
     return GetIt.instance.get<TobGoogleAnalyticsService>();
   }
 
-  TobGoogleAnalyticsService()
-      : super(
-          appAnalytics: AnalyticsHtml(
-            kAnalyticsUA,
-            _appName,
-            _appVersion,
-          ),
-        );
+// TODO(nausharipov): review: removed usage package to make test tasks work.
+  TobGoogleAnalyticsService();
 
   @override
   Future<void> openUnit(Sdk sdk, UnitModel unit) async {

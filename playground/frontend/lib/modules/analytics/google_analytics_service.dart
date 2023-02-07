@@ -29,14 +29,8 @@ class PlaygroundGoogleAnalyticsService extends BeamAnalyticsService
   static const _appVersion = '1.0';
   final _analytics = AnalyticsHtml(kAnalyticsUA, _appName, _appVersion);
 
-  PlaygroundGoogleAnalyticsService()
-      : super(
-          appAnalytics: AnalyticsHtml(
-            kAnalyticsUA,
-            _appName,
-            _appVersion,
-          ),
-        );
+// TODO(nausharipov): review: removed usage package to make test tasks work.
+  PlaygroundGoogleAnalyticsService();
 
   @override
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk) {
