@@ -18,7 +18,7 @@
 
 import argparse
 import logging
-from typing import Iterable, List, Tuple
+from typing import Iterable, Tuple
 
 import numpy
 
@@ -26,7 +26,6 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import KeyedModelHandler, PredictionResult, RunInference
 from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
-
 from apache_beam.runners.runner import PipelineResult
 
 
@@ -111,3 +110,4 @@ def run(
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   run()
+  

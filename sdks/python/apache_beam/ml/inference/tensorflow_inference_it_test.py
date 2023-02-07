@@ -17,22 +17,22 @@
 
 """End-to-End test for Tensorflow Inference"""
 
-from cgi import test
-from typing import Tuple
 import logging
+
+from typing import Tuple
 from typing import List
+
 import unittest
 import uuid
 
-
-import pytest
-
-import apache_beam as beam
-from apache_beam.examples.inference import tensorflow_mnist_classification
 from apache_beam.io.filesystems import FileSystems
-
 from apache_beam.testing.test_pipeline import TestPipeline
 
+try:
+  import tensorflow as tf
+  from apache_beam.examples.inference import tensorflow_mnist_classification
+except ImportError as e:
+  tf = None
 
 def process_outputs(filepath):
   with FileSystems().open(filepath) as f:
@@ -41,17 +41,21 @@ def process_outputs(filepath):
   return lines
 
 
+@unittest.skipIf(
+    tf is None,
+    'Missing dependencies. '
+    'Test depends on tensorflow')
 class TensorflowInference(unittest.TestCase):
   def process_input(self, row: str) -> Tuple[int, List[int]]:
     data = row.split(',')
     label, pixels = int(data[0]), data[1:]
     pixels = [int(pixel) for pixel in pixels]
     return label, pixels
-  
-      
+
+
   def test_tf_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    input_file = 'gs://clouddfe-riteshghorse/tf/mnist/dataset/testing_inputs_it_mnist_data.csv'
+    input_file = 'gs://clouddfe-riteshghorse/tf/mnist/dataset/testing_inputs_it_mnist_data.csv'  # pylint: disable=line-too-long
     output_file_dir = 'gs://clouddfe-riteshghorse/tf/mnist/output/'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
     model_path = 'gs://clouddfe-riteshghorse/tf/mnist/model/'
@@ -64,7 +68,7 @@ class TensorflowInference(unittest.TestCase):
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
-    
+
     expected_output_filepath = 'gs://clouddfe-riteshghorse/tf/mnist/output/testing_expected_outputs_test_sklearn_mnist_classification_actuals.txt'  # pylint: disable=line-too-long
     expected_outputs = process_outputs(expected_output_filepath)
 
@@ -83,3 +87,4 @@ class TensorflowInference(unittest.TestCase):
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
   unittest.main()
+  

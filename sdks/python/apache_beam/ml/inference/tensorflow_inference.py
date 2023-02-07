@@ -17,24 +17,21 @@
 
 # pytype: skip-file
 
-import logging
-from collections import defaultdict
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import sys
-from apache_beam.ml.inference import utils 
-import tensorflow as tf
 import numpy
-from apache_beam.io.filesystems import FileSystems
+import tensorflow as tf
+
+from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
+
 
 __all__ = [
     'TFModelHandlerNumpy',
@@ -42,7 +39,9 @@ __all__ = [
 ]
 
 TensorInferenceFn = Callable[
-    [tf.Module, Sequence[numpy.ndarray], Optional[Dict[str, Any]], Optional[str]],
+    [tf.Module, Sequence[numpy.ndarray],
+      Optional[Dict[str, Any]],
+      Optional[str]],
     Iterable[PredictionResult]]
 
 def _load_model(model_uri):
@@ -55,7 +54,8 @@ def default_numpy_inference_fn(
     inference_args: Optional[Dict[str,Any]] = None,
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = numpy.stack(batch, axis=0)
-  return  utils._convert_to_result(batch, model.predict(vectorized_batch), model_id)
+  return  utils._convert_to_result(batch, model.predict(vectorized_batch),
+                                    model_id)
 
 
 def default_tensor_inference_fn(
@@ -64,7 +64,9 @@ def default_tensor_inference_fn(
     inference_args: Optional[Dict[str,Any]] = None,
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = tf.stack(batch, axis=0)
-  return utils._convert_to_result(batch, model.predict(vectorized_batch), model_id)
+  return utils._convert_to_result(batch, model.predict(vectorized_batch),
+                                  model_id)
+
 
 class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                              PredictionResult,
@@ -83,7 +85,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_uri = model_path if model_path else self._model_uri
-    
+
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
@@ -94,14 +96,14 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Runs inferences on a batch of numpy array and returns an Iterable of
     numpy array Predictions.
 
-    This method stacks the n-dimensional np-array in a vectorized format to optimize
-    the inference call.
+    This method stacks the n-dimensional np-array in a vectorized format to
+    optimize the inference call.
 
     Args:
       batch: A sequence of numpy nd-array. These should be batchable, as this
-        method will call `numpy.stack()` and pass in batched numpy nd-array with
-        dimensions (batch_size, n_features, etc.) into the model's forward()
-        function.
+        method will call `numpy.stack()` and pass in batched numpy nd-array
+        with dimensions (batch_size, n_features, etc.) into the model's
+        forward() function.
       model: A TF model.
       inference_args: any additional arguments for an inference.
 
@@ -145,7 +147,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor,
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_uri = model_path if model_path else self._model_uri
-    
+
   def run_inference(
       self,
       batch: Sequence[tf.Tensor],
@@ -187,3 +189,4 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor,
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
+  
