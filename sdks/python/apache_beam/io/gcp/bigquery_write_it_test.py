@@ -23,8 +23,8 @@
 import base64
 import datetime
 import logging
-import secrets
 import os
+import secrets
 import time
 import unittest
 from decimal import Decimal
@@ -586,7 +586,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = '%s%s%d' % (
+    self.dataset_id = '%s%s%s' % (
         self.BIGQUERY_DATASET, str(int(time.time())), secrets.token_hex(3))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     _LOGGER.info(

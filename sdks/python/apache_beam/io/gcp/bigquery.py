@@ -2325,7 +2325,7 @@ class StorageWriteToBigQuery(PTransform):
       result = (p
             | 'Create items' >> beam.Create(items)
             | 'Write data' >> StorageWriteToBigQuery(
-                                          table="project:dataset.table"))
+                                table="project:dataset.table"))
       _ = (result['failed_rows_with_errors']
            | 'Format errors' >> beam.Map(
                                 lambda e: "failed row id: %s, error: %s" %
