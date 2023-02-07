@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+from cmath import inf
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -74,6 +75,22 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_uri: str,
       *,
       inference_fn: TensorInferenceFn = default_numpy_inference_fn):
+    """Implementation of the ModelHandler interface for Tensorflow.
+
+    Example Usage::
+
+      pcoll | RunInference(TFModelHandlerNumpy(model_uri="my_uri"))
+
+    See https://www.tensorflow.org/tutorials/keras/save_and_load for details.
+    
+    Args:
+        model_uri (str): path to the trained model.
+        inference_fn (TensorInferenceFn, optional): inference function to use
+          during RunInference. Defaults to default_numpy_inference_fn.
+          
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+    with Tensorflow 2.11.
+    """
     self._model_uri = model_uri
     self._inference_fn = inference_fn
 
@@ -94,20 +111,22 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Runs inferences on a batch of numpy array and returns an Iterable of
     numpy array Predictions.
 
-    This method stacks the n-dimensional np-array in a vectorized format to
+    This method stacks the n-dimensional numpy array in a vectorized format to
     optimize the inference call.
 
     Args:
       batch: A sequence of numpy nd-array. These should be batchable, as this
         method will call `numpy.stack()` and pass in batched numpy nd-array
         with dimensions (batch_size, n_features, etc.) into the model's
-        forward() function.
-      model: A TF model.
+        predict() function.
+      model: A Tensorflow model.
       inference_args: any additional arguments for an inference.
 
     Returns:
       An Iterable of type PredictionResult.
     """
+    inference_args = {} if not inference_args else inference_args
+    
     return self._inference_fn(model, batch, inference_args, self._model_uri)
 
   def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
@@ -135,6 +154,22 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       model_uri: str,
       *,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn):
+    """Implementation of the ModelHandler interface for Tensorflow.
+
+    Example Usage::
+
+      pcoll | RunInference(TFModelHandlerTensor(model_uri="my_uri"))
+
+    See https://www.tensorflow.org/tutorials/keras/save_and_load for details.
+    
+    Args:
+        model_uri (str): path to the trained model.
+        inference_fn (TensorInferenceFn, optional): inference function to use
+          during RunInference. Defaults to default_numpy_inference_fn.
+          
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+    with Tensorflow 2.11.
+    """
     self._model_uri = model_uri
     self._inference_fn = inference_fn
 
@@ -154,12 +189,14 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     """
     Runs inferences on a batch of tf.Tensor and returns an Iterable of
     Tensor Predictions.
+    
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
+    
     Args:
       batch: A sequence of Tensors. These Tensors should be batchable, as this
         method will call `tf.stack()` and pass in batched Tensors with
-        dimensions (batch_size, n_features, etc.) into the model's forward()
+        dimensions (batch_size, n_features, etc.) into the model's predict()
         function.
       model: A Tensorflow model.
       inference_args: Non-batchable arguments required as inputs to the model's
@@ -186,3 +223,4 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
+  

@@ -22,12 +22,14 @@ import logging
 from typing import Tuple
 from typing import List
 
+import pytest
 import unittest
 import uuid
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
   from apache_beam.examples.inference import tensorflow_mnist_classification
@@ -46,12 +48,8 @@ def process_outputs(filepath):
     tf is None, 'Missing dependencies. '
     'Test depends on tensorflow')
 class TensorflowInference(unittest.TestCase):
-  def process_input(self, row: str) -> Tuple[int, List[int]]:
-    data = row.split(',')
-    label, pixels = int(data[0]), data[1:]
-    pixels = [int(pixel) for pixel in pixels]
-    return label, pixels
-
+  @pytest.mark.uses_tensorflow
+  @pytest.mark.it_postcommit
   def test_tf_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://clouddfe-riteshghorse/tf/mnist/dataset/testing_inputs_it_mnist_data.csv'  # pylint: disable=line-too-long
@@ -87,3 +85,4 @@ class TensorflowInference(unittest.TestCase):
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
   unittest.main()
+  
