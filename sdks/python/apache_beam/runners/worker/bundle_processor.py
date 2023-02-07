@@ -839,7 +839,7 @@ def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
             "container image, check that the Python interpreter minor version "
             "and the Apache Beam version in your image match the versions "
             "used at pipeline construction time. "
-            "Submission environment: {c}. "
+            f"Submission environment: {c}. "
             f"Runtime environment: {runtime_sdk}.")
 
   # TODO: Consider warning on mismatches in versions of installed packages.
