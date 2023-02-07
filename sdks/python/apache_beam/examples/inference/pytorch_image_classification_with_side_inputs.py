@@ -18,26 +18,51 @@
 # pylint: skip-file
 
 import argparse
+import io
+import logging
+import os
 from typing import Iterable
-from typing import List
 from typing import Tuple
+from typing import Optional
+
+import torchvision.models
 
 import apache_beam as beam
+import torch
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.transforms import window
 from apache_beam.ml.inference.utils import WatchFilePattern
+from PIL import Image
+from torchvision import transforms
 
 
-def process_input(row: str) -> Tuple[int, List[int]]:
-  data = row.split(',')
-  label, pixels = int(data[0]), data[1:]
-  pixels = [int(pixel) for pixel in pixels]
-  return label, pixels
+def read_image(image_file_name: str,
+               path_to_dir: Optional[str] = None) -> Tuple[str, Image.Image]:
+  if path_to_dir is not None:
+    image_file_name = os.path.join(path_to_dir, image_file_name)
+  with FileSystems().open(image_file_name, 'r') as file:
+    data = Image.open(io.BytesIO(file.read())).convert('RGB')
+    return image_file_name, data
+
+
+def preprocess_image(data: Image.Image) -> torch.Tensor:
+  image_size = (224, 224)
+  # Pre-trained PyTorch models expect input images normalized with the
+  # below values (see: https://pytorch.org/vision/stable/models.html)
+  normalize = transforms.Normalize(
+      mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+  transform = transforms.Compose([
+      transforms.Resize(image_size),
+      transforms.ToTensor(),
+      normalize,
+  ])
+  return transform(data)
 
 
 class PostProcessor(beam.DoFn):
@@ -69,15 +94,20 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
       default_value=known_args.model_path)
 
   model_handler = KeyedModelHandler(
-      SklearnModelHandlerNumpy(model_uri=known_args.model_path))
+      PytorchModelHandlerTensor(
+          state_dict_path=known_args.model_path,
+          model_class=torchvision.models.resnet152,
+          model_params={'num_classes': 1000}))
 
   label_pixel_tuple = (
       pipeline
       | "ReadFromPubSub" >> beam.io.ReadFromPubSub(known_args.topic)
       | "ApplyMainInputWindow" >> beam.WindowInto(
           beam.transforms.window.FixedWindows(interval))
-      | "Decode" >> beam.Map(lambda x: x.decode('utf-8'))
-      | "PreProcessInputs" >> beam.Map(process_input))
+      | "ReadImageData" >>
+      beam.Map(lambda image_name: read_image(image_file_name=image_name))
+      | "PreprocessImages" >> beam.MapTuple(
+          lambda file_name, data: (file_name, preprocess_image(data))))
 
   predictions = (
       label_pixel_tuple
@@ -85,7 +115,7 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
           model_handler=model_handler, model_metadata_pcoll=si_pcoll)
       | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
 
-  predictions | beam.Map(print)
+  predictions | beam.Map(logging.info)
 
   # _ = predictions | "WriteOutput" >> beam.io.WriteToText(
   #     known_args.output, shard_name_template='', append_trailing_newlines=True)
@@ -97,11 +127,6 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
 def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
-  parser.add_argument(
-      '--input',
-      dest='input',
-      required=True,
-      help='text file with comma separated int values.')
   parser.add_argument(
       '--output',
       dest='output',
@@ -118,7 +143,7 @@ def parse_known_args(argv):
       help='Path to Pub/Sub topic.')
   parser.add_argument(
       '--file_pattern',
-      default='gs://apache-beam-ml/tmp/side_input_test/*.pickle',
+      default='gs://apache-beam-ml/tmp/side_input_test/*.pth',
       help='Glob pattern to watch for an update.')
   parser.add_argument(
       '--interval',
