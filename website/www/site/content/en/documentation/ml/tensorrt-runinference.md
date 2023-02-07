@@ -23,11 +23,11 @@ limitations under the License.
 The following example that demonstrates how to use TensorRT with the RunInference API using a BERT-based text classification model in a Beam pipeline.
 
 ## Build a TensorRT engine for inference
-To use TensorRT with Apache Beam, you need a converted TensorRT engine file from a trained model. We take a trained BERT based text classification model that does sentiment analysis, that is, it classifies any text into two classes: positive or negative. The trained model is available [from HuggingFace](https://huggingface.co/textattack/bert-base-uncased-SST-2). To convert the PyTorch Model to TensorRT engine, you need to first convert the model to ONNX and then from ONNX to TensorRT.
+To use TensorRT with Apache Beam, you need a converted TensorRT engine file from a trained model. We take a trained BERT based text classification model that does sentiment analysis and classifies any text into two classes: positive or negative. The trained model is available [from HuggingFace](https://huggingface.co/textattack/bert-base-uncased-SST-2). To convert the PyTorch Model to TensorRT engine, you need to first convert the model to ONNX and then from ONNX to TensorRT.
 
 ### Conversion to ONNX
 
-You can use the HuggingFace `transformers` library to convert a PyTorch model to ONNX. For details, see the blog post [Convert Transformers to ONNX with Hugging Face Optimum](https://huggingface.co/blog/convert-transformers-to-onnx). The blog post explains which required packages to install. The following code that is used for the conversion.
+You can use the HuggingFace `transformers` library to convert a PyTorch model to ONNX. For details, see the blog post [Convert Transformers to ONNX with Hugging Face Optimum](https://huggingface.co/blog/convert-transformers-to-onnx). The blog post explains which required packages to install. The following code is used for the conversion.
 
 ```
 from pathlib import Path
