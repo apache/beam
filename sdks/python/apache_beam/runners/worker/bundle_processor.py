@@ -26,7 +26,6 @@ import copy
 import json
 import logging
 import random
-import sys
 import threading
 from typing import TYPE_CHECKING
 from typing import Any
@@ -68,6 +67,7 @@ from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
+from apache_beam.transforms import environments
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -114,7 +114,6 @@ URNS_NEEDING_PCOLLECTIONS = set([
 ])
 
 _LOGGER = logging.getLogger(__name__)
-_PY_SDK_CAPABILITY_PREFIX = "beam:version:sdk_base:apache/beam_python"
 
 
 class RunnerIOOperation(operations.Operation):
@@ -825,36 +824,25 @@ def only_element(iterable):
   return element
 
 
-def _extract_py_version(capability):
-  return capability[len(_PY_SDK_CAPABILITY_PREFIX):].split("_sdk:")[0]
-
-
 def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
-  # type: beam_fn_api_pb2.ProcessBundleDescriptor -> None
+  # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
 
-  py_envs_at_submission = set()
-  for _, env in process_bundle_descriptor.environments.items():
+  runtime_sdk = environments.sdk_base_version_capability()
+  for _, t in process_bundle_descriptor.transforms.items():
+    env = process_bundle_descriptor.environments[t.environment_id]
     for c in env.capabilities:
-      if c.startswith(_PY_SDK_CAPABILITY_PREFIX):
-        py_envs_at_submission.add(c)
+      if (c.startswith(environments.SDK_VERSION_CAPABILITY_PREFIX) and
+          c != runtime_sdk):
+        raise RuntimeError(
+            "Pipeline construction environment and pipeline runtime "
+            "environment are not compatible. If you use a custom "
+            "container image, check that the Python interpreter minor version "
+            "and the Apache Beam version in your image match the versions "
+            "used at pipeline construction time. "
+            "Submission environment: {c}. "
+            f"Runtime environment: {runtime_sdk}.")
 
-  # Likely we have 1 env, but in theory possible to have multiple in XLang.
-  py_envs_at_submission = {
-      _extract_py_version(e)
-      for e in py_envs_at_submission
-  }
-
-  runtime_py_version = '.'.join([str(i) for i in sys.version_info[0:2]])
-
-  if py_envs_at_submission and runtime_py_version not in py_envs_at_submission:
-    raise RuntimeError(
-        "Python version mismatch between pipleine submission environment and "
-        "pipeline runtime environment. Pipleine was submitted "
-        f"from Python {py_envs_at_submission.pop()}, but execution runtime "
-        f"has Python {runtime_py_version}. If you use a custom container, "
-        "check the Python version in the container.")
-
-  # TODO: Consider cross-matching versions of apache-beam and other packages.
+  # TODO: Consider warning on mismatches in versions of installed packages.
 
 
 class BundleProcessor(object):

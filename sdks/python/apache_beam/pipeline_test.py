@@ -683,15 +683,18 @@ class PipelineTest(unittest.TestCase):
 
   def test_incompatible_submission_and_runtime_envs_fail_pipeline(self):
     with mock.patch(
-        'apache_beam.runners.worker.bundle_processor._extract_py_version',
-        return_value='2.7'):
+        'apache_beam.transforms.environments.sdk_base_version_capability'
+    ) as base_version:
+      base_version.side_effect = [
+          f"beam:version:sdk_base:apache/beam_python3.5_sdk:2.{i}.0"
+          for i in range(100)
+      ]
       with self.assertRaisesRegex(
           RuntimeError,
-          'Python version mismatch between pipleine submission environment '
-          'and pipeline runtime environment. '
-          'Pipleine was submitted from Python 2.7'):
-        with TestPipeline() as pipeline:
-          _ = pipeline | Create([None])
+          'Pipeline construction environment and pipeline runtime '
+          'environment are not compatible.'):
+        with TestPipeline() as p:
+          _ = p | Create([None])
 
 
 class DoFnTest(unittest.TestCase):
