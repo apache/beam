@@ -2325,13 +2325,12 @@ class StorageWriteToBigQuery(PTransform):
       result = (p
             | 'Create items' >> beam.Create(items)
             | 'Write data' >> StorageWriteToBigQuery(
-                table="project:dataset.table"))
-
+                                          table="project:dataset.table"))
       _ = (result['failed_rows_with_errors']
            | 'Format errors' >> beam.Map(
                                 lambda e: "failed row id: %s, error: %s" %
                                 (e.failed_row.id, e.error_message))
-           | 'Write errors' >> beam.io.WriteToText(<output>)))
+           | 'Write errors' >> beam.io.WriteToText('./output')))
   """
   URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v1"
 
@@ -2345,26 +2344,27 @@ class StorageWriteToBigQuery(PTransform):
       expansion_service=None):
     """Initialize a StorageWriteToBigQuery transform.
 
-      :param table (str): a fully-qualified table ID specified as
+      :param table: a fully-qualified table ID specified as
         ``'PROJECT:DATASET.TABLE'``
-      :param create_disposition (str): a string specifying the strategy to
+      :param create_disposition: a string specifying the strategy to
         take when the table doesn't exist. Possible values are:
 
         * ``'CREATE_IF_NEEDED'``: create if does not exist.
         * ``'CREATE_NEVER'``: fail the write if does not exist.
 
-      :param write_disposition (str): a string specifying the strategy to take
+      :param write_disposition: a string specifying the strategy to take
         when the table already contains data. Possible values are:
 
         * ``'WRITE_TRUNCATE'``: delete existing rows.
         * ``'WRITE_APPEND'``: add to existing rows.
         * ``'WRITE_EMPTY'``: fail the write if table not empty.
 
-      :param triggering_frequency (int): the time in seconds between write
+      :param triggering_frequency: the time in seconds between write
         commits. Should only be specified for streaming pipelines. Defaults
         to 5 seconds.
-      :param use_at_least_once (bool): use at-least-once semantics. Is cheaper
+      :param use_at_least_once: use at-least-once semantics. Is cheaper
         and provides lower latency, but will potentially duplicate records.
+      :param expansion_service: the address (host:port) of the expansion service
     """
     super().__init__()
     self._table = table

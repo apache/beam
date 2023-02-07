@@ -587,7 +587,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     self.bigquery_client = BigQueryWrapper()
     self.dataset_id = '%s%s%d' % (
-        self.BIGQUERY_DATASET, str(int(time.time())), random.randint(0, 10000))
+        self.BIGQUERY_DATASET, str(int(time.time())), secrets.token_hex(3))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
