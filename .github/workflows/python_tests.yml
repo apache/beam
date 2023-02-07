@@ -105,6 +105,7 @@ jobs:
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
+          { "py_ver": "3.11", "tox_env": "py311" },
         ]
     steps:
       - name: Checkout code
