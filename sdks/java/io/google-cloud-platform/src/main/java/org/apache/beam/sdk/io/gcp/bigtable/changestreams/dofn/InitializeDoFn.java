@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
  * A DoFn responsible to initialize the metadata table and prepare it for managing the state of the
  * pipeline.
  */
-@SuppressWarnings("UnusedVariable")
 public class InitializeDoFn extends DoFn<byte[], com.google.cloud.Timestamp>
     implements Serializable {
   private static final long serialVersionUID = 1868189906451252363L;
@@ -53,6 +52,25 @@ public class InitializeDoFn extends DoFn<byte[], com.google.cloud.Timestamp>
     LOG.info(daoFactory.getStreamTableDebugString());
     LOG.info(daoFactory.getMetadataTableDebugString());
     LOG.info("ChangeStreamName: " + daoFactory.getChangeStreamName());
+    if (!daoFactory
+        .getMetadataTableAdminDao()
+        .isAppProfileSingleClusterAndTransactional(this.metadataTableAppProfileId)) {
+      LOG.error(
+          "App profile id '"
+              + metadataTableAppProfileId
+              + "' provided to access metadata table needs to use single-cluster routing policy"
+              + " and allow single-row transactions.");
+      // Terminate this pipeline now.
+      return;
+    }
+    if (daoFactory.getMetadataTableAdminDao().createMetadataTable()) {
+      LOG.info("Created metadata table: " + daoFactory.getMetadataTableAdminDao().getTableId());
+    } else {
+      LOG.info(
+          "Reusing existing metadata table: " + daoFactory.getMetadataTableAdminDao().getTableId());
+    }
+
+    daoFactory.getMetadataTableDao().writeDetectNewPartitionVersion();
 
     receiver.output(startTime);
   }

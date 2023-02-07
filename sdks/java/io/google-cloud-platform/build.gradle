@@ -67,6 +67,9 @@ dependencies {
   implementation(library.java.google_cloud_bigtable_client_core) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
     exclude group: 'io.grpc', module: 'grpc-grpclb'
+    // Excluded additional modules from bigtable client core for compatibility.
+    exclude group: 'com.google.api.grpc', module: 'proto-google-cloud-bigtable-v2'
+    exclude group: 'com.google.api.grpc', module: 'grpc-google-cloud-bigtable-v2'
   }
   // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
   // Java7 compatibility. The old google-cloud-bigtable is not compatible with
@@ -132,8 +135,14 @@ dependencies {
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   implementation library.java.proto_google_cloud_bigquery_storage_v1
-  implementation library.java.proto_google_cloud_bigtable_admin_v2
-  implementation library.java.proto_google_cloud_bigtable_v2
+  // The local overrides are temporary pending https://github.com/googleapis/java-bigtable/pull/1569 is checked in and new version is released.
+  // implementation library.java.proto_google_cloud_bigtable_admin_v2
+  // implementation library.java.proto_google_cloud_bigtable_v2
+  implementation files("bigtable_local/google-cloud-bigtable-2.17.1-SNAPSHOT.jar")
+  implementation files("bigtable_local/google-cloud-bigtable-stats-2.17.1-SNAPSHOT.jar")
+  implementation files("bigtable_local/grpc-google-cloud-bigtable-v2-2.17.1-SNAPSHOT.jar")
+  implementation files("bigtable_local/proto-google-cloud-bigtable-v2-2.17.1-SNAPSHOT.jar")
+  implementation files("bigtable_local/proto-google-cloud-bigtable-admin-v2-2.17.1-SNAPSHOT.jar")
   implementation library.java.proto_google_cloud_datastore_v1
   implementation library.java.proto_google_cloud_firestore_v1
   implementation library.java.proto_google_cloud_pubsub_v1
@@ -165,6 +174,7 @@ dependencies {
   testImplementation library.java.powermock_mockito
   testImplementation library.java.joda_time
   testImplementation library.java.google_cloud_spanner_test
+  testImplementation library.java.google_cloud_bigtable_emulator
   testRuntimeOnly library.java.slf4j_jdk14
   // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
   permitUnusedDeclared library.java.everit_json_schema

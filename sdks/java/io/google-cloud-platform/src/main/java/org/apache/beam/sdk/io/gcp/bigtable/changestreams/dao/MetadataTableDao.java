@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTabl
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.NEW_PARTITION_PREFIX;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.STREAM_PARTITION_PREFIX;
 
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,10 +37,13 @@ import org.slf4j.LoggerFactory;
 public class MetadataTableDao {
   private static final Logger LOG = LoggerFactory.getLogger(MetadataTableDao.class);
 
+  private final BigtableDataClient dataClient;
   private final String tableId;
   private final ByteString changeStreamNamePrefix;
 
-  public MetadataTableDao(String tableId, ByteString changeStreamNamePrefix) {
+  public MetadataTableDao(
+      BigtableDataClient dataClient, String tableId, ByteString changeStreamNamePrefix) {
+    this.dataClient = dataClient;
     this.tableId = tableId;
     this.changeStreamNamePrefix = changeStreamNamePrefix;
   }
@@ -73,5 +78,19 @@ public class MetadataTableDao {
    */
   private ByteString getFullDetectNewPartition() {
     return changeStreamNamePrefix.concat(DETECT_NEW_PARTITION_SUFFIX);
+  }
+
+  /**
+   * Set the version number for DetectNewPartition. This value can be checked later to verify that
+   * the existing metadata table is compatible with current beam connector code.
+   */
+  public void writeDetectNewPartitionVersion() {
+    RowMutation rowMutation =
+        RowMutation.create(tableId, getFullDetectNewPartition())
+            .setCell(
+                MetadataTableAdminDao.CF_VERSION,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                MetadataTableAdminDao.CURRENT_METADATA_TABLE_VERSION);
+    dataClient.mutateRow(rowMutation);
   }
 }
