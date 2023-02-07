@@ -171,7 +171,7 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
     private long currentOffset;
 
     // Values used for progress reporting.
-    private double fractionConsumed;
+    private double fractionOfStreamBundleConsumed;
 
     private double progressAtResponseStart;
     private double progressAtResponseEnd;
@@ -190,7 +190,7 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
       this.currentStreamIndex = 0;
-      this.fractionConsumed = 0d;
+      this.fractionOfStreamBundleConsumed = 0d;
       this.progressAtResponseStart = 0d;
       this.progressAtResponseEnd = 0d;
       this.rowsConsumedFromCurrentResponse = 0L;
@@ -230,13 +230,10 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       return readNextRecord();
     }
 
-    private boolean readNextStream() throws IOException {
-      BigQueryStorageStreamBundleSource<T> source;
-      synchronized (this) {
-        source = getCurrentSource();
-      }
+    private synchronized boolean readNextStream() throws IOException {
+      BigQueryStorageStreamBundleSource<T> source = getCurrentSource();
       if (currentStreamIndex == source.streamBundle.size()) {
-        fractionConsumed = 1d;
+        fractionOfStreamBundleConsumed = 1d;
         return false;
       }
       ReadRowsRequest request =
@@ -322,9 +319,9 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
           progressAtResponseStart
               + ((progressAtResponseEnd - progressAtResponseStart)
                   * (rowsConsumedFromCurrentResponse * 1.0 / totalRowsInCurrentResponse));
-      // Assuming that each stream in the StreamBundle has approximately the same amount of data and
-      // NORMALIZING the value of fractionConsumed.
-      fractionConsumed =
+      // Assuming that each Stream in the StreamBundle has approximately the same amount of data and
+      // NORMALIZING the value of fractionOfCurrentStreamConsumed.
+      fractionOfStreamBundleConsumed =
           (currentStreamIndex + fractionOfCurrentStreamConsumed) / source.streamBundle.size();
       return true;
     }
@@ -346,7 +343,7 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
     @Override
     public synchronized Double getFractionConsumed() {
-      return fractionConsumed;
+      return fractionOfStreamBundleConsumed;
     }
   }
 }
