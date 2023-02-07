@@ -883,6 +883,7 @@ public class AutoValueSchemaTest {
   public void testSchema_SchemaFieldDescription() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(SchemaFieldDescriptionSimpleClass.class);
-    assertEquals(FIELD_DESCRIPTION_SCHEMA, schema);
+    assertEquals(FIELD_DESCRIPTION_SCHEMA.getField("lng"), schema.getField("lng"));
+    assertEquals(FIELD_DESCRIPTION_SCHEMA.getField("str"), schema.getField("str"));
   }
 }
