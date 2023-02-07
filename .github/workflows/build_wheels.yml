@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EVENT_NAME: ${{ github.event_name }}
-      PY_VERSIONS_FULL: "cp37-* cp38-* cp39-* cp310-*"
+      PY_VERSIONS_FULL: "cp37-* cp38-* cp39-* cp310-* cp311-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
