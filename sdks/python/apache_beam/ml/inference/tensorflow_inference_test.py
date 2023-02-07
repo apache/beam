@@ -19,16 +19,16 @@
 
 import unittest
 
-
 import numpy
+import pytest
 
 try:
   import tensorflow as tf
-  from apache_beam.ml.inference.sklearn_inference_test import compare_prediction_result
+  from apache_beam.ml.inference.sklearn_inference_test import _compare_prediction_result
   from apache_beam.ml.inference.base import KeyedModelHandler, PredictionResult
   from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy, TFModelHandlerTensor
 except ImportError:
-  raise unittest.SkipTest('PyTorch dependencies are not installed')
+  raise unittest.SkipTest('Tensorflow dependencies are not installed')
 
 
 class FakeTFNumpyModel:
@@ -59,9 +59,9 @@ class TFRunInferenceTest(unittest.TestCase):
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
-      self.assertTrue(compare_prediction_result(actual, expected))
+      self.assertTrue(_compare_prediction_result(actual, expected))
 
-
+  @pytest.mark.uses_tensorflow
   def test_predict_tensor(self):
     fake_model = FakeTFTensorModel()
     inference_runner = TFModelHandlerTensor(model_uri='unused')
@@ -97,8 +97,9 @@ class TFRunInferenceTest(unittest.TestCase):
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
-      self.assertTrue(compare_prediction_result(actual[1], expected[1]))
+      self.assertTrue(_compare_prediction_result(actual[1], expected[1]))
 
+  @pytest.mark.uses_tensorflow
   def test_predict_keyed_tensor(self):
     fake_model = FakeTFTensorModel()
     inference_runner = KeyedModelHandler(
