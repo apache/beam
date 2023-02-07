@@ -116,7 +116,7 @@ jobs:
           python-version: ${{ matrix.params.py_ver }}
       - name: Get build dependencies
         working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt
+        run: pip install -r build-requirements.txt --use-pep517
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix
