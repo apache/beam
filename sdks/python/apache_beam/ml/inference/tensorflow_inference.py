@@ -39,9 +39,10 @@ __all__ = [
 ]
 
 TensorInferenceFn = Callable[[
-  tf.Module, Sequence[numpy.ndarray], Optional[Dict[str, Any]], Optional[str]
+    tf.Module, Sequence[numpy.ndarray], Optional[Dict[str, Any]], Optional[str]
 ],
                              Iterable[PredictionResult]]
+
 
 def _load_model(model_uri):
   return tf.keras.models.load_model(model_uri)
@@ -53,7 +54,7 @@ def default_numpy_inference_fn(
     inference_args: Optional[Dict[str, Any]] = None,
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = numpy.stack(batch, axis=0)
-  return  utils._convert_to_result(
+  return utils._convert_to_result(
       batch, model.predict(vectorized_batch), model_id)
 
 
@@ -70,6 +71,7 @@ def default_tensor_inference_fn(
 class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                        PredictionResult,
                                        tf.Module]):
+
   def __init__(
       self,
       model_uri: str,
@@ -126,7 +128,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       An Iterable of type PredictionResult.
     """
     inference_args = {} if not inference_args else inference_args
-    
+
     return self._inference_fn(model, batch, inference_args, self._model_uri)
 
   def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
@@ -149,6 +151,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
                                         tf.Module]):
+
   def __init__(
       self,
       model_uri: str,
@@ -223,4 +226,3 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
-  

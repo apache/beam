@@ -48,6 +48,7 @@ def process_outputs(filepath):
     tf is None, 'Missing dependencies. '
     'Test depends on tensorflow')
 class TensorflowInference(unittest.TestCase):
+
   @pytest.mark.uses_tensorflow
   @pytest.mark.it_postcommit
   def test_tf_mnist_classification(self):
@@ -85,4 +86,3 @@ class TensorflowInference(unittest.TestCase):
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
   unittest.main()
-  

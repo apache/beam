@@ -32,11 +32,13 @@ except ImportError:
 
 
 class FakeTFNumpyModel:
+
   def predict(self, input: numpy.ndarray):
     return numpy.multiply(input, 10)
 
 
 class FakeTFTensorModel:
+
   def predict(self, input: tf.Tensor):
     return tf.math.multiply(input, 10)
 
@@ -46,12 +48,11 @@ def _compare_tensor_prediction_result(x, y):
 
 
 class TFRunInferenceTest(unittest.TestCase):
+
   def test_predict_numpy(self):
     fake_model = FakeTFNumpyModel()
     inference_runner = TFModelHandlerNumpy(model_uri='unused')
-    batched_examples = [
-        numpy.array([1]), numpy.array([10]), numpy.array([100])
-    ]
+    batched_examples = [numpy.array([1]), numpy.array([10]), numpy.array([100])]
     expected_predictions = [
         PredictionResult(numpy.array([1]), 10),
         PredictionResult(numpy.array([10]), 100),
@@ -71,8 +72,9 @@ class TFRunInferenceTest(unittest.TestCase):
         tf.convert_to_tensor(numpy.array([100])),
     ]
     expected_predictions = [
-        PredictionResult(ex, pred)
-          for ex, pred in zip(batched_examples,
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            batched_examples,
             [tf.math.multiply(n, 10) for n in batched_examples])
     ]
 
@@ -80,19 +82,19 @@ class TFRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual, expected))
 
-
   def test_predict_keyed_numpy(self):
     fake_model = FakeTFNumpyModel()
     inference_runner = KeyedModelHandler(
-      TFModelHandlerNumpy(model_uri='unused'))
+        TFModelHandlerNumpy(model_uri='unused'))
     batched_examples = [
-      ('k1', numpy.array([1], dtype=numpy.int64)),
-      ('k2', numpy.array([10], dtype=numpy.int64)),
-      ('k3', numpy.array([100], dtype=numpy.int64)),
+        ('k1', numpy.array([1], dtype=numpy.int64)),
+        ('k2', numpy.array([10], dtype=numpy.int64)),
+        ('k3', numpy.array([100], dtype=numpy.int64)),
     ]
     expected_predictions = [
-        (ex[0],PredictionResult(ex[1], pred))
-          for ex, pred in zip(batched_examples,
+        (ex[0], PredictionResult(ex[1], pred)) for ex,
+        pred in zip(
+            batched_examples,
             [numpy.multiply(n[1], 10) for n in batched_examples])
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
@@ -105,18 +107,20 @@ class TFRunInferenceTest(unittest.TestCase):
     inference_runner = KeyedModelHandler(
         TFModelHandlerTensor(model_uri='unused'))
     batched_examples = [
-      ('k1', tf.convert_to_tensor(numpy.array([1]))),
-      ('k2', tf.convert_to_tensor(numpy.array([10]))),
-      ('k3', tf.convert_to_tensor(numpy.array([100]))),
+        ('k1', tf.convert_to_tensor(numpy.array([1]))),
+        ('k2', tf.convert_to_tensor(numpy.array([10]))),
+        ('k3', tf.convert_to_tensor(numpy.array([100]))),
     ]
     expected_predictions = [
-        (ex[0],PredictionResult(ex[1], pred))
-          for ex, pred in zip(batched_examples,
+        (ex[0], PredictionResult(ex[1], pred)) for ex,
+        pred in zip(
+            batched_examples,
             [tf.math.multiply(n[1], 10) for n in batched_examples])
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual[1], expected[1]))
+
 
 if __name__ == '__main__':
   unittest.main()
