@@ -32,13 +32,11 @@ except ImportError:
 
 
 class FakeTFNumpyModel:
-
   def predict(self, input: numpy.ndarray):
     return numpy.multiply(input, 10)
 
 
 class FakeTFTensorModel:
-
   def predict(self, input: tf.Tensor):
     return tf.math.multiply(input, 10)
 
@@ -48,7 +46,6 @@ def _compare_tensor_prediction_result(x, y):
 
 
 class TFRunInferenceTest(unittest.TestCase):
-
   def test_predict_numpy(self):
     fake_model = FakeTFNumpyModel()
     inference_runner = TFModelHandlerNumpy(model_uri='unused')
