@@ -528,14 +528,14 @@ public class HL7v2IO {
         String transformName, PInput input, PTransform<?, ?> transform) {}
   }
 
-  /** Client for fetching HL7v2Message with handling metrics and errors. */
+  /** Client for fetching HL7v2Message with error handling and metric reporting. */
   private static class HL7v2MessageClient {
 
     private final Counter failedMessageGets =
         Metrics.counter(HL7v2MessageClient.class, "failed-message-reads");
-    private static final Logger LOG = LoggerFactory.getLogger(HL7v2MessageClient.class);
     private final Counter successfulHL7v2MessageGets =
         Metrics.counter(HL7v2MessageClient.class, "successful-hl7v2-message-gets");
+    private static final Logger LOG = LoggerFactory.getLogger(HL7v2MessageClient.class);
     private final HealthcareApiClient client;
 
     /** Instantiates a new HL7v2MessageClient. */
