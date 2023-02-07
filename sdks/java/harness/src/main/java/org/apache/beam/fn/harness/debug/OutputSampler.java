@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class OutputSampler<T> {
   private final Coder<T> coder;
-  private final List<T> buffer = new ArrayList<>();
+  private final List<T> buffer = new ArrayList<>(maxElements);
   private static final Logger LOG = LoggerFactory.getLogger(OutputSampler.class);
 
   // Maximum number of elements in buffer.

@@ -51,10 +51,10 @@ public class DataSampler {
   }
 
   // Maximum number of elements in buffer.
-  private int maxSamples = 10;
+  private final int maxSamples = 10;
 
   // Sampling rate.
-  private int sampleEveryN = 1000;
+  private final int sampleEveryN = 1000;
 
   // The fully-qualified type is: Map[ProcessBundleDescriptorId, [PCollectionId, OutputSampler]].
   // The DataSampler object lives on the same level of the FnHarness. This means that many threads
@@ -142,7 +142,7 @@ public class DataSampler {
                   return;
                 }
 
-                samples.putIfAbsent(pcollectionId, new ArrayList<>());
+                samples.putIfAbsent(pcollectionId, Collections.EMPTY_LIST);
                 samples.get(pcollectionId).addAll(outputSampler.samples());
               });
         });
