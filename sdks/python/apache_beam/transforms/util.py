@@ -337,8 +337,9 @@ class _BatchSizeEstimator(object):
     if (target_batch_duration_secs_including_fixed_cost and
         target_batch_duration_secs_including_fixed_cost <= 0):
       raise ValueError(
-          "target_batch_duration_secs_including_fixed_cost (%s) must be positive"
-          % (target_batch_duration_secs_including_fixed_cost))
+          "target_batch_duration_secs_including_fixed_cost "
+          "(%s) must be positive" %
+          (target_batch_duration_secs_including_fixed_cost))
     if not (target_batch_overhead or target_batch_duration_secs or
             target_batch_duration_secs_including_fixed_cost):
       raise ValueError(
