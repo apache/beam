@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -44,8 +44,6 @@ import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassInjector;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.Implementation.Context;
