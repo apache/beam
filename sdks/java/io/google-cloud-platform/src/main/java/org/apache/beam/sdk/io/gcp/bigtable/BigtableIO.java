@@ -182,6 +182,50 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  *
+ * <h3>Streaming Changes from Cloud Bigtable</h3>
+ *
+ * <p>Cloud Bigtable change streams enable users to capture and stream out mutations from their
+ * Cloud Bigtable tables in real-time. Cloud Bigtable change streams enable many use cases including
+ * integrating with a user's data analytics pipelines, support audit and archival requirements as
+ * well as triggering downstream application logic on specific database changes.
+ *
+ * <p>Change stream connector creates and manages a metadata table to manage the state of the
+ * connector. By default, the table is created in the same instance as the table being streamed.
+ * However, it can be overridden with {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableProjectId}, {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableInstanceId}, {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableTableId}, and {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableAppProfileId}. The app profile for the metadata
+ * table must be a single cluster app profile with single row transaction enabled.
+ *
+ * <p>Note - To prevent unforeseen stream stalls, the BigtableIO connector outputs all data with an
+ * output timestamp of zero, making all data late, which will ensure that the stream will not stall.
+ * However, it means that you may have to deal with all data as late data, and features that depend
+ * on watermarks will not function. This means that Windowing functions and States and Timers are no
+ * longer effectively usable. Example use cases that are not possible because of this include:
+ *
+ * <ul>
+ *   <li>Completeness in a replicated cluster with writes to a row on multiple clusters.
+ *   <li>Ordering at the row level in a replicated cluster where the row is being written through
+ *       multiple-clusters.
+ * </ul>
+ *
+ * Users can use GlobalWindows with (non-event time) Triggers to group this late data into Panes.
+ * You can see an example of this in the pipeline below.
+ *
+ * <pre>{@code
+ * Pipeline pipeline = ...;
+ * pipeline
+ *    .apply(
+ *        BigtableIO.readChangeStream()
+ *            .withProjectId(projectId)
+ *            .withInstanceId(instanceId)
+ *            .withTableId(tableId)
+ *            .withAppProfileId(appProfileId)
+ *            .withStartTime(startTime)
+ *            .withEndTime(endTime));
+ * }</pre>
+ *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
