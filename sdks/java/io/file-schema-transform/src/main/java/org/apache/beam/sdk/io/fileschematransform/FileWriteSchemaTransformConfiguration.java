@@ -136,7 +136,8 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @AutoValue
   public abstract static class CsvConfiguration {
 
-    public static final Set<String> ALLOWED_PREDEFINED_CSV_FORMATS = ImmutableSet.of(
+    public static final Set<String> ALLOWED_PREDEFINED_CSV_FORMATS =
+        ImmutableSet.of(
             CSVFormat.Predefined.Default.name(),
             CSVFormat.Predefined.Excel.name(),
             CSVFormat.Predefined.InformixUnload.name(),
@@ -147,12 +148,12 @@ public abstract class FileWriteSchemaTransformConfiguration {
             CSVFormat.Predefined.PostgreSQLCsv.name(),
             CSVFormat.Predefined.PostgreSQLText.name(),
             CSVFormat.Predefined.RFC4180.name(),
-            CSVFormat.Predefined.TDF.name()
-    );
+            CSVFormat.Predefined.TDF.name());
 
     /**
-     * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link #ALLOWED_PREDEFINED_CSV_FORMATS}
-     * for a list of available {@link CSVFormat.Predefined#name()}s.
+     * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link
+     * #ALLOWED_PREDEFINED_CSV_FORMATS} for a list of available {@link
+     * CSVFormat.Predefined#name()}s.
      */
     public abstract String getPredefinedCsvFormat();
 
@@ -160,8 +161,9 @@ public abstract class FileWriteSchemaTransformConfiguration {
     public abstract static class Builder {
 
       /**
-       * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link #ALLOWED_PREDEFINED_CSV_FORMATS}
-       * for a list of available {@link CSVFormat.Predefined#name()}s.
+       * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link
+       * #ALLOWED_PREDEFINED_CSV_FORMATS} for a list of available {@link
+       * CSVFormat.Predefined#name()}s.
        */
       public abstract Builder setPredefinedCsvFormat(String value);
 
