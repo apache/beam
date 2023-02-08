@@ -78,8 +78,7 @@ class _ConvertIterToSingleton(beam.DoFn):
   """
   COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
-  def process(
-      self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)) -> str:
+  def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
     counter = count_state.read()
     if counter == 0:
       count_state.add(1)
@@ -97,9 +96,6 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
   TIME_STATE = CombiningValueStateSpec(
       'count', combine_fn=partial(max, default=_START_TIME_STAMP))
 
-  def __init__(self, default_value):
-    self._default_value = default_value
-
   def process(
       self, element, time_state=beam.DoFn.StateParam(TIME_STATE)
   ) -> List[Tuple[str, ModelMetdata]]:
@@ -111,7 +107,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
       time_state.add(new_ts)
       model_path = file_metadata.path
     else:
-      model_path = self._default_value
+      model_path = ''
 
     model_name = os.path.splitext(os.path.basename(model_path))[0]
     return [
@@ -125,7 +121,6 @@ class WatchFilePattern(beam.PTransform):
       file_pattern,
       interval=360,
       stop_timestamp=MAX_TIMESTAMP,
-      default_value=None,
   ):
     """
     Watches a directory for updates to files matching a given file pattern.
@@ -140,14 +135,10 @@ class WatchFilePattern(beam.PTransform):
         interval: Interval at which to check for files matching file_pattern
           in seconds.
         stop_timestamp: Timestamp after which no more files will be checked.
-        default_value: Default value to be emitted until there is a latest file
-          (latest is defined by timestamp of the file.) matching the
-          file pattern.
     """
     self.file_pattern = file_pattern
     self.interval = interval
     self.stop_timestamp = stop_timestamp
-    self._default_value = default_value
 
   def expand(self, pcoll) -> beam.PCollection[ModelMetdata]:
     return (
@@ -158,8 +149,7 @@ class WatchFilePattern(beam.PTransform):
             stop_timestamp=self.stop_timestamp,
             empty_match_treatment=EmptyMatchTreatment.DISALLOW)
         | "AttachKey" >> beam.Map(lambda x: (x.path, x))
-        | "GetLatestFileMetaData" >> beam.ParDo(
-            _GetLatestFileByTimeStamp(default_value=self._default_value))
+        | "GetLatestFileMetaData" >> beam.ParDo(_GetLatestFileByTimeStamp())
         | "AcceptNewSideInputOnly" >> beam.ParDo(_ConvertIterToSingleton())
         | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
             window.GlobalWindows(),
