@@ -78,7 +78,8 @@ class _ConvertIterToSingleton(beam.DoFn):
   """
   COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
-  def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+  def process(
+      self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)) -> str:
     counter = count_state.read()
     if counter == 0:
       count_state.add(1)
@@ -127,15 +128,17 @@ class WatchFilePattern(beam.PTransform):
       default_value=None,
   ):
     """
-    Watch for updates using the file pattern using MatchContinuously transform.
+    Watches a directory for updates to files matching a given file pattern.
 
-    Note: Start timestamp will be defaulted to timestamp when pipeline was run.
-      All the files matching file_pattern, that are uploaded before the
-      pipeline started will be discarded.
+    **Note**: Start timestamp will be defaulted to timestamp when pipeline
+      was run. All the files matching file_pattern, that are uploaded before
+      the pipeline started will be discarded.
 
       Args:
-        file_pattern: The file path to read from.
-        interval: Interval at which to check for files in seconds.
+        file_pattern: A glob pattern used to watch a directory for model
+          updates.
+        interval: Interval at which to check for files matching file_pattern
+          in seconds.
         stop_timestamp: Timestamp after which no more files will be checked.
         default_value: Default value to be emitted until there is a latest file
           (latest is defined by timestamp of the file.) matching the
