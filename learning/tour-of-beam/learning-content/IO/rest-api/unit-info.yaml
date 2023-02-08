@@ -21,11 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-id: io
-name: IO Connectors
 complexity: ADVANCED
-content:
-- textIO
-- big-queryIO
-- kafkaIO
-- rest-api-io
+id: rest-api-io
+name: REST API
+taskName: rest-api-io
