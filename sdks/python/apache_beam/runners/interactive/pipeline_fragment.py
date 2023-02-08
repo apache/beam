@@ -23,6 +23,7 @@ import apache_beam as beam
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.testing.test_stream import TestStream
 
 
@@ -104,6 +105,10 @@ class PipelineFragment(object):
 
   def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
+    if not isinstance(self._runner_pipeline.runner, ir.InteractiveRunner):
+      raise RuntimeError(
+          'Please specify InteractiveRunner when creating '
+          'the Beam pipeline to use this function.')
     try:
       preserved_skip_display = self._runner_pipeline.runner._skip_display
       preserved_force_compute = self._runner_pipeline.runner._force_compute
