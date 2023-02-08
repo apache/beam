@@ -37,7 +37,9 @@ class FakeTFNumpyModel:
 
 
 class FakeTFTensorModel:
-  def predict(self, input: tf.Tensor):
+  def predict(self, input: tf.Tensor, add=False):
+    if add:
+      return tf.math.add(tf.math.multiply(input, 10), 10)
     return tf.math.multiply(input, 10)
 
 
@@ -76,6 +78,26 @@ class TFRunInferenceTest(unittest.TestCase):
     ]
 
     inferences = inference_runner.run_inference(batched_examples, fake_model)
+    for actual, expected in zip(inferences, expected_predictions):
+      self.assertTrue(_compare_tensor_prediction_result(actual, expected))
+      
+  @pytest.mark.uses_tf
+  def test_predict_tensor_with_args(self):
+    fake_model = FakeTFTensorModel()
+    inference_runner = TFModelHandlerTensor(model_uri='unused')
+    batched_examples = [
+        tf.convert_to_tensor(numpy.array([1])),
+        tf.convert_to_tensor(numpy.array([10])),
+        tf.convert_to_tensor(numpy.array([100])),
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            batched_examples,
+            [tf.math.add(tf.math.multiply(n, 10), 10) for n in batched_examples])
+    ]
+
+    inferences = inference_runner.run_inference(batched_examples, fake_model, inference_args={"add":True})
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual, expected))
 
