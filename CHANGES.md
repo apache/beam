@@ -68,7 +68,12 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* The deprecated SparkRunner for Spark 2 (see [2.41.0](#2410---2022-08-23)) was removed ([#25263](https://github.com/apache/beam/pull/25263)).
+* Python's BatchElements performs more aggressive batching in some cases,
+  capping at 10 second rather than 1 second batches by default and excluding
+  fixed cost in this computation to better handle cases where the fixed cost
+  is larger than a single second. To get the old behavior, one can pass
+  `target_batch_duration_secs_including_fixed_cost=1` to BatchElements.
 
 ## Deprecations
 
