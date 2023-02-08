@@ -17,7 +17,6 @@
 
 # pytype: skip-file
 
-from cmath import inf
 import enum
 from typing import Any
 from typing import Callable
@@ -48,7 +47,7 @@ TensorInferenceFn = Callable[[
 class ModelType(enum.Enum):
   """Defines how a model file should be loaded."""
   SAVED_MODEL = 1
-  
+
 
 def _load_model(model_uri, model_type):
   if model_type == ModelType.SAVED_MODEL:
@@ -93,14 +92,14 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       pcoll | RunInference(TFModelHandlerNumpy(model_uri="my_uri"))
 
     See https://www.tensorflow.org/tutorials/keras/save_and_load for details.
-    
+
     Args:
         model_uri (str): path to the trained model.
-        model_type (ModelType): type of model to be loaded. 
+        model_type (ModelType): type of model to be loaded.
           Defaults to SAVED_MODEL.
         inference_fn (TensorInferenceFn, optional): inference function to use
           during RunInference. Defaults to default_numpy_inference_fn.
-          
+
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.11.
     """
@@ -176,14 +175,14 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       pcoll | RunInference(TFModelHandlerTensor(model_uri="my_uri"))
 
     See https://www.tensorflow.org/tutorials/keras/save_and_load for details.
-    
+
     Args:
         model_uri (str): path to the trained model.
-        model_type (ModelType): type of model to be loaded. 
+        model_type (ModelType): type of model to be loaded.
           Defaults to SAVED_MODEL.
         inference_fn (TensorInferenceFn, optional): inference function to use
           during RunInference. Defaults to default_numpy_inference_fn.
-          
+
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.11.
     """
@@ -207,10 +206,10 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     """
     Runs inferences on a batch of tf.Tensor and returns an Iterable of
     Tensor Predictions.
-    
+
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
-    
+
     Args:
       batch: A sequence of Tensors. These Tensors should be batchable, as this
         method will call `tf.stack()` and pass in batched Tensors with

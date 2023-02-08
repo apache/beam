@@ -80,7 +80,7 @@ class TFRunInferenceTest(unittest.TestCase):
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual, expected))
-      
+
   @pytest.mark.uses_tf
   def test_predict_tensor_with_args(self):
     fake_model = FakeTFTensorModel()
@@ -93,11 +93,14 @@ class TFRunInferenceTest(unittest.TestCase):
     expected_predictions = [
         PredictionResult(ex, pred) for ex,
         pred in zip(
-            batched_examples,
-            [tf.math.add(tf.math.multiply(n, 10), 10) for n in batched_examples])
+            batched_examples, [
+                tf.math.add(tf.math.multiply(n, 10), 10)
+                for n in batched_examples
+            ])
     ]
 
-    inferences = inference_runner.run_inference(batched_examples, fake_model, inference_args={"add":True})
+    inferences = inference_runner.run_inference(
+        batched_examples, fake_model, inference_args={"add": True})
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual, expected))
 
