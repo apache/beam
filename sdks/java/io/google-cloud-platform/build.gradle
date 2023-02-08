@@ -69,15 +69,23 @@ dependencies {
     exclude group: 'io.grpc', module: 'grpc-grpclb'
     // Excluded additional modules from bigtable client core for compatibility.
     exclude group: 'com.google.api.grpc', module: 'proto-google-cloud-bigtable-v2'
+    exclude group: 'com.google.api.grpc', module: 'proto-google-cloud-bigtable-admin-v2'
     exclude group: 'com.google.api.grpc', module: 'grpc-google-cloud-bigtable-v2'
+    exclude group: 'com.google.api.grpc', module: 'grpc-google-cloud-bigtable-admin-v2'
+    exclude group: 'com.google.cloud', module: 'google-cloud-bigtable'
   }
   // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
   // Java7 compatibility. The old google-cloud-bigtable is not compatible with
   // newer version of GAX. Declaring newer google-cloud-bigtable so that Beam
   // users receive newer google-cloud-bigtable. Beam doesn't directly use this
   // artifact.
-  implementation library.java.google_cloud_bigtable
-  permitUnusedDeclared library.java.google_cloud_bigtable
+  // The local overrides are temporary pending https://github.com/googleapis/java-bigtable/pull/1569
+  // is checked in and new version is released.
+  // implementation library.java.google_cloud_bigtable
+  // permitUnusedDeclared library.java.google_cloud_bigtable
+  implementation files("bigtable_local/google-cloud-bigtable-2.17.1-SNAPSHOT.jar")
+  implementation files("bigtable_local/google-cloud-bigtable-stats-2.17.1-SNAPSHOT.jar")
+  implementation files("bigtable_local/grpc-google-cloud-bigtable-v2-2.17.1-SNAPSHOT.jar")
   implementation library.java.google_cloud_core
   implementation(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
@@ -135,12 +143,10 @@ dependencies {
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   implementation library.java.proto_google_cloud_bigquery_storage_v1
-  // The local overrides are temporary pending https://github.com/googleapis/java-bigtable/pull/1569 is checked in and new version is released.
+  // The local overrides are temporary pending https://github.com/googleapis/java-bigtable/pull/1569
+  // is checked in and new version is released.
   // implementation library.java.proto_google_cloud_bigtable_admin_v2
   // implementation library.java.proto_google_cloud_bigtable_v2
-  implementation files("bigtable_local/google-cloud-bigtable-2.17.1-SNAPSHOT.jar")
-  implementation files("bigtable_local/google-cloud-bigtable-stats-2.17.1-SNAPSHOT.jar")
-  implementation files("bigtable_local/grpc-google-cloud-bigtable-v2-2.17.1-SNAPSHOT.jar")
   implementation files("bigtable_local/proto-google-cloud-bigtable-v2-2.17.1-SNAPSHOT.jar")
   implementation files("bigtable_local/proto-google-cloud-bigtable-admin-v2-2.17.1-SNAPSHOT.jar")
   implementation library.java.proto_google_cloud_datastore_v1
