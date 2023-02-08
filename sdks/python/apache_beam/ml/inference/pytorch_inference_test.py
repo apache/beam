@@ -123,6 +123,7 @@ class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
     self._device = device
     self._inference_fn = inference_fn
     self._state_dict_path = None
+    self._torch_script_model_path = None
 
 
 class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
@@ -131,6 +132,7 @@ class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
     self._device = device
     self._inference_fn = inference_fn
     self._state_dict_path = None
+    self._torch_script_model_path = None
 
 
 def _compare_prediction_result(x, y):
@@ -618,7 +620,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
     torch.jit.save(torch_script_model, torch_script_path)
 
     model_handler = PytorchModelHandlerTensor(
-        state_dict_path=torch_script_path, use_torch_script_format=True)
+        torch_script_model_path=torch_script_path)
 
     torch_script_model = model_handler.load_model()
 
@@ -637,7 +639,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
     torch.jit.save(torch_script_model, torch_script_path)
 
     model_handler = PytorchModelHandlerTensor(
-        state_dict_path=torch_script_path, use_torch_script_format=True)
+        torch_script_model_path=torch_script_path)
 
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
@@ -655,10 +657,66 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         RuntimeError,
-        "Please pass both `model_class` and `model_params` to the torch "
-        "model handler when using it with PyTorch. "
-        "If you opt to load the entire that was saved using TorchScript"):
+        "A state_dict_path has been supplied to the model "
+        "handler, but the required model_class is missing. "
+        "Please provide the model_class in order to"):
       _ = PytorchModelHandlerTensor(state_dict_path=torch_path)
+
+  def test_specify_torch_script_path_and_state_dict_path(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_path = os.path.join(self.tmpdir, 'torch_model.pt')
+
+    torch.save(torch_model, torch_path)
+    torch_script_model = torch.jit.script(torch_model)
+
+    torch_script_path = os.path.join(self.tmpdir, 'torch_script_model.pt')
+
+    torch.jit.save(torch_script_model, torch_script_path)
+    with self.assertRaisesRegex(
+        RuntimeError, "Please specify either torch_script_model_path or "):
+      _ = PytorchModelHandlerTensor(
+          state_dict_path=torch_path,
+          model_class=PytorchLinearRegression,
+          torch_script_model_path=torch_script_path)
+
+  def test_prediction_result_model_id_with_torch_script_model(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_script_model = torch.jit.script(torch_model)
+    torch_script_path = os.path.join(self.tmpdir, 'torch_script_model.pt')
+    torch.jit.save(torch_script_model, torch_script_path)
+
+    model_handler = PytorchModelHandlerTensor(
+        torch_script_model_path=torch_script_path)
+
+    def check_torch_script_model_id(element):
+      assert ('torch_script_model.pt' in element.model_id) is True
+
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      predictions = pcoll | RunInference(model_handler)
+      _ = predictions | beam.Map(check_torch_script_model_id)
+
+  def test_prediction_result_model_id_with_torch_model(self):
+    # weights associated with PytorchLinearRegression class
+    state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                              ('linear.bias', torch.Tensor([0.5]))])
+    torch_path = os.path.join(self.tmpdir, 'torch_model.pt')
+    torch.save(state_dict, torch_path)
+
+    model_handler = PytorchModelHandlerTensor(
+        state_dict_path=torch_path,
+        model_class=PytorchLinearRegression,
+        model_params={
+            'input_dim': 2, 'output_dim': 1
+        })
+
+    def check_torch_script_model_id(element):
+      assert ('torch_model.pt' in element.model_id) is True
+
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      predictions = pcoll | RunInference(model_handler)
+      _ = predictions | beam.Map(check_torch_script_model_id)
 
 
 if __name__ == '__main__':
