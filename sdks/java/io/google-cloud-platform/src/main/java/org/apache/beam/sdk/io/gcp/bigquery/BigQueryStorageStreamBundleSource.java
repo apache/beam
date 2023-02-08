@@ -97,6 +97,9 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       Coder<T> outputCoder,
       BigQueryServices bqServices,
       long minBundleSize) {
+    // The underlying OffsetBasedSource (and RangeTracker) operate only on the StreamBundle and NOT
+    // the Streams that constitute the StreamBundle. More specifically, the offsets in the
+    // OffsetBasedSource are indices for the StreamBundle List.
     super(0, streamBundle.size(), minBundleSize);
     this.readSession = Preconditions.checkArgumentNotNull(readSession, "readSession");
     this.streamBundle = Preconditions.checkArgumentNotNull(streamBundle, "streams");
@@ -212,6 +215,8 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
     @Override
     protected boolean isAtSplitPoint() throws NoSuchElementException {
+      // The start of every Stream within a StreamBundle is being defined as a split point. This
+      // implies that we cannot split below the granularity of a Stream
       if (currentStreamOffset == 0) {
         return true;
       }
@@ -226,7 +231,7 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
     @Override
     public boolean advanceImpl() throws IOException {
       Preconditions.checkStateNotNull(responseIterator);
-      currentStreamOffset++;
+      currentStreamOffset += totalRowsInCurrentResponse;
       return readNextRecord();
     }
 
@@ -239,7 +244,6 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       ReadRowsRequest request =
           ReadRowsRequest.newBuilder()
               .setReadStream(source.streamBundle.get(currentStreamBundleIndex).getName())
-              .setOffset(currentStreamOffset)
               .build();
       tableReference = BigQueryUtils.toTableReference(source.readSession.getTable());
       serviceCallMetric = BigQueryUtils.readCallMetric(tableReference);
@@ -260,9 +264,11 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       }
       while (reader.readyForNextReadResponse()) {
         if (!responseIterator.hasNext()) {
-          currentStreamOffset = 0;
-          currentStreamBundleIndex++;
-          return readNextStream();
+          synchronized (this) {
+            currentStreamOffset = 0;
+            currentStreamBundleIndex++;
+            return readNextStream();
+          }
         }
 
         ReadRowsResponse response;
@@ -301,7 +307,6 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
             0f <= progressAtResponseEnd && progressAtResponseEnd <= 1f,
             "Progress at response end (%s) is not in the range [0.0, 1.0].",
             progressAtResponseEnd);
-
         reader.processReadRowsResponse(response);
       }
 
@@ -309,18 +314,20 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
       current = parseFn.apply(schemaAndRecord);
 
-      // Updates the fraction consumed value. This value is calculated by interpolating between
-      // the fraction consumed value from the previous server response (or zero if we're consuming
-      // the first response) and the fractional value in the current response based on how many of
-      // the rows in the current response have been consumed.
+      // Calculates the fraction of the current stream that has been consumed. This value is
+      // calculated by interpolating between the fraction consumed value from the previous server
+      // response (or zero if we're consuming the first response) and the fractional value in the
+      // current response based on how many of the rows in the current response have been consumed.
       rowsConsumedFromCurrentResponse++;
 
       double fractionOfCurrentStreamConsumed =
           progressAtResponseStart
               + ((progressAtResponseEnd - progressAtResponseStart)
                   * (rowsConsumedFromCurrentResponse * 1.0 / totalRowsInCurrentResponse));
-      // Assuming that each Stream in the StreamBundle has approximately the same amount of data and
-      // NORMALIZING the value of fractionOfCurrentStreamConsumed.
+      // Assuming that each Stream in the StreamBundle has approximately the same amount of data,
+      // we can use the `fractionOfCurrentStreamConsumed` value to calculate the progress made over
+      // the
+      // entire StreamBundle.
       fractionOfStreamBundleConsumed =
           (currentStreamBundleIndex + fractionOfCurrentStreamConsumed) / source.streamBundle.size();
       return true;
