@@ -16,7 +16,6 @@
 #
 # pytype: skip-file
 
-import time
 import unittest
 
 import apache_beam as beam
@@ -31,8 +30,14 @@ class WatchFilePatternTest(unittest.TestCase):
   def test_latest_file_by_timestamp_default_value(self):
     # match continuously returns the files in sorted timestamp order.
     main_input_pcoll = [
-        FileMetadata('path1.py', 10, last_updated_in_seconds=time.time() - 20),
-        FileMetadata('path2.py', 10, last_updated_in_seconds=time.time() - 10)
+        FileMetadata(
+            'path1.py',
+            10,
+            last_updated_in_seconds=utils._START_TIME_STAMP - 20),
+        FileMetadata(
+            'path2.py',
+            10,
+            last_updated_in_seconds=utils._START_TIME_STAMP - 10)
     ]
     with TestPipeline() as p:
       files_pc = (
@@ -45,7 +50,10 @@ class WatchFilePatternTest(unittest.TestCase):
 
   def test_latest_file_with_timestamp_after_pipeline_construction_time(self):
     main_input_pcoll = [
-        FileMetadata('path1.py', 10, last_updated_in_seconds=time.time() + 10)
+        FileMetadata(
+            'path1.py',
+            10,
+            last_updated_in_seconds=utils._START_TIME_STAMP + 10)
     ]
     with TestPipeline() as p:
       files_pc = (
@@ -59,11 +67,20 @@ class WatchFilePatternTest(unittest.TestCase):
   def test_emitting_singleton_output(self):
     # match continuously returns the files in sorted timestamp order.
     main_input_pcoll = [
-        FileMetadata('path1.py', 10, last_updated_in_seconds=time.time() - 20),
+        FileMetadata(
+            'path1.py',
+            10,
+            last_updated_in_seconds=utils._START_TIME_STAMP - 20),
         # returns default
-        FileMetadata('path2.py', 10, last_updated_in_seconds=time.time() - 10),
+        FileMetadata(
+            'path2.py',
+            10,
+            last_updated_in_seconds=utils._START_TIME_STAMP - 10),
         # returns default
-        FileMetadata('path3.py', 10, last_updated_in_seconds=time.time() + 10)
+        FileMetadata(
+            'path3.py',
+            10,
+            last_updated_in_seconds=utils._START_TIME_STAMP + 10)
     ]
     # returns path3.py
 
