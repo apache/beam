@@ -551,10 +551,9 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
               'input_dim': 1, 'output_dim': 1
           },
           inference_fn=batch_validator_keyed_tensor_inference_fn,
-          batching_kwargs={
-            'min_batch_size': 2,
-            'max_batch_size': 2
-          })
+          min_batch_size=2,
+          max_batch_size=2
+          )
 
       pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
       inference_args_side_input = (
@@ -629,10 +628,9 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
               'input_dim': 1, 'output_dim': 1
           },
           inference_fn=batch_validator_tensor_inference_fn,
-          batching_kwargs={
-            'min_batch_size': 2,
-            'max_batch_size': 2
-          })
+          min_batch_size=2,
+          max_batch_size=2
+          )
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
       predictions = pcoll | RunInference(model_handler)
