@@ -43,19 +43,7 @@ project.tasks.register("preCommitPyCoverage") {
       dependsOn = ["testPy38CloudCoverage"]
 }
 
-// Create a test task for each major version of pyarrow
-toxTask "testPy38pyarrow-0", "py38-pyarrow-0", "${posargs}"
-test.dependsOn "testPy38pyarrow-0"
-preCommitPyCoverage.dependsOn "testPy38pyarrow-0"
-
-toxTask "testPy38pyarrow-1", "py38-pyarrow-1", "${posargs}"
-test.dependsOn "testPy38pyarrow-1"
-preCommitPyCoverage.dependsOn "testPy38pyarrow-1"
-
-toxTask "testPy38pyarrow-2", "py38-pyarrow-2", "${posargs}"
-test.dependsOn "testPy38pyarrow-2"
-preCommitPyCoverage.dependsOn "testPy38pyarrow-2"
-
+// Create a test task for each supported major version of pyarrow
 toxTask "testPy38pyarrow-3", "py38-pyarrow-3", "${posargs}"
 test.dependsOn "testPy38pyarrow-3"
 preCommitPyCoverage.dependsOn "testPy38pyarrow-3"
