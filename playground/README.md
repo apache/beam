@@ -36,6 +36,7 @@ The following requirements are needed for development, testing, and deploying.
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install)
 - [gcloud Beta Commands](https://cloud.google.com/sdk/gcloud/reference/components/install)
 - [Cloud Datastore Emulator](https://cloud.google.com/sdk/gcloud/reference/components/install)
+- [sbt](https://www.scala-sbt.org/)
 
 # Available Gradle Tasks
 
