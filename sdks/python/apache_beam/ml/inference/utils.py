@@ -63,7 +63,7 @@ def _convert_to_result(
   return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
 
 
-class _CoverIterToSingleton(beam.DoFn):
+class _ConvertIterToSingleton(beam.DoFn):
   """
   Internal only; No backwards compatibility.
 
@@ -92,8 +92,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
   This DoFn checks the timestamps of files against the time that the pipeline
   began running. It returns the files that were modified after the pipeline
   started. If no such files are found, it returns a default file as fallback.
-
-  """
+   """
   TIME_STATE = CombiningValueStateSpec(
       'count', combine_fn=partial(max, default=_START_TIME_STAMP))
 
@@ -107,7 +106,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
     new_ts = file_metadata.last_updated_in_seconds
     old_ts = time_state.read()
     if new_ts > old_ts:
-      time_state.clear()
+      # time_state.clear()
       time_state.add(new_ts)
       model_path = file_metadata.path
     else:
@@ -158,7 +157,7 @@ class WatchFilePattern(beam.PTransform):
         | "AttachKey" >> beam.Map(lambda x: (x.path, x))
         | "GetLatestFileMetaData" >> beam.ParDo(
             _GetLatestFileByTimeStamp(default_value=self._default_value))
-        | "AcceptNewSideInputOnly" >> beam.ParDo(_CoverIterToSingleton())
+        | "AcceptNewSideInputOnly" >> beam.ParDo(_ConvertIterToSingleton())
         | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
             window.GlobalWindows(),
             trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
