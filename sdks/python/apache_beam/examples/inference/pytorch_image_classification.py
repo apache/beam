@@ -109,8 +109,7 @@ def run(
     model_params=None,
     save_main_session=True,
     device='CPU',
-    test_pipeline=None,
-    use_torch_script_format=False) -> PipelineResult:
+    test_pipeline=None) -> PipelineResult:
   """
   Args:
     argv: Command line arguments defined for this example.
@@ -121,14 +120,12 @@ def run(
     save_main_session: Used for internal testing.
     device: Device to be used on the Runner. Choices are (CPU, GPU).
     test_pipeline: Used for internal testing.
-    use_torch_script_format: Load the model which was saved using
-      Torchscript API.
   """
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
-  if not model_class and not use_torch_script_format:
+  if not model_class:
     # default model class will be mobilenet with pretrained weights.
     model_class = models.mobilenet_v2
     model_params = {'num_classes': 1000}
@@ -144,8 +141,7 @@ def run(
           state_dict_path=known_args.model_state_dict_path,
           model_class=model_class,
           model_params=model_params,
-          device=device,
-          use_torch_script_format=use_torch_script_format))
+          device=device))
 
   pipeline = test_pipeline
   if not test_pipeline:

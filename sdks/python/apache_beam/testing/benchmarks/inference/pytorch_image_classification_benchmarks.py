@@ -33,19 +33,7 @@ class PytorchVisionBenchmarkTest(LoadTest):
     self.metrics_namespace = 'BeamML_PyTorch'
     super().__init__(metrics_namespace=self.metrics_namespace)
 
-  def run_with_torch_script_model(self):
-    extra_opts = {}
-    extra_opts['input'] = self.pipeline.get_option('input_file')
-    device = self.pipeline.get_option('device')
-    self.result = pytorch_image_classification.run(
-        self.pipeline.get_full_options_as_args(**extra_opts),
-        test_pipeline=self.pipeline,
-        device=device,
-        use_torch_script_format=True)
-
-  def run_with_torch_model(self):
-    # model_params are same for all the models. But this may change if we add
-    # different models.
+  def test(self):
     pretrained_model_name = self.pipeline.get_option('pretrained_model_name')
     if not pretrained_model_name:
       raise RuntimeError(
@@ -59,6 +47,9 @@ class PytorchVisionBenchmarkTest(LoadTest):
       model_class = models.resnet152
     else:
       raise NotImplementedError
+
+    # model_params are same for all the models. But this may change if we add
+    # different models.
     model_params = {'num_classes': 1000, 'pretrained': False}
 
     extra_opts = {}
@@ -70,14 +61,6 @@ class PytorchVisionBenchmarkTest(LoadTest):
         model_params=model_params,
         test_pipeline=self.pipeline,
         device=device)
-
-  def test(self):
-    use_torch_script_format = self.pipeline.get_option(
-        'use_torch_script_format')
-    if use_torch_script_format:
-      self.run_with_torch_script_model()
-    else:
-      self.run_with_torch_model()
 
 
 if __name__ == '__main__':
