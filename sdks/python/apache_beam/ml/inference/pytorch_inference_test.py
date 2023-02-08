@@ -541,8 +541,10 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           model_id,
       ):
         if len(batch) != 2:
-          raise Exception("Expected batch of size 2, received batch of size " + len(batch))
-        return default_keyed_tensor_inference_fn(batch, model, device, inference_args, model_id)
+          raise Exception(
+              "Expected batch of size 2, received batch of size " + len(batch))
+        return default_keyed_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
 
       model_handler = PytorchModelHandlerKeyedTensor(
           state_dict_path=path,
@@ -552,8 +554,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           },
           inference_fn=batch_validator_keyed_tensor_inference_fn,
           min_batch_size=2,
-          max_batch_size=2
-          )
+          max_batch_size=2)
 
       pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
       inference_args_side_input = (
@@ -615,8 +616,10 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           model_id,
       ):
         if len(batch) != 2:
-          raise Exception("Expected batch of size 2, received batch of size " + len(batch))
-        return default_tensor_inference_fn(batch, model, device, inference_args, model_id)
+          raise Exception(
+              "Expected batch of size 2, received batch of size " + len(batch))
+        return default_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
 
 
       gs_pth = 'gs://apache-beam-ml/models/' \
@@ -629,8 +632,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           },
           inference_fn=batch_validator_tensor_inference_fn,
           min_batch_size=2,
-          max_batch_size=2
-          )
+          max_batch_size=2)
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
       predictions = pcoll | RunInference(model_handler)

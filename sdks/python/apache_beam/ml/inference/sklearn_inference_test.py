@@ -287,19 +287,26 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
       pickle.dump(build_model(), file)
+
     def batch_validator_numpy_inference_fn(
-      model: BaseEstimator,
-      batch: Sequence[numpy.ndarray],
-      inference_args: Optional[Dict[str, Any]] = None) -> Any:
-        if len(batch) != 2:
-          raise Exception("Expected batch of size 2, received batch of size " + len(batch))
-        return _default_numpy_inference_fn(model, batch, inference_args)
+        model: BaseEstimator,
+        batch: Sequence[numpy.ndarray],
+        inference_args: Optional[Dict[str, Any]] = None) -> Any:
+      if len(batch) != 2:
+        raise Exception(
+            "Expected batch of size 2, received batch of size " + len(batch))
+      return _default_numpy_inference_fn(model, batch, inference_args)
+
     with TestPipeline() as pipeline:
       examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | RunInference(
-          SklearnModelHandlerNumpy(model_uri=temp_file_name, inference_fn=batch_validator_numpy_inference_fn, min_batch_size=2, max_batch_size=2))
+          SklearnModelHandlerNumpy(
+              model_uri=temp_file_name,
+              inference_fn=batch_validator_numpy_inference_fn,
+              min_batch_size=2,
+              max_batch_size=2))
       expected = [
           PredictionResult(numpy.array([0, 0]), 0),
           PredictionResult(numpy.array([1, 1]), 1)
@@ -368,19 +375,26 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
       pickle.dump(build_pandas_pipeline(), file)
+
     def batch_validator_pandas_inference_fn(
-      model: BaseEstimator,
-      batch: Sequence[numpy.ndarray],
-      inference_args: Optional[Dict[str, Any]] = None) -> Any:
-        if len(batch) != 5:
-          raise Exception("Expected batch of size 5, received batch of size " + len(batch))
-        return _default_pandas_inference_fn(model, batch, inference_args)
+        model: BaseEstimator,
+        batch: Sequence[numpy.ndarray],
+        inference_args: Optional[Dict[str, Any]] = None) -> Any:
+      if len(batch) != 5:
+        raise Exception(
+            "Expected batch of size 5, received batch of size " + len(batch))
+      return _default_pandas_inference_fn(model, batch, inference_args)
+
     with TestPipeline() as pipeline:
       dataframe = pandas_dataframe()
       splits = [dataframe.loc[[i]] for i in dataframe.index]
       pcoll = pipeline | 'start' >> beam.Create(splits)
       actual = pcoll | RunInference(
-          SklearnModelHandlerPandas(model_uri=temp_file_name, inference_fn=batch_validator_pandas_inference_fn, min_batch_size=5, max_batch_size=5))
+          SklearnModelHandlerPandas(
+              model_uri=temp_file_name,
+              inference_fn=batch_validator_pandas_inference_fn,
+              min_batch_size=5,
+              max_batch_size=5))
 
       expected = [
           PredictionResult(splits[0], 5),
