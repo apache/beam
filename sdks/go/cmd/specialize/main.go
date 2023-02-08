@@ -193,7 +193,7 @@ func makeName(t string) string {
 	t = strings.Replace(t, ".", "_", -1)
 	t = strings.Replace(t, "[", "_", -1)
 	t = strings.Replace(t, "]", "_", -1)
-	return cases.Title(language.AmericanEnglish).String(t)
+	return cases.Title(language.Und, cases.NoLower).String(t)
 }
 
 // Useful template functions
