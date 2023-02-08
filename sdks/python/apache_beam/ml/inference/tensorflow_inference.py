@@ -18,7 +18,7 @@
 # pytype: skip-file
 
 import enum
-from typing import Any
+from typing import Any, Union
 from typing import Callable
 from typing import Dict
 from typing import Iterable
@@ -39,7 +39,10 @@ __all__ = [
 ]
 
 TensorInferenceFn = Callable[[
-    tf.Module, Sequence[numpy.ndarray], Optional[Dict[str, Any]], Optional[str]
+    tf.Module,
+    Sequence[Union[numpy.ndarray, tf.Tensor]],
+    Optional[Dict[str, Any]],
+    Optional[str]
 ],
                              Iterable[PredictionResult]]
 
