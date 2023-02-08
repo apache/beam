@@ -32,8 +32,8 @@ def process_input(row: str) -> Tuple[int, numpy.ndarray]:
   data = row.split(',')
   label, pixels = int(data[0]), data[1:]
   pixels = [int(pixel) for pixel in pixels]
-  # the trained model accepts the input of shape 28x28x1
-  pixels = numpy.array(pixels).reshape(28, 28, 1)
+  # the trained model accepts the input of shape 28x28
+  pixels = numpy.array(pixels).reshape((28, 28, 1))
   return label, pixels
 
 
@@ -41,7 +41,6 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
   """
-
   def process(self, element: Tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = numpy.argmax(prediction_result.inference, axis=0)
