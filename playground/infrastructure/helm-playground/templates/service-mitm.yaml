@@ -1,3 +1,4 @@
+
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -12,23 +13,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-replicaCount: 1
-image:
-   java_image: beam_playground-backend-java
-   go_image: beam_playground-backend-go
-   router_image: beam_playground-backend-router
-   scio_image: beam_playground-backend-scio
-   python_image: beam_playground-backend-python
-   frontend_image: beam_playground-frontend
-   mitm_image: beam_playground-mitmproxy
-   pullPolicy: Always
-service:
-   type: NodePort
-   targetPort: 8080
-   port: 443
-healthcheck:
-   port: 8080
-   livInitialDelaySeconds: 30
-   livPeriodSeconds: 30
-   readInitialDelaySeconds: 30
-   readPeriodSeconds: 30    
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: backend-mitm
+    type: backend
+  name: playground-mitm
+  annotations:
+    cloud.google.com/backend-config: '{"default": "bkend-health"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: {{ .Values.service.targetPort }}
+  selector:
+    app: backend-mitm
+  type: {{ .Values.service.type }}
