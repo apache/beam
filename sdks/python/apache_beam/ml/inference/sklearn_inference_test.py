@@ -294,8 +294,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         inference_args: Optional[Dict[str, Any]] = None) -> Any:
       if len(batch) != 2:
         raise Exception(
-            'Expected batch of size 2, received batch of size {}'.format(
-                len(batch)))
+            f'Expected batch of size 2, received batch of size {len(batch)}')
       return _default_numpy_inference_fn(model, batch, inference_args)
 
     with TestPipeline() as pipeline:
@@ -383,8 +382,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         inference_args: Optional[Dict[str, Any]] = None) -> Any:
       if len(batch) != 5:
         raise Exception(
-            'Expected batch of size 5, received batch of size {}'.format(
-                len(batch)))
+            f'Expected batch of size 5, received batch of size {len(batch)}')
       return _default_pandas_inference_fn(model, batch, inference_args)
 
     with TestPipeline() as pipeline:

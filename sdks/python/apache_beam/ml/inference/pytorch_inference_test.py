@@ -542,8 +542,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       ):
         if len(batch) != 2:
           raise Exception(
-              'Expected batch of size 2, received batch of size {}'.format(
-                  len(batch)))
+              f'Expected batch of size 2, received batch of size {len(batch)}')
         return default_keyed_tensor_inference_fn(
             batch, model, device, inference_args, model_id)
 
@@ -618,8 +617,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       ):
         if len(batch) != 2:
           raise Exception(
-              'Expected batch of size 2, received batch of size {}'.format(
-                  len(batch)))
+              f'Expected batch of size 2, received batch of size {len(batch)}')
         return default_tensor_inference_fn(
             batch, model, device, inference_args, model_id)
 
