@@ -68,8 +68,6 @@ COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/
 COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/datasets/
 COPY --from=dep /pipeline-dependencies/target/dependency/ /opt/apache/beam/jars/
 
-RUN apt-get update -y && apt-get install zip
-
 # Install Beam Examples
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
     mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
