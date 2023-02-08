@@ -59,7 +59,7 @@ class TFRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
-  @pytest.mark.uses_tensorflow
+  @pytest.mark.uses_tf
   def test_predict_tensor(self):
     fake_model = FakeTFTensorModel()
     inference_runner = TFModelHandlerTensor(model_uri='unused')
@@ -98,7 +98,7 @@ class TFRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_prediction_result(actual[1], expected[1]))
 
-  @pytest.mark.uses_tensorflow
+  @pytest.mark.uses_tf
   def test_predict_keyed_tensor(self):
     fake_model = FakeTFTensorModel()
     inference_runner = KeyedModelHandler(

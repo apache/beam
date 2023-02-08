@@ -296,7 +296,7 @@ task tensorflowInferenceTest {
       def argMap = [
           "test_opts": testOpts,
           "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
-          "collect": "uses_tensorflow and it_postcommit" ,
+          "collect": "uses_tf and it_postcommit" ,
           "runner": "TestDirectRunner"
       ]
       def cmdArgs = mapToArgString(argMap)
