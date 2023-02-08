@@ -35,6 +35,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
   environment_variables = {
     DATASTORE_PROJECT_ID=var.project_id
     GOOGLE_PROJECT_ID=var.project_id
+    PLAYGROUND_ROUTER_HOST='35.230.126.154:8080'
   }
 
 }
