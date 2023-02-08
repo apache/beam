@@ -88,7 +88,9 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
       *,
-      inference_fn: NumpyInferenceFn = _default_numpy_inference_fn):
+      inference_fn: NumpyInferenceFn = _default_numpy_inference_fn,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
 
@@ -106,6 +108,11 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._model_uri = model_uri
     self._model_file_type = model_file_type
     self._model_inference_fn = inference_fn
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -155,6 +162,9 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_Sklearn'
 
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
+
 
 PandasInferenceFn = Callable[
     [BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
@@ -182,7 +192,9 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
       *,
-      inference_fn: PandasInferenceFn = _default_pandas_inference_fn):
+      inference_fn: PandasInferenceFn = _default_pandas_inference_fn,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
 
@@ -203,6 +215,11 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     self._model_uri = model_uri
     self._model_file_type = model_file_type
     self._model_inference_fn = inference_fn
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -253,3 +270,6 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_Sklearn'
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
