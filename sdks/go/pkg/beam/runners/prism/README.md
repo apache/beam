@@ -101,6 +101,8 @@ can have features selectively disabled to ensure
 * Experimental and testing use only.
 * Executing docker containers isn't yet implemented.
     * This precludes running the Java and Python SDKs, or their transforms for Cross Language.
+    * Loopback execution only.
+    * No stand alone execution.
 * In Memory Only
     * Not yet suitable for larger jobs, which may have intermediate data that exceeds memory bounds.
     * Doesn't yet support sufficient intermediate data garbage collection for indefinite stream processing.
