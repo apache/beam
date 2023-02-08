@@ -26,4 +26,7 @@ ALLOWED_LIST = [
     "repo1.maven.org",
     "github.com",
     "packages.confluent.io",
+    "bigquery.googleapis.com",
+    "metadata.google.internal",
+    "169.254.169.254",
 ]

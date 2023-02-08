@@ -19,7 +19,8 @@ image:
    router_image: beam_playground-backend-router
    scio_image: beam_playground-backend-scio
    python_image: beam_playground-backend-python
-   frontend_image: beam_playground-frontend 
+   frontend_image: beam_playground-frontend
+   mitm_image: beam_playground-backend-mitmproxy
    pullPolicy: Always
 service:
    type: NodePort
