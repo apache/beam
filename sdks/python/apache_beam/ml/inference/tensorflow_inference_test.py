@@ -17,9 +17,8 @@
 
 # pytype: skip-file
 
-import unittest
-
 import numpy
+import unittest
 import pytest
 
 try:

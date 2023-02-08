@@ -25,8 +25,8 @@ from typing import Iterable
 from typing import Optional
 from typing import Sequence
 
-import sys
 import numpy
+import sys
 import tensorflow as tf
 
 from apache_beam.ml.inference import utils

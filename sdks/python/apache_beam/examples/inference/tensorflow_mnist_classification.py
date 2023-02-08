@@ -16,9 +16,8 @@
 #
 
 import argparse
-import logging
 from typing import Iterable, Tuple
-
+import logging
 import numpy
 
 import apache_beam as beam

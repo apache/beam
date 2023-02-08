@@ -18,10 +18,6 @@
 """End-to-End test for Tensorflow Inference"""
 
 import logging
-
-from typing import Tuple
-from typing import List
-
 import pytest
 import unittest
 import uuid
