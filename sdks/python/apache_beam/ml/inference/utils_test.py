@@ -19,8 +19,6 @@
 import time
 import unittest
 
-import mock
-
 import apache_beam as beam
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.ml.inference import utils
@@ -30,10 +28,7 @@ from apache_beam.testing.util import equal_to
 
 
 class WatchFilePatternTest(unittest.TestCase):
-  mock.patch.object('apache_beam.utils.timestamp.Timestamp', 'now', lambda x: 1)
-
   def test_latest_file_by_timestamp_default_value(self):
-
     # match continuously returns the files in sorted timestamp order.
     main_input_pcoll = [
         FileMetadata('path1.py', 10, last_updated_in_seconds=time.time() - 20),
