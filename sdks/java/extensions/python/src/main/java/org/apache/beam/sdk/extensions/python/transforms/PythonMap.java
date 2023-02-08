@@ -64,13 +64,12 @@ public class PythonMap<InputT, OutputT>
   }
 
   /**
-   * Specifies any extra Pypi packages required by the RunInference model handler.
+   * Specifies any extra packages required by the Python function.
    *
    * <p>This should only be specified when using the default expansion service, i.e. when not using
    * {@link #withExpansionService(String)} to provide an expansion service.
    *
-   * <p>For model handlers provided by Beam Python SDK, the implementation will automatically try to
-   * infer correct packages needed, so this may be omitted.
+   * <p>The package can either be a PyPi package or the path to a locally available Python package.
    *
    * @param extraPackages a list of PyPi packages. May include the version.
    * @return A {@link PythonMap} with extra packages.

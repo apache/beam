@@ -128,10 +128,12 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
   }
 
   /**
-   * Specifies any extra Pypi packages required by the RunInference model handler.
+   * Specifies any extra packages required by the RunInference model handler.
    *
    * <p>This should only be specified when using the default expansion service, i.e. when not using
    * {@link #withExpansionService(String)} to provide an expansion service.
+   *
+   * <p>The package can either be a PyPi package or the path to a locally available Python package.
    *
    * <p>For model handlers provided by Beam Python SDK, the implementation will automatically try to
    * infer correct packages needed, so this may be omitted.
