@@ -39,7 +39,10 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -48,6 +51,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Data access object for the Connector metadata tables. */
 public class PartitionMetadataDao {
@@ -349,6 +354,7 @@ public class PartitionMetadataDao {
 
   /** Represents the execution of a read / write transaction in Cloud Spanner. */
   public static class InTransactionContext {
+    private static final Logger LOG = LoggerFactory.getLogger(InTransactionContext.class);
 
     private final String metadataTableName;
     private final TransactionContext transaction;
@@ -390,11 +396,25 @@ public class PartitionMetadataDao {
      * @param partitionTokens the partitions' unique identifiers
      */
     public Void updateToScheduled(List<String> partitionTokens) {
-      final List<Mutation> mutations =
-          partitionTokens.stream()
-              .map(token -> createUpdateMetadataStateMutationFrom(token, State.SCHEDULED))
-              .collect(Collectors.toList());
-      transaction.buffer(mutations);
+      HashSet<String> tokens = new HashSet<>();
+      Statement statement = getPartitionsMatchingState(partitionTokens, State.CREATED);
+      try (ResultSet resultSet = transaction.executeQuery(statement)) {
+        while (resultSet.next()) {
+          tokens.add(resultSet.getString(COLUMN_PARTITION_TOKEN));
+        }
+      }
+
+      for (String partitionToken : partitionTokens) {
+        if (!tokens.contains(partitionToken)) {
+          LOG.info("[{}] Did not update to be SCHEDULED", partitionToken);
+          continue;
+        }
+
+        LOG.info("[{}] Successfully updating to be SCHEDULED", partitionToken);
+        transaction.buffer(
+            ImmutableList.of(
+                createUpdateMetadataStateMutationFrom(partitionToken, State.SCHEDULED)));
+      }
       return null;
     }
 
@@ -404,6 +424,16 @@ public class PartitionMetadataDao {
      * @param partitionToken the partition unique identifier
      */
     public Void updateToRunning(String partitionToken) {
+      Statement statement =
+          getPartitionsMatchingState(Collections.singletonList(partitionToken), State.SCHEDULED);
+
+      try (ResultSet resultSet = transaction.executeQuery(statement)) {
+        if (!resultSet.next()) {
+          LOG.info("[{}] Did not update to be RUNNING", partitionToken);
+          return null;
+        }
+      }
+      LOG.info("[{}] Successfully updating to be RUNNING", partitionToken);
       transaction.buffer(
           ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.RUNNING)));
       return null;
@@ -415,6 +445,15 @@ public class PartitionMetadataDao {
      * @param partitionToken the partition unique identifier
      */
     public Void updateToFinished(String partitionToken) {
+      Statement statement =
+          getPartitionsMatchingState(Collections.singletonList(partitionToken), State.RUNNING);
+      try (ResultSet resultSet = transaction.executeQuery(statement)) {
+        if (!resultSet.next()) {
+          LOG.info("[{}] Did not update to be FINISHED", partitionToken);
+          return null;
+        }
+      }
+      LOG.info("[{}] Successfully updating to be FINISHED", partitionToken);
       transaction.buffer(
           ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.FINISHED)));
       return null;
@@ -492,6 +531,42 @@ public class PartitionMetadataDao {
           .set(COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
           .build();
+    }
+
+    private Statement getPartitionsMatchingState(List<String> partitionTokens, State state) {
+      Statement statement;
+      if (this.dialect == Dialect.POSTGRESQL) {
+        StringBuilder sqlStringBuilder =
+            new StringBuilder("SELECT * FROM \"" + metadataTableName + "\"");
+        sqlStringBuilder.append(" WHERE \"");
+        sqlStringBuilder.append(COLUMN_STATE + "\" = " + "'" + state.toString() + "'");
+        if (!partitionTokens.isEmpty()) {
+          sqlStringBuilder.append(" AND \"");
+          sqlStringBuilder.append(COLUMN_PARTITION_TOKEN);
+          sqlStringBuilder.append("\"");
+          sqlStringBuilder.append(" = ANY (Array[");
+          sqlStringBuilder.append(
+              partitionTokens.stream().map(s -> "'" + s + "'").collect(Collectors.joining(",")));
+          sqlStringBuilder.append("])");
+        }
+        statement = Statement.newBuilder(sqlStringBuilder.toString()).build();
+      } else {
+        statement =
+            Statement.newBuilder(
+                    "SELECT * FROM "
+                        + metadataTableName
+                        + " WHERE "
+                        + COLUMN_PARTITION_TOKEN
+                        + " IN UNNEST(@partitionTokens) AND "
+                        + COLUMN_STATE
+                        + " = @state")
+                .bind("partitionTokens")
+                .to(Value.stringArray(new ArrayList<>(partitionTokens)))
+                .bind("state")
+                .to(state.toString())
+                .build();
+      }
+      return statement;
     }
 
     private Mutation createUpdateMetadataStateMutationFrom(String partitionToken, State state) {
