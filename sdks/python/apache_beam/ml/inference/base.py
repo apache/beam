@@ -174,6 +174,12 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """Update the model paths produced by side inputs."""
     pass
 
+  def validate_constructor_args(self):
+    """
+    Validate arguments passed to the ModelHandler constructor.
+    """
+    raise NotImplementedError
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
