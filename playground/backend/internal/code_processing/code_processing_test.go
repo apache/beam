@@ -628,8 +628,8 @@ func Test_getRunOrTestCmd(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getExecuteCmd(tt.args.isUnitTest, tt.args.executor, tt.args.ctxWithTimeout); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getExecuteCmd() = %v, want %v", got, tt.want)
+			if got := getExecuteCmd(tt.args.isUnitTest, tt.args.executor, tt.args.ctxWithTimeout); got.String() != tt.want.String() {
+				t.Errorf("getExecuteCmd() = '%v', want '%v'", got.String(), tt.want.String())
 			}
 		})
 	}
