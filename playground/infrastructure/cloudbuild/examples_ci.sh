@@ -90,14 +90,14 @@ do
       cd -
       if [ $checker_status -eq 0 ]
       then
-          echo "Checker has found changed examples for ${sdk^^}" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+          echo "Checker has found changed examples for ${sdk^^}" >> /tmp/build-log-${1}-${2}-${3}.txt
           example_has_changed=True
       elif [ $checker_status -eq 11 ]
       then
-          echo "Checker has not found changed examples for ${sdk^^}" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+          echo "Checker has not found changed examples for ${sdk^^}" >> /tmp/build-log-${1}-${2}-${3}.txt
           example_has_changed=False
       else
-          echo "Error: Checker is broken" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+          echo "Error: Checker is broken" >> /tmp/build-log-${1}-${2}-${3}.txt
           exit 1
       fi
 
@@ -154,12 +154,12 @@ do
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
-            --subdirs ${SUBDIRS} >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+            --subdirs ${SUBDIRS} >> /tmp/build-log-${1}-${2}-${3}.txt
 
             docker stop container-${sdk}
             docker rm container-${sdk}
             cd -
       else
-            echo "No changes in examples. CI stage is skipped" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+            echo "No changes in examples. CI stage is skipped" >> /tmp/build-log-${1}-${2}-${3}.txt
       fi
 done
