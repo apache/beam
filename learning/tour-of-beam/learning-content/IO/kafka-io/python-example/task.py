@@ -38,14 +38,15 @@ p = beam.Pipeline(options=options)
 
 input_topic = 'input-topic'
 output_topic = 'output-topic'
+bootstrap_servers = {"bootstrap.servers": "localhost:9092"}
 
 (p | "Read from Kafka" >> ReadFromKafka(
       topics=[input_topic],
-      bootstrap_servers='localhost:29092')
+      consumer_config=bootstrap_servers)
  | "Process data" >> beam.Map(process_data)
  | "Write to Kafka" >> WriteToKafka(
       topic=output_topic,
-      bootstrap_servers='localhost:29092',
+      producer_config = bootstrap_servers,
       key='key',
       value='value')
 )
