@@ -103,7 +103,11 @@ func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 
 			// Here we rely on that WalkDir entries are lexically sorted
 			case regexp.MustCompile(hintMdRegexp).MatchString(d.Name()):
-				content, err := os.ReadFile(path)
+				templateSource, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				content, err := processTemplate(templateSource, ctx.sdk)
 				if err != nil {
 					return err
 				}

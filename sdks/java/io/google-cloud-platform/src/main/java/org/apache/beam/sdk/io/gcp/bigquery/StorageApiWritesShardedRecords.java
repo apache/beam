@@ -36,6 +36,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -399,43 +400,52 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
       Supplier<String> getOrCreateStream =
           () -> getOrCreateStream(tableId, streamName, streamOffset, idleTimer, datasetService);
+      Callable<AppendClientInfo> getAppendClientInfo =
+          () -> {
+            @Nullable TableSchema tableSchema;
+            if (autoUpdateSchema && updatedSchema.read() != null) {
+              // We've seen an updated schema, so we use that.
+              tableSchema = updatedSchema.read();
+            } else {
+              // Start off with the base schema. As we get notified of schema updates, we
+              // will update the
+              // descriptor.
+              tableSchema =
+                  messageConverters
+                      .get(element.getKey().getKey(), dynamicDestinations, datasetService)
+                      .getTableSchema();
+            }
+            AppendClientInfo info =
+                AppendClientInfo.of(
+                        Preconditions.checkStateNotNull(tableSchema),
+                        // Make sure that the client is always closed in a different thread
+                        // to
+                        // avoid blocking.
+                        client ->
+                            runAsyncIgnoreFailure(
+                                closeWriterExecutor,
+                                () -> {
+                                  // Remove the pin that is "owned" by the cache.
+                                  client.unpin();
+                                  client.close();
+                                }))
+                    .withAppendClient(datasetService, getOrCreateStream, false);
+            // This pin is "owned" by the cache.
+            Preconditions.checkStateNotNull(info.getStreamAppendClient()).pin();
+            return info;
+          };
+
       AtomicReference<AppendClientInfo> appendClientInfo =
-          new AtomicReference<>(
-              APPEND_CLIENTS.get(
-                  element.getKey(),
-                  () -> {
-                    @Nullable TableSchema tableSchema;
-                    if (autoUpdateSchema && updatedSchema.read() != null) {
-                      // We've seen an updated schema, so we use that.
-                      tableSchema = updatedSchema.read();
-                    } else {
-                      // Start off with the base schema. As we get notified of schema updates, we
-                      // will update the
-                      // descriptor.
-                      tableSchema =
-                          messageConverters
-                              .get(element.getKey().getKey(), dynamicDestinations, datasetService)
-                              .getTableSchema();
-                    }
-                    AppendClientInfo info =
-                        AppendClientInfo.of(
-                                Preconditions.checkStateNotNull(tableSchema),
-                                // Make sure that the client is always closed in a different thread
-                                // to
-                                // avoid blocking.
-                                client ->
-                                    runAsyncIgnoreFailure(
-                                        closeWriterExecutor,
-                                        () -> {
-                                          // Remove the pin that is "owned" by the cache.
-                                          client.unpin();
-                                          client.close();
-                                        }))
-                            .withAppendClient(datasetService, getOrCreateStream, false);
-                    // This pin is "owned" by the cache.
-                    Preconditions.checkStateNotNull(info.getStreamAppendClient()).pin();
-                    return info;
-                  }));
+          new AtomicReference<>(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
+      String currentStream = getOrCreateStream.get();
+      if (!currentStream.equals(appendClientInfo.get().getStreamName())) {
+        // Cached append client is inconsistent with persisted state. Throw away cached item and
+        // force it to be
+        // recreated.
+        APPEND_CLIENTS.invalidate(element.getKey());
+        appendClientInfo.set(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
+      }
+
       TableSchema updatedSchemaValue = updatedSchema.read();
       if (autoUpdateSchema && updatedSchemaValue != null) {
         if (appendClientInfo.get().hasSchemaChanged(updatedSchemaValue)) {

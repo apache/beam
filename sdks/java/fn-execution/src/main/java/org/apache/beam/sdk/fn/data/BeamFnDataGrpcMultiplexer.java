@@ -93,7 +93,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   }
 
   /**
-   * Registers a consumer for the specified intruction id.
+   * Registers a consumer for the specified instruction id.
    *
    * <p>The {@link BeamFnDataGrpcMultiplexer} partitions {@link BeamFnApi.Elements} with multiple
    * instruction ids ensuring that the receiver will only see {@link BeamFnApi.Elements} with a
