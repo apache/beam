@@ -58,26 +58,27 @@ KeyedTensorInferenceFn = Callable[[
 
 
 def _load_model(
-    model_class: torch.nn.Module,
-    state_dict_path,
-    device,
-    model_params,
-    use_torch_script_format=False):
+    model_class: Optional[Callable[..., torch.nn.Module]],
+    state_dict_path: Optional[str],
+    device: torch.device,
+    model_params: Optional[Dict[str, Any]],
+    torch_script_model_path: Optional[str]):
   if device == torch.device('cuda') and not torch.cuda.is_available():
     logging.warning(
-        "Model handler specified a 'GPU' device, but GPUs are not available. " \
+        "Model handler specified a 'GPU' device, but GPUs are not available. "
         "Switching to CPU.")
     device = torch.device('cpu')
 
-  file = FileSystems.open(state_dict_path, 'rb')
   try:
     logging.info(
         "Loading state_dict_path %s onto a %s device", state_dict_path, device)
-    if not use_torch_script_format:
+    if not torch_script_model_path:
+      file = FileSystems.open(state_dict_path, 'rb')
       model = model_class(**model_params)
       state_dict = torch.load(file, map_location=device)
       model.load_state_dict(state_dict)
     else:
+      file = FileSystems.open(torch_script_model_path, 'rb')
       model = torch.jit.load(file, map_location=device)
   except RuntimeError as e:
     if device == torch.device('cuda'):
@@ -89,7 +90,7 @@ def _load_model(
           state_dict_path,
           torch.device('cpu'),
           model_params,
-          use_torch_script_format)
+          torch_script_model_path)
     else:
       raise e
 
@@ -158,19 +159,22 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
                                              torch.nn.Module]):
   def __init__(
       self,
-      state_dict_path: str,
+      state_dict_path: Optional[str] = None,
       model_class: Optional[Callable[..., torch.nn.Module]] = None,
       model_params: Optional[Dict[str, Any]] = None,
       device: str = 'CPU',
       *,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
-      use_torch_script_format=False,
+      torch_script_model_path: Optional[str] = None,
   ):
     """Implementation of the ModelHandler interface for PyTorch.
 
-    Example Usage::
-
-      pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
+    Example Usage for torch model::
+      pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri",
+                                                     model_class="my_class"))
+    Example Usage for torchscript model::
+      pcoll | RunInference(PytorchModelHandlerTensor(
+        torch_script_model_path="my_uri"))
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
@@ -186,9 +190,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         Otherwise, it will be CPU.
       inference_fn: the inference function to use during RunInference.
         default=_default_tensor_inference_fn
-      use_torch_script_format: When `use_torch_script_format` is set to `True`,
-        the model will be loaded using `torch.jit.load()`.
-        `model_class` and `model_params` arguments will be disregarded.
+      torch_script_model_path: Path to the torch script model.
+         the model will be loaded using `torch.jit.load()`.
+        `state_dict_path`, `model_class` and `model_params`
+         arguments will be disregarded.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -201,20 +206,25 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       logging.info("Device is set to CPU")
       self._device = torch.device('cpu')
     self._model_class = model_class
-    self._model_params = model_params
+    self._model_params = model_params if model_params else {}
     self._inference_fn = inference_fn
-    self._use_torch_script_format = use_torch_script_format
+    self._torch_script_model_path = torch_script_model_path
 
-    self._validate_func_args()
+    self.validate_constructor_args()
 
-  def _validate_func_args(self):
-    if not self._use_torch_script_format and (self._model_class is None or
-                                              self._model_params is None):
+  def validate_constructor_args(self):
+    if self._state_dict_path and not self._model_class:
       raise RuntimeError(
-          "Please pass both `model_class` and `model_params` to the torch "
-          "model handler when using it with PyTorch. "
-          "If you opt to load the entire that was saved using TorchScript, "
-          "set `use_torch_script_format` to True.")
+          "A state_dict_path has been supplied to the model "
+          "handler, but the required model_class is missing. "
+          "Please provide the model_class in order to "
+          "successfully load the state_dict_path.")
+
+    if self._torch_script_model_path:
+      if self._state_dict_path and self._model_class:
+        raise RuntimeError(
+            "Please specify either torch_script_model_path or "
+            "(state_dict_path, model_class) to successfully load the model.")
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -223,13 +233,18 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         self._state_dict_path,
         self._device,
         self._model_params,
-        self._use_torch_script_format
+        self._torch_script_model_path
     )
     self._device = device
     return model
 
   def update_model_path(self, model_path: Optional[str] = None):
-    self._state_dict_path = model_path if model_path else self._state_dict_path
+    if self._torch_script_model_path:
+      self._torch_script_model_path = (
+          model_path if model_path else self._torch_script_model_path)
+    else:
+      self._state_dict_path = (
+          model_path if model_path else self._state_dict_path)
 
   def run_inference(
       self,
@@ -258,9 +273,11 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       An Iterable of type PredictionResult.
     """
     inference_args = {} if not inference_args else inference_args
-
+    model_id = (
+        self._state_dict_path
+        if not self._torch_script_model_path else self._torch_script_model_path)
     return self._inference_fn(
-        batch, model, self._device, inference_args, self._state_dict_path)
+        batch, model, self._device, inference_args, model_id)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -351,19 +368,23 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
                                                   torch.nn.Module]):
   def __init__(
       self,
-      state_dict_path: str,
+      state_dict_path: Optional[str] = None,
       model_class: Optional[Callable[..., torch.nn.Module]] = None,
       model_params: Optional[Dict[str, Any]] = None,
       device: str = 'CPU',
       *,
       inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn,
-      use_torch_script_format: bool = False):
+      torch_script_model_path: Optional[str] = None):
     """Implementation of the ModelHandler interface for PyTorch.
 
-    Example Usage::
+     Example Usage for torch model::
+      pcoll | RunInference(PytorchModelHandlerKeyedTensor(
+        state_dict_path="my_uri",
+        model_class="my_class"))
 
-      pcoll | RunInference(
-      PytorchModelHandlerKeyedTensor(state_dict_path="my_uri"))
+    Example Usage for torchscript model::
+      pcoll | RunInference(PytorchModelHandlerKeyedTensor(
+        torch_script_model_path="my_uri"))
 
     **NOTE:** This API and its implementation are under development and
     do not provide backward compatibility guarantees.
@@ -382,9 +403,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         Otherwise, it will be CPU.
       inference_fn: the function to invoke on run_inference.
         default = default_keyed_tensor_inference_fn
-      use_torch_script_format: When `use_torch_script_format` is set to `True`,
-        the model will be loaded using `torch.jit.load()`.
-        `model_class` and `model_params` arguments will be disregarded.
+      torch_script_model_path: Path to the torch script model.
+         the model will be loaded using `torch.jit.load()`.
+        `state_dict_path`, `model_class` and `model_params`
+         arguments will be disregarded..
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     on torch>=1.9.0,<1.14.0.
@@ -397,11 +419,25 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       logging.info("Device is set to CPU")
       self._device = torch.device('cpu')
     self._model_class = model_class
-    self._model_params = model_params
+    self._model_params = model_params if model_params else {}
     self._inference_fn = inference_fn
-    self._use_torch_script_format = use_torch_script_format
+    self._torch_script_model_path = torch_script_model_path
 
-    self._validate_func_args()
+    self.validate_constructor_args()
+
+  def validate_constructor_args(self):
+    if self._state_dict_path and not self._model_class:
+      raise RuntimeError(
+          "A state_dict_path has been supplied to the model "
+          "handler, but the required model_class is missing. "
+          "Please provide the model_class in order to "
+          "successfully load the state_dict_path.")
+
+    if self._torch_script_model_path:
+      if self._state_dict_path and self._model_class:
+        raise RuntimeError(
+            "Please specify either torch_script_model_path or "
+            "(state_dict_path, model_class) to successfully load the model.")
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -410,13 +446,18 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         self._state_dict_path,
         self._device,
         self._model_params,
-        self._use_torch_script_format
+        self._torch_script_model_path
     )
     self._device = device
     return model
 
   def update_model_path(self, model_path: Optional[str] = None):
-    self._state_dict_path = model_path if model_path else self._state_dict_path
+    if self._torch_script_model_path:
+      self._torch_script_model_path = (
+          model_path if model_path else self._torch_script_model_path)
+    else:
+      self._state_dict_path = (
+          model_path if model_path else self._state_dict_path)
 
   def run_inference(
       self,
@@ -445,9 +486,11 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       An Iterable of type PredictionResult.
     """
     inference_args = {} if not inference_args else inference_args
-
+    model_id = (
+        self._state_dict_path
+        if not self._torch_script_model_path else self._torch_script_model_path)
     return self._inference_fn(
-        batch, model, self._device, inference_args, self._state_dict_path)
+        batch, model, self._device, inference_args, model_id)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -467,12 +510,3 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
-
-  def _validate_func_args(self):
-    if not self._use_torch_script_format and (self._model_class is None or
-                                              self._model_params is None):
-      raise RuntimeError(
-          "Please pass both `model_class` and `model_params` to the torch "
-          "model handler when using it with PyTorch. "
-          "If you opt to load the entire that was saved using TorchScript, "
-          "set `use_torch_script_format` to True.")
