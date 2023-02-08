@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Added set -x to show output into cloud build console
+# Added set -x to show output into cloud build console to the bucket
 set -x
 
 export GRADLE_VERSION=7.5.1
