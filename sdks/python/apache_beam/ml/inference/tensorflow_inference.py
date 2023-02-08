@@ -18,6 +18,7 @@
 # pytype: skip-file
 
 from cmath import inf
+import enum
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -44,8 +45,16 @@ TensorInferenceFn = Callable[[
                              Iterable[PredictionResult]]
 
 
-def _load_model(model_uri):
-  return tf.keras.models.load_model(model_uri)
+class ModelType(enum.Enum):
+  """Defines how a model file should be loaded."""
+  SAVED_MODEL = 1
+  
+
+def _load_model(model_uri, model_type):
+  if model_type == ModelType.SAVED_MODEL:
+    return tf.keras.models.load_model(model_uri)
+  else:
+    raise AssertionError('Unsupported model type for loading.')
 
 
 def default_numpy_inference_fn(
@@ -55,7 +64,7 @@ def default_numpy_inference_fn(
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = numpy.stack(batch, axis=0)
   return utils._convert_to_result(
-      batch, model.predict(vectorized_batch), model_id)
+      batch, model.predict(vectorized_batch, **inference_args), model_id)
 
 
 def default_tensor_inference_fn(
@@ -65,7 +74,7 @@ def default_tensor_inference_fn(
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = tf.stack(batch, axis=0)
   return utils._convert_to_result(
-      batch, model.predict(vectorized_batch), model_id)
+      batch, model.predict(vectorized_batch, **inference_args), model_id)
 
 
 class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
@@ -74,6 +83,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def __init__(
       self,
       model_uri: str,
+      model_type: ModelType = ModelType.SAVED_MODEL,
       *,
       inference_fn: TensorInferenceFn = default_numpy_inference_fn):
     """Implementation of the ModelHandler interface for Tensorflow.
@@ -86,6 +96,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     
     Args:
         model_uri (str): path to the trained model.
+        model_type (ModelType): type of model to be loaded. 
+          Defaults to SAVED_MODEL.
         inference_fn (TensorInferenceFn, optional): inference function to use
           during RunInference. Defaults to default_numpy_inference_fn.
           
@@ -93,11 +105,12 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     with Tensorflow 2.11.
     """
     self._model_uri = model_uri
+    self._model_type = model_type
     self._inference_fn = inference_fn
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
-    return _load_model(self._model_uri)
+    return _load_model(self._model_uri, self._model_type)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_uri = model_path if model_path else self._model_uri
@@ -153,6 +166,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
   def __init__(
       self,
       model_uri: str,
+      model_type: ModelType = ModelType.SAVED_MODEL,
       *,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn):
     """Implementation of the ModelHandler interface for Tensorflow.
@@ -165,6 +179,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     
     Args:
         model_uri (str): path to the trained model.
+        model_type (ModelType): type of model to be loaded. 
+          Defaults to SAVED_MODEL.
         inference_fn (TensorInferenceFn, optional): inference function to use
           during RunInference. Defaults to default_numpy_inference_fn.
           
@@ -172,11 +188,12 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     with Tensorflow 2.11.
     """
     self._model_uri = model_uri
+    self._model_type = model_type
     self._inference_fn = inference_fn
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
-    return _load_model(self._model_uri)
+    return _load_model(self._model_uri, self._model_type)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_uri = model_path if model_path else self._model_uri
@@ -220,7 +237,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_TF_Tensors'
+    return 'BeamML_TF_Tensor'
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
