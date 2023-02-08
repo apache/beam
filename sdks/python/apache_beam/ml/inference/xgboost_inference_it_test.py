@@ -15,15 +15,20 @@
 # limitations under the License.
 #
 
-import logging
+try:
+  import os
+  import logging
 
-import pytest
-import unittest
-import uuid
+  import pytest
+  import unittest
+  import uuid
+  import xgboost
 
-from apache_beam.examples.inference import xgboost_iris_classification
-from apache_beam.io.filesystems import FileSystems
-from apache_beam.testing.test_pipeline import TestPipeline
+  from apache_beam.examples.inference import xgboost_iris_classification
+  from apache_beam.io.filesystems import FileSystems
+  from apache_beam.testing.test_pipeline import TestPipeline
+except ImportError as e:
+  xgboost = None
 
 
 def process_outputs(filepath):
@@ -33,6 +38,10 @@ def process_outputs(filepath):
   return lines
 
 
+@unittest.skipIf(
+    os.getenv('FORCE_XGBOOST_IT') is None and xgboost is None,
+    'Missing dependencies. '
+    'Test depends on xgboost and datatable')
 @pytest.mark.uses_xgboost
 @pytest.mark.it_postcommit
 class XGBoostInference(unittest.TestCase):
