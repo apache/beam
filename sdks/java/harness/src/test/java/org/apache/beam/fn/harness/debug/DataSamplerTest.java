@@ -18,9 +18,10 @@
 package org.apache.beam.fn.harness.debug;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,25 +31,86 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class DataSamplerTest {
-  public byte[] encodeInt(Integer i) throws IOException {
+  byte[] encodeInt(Integer i) throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     coder.encode(i, stream);
     return stream.toByteArray();
   }
 
-  public byte[] encodeString(String s) throws IOException {
+  byte[] encodeString(String s) throws IOException {
     StringUtf8Coder coder = StringUtf8Coder.of();
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     coder.encode(s, stream);
     return stream.toByteArray();
+  }
+
+  BeamFnApi.InstructionResponse getAllSamples(DataSampler dataSampler) {
+    BeamFnApi.InstructionRequest request =
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setSample(BeamFnApi.SampleDataRequest.newBuilder().build())
+            .build();
+    return dataSampler.handleDataSampleRequest(request).build();
+  }
+
+  BeamFnApi.InstructionResponse getSamplesForPCollection(
+      DataSampler dataSampler, String pcollection) {
+    BeamFnApi.InstructionRequest request =
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setSample(
+                BeamFnApi.SampleDataRequest.newBuilder().addPcollectionIds(pcollection).build())
+            .build();
+    return dataSampler.handleDataSampleRequest(request).build();
+  }
+
+  BeamFnApi.InstructionResponse getSamplesForDescriptors(
+      DataSampler dataSampler, List<String> descriptors) {
+    BeamFnApi.InstructionRequest request =
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setSample(
+                BeamFnApi.SampleDataRequest.newBuilder()
+                    .addAllProcessBundleDescriptorIds(descriptors)
+                    .build())
+            .build();
+    return dataSampler.handleDataSampleRequest(request).build();
+  }
+
+  BeamFnApi.InstructionResponse getSamplesFor(
+      DataSampler dataSampler, String descriptor, String pcollection) {
+    BeamFnApi.InstructionRequest request =
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setSample(
+                BeamFnApi.SampleDataRequest.newBuilder()
+                    .addProcessBundleDescriptorIds(descriptor)
+                    .addPcollectionIds(pcollection)
+                    .build())
+            .build();
+    return dataSampler.handleDataSampleRequest(request).build();
+  }
+
+  void assertHasSamples(
+      BeamFnApi.InstructionResponse response, String pcollection, Iterable<byte[]> elements) {
+    Map<String, BeamFnApi.SampleDataResponse.ElementList> elementSamplesMap =
+        response.getSample().getElementSamplesMap();
+
+    assertFalse(elementSamplesMap.isEmpty());
+
+    BeamFnApi.SampleDataResponse.ElementList elementList = elementSamplesMap.get(pcollection);
+    assertNotNull(elementList);
+
+    List<BeamFnApi.SampledElement> expectedSamples = new ArrayList<>();
+    for (byte[] el : elements) {
+      expectedSamples.add(
+          BeamFnApi.SampledElement.newBuilder().setElement(ByteString.copyFrom(el)).build());
+    }
+
+    assertTrue(elementList.getElementsList().containsAll(expectedSamples));
   }
 
   /**
@@ -63,8 +125,8 @@ public class DataSamplerTest {
     VarIntCoder coder = VarIntCoder.of();
     sampler.sampleOutput("descriptor-id", "pcollection-id", coder).sample(1);
 
-    Map<String, List<byte[]>> samples = sampler.allSamples();
-    assertThat(samples.get("pcollection-id"), contains(encodeInt(1)));
+    BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
+    assertHasSamples(samples, "pcollection-id", Collections.singleton(encodeInt(1)));
   }
 
   /**
@@ -80,9 +142,9 @@ public class DataSamplerTest {
     sampler.sampleOutput("descriptor-id", "pcollection-id-1", coder).sample(1);
     sampler.sampleOutput("descriptor-id", "pcollection-id-2", coder).sample(2);
 
-    Map<String, List<byte[]>> samples = sampler.allSamples();
-    assertThat(samples.get("pcollection-id-1"), contains(encodeInt(1)));
-    assertThat(samples.get("pcollection-id-2"), contains(encodeInt(2)));
+    BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
+    assertHasSamples(samples, "pcollection-id-1", Collections.singleton(encodeInt(1)));
+    assertHasSamples(samples, "pcollection-id-2", Collections.singleton(encodeInt(2)));
   }
 
   /**
@@ -98,8 +160,16 @@ public class DataSamplerTest {
     sampler.sampleOutput("descriptor-id-1", "pcollection-id", coder).sample(1);
     sampler.sampleOutput("descriptor-id-2", "pcollection-id", coder).sample(2);
 
-    Map<String, List<byte[]>> samples = sampler.allSamples();
-    assertThat(samples.get("pcollection-id"), contains(encodeInt(1), encodeInt(2)));
+    BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
+    assertHasSamples(samples, "pcollection-id", ImmutableList.of(encodeInt(1), encodeInt(2)));
+  }
+
+  void generateStringSamples(DataSampler sampler) {
+    StringUtf8Coder coder = StringUtf8Coder.of();
+    sampler.sampleOutput("a", "1", coder).sample("a1");
+    sampler.sampleOutput("a", "2", coder).sample("a2");
+    sampler.sampleOutput("b", "1", coder).sample("b1");
+    sampler.sampleOutput("b", "2", coder).sample("b2");
   }
 
   /**
@@ -110,17 +180,12 @@ public class DataSamplerTest {
   @Test
   public void testFiltersSingleDescriptorId() throws Exception {
     DataSampler sampler = new DataSampler(10, 10);
+    generateStringSamples(sampler);
 
-    StringUtf8Coder coder = StringUtf8Coder.of();
-    sampler.sampleOutput("a", "1", coder).sample("a1");
-    sampler.sampleOutput("a", "2", coder).sample("a2");
-    sampler.sampleOutput("b", "1", coder).sample("b1");
-    sampler.sampleOutput("b", "2", coder).sample("b2");
-
-    Map<String, List<byte[]>> samples =
-        sampler.samplesForDescriptors(new HashSet<>(Collections.singletonList("a")));
-    assertThat(samples.get("1"), contains(encodeString("a1")));
-    assertThat(samples.get("2"), contains(encodeString("a2")));
+    BeamFnApi.InstructionResponse samples =
+        getSamplesForDescriptors(sampler, ImmutableList.of("a"));
+    assertHasSamples(samples, "1", Collections.singleton(encodeString("a1")));
+    assertHasSamples(samples, "2", Collections.singleton(encodeString("a2")));
   }
 
   /**
@@ -131,16 +196,12 @@ public class DataSamplerTest {
   @Test
   public void testFiltersMultipleDescriptorId() throws Exception {
     DataSampler sampler = new DataSampler(10, 10);
+    generateStringSamples(sampler);
 
-    StringUtf8Coder coder = StringUtf8Coder.of();
-    sampler.sampleOutput("a", "1", coder).sample("a1");
-    sampler.sampleOutput("a", "2", coder).sample("a2");
-    sampler.sampleOutput("b", "1", coder).sample("b1");
-    sampler.sampleOutput("b", "2", coder).sample("b2");
-
-    Map<String, List<byte[]>> samples = sampler.samplesForDescriptors(ImmutableSet.of("a", "b"));
-    assertThat(samples.get("1"), contains(encodeString("a1"), encodeString("b1")));
-    assertThat(samples.get("2"), contains(encodeString("a2"), encodeString("b2")));
+    BeamFnApi.InstructionResponse samples =
+        getSamplesForDescriptors(sampler, ImmutableList.of("a", "b"));
+    assertHasSamples(samples, "1", ImmutableList.of(encodeString("a1"), encodeString("b1")));
+    assertHasSamples(samples, "2", ImmutableList.of(encodeString("a2"), encodeString("b2")));
   }
 
   /**
@@ -151,24 +212,10 @@ public class DataSamplerTest {
   @Test
   public void testFiltersSinglePCollectionId() throws Exception {
     DataSampler sampler = new DataSampler(10, 10);
+    generateStringSamples(sampler);
 
-    StringUtf8Coder coder = StringUtf8Coder.of();
-    sampler.sampleOutput("a", "1", coder).sample("a1");
-    sampler.sampleOutput("a", "2", coder).sample("a2");
-    sampler.sampleOutput("b", "1", coder).sample("b1");
-    sampler.sampleOutput("b", "2", coder).sample("b2");
-
-    Map<String, List<byte[]>> samples =
-        sampler.samplesForPCollections(new HashSet<>(Collections.singletonList("1")));
-    assertThat(samples.get("1"), containsInAnyOrder(encodeString("a1"), encodeString("b1")));
-  }
-
-  void generateStringSamples(DataSampler sampler) {
-    StringUtf8Coder coder = StringUtf8Coder.of();
-    sampler.sampleOutput("a", "1", coder).sample("a1");
-    sampler.sampleOutput("a", "2", coder).sample("a2");
-    sampler.sampleOutput("b", "1", coder).sample("b1");
-    sampler.sampleOutput("b", "2", coder).sample("b2");
+    BeamFnApi.InstructionResponse samples = getSamplesForPCollection(sampler, "1");
+    assertHasSamples(samples, "1", ImmutableList.of(encodeString("a1"), encodeString("b1")));
   }
 
   /**
@@ -186,56 +233,16 @@ public class DataSamplerTest {
       for (String pcollectionId : pcollectionIds) {
         DataSampler sampler = new DataSampler(10, 10);
         generateStringSamples(sampler);
-        Map<String, List<byte[]>> actual =
-            sampler.samplesFor(ImmutableSet.of(descriptorId), ImmutableSet.of(pcollectionId));
 
+        BeamFnApi.InstructionResponse samples = getSamplesFor(sampler, descriptorId, pcollectionId);
         System.out.print("Testing: " + descriptorId + pcollectionId + "...");
-        assertThat(actual.size(), equalTo(1));
-        assertThat(actual.get(pcollectionId), contains(encodeString(descriptorId + pcollectionId)));
+        assertThat(samples.getSample().getElementSamplesMap().size(), equalTo(1));
+        assertHasSamples(
+            samples,
+            pcollectionId,
+            Collections.singleton(encodeString(descriptorId + pcollectionId)));
         System.out.println("ok");
       }
     }
-  }
-
-  /**
-   * Test that the DataSampler can respond with the correct samples with filters.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testMakesCorrectResponse() throws Exception {
-    DataSampler dataSampler = new DataSampler();
-    generateStringSamples(dataSampler);
-
-    // SampleDataRequest that filters on PCollection=1 and PBD ids = "a" or "b".
-    BeamFnApi.InstructionRequest request =
-        BeamFnApi.InstructionRequest.newBuilder()
-            .setSample(
-                BeamFnApi.SampleDataRequest.newBuilder()
-                    .addPcollectionIds("1")
-                    .addProcessBundleDescriptorIds("a")
-                    .addProcessBundleDescriptorIds("b")
-                    .build())
-            .build();
-    BeamFnApi.InstructionResponse actual = dataSampler.handleDataSampleRequest(request).build();
-    BeamFnApi.InstructionResponse expected =
-        BeamFnApi.InstructionResponse.newBuilder()
-            .setSample(
-                BeamFnApi.SampleDataResponse.newBuilder()
-                    .putElementSamples(
-                        "1",
-                        BeamFnApi.SampleDataResponse.ElementList.newBuilder()
-                            .addElements(
-                                BeamFnApi.SampledElement.newBuilder()
-                                    .setElement(ByteString.copyFrom(encodeString("a1")))
-                                    .build())
-                            .addElements(
-                                BeamFnApi.SampledElement.newBuilder()
-                                    .setElement(ByteString.copyFrom(encodeString("b1")))
-                                    .build())
-                            .build())
-                    .build())
-            .build();
-    assertThat(actual, equalTo(expected));
   }
 }

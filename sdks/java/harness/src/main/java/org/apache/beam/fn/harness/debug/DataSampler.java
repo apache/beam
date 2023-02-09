@@ -21,14 +21,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.SampleDataResponse.ElementList;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.SampledElement;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * The DataSampler is a global (per SDK Harness) object that facilitates taking and returning
@@ -38,8 +36,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 public class DataSampler {
 
-  /** Creates a DataSampler to sample every 10 elements while keeping a maximum of 10 in memory. */
-  public DataSampler() {}
+  /**
+   * Creates a DataSampler to sample every 1000 elements while keeping a maximum of 10 in memory.
+   */
+  public DataSampler() {
+    this.maxSamples = 10;
+    this.sampleEveryN = 1000;
+  }
 
   /**
    * @param maxSamples Sets the maximum number of samples held in memory at once.
@@ -51,17 +54,15 @@ public class DataSampler {
   }
 
   // Maximum number of elements in buffer.
-  private final int maxSamples = 10;
+  private final int maxSamples;
 
   // Sampling rate.
-  private final int sampleEveryN = 1000;
+  private final int sampleEveryN;
 
   // The fully-qualified type is: Map[ProcessBundleDescriptorId, [PCollectionId, OutputSampler]].
   // The DataSampler object lives on the same level of the FnHarness. This means that many threads
-  // can and will
-  // access this simultaneously. However, ProcessBundleDescriptors are unique per thread, so only
-  // synchronization
-  // is needed on the outermost map.
+  // can and will access this simultaneously. However, ProcessBundleDescriptors are unique per
+  // thread, so only synchronization is needed on the outermost map.
   private final Map<String, Map<String, OutputSampler<?>>> outputSamplers =
       new ConcurrentHashMap<>();
 
@@ -73,8 +74,8 @@ public class DataSampler {
    * @param processBundleDescriptorId The PBD to sample from.
    * @param pcollectionId The PCollection to take intermittent samples from.
    * @param coder The coder associated with the PCollection. Coder may be from a nested context.
-   * @return the OutputSampler corresponding to the unique PBD and PCollection.
    * @param <T> The type of element contained in the PCollection.
+   * @return the OutputSampler corresponding to the unique PBD and PCollection.
    */
   public <T> OutputSampler<T> sampleOutput(
       String processBundleDescriptorId, String pcollectionId, Coder<T> coder) {
@@ -99,8 +100,8 @@ public class DataSampler {
 
     Map<String, List<byte[]>> responseSamples =
         samplesFor(
-            ImmutableSet.copyOf(sampleDataRequest.getProcessBundleDescriptorIdsList()),
-            ImmutableSet.copyOf(sampleDataRequest.getPcollectionIdsList()));
+            sampleDataRequest.getProcessBundleDescriptorIdsList(),
+            sampleDataRequest.getPcollectionIdsList());
 
     BeamFnApi.SampleDataResponse.Builder response = BeamFnApi.SampleDataResponse.newBuilder();
     for (String pcollectionId : responseSamples.keySet()) {
@@ -124,7 +125,8 @@ public class DataSampler {
    * @param pcollections Filters all PCollections on this set. If empty, allows all PCollections.
    * @return a map from PCollection to its samples.
    */
-  public Map<String, List<byte[]>> samplesFor(Set<String> descriptors, Set<String> pcollections) {
+  private Map<String, List<byte[]>> samplesFor(
+      List<String> descriptors, List<String> pcollections) {
     Map<String, List<byte[]>> samples = new HashMap<>();
 
     // Safe to iterate as the ConcurrentHashMap will return each element at most once and will not
@@ -142,32 +144,11 @@ public class DataSampler {
                   return;
                 }
 
-                samples.putIfAbsent(pcollectionId, Collections.EMPTY_LIST);
+                samples.putIfAbsent(pcollectionId, new ArrayList<>());
                 samples.get(pcollectionId).addAll(outputSampler.samples());
               });
         });
 
     return samples;
-  }
-
-  /** @return samples from all PBDs and all PCollections. */
-  public Map<String, List<byte[]>> allSamples() {
-    return samplesFor(ImmutableSet.of(), ImmutableSet.of());
-  }
-
-  /**
-   * @param descriptors PBDs to filter on.
-   * @return samples only from the given descriptors.
-   */
-  public Map<String, List<byte[]>> samplesForDescriptors(Set<String> descriptors) {
-    return samplesFor(descriptors, ImmutableSet.of());
-  }
-
-  /**
-   * @param pcollections PCollection ids to filter on.
-   * @return samples only from the given PCollections.
-   */
-  public Map<String, List<byte[]>> samplesForPCollections(Set<String> pcollections) {
-    return samplesFor(ImmutableSet.of(), pcollections);
   }
 }

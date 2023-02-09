@@ -33,14 +33,16 @@ import org.slf4j.LoggerFactory;
  */
 public class OutputSampler<T> {
   private final Coder<T> coder;
-  private final List<T> buffer = new ArrayList<>(maxElements);
   private static final Logger LOG = LoggerFactory.getLogger(OutputSampler.class);
 
+  // Temporarily holds elements until the SDK receives a sample data request.
+  private final List<T> buffer;
+
   // Maximum number of elements in buffer.
-  private int maxElements = 10;
+  private final int maxElements;
 
   // Sampling rate.
-  private int sampleEveryN = 1000;
+  private final int sampleEveryN;
 
   // Total number of samples taken.
   private long numSamples = 0;
@@ -48,14 +50,11 @@ public class OutputSampler<T> {
   // Index into the buffer of where to overwrite samples.
   private int resampleIndex = 0;
 
-  public OutputSampler(Coder<T> coder) {
-    this.coder = coder;
-  }
-
   public OutputSampler(Coder<T> coder, int maxElements, int sampleEveryN) {
-    this(coder);
+    this.coder = coder;
     this.maxElements = maxElements;
     this.sampleEveryN = sampleEveryN;
+    this.buffer = new ArrayList<>(this.maxElements);
   }
 
   /**
@@ -63,7 +62,7 @@ public class OutputSampler<T> {
    *
    * @param element the element to sample.
    */
-  public void sample(T element) {
+  public synchronized void sample(T element) {
     // Only sample the first 10 elements then after every `sampleEveryN`th element.
     numSamples += 1;
     if (numSamples > 10 && numSamples % sampleEveryN != 0) {
@@ -87,8 +86,17 @@ public class OutputSampler<T> {
    */
   public List<byte[]> samples() {
     List<byte[]> ret = new ArrayList<>();
+
+    // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
+    // so as to not slow down the main processing hot path.
+    List<T> copiedBuffer;
+    synchronized (this) {
+      copiedBuffer = new ArrayList<>(buffer);
+      clear();
+    }
+
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    for (T el : buffer) {
+    for (T el : copiedBuffer) {
       try {
         // This is deprecated, but until this is fully removed, this specifically needs the nested
         // context. This is because the SDK will need to decode the sampled elements with the
@@ -102,7 +110,6 @@ public class OutputSampler<T> {
       }
     }
 
-    clear();
     return ret;
   }
 

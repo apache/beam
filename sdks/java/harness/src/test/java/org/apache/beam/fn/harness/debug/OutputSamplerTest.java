@@ -24,7 +24,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,11 +45,8 @@ public class OutputSamplerTest {
    */
   @Test
   public void testSamplesFirstN() throws Exception {
-    DataSampler sampler = new DataSampler(10, 10);
-
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler =
-        sampler.sampleOutput("descriptor-id", "pcollection-id", coder);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
 
     // Purposely go over maxSamples and sampleEveryN. This helps to increase confidence.
     for (int i = 0; i < 15; ++i) {
@@ -63,8 +59,8 @@ public class OutputSamplerTest {
       expected.add(encodeInt(i));
     }
 
-    Map<String, List<byte[]>> samples = sampler.allSamples();
-    assertThat(samples.get("pcollection-id"), containsInAnyOrder(expected.toArray()));
+    List<byte[]> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
   }
 
   /**
@@ -74,11 +70,8 @@ public class OutputSamplerTest {
    */
   @Test
   public void testActsLikeCircularBuffer() throws Exception {
-    DataSampler sampler = new DataSampler(5, 20);
-
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler =
-        sampler.sampleOutput("descriptor-id", "pcollection-id", coder);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
 
     for (int i = 0; i < 100; ++i) {
       outputSampler.sample(i);
@@ -94,7 +87,7 @@ public class OutputSamplerTest {
     expected.add(encodeInt(79));
     expected.add(encodeInt(99));
 
-    Map<String, List<byte[]>> samples = sampler.allSamples();
-    assertThat(samples.get("pcollection-id"), containsInAnyOrder(expected.toArray()));
+    List<byte[]> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
   }
 }

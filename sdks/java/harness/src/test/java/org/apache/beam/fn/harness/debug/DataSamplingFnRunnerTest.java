@@ -20,10 +20,12 @@ package org.apache.beam.fn.harness.debug;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.util.*;
 import org.apache.beam.fn.harness.PTransformRunnerFactoryTestContext;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.CoderTranslation;
@@ -31,6 +33,7 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,6 +68,7 @@ public class DataSamplingFnRunnerTest {
     RunnerApi.Coder coder = CoderTranslation.toProto(StringUtf8Coder.of()).getCoder();
     PTransformRunnerFactoryTestContext context =
         PTransformRunnerFactoryTestContext.builder(pTransformId, pTransform)
+            .processBundleDescriptorId("descriptor-id")
             .processBundleInstructionId("instruction-id")
             .pCollections(pCollectionMap)
             .coders(Collections.singletonMap("coder-id", coder))
@@ -89,13 +93,27 @@ public class DataSamplingFnRunnerTest {
             .withPipeline(Pipeline.create());
     Coder<String> rehydratedCoder = (Coder<String>) rehydratedComponents.getCoder("coder-id");
 
-    Map<String, List<byte[]>> samples = dataSampler.allSamples();
-    assertThat(samples.keySet(), contains("inputTarget"));
+    BeamFnApi.InstructionRequest request =
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setSample(BeamFnApi.SampleDataRequest.newBuilder().build())
+            .build();
+    BeamFnApi.InstructionResponse samples = dataSampler.handleDataSampleRequest(request).build();
+    assertThat(samples.getSample().getElementSamplesMap().keySet(), contains("inputTarget"));
 
     // Ensure that the value was sampled.
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     rehydratedCoder.encode("Hello, World!", outputStream);
     byte[] encodedValue = outputStream.toByteArray();
-    assertThat(samples.get("inputTarget"), contains(encodedValue));
+
+    assertTrue(
+        samples
+            .getSample()
+            .getElementSamplesMap()
+            .get("inputTarget")
+            .getElementsList()
+            .contains(
+                BeamFnApi.SampledElement.newBuilder()
+                    .setElement(ByteString.copyFrom(encodedValue))
+                    .build()));
   }
 }
