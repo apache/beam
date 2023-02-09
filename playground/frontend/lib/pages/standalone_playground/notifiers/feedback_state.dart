@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
+import 'package:playground_components/playground_components.dart';
 
 const kFeedbackKey = 'feedback';
 

@@ -25,17 +25,20 @@ import '../../../../../pages/standalone_playground/path.dart';
 import '../../../../../utils/share_code_utils.dart';
 import '../link_text_field.dart';
 import '../share_tab_body.dart';
+import 'share_format_enum.dart';
 
 /// The content of the sharing dropdown at the point when the
 /// shareable link can be generated from [descriptor].
 // TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
 class ExampleShareTabs extends StatelessWidget {
   final ExampleLoadingDescriptor descriptor;
+  final EventContext eventContext;
   final Sdk sdk;
   final TabController tabController;
 
   const ExampleShareTabs({
     required this.descriptor,
+    required this.eventContext,
     required this.sdk,
     required this.tabController,
   });
@@ -61,6 +64,8 @@ class ExampleShareTabs extends StatelessWidget {
           children: [
             Text(appLocale.linkReady),
             LinkTextField(
+              eventContext: eventContext,
+              shareFormat: ShareFormat.linkStandalone,
               text: standaloneUri.toString(),
             ),
           ],
@@ -69,6 +74,8 @@ class ExampleShareTabs extends StatelessWidget {
           children: [
             Text(appLocale.iframeCodeReady),
             LinkTextField(
+              eventContext: eventContext,
+              shareFormat: ShareFormat.iframeEmbedded,
               text: ShareCodeUtils.iframe(
                 src: embeddedUri,
               ),

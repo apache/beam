@@ -19,12 +19,19 @@
 import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
+import 'sdk_aware_example_loading_descriptor.dart';
 
 /// Describes an example to be loaded from the catalog.
-class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor
+    implements SdkAwareExampleLoadingDescriptor {
   /// The identifier of the example in the catalog.
   final String path;
+
+  @override
   final Sdk sdk;
+
+  @override
+  String get token => path;
 
   const StandardExampleLoadingDescriptor({
     required this.path,

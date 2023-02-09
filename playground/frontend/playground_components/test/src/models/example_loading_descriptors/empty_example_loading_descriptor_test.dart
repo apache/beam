@@ -29,5 +29,9 @@ void main() {
 
       expect(parsed, descriptor);
     });
+
+    test('token == null', () {
+      expect(descriptor.token, null);
+    });
   });
 }

@@ -16,29 +16,14 @@
  * limitations under the License.
  */
 
-import 'package:equatable/equatable.dart';
+import 'package:playground_components/playground_components.dart';
 
-class AnalyticsEvent with EquatableMixin {
-  final String action;
-  final String category;
-  final String? label;
-  final Map<String, String>? parameters;
-  final int? value;
+import 'constants.dart';
 
-  AnalyticsEvent({
-    required this.action,
-    required this.category,
-    this.label,
-    this.parameters,
-    this.value,
-  });
-
-  @override
-  List<Object?> get props => [
-        action,
-        category,
-        label,
-        parameters,
-        value,
-      ];
+class ShareCodeClickedAnalyticsEvent extends SnippetAnalyticsEvent {
+  const ShareCodeClickedAnalyticsEvent({
+    required super.context,
+  }) : super(
+          name: PlaygroundAnalyticsEvents.shareCodeClicked,
+        );
 }

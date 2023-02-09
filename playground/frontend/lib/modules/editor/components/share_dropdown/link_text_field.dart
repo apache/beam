@@ -18,16 +18,26 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/constants/sizes.dart';
 import 'package:playground_components/playground_components.dart';
+
+import '../../../../constants/font_weight.dart';
+import '../../../../constants/sizes.dart';
+import '../../../../services/analytics/events/shareable_copied.dart';
+import 'share_tabs/share_format_enum.dart';
 
 const _kTextFieldMaxHeight = 45.0;
 
 class LinkTextField extends StatefulWidget {
+  final EventContext eventContext;
+  final ShareFormat shareFormat;
   final String text;
 
-  const LinkTextField({super.key, required this.text});
+  const LinkTextField({
+    super.key,
+    required this.eventContext,
+    required this.shareFormat,
+    required this.text,
+  });
 
   @override
   State<LinkTextField> createState() => _LinkTextFieldState();
@@ -100,6 +110,13 @@ class _LinkTextFieldState extends State<LinkTextField> {
   }
 
   Future<void> _copyLinkText() async {
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      ShareableCopiedAnalyticsEvent(
+        context: widget.eventContext,
+        shareFormat: widget.shareFormat,
+      ),
+    );
+
     await Clipboard.setData(ClipboardData(text: widget.text));
   }
 }

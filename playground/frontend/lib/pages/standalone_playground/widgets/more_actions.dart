@@ -23,8 +23,8 @@ import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../constants/links.dart';
-import '../../../modules/analytics/service.dart';
 import '../../../modules/shortcuts/components/shortcuts_modal.dart';
+import '../../../services/analytics/events/shortcuts_clicked.dart';
 import '../../../src/assets/assets.gen.dart';
 
 enum HeaderAction {
@@ -67,7 +67,9 @@ class _MoreActionsState extends State<MoreActions> {
               leading: SvgPicture.asset(Assets.shortcuts),
               title: Text(appLocale.shortcuts),
               onTap: () {
-                PlaygroundAnalyticsService.get().trackOpenShortcutsModal();
+                PlaygroundComponents.analyticsService.sendUnawaited(
+                  const ShortcutsClickedAnalyticsEvent(),
+                );
                 showDialog<void>(
                   context: context,
                   builder: (BuildContext context) => ShortcutsModal(
@@ -128,8 +130,12 @@ class _MoreActionsState extends State<MoreActions> {
     );
   }
 
-  _openLink(String link, BuildContext context) {
-    launchUrl(Uri.parse(link));
-    PlaygroundAnalyticsService.get().trackOpenLink(link);
+  void _openLink(String link, BuildContext context) {
+    final url = Uri.parse(link);
+
+    launchUrl(url);
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      ExternalUrlNavigatedAnalyticsEvent(url: url),
+    );
   }
 }

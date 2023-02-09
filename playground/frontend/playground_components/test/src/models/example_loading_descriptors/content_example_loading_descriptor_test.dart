@@ -55,5 +55,9 @@ void main() {
 
       expect(parsed?.viewOptions, viewOptions);
     });
+
+    test('token == null', () {
+      expect(descriptor.token, null);
+    });
   });
 }

@@ -18,6 +18,7 @@
 
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 
 import '../../playground_components.dart';
@@ -42,6 +43,16 @@ class CodeRunner extends ChangeNotifier {
   DateTime? _runStartDate;
   DateTime? _runStopDate;
 
+  /// [Duration] from the last execution start to finish or to present time.
+  Duration? get elapsed => _runStartDate == null
+      ? null
+      : (_runStopDate ?? clock.now()).difference(_runStartDate!);
+
+  EventContext? _eventContext;
+
+  /// [EventContext] for which the execution last started.
+  EventContext? get eventContext => _eventContext;
+
   String? get pipelineOptions =>
       _snippetEditingControllerGetter().pipelineOptions;
   RunCodeResult? get result => _result;
@@ -58,6 +69,7 @@ class CodeRunner extends ChangeNotifier {
   }
 
   void clearResult() {
+    _eventContext = null;
     _result = null;
     notifyListeners();
   }
@@ -67,6 +79,7 @@ class CodeRunner extends ChangeNotifier {
     _runStopDate = null;
     notifyListeners();
     snippetEditingController = _snippetEditingControllerGetter();
+    _eventContext = snippetEditingController!.eventContext;
 
     final parsedPipelineOptions =
         parsePipelineOptions(snippetEditingController!.pipelineOptions);

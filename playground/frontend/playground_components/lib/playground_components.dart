@@ -17,15 +17,21 @@
  */
 
 export 'src/cache/example_cache.dart';
+
 export 'src/constants/colors.dart';
 export 'src/constants/links.dart';
 export 'src/constants/sizes.dart';
+
 export 'src/controllers/example_loaders/examples_loader.dart';
 export 'src/controllers/playground_controller.dart';
 export 'src/controllers/public_notifier.dart';
+
 export 'src/enums/complexity.dart';
+export 'src/enums/feedback_rating.dart';
+
 export 'src/models/category_with_examples.dart';
 export 'src/models/dataset.dart';
+export 'src/models/event_context.dart';
 export 'src/models/example.dart';
 export 'src/models/example_base.dart';
 export 'src/models/example_loading_descriptors/catalog_default_example_loading_descriptor.dart';
@@ -34,6 +40,7 @@ export 'src/models/example_loading_descriptors/empty_example_loading_descriptor.
 export 'src/models/example_loading_descriptors/example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/examples_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/http_example_loading_descriptor.dart';
+export 'src/models/example_loading_descriptors/sdk_aware_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 export 'src/models/example_view_options.dart';
@@ -45,22 +52,34 @@ export 'src/models/shortcut.dart';
 export 'src/models/snippet_file.dart';
 export 'src/models/toast.dart';
 export 'src/models/toast_type.dart';
+
 export 'src/playground_components.dart';
+
 export 'src/repositories/code_client/grpc_code_client.dart';
 export 'src/repositories/code_repository.dart';
 export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';
+
 export 'src/router/router_delegate.dart';
 
-export 'src/services/analytics/beam/categories.dart';
-export 'src/services/analytics/beam/events.dart';
-export 'src/services/analytics/event.dart';
-export 'src/services/analytics/google_analytics_service.dart';
-export 'src/services/analytics/service.dart';
-
+export 'src/services/analytics/analytics_service.dart';
+export 'src/services/analytics/events/abstract.dart';
+export 'src/services/analytics/events/cancel_run.dart';
+export 'src/services/analytics/events/constants.dart';
+export 'src/services/analytics/events/external_url_navigated.dart';
+export 'src/services/analytics/events/feedback_form.dart';
+export 'src/services/analytics/events/rated.dart';
+export 'src/services/analytics/events/report_issue.dart';
+export 'src/services/analytics/events/reset_snippet.dart';
+export 'src/services/analytics/events/run.dart';
+export 'src/services/analytics/events/run_finished.dart';
+export 'src/services/analytics/events/sdk_selected.dart';
+export 'src/services/analytics/google_analytics4_service.dart';
 export 'src/services/symbols/loaders/yaml.dart';
+
 export 'src/theme/switch_notifier.dart';
 export 'src/theme/theme.dart';
+
 export 'src/util/pipeline_options.dart';
 export 'src/util/string.dart';
 

@@ -19,11 +19,18 @@
 import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
+import 'sdk_aware_example_loading_descriptor.dart';
 
 /// Describes a loadable example previously saved by some user.
-class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor
+    implements SdkAwareExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
+
   final String snippetId;
+
+  @override
+  String get token => snippetId;
 
   const UserSharedExampleLoadingDescriptor({
     required this.sdk,

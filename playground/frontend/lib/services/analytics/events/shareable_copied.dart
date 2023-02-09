@@ -16,25 +16,26 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:playground/modules/editor/components/share_dropdown/share_tabs/share_format_enum.dart';
+import 'package:playground_components/playground_components.dart';
 
-import 'event.dart';
+import 'constants.dart';
 
-abstract class AnalyticsService {
-  AnalyticsEvent? get lastSentEvent;
+class ShareableCopiedAnalyticsEvent extends SnippetAnalyticsEvent {
+  const ShareableCopiedAnalyticsEvent({
+    required this.shareFormat,
+    required super.context,
+  }) : super(
+          name: PlaygroundAnalyticsEvents.shareableCopied,
+        );
 
-  static AnalyticsService get() {
-    return GetIt.instance.get<AnalyticsService>();
+  final ShareFormat shareFormat;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      PlaygroundEventParams.shareFormat: shareFormat.name,
+    };
   }
-
-  Future<void> trackRunExample(String exampleName);
-  Future<void> trackModifyExample(String exampleName);
-  void trackClickSendPositiveFeedback(String feedback);
-  void trackClickSendNegativeFeedback(String feedback);
-  void trackReset();
-  void trackClickToggleTheme({required bool isDark});
-  void trackClickReportIssue();
-  void trackClickCancelRunEvent(String exampleName);
-  void trackRunTimeEvent(String exampleName, int runTimeMs);
-  void trackOpenLink(String link);
 }

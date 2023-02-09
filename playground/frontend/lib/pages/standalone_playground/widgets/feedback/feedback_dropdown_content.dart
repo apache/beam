@@ -17,13 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../../constants/font_weight.dart';
 import '../../../../constants/fonts.dart';
 import '../../../../constants/sizes.dart';
-import '../../../../modules/analytics/service.dart';
 import 'feedback_dropdown_icon_button.dart';
 
 const double kTextFieldWidth = 365.0;
@@ -41,12 +39,14 @@ class FeedbackDropdownContent extends StatelessWidget {
   static const sendButtonKey = Key('sendFeedbackButtonKey');
 
   final void Function() close;
+  final EventContext eventContext;
   final FeedbackRating feedbackRating;
   final TextEditingController textController;
 
   const FeedbackDropdownContent({
     Key? key,
     required this.close,
+    required this.eventContext,
     required this.feedbackRating,
     required this.textController,
   }) : super(key: key);
@@ -175,21 +175,13 @@ class FeedbackDropdownContent extends StatelessWidget {
                     key: sendButtonKey,
                     onPressed: () {
                       if (textController.text.isNotEmpty) {
-                        final text = textController.text;
-                        switch (feedbackRating) {
-                          case FeedbackRating.positive:
-                            PlaygroundAnalyticsService.get()
-                                .trackClickSendPositiveFeedback(
-                              text,
-                            );
-                            break;
-                          case FeedbackRating.negative:
-                            PlaygroundAnalyticsService.get()
-                                .trackClickSendNegativeFeedback(
-                              text,
-                            );
-                            break;
-                        }
+                        PlaygroundComponents.analyticsService.sendUnawaited(
+                          FeedbackFormAnalyticsEvent(
+                            rating: feedbackRating,
+                            text: textController.text,
+                            context: eventContext,
+                          ),
+                        );
                       }
                       close();
                       textController.clear();

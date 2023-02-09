@@ -27,11 +27,13 @@ import 'snippet_save_and_share_tabs.dart';
 /// content widget accordingly.
 // TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
 class ShareTabs extends StatelessWidget {
+  final EventContext eventContext;
   final VoidCallback onError;
   final TabController tabController;
 
   const ShareTabs({
     super.key,
+    required this.eventContext,
     required this.onError,
     required this.tabController,
   });
@@ -48,6 +50,7 @@ class ShareTabs extends StatelessWidget {
 
           if (descriptor == null || controller.isChanged) {
             return SnippetSaveAndShareTabs(
+              eventContext: eventContext,
               onError: onError,
               playgroundController: playgroundController,
               sdk: controller.sdk,
@@ -57,6 +60,7 @@ class ShareTabs extends StatelessWidget {
 
           return ExampleShareTabs(
             descriptor: descriptor,
+            eventContext: eventContext,
             sdk: controller.sdk,
             tabController: tabController,
           );

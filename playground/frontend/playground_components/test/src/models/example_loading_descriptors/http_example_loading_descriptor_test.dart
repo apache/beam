@@ -22,10 +22,12 @@ import 'package:playground_components/playground_components.dart';
 import 'common.dart';
 
 void main() {
+  const urlString = 'https://example.com';
+
   group('HttpExampleLoadingDescriptor', () {
     final descriptor = HttpExampleLoadingDescriptor(
       sdk: Sdk.go,
-      uri: Uri.parse('https://example.com'),
+      uri: Uri.parse(urlString),
     );
 
     test('toJson -> tryParse', () {
@@ -40,6 +42,10 @@ void main() {
       final parsed = HttpExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed?.viewOptions, viewOptions);
+    });
+
+    test('token', () {
+      expect(descriptor.token, urlString);
     });
   });
 }

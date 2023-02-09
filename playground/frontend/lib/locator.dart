@@ -18,8 +18,6 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
-import 'package:playground/modules/analytics/google_analytics_service.dart';
-import 'package:playground/modules/analytics/service.dart';
 import 'package:playground_components/playground_components.dart';
 
 import 'config.g.dart';
@@ -62,11 +60,10 @@ void _initializeState() {
 }
 
 void _initializeServices() {
-  final googleAnalyticsService = PlaygroundGoogleAnalyticsService();
-  GetIt.instance.registerSingleton<AnalyticsService>(
-    googleAnalyticsService,
+  final googleAnalyticsService = GoogleAnalytics4Service(
+    propertyId: kAnalyticsUA,
   );
-  GetIt.instance.registerSingleton<PlaygroundAnalyticsService>(
+  GetIt.instance.registerSingleton<AnalyticsService>(
     googleAnalyticsService,
   );
 }

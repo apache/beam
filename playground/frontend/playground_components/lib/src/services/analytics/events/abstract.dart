@@ -16,18 +16,43 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
-import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
-import 'package:playground_components/playground_components.dart';
+import 'package:equatable/equatable.dart';
 
-abstract class PlaygroundAnalyticsService extends AnalyticsService {
-  static PlaygroundAnalyticsService get() {
-    return GetIt.instance.get<PlaygroundAnalyticsService>();
-  }
+import '../../../models/event_context.dart';
 
-  void trackSelectSdk(Sdk? oldSdk, Sdk newSdk);
-  void trackSelectExample(ExampleBase newExample);
-  void trackClickNewExample();
-  void trackOpenShortcutsModal();
-  void trackClickEnjoyPlayground(FeedbackRating feedbackRating);
+abstract class AnalyticsEvent with EquatableMixin {
+  const AnalyticsEvent({
+    required this.name,
+  });
+
+  final String name;
+
+  @override
+  List<Object?> get props => [
+        name,
+      ];
+
+  Map<String, dynamic> toJson() => const {};
+}
+
+/// An [AnalyticsEvent] with [EventContext].
+abstract class SnippetAnalyticsEvent extends AnalyticsEvent {
+  const SnippetAnalyticsEvent({
+    required this.context,
+    required super.name,
+  });
+
+  final EventContext context;
+
+  @override
+  List<Object?> get props => [
+        ...super.props,
+        context,
+      ];
+
+  @override
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        ...context.toJson(),
+      };
 }

@@ -18,11 +18,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../constants/font_weight.dart';
-import '../../../../modules/analytics/service.dart';
 import '../../notifiers/feedback_state.dart';
 import 'feedback_dropdown_icon_button.dart';
 
@@ -35,35 +34,56 @@ class PlaygroundFeedback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          AppLocalizations.of(context)!.enjoyingPlayground,
-          style: const TextStyle(fontWeight: kBoldWeight),
-        ),
-        FeedbackDropdownIconButton(
-          key: thumbUpKey,
-          feedbackRating: FeedbackRating.positive,
-          isSelected: _getFeedbackState(context, true).isSelected,
-          onClick: _setEnjoying(context, FeedbackRating.positive),
-        ),
-        FeedbackDropdownIconButton(
-          key: thumbDownKey,
-          feedbackRating: FeedbackRating.negative,
-          isSelected: _getFeedbackState(context, true).isSelected,
-          onClick: _setEnjoying(context, FeedbackRating.negative),
-        ),
-      ],
+    return Consumer<PlaygroundController>(
+      builder: (context, playgroundController, child) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            AppLocalizations.of(context)!.enjoyingPlayground,
+            style: const TextStyle(fontWeight: kBoldWeight),
+          ),
+          FeedbackDropdownIconButton(
+            key: thumbUpKey,
+            feedbackRating: FeedbackRating.positive,
+            isSelected: _getFeedbackState(context, true).feedbackRating ==
+                FeedbackRating.positive,
+            onClick: () => _onRated(
+              context,
+              FeedbackRating.positive,
+              playgroundController,
+            ),
+            playgroundController: playgroundController,
+          ),
+          FeedbackDropdownIconButton(
+            key: thumbDownKey,
+            feedbackRating: FeedbackRating.negative,
+            isSelected: _getFeedbackState(context, true).feedbackRating ==
+                FeedbackRating.negative,
+            onClick: () => _onRated(
+              context,
+              FeedbackRating.negative,
+              playgroundController,
+            ),
+            playgroundController: playgroundController,
+          ),
+        ],
+      ),
     );
   }
 
-  _setEnjoying(BuildContext context, FeedbackRating feedbackRating) {
-    return () {
-      _getFeedbackState(context, false).setEnjoying(feedbackRating);
-      PlaygroundAnalyticsService.get()
-          .trackClickEnjoyPlayground(feedbackRating);
-    };
+  void _onRated(
+    BuildContext context,
+    FeedbackRating rating,
+    PlaygroundController playgroundController,
+  ) {
+    _getFeedbackState(context, false).setEnjoying(rating);
+
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      RatedAnalyticsEvent(
+        context: playgroundController.eventContext,
+        rating: rating,
+      ),
+    );
   }
 
   FeedbackState _getFeedbackState(BuildContext context, bool listen) {

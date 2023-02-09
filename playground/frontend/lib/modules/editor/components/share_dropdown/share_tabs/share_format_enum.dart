@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-class BeamAnalyticsCategories {
-  static const run = 'Run Code';
-  static const example = 'Example';
-  static const feedback = 'Feedback';
-  static const common = 'Common';
-  static const link = 'Link';
-  static const sdk = 'SDK';
+enum ShareFormat {
+  /// Sharing a link to the standalone Playground.
+  linkStandalone,
+
+  /// Sharing an HTML code to embed Playground.
+  iframeEmbedded,
 }

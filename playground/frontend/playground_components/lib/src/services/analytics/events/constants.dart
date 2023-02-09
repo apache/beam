@@ -17,14 +17,25 @@
  */
 
 class BeamAnalyticsEvents {
-  static const run = 'click_run';
-  static const clickCancelRun = 'click_cancel_run';
-  static const modifySnippet = 'modify_example';
-  static const clickSendPositiveFeedback = 'click_send_positive_feedback';
-  static const clickSendNegativeFeedback = 'click_send_negative_feedback';
-  static const runTime = 'run_time';
-  static const clickReportIssue = 'click_report_issue';
-  static const clickReset = 'click_reset';
-  static const clickToggleTheme = 'click_toggle_theme';
-  static const openLink = 'open_link';
+  static const cancelRun = 'cancel_run';
+  static const externalUrlNavigated = 'external_url_navigated';
+  static const feedbackForm = 'feedback_form';
+  static const rated = 'rated';
+  static const reportIssue = 'report_issue';
+  static const resetSnippet = 'reset_snippet';
+  static const run = 'run';
+  static const runFinished = 'run_finished';
+  static const sdkSelected = 'sdk_selected';
+  static const snippetModified = 'snippet_modified';
+  static const toggleTheme = 'toggle_theme';
+}
+
+class EventParams {
+  static const file = 'file';
+  static const rating = 'rating';
+  static const runSeconds = 'runSeconds';
+  static const sdk = 'sdk';
+  static const snippet = 'snippet';
+  static const text = 'text';
+  static const url = 'url';
 }

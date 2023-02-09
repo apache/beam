@@ -17,12 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
-import 'package:playground/src/assets/assets.gen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground_components/playground_components.dart';
 
 import '../../../../constants/sizes.dart';
+import '../../../../src/assets/assets.gen.dart';
 import 'feedback_dropdown_content.dart';
 
 const double kFeedbackTitleFontSize = 24.0;
@@ -39,12 +39,14 @@ class FeedbackDropdownIconButton extends StatefulWidget {
   final bool isSelected;
   final FeedbackRating feedbackRating;
   final void Function() onClick;
+  final PlaygroundController playgroundController;
 
   const FeedbackDropdownIconButton({
     Key? key,
     required this.isSelected,
     required this.feedbackRating,
     required this.onClick,
+    required this.playgroundController,
   }) : super(key: key);
 
   @override
@@ -148,6 +150,7 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
                     ),
                     child: FeedbackDropdownContent(
                       close: _close,
+                      eventContext: widget.playgroundController.eventContext,
                       feedbackRating: widget.feedbackRating,
                       textController: feedbackTextController,
                     ),

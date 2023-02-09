@@ -22,10 +22,12 @@ import 'package:playground_components/playground_components.dart';
 import 'common.dart';
 
 void main() {
+  const snippetId = 'snippetId';
+
   group('UserSharedExampleLoadingDescriptor', () {
     const descriptor = UserSharedExampleLoadingDescriptor(
       sdk: Sdk.go,
-      snippetId: 'snippetId',
+      snippetId: snippetId,
     );
 
     test('toJson -> tryParse', () {
@@ -40,6 +42,10 @@ void main() {
       final parsed = UserSharedExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed?.viewOptions, viewOptions);
+    });
+
+    test('token', () {
+      expect(descriptor.token, snippetId);
     });
   });
 }

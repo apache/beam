@@ -17,9 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/utils/dropdown_utils.dart';
 import 'package:playground_components/playground_components.dart';
+
+import '../../constants/sizes.dart';
+import '../../utils/dropdown_utils.dart';
 
 const int kAnimationDurationInMilliseconds = 80;
 const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
@@ -125,6 +126,8 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
       widgetWidth: widget.width,
     );
 
+    final child = widget.createDropdown(_close);
+
     return OverlayEntry(
       builder: (context) {
         return Stack(
@@ -154,7 +157,7 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
                       color: Theme.of(context).backgroundColor,
                       borderRadius: BorderRadius.circular(kMdBorderRadius),
                     ),
-                    child: widget.createDropdown(_close),
+                    child: child,
                   ),
                 ),
               ),

@@ -22,10 +22,12 @@ import 'package:playground_components/playground_components.dart';
 import 'common.dart';
 
 void main() {
+  const path = 'path';
+
   group('StandardExampleLoadingDescriptor', () {
     const descriptor = StandardExampleLoadingDescriptor(
+      path: path,
       sdk: Sdk.go,
-      path: 'path',
     );
 
     test('toJson -> tryParse', () {
@@ -40,6 +42,10 @@ void main() {
       final parsed = StandardExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed?.viewOptions, viewOptions);
+    });
+
+    test('token', () {
+      expect(descriptor.token, path);
     });
   });
 }
