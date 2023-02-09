@@ -17,7 +17,6 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/modules/analytics/service.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../common/common_finders.dart';
@@ -57,13 +56,18 @@ Future<void> _checkEnjoyingAndSendFeedback(WidgetTester wt) async {
   await wt.tap(find.feedbackDropdownSendButton());
   await wt.pumpAndSettle();
 
-  final lastSentEvent = PlaygroundAnalyticsService.get().lastSentEvent;
+  final lastEvent = PlaygroundComponents.analyticsService.lastEvent;
   expect(
-    lastSentEvent,
-    AnalyticsEvent(
-      category: BeamAnalyticsCategories.feedback,
-      action: BeamAnalyticsEvents.clickSendPositiveFeedback,
-      label: text,
+    lastEvent,
+    const FeedbackFormAnalyticsEvent(
+      context: EventContext(
+        // TODO: Replace with values from the example object when merged https://github.com/apache/beam/pull/25034
+        originalSnippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+        sdk: Sdk.java,
+        snippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+      ),
+      rating: FeedbackRating.positive,
+      text: text,
     ),
   );
 
@@ -85,13 +89,18 @@ Future<void> _checkNotEnjoyingAndSendFeedback(WidgetTester wt) async {
   await wt.tap(find.feedbackDropdownSendButton());
   await wt.pumpAndSettle();
 
-  final lastSentEvent = PlaygroundAnalyticsService.get().lastSentEvent;
+  final lastEvent = PlaygroundComponents.analyticsService.lastEvent;
   expect(
-    lastSentEvent,
-    AnalyticsEvent(
-      category: BeamAnalyticsCategories.feedback,
-      action: BeamAnalyticsEvents.clickSendNegativeFeedback,
-      label: text,
+    lastEvent,
+    const FeedbackFormAnalyticsEvent(
+      context: EventContext(
+        // TODO: Replace with values from the example object when merged https://github.com/apache/beam/pull/25034
+        originalSnippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+        sdk: Sdk.java,
+        snippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+      ),
+      rating: FeedbackRating.negative,
+      text: text,
     ),
   );
 
