@@ -27,10 +27,11 @@ class BeamAnalyticsEvents {
   static const runFinished = 'run_finished';
   static const sdkSelected = 'sdk_selected';
   static const snippetModified = 'snippet_modified';
-  static const toggleTheme = 'toggle_theme';
+  static const themeSet = 'theme_set';
 }
 
 class EventParams {
+  static const brightness = 'brightness';
   static const file = 'file';
   static const rating = 'rating';
   static const runSeconds = 'runSeconds';

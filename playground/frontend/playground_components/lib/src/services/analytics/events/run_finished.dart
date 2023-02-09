@@ -30,10 +30,8 @@ class RunFinishedAnalyticsEvent extends SnippetAnalyticsEvent {
   final Duration duration;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      EventParams.runSeconds: duration.inSeconds,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        EventParams.runSeconds: duration.inSeconds,
+      };
 }

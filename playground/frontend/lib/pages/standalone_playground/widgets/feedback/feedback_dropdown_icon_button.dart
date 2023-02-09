@@ -89,6 +89,7 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
     final String tooltip;
     final String icon;
     final String filledIcon;
+
     switch (widget.feedbackRating) {
       case FeedbackRating.positive:
         tooltip = appLocale.enjoying;

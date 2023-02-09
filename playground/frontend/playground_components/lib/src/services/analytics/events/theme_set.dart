@@ -21,20 +21,18 @@ import 'dart:ui';
 import 'abstract.dart';
 import 'constants.dart';
 
-class ToggleThemeAnalyticsEvent extends AnalyticsEvent {
-  const ToggleThemeAnalyticsEvent({
+class ThemeSetAnalyticsEvent extends AnalyticsEvent {
+  const ThemeSetAnalyticsEvent({
     required this.brightness,
   }) : super(
-          name: BeamAnalyticsEvents.toggleTheme,
+          name: BeamAnalyticsEvents.themeSet,
         );
 
   final Brightness brightness;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'brightness': brightness.name,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        EventParams.brightness: brightness.name,
+      };
 }

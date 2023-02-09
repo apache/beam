@@ -23,8 +23,6 @@ const kFeedbackKey = 'feedback';
 
 class FeedbackState with ChangeNotifier {
   FeedbackRating? feedbackRating;
-  bool get isSelected =>
-      feedbackRating != null && feedbackRating == FeedbackRating.positive;
 
   FeedbackState();
 

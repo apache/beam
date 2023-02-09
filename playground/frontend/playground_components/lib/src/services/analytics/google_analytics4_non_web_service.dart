@@ -27,6 +27,7 @@ GoogleAnalytics4Service createGoogleAnalytics4Service({
 }) =>
     GoogleAnalytics4NonWebService();
 
+/// The required placeholder for non-web builds, e.g. unit tests.
 class GoogleAnalytics4NonWebService extends GoogleAnalytics4Service {
   GoogleAnalytics4NonWebService() : super.create();
 

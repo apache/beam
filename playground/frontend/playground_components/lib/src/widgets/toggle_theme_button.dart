@@ -25,7 +25,7 @@ import 'package:provider/provider.dart';
 
 import '../assets/assets.gen.dart';
 import '../playground_components.dart';
-import '../services/analytics/events/toggle_theme.dart';
+import '../services/analytics/events/theme_set.dart';
 import '../theme/switch_notifier.dart';
 
 class ToggleThemeButton extends StatelessWidget {
@@ -47,7 +47,7 @@ class ToggleThemeButton extends StatelessWidget {
           onPressed: () {
             unawaited(notifier.toggleTheme());
             PlaygroundComponents.analyticsService.sendUnawaited(
-              ToggleThemeAnalyticsEvent(
+              ThemeSetAnalyticsEvent(
                 brightness: notifier.brightness,
               ),
             );

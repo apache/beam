@@ -20,6 +20,9 @@ import '../../../enums/feedback_rating.dart';
 import 'abstract.dart';
 import 'constants.dart';
 
+/// Feedback with the [rating] and the [text] is sent.
+///
+/// Currently this analytics event is the only medium to log the feedback.
 class FeedbackFormAnalyticsEvent extends SnippetAnalyticsEvent {
   const FeedbackFormAnalyticsEvent({
     required this.rating,
@@ -33,11 +36,9 @@ class FeedbackFormAnalyticsEvent extends SnippetAnalyticsEvent {
   final String text;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      EventParams.rating: rating.name,
-      EventParams.text: text,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        EventParams.rating: rating.name,
+        EventParams.text: text,
+      };
 }

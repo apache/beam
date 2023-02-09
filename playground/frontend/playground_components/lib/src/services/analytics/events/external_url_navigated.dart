@@ -29,10 +29,8 @@ class ExternalUrlNavigatedAnalyticsEvent extends AnalyticsEvent {
   final Uri url;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      EventParams.url: url.toString(),
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        EventParams.url: url.toString(),
+      };
 }

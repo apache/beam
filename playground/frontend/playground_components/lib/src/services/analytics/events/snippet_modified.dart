@@ -34,12 +34,10 @@ class SnippetModifiedAnalyticsEvent extends AnalyticsEvent {
   final String snippet;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      EventParams.file: file,
-      EventParams.sdk: sdk.id,
-      EventParams.snippet: snippet,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        EventParams.file: file,
+        EventParams.sdk: sdk.id,
+        EventParams.snippet: snippet,
+      };
 }

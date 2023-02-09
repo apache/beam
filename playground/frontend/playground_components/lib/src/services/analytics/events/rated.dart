@@ -20,6 +20,7 @@ import '../../../enums/feedback_rating.dart';
 import 'abstract.dart';
 import 'constants.dart';
 
+/// A thump-up or thumb-down button pressed without yet entering feedback text.
 class RatedAnalyticsEvent extends SnippetAnalyticsEvent {
   const RatedAnalyticsEvent({
     required this.rating,
@@ -31,10 +32,8 @@ class RatedAnalyticsEvent extends SnippetAnalyticsEvent {
   final FeedbackRating rating;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      EventParams.rating: rating.name,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        EventParams.rating: rating.name,
+      };
 }

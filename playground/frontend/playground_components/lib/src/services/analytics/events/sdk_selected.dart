@@ -30,10 +30,8 @@ class SdkSelectedAnalyticsEvent extends AnalyticsEvent {
   final Sdk sdk;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      EventParams.sdk: sdk.id,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        EventParams.sdk: sdk.id,
+      };
 }

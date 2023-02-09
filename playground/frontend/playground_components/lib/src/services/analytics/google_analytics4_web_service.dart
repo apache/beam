@@ -18,8 +18,8 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html';
-import 'dart:js' as js;
+import 'dart:html'; // ignore: avoid_web_libraries_in_flutter
+import 'dart:js' as js; // ignore: avoid_web_libraries_in_flutter
 
 import 'package:meta/meta.dart';
 
@@ -34,14 +34,14 @@ const _function = 'gtag';
 GoogleAnalytics4Service createGoogleAnalytics4Service({
   required String propertyId,
 }) =>
-    GoogleAnalytics4JsService(propertyId: propertyId);
+    GoogleAnalytics4WebService(propertyId: propertyId);
 
 /// Submits data to a Google Analytics 4 property using JavaScript.
-class GoogleAnalytics4JsService extends GoogleAnalytics4Service {
+class GoogleAnalytics4WebService extends GoogleAnalytics4Service {
   final String propertyId;
   final _readyCompleter = Completer<void>();
 
-  GoogleAnalytics4JsService({
+  GoogleAnalytics4WebService({
     required this.propertyId,
   }) : super.create() {
     _loadGoogleJs();
@@ -58,16 +58,12 @@ class GoogleAnalytics4JsService extends GoogleAnalytics4Service {
     final element = document.createElement('script') as ScriptElement;
     element.async = true;
     element.src = url.toString(); // ignore: unsafe_html
-    element.onLoad.listen(_onLoadGoogleJs);
+    element.onLoad.listen(_readyCompleter.complete);
     document.head!.append(element);
   }
 
-  void _onLoadGoogleJs(Event event) {
-    _readyCompleter.complete();
-  }
-
   static dynamic _evalJs(String code) {
-    print('JS eval: $code');
+    print('JS eval: $code'); // ignore: avoid_print
     return js.context.callMethod('eval', [code]);
   }
 

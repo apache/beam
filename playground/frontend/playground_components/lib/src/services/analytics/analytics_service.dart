@@ -23,7 +23,7 @@ import 'package:meta/meta.dart';
 
 import 'events/abstract.dart';
 
-/// Abstract class to submit events common to Tour of Beam and Playground.
+/// Abstract class to submit analytics events.
 abstract class AnalyticsService {
   AnalyticsEvent? _lastEvent;
   AnalyticsEvent? get lastEvent => _lastEvent;
