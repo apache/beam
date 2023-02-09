@@ -392,7 +392,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     test_pipeline = TestPipeline()
     side_input = (
         test_pipeline | "CreateDummySideInput" >> beam.Create(
-            [base.ModelMetdata(1, 1), base.ModelMetdata(2, 2)])
+            [base.ModelMetadata(1, 1), base.ModelMetadata(2, 2)])
         | "ApplySideInputWindow" >> beam.WindowInto(
             window.GlobalWindows(),
             trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
