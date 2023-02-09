@@ -20,21 +20,26 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.model;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Output result of {@link
  * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn} containing
  * information required to stream a partition.
  */
+@Internal
 public class PartitionRecord implements Serializable {
   private static final long serialVersionUID = -7613861834142734474L;
 
   private ByteStringRange partition;
   @Nullable private Timestamp startTime;
+  @Nullable private List<ChangeStreamContinuationToken> changeStreamContinuationTokens;
   @Nullable private Timestamp endTime;
   private String uuid;
   private Timestamp parentLowWatermark;
@@ -52,13 +57,17 @@ public class PartitionRecord implements Serializable {
     this.endTime = endTime;
   }
 
-  @Nullable
-  public Timestamp getStartTime() {
-    return startTime;
-  }
-
-  public void setStartTime(@Nullable Timestamp startTime) {
-    this.startTime = startTime;
+  public PartitionRecord(
+      ByteStringRange partition,
+      List<ChangeStreamContinuationToken> changeStreamContinuationTokens,
+      String uuid,
+      Timestamp parentLowWatermark,
+      @Nullable Timestamp endTime) {
+    this.partition = partition;
+    this.changeStreamContinuationTokens = changeStreamContinuationTokens;
+    this.uuid = uuid;
+    this.parentLowWatermark = parentLowWatermark;
+    this.endTime = endTime;
   }
 
   @Nullable
@@ -68,6 +77,15 @@ public class PartitionRecord implements Serializable {
 
   public void setEndTime(@Nullable Timestamp endTime) {
     this.endTime = endTime;
+  }
+
+  @Nullable
+  public Timestamp getStartTime() {
+    return startTime;
+  }
+
+  public void setStartTime(@Nullable Timestamp startTime) {
+    this.startTime = startTime;
   }
 
   public String getUuid() {
@@ -94,6 +112,16 @@ public class PartitionRecord implements Serializable {
     this.partition = partition;
   }
 
+  @Nullable
+  public List<ChangeStreamContinuationToken> getChangeStreamContinuationTokens() {
+    return changeStreamContinuationTokens;
+  }
+
+  public void setChangeStreamContinuationTokens(
+      @Nullable List<ChangeStreamContinuationToken> changeStreamContinuationTokens) {
+    this.changeStreamContinuationTokens = changeStreamContinuationTokens;
+  }
+
   @Override
   public boolean equals(@Nullable Object o) {
     if (this == o) {
@@ -105,6 +133,8 @@ public class PartitionRecord implements Serializable {
     PartitionRecord that = (PartitionRecord) o;
     return getPartition().equals(that.getPartition())
         && Objects.equals(getStartTime(), that.getStartTime())
+        && Objects.equals(
+            getChangeStreamContinuationTokens(), that.getChangeStreamContinuationTokens())
         && Objects.equals(getEndTime(), that.getEndTime())
         && getUuid().equals(that.getUuid())
         && Objects.equals(getParentLowWatermark(), that.getParentLowWatermark());
@@ -113,7 +143,12 @@ public class PartitionRecord implements Serializable {
   @Override
   public int hashCode() {
     return Objects.hash(
-        getPartition(), getStartTime(), getEndTime(), getUuid(), getParentLowWatermark());
+        getPartition(),
+        getStartTime(),
+        getChangeStreamContinuationTokens(),
+        getEndTime(),
+        getUuid(),
+        getParentLowWatermark());
   }
 
   @Override
@@ -123,6 +158,8 @@ public class PartitionRecord implements Serializable {
         + formatByteStringRange(partition)
         + ", startTime="
         + startTime
+        + ", changeStreamContinuationTokens="
+        + changeStreamContinuationTokens
         + ", endTime="
         + endTime
         + ", uuid='"
