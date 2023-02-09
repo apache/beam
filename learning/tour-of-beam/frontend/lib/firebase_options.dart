@@ -58,6 +58,6 @@ class DefaultFirebaseOptions {
       projectId: "theta-index-377011",
       storageBucket: "theta-index-377011.appspot.com",
       messagingSenderId: "23543141490",
-      appId: "1:23543141490:web:c7a7198b42faedefc51eeb"
+      appId: "1:23543141490:web:69ea0d2013e58072c51eeb"
     };
 }
