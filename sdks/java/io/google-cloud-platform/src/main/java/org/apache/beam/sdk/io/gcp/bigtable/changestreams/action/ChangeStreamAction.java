@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
+
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
+import com.google.cloud.bigtable.data.v2.models.Heartbeat;
 import com.google.protobuf.ByteString;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -100,6 +104,39 @@ public class ChangeStreamAction {
       DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       boolean shouldDebug) {
+    if (record instanceof Heartbeat) {
+      Heartbeat heartbeat = (Heartbeat) record;
+      StreamProgress streamProgress =
+          new StreamProgress(
+              heartbeat.getChangeStreamContinuationToken(), heartbeat.getLowWatermark());
+      final Instant watermark = TimestampConverter.toInstant(heartbeat.getLowWatermark());
+      watermarkEstimator.setWatermark(watermark);
+
+      if (shouldDebug) {
+        LOG.info(
+            "RCSP {}: Heartbeat partition: {} token: {} watermark: {}",
+            formatByteStringRange(partitionRecord.getPartition()),
+            formatByteStringRange(heartbeat.getChangeStreamContinuationToken().getPartition()),
+            heartbeat.getChangeStreamContinuationToken().getToken(),
+            heartbeat.getLowWatermark());
+      }
+      // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
+      // a checkpoint. See {@link
+      // org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker}
+      // for more information regarding runner initiated checkpoints.
+      if (!tracker.tryClaim(streamProgress)) {
+        if (shouldDebug) {
+          LOG.info(
+              "RCSP {}: Failed to claim heart beat tracker",
+              formatByteStringRange(partitionRecord.getPartition()));
+        }
+        return Optional.of(DoFn.ProcessContinuation.stop());
+      }
+      metrics.incHeartbeatCount();
+    } else {
+      LOG.warn(
+          "RCSP {}: Invalid response type", formatByteStringRange(partitionRecord.getPartition()));
+    }
     return Optional.empty();
   }
 }

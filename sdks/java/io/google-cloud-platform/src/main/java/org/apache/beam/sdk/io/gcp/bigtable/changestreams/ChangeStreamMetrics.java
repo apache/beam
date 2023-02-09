@@ -18,8 +18,34 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 
 /** Class to aggregate metrics related functionality. */
 public class ChangeStreamMetrics implements Serializable {
   private static final long serialVersionUID = 7298901109362981596L;
+
+  // -------------------
+  // Read change stream metrics
+
+  /**
+   * Counter for the total number of heartbeats identified during the execution of the Connector.
+   */
+  public static final Counter HEARTBEAT_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "heartbeat_count");
+
+  /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#HEARTBEAT_COUNT} by 1 if
+   * the metric is enabled.
+   */
+  public void incHeartbeatCount() {
+    inc(HEARTBEAT_COUNT);
+  }
+
+  private void inc(Counter counter) {
+    counter.inc();
+  }
 }
