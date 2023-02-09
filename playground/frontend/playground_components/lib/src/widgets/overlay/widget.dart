@@ -18,24 +18,27 @@
 
 import 'package:flutter/material.dart';
 
-class DismissibleOverlay extends StatelessWidget {
+class BeamOverlay extends StatelessWidget {
   final VoidCallback close;
   final Positioned child;
+  final bool isDismissible;
 
-  const DismissibleOverlay({
+  const BeamOverlay({
     required this.close,
     required this.child,
+    required this.isDismissible,
   });
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: close,
+        if (isDismissible)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: close,
+            ),
           ),
-        ),
         child,
       ],
     );

@@ -133,11 +133,11 @@ class _Buttons extends StatelessWidget {
                 text: 'dialogs.deleteAccountWarning'.tr(),
                 continueLabel: 'ui.deleteMyAccount'.tr(),
                 title: 'ui.deleteTobAccount'.tr(),
-                onContinue: () {
-                  authNotifier.deleteAccount().then(
-                    (_) {
-                      Navigator.pop(context);
-                    },
+                onContinue: () async {
+                  Navigator.pop(context);
+                  await BeamOverlays.showProgressOverlay(
+                    context,
+                    authNotifier.deleteAccount,
                   );
                 },
               ),
