@@ -24,6 +24,8 @@ Beam <3 machine learning. Being productive and successful as a machine learning 
   upscaling your data pipelines as part of your MLOps ecosystem in a production environment.
 * It enables you to run your model in production on a varying data load, both in batch and streaming.
 
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
+
 ## AI/ML workloads
 
 Let’s take a look at the different building blocks that we need to create an end-to-end AI/ML use case and where Apache Beam can help.
@@ -92,3 +94,4 @@ You can find examples of end-to-end AI/ML pipelines for several use cases:
 * [Anomaly Detection in Beam](/documentation/ml/anomaly-detection): Demonstrates how to set up an anomaly detection pipeline that reads text from Pub/Sub in real time and then detects anomalies using a trained HDBSCAN clustering model with the RunInference API.
 * [Large Language Model Inference in Beam](/documentation/ml/large-language-modeling): Demonstrates a pipeline that uses RunInference to perform translation with the T5 language model which contains 11 billion parameters.
 * [Per Entity Training in Beam](/documentation/ml/per-entity-training): Demonstrates a pipeline that trains a Decision Tree Classifier per education level for predicting if the salary of a person is >= 50k.
+* [TensorRT Inference](/documentation/ml/tensorrt-runinference): Demonstrates a pipeline that uses TensorRT with the RunInference transform and a BERT-based text classification model.

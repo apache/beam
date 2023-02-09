@@ -56,6 +56,16 @@ public abstract class AbstractBeamCalcRel extends Calc implements BeamRelNode {
   }
 
   @Override
+  public boolean deepEquals(Object obj) {
+    if (!super.deepEquals(obj) || !(obj instanceof AbstractBeamCalcRel)) {
+      return false;
+    }
+    // Beam cares about output field names
+    final AbstractBeamCalcRel other = (AbstractBeamCalcRel) obj;
+    return this.getRowType().getFieldNames().equals(other.getRowType().getFieldNames());
+  }
+
+  @Override
   public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     NodeStats inputStat = BeamSqlRelUtils.getNodeStats(input, mq);
     double selectivity = estimateFilterSelectivity(getInput(), program, mq);

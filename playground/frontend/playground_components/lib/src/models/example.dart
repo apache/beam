@@ -40,10 +40,11 @@ class Example extends ExampleBase {
     this.graph,
     super.isMultiFile,
     this.logs,
-    super.link,
     this.outputs,
     super.pipelineOptions,
     super.tags,
+    super.urlNotebook,
+    super.urlVcs,
     super.viewOptions,
   });
 
@@ -59,13 +60,14 @@ class Example extends ExampleBase {
           datasets: example.datasets,
           description: example.description,
           isMultiFile: example.isMultiFile,
-          link: example.link,
           name: example.name,
           path: example.path,
           pipelineOptions: example.pipelineOptions,
           sdk: example.sdk,
           tags: example.tags,
           type: example.type,
+          urlNotebook: example.urlNotebook,
+          urlVcs: example.urlVcs,
           viewOptions: example.viewOptions,
         );
 

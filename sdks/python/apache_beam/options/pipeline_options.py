@@ -1535,9 +1535,8 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--spark_version',
         default='3',
-        choices=['3', '2'],
-        help='Spark major version to use. '
-        'Note, Spark 2 support is deprecated')
+        choices=['3'],
+        help='Spark major version to use.')
 
 
 class TestOptions(PipelineOptions):

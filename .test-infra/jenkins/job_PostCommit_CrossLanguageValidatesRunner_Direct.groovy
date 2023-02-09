@@ -27,7 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Direct',
       description('Runs the CrossLanguageValidatesRunner suite on the Direct runner.')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
       // Publish all test results to Jenkins
       publishers {
@@ -43,6 +43,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Direct',
             tasks(':sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner')
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
+            // only run non-python task (e.g. GoUsingJava) once
+            switches("-PskipNonPythonTask=${pythonVersion != CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS[0]}")
           }
         }
       }
