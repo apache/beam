@@ -306,7 +306,7 @@ class DataSamplingTest(unittest.TestCase):
     processor.process_bundle('instruction_id')
 
     self.assertEqual(
-        data_sampler.samples(), {PCOLLECTION_ID: [b'hello, world!']})
+        data_sampler.samples(), {PCOLLECTION_ID: [b'\rhello, world!']})
 
 
 if __name__ == '__main__':

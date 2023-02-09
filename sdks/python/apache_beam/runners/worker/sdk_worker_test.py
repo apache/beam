@@ -310,13 +310,13 @@ class SdkWorkerTest(unittest.TestCase):
                 'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
                     elements=[
                         beam_fn_api_pb2.SampledElement(
-                            element=coder.encode(
+                            element=coder.encode_nested(
                                 'hello, world from pcoll_id_1!'))
                     ]),
                 'pcoll_id_2': beam_fn_api_pb2.SampleDataResponse.ElementList(
                     elements=[
                         beam_fn_api_pb2.SampledElement(
-                            element=coder.encode(
+                            element=coder.encode_nested(
                                 'hello, world from pcoll_id_2!'))
                     ])
             }))
