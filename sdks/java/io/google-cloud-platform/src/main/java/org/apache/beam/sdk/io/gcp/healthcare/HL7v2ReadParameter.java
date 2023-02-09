@@ -26,8 +26,8 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 
 /**
- * HL7v2ReadParameter represents the read parameters for a HL7v2 read request, used as a parameter
- * for {@link HL7v2IO.Read}.
+ * HL7v2ReadParameter represents the read parameters for a HL7v2 read request, used as the input
+ * type for {@link HL7v2IO.HL7v2Read}.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
