@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
  * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF.
  */
 @SuppressWarnings({"UnusedVariable", "UnusedMethod"})
+@Internal
 public class ReadChangeStreamPartitionAction {
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionAction.class);
 
