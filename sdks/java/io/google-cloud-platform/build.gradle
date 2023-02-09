@@ -89,12 +89,6 @@ dependencies {
   implementation(library.java.google_cloud_bigtable_client_core) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
     exclude group: 'io.grpc', module: 'grpc-grpclb'
-    // Excluded additional modules from bigtable client core for compatibility.
-    exclude group: 'com.google.api.grpc', module: 'proto-google-cloud-bigtable-v2'
-    exclude group: 'com.google.api.grpc', module: 'proto-google-cloud-bigtable-admin-v2'
-    exclude group: 'com.google.api.grpc', module: 'grpc-google-cloud-bigtable-v2'
-    exclude group: 'com.google.api.grpc', module: 'grpc-google-cloud-bigtable-admin-v2'
-    exclude group: 'com.google.cloud', module: 'google-cloud-bigtable'
   }
   // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
   // Java7 compatibility. The old google-cloud-bigtable is not compatible with
