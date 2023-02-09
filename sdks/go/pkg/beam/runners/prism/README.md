@@ -169,3 +169,6 @@ Otherwise, ordinary [Beam contribution guidelines apply](https://beam.apache.org
 Once support for containers is implemented, Prism should become a target
 for the Java Runner Validation tests, which are the current specification
 for correct runner behavior. This will inform further feature developement.
+
+It's also hoped this helps others understand what Beam runners need to do to
+execute pipelines.
