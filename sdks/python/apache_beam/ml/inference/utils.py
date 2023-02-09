@@ -135,6 +135,10 @@ class WatchFilePattern(beam.PTransform):
         interval: Interval at which to check for files matching file_pattern
           in seconds.
         stop_timestamp: Timestamp after which no more files will be checked.
+
+    **Note**: This transform is supported in streaming mode since
+      MatchContinuously produces an unbounded source. Running in batch
+      mode can lead to undesired results or result in pipeline being stuck.
     """
     self.file_pattern = file_pattern
     self.interval = interval
