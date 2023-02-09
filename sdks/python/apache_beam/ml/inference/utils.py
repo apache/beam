@@ -126,22 +126,23 @@ class WatchFilePattern(beam.PTransform):
 
       Args:
         file_pattern: The file path to read from as a local file path or a
-        GCS ``gs://`` path. The path can contain glob characters
-        (``*``, ``?``, and ``[...]`` sets).
-        interval: Interval at which to check for files matching file_pattern
+          GCS ``gs://`` path. The path can contain glob characters
+          (``*``, ``?``, and ``[...]`` sets).
+          interval: Interval at which to check for files matching file_pattern
           in seconds.
         stop_timestamp: Timestamp after which no more files will be checked.
 
-    Constraints:
+    **NOTE:**
     1. If the file is read and then there is an update to that file, this
-      transform will ignore that update. Always update a file with unique
-      name.
+        transform will ignore that update. Always update a file with unique
+        name.
     2. Initially, before the pipeline startup time, WatchFilePattern expects
-      at least one file present that matches the file_pattern.
+        at least one file present that matches the file_pattern.
+    3. This transform is supported in streaming mode since
+        MatchContinuously produces an unbounded source. Running in batch
+        mode can lead to undesired results or result in pipeline being stuck.
 
-    **Note**: This transform is supported in streaming mode since
-      MatchContinuously produces an unbounded source. Running in batch
-      mode can lead to undesired results or result in pipeline being stuck.
+
     """
     self.file_pattern = file_pattern
     self.interval = interval
