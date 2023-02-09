@@ -273,7 +273,7 @@ class CompressedFile(object):
         if (self._compression_type == CompressionTypes.BZIP2 or
             self._compression_type == CompressionTypes.DEFLATE or
             self._compression_type == CompressionTypes.ZSTD or
-            self._compression_type == CompressionTypes.GZIP or 
+            self._compression_type == CompressionTypes.GZIP or
             self._compression_type == CompressionTypes.LZMA):
           pass
         else:
