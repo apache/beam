@@ -15,6 +15,35 @@
 # limitations under the License.
 #
 
+"""
+A pipeline that uses RunInference PTransform to perform image classification
+and uses WatchFilePattern as side input to the RunInference PTransform.
+WatchFilePattern is used to watch for a file updates matching the file_pattern
+based on timestamps and emits latest model metadata, which is used in
+RunInference API for the dynamic model updates without the need for stopping
+the beam pipeline.
+
+This pipeline follows the pattern from
+https://beam.apache.org/documentation/patterns/side-inputs/
+
+This pipeline expects a PubSub topic as source, which emits an image
+path(UTF-8 encoded) that is accessible by the pipeline.
+
+To run the example on DataflowRunner,
+
+python apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py # pylint: disable=line-too-long
+  --model_path=gs://apache-beam-ml/tmp/side_input_test/resnet152.pth
+  --project=<your-project>
+  --re=<your-region>
+  --temp_location=<your-tmp-location>
+  --staging_location=<your-staging-location>
+  --runner=DataflowRunner
+  --streaming
+  --interval=10
+  --num_workers=5
+  --requirements_file=apache_beam/ml/inference/torch_tests_requirements.txt
+"""
+
 import argparse
 import io
 import logging
@@ -35,7 +64,6 @@ from apache_beam.ml.inference.utils import WatchFilePattern
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
-from apache_beam.transforms import window
 from PIL import Image
 from torchvision import models
 from torchvision import transforms
@@ -70,10 +98,14 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 
 
 class PostProcessor(beam.DoFn):
+  """
+  Return filename, prediction and the model id used to perform the
+  prediction
+  """
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     filename, prediction_result = element
     prediction = torch.argmax(prediction_result.inference, dim=0)
-    yield filename + ',' + str(prediction.item())
+    yield filename, prediction, prediction_result.model_id
 
 
 def parse_known_args(argv):
@@ -83,27 +115,23 @@ def parse_known_args(argv):
       '--topic',
       dest='topic',
       default='projects/apache-beam-testing/topics/anandinguva-model-updates',
-      help='Path to the text file containing image names.')
-  parser.add_argument(
-      '--output',
-      dest='output',
-      required=True,
-      help='Path where to save output predictions.'
-      ' text file.')
+      help='PubSub topic emitting absolute path to the images.'
+      'Path must be accessible by the pipeline.')
   parser.add_argument(
       '--model_path',
       dest='model_path',
-      required=True,
+      default='gs://apache-beam-samples/run_inference/resnet152.pth',
       help="Path to the model's state_dict.")
-  parser.add_argument(
-      '--interval',
-      default=10,
-      type=int,
-      help='Path to the directory where images are stored.')
   parser.add_argument(
       '--file_pattern',
       default='gs://apache-beam-ml/tmp/side_input_test/*.pth',
       help='Glob pattern to watch for an update.')
+  parser.add_argument(
+      '--interval',
+      default=10,
+      type=int,
+      help='Interval used to check for file updates.')
+
   return parser.parse_known_args(argv)
 
 
@@ -120,7 +148,7 @@ def run(
     model_class: Reference to the class definition of the model.
     model_params: Parameters passed to the constructor of the model_class.
                   These will be used to instantiate the model object in the
-                  RunInference API.
+                  RunInference PTransform.
     save_main_session: Used for internal testing.
     device: Device to be used on the Runner. Choices are (CPU, GPU).
     test_pipeline: Used for internal testing.
@@ -129,8 +157,6 @@ def run(
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
-  # if not model_class:
-  # default model class will be mobilenet with pretrained weights.
   if not model_class:
     model_class = models.resnet152
     model_params = {'num_classes': 1000}
@@ -153,14 +179,11 @@ def run(
     pipeline = beam.Pipeline(options=pipeline_options)
 
   side_input = pipeline | WatchFilePattern(
-      interval=known_args.interval,
-      default_value=known_args.model_path,
-      file_pattern=known_args.file_pattern)
+      interval=known_args.interval, file_pattern=known_args.file_pattern)
 
   filename_value_pair = (
       pipeline
       | 'ReadImageNamesFromPubSub' >> beam.io.ReadFromPubSub(known_args.topic)
-      | 'MainInputFixedWindows' >> beam.WindowInto(window.FixedWindows(1))
       | 'DecodeBytes' >> beam.Map(lambda x: x.decode('utf-8'))
       | 'ReadImageData' >>
       beam.Map(lambda image_name: read_image(image_file_name=image_name))
@@ -170,17 +193,9 @@ def run(
       filename_value_pair
       | 'PyTorchRunInference' >> RunInference(
           model_handler, model_metadata_pcoll=side_input)
-      # | 'ProcessOutput' >> beam.ParDo(PostProcessor())
-  )
+      | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
   _ = predictions | beam.Map(logging.info)
-
-  #  change this to ReadFromPubSub
-
-  # predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
-  #   known_args.output,
-  #   shard_name_template='',
-  #   append_trailing_newlines=True)
 
   result = pipeline.run()
   result.wait_until_finish()
