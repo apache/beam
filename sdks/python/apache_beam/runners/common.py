@@ -1879,7 +1879,7 @@ def validate_pipeline_graph(pipeline_proto):
             "Bad coder for input of %s: %s" % (transform_id, input_coder))
       if output_coder.spec.urn != common_urns.coders.KV.urn:
         raise ValueError(
-            "Bad coder for output of %s: %s" % (transform_id, input_coder))
+            "Bad coder for output of %s: %s" % (transform_id, output_coder))
       output_values_coder = pipeline_proto.components.coders[
           output_coder.component_coder_ids[1]]
       if (input_coder.component_coder_ids[0] !=
