@@ -228,7 +228,7 @@ class PipelineContext(object):
         default_environment, label='default_environment')  # type: str
 
     self.use_fake_coders = use_fake_coders
-    self.deterministic_coder_map = {}
+    self.deterministic_coder_map = {}  # type: Mapping[coders.Coder, coders.Coder]
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
@@ -262,8 +262,9 @@ class PipelineContext(object):
       return self.coders.get_id(coder)
 
   def deterministic_coder(self, coder, msg):
+    # type: (coders.Coder, str) -> coders.Coder
     if coder not in self.deterministic_coder_map:
-      self.deterministic_coder_map[coder] = coder.as_deterministic_coder(msg)
+      self.deterministic_coder_map[coder] = coder.as_deterministic_coder(msg)  # type: ignore
     return self.deterministic_coder_map[coder]
 
   def element_type_from_coder_id(self, coder_id):

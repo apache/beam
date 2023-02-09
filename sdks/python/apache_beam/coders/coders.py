@@ -176,7 +176,7 @@ class Coder(object):
     """
     return False
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(self, step_label, error_message=None) -> Coder:
     """Returns a deterministic version of self, if possible.
 
     Otherwise raises a value error.
