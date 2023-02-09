@@ -1082,6 +1082,39 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
                 },
                 create_disposition='CREATE_NEVER',
                 method='STREAMING_INSERTS'))
+    self.assertEqual(1, mock_send.call_count)\
+
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_table_not_found_errors(
+      self, mock_send, exception_type=None, error_args=None):
+    # In this test, a pipeline will attempt an insert to a table that does not exist.
+    # and that has been previously created by the pipeline. i.e. the table can be found
+    # in the _KNOWN_TABLES set.
+    mock_send.side_effect = [
+        exception_type(*error_args),
+        exception_type(*error_args),
+        exception_type(*error_args),
+        exception_type(*error_args),
+    ]
+    # add the table to the _KNOWN_TABLES set
+    beam_bq._KNOWN_TABLES.add('project:dataset.table')
+    with self.assertRaises(Exception):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_IF_NEEDED',
+                method='STREAMING_INSERTS'))
     self.assertEqual(1, mock_send.call_count)
 
   # Using https://googleapis.dev/python/google-api-core/latest/_modules/google
