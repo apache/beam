@@ -36,8 +36,10 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Before;
@@ -106,19 +108,6 @@ public class PartitionMetadataDaoTest {
   }
 
   @Test
-  public void testUpdateToFinished() {
-    when(databaseClient.readWriteTransaction()).thenReturn(readWriteTransactionRunner);
-    when(readWriteTransactionRunner.run(any())).thenReturn(null);
-    when(readWriteTransactionRunner.getCommitTimestamp())
-        .thenReturn(Timestamp.ofTimeMicroseconds(1L));
-    Timestamp commitTimestamp = partitionMetadataDao.updateToFinished(PARTITION_TOKEN);
-    verify(databaseClient, times(1)).readWriteTransaction();
-    verify(readWriteTransactionRunner, times(1)).run(any());
-    verify(readWriteTransactionRunner, times(1)).getCommitTimestamp();
-    assertEquals(Timestamp.ofTimeMicroseconds(1L), commitTimestamp);
-  }
-
-  @Test
   public void testInTransactionContextInsert() {
     ArgumentCaptor<ImmutableList<Mutation>> mutations =
         ArgumentCaptor.forClass(ImmutableList.class);
@@ -150,7 +139,100 @@ public class PartitionMetadataDaoTest {
   }
 
   @Test
+  public void testInTransactionContextCannotUpdateToRunning() {
+    ArgumentCaptor<ImmutableList<Mutation>> mutations =
+        ArgumentCaptor.forClass(ImmutableList.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
+
+    doNothing().when(transaction).buffer(mutations.capture());
+    assertNull(inTransactionContext.updateToRunning(PARTITION_TOKEN));
+    // assertEquals(0, mutations.getValue().size());
+    verify(transaction, times(0)).buffer(mutations.capture());
+  }
+
+  @Test
+  public void testInTransactionContextUpdateToRunning() {
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true);
+    when(resultSet.getString(any())).thenReturn(State.SCHEDULED.toString());
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(Struct.newBuilder().build());
+
+    ArgumentCaptor<ImmutableList<Mutation>> mutations =
+        ArgumentCaptor.forClass(ImmutableList.class);
+    doNothing().when(transaction).buffer(mutations.capture());
+    assertNull(inTransactionContext.updateToRunning(PARTITION_TOKEN));
+    assertEquals(1, mutations.getValue().size());
+    Map<String, Value> mutationValueMap = mutations.getValue().iterator().next().asMap();
+    assertEquals(
+        PARTITION_TOKEN,
+        mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString());
+    assertEquals(
+        PartitionMetadata.State.RUNNING.toString(),
+        mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_STATE).getString());
+  }
+
+  @Test
+  public void testInTransactionContextCannotUpdateToScheduled() {
+    System.out.println("Cannot update to scheduled");
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
+
+    ArgumentCaptor<ImmutableList<Mutation>> mutations =
+        ArgumentCaptor.forClass(ImmutableList.class);
+    doNothing().when(transaction).buffer(mutations.capture());
+    assertNull(inTransactionContext.updateToScheduled(Collections.singletonList(PARTITION_TOKEN)));
+    verify(transaction, times(0)).buffer(mutations.capture());
+  }
+
+  @Test
+  public void testInTransactionContextUpdateToScheduled() {
+    System.out.println(" update to scheduled");
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+    when(resultSet.getString(any())).thenReturn(PARTITION_TOKEN);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(Struct.newBuilder().build());
+
+    ArgumentCaptor<ImmutableList<Mutation>> mutations =
+        ArgumentCaptor.forClass(ImmutableList.class);
+    doNothing().when(transaction).buffer(mutations.capture());
+    assertNull(inTransactionContext.updateToScheduled(Collections.singletonList(PARTITION_TOKEN)));
+    assertEquals(1, mutations.getValue().size());
+    Map<String, Value> mutationValueMap = mutations.getValue().iterator().next().asMap();
+    assertEquals(
+        PARTITION_TOKEN,
+        mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString());
+    assertEquals(
+        PartitionMetadata.State.SCHEDULED.toString(),
+        mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_STATE).getString());
+  }
+
+  @Test
+  public void testInTransactionContextCannotUpdateToFinished() {
+    System.out.println("Cannot update to finished");
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
+
+    ArgumentCaptor<ImmutableList<Mutation>> mutations =
+        ArgumentCaptor.forClass(ImmutableList.class);
+    assertNull(inTransactionContext.updateToFinished(PARTITION_TOKEN));
+    verify(transaction, times(0)).buffer(mutations.capture());
+  }
+
+  @Test
   public void testInTransactionContextUpdateToFinished() {
+    System.out.println("update to scheduled");
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+    when(resultSet.getString(any())).thenReturn(State.RUNNING.toString());
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(Struct.newBuilder().build());
+
     ArgumentCaptor<ImmutableList<Mutation>> mutations =
         ArgumentCaptor.forClass(ImmutableList.class);
     doNothing().when(transaction).buffer(mutations.capture());

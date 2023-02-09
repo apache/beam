@@ -29,7 +29,7 @@ func getTaskNode(id string, sdk tob.Sdk) tob.Node {
 		Id: id, Title: "Challenge Name",
 		Description: "## Challenge description\n\nawesome description\n",
 		Hints: []string{
-			"## Hint 1\n\nhint 1",
+			fmt.Sprintf("## Hint 1\n\nhint 1 %s", sdk),
 			"## Hint 2\n\nhint 2",
 		},
 		TaskSnippetId:     fmt.Sprintf("TB_EXAMPLES_%s_ChallengeTask", sdk.StorageID()),
