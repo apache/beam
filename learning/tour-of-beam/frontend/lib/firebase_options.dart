@@ -53,11 +53,11 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBtAreurqJ5D4IK6cNisZh5dnDRKljbJAw',
-    authDomain: 'astest-369409.firebaseapp.com',
-    projectId: 'astest-369409',
-    storageBucket: 'astest-369409.appspot.com',
-    messagingSenderId: '534850967604',
-    appId: '1:534850967604:web:55c6af8da7940df1ddd261',
-  );
+      apiKey: "AIzaSyBqqvxHfCiaX3dwmtQE24PFArbiHGx-jYg",
+      authDomain: "theta-index-377011.firebaseapp.com",
+      projectId: "theta-index-377011",
+      storageBucket: "theta-index-377011.appspot.com",
+      messagingSenderId: "23543141490",
+      appId: "1:23543141490:web:37a476106097b468c51eeb"
+    };
 }
