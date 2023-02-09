@@ -57,6 +57,29 @@ KeyedTensorInferenceFn = Callable[[
                                   Iterable[PredictionResult]]
 
 
+def _validate_constructor_args(
+    state_dict_path, model_class, torch_script_model_path):
+  message = (
+      "A {param1} has been supplied to the model "
+      "handler, but the required {param2} is missing. "
+      "Please provide the {param2} in order to "
+      "successfully load the {param1}.")
+  # state_dict_path and model_class are coupled with each other
+  # raise RuntimeError if user forgets to pass any one of them.
+  if state_dict_path and not model_class:
+    raise RuntimeError(
+        message.format(param1="state_dict_path", param2="model_class"))
+
+  if not state_dict_path and model_class:
+    raise RuntimeError(
+        message.format(param1="model_class", param2="state_dict_path"))
+
+  if torch_script_model_path and state_dict_path:
+    raise RuntimeError(
+        "Please specify either torch_script_model_path or "
+        "(state_dict_path, model_class) to successfully load the model.")
+
+
 def _load_model(
     model_class: Optional[Callable[..., torch.nn.Module]],
     state_dict_path: Optional[str],
@@ -219,18 +242,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self.validate_constructor_args()
 
   def validate_constructor_args(self):
-    if self._state_dict_path and not self._model_class:
-      raise RuntimeError(
-          "A state_dict_path has been supplied to the model "
-          "handler, but the required model_class is missing. "
-          "Please provide the model_class in order to "
-          "successfully load the state_dict_path.")
-
-    if self._torch_script_model_path:
-      if self._state_dict_path and self._model_class:
-        raise RuntimeError(
-            "Please specify either torch_script_model_path or "
-            "(state_dict_path, model_class) to successfully load the model.")
+    _validate_constructor_args(
+        state_dict_path=self._state_dict_path,
+        model_class=self._model_class,
+        torch_script_model_path=self._torch_script_model_path)
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -442,18 +457,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     self.validate_constructor_args()
 
   def validate_constructor_args(self):
-    if self._state_dict_path and not self._model_class:
-      raise RuntimeError(
-          "A state_dict_path has been supplied to the model "
-          "handler, but the required model_class is missing. "
-          "Please provide the model_class in order to "
-          "successfully load the state_dict_path.")
-
-    if self._torch_script_model_path:
-      if self._state_dict_path and self._model_class:
-        raise RuntimeError(
-            "Please specify either torch_script_model_path or "
-            "(state_dict_path, model_class) to successfully load the model.")
+    _validate_constructor_args(
+        state_dict_path=self._state_dict_path,
+        model_class=self._model_class,
+        torch_script_model_path=self._torch_script_model_path)
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""

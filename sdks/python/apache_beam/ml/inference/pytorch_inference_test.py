@@ -754,6 +754,28 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
         "Please provide the model_class in order to"):
       _ = PytorchModelHandlerTensor(state_dict_path=torch_path)
 
+    with self.assertRaisesRegex(
+        RuntimeError,
+        "A state_dict_path has been supplied to the model "
+        "handler, but the required model_class is missing. "
+        "Please provide the model_class in order to"):
+      _ = (PytorchModelHandlerKeyedTensor(state_dict_path=torch_path))
+
+  def test_torch_model_state_dict_none(self):
+    with self.assertRaisesRegex(
+        RuntimeError,
+        "A model_class has been supplied to the model "
+        "handler, but the required state_dict_path is missing. "
+        "Please provide the state_dict_path in order to"):
+      _ = PytorchModelHandlerTensor(model_class=PytorchLinearRegression)
+
+    with self.assertRaisesRegex(
+        RuntimeError,
+        "A model_class has been supplied to the model "
+        "handler, but the required state_dict_path is missing. "
+        "Please provide the state_dict_path in order to"):
+      _ = PytorchModelHandlerKeyedTensor(model_class=PytorchLinearRegression)
+
   def test_specify_torch_script_path_and_state_dict_path(self):
     torch_model = PytorchLinearRegression(2, 1)
     torch_path = os.path.join(self.tmpdir, 'torch_model.pt')
