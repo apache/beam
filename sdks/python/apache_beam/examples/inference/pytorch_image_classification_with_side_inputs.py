@@ -26,8 +26,11 @@ the beam pipeline.
 This pipeline follows the pattern from
 https://beam.apache.org/documentation/patterns/side-inputs/
 
-This pipeline expects a PubSub topic as source, which emits an image
-path(UTF-8 encoded) that is accessible by the pipeline.
+To use the PubSub reading from a topic in the pipeline as source, you can
+publish a path to the model(resnet152 used in the pipeline from
+torchvision.models.resnet152) to the PubSub topic. Then pass that
+topic via command line arg --topic.  The published path(str) should be
+UTF-8 encoded.
 
 To run the example on DataflowRunner,
 
@@ -43,6 +46,16 @@ python apache_beam/examples/inference/pytorch_image_classification_with_side_inp
   --requirements_file=apache_beam/ml/inference/torch_tests_requirements.txt
   --topic=<pubusb_topic>
   --file_pattern=<glob_pattern>
+
+file_pattern is path(can contain glob characters), which will be passed to
+WatchContinuously transform for model updates. WatchContinuously watches the
+file_pattern and emits a latest file path, sorted by timestamp. Files that
+are read before and updated with same name will be ignored as an update.
+
+The pipeline expects there is at least one file present to match the
+file_pattern before pipeline startup. Presumably, this would be the
+`initial_model_path`. If there is no file matching before pipeline
+startup time, the pipeline would fail.
 """
 
 import argparse
@@ -119,9 +132,11 @@ def parse_known_args(argv):
       'Path must be accessible by the pipeline.')
   parser.add_argument(
       '--model_path',
+      '--initial_model_path',
       dest='model_path',
       default='gs://apache-beam-samples/run_inference/resnet152.pth',
-      help="Path to the model's state_dict.")
+      help="Path to the initial model's state_dict. "
+      "This will be used until the first model update occurs.")
   parser.add_argument(
       '--file_pattern', help='Glob pattern to watch for an update.')
   parser.add_argument(
