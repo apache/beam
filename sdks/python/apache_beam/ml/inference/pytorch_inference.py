@@ -81,8 +81,11 @@ def _validate_constructor_args(
 
 
 def _load_model(
-    model_class, state_dict_path, device, model_params,
-    torch_script_model_path):
+    model_class: Optional[Callable[..., torch.nn.Module]],
+    state_dict_path: Optional[str],
+    device: torch.device,
+    model_params: Optional[Dict[str, Any]],
+    torch_script_model_path: Optional[str]):
   if device == torch.device('cuda') and not torch.cuda.is_available():
     logging.warning(
         "Model handler specified a 'GPU' device, but GPUs are not available. "
