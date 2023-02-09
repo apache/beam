@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import '../../playground_components.dart';
 import '../repositories/models/run_code_request.dart';
 import '../repositories/models/run_code_result.dart';
+import '../util/connectivity_result.dart';
 import 'snippet_editing_controller.dart';
 
 class CodeRunner extends ChangeNotifier {
@@ -186,13 +187,4 @@ class CodeRunner extends ChangeNotifier {
     _runStopDate = DateTime.now();
     notifyListeners();
   }
-}
-
-extension ConnectivityResultExtension on ConnectivityResult {
-  bool get isConnected => [
-        ConnectivityResult.ethernet,
-        ConnectivityResult.mobile,
-        ConnectivityResult.vpn,
-        ConnectivityResult.wifi,
-      ].contains(this);
 }
