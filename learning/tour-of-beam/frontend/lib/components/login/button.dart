@@ -30,7 +30,7 @@ class LoginButton extends StatelessWidget {
     return TextButton(
       onPressed: () {
         final closeNotifier = PublicNotifier();
-        openOverlay(
+        showOverlay(
           context: context,
           closeNotifier: closeNotifier,
           positioned: Positioned(

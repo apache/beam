@@ -26,10 +26,10 @@ class BeamOverlays {
     Future Function() future,
   ) async {
     final closeNotifier = PublicNotifier();
-    openOverlay(
+    showOverlay(
       context: context,
       closeNotifier: closeNotifier,
-      isDismissible: false,
+      barrierDismissible: false,
       positioned: Positioned.fill(
         child: Container(
           alignment: Alignment.center,

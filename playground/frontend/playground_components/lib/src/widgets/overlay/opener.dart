@@ -21,17 +21,17 @@ import 'package:flutter/material.dart';
 import '../../controllers/public_notifier.dart';
 import 'widget.dart';
 
-void openOverlay({
+void showOverlay({
   required BuildContext context,
   required PublicNotifier closeNotifier,
   required Positioned positioned,
-  bool isDismissible = true,
+  bool barrierDismissible = true,
 }) {
   final overlay = OverlayEntry(
     builder: (context) {
       return BeamOverlay(
         close: closeNotifier.notifyPublic,
-        isDismissible: isDismissible,
+        isDismissible: barrierDismissible,
         child: positioned,
       );
     },
