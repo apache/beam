@@ -52,12 +52,12 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
+    const firebaseConfig = {
       apiKey: "AIzaSyBqqvxHfCiaX3dwmtQE24PFArbiHGx-jYg",
       authDomain: "theta-index-377011.firebaseapp.com",
       projectId: "theta-index-377011",
       storageBucket: "theta-index-377011.appspot.com",
       messagingSenderId: "23543141490",
-      appId: "1:23543141490:web:37a476106097b468c51eeb"
+      appId: "1:23543141490:web:c7a7198b42faedefc51eeb"
     };
 }
