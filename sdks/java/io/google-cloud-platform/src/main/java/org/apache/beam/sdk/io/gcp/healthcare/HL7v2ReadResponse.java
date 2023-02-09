@@ -23,8 +23,8 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
- * HL7v2ReadResponse represents the response format for a HL7v2 read request, used as a parameter
- * for {@link HL7v2IO.Read}.
+ * HL7v2ReadResponse represents the response format for a HL7v2 read request, used as the output
+ * type of {@link HL7v2IO.HL7v2Read}.
  */
 public class HL7v2ReadResponse {
 
