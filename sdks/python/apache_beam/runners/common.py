@@ -1888,8 +1888,11 @@ def validate_pipeline_graph(pipeline_proto):
           output_values_coder.component_coder_ids[0] !=
           input_coder.component_coder_ids[1]):
         raise ValueError(
-            "Incompatable input and output coders for %s: %s" %
-            (transform_id, input_coder, output_coder))
+            "Incompatable input and output coders for %s: \n"
+            "Input coder: %s\n"
+            "Output coder: %s\n"
+            "Output value coder: %s" %
+            (transform_id, input_coder, output_coder, output_values_coder))
 
     for t in transform_proto.subtransforms:
       validate_transform(t)

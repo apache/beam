@@ -228,6 +228,7 @@ class PipelineContext(object):
         default_environment, label='default_environment')  # type: str
 
     self.use_fake_coders = use_fake_coders
+    self.deterministic_coder_map = {}
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
@@ -254,11 +255,15 @@ class PipelineContext(object):
       coder = coders.registry.get_coder(element_type)
       if requires_deterministic_key_coder:
         coder = coders.TupleCoder([
-            coder.key_coder().as_deterministic_coder(
-                requires_deterministic_key_coder),
+            self.deterministic_coder(coder.key_coder(), requires_deterministic_key_coder),
             coder.value_coder()
         ])
       return self.coders.get_id(coder)
+
+  def deterministic_coder(self, coder, msg):
+    if coder not in self.deterministic_coder_map:
+      self.deterministic_coder_map[coder] = coder.as_deterministic_coder(msg)
+    return self.deterministic_coder_map[coder]
 
   def element_type_from_coder_id(self, coder_id):
     # type: (str) -> Any
