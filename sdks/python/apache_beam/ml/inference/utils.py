@@ -24,18 +24,17 @@ from functools import partial
 from typing import Any
 from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
-from apache_beam.io.fileio import MatchContinuously
 from apache_beam.io.fileio import EmptyMatchTreatment
+from apache_beam.io.fileio import MatchContinuously
 from apache_beam.ml.inference.base import ModelMetadata
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.transforms import window
 from apache_beam.transforms import trigger
+from apache_beam.transforms import window
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
@@ -98,7 +97,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
 
   def process(
       self, element, time_state=beam.DoFn.StateParam(TIME_STATE)
-  ) -> List[Tuple[str, ModelMetadata]]:
+  ) -> Iterable[Tuple[str, ModelMetadata]]:
     _, file_metadata = element
     new_ts = file_metadata.last_updated_in_seconds
     old_ts = time_state.read()
