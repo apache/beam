@@ -21,8 +21,6 @@ import 'package:flutter/material.dart';
 import '../../../playground_components.dart';
 
 class BeamOverlays {
-  // TODO(nausharipov) review: add label?
-  // TODO(nausharipov) review: add grey-ish background?
   static Future<void> showProgressOverlay(
     BuildContext context,
     Future Function() future,
@@ -32,9 +30,11 @@ class BeamOverlays {
       context: context,
       closeNotifier: closeNotifier,
       isDismissible: false,
-      positioned: const Positioned.fill(
-        child: Align(
-          child: CircularProgressIndicator(),
+      positioned: Positioned.fill(
+        child: Container(
+          alignment: Alignment.center,
+          color: Theme.of(context).dialogBackgroundColor.withOpacity(0.2),
+          child: const CircularProgressIndicator(),
         ),
       ),
     );

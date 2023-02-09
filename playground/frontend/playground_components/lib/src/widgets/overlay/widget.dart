@@ -20,13 +20,13 @@ import 'package:flutter/material.dart';
 
 class BeamOverlay extends StatelessWidget {
   final VoidCallback close;
-  final Positioned child;
   final bool isDismissible;
+  final Positioned child;
 
   const BeamOverlay({
     required this.close,
-    required this.child,
     required this.isDismissible,
+    required this.child,
   });
 
   @override
