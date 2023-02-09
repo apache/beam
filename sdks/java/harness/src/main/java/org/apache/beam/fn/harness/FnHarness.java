@@ -290,7 +290,7 @@ public class FnHarness {
               for (ProcessBundleDescriptorModifier modifier : modifiers) {
                 try {
                   LOG.debug("Modifying graph with " + modifier);
-                  descriptor = modifier.ModifyProcessBundleDescriptor(descriptor);
+                  descriptor = modifier.modifyProcessBundleDescriptor(descriptor);
                 } catch (ProcessBundleDescriptorModifier.GraphModificationException e) {
                   LOG.warn("Could not modify graph with " + modifier + ": " + e.getMessage());
                 }

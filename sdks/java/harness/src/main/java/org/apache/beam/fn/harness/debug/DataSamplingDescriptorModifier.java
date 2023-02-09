@@ -27,7 +27,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
  */
 public class DataSamplingDescriptorModifier implements ProcessBundleDescriptorModifier {
   @Override
-  public BeamFnApi.ProcessBundleDescriptor ModifyProcessBundleDescriptor(
+  public BeamFnApi.ProcessBundleDescriptor modifyProcessBundleDescriptor(
       BeamFnApi.ProcessBundleDescriptor pbd) {
     BeamFnApi.ProcessBundleDescriptor.Builder builder = pbd.toBuilder();
 

@@ -71,7 +71,7 @@ public class DataSamplingDescriptorModifierTest {
     final String ptransformIdA = "synthetic-data-sampling-transform-" + pcollectionIdA;
     final String ptransformIdB = "synthetic-data-sampling-transform-" + pcollectionIdB;
 
-    BeamFnApi.ProcessBundleDescriptor modified = modifier.ModifyProcessBundleDescriptor(descriptor);
+    BeamFnApi.ProcessBundleDescriptor modified = modifier.modifyProcessBundleDescriptor(descriptor);
     assertThat(modified.getTransformsCount(), equalTo(2));
 
     RunnerApi.PTransform samplingTransformA = modified.getTransformsMap().get(ptransformIdA);

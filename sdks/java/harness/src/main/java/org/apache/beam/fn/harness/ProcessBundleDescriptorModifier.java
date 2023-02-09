@@ -37,6 +37,6 @@ public interface ProcessBundleDescriptorModifier {
    * failure. Can be used to instrument functionality onto an existing ProcessBundleDescriptor. For
    * instance, this is used to add DataSampling PTransforms to a graph to sample in-flight elements.
    */
-  BeamFnApi.ProcessBundleDescriptor ModifyProcessBundleDescriptor(
+  BeamFnApi.ProcessBundleDescriptor modifyProcessBundleDescriptor(
       BeamFnApi.ProcessBundleDescriptor pbd) throws GraphModificationException;
 }
