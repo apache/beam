@@ -29,7 +29,7 @@ import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
-import '../../modules/analytics/google_analytics_service.dart';
+// import '../../modules/analytics/google_analytics_service.dart';
 import '../../state.dart';
 import '../../window_close_notifier.dart';
 import 'controllers/content_tree.dart';
@@ -129,11 +129,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   Future<void> _onTabClosed() async {
     print(['_onTabClosed']);
     if (currentUnitController != null) {
-      await TobGoogleAnalyticsService.get().closeUnit(
-        currentUnitController!.sdk,
-        currentUnitController!.unit.id,
-        DateTime.now().difference(_currentUnitOpenedAt!),
-      );
+      // TODO: Send event.
+      // await TobGoogleAnalyticsService.get().closeUnit(
+      //   currentUnitController!.sdk,
+      //   currentUnitController!.unit.id,
+      //   DateTime.now().difference(_currentUnitOpenedAt!),
+      // );
     }
   }
 
@@ -150,14 +151,15 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     if (_currentUnitOpenedAt != null && _currentUnitContent != null) {
-      await TobGoogleAnalyticsService.get().closeUnit(
-        sdk,
-        // TODO(nausharipov): review
-        // If unit object is needed, tracking can be
-        // moved into _createCurrentUnitController
-        _currentUnitContent!.id,
-        DateTime.now().difference(_currentUnitOpenedAt!),
-      );
+      // TODO: Send event.
+      // await TobGoogleAnalyticsService.get().closeUnit(
+      //   sdk,
+      //   // TODO(nausharipov): review
+      //   // If unit object is needed, tracking can be
+      //   // moved into _createCurrentUnitController
+      //   _currentUnitContent!.id,
+      //   DateTime.now().difference(_currentUnitOpenedAt!),
+      // );
     }
 
     _currentUnitContent = content;
@@ -166,7 +168,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     _currentUnitOpenedAt = DateTime.now();
-    await TobGoogleAnalyticsService.get().openUnit(sdk, unit);
+    // TODO: Send event.
+    // await TobGoogleAnalyticsService.get().openUnit(sdk, unit);
 
     final taskSnippetId = content.taskSnippetId;
     await _setPlaygroundSnippet(taskSnippetId);

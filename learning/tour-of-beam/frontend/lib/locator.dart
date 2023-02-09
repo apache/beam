@@ -25,7 +25,7 @@ import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
 import 'cache/unit_progress.dart';
-import 'modules/analytics/google_analytics_service.dart';
+import 'config.dart';
 import 'pages/welcome/page.dart';
 import 'repositories/client/client.dart';
 import 'repositories/client/cloud_functions_client.dart';
@@ -66,7 +66,10 @@ void _initializeState() {
 }
 
 void _initializeServices() {
-  final analytics = TobGoogleAnalyticsService();
-  GetIt.instance.registerSingleton<AnalyticsService>(analytics);
-  GetIt.instance.registerSingleton<TobGoogleAnalyticsService>(analytics);
+  final googleAnalyticsService = GoogleAnalytics4Service(
+    propertyId: kAnalyticsUA,
+  );
+  GetIt.instance.registerSingleton<AnalyticsService>(
+    googleAnalyticsService,
+  );
 }
