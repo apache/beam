@@ -107,6 +107,7 @@ public abstract class PTransformRunnerFactoryTestContext
             () -> {
               throw new UnsupportedOperationException("Unexpected call during test.");
             })
+        .processBundleDescriptorId("")
         .cacheTokensSupplier(() -> Collections.emptyList())
         .bundleCacheSupplier(() -> Caches.noop())
         .processWideCache(Caches.noop())
