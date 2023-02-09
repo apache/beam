@@ -40,7 +40,7 @@ public class HL7v2IOTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void test_HL7v2IO_failedReads() {
+  public void testHL7v2IOFailedReads() {
     List<String> badMessageIDs =
         Arrays.asList(
             "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/foo",
@@ -62,7 +62,7 @@ public class HL7v2IOTest {
   }
 
   @Test
-  public void test_HL7v2IO_failedReadsByParameter() {
+  public void testHL7v2IOFailedReadsByParameter() {
     List<HL7v2ReadParameter> badReadParameters =
         Arrays.asList(
             HL7v2ReadParameter.of(
@@ -86,7 +86,7 @@ public class HL7v2IOTest {
   }
 
   @Test
-  public void test_HL7v2IO_failedWrites() {
+  public void testHL7v2IOFailedWrites() {
     Message msg = new Message().setData("");
     List<HL7v2Message> emptyMessages = Collections.singletonList(HL7v2Message.fromModel(msg));
 

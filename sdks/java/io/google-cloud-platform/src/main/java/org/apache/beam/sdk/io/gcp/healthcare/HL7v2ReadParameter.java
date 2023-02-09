@@ -64,4 +64,22 @@ public abstract class HL7v2ReadParameter implements Serializable {
 
     abstract HL7v2ReadParameter build();
   }
+
+  @Override
+  public final boolean equals(@Nullable Object o) {
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof HL7v2ReadParameter)) {
+      return false;
+    }
+    HL7v2ReadParameter other = (HL7v2ReadParameter) o;
+    return (Objects.equals(getMetadata(), other.getMetadata())
+        && Objects.equals(getHl7v2MessageId(), other.getHl7v2MessageId()));
+  }
+
+  @Override
+  public final int hashCode() {
+    return Objects.hash(getMetadata(), getHl7v2MessageId());
+  }
 }

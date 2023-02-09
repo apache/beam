@@ -266,6 +266,10 @@ public class HL7v2IO {
 
     public Read() {}
 
+    /**
+     * The type Result includes {@link PCollection} of {@link HL7v2Message} objects for successfully
+     * read results and {@link PCollection} of {@link HealthcareIOError} objects for failed reads.
+     */
     public static class Result extends HL7v2ReadResult<String, HL7v2Message> {
 
       public static Result of(PCollectionTuple pct) throws IllegalArgumentException {
@@ -381,6 +385,11 @@ public class HL7v2IO {
 
     public HL7v2Read() {}
 
+    /**
+     * The type Result includes {@link PCollection} of {@link HL7v2ReadResponse} objects for
+     * successfully read results and {@link PCollection} of {@link HealthcareIOError} objects for
+     * failed reads.
+     */
     public static class Result extends HL7v2ReadResult<HL7v2ReadParameter, HL7v2ReadResponse> {
 
       public static Result of(PCollectionTuple pct) throws IllegalArgumentException {
