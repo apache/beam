@@ -405,7 +405,6 @@ from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
 
-
 try:
   from google.api_core.exceptions import ClientError, GoogleAPICallError
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
@@ -1569,9 +1568,13 @@ class BigQueryWriteFn(DoFn):
       except (ClientError, GoogleAPICallError) as e:
         if e.code == 404 and destination in _KNOWN_TABLES:
           _KNOWN_TABLES.remove(destination)
-          _LOGGER.info("Table {} was not found. Table will be removed from _KNOWN_TABLES and bundle will retry. "
-                        "This sometimes occurs due to the table being deleted while a streaming job is running and "
-                        "the destination was previously added to the _KNOWN_TABLES".format(destination))
+          _LOGGER.warning(
+              """Table %d was not found.
+              Table will be removed from _KNOWN_TABLES and bundle will retry.
+              This sometimes occurs due to the table being deleted while a 
+              streaming job is running and the destination was previously 
+              added to the _KNOWN_TABLES set"""
+              %destination)
         raise
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
