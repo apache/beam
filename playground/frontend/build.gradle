@@ -198,6 +198,9 @@ tasks.register("integrationTest_standalone_miscellaneous_ui") {
 }
 
 void runIntegrationTest(String path, String url) {
+  // Run with -PdeviceId=web-server for headless tests.
+  String deviceId = project.hasProperty("deviceId") ? project.deviceId : "chrome"
+
   exec {
     executable("flutter")
     args(
@@ -205,7 +208,7 @@ void runIntegrationTest(String path, String url) {
       "--driver=test_driver/integration_test.dart",
       "--target=integration_test/${path}_test.dart",
       "--web-launch-url='$url'",
-      "--device-id=chrome",
+      "--device-id=$deviceId",
     )
   }
 }

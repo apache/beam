@@ -39,6 +39,9 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Beam imports that the generated code requires.
@@ -215,7 +218,7 @@ func Name(t string) string {
 
 	t = strings.Replace(t, "beam.", "typex.", -1)
 	t = strings.Replace(t, ".", "۰", -1) // For packages
-	return strings.Title(t)
+	return cases.Title(language.Und, cases.NoLower).String(t)
 }
 
 // FuncName returns a compilable Go identifier for a function, given valid

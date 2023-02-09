@@ -166,7 +166,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       *,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
       torch_script_model_path: Optional[str] = None,
-  ):
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage for torch model::
@@ -208,6 +209,11 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self._model_class = model_class
     self._model_params = model_params if model_params else {}
     self._inference_fn = inference_fn
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
     self._torch_script_model_path = torch_script_model_path
 
     self.validate_constructor_args()
@@ -296,6 +302,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
 
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
+
 
 def default_keyed_tensor_inference_fn(
     batch: Sequence[Dict[str, torch.Tensor]],
@@ -374,7 +383,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: str = 'CPU',
       *,
       inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn,
-      torch_script_model_path: Optional[str] = None):
+      torch_script_model_path: Optional[str] = None,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None):
     """Implementation of the ModelHandler interface for PyTorch.
 
      Example Usage for torch model::
@@ -421,6 +432,11 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     self._model_class = model_class
     self._model_params = model_params if model_params else {}
     self._inference_fn = inference_fn
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
     self._torch_script_model_path = torch_script_model_path
 
     self.validate_constructor_args()
@@ -510,3 +526,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
