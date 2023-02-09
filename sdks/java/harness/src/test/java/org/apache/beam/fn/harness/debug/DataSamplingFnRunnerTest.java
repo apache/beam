@@ -26,7 +26,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.fn.harness.PTransformRunnerFactoryTestContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
