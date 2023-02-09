@@ -93,7 +93,7 @@ dataflow:
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			reg := NewHandlerwRegistry()
+			reg := NewHandlerRegistry()
 			reg.RegisterHandlers(test.handlers...)
 
 			if err := reg.LoadFromYaml([]byte(test.config)); err != nil {
@@ -116,7 +116,7 @@ dataflow:
 	}
 
 	t.Run("trying to read a config with an unregistered handler should fail", func(t *testing.T) {
-		reg := NewHandlerwRegistry()
+		reg := NewHandlerRegistry()
 		reg.RegisterHandlers(combineMetadata)
 
 		config := `
@@ -137,7 +137,7 @@ dataflow:
 	})
 
 	t.Run("duplicate variants", func(t *testing.T) {
-		reg := NewHandlerwRegistry()
+		reg := NewHandlerRegistry()
 		reg.RegisterHandlers(combineMetadata)
 
 		config := `
@@ -155,7 +155,7 @@ dataflow:
 	})
 
 	t.Run("duplicate handlers", func(t *testing.T) {
-		reg := NewHandlerwRegistry()
+		reg := NewHandlerRegistry()
 		reg.RegisterHandlers(combineMetadata)
 
 		config := `
@@ -172,7 +172,7 @@ dataflow:
 	})
 
 	t.Run("invalid handler config:fieldtype", func(t *testing.T) {
-		reg := NewHandlerwRegistry()
+		reg := NewHandlerRegistry()
 		reg.RegisterHandlers(combineMetadata)
 
 		config := `
@@ -186,7 +186,7 @@ dataflow:
 		}
 	})
 	t.Run("invalid handler config:extra field", func(t *testing.T) {
-		reg := NewHandlerwRegistry()
+		reg := NewHandlerRegistry()
 		reg.RegisterHandlers(combineMetadata)
 
 		config := `
@@ -202,7 +202,7 @@ dataflow:
 	})
 
 	t.Run("no variant", func(t *testing.T) {
-		reg := NewHandlerwRegistry()
+		reg := NewHandlerRegistry()
 		reg.RegisterHandlers(combineMetadata)
 
 		config := `

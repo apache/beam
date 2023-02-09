@@ -47,33 +47,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// variants is the struct configs are decoded into.
-type variants struct {
+// configFile is the struct configs are decoded into by YAML.
+// This represents the whole configuration file.
+type configFile struct {
 	Version      int
 	HandlerOrder []string
-	Default      string              // reserved for laer
-	Variants     map[string]*variant `yaml:",inline"`
+	Default      string                 // reserved for laer
+	Variants     map[string]*rawVariant `yaml:",inline"`
 }
 
-// variant holds an individual variant's handlers, and any common fields.
-type variant struct {
+// rawVariant holds an individual Variant's handlers,
+// and any common fields as decoded by YAML.
+type rawVariant struct {
 	HandlerOrder []string
 	Handlers     map[string]yaml.Node `yaml:",inline"`
-}
-
-type HandlerRegistry struct {
-	variations map[string]*variant
-	metadata   map[string]HandlerMetadata
-
-	// cached names
-	variantIDs, handerIDs []string
-}
-
-func NewHandlerwRegistry() *HandlerRegistry {
-	return &HandlerRegistry{
-		variations: map[string]*variant{},
-		metadata:   map[string]HandlerMetadata{},
-	}
 }
 
 // HandlerMetadata is required information about handler configurations.
@@ -91,6 +78,92 @@ type HandlerMetadata interface {
 	ConfigCharacteristic() reflect.Type
 }
 
+type unknownHandlersErr struct {
+	handlersToVariants map[string][]string
+}
+
+func (e *unknownHandlersErr) valid() bool {
+	return e.handlersToVariants != nil
+}
+
+func (e *unknownHandlersErr) add(handler, variant string) {
+	if e.handlersToVariants == nil {
+		e.handlersToVariants = map[string][]string{}
+	}
+	vs := e.handlersToVariants[handler]
+	vs = append(vs, variant)
+	e.handlersToVariants[handler] = vs
+}
+
+func (e *unknownHandlersErr) Error() string {
+	var sb strings.Builder
+	sb.WriteString("yaml config contained unknown handlers")
+	for h, vs := range e.handlersToVariants {
+		sort.Strings(vs)
+		sb.WriteString("\n\t")
+		sb.WriteString(h)
+		sb.WriteString(" present in variants ")
+		sb.WriteString(strings.Join(vs, ","))
+	}
+	return sb.String()
+}
+
+// Variant represents a single complete configuration of all handlers in the registry.
+type Variant struct {
+	parent *HandlerRegistry
+
+	name     string
+	handlers map[string]yaml.Node
+}
+
+// GetCharacteristics returns the characteristics of this handler within this variant.
+//
+// If the variant doesn't configure this handler, the zero value of the handler characteristic
+// type will be returned. If the handler is unknown to the registry this variant came from,
+// a nil will be returned.
+func (v *Variant) GetCharacteristics(handler string) any {
+	if v == nil {
+		return nil
+	}
+	md, ok := v.parent.metadata[handler]
+	if !ok {
+		return nil
+	}
+	rt := md.ConfigCharacteristic()
+
+	// Get a pointer to the concrete value.
+	rtv := reflect.New(rt)
+
+	// look up the handler urn in the variant.
+	yn := v.handlers[handler]
+	//
+	if err := yn.Decode(rtv.Interface()); err != nil {
+		// We prevalidated the config, so this shouldn't happen.
+		panic(fmt.Sprintf("couldn't decode characteristic for variant %v handler %v: %v", v.name, handler, err))
+	}
+
+	// Return the value pointed to by the pointer.
+	return rtv.Elem().Interface()
+}
+
+// HandlerRegistry stores known handlers and their associated metadata needed to parse
+// the YAML configuration.
+type HandlerRegistry struct {
+	variations map[string]*rawVariant
+	metadata   map[string]HandlerMetadata
+
+	// cached names
+	variantIDs, handerIDs []string
+}
+
+// NewHandlerRegistry creates an initialized HandlerRegistry.
+func NewHandlerRegistry() *HandlerRegistry {
+	return &HandlerRegistry{
+		variations: map[string]*rawVariant{},
+		metadata:   map[string]HandlerMetadata{},
+	}
+}
+
 // RegisterHandlers is about registering the metadata for handler configurations.
 func (r *HandlerRegistry) RegisterHandlers(mds ...HandlerMetadata) {
 	for _, md := range mds {
@@ -103,7 +176,7 @@ func (r *HandlerRegistry) RegisterHandlers(mds ...HandlerMetadata) {
 // All handlers are validated against their registered characteristic, and it is an error
 // to have configurations for unknown handlers
 func (r *HandlerRegistry) LoadFromYaml(in []byte) error {
-	vs := variants{Variants: r.variations}
+	vs := configFile{Variants: r.variations}
 	buf := bytes.NewBuffer(in)
 	d := yaml.NewDecoder(buf)
 	if err := d.Decode(&vs); err != nil {
@@ -153,37 +226,7 @@ func (r *HandlerRegistry) LoadFromYaml(in []byte) error {
 	return nil
 }
 
-type unknownHandlersErr struct {
-	handlersToVariants map[string][]string
-}
-
-func (e *unknownHandlersErr) valid() bool {
-	return e.handlersToVariants != nil
-}
-
-func (e *unknownHandlersErr) add(handler, variant string) {
-	if e.handlersToVariants == nil {
-		e.handlersToVariants = map[string][]string{}
-	}
-	vs := e.handlersToVariants[handler]
-	vs = append(vs, variant)
-	e.handlersToVariants[handler] = vs
-}
-
-func (e *unknownHandlersErr) Error() string {
-	var sb strings.Builder
-	sb.WriteString("yaml config contained unknown handlers")
-	for h, vs := range e.handlersToVariants {
-		sort.Strings(vs)
-		sb.WriteString("\n\t")
-		sb.WriteString(h)
-		sb.WriteString(" present in variants ")
-		sb.WriteString(strings.Join(vs, ","))
-	}
-	return sb.String()
-}
-
-// Variants returns the IDs of all registered variations.
+// Variants returns the IDs of all variations loaded into this registry.
 func (r *HandlerRegistry) Variants() []string {
 	return r.variantIDs
 }
@@ -193,7 +236,7 @@ func (r *HandlerRegistry) UsedHandlers() []string {
 	return r.handerIDs
 }
 
-// GetVariant returns the Variant witn the given name.
+// GetVariant returns the Variant with the given name.
 // If none exist, GetVariant returns nil.
 func (r *HandlerRegistry) GetVariant(name string) *Variant {
 	vs, ok := r.variations[name]
@@ -201,41 +244,4 @@ func (r *HandlerRegistry) GetVariant(name string) *Variant {
 		return nil
 	}
 	return &Variant{parent: r, name: name, handlers: vs.Handlers}
-}
-
-type Variant struct {
-	parent *HandlerRegistry
-
-	name     string
-	handlers map[string]yaml.Node
-}
-
-// GetCharacteristics returns the characteristics of this handler within this variant.
-//
-// If the variant doesn't configure this handler, the zero value of the handler characteristic
-// type will be returned. If the handler is unknown to the registry this variant came from,
-// a nil will be returned.
-func (v *Variant) GetCharacteristics(handler string) any {
-	if v == nil {
-		return nil
-	}
-	md, ok := v.parent.metadata[handler]
-	if !ok {
-		return nil
-	}
-	rt := md.ConfigCharacteristic()
-
-	// Get a pointer to the concrete value.
-	rtv := reflect.New(rt)
-
-	// look up the handler urn in the variant.
-	yn := v.handlers[handler]
-	//
-	if err := yn.Decode(rtv.Interface()); err != nil {
-		// We prevalidated the config, so this shouldn't happen.
-		panic(fmt.Sprintf("couldn't decode characteristic for variant %v handler %v: %v", v.name, handler, err))
-	}
-
-	// Return the value pointed to by the pointer.
-	return rtv.Elem().Interface()
 }
