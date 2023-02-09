@@ -179,7 +179,7 @@ public class DetectNewPartitionsAction {
           partition.toBuilder().setScheduledAt(scheduledAt).build();
 
       LOG.info(
-          "[{}] Scheduled partition at {} with start time {} and end time {}",
+          "[{}] Outputting partition at {} with start time {} and end time {}",
           updatedPartition.getPartitionToken(),
           updatedPartition.getScheduledAt(),
           updatedPartition.getStartTimestamp(),

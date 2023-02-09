@@ -56,7 +56,6 @@ import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.testing.TestStream;
@@ -95,6 +94,7 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.dstream.ConstantInputDStream;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import scala.collection.JavaConverters;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
@@ -301,7 +301,7 @@ public final class StreamingTransformTranslator {
         }
         // start by unifying streams into a single stream.
         JavaDStream<WindowedValue<T>> unifiedStreams =
-            SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
+            context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
       }
 
