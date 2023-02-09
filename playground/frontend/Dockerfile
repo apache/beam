@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y wget xz-utils git
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     tar -xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     mv flutter /opt/ &&\
+    git config --global --add safe.directory /opt/flutter &&\
     ln -s /opt/flutter/bin/flutter /usr/bin/flutter &&\
     ln -s /opt/flutter/bin/dart /usr/bin/dart &&\
     dart pub global activate protoc_plugin &&\
