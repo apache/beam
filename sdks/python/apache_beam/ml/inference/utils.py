@@ -32,7 +32,7 @@ from typing import Union
 import apache_beam as beam
 from apache_beam.io.fileio import MatchContinuously
 from apache_beam.io.fileio import EmptyMatchTreatment
-from apache_beam.ml.inference.base import ModelMetdata
+from apache_beam.ml.inference.base import ModelMetadata
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.transforms import window
 from apache_beam.transforms import trigger
@@ -98,7 +98,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
 
   def process(
       self, element, time_state=beam.DoFn.StateParam(TIME_STATE)
-  ) -> List[Tuple[str, ModelMetdata]]:
+  ) -> List[Tuple[str, ModelMetadata]]:
     _, file_metadata = element
     new_ts = file_metadata.last_updated_in_seconds
     old_ts = time_state.read()
@@ -111,7 +111,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
 
     model_name = os.path.splitext(os.path.basename(model_path))[0]
     return [
-        (model_path, ModelMetdata(model_id=model_path, model_name=model_name))
+        (model_path, ModelMetadata(model_id=model_path, model_name=model_name))
     ]
 
 
@@ -148,7 +148,7 @@ class WatchFilePattern(beam.PTransform):
     self.interval = interval
     self.stop_timestamp = stop_timestamp
 
-  def expand(self, pcoll) -> beam.PCollection[ModelMetdata]:
+  def expand(self, pcoll) -> beam.PCollection[ModelMetadata]:
     return (
         pcoll
         | 'MatchContinuously' >> MatchContinuously(
