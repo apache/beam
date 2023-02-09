@@ -255,7 +255,8 @@ class PipelineContext(object):
       coder = coders.registry.get_coder(element_type)
       if requires_deterministic_key_coder:
         coder = coders.TupleCoder([
-            self.deterministic_coder(coder.key_coder(), requires_deterministic_key_coder),
+            self.deterministic_coder(
+                coder.key_coder(), requires_deterministic_key_coder),
             coder.value_coder()
         ])
       return self.coders.get_id(coder)

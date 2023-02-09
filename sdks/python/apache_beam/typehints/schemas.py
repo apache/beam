@@ -167,7 +167,7 @@ def named_fields_to_schema(
       _SCHEMA_ID_CACHE[key] = schema_registry.generate_new_id()
     schema_id = _SCHEMA_ID_CACHE[key]
 
-  schema.id=schema_id
+  schema.id = schema_id
   return schema
 
 
