@@ -44,7 +44,6 @@ class AuthNotifier extends ChangeNotifier {
     try {
       await FirebaseAuth.instance.signInWithPopup(authProvider);
     } on Exception catch (e) {
-      // TODO(nausharipov) review: why toasts are not shown in ToB?
       PlaygroundComponents.toastNotifier.addException(e);
     }
   }
@@ -54,7 +53,11 @@ class AuthNotifier extends ChangeNotifier {
   }
 
   Future<void> deleteAccount() async {
-    await client.postDeleteUserProgress();
-    await FirebaseAuth.instance.currentUser?.delete();
+    try {
+      await client.postDeleteUserProgress();
+      await FirebaseAuth.instance.currentUser?.delete();
+    } on Exception catch (e) {
+      PlaygroundComponents.toastNotifier.addException(e);
+    }
   }
 }
