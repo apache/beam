@@ -80,7 +80,11 @@ class WatchFilePatternTest(unittest.TestCase):
         FileMetadata(
             'path3.py',
             10,
-            last_updated_in_seconds=utils._START_TIME_STAMP + 10)
+            last_updated_in_seconds=utils._START_TIME_STAMP + 10),
+        FileMetadata(
+            'path4.py',
+            10,
+            last_updated_in_seconds=utils._START_TIME_STAMP + 20)
     ]
     # returns path3.py
 
@@ -92,4 +96,4 @@ class WatchFilePatternTest(unittest.TestCase):
           | beam.ParDo(utils._GetLatestFileByTimeStamp())
           | beam.ParDo(utils._ConvertIterToSingleton())
           | beam.Map(lambda x: x[0]))
-      assert_that(files_pc, equal_to(['', 'path3.py']))
+      assert_that(files_pc, equal_to(['', 'path3.py', 'path4.py']))

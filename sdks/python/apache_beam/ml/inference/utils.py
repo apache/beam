@@ -94,7 +94,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
   started. If no such files are found, it returns a default file as fallback.
    """
   TIME_STATE = CombiningValueStateSpec(
-      'count', combine_fn=partial(max, default=_START_TIME_STAMP))
+      'max', combine_fn=partial(max, default=_START_TIME_STAMP))
 
   def process(
       self, element, time_state=beam.DoFn.StateParam(TIME_STATE)
@@ -103,7 +103,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
     new_ts = file_metadata.last_updated_in_seconds
     old_ts = time_state.read()
     if new_ts > old_ts:
-      # time_state.clear()
+      time_state.clear()
       time_state.add(new_ts)
       model_path = file_metadata.path
     else:
@@ -125,16 +125,20 @@ class WatchFilePattern(beam.PTransform):
     """
     Watches a directory for updates to files matching a given file pattern.
 
-    **Note**: Start timestamp will be defaulted to timestamp when pipeline
-      was run. All the files matching file_pattern, that are uploaded before
-      the pipeline started will be discarded.
-
       Args:
-        file_pattern: A glob pattern used to watch a directory for model
-          updates.
+        file_pattern: The file path to read from as a local file path or a
+        GCS ``gs://`` path. The path can contain glob characters
+        (``*``, ``?``, and ``[...]`` sets).
         interval: Interval at which to check for files matching file_pattern
           in seconds.
         stop_timestamp: Timestamp after which no more files will be checked.
+
+    Constraints:
+    1. If the file is read and then there is an update to that file, this
+      transform will ignore that update. Always update a file with unique
+      name.
+    2. Initially, before the pipeline startup time, WatchFilePattern expects
+      at least one file present that matches the file_pattern.
 
     **Note**: This transform is supported in streaming mode since
       MatchContinuously produces an unbounded source. Running in batch
