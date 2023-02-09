@@ -24,26 +24,25 @@ import zipfile
 from typing import Any
 from typing import Tuple
 
-import datatable
-import numpy
-import pandas
-import pytest
-import scipy
-
-import apache_beam as beam
-from apache_beam.ml.inference import RunInference
-from apache_beam.ml.inference.base import KeyedModelHandler
-from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerDatatable
-from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerNumpy
-from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerPandas
-from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerSciPy
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
-
 try:
+  import datatable
+  import numpy
+  import pandas
+  import pytest
+  import scipy
   import xgboost
+
+  import apache_beam as beam
+  from apache_beam.ml.inference import RunInference
+  from apache_beam.ml.inference.base import KeyedModelHandler
+  from apache_beam.ml.inference.base import PredictionResult
+  from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerDatatable
+  from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerNumpy
+  from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerPandas
+  from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerSciPy
+  from apache_beam.testing.test_pipeline import TestPipeline
+  from apache_beam.testing.util import assert_that
+  from apache_beam.testing.util import equal_to
 except ImportError:
   raise unittest.SkipTest('XGBoost dependencies are not installed')
 
