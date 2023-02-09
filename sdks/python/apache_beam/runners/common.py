@@ -1879,7 +1879,7 @@ def validate_pipeline_graph(pipeline_proto):
             "Bad coder for input of %s: %s" % (transform_id, input_coder))
       if output_coder.spec.urn != common_urns.coders.KV.urn:
         raise ValueError(
-            "Bad coder for output of %s: %s" % (transform_id, input_coder))
+            "Bad coder for output of %s: %s" % (transform_id, output_coder))
       output_values_coder = pipeline_proto.components.coders[
           output_coder.component_coder_ids[1]]
       if (input_coder.component_coder_ids[0] !=
@@ -1888,11 +1888,8 @@ def validate_pipeline_graph(pipeline_proto):
           output_values_coder.component_coder_ids[0] !=
           input_coder.component_coder_ids[1]):
         raise ValueError(
-            "Incompatable input and output coders for %s: \n"
-            "Input coder: %s\n"
-            "Output coder: %s\n"
-            "Output value coder: %s" %
-            (transform_id, input_coder, output_coder, output_values_coder))
+            "Incompatible input coder %s and output coder %s for transform %s" %
+            (transform_id, input_coder, output_coder))
 
     for t in transform_proto.subtransforms:
       validate_transform(t)
