@@ -126,6 +126,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     InstructionRequestHandler instructionHandler = null;
     try {
       containerId = docker.runImage(containerImage, dockerOptsBuilder.build(), argsBuilder.build());
+
       LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
@@ -156,9 +157,17 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       }
     } catch (Exception e) {
       if (containerId != null) {
+        try {
+          String containerLogs = docker.getContainerLogs(containerId);
+          LOG.error("Docker container {} logs:\n{}", containerId, containerLogs);
+        } catch (Exception getLogsException) {
+          e.addSuppressed(getLogsException);
+        }
+
         // Kill the launched docker container if we can't retrieve a client for it.
         try {
           docker.killContainer(containerId);
+
           if (!retainDockerContainer) {
             docker.removeContainer(containerId);
           }
