@@ -32,7 +32,6 @@ path(UTF-8 encoded) that is accessible by the pipeline.
 To run the example on DataflowRunner,
 
 python apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py # pylint: disable=line-too-long
-  --model_path=gs://apache-beam-ml/tmp/side_input_test/resnet152.pth
   --project=<your-project>
   --re=<your-region>
   --temp_location=<your-tmp-location>
@@ -42,6 +41,8 @@ python apache_beam/examples/inference/pytorch_image_classification_with_side_inp
   --interval=10
   --num_workers=5
   --requirements_file=apache_beam/ml/inference/torch_tests_requirements.txt
+  --topic=<pubusb_topic>
+  --file_pattern=<glob_pattern>
 """
 
 import argparse
@@ -114,7 +115,6 @@ def parse_known_args(argv):
   parser.add_argument(
       '--topic',
       dest='topic',
-      default='projects/apache-beam-testing/topics/anandinguva-model-updates',
       help='PubSub topic emitting absolute path to the images.'
       'Path must be accessible by the pipeline.')
   parser.add_argument(
@@ -123,9 +123,7 @@ def parse_known_args(argv):
       default='gs://apache-beam-samples/run_inference/resnet152.pth',
       help="Path to the model's state_dict.")
   parser.add_argument(
-      '--file_pattern',
-      default='gs://apache-beam-ml/tmp/side_input_test/*.pth',
-      help='Glob pattern to watch for an update.')
+      '--file_pattern', help='Glob pattern to watch for an update.')
   parser.add_argument(
       '--interval',
       default=10,
