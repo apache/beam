@@ -18,6 +18,7 @@
 
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
 import '../../playground_components.dart';
@@ -58,6 +59,16 @@ class CodeRunner extends ChangeNotifier {
   }
 
   void clearResult() {
+    _result = null;
+    notifyListeners();
+  }
+
+  Future<void> reset() async {
+    if (isCodeRunning) {
+      await cancelRun();
+    }
+    _runStartDate = null;
+    _runStopDate = null;
     _result = null;
     notifyListeners();
   }
@@ -122,8 +133,21 @@ class CodeRunner extends ChangeNotifier {
   }
 
   Future<void> cancelRun() async {
+    final hasInternet = (await Connectivity().checkConnectivity()).isConnected;
+    if (!hasInternet) {
+      _result = RunCodeResult(
+        status: _result?.status ?? RunCodeStatus.unspecified,
+        output: _result?.output,
+        log: _result?.log ?? '',
+        errorMessage: kInternetConnectionUnavailable,
+        graph: _result?.graph,
+      );
+      notifyListeners();
+      return;
+    }
+
     snippetEditingController = null;
-    await _runSubscription?.cancel();
+    unawaited(_runSubscription?.cancel());
     final pipelineUuid = _result?.pipelineUuid ?? '';
 
     if (pipelineUuid.isNotEmpty) {
@@ -162,4 +186,13 @@ class CodeRunner extends ChangeNotifier {
     _runStopDate = DateTime.now();
     notifyListeners();
   }
+}
+
+extension ConnectivityResultExtension on ConnectivityResult {
+  bool get isConnected => [
+        ConnectivityResult.ethernet,
+        ConnectivityResult.mobile,
+        ConnectivityResult.vpn,
+        ConnectivityResult.wifi,
+      ].contains(this);
 }

@@ -37,7 +37,9 @@ const kProcessingStartedText = 'The processing has started\n';
 class CodeRepository {
   final CodeClient _client;
 
-  CodeRepository({required CodeClient client,}): _client = client;
+  CodeRepository({
+    required CodeClient client,
+  }) : _client = client;
 
   Stream<RunCodeResult> runCode(RunCodeRequest request) async* {
     try {

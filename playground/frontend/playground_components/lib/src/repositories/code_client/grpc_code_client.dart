@@ -18,10 +18,9 @@
 
 import 'package:grpc/grpc.dart';
 
+import '../../../playground_components.dart';
 import '../../api/iis_workaround_channel.dart';
 import '../../api/v1/api.pbgrpc.dart' as grpc;
-import '../../models/sdk.dart';
-import '../../util/pipeline_options.dart';
 import '../dataset_grpc_extension.dart';
 import '../models/check_status_response.dart';
 import '../models/output_response.dart';
@@ -73,8 +72,11 @@ class GrpcCodeClient implements CodeClient {
 
   @override
   Future<void> cancelExecution(String pipelineUuid) {
-    return _runSafely(() =>
-        _defaultClient.cancel(grpc.CancelRequest(pipelineUuid: pipelineUuid)));
+    return _runSafely(
+      () => _defaultClient.cancel(
+        grpc.CancelRequest(pipelineUuid: pipelineUuid),
+      ),
+    );
   }
 
   @override
@@ -192,6 +194,11 @@ class GrpcCodeClient implements CodeClient {
     try {
       return await invoke();
     } on GrpcError catch (error) {
+      //TODO(Malarg): check if internet connection available here using connectivity_plus
+      //throw internet unavailable exception, if not
+      if (error.message?.contains('CORS') ?? false) {
+        throw const RunCodeError(message: kInternetConnectionUnavailable);
+      }
       throw RunCodeError(message: error.message);
     } on Exception catch (_) {
       throw const RunCodeError();

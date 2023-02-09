@@ -19,27 +19,27 @@
 import 'package:equatable/equatable.dart';
 
 enum RunCodeStatus {
-  unspecified,
+  compileError,
+  compiling,
+  executing,
+  finished,
   preparation,
   preparationError,
-  validationError,
-  compiling,
-  compileError,
-  executing,
   runError,
-  finished,
   timeout,
   unknownError,
+  unspecified,
+  validationError,
 }
 
 const kFinishedStatuses = [
-  RunCodeStatus.unknownError,
-  RunCodeStatus.timeout,
   RunCodeStatus.compileError,
-  RunCodeStatus.runError,
-  RunCodeStatus.validationError,
-  RunCodeStatus.preparationError,
   RunCodeStatus.finished,
+  RunCodeStatus.preparationError,
+  RunCodeStatus.runError,
+  RunCodeStatus.timeout,
+  RunCodeStatus.unknownError,
+  RunCodeStatus.validationError,
 ];
 
 class RunCodeResult with EquatableMixin {
@@ -65,13 +65,13 @@ class RunCodeResult with EquatableMixin {
 
   @override
   List<Object?> get props => [
-    status,
-    pipelineUuid,
-    output,
-    log,
-    graph,
-    errorMessage,
-  ];
+        errorMessage,
+        graph,
+        log,
+        output,
+        pipelineUuid,
+        status,
+      ];
 
   @override
   String toString() {

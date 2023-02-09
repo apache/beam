@@ -49,6 +49,7 @@ const kTitle = 'Catalog';
 const kExecutionCancelledText = '\nPipeline cancelled';
 const kPipelineOptionsParseError =
     'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\',. symbols are allowed';
+const kInternetConnectionUnavailable = 'Internet connection unavailable';
 const kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache.\n';
 
@@ -218,7 +219,7 @@ class PlaygroundController with ChangeNotifier {
       controller.setExample(example, descriptor: descriptor);
     }
 
-    codeRunner.clearResult();
+    codeRunner.reset();
     notifyListeners();
   }
 
@@ -250,9 +251,8 @@ class PlaygroundController with ChangeNotifier {
   }
 
   Future<void> reset() async {
-    await codeRunner.cancelRun();
     snippetEditingController?.reset();
-    codeRunner.clearResult();
+    await codeRunner.reset();
   }
 
   void resetErrorMessageText() {
