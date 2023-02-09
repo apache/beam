@@ -20,7 +20,7 @@
 # pytype: skip-file
 
 import logging
-import random
+import secrets
 import time
 
 from apache_beam.io import filesystems
@@ -58,8 +58,8 @@ def create_bq_dataset(project, dataset_base_name):
     new dataset.
   """
   client = bigquery.Client(project=project)
-  unique_dataset_name = '%s%s%d' % (
-      dataset_base_name, str(int(time.time())), random.randint(0, 10000))
+  unique_dataset_name = '%s%d%s' % (
+      dataset_base_name, int(time.time()), secrets.token_hex(3))
   dataset_ref = client.dataset(unique_dataset_name, project=project)
   dataset = bigquery.Dataset(dataset_ref)
   client.create_dataset(dataset)

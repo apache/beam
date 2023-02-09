@@ -88,6 +88,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -96,6 +97,7 @@ import org.junit.runners.model.Statement;
 /** Tests for PubsubIO Read and Write transforms. */
 @RunWith(JUnit4.class)
 public class PubsubIOTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(60);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test

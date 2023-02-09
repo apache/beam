@@ -77,6 +77,7 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
+import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -155,6 +156,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -190,6 +192,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Parameter(2)
   public boolean useStreaming;
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Rule
   public final transient TestRule folderThenPipeline =
@@ -306,6 +310,11 @@ public class BigQueryIOWriteTest implements Serializable {
 
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
 
+    // Explicitly set maxNumWritersPerBundle and the parallelism for the runner to make sure
+    // bundle size is predictable and maxNumWritersPerBundle can be reached.
+    final int maxNumWritersPerBundle = 5;
+    p.getOptions().as(DirectOptions.class).setTargetParallelism(3);
+
     final PCollectionView<List<String>> sideInput1 =
         p.apply("Create SideInput 1", Create.of("a", "b", "c").withCoder(StringUtf8Coder.of()))
             .apply("asList", View.asList());
@@ -315,16 +324,19 @@ public class BigQueryIOWriteTest implements Serializable {
 
     final List<String> allUsernames = ImmutableList.of("bill", "bob", "randolph");
     List<String> userList = Lists.newArrayList();
-    // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill to
-    // WriteGroupedRecordsToFiles.
-    for (int i = 0; i < BatchLoads.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE * 10; ++i) {
-      // Every user has 10 nicknames.
-      for (int j = 0; j < 10; ++j) {
+    // i controls the number of destinations
+    for (int i = 0; i < maxNumWritersPerBundle * 2; ++i) {
+      // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill to
+      // WriteGroupedRecordsToFiles.
+      for (int j = 0; j < 40; ++j) {
         String nickname =
             allUsernames.get(ThreadLocalRandom.current().nextInt(allUsernames.size()));
         userList.add(nickname + i);
       }
     }
+    // shuffle the input so that each bundle gets evenly distributed destinations
+    Collections.shuffle(userList);
+
     PCollection<String> users =
         p.apply("CreateUsers", Create.of(userList))
             .apply(Window.into(new PartitionedGlobalWindows<>(arg -> arg)));
@@ -355,8 +367,9 @@ public class BigQueryIOWriteTest implements Serializable {
     BigQueryIO.Write<String> write =
         BigQueryIO.<String>write()
             .withTestServices(fakeBqServices)
-            .withMaxFilesPerBundle(5)
-            .withMaxFileSize(10)
+            .withMaxFilesPerBundle(maxNumWritersPerBundle)
+            // a file can contain a couple of records in this size limit
+            .withMaxFileSize(30)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .to(
                 new StringLongDestinations() {
@@ -2169,6 +2182,20 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withMethod(Method.STREAMING_INSERTS)
                 .withAutoSharding()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testMaxRetryJobs() {
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset.table")
+            .withSchema(new TableSchema())
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(
+                EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
+            .withMaxRetryJobs(500);
+    assertEquals(500, write.getMaxRetryJobs());
   }
 
   @Test
