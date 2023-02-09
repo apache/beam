@@ -23,9 +23,9 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeU
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
-import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
@@ -295,9 +295,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   /** @return The MonitoringInfo metadata from the gauge metric. */
   private @Nullable SimpleMonitoringInfoBuilder gaugeToMonitoringMetadata(MetricKey metricKey) {
     return metricToMonitoringMetadata(
-            metricKey,
-            MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE,
-            MonitoringInfoConstants.Urns.USER_LATEST_INT64);
+        metricKey,
+        MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE,
+        MonitoringInfoConstants.Urns.USER_LATEST_INT64);
   }
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
@@ -334,18 +334,15 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         builder.put(shortId, encodeInt64Counter(metricUpdate.getUpdate()));
       }
     }
-    for (MetricUpdate<DistributionData> metricUpdate :
-        metricUpdates.distributionUpdates()) {
+    for (MetricUpdate<DistributionData> metricUpdate : metricUpdates.distributionUpdates()) {
       String shortId =
           getShortId(metricUpdate.getKey(), this::distributionToMonitoringMetadata, shortIds);
       if (shortId != null) {
         builder.put(shortId, encodeInt64Distribution(metricUpdate.getUpdate()));
       }
     }
-    for (MetricUpdate<GaugeData> metricUpdate :
-            metricUpdates.gaugeUpdates()) {
-      String shortId =
-              getShortId(metricUpdate.getKey(), this::gaugeToMonitoringMetadata, shortIds);
+    for (MetricUpdate<GaugeData> metricUpdate : metricUpdates.gaugeUpdates()) {
+      String shortId = getShortId(metricUpdate.getKey(), this::gaugeToMonitoringMetadata, shortIds);
       if (shortId != null) {
         builder.put(shortId, encodeInt64Gauge(metricUpdate.getUpdate()));
       }

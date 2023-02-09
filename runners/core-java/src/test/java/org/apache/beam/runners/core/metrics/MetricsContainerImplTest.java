@@ -247,19 +247,19 @@ public class MetricsContainerImplTest {
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
     builder1
-            .setUrn(MonitoringInfoConstants.Urns.USER_LATEST_INT64)
-            .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
-            .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
-            .setInt64LatestValue(gaugeData1)
-            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+        .setUrn(MonitoringInfoConstants.Urns.USER_LATEST_INT64)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
+        .setInt64LatestValue(gaugeData1)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
 
     SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
     builder2
-            .setUrn(MonitoringInfoConstants.Urns.USER_LATEST_INT64)
-            .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
-            .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
-            .setInt64LatestValue(gaugeData2)
-            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+        .setUrn(MonitoringInfoConstants.Urns.USER_LATEST_INT64)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
+        .setInt64LatestValue(gaugeData2)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
 
     List<MonitoringInfo> actualMonitoringInfos = new ArrayList<>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
@@ -268,6 +268,7 @@ public class MetricsContainerImplTest {
 
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
   }
+
   @Test
   public void testMonitoringInfosArePopulatedForSystemDistributions() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
