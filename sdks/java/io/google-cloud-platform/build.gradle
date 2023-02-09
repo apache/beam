@@ -18,7 +18,13 @@
 
 import groovy.json.JsonOutput
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  // For resolving Cloud Bigtable dependencies from custom registry that includes Change Stream API.
+  id "maven-publish"
+  id "com.google.cloud.artifactregistry.gradle-plugin" version "2.1.5"
+  // End: Temporary Cloud Bigtable dependencies.
+}
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
@@ -26,6 +32,22 @@ applyJavaNature(
     'PubSubPayloadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
   ],
 )
+
+// For resolving Cloud Bigtable dependencies from custom registry that includes Change Stream API.
+repositories {
+  maven {
+    url "artifactregistry://us-central1-maven.pkg.dev/cloud-bigtable-ecosystem/bigtable-change-streams-preview"
+  }
+}
+configurations.all {
+  resolutionStrategy {
+    force group: 'com.google.cloud', name: 'google-cloud-bigtable', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+    force group: 'com.google.api.grpc', name: 'proto-google-cloud-bigtable-v2', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+    force group: 'com.google.api.grpc', name: 'grpc-google-cloud-bigtable-v2', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+    force group: 'com.google.api.grpc', name: 'proto-google-cloud-bigtable-admin-v2', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+    force group: 'com.google.api.grpc', name: 'grpc-google-cloud-bigtable-admin-v2', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+  }
+}
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
@@ -79,13 +101,8 @@ dependencies {
   // newer version of GAX. Declaring newer google-cloud-bigtable so that Beam
   // users receive newer google-cloud-bigtable. Beam doesn't directly use this
   // artifact.
-  // The local overrides are temporary pending https://github.com/googleapis/java-bigtable/pull/1569
-  // is checked in and new version is released.
-  // implementation library.java.google_cloud_bigtable
-  // permitUnusedDeclared library.java.google_cloud_bigtable
-  implementation files("bigtable_local/google-cloud-bigtable-2.17.1-SNAPSHOT.jar")
-  implementation files("bigtable_local/google-cloud-bigtable-stats-2.17.1-SNAPSHOT.jar")
-  implementation files("bigtable_local/grpc-google-cloud-bigtable-v2-2.17.1-SNAPSHOT.jar")
+  implementation library.java.google_cloud_bigtable
+  permitUnusedDeclared library.java.google_cloud_bigtable
   implementation library.java.google_cloud_core
   implementation(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
@@ -143,12 +160,8 @@ dependencies {
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   implementation library.java.proto_google_cloud_bigquery_storage_v1
-  // The local overrides are temporary pending https://github.com/googleapis/java-bigtable/pull/1569
-  // is checked in and new version is released.
-  // implementation library.java.proto_google_cloud_bigtable_admin_v2
-  // implementation library.java.proto_google_cloud_bigtable_v2
-  implementation files("bigtable_local/proto-google-cloud-bigtable-v2-2.17.1-SNAPSHOT.jar")
-  implementation files("bigtable_local/proto-google-cloud-bigtable-admin-v2-2.17.1-SNAPSHOT.jar")
+  implementation library.java.proto_google_cloud_bigtable_admin_v2
+  implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.proto_google_cloud_datastore_v1
   implementation library.java.proto_google_cloud_firestore_v1
   implementation library.java.proto_google_cloud_pubsub_v1
