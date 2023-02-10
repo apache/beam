@@ -25,7 +25,6 @@ from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -95,9 +94,7 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
   TIME_STATE = CombiningValueStateSpec(
       'max', combine_fn=partial(max, default=_START_TIME_STAMP))
 
-  def process(
-      self, element, time_state=beam.DoFn.StateParam(TIME_STATE)
-  ) -> Iterable[Tuple[str, ModelMetadata]]:
+  def process(self, element, time_state=beam.DoFn.StateParam(TIME_STATE)):
     _, file_metadata = element
     new_ts = file_metadata.last_updated_in_seconds
     old_ts = time_state.read()
