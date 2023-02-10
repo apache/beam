@@ -439,8 +439,8 @@ class PortableRunner(runner.PipelineRunner):
 
     pipeline.visit(
         group_by_key_input_visitor(
-            not options.view_as(TypeOptions).
-            allow_non_deterministic_key_coders))
+            not options.view_as(TypeOptions).allow_non_deterministic_key_coders)
+    )
 
     proto_pipeline = self.get_proto_pipeline(pipeline, options)
     job_service_handle = self.create_job_service(options)

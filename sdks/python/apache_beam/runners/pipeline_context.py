@@ -228,7 +228,8 @@ class PipelineContext(object):
         default_environment, label='default_environment')  # type: str
 
     self.use_fake_coders = use_fake_coders
-    self.deterministic_coder_map = {}  # type: Mapping[coders.Coder, coders.Coder]
+    self.deterministic_coder_map = {
+    }  # type: Mapping[coders.Coder, coders.Coder]
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
