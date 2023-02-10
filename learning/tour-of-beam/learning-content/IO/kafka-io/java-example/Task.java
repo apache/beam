@@ -23,7 +23,6 @@
 //   default_example: false
 //   context_line: 72
 //   categories:
-//     - Emulated Data Source
 //     - IO
 //   complexity: ADVANCED
 
