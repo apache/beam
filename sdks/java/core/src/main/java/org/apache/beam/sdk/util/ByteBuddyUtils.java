@@ -51,7 +51,7 @@ public final class ByteBuddyUtils {
       }
       return strategy;
     } catch (ReflectiveOperationException e) {
-      throw new LinkageError(e.getMessage(), e);
+      throw new IllegalStateException("No code generation strategy available", e);
     }
   }
 }
