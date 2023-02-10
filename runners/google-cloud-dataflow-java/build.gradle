@@ -45,7 +45,6 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 evaluationDependsOn(":sdks:java:io:google-cloud-platform")
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":examples:java")
-evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
@@ -140,7 +139,7 @@ def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs
 def dataflowPostCommitTempRootKms = project.findProperty('dataflowTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
 def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
-def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
@@ -207,7 +206,7 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
   def excludedCategories = args.excludedCategories ?: []
 
   return tasks.create(name: name, type: Test, group: "Verification") {
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
@@ -541,7 +540,7 @@ task copyGoogleCloudPlatformTestResources(type: Copy) {
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyGoogleCloudPlatformTestResources) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
@@ -557,11 +556,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
-  exclude '**/SpannerChangeStreamIT.class'
-  exclude '**/SpannerChangeStreamOrderedWithinKeyIT.class'
-  exclude '**/SpannerChangeStreamOrderedWithinKeyGloballyIT.class'
-  exclude '**/SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.class'
-  exclude '**/SpannerChangeStreamTransactionBoundariesIT.class'
+  exclude '**/gcp/spanner/changestreams/it/*.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -572,7 +567,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
 
 task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
@@ -619,7 +614,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
 task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
@@ -665,7 +660,7 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
 
 task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",

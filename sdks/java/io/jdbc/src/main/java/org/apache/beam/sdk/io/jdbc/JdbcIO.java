@@ -446,6 +446,9 @@ public class JdbcIO {
     abstract @Nullable ValueProvider<Collection<String>> getConnectionInitSqls();
 
     @Pure
+    abstract @Nullable ValueProvider<Integer> getMaxConnections();
+
+    @Pure
     abstract @Nullable ClassLoader getDriverClassLoader();
 
     @Pure
@@ -468,6 +471,8 @@ public class JdbcIO {
 
       abstract Builder setConnectionInitSqls(
           ValueProvider<Collection<@Nullable String>> connectionInitSqls);
+
+      abstract Builder setMaxConnections(ValueProvider<@Nullable Integer> maxConnections);
 
       abstract Builder setDriverClassLoader(ClassLoader driverClassLoader);
 
@@ -557,6 +562,18 @@ public class JdbcIO {
       return builder().setConnectionInitSqls(connectionInitSqls).build();
     }
 
+    /** Sets the maximum total number of connections. Use a negative value for no limit. */
+    public DataSourceConfiguration withMaxConnections(Integer maxConnections) {
+      checkArgument(maxConnections != null, "maxConnections can not be null");
+      return withMaxConnections(ValueProvider.StaticValueProvider.of(maxConnections));
+    }
+
+    /** Same as {@link #withMaxConnections(Integer)} but accepting a ValueProvider. */
+    public DataSourceConfiguration withMaxConnections(
+        ValueProvider<@Nullable Integer> maxConnections) {
+      return builder().setMaxConnections(maxConnections).build();
+    }
+
     /**
      * Sets the class loader instance to be used to load the JDBC driver. If not specified, the
      * default class loader is used.
@@ -606,6 +623,9 @@ public class JdbcIO {
             && getConnectionInitSqls().get() != null
             && !getConnectionInitSqls().get().isEmpty()) {
           basicDataSource.setConnectionInitSqls(getConnectionInitSqls().get());
+        }
+        if (getMaxConnections() != null && getMaxConnections().get() != null) {
+          basicDataSource.setMaxTotal(getMaxConnections().get());
         }
         if (getDriverClassLoader() != null) {
           basicDataSource.setDriverClassLoader(getDriverClassLoader());
@@ -1685,15 +1705,18 @@ public class JdbcIO {
   static <T> PCollection<Iterable<T>> batchElements(
       PCollection<T> input, @Nullable Boolean withAutoSharding, long batchSize) {
     PCollection<Iterable<T>> iterables;
-    if (input.isBounded() == IsBounded.UNBOUNDED && withAutoSharding != null && withAutoSharding) {
-      iterables =
-          input
-              .apply(WithKeys.<String, T>of(""))
-              .apply(
-                  GroupIntoBatches.<String, T>ofSize(batchSize)
-                      .withMaxBufferingDuration(Duration.millis(200))
-                      .withShardedKey())
-              .apply(Values.create());
+    if (input.isBounded() == IsBounded.UNBOUNDED) {
+      PCollection<KV<String, T>> keyedInput = input.apply(WithKeys.<String, T>of(""));
+      GroupIntoBatches<String, T> groupTransform =
+          GroupIntoBatches.<String, T>ofSize(batchSize)
+              .withMaxBufferingDuration(Duration.millis(200));
+      if (withAutoSharding != null && withAutoSharding) {
+        // unbounded and withAutoSharding enabled, group into batches with shardedKey
+        iterables = keyedInput.apply(groupTransform.withShardedKey()).apply(Values.create());
+      } else {
+        // unbounded and without auto sharding, group into batches of assigned max size
+        iterables = keyedInput.apply(groupTransform).apply(Values.create());
+      }
     } else {
       iterables =
           input.apply(

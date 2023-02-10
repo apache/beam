@@ -35,7 +35,8 @@ class CodeTextAreaWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (playgroundController.result?.errorMessage?.isNotEmpty ?? false) {
+    if (playgroundController.codeRunner.result?.errorMessage?.isNotEmpty ??
+        false) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _handleError(context, playgroundController);
       });
@@ -83,11 +84,11 @@ class CodeTextAreaWrapper extends StatelessWidget {
   void _handleError(BuildContext context, PlaygroundController controller) {
     PlaygroundComponents.toastNotifier.add(
       Toast(
-        description: controller.result?.errorMessage ?? '',
+        description: controller.codeRunner.result?.errorMessage ?? '',
         title: AppLocalizations.of(context)!.runCode,
         type: ToastType.error,
       ),
     );
-    controller.resetError();
+    controller.resetErrorMessageText();
   }
 }

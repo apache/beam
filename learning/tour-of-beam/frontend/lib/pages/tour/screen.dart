@@ -22,9 +22,9 @@ import 'package:playground_components/playground_components.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import 'state.dart';
-import 'widgets/content.dart';
 import 'widgets/content_tree.dart';
 import 'widgets/playground_demo.dart';
+import 'widgets/unit_content.dart';
 
 class TourScreen extends StatelessWidget {
   final TourNotifier tourNotifier;
@@ -55,7 +55,7 @@ class _WideTour extends StatelessWidget {
         Expanded(
           child: SplitView(
             direction: Axis.horizontal,
-            first: ContentWidget(tourNotifier),
+            first: UnitContentWidget(tourNotifier),
             second: PlaygroundDemoWidget(
               playgroundController: tourNotifier.playgroundController,
             ),
@@ -80,7 +80,7 @@ class _NarrowTour extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ContentTreeWidget(controller: tourNotifier.contentTreeController),
-              Expanded(child: ContentWidget(tourNotifier)),
+              Expanded(child: UnitContentWidget(tourNotifier)),
             ],
           ),
           DecoratedBox(

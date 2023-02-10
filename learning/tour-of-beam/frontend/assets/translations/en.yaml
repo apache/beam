@@ -21,11 +21,13 @@ ui:
   continueGitHub: Continue with GitHub
   continueGoogle: Continue with Google
   copyright: © The Apache Software Foundation
+  hint: Hint
   deleteAccount: Delete my account
   privacyPolicy: Privacy Policy
   reportIssue: Report Issue in GitHub
   signIn: Sign in
   signOut: Sign out
+  solution: Solution
   toWebsite: To Apache Beam website
 
 pages:

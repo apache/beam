@@ -53,7 +53,7 @@ if (isDataflowRunner) {
   if (isDataflowRunnerV2) {
     evaluationDependsOn(":runners:google-cloud-dataflow-java")
   } else {
-    evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+    evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
   }
 }
 
@@ -102,7 +102,7 @@ def getLoadTestArgs = {
       def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerJavaImageName
       loadTestArgsList.add("--sdkContainerImage=${sdkContainerImage}")
     } else {
-      def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+      def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
       // Provide job with a customizable worker jar.
       // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
       // More context and discussions can be found in PR#6694.
@@ -120,7 +120,7 @@ task run(type: JavaExec) {
       dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
       finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
     } else {
-      dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+      dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     }
   }
   mainClass = project.findProperty(mainClassProperty)

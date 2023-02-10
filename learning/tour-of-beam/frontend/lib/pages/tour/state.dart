@@ -67,6 +67,26 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   String? get currentUnitId => currentUnitController?.unitId;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
+  bool get doesCurrentUnitHaveSolution =>
+      currentUnitContent?.solutionSnippetId != null;
+  bool _isShowingSolution = false;
+  bool get isShowingSolution => _isShowingSolution;
+
+  void toggleShowingSolution() {
+    if (doesCurrentUnitHaveSolution) {
+      _isShowingSolution = !_isShowingSolution;
+
+      final snippetId = _isShowingSolution
+          ? _currentUnitContent?.solutionSnippetId
+          : _currentUnitContent?.taskSnippetId;
+      if (snippetId != null) {
+        // TODO(nausharipov): store/recover
+        unawaited(_setPlaygroundSnippet(snippetId));
+      }
+
+      notifyListeners();
+    }
+  }
 
   void _createCurrentUnitController(String sdkId, String unitId) {
     currentUnitController = UnitController(
@@ -116,9 +136,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (content == null) {
       return;
     }
-
     final taskSnippetId = content.taskSnippetId;
-    if (taskSnippetId == null) {
+    await _setPlaygroundSnippet(taskSnippetId);
+    _isShowingSolution = false;
+  }
+
+  Future<void> _setPlaygroundSnippet(String? snippetId) async {
+    if (snippetId == null) {
       await _emptyPlayground();
       return;
     }
@@ -130,7 +154,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           descriptors: [
             UserSharedExampleLoadingDescriptor(
               sdk: selectedSdk,
-              snippetId: taskSnippetId,
+              snippetId: snippetId,
             ),
           ],
         ),

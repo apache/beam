@@ -264,8 +264,8 @@ class BatchLoads<DestinationT, ElementT>
     }
     checkArgument(
         !Strings.isNullOrEmpty(tempLocation),
-        "BigQueryIO.Write needs a GCS temp location to store temp files."
-            + "This can be set by withCustomGcsTempLocation() in the Builder"
+        "BigQueryIO.Write needs a GCS temp location to store temp files. "
+            + "This can be set by withCustomGcsTempLocation() in the Builder "
             + "or through the fallback pipeline option --tempLocation.");
     if (bigQueryServices == null) {
       try {

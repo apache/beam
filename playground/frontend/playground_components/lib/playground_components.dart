@@ -25,6 +25,7 @@ export 'src/controllers/playground_controller.dart';
 export 'src/controllers/public_notifier.dart';
 export 'src/enums/complexity.dart';
 export 'src/models/category_with_examples.dart';
+export 'src/models/dataset.dart';
 export 'src/models/example.dart';
 export 'src/models/example_base.dart';
 export 'src/models/example_loading_descriptors/catalog_default_example_loading_descriptor.dart';
@@ -54,6 +55,8 @@ export 'src/services/symbols/loaders/yaml.dart';
 export 'src/theme/switch_notifier.dart';
 export 'src/theme/theme.dart';
 export 'src/util/pipeline_options.dart';
+export 'src/util/string.dart';
+
 export 'src/widgets/bubble.dart';
 export 'src/widgets/clickable.dart';
 export 'src/widgets/complexity.dart';

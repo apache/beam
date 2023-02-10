@@ -956,7 +956,8 @@ from the input collection; the Beam SDKs handle that for you. Your `process` met
 should accept an argument `element`, which is the input element, and return an
 iterable with its output values. You can accomplish this by emitting individual
 elements with `yield` statements. You can also use a `return` statement
-with an iterable, like a list or a generator.
+with an iterable, like a list or a generator. Don't mix `yield` and
+`return` statements in the same `process` method - this leads to [undefined behavior](https://github.com/apache/beam/issues/22969).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
@@ -7975,6 +7976,16 @@ batch typehint &ndash; but Beam supports typehints from other libraries as well.
 | `bytes` | |
 | `Any` | |
 | [Beam Schema Types](#schemas) | `pd.DataFrame` |
+
+#### [pyarrow](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/arrow_type_compatibility.py)
+
+| Element Typehint | Batch Typehint |
+| ---------------- | -------------- |
+| Numeric types (`int`, `np.int32`, `bool`, ...) | `pd.Series` |
+| `Any` | |
+| `List` | |
+| `Mapping` | |
+| [Beam Schema Types](#schemas) | `pa.Table` |
 
 #### Other types?
 If there are other batch types you would like to use with Batched DoFns, please

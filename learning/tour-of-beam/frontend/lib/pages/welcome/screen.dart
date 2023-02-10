@@ -102,6 +102,7 @@ class _SdkSelection extends StatelessWidget {
     final appNotifier = GetIt.instance.get<AppNotifier>();
     return Container(
       constraints: BoxConstraints(
+        // TODO(nausharipov): look for a better way to constrain the height
         minHeight: MediaQuery.of(context).size.height -
             BeamSizes.appBarHeight -
             TobSizes.footerHeight,

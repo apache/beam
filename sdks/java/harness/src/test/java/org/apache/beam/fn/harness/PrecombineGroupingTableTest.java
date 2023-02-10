@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.in;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 
@@ -156,19 +157,19 @@ public class PrecombineGroupingTableTest {
     assertThat(receiver.outputElems, empty());
 
     // Putting in other large keys should cause eviction.
-    table.put(valueInGlobalWindow(KV.of("BBB", 9)), receiver);
+    table.put(valueInGlobalWindow(KV.of("BB", 509)), receiver);
     table.put(valueInGlobalWindow(KV.of("CCC", 11)), receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)), valueInGlobalWindow(KV.of("BBB", 9L))));
+            valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)), valueInGlobalWindow(KV.of("BB", 509L))));
 
     table.flush(receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
             valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)),
-            valueInGlobalWindow(KV.of("BBB", 9L)),
+            valueInGlobalWindow(KV.of("BB", 509L)),
             valueInGlobalWindow(KV.of("CCC", 11L))));
   }
 
@@ -225,17 +226,20 @@ public class PrecombineGroupingTableTest {
 
     // Insert three compactable values which shouldn't lead to eviction even though we are over
     // the maximum size.
-    table.put(valueInGlobalWindow(KV.of("A", 1004)), receiver);
-    table.put(valueInGlobalWindow(KV.of("B", 1004)), receiver);
+    table.put(valueInGlobalWindow(KV.of("A", 804)), receiver);
+    table.put(valueInGlobalWindow(KV.of("B", 904)), receiver);
     table.put(valueInGlobalWindow(KV.of("C", 1004)), receiver);
     assertThat(receiver.outputElems, empty());
+
+    // Ensure that compaction occurred during the insertion of the above elements before flushing.
+    assertThat(table.getWeight(), lessThan(804L + 904L + 1004L));
 
     table.flush(receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            valueInGlobalWindow(KV.of("A", 1004L / 4)),
-            valueInGlobalWindow(KV.of("B", 1004L / 4)),
+            valueInGlobalWindow(KV.of("A", 804L / 4)),
+            valueInGlobalWindow(KV.of("B", 904L / 4)),
             valueInGlobalWindow(KV.of("C", 1004L / 4))));
   }
 
@@ -254,20 +258,20 @@ public class PrecombineGroupingTableTest {
 
     // Insert three values which even with compaction isn't enough so we evict A & B to get
     // under the max weight.
-    table.put(valueInGlobalWindow(KV.of("A", 1001)), receiver);
-    table.put(valueInGlobalWindow(KV.of("B", 1001)), receiver);
+    table.put(valueInGlobalWindow(KV.of("A", 801)), receiver);
+    table.put(valueInGlobalWindow(KV.of("B", 901)), receiver);
     table.put(valueInGlobalWindow(KV.of("C", 1001)), receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            valueInGlobalWindow(KV.of("A", 1001L)), valueInGlobalWindow(KV.of("B", 1001L))));
+            valueInGlobalWindow(KV.of("A", 801L)), valueInGlobalWindow(KV.of("B", 901L))));
 
     table.flush(receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            valueInGlobalWindow(KV.of("A", 1001L)),
-            valueInGlobalWindow(KV.of("B", 1001L)),
+            valueInGlobalWindow(KV.of("A", 801L)),
+            valueInGlobalWindow(KV.of("B", 901L)),
             valueInGlobalWindow(KV.of("C", 1001L))));
   }
 
@@ -460,7 +464,10 @@ public class PrecombineGroupingTableTest {
     };
   }
 
-  /** "Estimate" the size of strings by taking the tenth power of their length. */
+  /**
+   * Used to simulate very specific compaction/eviction tests under certain scenarios instead of
+   * relying on JAMM for size estimation. Strings are 10^length and longs are their value.
+   */
   private static class TestSizeEstimator implements SizeEstimator {
     int calls = 0;
 

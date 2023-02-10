@@ -21,7 +21,7 @@
 
 import logging
 import os
-import random
+import secrets
 import time
 import unittest
 
@@ -715,6 +715,47 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           equal_to([6]),
           label='CheckCopyJobCount')
 
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_file_loads.TriggerCopyJobs.process',
+      wraps=lambda *x: None)
+  def test_multiple_partition_files_write_truncate(self, mock_call_process):
+    destination = 'project1:dataset1.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = mock.Mock()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+    bq_client.tables.Delete.return_value = None
+
+    with TestPipeline('DirectRunner') as p:
+      _ = (
+          p
+          | beam.Create(_ELEMENTS, reshuffle=False)
+          | bqfl.BigQueryBatchFileLoads(
+              destination,
+              custom_gcs_temp_location=self._new_tempdir(),
+              test_client=bq_client,
+              validate=False,
+              temp_file_format=bigquery_tools.FileFormat.JSON,
+              max_file_size=45,
+              max_partition_size=80,
+              max_files_per_partition=2,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
+
+    # TriggerCopyJob only processes once
+    self.assertEqual(mock_call_process.call_count, 1)
+
   @parameterized.expand([
       param(is_streaming=False, with_auto_sharding=False),
       param(is_streaming=True, with_auto_sharding=False),
@@ -847,10 +888,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
-    self.dataset_id = '%s%s%d' % (
-        self.BIG_QUERY_DATASET_ID,
-        str(int(time.time())),
-        random.randint(0, 10000))
+    self.dataset_id = '%s%d%s' % (
+        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)

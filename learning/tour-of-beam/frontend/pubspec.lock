@@ -247,7 +247,7 @@ packages:
     source: hosted
     version: "0.2.1"
   equatable:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: equatable
       url: "https://pub.dartlang.org"
@@ -575,6 +575,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "6.4.1"
+  keyed_collection_widgets:
+    dependency: transitive
+    description:
+      name: keyed_collection_widgets
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.4.3"
   linked_scroll_controller:
     dependency: transitive
     description:
