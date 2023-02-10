@@ -1,3 +1,4 @@
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -12,25 +13,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from mitmproxy import http
-from mitmproxy.proxy import server_hooks
 
-from allow_list import ALLOWED_LIST
-
-def request(flow: http.HTTPFlow) -> None:
-    handle_request_common(flow)
-
-def http_connect(flow: http.HTTPFlow):
-    handle_request_common(flow)
-
-def http_connect_upstream(flow: http.HTTPFlow):
-    handle_request_common(flow)
-
-def handle_request_common(flow: http.HTTPFlow):
-    allowed_host = flow.request.pretty_host in ALLOWED_LIST
-    if not allowed_host:
-        flow.response = http.Response.make(
-            status_code=403,
-            content="Making requests to the hosts that are not listed "
-            "in the allowed list is forbidden. "
-            "host:" + flow.request.pretty_host + ", path: " + flow.request.path)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-deny
+spec:
+  podSelector:
+   matchExpressions:
+    - {key: app, operator: In, values: [backend-go, backend-java, backend-python, backend-scio]}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+      - port: 53
+        protocol: UDP
+      - port: 53
+        protocol: TCP
+  - to:
+    - ipBlock:
+        cidr: 10.0.0.0/8
+    ports:
+    - protocol: TCP
+      port: 6379
+	- protocol: TCP
+	  port: 8080
