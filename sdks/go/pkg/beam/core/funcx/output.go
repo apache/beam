@@ -79,7 +79,6 @@ func unfoldEmit(t reflect.Type) ([]reflect.Type, bool, error) {
 	if t.NumIn()-skip > 2 || t.NumIn() == skip {
 		return nil, false, nil
 	}
-
 	emptyInterface := reflect.TypeOf((*any)(nil)).Elem()
 	for i := skip; i < t.NumIn(); i++ {
 		if ok, err := isInParam(t.In(i)); !ok {
