@@ -21,19 +21,33 @@ import 'package:flutter/material.dart';
 
 import '../../../playground_components.dart';
 
-/// Dialog to approve or cancel user actions.
-class ActionApprovalDialog extends StatelessWidget {
-  final String actionLabel;
-  final VoidCallback onActionPressed;
-  final String title;
-  final String? bodyText;
+class ConfirmDialog extends StatelessWidget {
+  final String confirmButtonText;
 
-  const ActionApprovalDialog({
-    required this.actionLabel,
-    required this.onActionPressed,
+  final String title;
+  final String? subtitle;
+
+  const ConfirmDialog({
+    required this.confirmButtonText,
     required this.title,
-    this.bodyText,
+    this.subtitle,
   });
+
+  static Future<bool> show({
+    required BuildContext context,
+    required String title,
+    required String? subtitle,
+    required String confirmButtonText,
+  }) async {
+    return await showDialog(
+      context: context,
+      builder: (context) => ConfirmDialog(
+        confirmButtonText: confirmButtonText,
+        title: title,
+        subtitle: subtitle,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,10 +66,10 @@ class ActionApprovalDialog extends StatelessWidget {
                   title,
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
-                if (bodyText != null)
+                if (subtitle != null)
                   Padding(
                     padding: const EdgeInsets.only(top: BeamSizes.size8),
-                    child: Text(bodyText!),
+                    child: Text(subtitle!),
                   ),
                 const SizedBox(height: BeamSizes.size8),
                 Row(
@@ -63,14 +77,16 @@ class ActionApprovalDialog extends StatelessWidget {
                   children: [
                     TextButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(context, false);
                       },
                       child: const Text('dialogs.cancel').tr(),
                     ),
                     const SizedBox(width: BeamSizes.size8),
                     TextButton(
-                      onPressed: onActionPressed,
-                      child: Text(actionLabel),
+                      onPressed: () {
+                        Navigator.pop(context, true);
+                      },
+                      child: Text(confirmButtonText),
                     ),
                   ],
                 ),
