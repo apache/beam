@@ -437,7 +437,7 @@ The pipeline reads rows of pixels corresponding to a digit, performs basic prepr
 
 To use this transform, you need a dataset and model for language modeling.
 
-1. Create a file named `INPUT.csv` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
+1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
 1,0,0,0...
 0,0,0,0...

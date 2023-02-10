@@ -15,4 +15,5 @@
 # limitations under the License.
 #
 
-tensorflow>=2.11.0
+tensorflow>=2.0.0
+tensorflow_hub>-0.10.0

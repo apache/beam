@@ -22,7 +22,7 @@ import numpy
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import KeyedModelHandler, PredictionResult, RunInference
-from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy
+from apache_beam.ml.inference.tensorflow_inference import ModelType, TFModelHandlerNumpy
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
@@ -82,7 +82,8 @@ def run(
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over TFModelHandlerNumpy.
   model_loader = KeyedModelHandler(
-      TFModelHandlerNumpy(model_uri=known_args.model_path))
+      TFModelHandlerNumpy(
+          model_uri=known_args.model_path, model_type=ModelType.SAVED_MODEL))
 
   pipeline = test_pipeline
   if not test_pipeline:

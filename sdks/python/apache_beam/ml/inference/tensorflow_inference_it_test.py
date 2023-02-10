@@ -43,9 +43,9 @@ def process_outputs(filepath):
 @unittest.skipIf(
     tf is None, 'Missing dependencies. '
     'Test depends on tensorflow')
+@pytest.mark.uses_tf
+@pytest.mark.it_postcommit
 class TensorflowInference(unittest.TestCase):
-  @pytest.mark.uses_tf
-  @pytest.mark.it_postcommit
   def test_tf_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://clouddfe-riteshghorse/tf/mnist/dataset/testing_inputs_it_mnist_data.csv'  # pylint: disable=line-too-long
