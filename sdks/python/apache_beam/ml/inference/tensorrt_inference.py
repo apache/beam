@@ -122,7 +122,16 @@ class TensorRTEngine:
     self.outputs = []
     self.gpu_allocations = []
     self.cpu_allocations = []
-    """Setup I/O bindings."""
+
+    # TODO(https://github.com/NVIDIA/TensorRT/issues/2557):
+    # Clean up when fixed upstream.
+    try:
+      _ = np.bool  # type: ignore
+    except AttributeError:
+      # numpy >= 1.24.0
+      np.bool = np.bool_  # type: ignore
+
+    # Setup I/O bindings.
     for i in range(self.engine.num_bindings):
       name = self.engine.get_binding_name(i)
       dtype = self.engine.get_binding_dtype(i)
