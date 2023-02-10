@@ -46,7 +46,7 @@ class HintsWidget extends StatelessWidget {
         }
       },
       icon: SvgPicture.asset(Assets.svg.hint),
-      label: const Text('ui.hint').tr(),
+      label: const Text('pages.tour.hint').tr(),
     );
   }
 }
@@ -69,7 +69,7 @@ class _Popup extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'ui.hint',
+              'pages.tour.hint',
               style: Theme.of(context).textTheme.headlineLarge,
             ).tr(),
             const SizedBox(height: BeamSizes.size8),

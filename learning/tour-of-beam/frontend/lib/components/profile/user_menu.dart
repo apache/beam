@@ -129,11 +129,11 @@ class _Buttons extends StatelessWidget {
             closeOverlayCallback();
             showDialog(
               context: context,
-              builder: (context) => BeamAlertDialog(
-                text: 'dialogs.deleteAccountWarning'.tr(),
-                continueLabel: 'ui.deleteMyAccount'.tr(),
+              builder: (context) => ActionApprovalDialog(
+                actionLabel: 'ui.deleteMyAccount'.tr(),
+                bodyText: 'dialogs.deleteAccountWarning'.tr(),
                 title: 'ui.deleteTobAccount'.tr(),
-                onContinue: () async {
+                onActionPressed: () async {
                   Navigator.pop(context);
                   await BeamOverlays.showProgressOverlay(
                     context,

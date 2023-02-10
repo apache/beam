@@ -22,7 +22,6 @@ ui:
   continueGitHub: Continue with GitHub
   continueGoogle: Continue with Google
   copyright: © The Apache Software Foundation
-  hint: Hint
   deleteMyAccount: Delete my account
   deleteTobAccount: Delete my Tour of Beam account
   privacyPolicy: Privacy Policy
@@ -41,7 +40,8 @@ pages:
   tour:
     assignment: Assignment
     completeUnit: Complete Unit
-    showSolution: Show
+    hint: Hint
+    showSolution: Show the solution
     solution: Solution
     solveYourself: Before revealing the solution, try solving the challenge on your own. Remember, the more you practice, the better you will become. Give it a shot and see how far you can get.
     summaryTitle: Table of Contents

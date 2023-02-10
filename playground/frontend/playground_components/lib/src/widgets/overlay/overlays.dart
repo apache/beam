@@ -20,7 +20,9 @@ import 'package:flutter/material.dart';
 
 import '../../../playground_components.dart';
 
+/// Shows different types of overlays.
 class BeamOverlays {
+  /// Undismissable overlay of a progress indicator.
   static Future<void> showProgressOverlay(
     BuildContext context,
     Future Function() future,
