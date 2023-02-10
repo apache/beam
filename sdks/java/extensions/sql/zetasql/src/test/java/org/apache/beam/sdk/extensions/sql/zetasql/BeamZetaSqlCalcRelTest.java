@@ -123,14 +123,13 @@ public class BeamZetaSqlCalcRelTest extends ZetaSqlTestBase {
     PAssert.that(errors.apply(Count.globally())).containsInAnyOrder(2L);
     PAssert.that(errors)
             .satisfies((SerializableFunction<Iterable<Row>, Void>) input -> {
-              Assert.assertEquals(Lists.newArrayList(input).stream().map(r -> r.getRow("row").getInt64("Key")).collect(Collectors.toSet())
-                      , Sets.newHashSet(14, 15));
+              Assert.assertEquals(Lists.newArrayList(input).stream().map(r -> r.getRow("row").getInt64("Key")).collect(Collectors.toSet()),
+                      Sets.newHashSet(14L, 15L));
               return null;
             });
     pipeline.run().waitUntilFinish();
   }
 
-  @Ignore
   @Test
   public void testErrorsInCalculationWithSelectedCols() throws IllegalAccessException {
     String sql = "SELECT ts, Key*7777*7777*77777*7777777*7777777777 as num FROM KeyValue";
@@ -149,8 +148,8 @@ public class BeamZetaSqlCalcRelTest extends ZetaSqlTestBase {
     PAssert.that(errors.apply(Count.globally())).containsInAnyOrder(2L);
     PAssert.that(errors)
             .satisfies((SerializableFunction<Iterable<Row>, Void>) input -> {
-              Assert.assertEquals(Lists.newArrayList(input).stream().map(r -> r.getRow("row").getInt64("Key")).collect(Collectors.toSet())
-                      , Sets.newHashSet(14, 15));
+              Assert.assertEquals(Lists.newArrayList(input).stream().map(r -> r.getRow("row").getInt64("Key")).collect(Collectors.toSet()),
+                      Sets.newHashSet(14L, 15L));
               return null;
             });
     pipeline.run().waitUntilFinish();

@@ -162,7 +162,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
                 SqlStdOperatorTable.CASE, condition, rex, rexBuilder.makeNullLiteral(getRowType()));
       }
 
-      final Schema errorsSchema = BeamSqlRelUtils.getErrorRowSchema(upstream.getSchema());
       final Schema outputSchema = CalciteUtils.toSchema(getRowType());
 
       BeamSqlPipelineOptions options =
@@ -174,11 +173,10 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               upstream.getSchema(),
               outputSchema,
               options.getZetaSqlDefaultTimezone(),
-              options.getVerifyRowValues(),
-              errorsSchema);
+              options.getVerifyRowValues());
 
       PCollectionTuple tuple = upstream.apply(ParDo.of(calcFn).withOutputTags(rows, TupleTagList.of(errors)));
-      tuple.get(errors).setRowSchema(errorsSchema);
+      tuple.get(errors).setRowSchema(calcFn.errorsSchema);
 
       if (errorsTransformer != null) {
         tuple.get(errors).apply(errorsTransformer);
@@ -211,7 +209,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final String defaultTimezone;
     private final boolean verifyRowValues;
 
-    private final Schema errorsSchema;
+    final Schema errorsSchema;
     private final List<Integer> referencedColumns;
 
     @FieldAccess("row")
@@ -227,8 +225,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         Schema inputSchema,
         Schema outputSchema,
         String defaultTimezone,
-        boolean verifyRowValues,
-        Schema errorsSchema) {
+        boolean verifyRowValues) {
       this.sql = sql;
       this.exp = new PreparedExpression(sql);
       this.nullParams = nullParams;
@@ -236,7 +233,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       this.outputSchema = outputSchema;
       this.defaultTimezone = defaultTimezone;
       this.verifyRowValues = verifyRowValues;
-      this.errorsSchema = errorsSchema;
 
       try (PreparedExpression exp =
           prepareExpression(sql, nullParams, inputSchema, defaultTimezone)) {
@@ -246,6 +242,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         }
         this.referencedColumns = columns.build();
         this.fieldAccess = FieldAccessDescriptor.withFieldIds(this.referencedColumns);
+        Schema inputRowSchema = SelectHelpers.getOutputSchema(inputSchema, fieldAccess);
+        this.errorsSchema = BeamSqlRelUtils.getErrorRowSchema(inputRowSchema);
       }
     }
 
