@@ -124,15 +124,16 @@ class WatchFilePattern(beam.PTransform):
     """
     Watches a directory for updates to files matching a given file pattern.
 
-      Args:
-        file_pattern: The file path to read from as a local file path or a
-          GCS ``gs://`` path. The path can contain glob characters
-          (``*``, ``?``, and ``[...]`` sets).
-          interval: Interval at which to check for files matching file_pattern
-          in seconds.
-        stop_timestamp: Timestamp after which no more files will be checked.
+    Args:
+      file_pattern: The file path to read from as a local file path or a
+        GCS ``gs://`` path. The path can contain glob characters
+        (``*``, ``?``, and ``[...]`` sets).
+        interval: Interval at which to check for files matching file_pattern
+        in seconds.
+      stop_timestamp: Timestamp after which no more files will be checked.
 
-    **NOTE:**
+    **Note**:
+
     1. If the file is read and then there is an update to that file, this
         transform will ignore that update. Always update a file with unique
         name.
