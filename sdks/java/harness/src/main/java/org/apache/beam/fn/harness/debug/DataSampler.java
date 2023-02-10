@@ -59,10 +59,9 @@ public class DataSampler {
   // Sampling rate.
   private final int sampleEveryN;
 
-  // The fully-qualified type is: Map[PCollectionId, OutputSampler.SamplerState]. In order to sample
+  // The fully-qualified type is: Map[PCollectionId, OutputSampler]. In order to sample
   // on a PCollection-basis and not per-bundle, this keeps track of shared samples between states.
-  private final Map<String, OutputSampler.SampleState<?>> outputSamplers =
-      new ConcurrentHashMap<>();
+  private final Map<String, OutputSampler<?>> outputSamplers = new ConcurrentHashMap<>();
 
   /**
    * Creates and returns a class to sample the given PCollection in the given
@@ -76,8 +75,8 @@ public class DataSampler {
    */
   public <T> OutputSampler<T> sampleOutput(String pcollectionId, Coder<T> coder) {
     outputSamplers.putIfAbsent(
-        pcollectionId, new OutputSampler.SampleState<>(coder, this.maxSamples, this.sampleEveryN));
-    return new OutputSampler<>((OutputSampler.SampleState<T>) outputSamplers.get(pcollectionId));
+        pcollectionId, new OutputSampler<>(coder, this.maxSamples, this.sampleEveryN));
+    return (OutputSampler<T>) outputSamplers.get(pcollectionId);
   }
 
   /**

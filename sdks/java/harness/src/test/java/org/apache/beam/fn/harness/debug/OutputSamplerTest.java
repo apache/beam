@@ -46,8 +46,7 @@ public class OutputSamplerTest {
   @Test
   public void testSamplesFirstN() throws Exception {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler.SampleState<Integer> sampleState = new OutputSampler.SampleState<>(coder, 10, 10);
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(sampleState);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
 
     // Purposely go over maxSamples and sampleEveryN. This helps to increase confidence.
     for (int i = 0; i < 15; ++i) {
@@ -72,8 +71,7 @@ public class OutputSamplerTest {
   @Test
   public void testActsLikeCircularBuffer() throws Exception {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler.SampleState<Integer> sampleState = new OutputSampler.SampleState<>(coder, 5, 20);
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(sampleState);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
 
     for (int i = 0; i < 100; ++i) {
       outputSampler.sample(i);
