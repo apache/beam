@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -38,14 +38,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
 
 /** Tests related to {@code BeamZetaSqlCalcRel}. */
 public class BeamZetaSqlCalcRelTest extends ZetaSqlTestBase {
@@ -91,9 +85,9 @@ public class BeamZetaSqlCalcRelTest extends ZetaSqlTestBase {
     pipeline.traverseTopologically(nodeGetter);
 
     ParDo.MultiOutput<Row, Row> pardo =
-            (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
+        (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
     PCollection<Row> input =
-            (PCollection<Row>) Iterables.getOnlyElement(nodeGetter.producer.getInputs().values());
+        (PCollection<Row>) Iterables.getOnlyElement(nodeGetter.producer.getInputs().values());
 
     DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(pardo.getFn(), input);
 
@@ -115,18 +109,25 @@ public class BeamZetaSqlCalcRelTest extends ZetaSqlTestBase {
     pipeline.traverseTopologically(nodeGetter);
 
     ParDo.MultiOutput<Row, Row> pardo =
-            (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
+        (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
 
-    PCollection<Row> errors = (PCollection<Row>) nodeGetter.producer.getOutputs().get(pardo.getAdditionalOutputTags().get(0));
+    PCollection<Row> errors =
+        (PCollection<Row>)
+            nodeGetter.producer.getOutputs().get(pardo.getAdditionalOutputTags().get(0));
     Assert.assertEquals(2, errors.getSchema().getFieldCount());
 
     PAssert.that(errors.apply(Count.globally())).containsInAnyOrder(2L);
     PAssert.that(errors)
-            .satisfies((SerializableFunction<Iterable<Row>, Void>) input -> {
-              Assert.assertEquals(Lists.newArrayList(input).stream().map(r -> r.getRow("row").getInt64("Key")).collect(Collectors.toSet()),
+        .satisfies(
+            (SerializableFunction<Iterable<Row>, Void>)
+                input -> {
+                  Assert.assertEquals(
+                      Lists.newArrayList(input).stream()
+                          .map(r -> r.getRow("row").getInt64("Key"))
+                          .collect(Collectors.toSet()),
                       Sets.newHashSet(14L, 15L));
-              return null;
-            });
+                  return null;
+                });
     pipeline.run().waitUntilFinish();
   }
 
@@ -140,18 +141,25 @@ public class BeamZetaSqlCalcRelTest extends ZetaSqlTestBase {
     pipeline.traverseTopologically(nodeGetter);
 
     ParDo.MultiOutput<Row, Row> pardo =
-            (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
+        (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
 
-    PCollection<Row> errors = (PCollection<Row>) nodeGetter.producer.getOutputs().get(pardo.getAdditionalOutputTags().get(0));
+    PCollection<Row> errors =
+        (PCollection<Row>)
+            nodeGetter.producer.getOutputs().get(pardo.getAdditionalOutputTags().get(0));
     Assert.assertEquals(2, errors.getSchema().getFieldCount());
 
     PAssert.that(errors.apply(Count.globally())).containsInAnyOrder(2L);
     PAssert.that(errors)
-            .satisfies((SerializableFunction<Iterable<Row>, Void>) input -> {
-              Assert.assertEquals(Lists.newArrayList(input).stream().map(r -> r.getRow("row").getInt64("Key")).collect(Collectors.toSet()),
+        .satisfies(
+            (SerializableFunction<Iterable<Row>, Void>)
+                input -> {
+                  Assert.assertEquals(
+                      Lists.newArrayList(input).stream()
+                          .map(r -> r.getRow("row").getInt64("Key"))
+                          .collect(Collectors.toSet()),
                       Sets.newHashSet(14L, 15L));
-              return null;
-            });
+                  return null;
+                });
     pipeline.run().waitUntilFinish();
   }
 

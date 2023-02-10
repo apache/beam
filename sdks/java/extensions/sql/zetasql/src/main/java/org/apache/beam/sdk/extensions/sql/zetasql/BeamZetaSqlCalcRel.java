@@ -34,11 +34,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.IntFunction;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
@@ -57,8 +55,6 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.ParameterExpression;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
@@ -74,10 +70,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdO
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -120,9 +113,11 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
   }
 
   @Override
-  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(@Nullable PTransform<PCollection<Row>, ? extends POutput> errorsTransformer) {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
+      @Nullable PTransform<PCollection<Row>, ? extends POutput> errorsTransformer) {
     return new Transform(errorsTransformer);
   }
+
   @AutoValue
   abstract static class TimestampedFuture {
     private static TimestampedFuture create(Instant t, Future<Value> f, Row r) {
@@ -143,6 +138,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     Transform(@Nullable PTransform<PCollection<Row>, ? extends POutput> errorsTransformer) {
       this.errorsTransformer = errorsTransformer;
     }
+
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
       Preconditions.checkArgument(
@@ -175,7 +171,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               options.getZetaSqlDefaultTimezone(),
               options.getVerifyRowValues());
 
-      PCollectionTuple tuple = upstream.apply(ParDo.of(calcFn).withOutputTags(rows, TupleTagList.of(errors)));
+      PCollectionTuple tuple =
+          upstream.apply(ParDo.of(calcFn).withOutputTags(rows, TupleTagList.of(errors)));
       tuple.get(errors).setRowSchema(calcFn.errorsSchema);
 
       if (errorsTransformer != null) {
@@ -281,10 +278,12 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
     @ProcessElement
     public void processElement(
-        @FieldAccess("row") Row row, @Timestamp Instant t, BoundedWindow w, OutputReceiver<Row> r,
+        @FieldAccess("row") Row row,
+        @Timestamp Instant t,
+        BoundedWindow w,
+        OutputReceiver<Row> r,
         MultiOutputReceiver multiOutputReceiver)
-        throws InterruptedException
-    {
+        throws InterruptedException {
 
       @Nullable Queue<TimestampedFuture> pendingWindow = pending.get(w);
       if (pendingWindow == null) {
@@ -296,23 +295,23 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         for (int i : referencedColumns) {
           final Field field = inputSchema.getField(i);
           columns.put(
-                  columnName(i),
-                  ZetaSqlBeamTranslationUtils.toZetaSqlValue(
-                          row.getBaseValue(field.getName(), Object.class), field.getType()));
+              columnName(i),
+              ZetaSqlBeamTranslationUtils.toZetaSqlValue(
+                  row.getBaseValue(field.getName(), Object.class), field.getType()));
         }
         Future<Value> valueFuture = checkArgumentNotNull(stream).execute(columns, nullParams);
         pendingWindow.add(TimestampedFuture.create(t, valueFuture, row));
 
       } catch (UnsupportedOperationException | ArithmeticException | IllegalArgumentException e) {
-      multiOutputReceiver.get(errors).output(Row.withSchema(errorsSchema)
-              .addValues(row, e.toString())
-              .build());
-     }
+        multiOutputReceiver
+            .get(errors)
+            .output(Row.withSchema(errorsSchema).addValues(row, e.toString()).build());
+      }
 
-        while ((!pendingWindow.isEmpty() && pendingWindow.element().future().isDone())
-                || pendingWindow.size() > MAX_PENDING_WINDOW) {
-          outputRow(pendingWindow.remove(), r, multiOutputReceiver.get(errors));
-        }
+      while ((!pendingWindow.isEmpty() && pendingWindow.element().future().isDone())
+          || pendingWindow.size() > MAX_PENDING_WINDOW) {
+        outputRow(pendingWindow.remove(), r, multiOutputReceiver.get(errors));
+      }
     }
 
     @FinishBundle
@@ -320,9 +319,9 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       checkArgumentNotNull(stream).flush();
       for (Map.Entry<BoundedWindow, Queue<TimestampedFuture>> pendingWindow : pending.entrySet()) {
         OutputReceiver<Row> rowOutputReciever =
-                new OutputReceiverForFinishBundle(c, pendingWindow.getKey(), rows);
+            new OutputReceiverForFinishBundle(c, pendingWindow.getKey(), rows);
         OutputReceiver<Row> errorOutputReciever =
-                new OutputReceiverForFinishBundle(c, pendingWindow.getKey(), errors);
+            new OutputReceiverForFinishBundle(c, pendingWindow.getKey(), errors);
 
         for (TimestampedFuture timestampedFuture : pendingWindow.getValue()) {
           outputRow(timestampedFuture, rowOutputReciever, errorOutputReciever);
@@ -339,7 +338,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
       private final TupleTag<Row> tag;
 
-      private OutputReceiverForFinishBundle(FinishBundleContext c, BoundedWindow w, TupleTag<Row> tag) {
+      private OutputReceiverForFinishBundle(
+          FinishBundleContext c, BoundedWindow w, TupleTag<Row> tag) {
         this.c = c;
         this.w = w;
         this.tag = tag;
@@ -366,13 +366,15 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       }
     }
 
-    private void outputRow(TimestampedFuture c, OutputReceiver<Row> r, OutputReceiver<Row> errorOutputReceiver) throws InterruptedException {
+    private void outputRow(
+        TimestampedFuture c, OutputReceiver<Row> r, OutputReceiver<Row> errorOutputReceiver)
+        throws InterruptedException {
       final Value v;
       try {
         v = c.future().get();
       } catch (ExecutionException e) {
-        errorOutputReceiver.outputWithTimestamp(Row.withSchema(errorsSchema)
-                .addValues(c.row(), e.toString()).build(), c.timestamp());
+        errorOutputReceiver.outputWithTimestamp(
+            Row.withSchema(errorsSchema).addValues(c.row(), e.toString()).build(), c.timestamp());
         return;
       } catch (Throwable thr) {
         throw extractException(thr);
