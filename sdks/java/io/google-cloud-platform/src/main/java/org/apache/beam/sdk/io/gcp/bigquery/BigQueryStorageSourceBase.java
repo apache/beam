@@ -218,21 +218,20 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
                 readSession, readStream, trimmedSchema, parseFn, outputCoder, bqServices));
       }
       return ImmutableList.copyOf(sources);
-    } else {
-      List<ReadStream> streamBundle = Lists.newArrayList();
-      List<BigQueryStorageStreamBundleSource<T>> sources = Lists.newArrayList();
-      for (ReadStream readStream : readSession.getStreamsList()) {
-        streamIndex++;
-        streamBundle.add(readStream);
-        if (streamIndex % streamsPerBundle == 0) {
-          sources.add(
-              BigQueryStorageStreamBundleSource.create(
-                  readSession, streamBundle, trimmedSchema, parseFn, outputCoder, bqServices, 1L));
-          streamBundle = Lists.newArrayList();
-        }
-      }
-      return ImmutableList.copyOf(sources);
     }
+    List<ReadStream> streamBundle = Lists.newArrayList();
+    List<BigQueryStorageStreamBundleSource<T>> sources = Lists.newArrayList();
+    for (ReadStream readStream : readSession.getStreamsList()) {
+      streamIndex++;
+      streamBundle.add(readStream);
+      if (streamIndex % streamsPerBundle == 0) {
+        sources.add(
+            BigQueryStorageStreamBundleSource.create(
+                readSession, streamBundle, trimmedSchema, parseFn, outputCoder, bqServices, 1L));
+        streamBundle = Lists.newArrayList();
+      }
+    }
+    return ImmutableList.copyOf(sources);
   }
 
   @Override

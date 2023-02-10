@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
@@ -151,6 +153,7 @@ public interface BigQueryOptions
 
   void setStorageWriteApiMaxRequestSize(Long value);
 
+  @Experimental(Kind.UNSPECIFIED)
   @Description(
       "If set, BigQueryIO.Read will use the StreamBundle based"
           + "implementation of the Read API Source")
