@@ -95,7 +95,7 @@ func extractKey(metric *df.MetricUpdate, p *pipepb.Pipeline) (metrics.StepKey, e
 	return metrics.StepKey{Step: userStepName, Name: metric.Name.Name, Namespace: namespace}, nil
 }
 
-func extractCounterValue(obj interface{}) (int64, error) {
+func extractCounterValue(obj any) (int64, error) {
 	v, ok := obj.(float64)
 	if !ok {
 		return -1, fmt.Errorf("expected float64, got data of type %T instead", obj)
@@ -103,8 +103,8 @@ func extractCounterValue(obj interface{}) (int64, error) {
 	return int64(v), nil
 }
 
-func extractDistributionValue(obj interface{}) (metrics.DistributionValue, error) {
-	m := obj.(map[string]interface{})
+func extractDistributionValue(obj any) (metrics.DistributionValue, error) {
+	m := obj.(map[string]any)
 	propertiesToVisit := []string{"count", "sum", "min", "max"}
 	var values [4]int64
 

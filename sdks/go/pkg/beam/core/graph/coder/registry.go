@@ -33,16 +33,16 @@ var (
 // Coders are encoder and decoder pairs, and operate around []bytes.
 //
 // The coder used for a given type follows this ordering:
-//   1. Coders for Known Beam types.
-//   2. Coders registered for specific types
-//   3. Coders registered for interfaces types
-//   4. Default coder (JSON)
+//  1. Coders for Known Beam types.
+//  2. Coders registered for specific types
+//  3. Coders registered for interfaces types
+//  4. Default coder (JSON)
 //
 // Types of kind Interface, are handled specially by the registry, so they may be iterated
 // over to check if element types implement them.
 //
 // Repeated registrations of the same type overrides prior ones.
-func RegisterCoder(t reflect.Type, enc, dec interface{}) {
+func RegisterCoder(t reflect.Type, enc, dec any) {
 	key := tkey(t)
 
 	if _, err := NewCustomCoder(t.String(), t, enc, dec); err != nil {

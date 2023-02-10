@@ -37,7 +37,7 @@ type SchemaCoder struct {
 
 // Register adds additional custom types not under test to both the under test
 // and default schema coders.
-func (v *SchemaCoder) Register(rt reflect.Type, encF, decF interface{}) {
+func (v *SchemaCoder) Register(rt reflect.Type, encF, decF any) {
 	v.encBldUT.Register(rt, encF)
 	v.encBldSchema.Register(rt, encF)
 	v.decBldUT.Register(rt, decF)
@@ -49,7 +49,7 @@ func (v *SchemaCoder) Register(rt reflect.Type, encF, decF interface{}) {
 type T interface {
 	Helper()
 	Run(string, func(*testing.T)) bool
-	Errorf(string, ...interface{})
+	Errorf(string, ...any)
 	Failed() bool
 	FailNow()
 }
@@ -71,7 +71,7 @@ type T interface {
 // emulates coders being re-used for all elements within a bundle.
 //
 // Validate mutates the SchemaCoderValidator, so the SchemaCoderValidator may not be used more than once.
-func (v *SchemaCoder) Validate(t T, rt reflect.Type, encF, decF, schema interface{}, values interface{}) {
+func (v *SchemaCoder) Validate(t T, rt reflect.Type, encF, decF, schema any, values any) {
 	t.Helper()
 	testValues := reflect.ValueOf(values)
 	// Check whether we have a slice type or not.

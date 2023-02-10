@@ -72,8 +72,6 @@ dependencies {
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:io:jdbc")
-  testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":examples:java:twitter", configuration: "testRuntimeMigration")
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testImplementation library.java.testcontainers_elasticsearch
   testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"

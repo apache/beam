@@ -36,7 +36,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/symtab"
 )
 
-func die(format string, a ...interface{}) {
+func die(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	os.Exit(1)
 }

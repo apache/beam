@@ -483,8 +483,10 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 
 // The order of present parameters and return values must be as follows:
 // func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnWatermarkEstimator?, FnType?, FnBundleFinalization?, FnRTracker?, FnStateProvider?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
-//     where ? indicates 0 or 1, and * indicates any number.
-//     and  a SideInput is one of FnValue or FnIter or FnReIter
+//
+//	where ? indicates 0 or 1, and * indicates any number.
+//	and  a SideInput is one of FnValue or FnIter or FnReIter
+//
 // Note: Fns with inputs must have at least one FnValue as the main input.
 func validateOrder(u *Fn) error {
 	paramState := psStart

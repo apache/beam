@@ -162,7 +162,7 @@ public class ExpectedLogs extends ExternalResource {
    * @param substring The message to match against.
    */
   public void verifyNotLogged(String substring) {
-    verifyNotLogged(matcher(substring));
+    verifyNotLogged(matcher(substring), logSaver);
   }
 
   /**
@@ -187,10 +187,10 @@ public class ExpectedLogs extends ExternalResource {
   }
 
   private void verify(final Level level, final String substring) {
-    verifyLogged(matcher(level, substring));
+    verifyLogged(matcher(level, substring), logSaver);
   }
 
-  private TypeSafeMatcher<LogRecord> matcher(final String substring) {
+  public static TypeSafeMatcher<LogRecord> matcher(final String substring) {
     return new TypeSafeMatcher<LogRecord>() {
       @Override
       public void describeTo(Description description) {
@@ -204,7 +204,7 @@ public class ExpectedLogs extends ExternalResource {
     };
   }
 
-  private TypeSafeMatcher<LogRecord> matcher(final Level level, final String substring) {
+  public static TypeSafeMatcher<LogRecord> matcher(final Level level, final String substring) {
     return new TypeSafeMatcher<LogRecord>() {
       @Override
       public void describeTo(Description description) {
@@ -220,14 +220,14 @@ public class ExpectedLogs extends ExternalResource {
   }
 
   private void verify(final Level level, final String substring, final Throwable throwable) {
-    verifyLogged(matcher(level, substring, throwable));
+    verifyLogged(matcher(level, substring, throwable), logSaver);
   }
 
   private void verifyNo(final Level level, final String substring, final Throwable throwable) {
-    verifyNotLogged(matcher(level, substring, throwable));
+    verifyNotLogged(matcher(level, substring, throwable), logSaver);
   }
 
-  private TypeSafeMatcher<LogRecord> matcher(
+  public static TypeSafeMatcher<LogRecord> matcher(
       final Level level, final String substring, final Throwable throwable) {
     return new TypeSafeMatcher<LogRecord>() {
       @Override
@@ -249,7 +249,7 @@ public class ExpectedLogs extends ExternalResource {
     };
   }
 
-  private void verifyLogged(Matcher<LogRecord> matcher) {
+  public static void verifyLogged(Matcher<LogRecord> matcher, LogSaver logSaver) {
     for (LogRecord record : logSaver.getLogs()) {
       if (matcher.matches(record)) {
         return;
@@ -259,17 +259,18 @@ public class ExpectedLogs extends ExternalResource {
     fail(String.format("Missing match for [%s]", matcher));
   }
 
-  private void verifyNotLogged(Matcher<LogRecord> matcher) {
+  public static void verifyNotLogged(Matcher<LogRecord> matcher, LogSaver logSaver) {
     // Don't use Matchers.everyItem(Matchers.not(matcher)) because it doesn't format the logRecord
     for (LogRecord record : logSaver.getLogs()) {
       if (matcher.matches(record)) {
-        fail(String.format("Unexpected match of [%s]: [%s]", matcher, logFormatter.format(record)));
+        fail(
+            String.format("Unexpected match of [%s]: [%s]", matcher, LOG_FORMATTER.format(record)));
       }
     }
   }
 
   @Override
-  protected void before() throws Throwable {
+  protected void before() {
     previousLevel = log.getLevel();
     log.setLevel(Level.ALL);
     log.addHandler(logSaver);
@@ -282,9 +283,9 @@ public class ExpectedLogs extends ExternalResource {
     logSaver.reset();
   }
 
+  private static final Formatter LOG_FORMATTER = new SimpleFormatter();
   private final Logger log;
   private final LogSaver logSaver;
-  private final Formatter logFormatter = new SimpleFormatter();
   private Level previousLevel;
 
   private ExpectedLogs(String name) {
@@ -294,7 +295,7 @@ public class ExpectedLogs extends ExternalResource {
 
   /** A JUL logging {@link Handler} that records all logging events that are passed to it. */
   @ThreadSafe
-  private static class LogSaver extends Handler {
+  public static class LogSaver extends Handler {
     private final Collection<LogRecord> logRecords = new ConcurrentLinkedDeque<>();
 
     @Override

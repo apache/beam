@@ -17,109 +17,110 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions;
 
+import static org.apache.beam.sdk.transforms.Materializations.ITERABLE_MATERIALIZATION_URN;
+import static org.apache.beam.sdk.transforms.Materializations.MULTIMAP_MATERIALIZATION_URN;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.ArrayList;
+import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.IterableView;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.spark.broadcast.Broadcast;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A {@link SideInputReader} for the Spark Batch Runner. */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
-public class SparkSideInputReader implements SideInputReader {
+/** SideInputReader using broadcasted {@link SideInputValues}. */
+public class SparkSideInputReader implements SideInputReader, Serializable {
+  private static final SideInputReader EMPTY_READER = new EmptyReader();
+
   private static final Set<String> SUPPORTED_MATERIALIZATIONS =
-      ImmutableSet.of(
-          Materializations.ITERABLE_MATERIALIZATION_URN,
-          Materializations.MULTIMAP_MATERIALIZATION_URN);
+      ImmutableSet.of(ITERABLE_MATERIALIZATION_URN, MULTIMAP_MATERIALIZATION_URN);
 
-  private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
-  private final SideInputBroadcast broadcastStateData;
+  // Map of PCollectionView tag id to broadcasted SideInputValues
+  private final Map<String, Broadcast<SideInputValues<?>>> sideInputs;
 
-  public SparkSideInputReader(
-      Map<PCollectionView<?>, WindowingStrategy<?, ?>> indexByView,
-      SideInputBroadcast broadcastStateData) {
-    for (PCollectionView<?> view : indexByView.keySet()) {
+  public static SideInputReader empty() {
+    return EMPTY_READER;
+  }
+
+  /**
+   * Creates a {@link SideInputReader} for Spark from a map of PCollectionView {@link
+   * TupleTag#getId() tag ids} and the corresponding broadcasted {@link SideInputValues}.
+   *
+   * <p>Note, the materialization of respective {@link PCollectionView PCollectionViews} should be
+   * validated ahead of time before any costly creation and broadcast of {@link SideInputValues}.
+   */
+  public static SideInputReader create(Map<String, Broadcast<SideInputValues<?>>> sideInputs) {
+    return sideInputs.isEmpty() ? empty() : new SparkSideInputReader(sideInputs);
+  }
+
+  public static void validateMaterializations(Iterable<PCollectionView<?>> views) {
+    for (PCollectionView<?> view : views) {
+      String viewUrn = view.getViewFn().getMaterialization().getUrn();
       checkArgument(
-          SUPPORTED_MATERIALIZATIONS.contains(view.getViewFn().getMaterialization().getUrn()),
+          SUPPORTED_MATERIALIZATIONS.contains(viewUrn),
           "This handler is only capable of dealing with %s materializations "
               + "but was asked to handle %s for PCollectionView with tag %s.",
           SUPPORTED_MATERIALIZATIONS,
-          view.getViewFn().getMaterialization().getUrn(),
+          viewUrn,
           view.getTagInternal().getId());
     }
-    sideInputs = new HashMap<>();
-    for (Map.Entry<PCollectionView<?>, WindowingStrategy<?, ?>> entry : indexByView.entrySet()) {
-      sideInputs.put(entry.getKey().getTagInternal(), entry.getValue());
-    }
-    this.broadcastStateData = broadcastStateData;
+  }
+
+  private SparkSideInputReader(Map<String, Broadcast<SideInputValues<?>>> sideInputs) {
+    this.sideInputs = sideInputs;
+  }
+
+  private static <V, T> T iterableView(
+      ViewFn<IterableView<V>, T> viewFn, @Nullable List<V> values) {
+    return values != null ? viewFn.apply(() -> values) : viewFn.apply(Collections::emptyList);
+  }
+
+  private static <K, V, T> T multimapView(
+      ViewFn<MultimapView<K, V>, T> viewFn, Coder<K> keyCoder, @Nullable List<KV<K, V>> values) {
+    return values != null && !values.isEmpty()
+        ? viewFn.apply(InMemoryMultimapSideInputView.fromIterable(keyCoder, values))
+        : viewFn.apply(InMemoryMultimapSideInputView.empty());
   }
 
   @Override
+  @SuppressWarnings("unchecked") //
   public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
-    checkNotNull(view, "View passed to sideInput cannot be null");
-    TupleTag<?> tag = view.getTagInternal();
-    checkNotNull(sideInputs.get(tag), "Side input for " + view + " not available.");
+    Broadcast<SideInputValues<?>> broadcast =
+        checkStateNotNull(
+            sideInputs.get(view.getTagInternal().getId()), "View %s not available.", view);
 
-    List<byte[]> sideInputsValues =
-        (List<byte[]>) broadcastStateData.getBroadcastValue(tag.getId()).getValue();
-    Coder<?> coder = broadcastStateData.getCoder(tag.getId());
-
-    List<WindowedValue<?>> decodedValues = new ArrayList<>();
-    for (byte[] value : sideInputsValues) {
-      decodedValues.add((WindowedValue<?>) CoderHelpers.fromByteArray(value, coder));
+    @Nullable List<?> values = broadcast.value().get(window);
+    switch (view.getViewFn().getMaterialization().getUrn()) {
+      case ITERABLE_MATERIALIZATION_URN:
+        return (T) iterableView((ViewFn) view.getViewFn(), values);
+      case MULTIMAP_MATERIALIZATION_URN:
+        Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+        return (T) multimapView((ViewFn) view.getViewFn(), keyCoder, (List) values);
+      default:
+        throw new IllegalStateException(
+            String.format(
+                "Unknown materialization urn '%s'",
+                view.getViewFn().getMaterialization().getUrn()));
     }
-
-    Map<BoundedWindow, T> sideInputs = initializeBroadcastVariable(decodedValues, view);
-    T result = sideInputs.get(window);
-    if (result == null) {
-      switch (view.getViewFn().getMaterialization().getUrn()) {
-        case Materializations.ITERABLE_MATERIALIZATION_URN:
-          {
-            ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) view.getViewFn();
-            return viewFn.apply(() -> Collections.emptyList());
-          }
-        case Materializations.MULTIMAP_MATERIALIZATION_URN:
-          {
-            ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-            return viewFn.apply(InMemoryMultimapSideInputView.empty());
-          }
-        default:
-          throw new IllegalStateException(
-              String.format(
-                  "Unknown side input materialization format requested '%s'",
-                  view.getViewFn().getMaterialization().getUrn()));
-      }
-    }
-    return result;
   }
 
   @Override
   public <T> boolean contains(PCollectionView<T> view) {
-    return sideInputs.containsKey(view.getTagInternal());
+    return sideInputs.containsKey(view.getTagInternal().getId());
   }
 
   @Override
@@ -127,60 +128,20 @@ public class SparkSideInputReader implements SideInputReader {
     return sideInputs.isEmpty();
   }
 
-  private <T> Map<BoundedWindow, T> initializeBroadcastVariable(
-      Iterable<WindowedValue<?>> inputValues, PCollectionView<T> view) {
-
-    // first partition into windows
-    Map<BoundedWindow, List<WindowedValue<?>>> partitionedElements = new HashMap<>();
-    for (WindowedValue<?> value : inputValues) {
-      for (BoundedWindow window : value.getWindows()) {
-        List<WindowedValue<?>> windowedValues =
-            partitionedElements.computeIfAbsent(window, k -> new ArrayList<>());
-        windowedValues.add(value);
-      }
+  private static class EmptyReader implements SideInputReader, Serializable {
+    @Override
+    public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
+      throw new IllegalArgumentException("Cannot get view from empty SideInputReader");
     }
 
-    Map<BoundedWindow, T> resultMap = new HashMap<>();
-
-    for (Map.Entry<BoundedWindow, List<WindowedValue<?>>> elements :
-        partitionedElements.entrySet()) {
-
-      switch (view.getViewFn().getMaterialization().getUrn()) {
-        case Materializations.ITERABLE_MATERIALIZATION_URN:
-          {
-            ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) view.getViewFn();
-            resultMap.put(
-                elements.getKey(),
-                viewFn.apply(
-                    () ->
-                        elements.getValue().stream()
-                            .map(WindowedValue::getValue)
-                            .collect(Collectors.toList())));
-          }
-          break;
-        case Materializations.MULTIMAP_MATERIALIZATION_URN:
-          {
-            ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-            Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-            resultMap.put(
-                elements.getKey(),
-                viewFn.apply(
-                    InMemoryMultimapSideInputView.fromIterable(
-                        keyCoder,
-                        (Iterable)
-                            elements.getValue().stream()
-                                .map(WindowedValue::getValue)
-                                .collect(Collectors.toList()))));
-          }
-          break;
-        default:
-          throw new IllegalStateException(
-              String.format(
-                  "Unknown side input materialization format requested '%s'",
-                  view.getViewFn().getMaterialization().getUrn()));
-      }
+    @Override
+    public <T> boolean contains(PCollectionView<T> view) {
+      return false;
     }
 
-    return resultMap;
+    @Override
+    public boolean isEmpty() {
+      return true;
+    }
   }
 }

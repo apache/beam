@@ -107,8 +107,8 @@ func TryCoGroupByKey(s Scope, cols ...PCollection) (PCollection, error) {
 // while the output file is written with a smaller amount of
 // parallelism, using the following pattern:
 //
-//   pc := bigHairyComputationNeedingParallelism(scope) // PCollection<string>
-//   resharded := beam.Reshuffle(scope, pc)                // PCollection<string>
+//	pc := bigHairyComputationNeedingParallelism(scope) // PCollection<string>
+//	resharded := beam.Reshuffle(scope, pc)                // PCollection<string>
 //
 // Another use case is when one has a non-deterministic DoFn followed by one
 // that performs externally-visible side effects. Inserting a Reshuffle

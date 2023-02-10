@@ -46,7 +46,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-abstract class BigtableConfig implements Serializable {
+public abstract class BigtableConfig implements Serializable {
 
   enum CredentialType {
     DEFAULT,
@@ -57,13 +57,13 @@ abstract class BigtableConfig implements Serializable {
   }
 
   /** Returns the project id being written to. */
-  abstract @Nullable ValueProvider<String> getProjectId();
+  public abstract @Nullable ValueProvider<String> getProjectId();
 
   /** Returns the instance id being written to. */
-  abstract @Nullable ValueProvider<String> getInstanceId();
+  public abstract @Nullable ValueProvider<String> getInstanceId();
 
-  /** Returns the app profile id of this workload. */
-  abstract @Nullable ValueProvider<String> getAppProfileId();
+  /** Returns the app profile being read from. */
+  public abstract @Nullable ValueProvider<String> getAppProfileId();
 
   /**
    * Returns the Google Cloud Bigtable instance being written to, and other parameters.
@@ -127,12 +127,12 @@ abstract class BigtableConfig implements Serializable {
     abstract BigtableConfig build();
   }
 
-  BigtableConfig withProjectId(ValueProvider<String> projectId) {
+  public BigtableConfig withProjectId(ValueProvider<String> projectId) {
     checkArgument(projectId != null, "Project Id of BigTable can not be null");
     return toBuilder().setProjectId(projectId).build();
   }
 
-  BigtableConfig withInstanceId(ValueProvider<String> instanceId) {
+  public BigtableConfig withInstanceId(ValueProvider<String> instanceId) {
     checkArgument(instanceId != null, "Instance Id of BigTable can not be null");
     return toBuilder().setInstanceId(instanceId).build();
   }
@@ -142,31 +142,33 @@ abstract class BigtableConfig implements Serializable {
     return toBuilder().setAppProfileId(appProfileId).build();
   }
 
-  /** @deprecated will be replaced by bigtable options configurator. */
+  /** @deprecated please set the options directly in BigtableIO */
   @Deprecated
-  BigtableConfig withBigtableOptions(BigtableOptions options) {
+  public BigtableConfig withBigtableOptions(BigtableOptions options) {
     checkArgument(options != null, "Bigtable options can not be null");
     return toBuilder().setBigtableOptions(options).build();
   }
 
-  BigtableConfig withBigtableOptionsConfigurator(
+  /** @deprecated please set the options directly in BigtableIO. */
+  @Deprecated
+  public BigtableConfig withBigtableOptionsConfigurator(
       SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
     checkArgument(configurator != null, "configurator can not be null");
     return toBuilder().setBigtableOptionsConfigurator(configurator).build();
   }
 
-  BigtableConfig withValidate(boolean isEnabled) {
+  public BigtableConfig withValidate(boolean isEnabled) {
     return toBuilder().setValidate(isEnabled).build();
   }
 
   @VisibleForTesting
-  BigtableConfig withBigtableService(BigtableService bigtableService) {
+  public BigtableConfig withBigtableService(BigtableService bigtableService) {
     checkArgument(bigtableService != null, "bigtableService can not be null");
     return toBuilder().setBigtableService(bigtableService).build();
   }
 
   @VisibleForTesting
-  BigtableConfig withEmulator(String emulatorHost) {
+  public BigtableConfig withEmulator(String emulatorHost) {
     checkArgument(emulatorHost != null, "emulatorHost can not be null");
     return toBuilder().setEmulatorHost(emulatorHost).build();
   }
@@ -199,7 +201,9 @@ abstract class BigtableConfig implements Serializable {
             DisplayData.item("projectId", getProjectId()).withLabel("Bigtable Project Id"))
         .addIfNotNull(
             DisplayData.item("instanceId", getInstanceId()).withLabel("Bigtable Instance Id"))
-        .add(DisplayData.item("withValidation", getValidate()).withLabel("Check is table exists"));
+        .addIfNotNull(
+            DisplayData.item("appProfileId", getAppProfileId())
+                .withLabel("Bigtable App Profile Id"));
 
     if (getBigtableOptions() != null) {
       builder.add(

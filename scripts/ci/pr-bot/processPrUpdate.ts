@@ -75,20 +75,19 @@ async function processPrComment(
   const commentContents = payload.comment.body;
   const commentAuthor = payload.sender.login;
   const pullAuthor = getPullAuthorFromPayload(payload);
+  console.log(commentContents);
+  const processedCommand = await processCommand(
+    payload,
+    commentAuthor,
+    commentContents,
+    stateClient,
+    reviewerConfig
+  );
   // If there's been a comment by a non-author, we can remove the slow review label
   if (commentAuthor !== pullAuthor && commentAuthor !== BOT_NAME) {
     await removeSlowReviewLabel(payload);
   }
-  console.log(commentContents);
-  if (
-    await processCommand(
-      payload,
-      commentAuthor,
-      commentContents,
-      stateClient,
-      reviewerConfig
-    )
-  ) {
+  if (processedCommand) {
     // If we've processed a command, don't worry about trying to change the attention set.
     // This is not a meaningful push or comment from the author.
     console.log("Processed command");

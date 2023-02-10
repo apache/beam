@@ -24,7 +24,7 @@ import (
 
 func TestIsIter(t *testing.T) {
 	tests := []struct {
-		Fn  interface{}
+		Fn  any
 		Exp bool
 	}{
 		{func(*int) {}, false},                                // no return
@@ -51,7 +51,7 @@ func TestIsIter(t *testing.T) {
 
 func TestIsReIter(t *testing.T) {
 	tests := []struct {
-		Fn  interface{}
+		Fn  any
 		Exp bool
 	}{
 		{func() bool { return false }, false},                                      // not returning an Iter
@@ -71,7 +71,7 @@ func TestIsReIter(t *testing.T) {
 
 func TestIsMultiMap(t *testing.T) {
 	tests := []struct {
-		Fn  interface{}
+		Fn  any
 		Exp bool
 	}{
 		{func(int) func(*int) bool { return nil }, true},

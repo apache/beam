@@ -46,8 +46,8 @@ public final class SamzaPipelineTranslatorUtils {
   /**
    * Escape the non-alphabet chars in the name so we can create a physical stream out of it.
    *
-   * <p>This escape will replace ".", "(" and "/" as "-", and then remove all the other
-   * non-alphabetic characters.
+   * <p>This escape will replace any non-alphanumeric characters other than "-" and "_" with "_"
+   * including whitespace.
    */
   public static String escape(String name) {
     return name.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1").replaceAll("[^A-Za-z0-9_-]", "_");

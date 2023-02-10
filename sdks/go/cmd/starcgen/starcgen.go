@@ -21,15 +21,15 @@
 // reflection based shims used by beam. Reflection is convenient for development,
 // but is an unnecessary expense on pipeline performance.
 //
-// Using This Tool
+// # Using This Tool
 //
 // This tool is intended for use with `go generate`. The recommended convention
 // putting the types and functions used in a separate package from pipeline construction.
 // Then, the tool can be used as follows:
 //
-//   //go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
-//   //go:generate starcgen --package=<mypackagename>
-//   //go:generate go fmt
+//	//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
+//	//go:generate starcgen --package=<mypackagename>
+//	//go:generate go fmt
 //
 // This will generate registrations and shim types for all types and functions
 // in the package, in a file `<mypackagename>.shims.go`.
@@ -37,10 +37,9 @@
 // Alternatively, it's possible to specify the specific input files and identifiers within
 // the package for generation.
 //
-//   //go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
-//   //go:generate starcgen --package=<mypackagename> --inputs=foo.go --identifiers=myFn,myStructFn --output=custom.shims.go
-//   //go:generate go fmt
-//
+//	//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
+//	//go:generate starcgen --package=<mypackagename> --inputs=foo.go --identifiers=myFn,myStructFn --output=custom.shims.go
+//	//go:generate go fmt
 package main
 
 import (

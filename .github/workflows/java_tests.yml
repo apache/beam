@@ -18,38 +18,37 @@
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
 name: Java Tests
-
 on:
   workflow_dispatch:
     inputs:
       runDataflow:
         description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
-        default: false
+        default: 'false'
+        required: false
   schedule:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
             'examples/kotlin/**', 'release/**', 'buildSrc/**']
-
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
-
 jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables set"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out code
+        uses: actions/checkout@v3
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -67,14 +66,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
-      # :sdks:java:core:test
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
+        with:
+          requires-py-38: false
+          requires-py-39: false
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml
+        # :sdks:java:core:test
       - name: Run :sdks:java:core:test
         uses: ./.github/actions/gradle-command-action
         with:
@@ -116,17 +125,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Install go
-        uses: actions/setup-go@v3
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
         with:
-          go-version: '1.16.12'
+          requires-py-38: false
+          requires-py-39: false
+
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml
       - name: Run WordCount Unix
         uses: ./.github/actions/gradle-command-action
         with:
@@ -145,25 +161,26 @@ jobs:
     needs:
       - check_gcp_variables
     runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [[self-hosted, ubuntu-20.04],[self-hosted, windows-server-2019]]
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
         (github.event_name == 'push' || github.event_name == 'schedule') ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
       )
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Install go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.16.12'
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
+        with: 
+          requires-py-38: false
+          requires-py-39: false
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -171,11 +188,6 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
-      - name: Set Java Version
-        uses: actions/setup-java@v3.6.0
-        with:
-          distribution: 'zulu'
-          java-version: 8
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # gradle-command-action plugin and github's provided maven

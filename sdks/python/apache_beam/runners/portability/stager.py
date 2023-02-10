@@ -374,14 +374,6 @@ class Stager(object):
             Stager._create_file_stage_to_artifact(
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
-    worker_options = options.view_as(WorkerOptions)
-    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
-    if dataflow_worker_jar is not None:
-      jar_staged_filename = 'dataflow-worker.jar'
-      resources.append(
-          Stager._create_file_stage_to_artifact(
-              dataflow_worker_jar, jar_staged_filename))
-
     return resources
 
   def stage_job_resources(self,

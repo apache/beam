@@ -24,35 +24,22 @@ FROM $BASE_IMAGE AS build
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 # Prepare Application
 COPY src /go/src/playground/backend
-
-ARG BEAM_VERSION=2.40.0
-ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
-ENV PIPELINES_FOLDER_NAME="executable_files"
-RUN mkdir -p /opt/playground/ $PREPARED_MOD_DIR
-WORKDIR $PREPARED_MOD_DIR
-
-RUN go mod init $PIPELINES_FOLDER_NAME &&\
-    go get -u github.com/apache/beam/sdks/v2@v$BEAM_VERSION &&\
-    go mod download all
 
 # Build Application
 
 #RUN
 WORKDIR /go/src/playground/backend
-RUN ls
 # Build Application
-RUN go mod download &&\
-    go mod tidy &&\
+RUN go mod tidy -v &&\
+    go mod download &&\
     cd cmd/server &&\
     go build -o /go/bin/server_go_backend
 
 # Null image
-FROM debian:stretch-slim
+FROM debian:stable-20221114-slim
 
 # Install deps being used by sh files
 RUN apt-get update \

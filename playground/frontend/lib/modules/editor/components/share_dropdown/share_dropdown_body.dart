@@ -17,14 +17,22 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tabs/share_tabs.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tabs_headers.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:provider/provider.dart';
+
+import 'share_tabs/share_tabs.dart';
+import 'share_tabs_headers.dart';
 
 const _kTabsCount = 2;
 
 class ShareDropdownBody extends StatefulWidget {
-  const ShareDropdownBody({super.key});
+  final VoidCallback onError;
+  final PlaygroundController playgroundController;
+
+  const ShareDropdownBody({
+    required this.onError,
+    required this.playgroundController,
+  });
 
   @override
   State<ShareDropdownBody> createState() => _ShareDropdownBodyState();
@@ -42,17 +50,23 @@ class _ShareDropdownBodyState extends State<ShareDropdownBody>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TabHeader(
-          tabController: tabController,
-          tabsWidget: ShareTabsHeaders(tabController: tabController),
-        ),
-        Expanded(
-          child: ShareTabs(tabController: tabController),
-        ),
-      ],
+    return ChangeNotifierProvider<PlaygroundController>.value(
+      value: widget.playgroundController,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TabHeader(
+            tabController: tabController,
+            tabsWidget: ShareTabsHeaders(tabController: tabController),
+          ),
+          Expanded(
+            child: ShareTabs(
+              tabController: tabController,
+              onError: widget.onError,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

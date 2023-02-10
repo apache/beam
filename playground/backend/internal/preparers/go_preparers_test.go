@@ -32,7 +32,8 @@ func getPreparedArgs(args ...interface{}) []interface{} {
 
 func TestGetGoPreparers(t *testing.T) {
 	type args struct {
-		filePath string
+		filePath      string
+		prepareParams map[string]string
 	}
 	tests := []struct {
 		name string
@@ -42,13 +43,13 @@ func TestGetGoPreparers(t *testing.T) {
 		{
 			// getting the expected preparer
 			name: "Get expected preparer",
-			args: args{filePath: ""},
+			args: args{filePath: "", prepareParams: make(map[string]string)},
 			want: &[]Preparer{{Prepare: formatCode, Args: nil}, {Prepare: changeGoTestFileName, Args: nil}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewPreparersBuilder(tt.args.filePath)
+			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
 			GetGoPreparers(builder, true)
 			if got := builder.Build().GetPreparers(); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
 				t.Errorf("GetGoPreparers() = %v, want %v", got, tt.want)

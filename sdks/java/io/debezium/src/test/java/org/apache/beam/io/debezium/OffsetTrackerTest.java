@@ -51,12 +51,13 @@ public class OffsetTrackerTest implements Serializable {
 
   @Test
   public void testRestrictByAmountOfTime() throws IOException, InterruptedException {
-    long millis = 60 * 1000;
-    long minutesToRun = 1;
     Map<String, Object> position = new HashMap<>();
     KafkaSourceConsumerFn<String> kafkaSourceConsumerFn =
         new KafkaSourceConsumerFn<String>(
-            MySqlConnector.class, new SourceRecordJson.SourceRecordJsonMapper(), minutesToRun);
+            MySqlConnector.class,
+            new SourceRecordJson.SourceRecordJsonMapper(),
+            100000,
+            500L); // Run for 500 ms
     KafkaSourceConsumerFn.OffsetHolder restriction =
         kafkaSourceConsumerFn.getInitialRestriction(new HashMap<>());
     KafkaSourceConsumerFn.OffsetTracker tracker =
@@ -64,7 +65,7 @@ public class OffsetTrackerTest implements Serializable {
 
     assertTrue(tracker.tryClaim(position));
 
-    Thread.sleep(minutesToRun * millis + 100);
+    Thread.sleep(1000); // Sleep for a whole 2 seconds
 
     assertFalse(tracker.tryClaim(position));
   }

@@ -29,6 +29,9 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -190,12 +193,12 @@ func makeName(t string) string {
 	t = strings.Replace(t, ".", "_", -1)
 	t = strings.Replace(t, "[", "_", -1)
 	t = strings.Replace(t, "]", "_", -1)
-	return strings.Title(t)
+	return cases.Title(language.Und, cases.NoLower).String(t)
 }
 
 // Useful template functions
 
-var funcMap template.FuncMap = map[string]interface{}{
+var funcMap template.FuncMap = map[string]any{
 	"join":                                   strings.Join,
 	"upto":                                   upto,
 	"mkargs":                                 mkargs,
@@ -253,8 +256,8 @@ func mult(i int, j int) int {
 	return i * j
 }
 
-func dict(values ...interface{}) map[string]interface{} {
-	dict := make(map[string]interface{}, len(values)/2)
+func dict(values ...any) map[string]any {
+	dict := make(map[string]any, len(values)/2)
 	if len(values)%2 != 0 {
 		panic("Invalid dictionary call")
 	}
@@ -302,7 +305,7 @@ func genericTypingRepresentation(in int, out int, includeType bool) string {
 	return typing
 }
 
-func possibleBundleLifecycleParameterCombos(numInInterface interface{}, processElementInInterface interface{}) [][]string {
+func possibleBundleLifecycleParameterCombos(numInInterface any, processElementInInterface any) [][]string {
 	numIn := numInInterface.(int)
 	processElementIn := processElementInInterface.(int)
 	orderedKnownParameterOptions := []string{"context.Context", "typex.PaneInfo", "[]typex.Window", "typex.EventTime", "typex.BundleFinalization"}

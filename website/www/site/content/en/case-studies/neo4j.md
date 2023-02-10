@@ -1,6 +1,6 @@
 ---
 title:  "Neo4j"
-icon: /images/logos/powered-by/neo4j.svg
+icon: /images/logos/powered-by/neo4j.png
 hasNav: true
 hasLink: "https://www.youtube.com/watch?v=a5rx0_c4RXQ&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=31"
 ---

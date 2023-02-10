@@ -24,22 +24,22 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum']
-
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
-
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
+    name: Go Build
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
       - uses: actions/setup-go@v3
@@ -59,19 +59,9 @@ jobs:
       - name: Run vet
         run: | 
           cd sdks/go/pkg/beam 
-          VOUT=$(go vet --copylocks=false --unsafeptr=false ./...)
-          if [ -n "$VOUT" ]; then 
-            echo -e "Run go vet and fix warnings before checking in changes\n"
-            echo -e "Vet Warnings:\n"
-            echo -e "$VOUT" && exit 1
-          fi
+          go vet --copylocks=false --unsafeptr=false ./...
       - name: Run Staticcheck
         run: |
           go install "honnef.co/go/tools/cmd/staticcheck@2022.1"
           cd sdks/go/pkg/beam
-          RESULTS=$($(go env GOPATH)/bin/staticcheck ./...)
-          if [ -n "$RESULTS" ]; then 
-            echo -e "Please address Staticcheck warnings before checking in changes\n"
-            echo -e "Staticcheck Warnings:\n"
-            echo -e "$RESULTS" && exit 1
-          fi
+          $(go env GOPATH)/bin/staticcheck ./...

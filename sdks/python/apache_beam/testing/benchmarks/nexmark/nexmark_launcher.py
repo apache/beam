@@ -128,7 +128,7 @@ class NexmarkLauncher(object):
       logging.info('creating sub %s', self.topic_name)
       sub.create()
 
-    self.export_influxdb = self.args.export_summary_to_influxdb
+    self.export_influxdb = self.args.export_summary_to_influx_db
     if self.export_influxdb:
       self.influx_database = self.args.influx_database
       self.influx_host = self.args.influx_host
@@ -183,7 +183,7 @@ class NexmarkLauncher(object):
         help='Pubsub mode used in the pipeline.')
 
     parser.add_argument(
-        '--export_summary_to_influxdb',
+        '--export_summary_to_influx_db',
         default=False,
         action='store_true',
         help='If set store results in influxdb')

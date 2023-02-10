@@ -57,24 +57,24 @@ public class ReflectUtils {
   @AutoValue
   @Experimental(Kind.SCHEMAS)
   public abstract static class ClassWithSchema {
-    public abstract Class getClazz();
+    public abstract Class<?> getClazz();
 
     public abstract Schema getSchema();
 
-    public static ClassWithSchema create(Class clazz, Schema schema) {
+    public static ClassWithSchema create(Class<?> clazz, Schema schema) {
       return new AutoValue_ReflectUtils_ClassWithSchema(clazz, schema);
     }
   }
 
-  private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
-  private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
-  private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
+  private static final Map<Class<?>, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
+  private static final Map<Class<?>, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
+  private static final Map<Class<?>, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
 
   /**
    * Returns the list of non private/protected, non-static methods in the class, caching the
    * results.
    */
-  public static List<Method> getMethods(Class clazz) {
+  public static List<Method> getMethods(Class<?> clazz) {
     return DECLARED_METHODS.computeIfAbsent(
         clazz,
         c -> {
@@ -89,11 +89,11 @@ public class ReflectUtils {
         });
   }
 
-  public static Multimap<String, Method> getMethodsMap(Class clazz) {
+  public static Multimap<String, Method> getMethodsMap(Class<?> clazz) {
     return Multimaps.index(getMethods(clazz), Method::getName);
   }
 
-  public static @Nullable Constructor getAnnotatedConstructor(Class clazz) {
+  public static @Nullable Constructor getAnnotatedConstructor(Class<?> clazz) {
     return Arrays.stream(clazz.getDeclaredConstructors())
         .filter(m -> !Modifier.isPrivate(m.getModifiers()))
         .filter(m -> !Modifier.isProtected(m.getModifiers()))
@@ -102,7 +102,7 @@ public class ReflectUtils {
         .orElse(null);
   }
 
-  public static @Nullable Method getAnnotatedCreateMethod(Class clazz) {
+  public static @Nullable Method getAnnotatedCreateMethod(Class<?> clazz) {
     return ANNOTATED_CONSTRUCTORS.computeIfAbsent(
         clazz,
         c -> {

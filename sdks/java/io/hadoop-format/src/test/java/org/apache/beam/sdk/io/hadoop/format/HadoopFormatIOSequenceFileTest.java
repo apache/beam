@@ -29,10 +29,13 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -93,11 +96,63 @@ public class HadoopFormatIOSequenceFileTest {
           (KV<String, Long> element) ->
               KV.of(new Text(element.getKey()), new LongWritable(element.getValue()));
 
+  /**
+   * \p{L} denotes the category of Unicode letters, so this pattern will match on everything that is
+   * not a letter.
+   *
+   * <p>It is used for tokenizing strings in the wordcount examples.
+   */
+  private static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
+
   private static Map<String, Long> computeWordCounts(List<String> sentences) {
     return sentences.stream()
         .flatMap(s -> Stream.of(s.split("\\W+")))
         .map(String::toLowerCase)
         .collect(Collectors.toMap(Function.identity(), s -> 1L, Long::sum));
+  }
+
+  /**
+   * A PTransform that converts a PCollection containing lines of text into a PCollection of
+   * formatted word counts.
+   */
+  private static class CountWords
+      extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
+    @Override
+    public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
+
+      // Convert lines of text into individual words.
+      PCollection<String> words = lines.apply(ParDo.of(new ExtractWordsFn()));
+
+      // Count the number of times each word occurs.
+      return words.apply(Count.perElement());
+    }
+  }
+
+  /**
+   * This DoFn tokenizes lines of text into individual words; we pass it to a ParDo in the pipeline.
+   */
+  private static class ExtractWordsFn extends DoFn<String, String> {
+    private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
+    private final Distribution lineLenDist =
+        Metrics.distribution(ExtractWordsFn.class, "lineLenDistro");
+
+    @ProcessElement
+    public void processElement(@Element String element, OutputReceiver<String> receiver) {
+      lineLenDist.update(element.length());
+      if (element.trim().isEmpty()) {
+        emptyLines.inc();
+      }
+
+      // Split the line into words.
+      String[] words = element.split(TOKENIZER_PATTERN, -1);
+
+      // Output each word encountered into the output PCollection.
+      for (String word : words) {
+        if (!word.isEmpty()) {
+          receiver.output(word);
+        }
+      }
+    }
   }
 
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -158,7 +213,7 @@ public class HadoopFormatIOSequenceFileTest {
     pipeline
         .apply(Create.of(SENTENCES))
         .apply(ParDo.of(new ConvertToLowerCaseFn()))
-        .apply(new WordCount.CountWords())
+        .apply(new CountWords())
         .apply(
             "ConvertToHadoopFormat",
             ParDo.of(new ConvertToHadoopFormatFn<>(KV_STR_INT_2_TXT_LONGWRITABLE)))
@@ -268,7 +323,7 @@ public class HadoopFormatIOSequenceFileTest {
             .apply(stringsStream)
             .apply(Window.into(FixedWindows.of(WINDOW_DURATION)))
             .apply(ParDo.of(new ConvertToLowerCaseFn()))
-            .apply(new WordCount.CountWords())
+            .apply(new CountWords())
             .apply(
                 "ConvertToHadoopFormat",
                 ParDo.of(new ConvertToHadoopFormatFn<>(KV_STR_INT_2_TXT_LONGWRITABLE)))

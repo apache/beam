@@ -217,21 +217,21 @@ func TestParDo_WindowObservation(t *testing.T) {
 func TestProcessSingleWindow_withOutputs(t *testing.T) {
 	tests := []struct {
 		name           string
-		inputFn        interface{}
-		input          []interface{}
-		expectedOutput []interface{}
+		inputFn        any
+		input          []any
+		expectedOutput []any
 	}{
 		{
 			"forwarding case",
 			func(a string) (string, error) { return a, nil },
-			[]interface{}{"a", "b", "c"},
-			[]interface{}{"a", "b", "c"},
+			[]any{"a", "b", "c"},
+			[]any{"a", "b", "c"},
 		},
 		{
 			"continuation case",
 			func(a string) (string, sdf.ProcessContinuation, error) { return a, sdf.StopProcessing(), nil },
-			[]interface{}{"a", "b", "c"},
-			[]interface{}{"a", "b", "c"},
+			[]any{"a", "b", "c"},
+			[]any{"a", "b", "c"},
 		},
 	}
 	for _, test := range tests {
@@ -348,7 +348,7 @@ func TestProcessSingleWindow_errorCase(t *testing.T) {
 	}
 }
 
-func makeInputsWithUnfinishedRestrictions(values ...interface{}) []MainInput {
+func makeInputsWithUnfinishedRestrictions(values ...any) []MainInput {
 	initial := makeInput(values...)
 	var restrictedIns []MainInput
 	for _, mainIn := range initial {
@@ -411,7 +411,7 @@ func (fn *noReturnSplittable) ProcessElement(rt *sdf.LockRTracker, a string, emi
 func TestProcessSingleWindow_dataLossCase(t *testing.T) {
 	tests := []struct {
 		name    string
-		inputFn interface{}
+		inputFn any
 		input   *MainInput
 	}{
 		{

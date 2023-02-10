@@ -37,11 +37,11 @@ import (
 //
 // Providers have three tasks with respect to a given supported logical type:
 //
-//   * Producing schema representative types for their logical types.
-//   * Producing schema encoders for values of that type, writing beam
-//   schema encoded bytes for a value, matching the schema representative type.
-//   * Producing schema decoders for values of that type, reading beam
-//   schema encoded bytes, and producing a value of that type.
+//   - Producing schema representative types for their logical types.
+//   - Producing schema encoders for values of that type, writing beam
+//     schema encoded bytes for a value, matching the schema representative type.
+//   - Producing schema decoders for values of that type, reading beam
+//     schema encoded bytes, and producing a value of that type.
 //
 // Representative Schema types must be structs with only exported fields.
 //
@@ -54,7 +54,7 @@ import (
 //
 // RegisterSchemaProvider must be called before beam.Init(), and conventionally
 // is called in a package init() function.
-func RegisterSchemaProvider(rt reflect.Type, provider interface{}) {
+func RegisterSchemaProvider(rt reflect.Type, provider any) {
 	p := provider.(SchemaProvider)
 	switch rt.Kind() {
 	case reflect.Interface:
@@ -84,7 +84,7 @@ func RegisterSchemaProvider(rt reflect.Type, provider interface{}) {
 //
 // RegisterSchemaProviderWithURN must be called before beam.Init(), and conventionally
 // is called in a package init() function.
-func RegisterSchemaProviderWithURN(rt reflect.Type, provider interface{}, urn string) {
+func RegisterSchemaProviderWithURN(rt reflect.Type, provider any, urn string) {
 	p := provider.(SchemaProvider)
 	st, err := p.FromLogicalType(rt)
 	if err != nil {
@@ -102,6 +102,6 @@ func RegisterSchemaProviderWithURN(rt reflect.Type, provider interface{}, urn st
 // Sepearated out the acting type from the provider implementation is good.
 type SchemaProvider interface {
 	FromLogicalType(reflect.Type) (reflect.Type, error)
-	BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error)
-	BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error)
+	BuildEncoder(rt reflect.Type) (func(any, io.Writer) error, error)
+	BuildDecoder(rt reflect.Type) (func(io.Reader) (any, error), error)
 }

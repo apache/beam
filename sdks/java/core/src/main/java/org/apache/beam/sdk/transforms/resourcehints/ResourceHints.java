@@ -259,7 +259,7 @@ public class ResourceHints {
           newHints.put(outerHint);
         }
       }
-      for (Map.Entry hint : hints.entrySet()) {
+      for (Map.Entry<String, ResourceHint> hint : hints.entrySet()) {
         if (!outer.hints.containsKey(hint.getKey())) {
           newHints.put(hint);
         }

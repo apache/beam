@@ -51,7 +51,7 @@ func Info(ctx context.Context, endpoint string) (*fnpb.ProvisionInfo, error) {
 }
 
 // OptionsToProto converts pipeline options to a proto struct via JSON.
-func OptionsToProto(v interface{}) (*google_pb.Struct, error) {
+func OptionsToProto(v any) (*google_pb.Struct, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func JSONToProto(data string) (*google_pb.Struct, error) {
 }
 
 // ProtoToOptions converts pipeline options from a proto struct via JSON.
-func ProtoToOptions(opt *google_pb.Struct, v interface{}) error {
+func ProtoToOptions(opt *google_pb.Struct, v any) error {
 	data, err := ProtoToJSON(opt)
 	if err != nil {
 		return err

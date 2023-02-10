@@ -62,7 +62,7 @@ func TestPartition(t *testing.T) {
 	tests := []struct {
 		in   []int
 		n    int
-		fn   interface{}
+		fn   any
 		out0 []int
 	}{
 		{
@@ -122,7 +122,7 @@ func TestPartitionKV(t *testing.T) {
 	tests := []struct {
 		in   []kvIntInt
 		n    int
-		fn   interface{}
+		fn   any
 		out0 []kvIntInt
 	}{
 		{
@@ -156,7 +156,7 @@ func TestPartitionFailures(t *testing.T) {
 	tests := []struct {
 		in []int
 		n  int
-		fn interface{}
+		fn any
 	}{
 		{
 			[]int{1, 2},
@@ -189,7 +189,7 @@ func TestPartitionFlattenIdentity(t *testing.T) {
 	tests := []struct {
 		in []int
 		n  int
-		fn interface{}
+		fn any
 	}{
 		{
 			[]int{1, 2, 3, 4},

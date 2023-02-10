@@ -48,9 +48,9 @@ class _SplitViewState extends State<SplitView> {
   double _ratio = defaultRatio;
   double _maxSize = 0;
 
-  get _sizeFirst => _ratio * _maxSize;
+  int get _sizeFirst => (_ratio * _maxSize).toInt();
 
-  get _sizeSecond => (1 - _ratio) * _maxSize;
+  int get _sizeSecond => ((1 - _ratio) * _maxSize).toInt();
 
   get _isHorizontal => widget.direction == Axis.horizontal;
 
@@ -78,13 +78,13 @@ class _SplitViewState extends State<SplitView> {
       width: constraints.maxWidth,
       child: Row(
         children: <Widget>[
-          SizedBox(
-            width: _sizeFirst,
+          Expanded(
+            flex: _sizeFirst,
             child: widget.first,
           ),
           _buildSeparator(context),
-          SizedBox(
-            width: _sizeSecond,
+          Expanded(
+            flex: _sizeSecond,
             child: widget.second,
           ),
         ],
@@ -98,13 +98,13 @@ class _SplitViewState extends State<SplitView> {
       height: constraints.maxHeight,
       child: Column(
         children: <Widget>[
-          SizedBox(
-            height: _sizeFirst,
+          Expanded(
+            flex: _sizeFirst,
             child: widget.first,
           ),
           _buildSeparator(context),
-          SizedBox(
-            height: _sizeSecond,
+          Expanded(
+            flex: _sizeSecond,
             child: widget.second,
           ),
         ],

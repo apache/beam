@@ -1914,6 +1914,7 @@ public class BigQueryIO {
         .setPropagateSuccessful(true)
         .setAutoSchemaUpdate(false)
         .setDeterministicRecordIdFn(null)
+        .setMaxRetryJobs(1000)
         .build();
   }
 
@@ -2044,6 +2045,8 @@ public class BigQueryIO {
 
     abstract Boolean getIgnoreInsertIds();
 
+    abstract int getMaxRetryJobs();
+
     abstract @Nullable String getKmsKey();
 
     abstract Boolean getOptimizeWrites();
@@ -2146,6 +2149,8 @@ public class BigQueryIO {
 
       @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
+      abstract Builder<T> setMaxRetryJobs(int maxRetryJobs);
 
       abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
 
@@ -2656,6 +2661,11 @@ public class BigQueryIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    /** If set, this will set the max number of retry of batch load jobs. */
+    public Write<T> withMaxRetryJobs(int maxRetryJobs) {
+      return toBuilder().setMaxRetryJobs(maxRetryJobs).build();
+    }
+
     /**
      * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
      * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. By
@@ -2876,6 +2886,15 @@ public class BigQueryIO {
         checkArgument(
             !getAutoSchemaUpdate(),
             "withAutoSchemaUpdate only supported when using storage-api writes.");
+      }
+
+      if (getAutoSchemaUpdate()) {
+        // TODO(reuvenlax): Remove this restriction once we implement support.
+        checkArgument(
+            getIgnoreUnknownValues(),
+            "Auto schema update currently only supported when ignoreUnknownValues also set.");
+        checkArgument(
+            !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
       }
 
       if (method != Write.Method.FILE_LOADS) {
@@ -3144,7 +3163,7 @@ public class BigQueryIO {
         // When running in streaming (unbounded mode) we want to retry failed load jobs
         // indefinitely. Failing the bundle is expensive, so we set a fairly high limit on retries.
         if (IsBounded.UNBOUNDED.equals(input.isBounded())) {
-          batchLoads.setMaxRetryJobs(1000);
+          batchLoads.setMaxRetryJobs(getMaxRetryJobs());
         }
         batchLoads.setTriggeringFrequency(getTriggeringFrequency());
         if (getAutoSharding()) {
@@ -3172,11 +3191,12 @@ public class BigQueryIO {
                   dynamicDestinations,
                   tableRowWriterFactory.getToRowFn(),
                   getCreateDisposition(),
-                  getIgnoreUnknownValues());
+                  getIgnoreUnknownValues(),
+                  getAutoSchemaUpdate());
         }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =
-            new StorageApiLoads<DestinationT, T>(
+            new StorageApiLoads<>(
                 destinationCoder,
                 storageApiDynamicDestinations,
                 getCreateDisposition(),
@@ -3185,7 +3205,9 @@ public class BigQueryIO {
                 getBigQueryServices(),
                 getStorageApiNumStreams(bqOptions),
                 method == Method.STORAGE_API_AT_LEAST_ONCE,
-                getAutoSharding());
+                getAutoSharding(),
+                getAutoSchemaUpdate(),
+                getIgnoreUnknownValues());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

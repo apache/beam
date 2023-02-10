@@ -22,7 +22,7 @@ limitations under the License.
 
 ## Intro
 
-[Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) allows a
+[Beam SQL](/documentation/dsls/sql/overview/) allows a
 Beam user to query PCollections with SQL statements.
 [Interactive Beam](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/runners/interactive#interactive-beam)
 provides an integration between Apache Beam and
@@ -174,7 +174,7 @@ element_type like `BeamSchema_...(id: int32, str: str, flt: float64)`.
 PCollection because the `beam_sql` magic always implicitly creates a pipeline to
 execute your SQL query. To hold the elements with each field's type info, Beam
 automatically creates a
-[schema](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
+[schema](/documentation/programming-guide/#what-is-a-schema)
 as the `element_type` for the created PCollection. You will learn more about
 schema-aware PCollections later.
 
@@ -221,7 +221,7 @@ always check the content of a PCollection by invoking `ib.show(pcoll_name)` or
 The `beam_sql` magic provides the flexibility to seamlessly mix SQL and non-SQL
 Beam statements to build pipelines and even run them on Dataflow. However, each
 PCollection queried by Beam SQL needs to have a
-[schema](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema).
+[schema](/documentation/programming-guide/#what-is-a-schema).
 For the `beam_sql` magic, it’s recommended to use `typing.NamedTuple` when a
 schema is desired. You can go through the below example to learn more details
 about schema-aware PCollections.
@@ -788,7 +788,7 @@ you to learn Beam SQL and mix Beam SQL into prototyping and productionizing (
 e.g., to Dataflow) your Beam pipelines with minimum setups.
 
 For more details about the Beam SQL syntax, check out the Beam Calcite SQL
-[compatibility](https://beam.apache.org/documentation/dsls/sql/calcite/overview/)
+[compatibility](/documentation/dsls/sql/calcite/overview/)
 and the Apache Calcite SQL
 [syntax](https://calcite.apache.org/docs/reference.html).
 

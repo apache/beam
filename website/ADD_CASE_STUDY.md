@@ -28,18 +28,21 @@ If you have any questions about adding a case study, please send an email to dev
 
 Following properties determine how your case-study will looks on [Apache Beam case studies](https://beam.apache.org/case-studies/) listing and the case study page itself.
 
-| Field             | Description                                                                                             |
-|-------------------|---------------------------------------------------------------------------------------------------------|
-| `title`           | Case study title, usually 4-12 words                                                                    |
-| `name`            | Company or project name                                                                                 |
-| `icon`            | Relative path to the company/project logo e.g. "/images/logos/powered-by/company_name.png"              |
-| `category`        | `study` for case studies                                                                                |
-| `cardTitle`       | Case study card title for Apache Beam [case studies](https://beam.apache.org/case-studies/) page        |
-| `cardDescription` | Description for [case studies](https://beam.apache.org/case-studies/) page, usually 30-40 words         |
-| `authorName`      | Case study author                                                                                       |
-| `authorPosition`  | Case study author role                                                                                  |
-| `authorImg`       | Relative path for case study author photo, e.g. "/images/case-study/company/authorImg.png"              |
-| `publishDate`     | Case study publish date for sorting at [case studies](https://beam.apache.org/case-studies/), e.g. `2022-10-14T01:56:00+00:00` |
+| Field                 | Description                                                                                                                    |
+|-----------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| `title`               | Case study title, usually 4-12 words                                                                                           |
+| `name`                | Company or project name                                                                                                        |
+| `icon`                | Relative path to the company/project logo e.g. "/images/logos/powered-by/company_name.png"                                     |
+| `category`            | `study` for case studies                                                                                                       |
+| `cardTitle`           | Case study card title for Apache Beam [case studies](https://beam.apache.org/case-studies/) page                               |
+| `cardDescription`     | Description for [case studies](https://beam.apache.org/case-studies/) page, usually 30-40 words                                |
+| `authorName`          | Case study author                                                                                                              |
+| `coauthorName`        | Case study additional author, optional param                                                                                   |
+| `authorPosition`      | Case study author role                                                                                                         |
+| `coauthorPosition`    | Case study additional author role, optional param                                                                              |
+| `authorImg`           | Relative path for case study author photo, e.g. "/images/case-study/company/authorImg.png"                                     |
+| `coauthorImg`         | Relative path for case study second author photo, e.g. "/images/case-study/company/authorImg.png", optional param              |
+| `publishDate`         | Case study publish date for sorting at [case studies](https://beam.apache.org/case-studies/), e.g. `2022-10-14T01:56:00+00:00` |
 
 Other sections of the [case study md template](https://github.com/apache/beam/blob/master/website/CASE_STUDY_TEMPLATE.md) are organized to present the case study content.
 

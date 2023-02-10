@@ -56,7 +56,6 @@ func init() {
 // returns a PCollection<t>. You must also register your type with runtime.RegisterType which allows you to implement
 // datastore.PropertyLoadSaver
 //
-//
 // Example:
 // type Item struct {}
 // itemKey = runtime.RegisterType(reflect.TypeOf((*Item)(nil)).Elem())

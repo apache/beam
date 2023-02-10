@@ -55,10 +55,10 @@ func BuildTempWorkerBinary(ctx context.Context) (string, error) {
 // BuildWorkerBinary creates a local worker binary for linux/amd64. It finds the filename
 // by examining the call stack. We want the user entry (*), for example:
 //
-//   /Users/herohde/go/src/github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec/main.go (skip: 2)
-// * /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
-//   /usr/local/go/src/runtime/proc.go (skip: 4)      // not always present
-//   /usr/local/go/src/runtime/asm_amd64.s (skip: 4 or 5)
+//	  /Users/herohde/go/src/github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec/main.go (skip: 2)
+//	* /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
+//	  /usr/local/go/src/runtime/proc.go (skip: 4)      // not always present
+//	  /usr/local/go/src/runtime/asm_amd64.s (skip: 4 or 5)
 func BuildWorkerBinary(ctx context.Context, filename string) error {
 	program := ""
 	var isTest bool

@@ -103,7 +103,7 @@ func (f *avroReadFn) ProcessElement(ctx context.Context, filename string, emit f
 
 	val := reflect.New(f.Type.T).Interface()
 	for ar.Scan() {
-		var i interface{}
+		var i any
 		i, err = ar.Read()
 		if err != nil {
 			log.Errorf(ctx, "error reading avro row: %v", err)
@@ -191,7 +191,7 @@ func (w *writeAvroFn) ProcessElement(ctx context.Context, _ int, lines func(*str
 			return err
 		}
 
-		if err := ocfw.Append([]interface{}{native}); err != nil {
+		if err := ocfw.Append([]any{native}); err != nil {
 			log.Errorf(ctx, "error writing avro: %v", err)
 			return err
 		}

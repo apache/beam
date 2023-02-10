@@ -52,7 +52,7 @@ type Payload struct {
 }
 
 // encodeAsRow encodes a struct as a Beam schema Row, to embed within a cross language payload.
-func encodeAsRow(config interface{}) ([]byte, error) {
+func encodeAsRow(config any) ([]byte, error) {
 	rt := reflect.TypeOf(config)
 	enc, err := coder.RowEncoderForStruct(rt)
 	if err != nil {
@@ -85,7 +85,7 @@ func encodeAsSchema(rt reflect.Type) ([]byte, error) {
 // EncodePayload encodes a SchemaIO payload. It takes a location for the SchemaIO's data, an
 // IO-specific configuration struct, and an optional struct representing the Beam schema for the
 // data.
-func EncodePayload(location string, config interface{}, dataSchema reflect.Type) ([]byte, error) {
+func EncodePayload(location string, config any, dataSchema reflect.Type) ([]byte, error) {
 	encCfg, err := encodeAsRow(config)
 	if err != nil {
 		err = errors.WithContext(err, "encoding config for SchemaIO payload")
@@ -110,7 +110,7 @@ func EncodePayload(location string, config interface{}, dataSchema reflect.Type)
 // MustEncodePayload encodes a SchemaIO payload. It takes a location for the SchemaIO's data, an
 // IO-specific configuration struct, and an optional struct representing the Beam schema for the
 // data. Unlike EncodePayload, this panics if an error occurs.
-func MustEncodePayload(location string, config interface{}, dataSchema reflect.Type) []byte {
+func MustEncodePayload(location string, config any, dataSchema reflect.Type) []byte {
 	pl, err := EncodePayload(location, config, dataSchema)
 	if err != nil {
 		panic(err)

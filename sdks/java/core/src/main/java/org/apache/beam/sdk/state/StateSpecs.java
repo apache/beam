@@ -206,7 +206,7 @@ public class StateSpecs {
   }
 
   /**
-   * Create a {@link StateSpec} for a {@link SetState}, optimized for key lookups and writes.
+   * Create a {@link StateSpec} for a {@link MapState}, optimized for key lookups and writes.
    *
    * <p>This method attempts to infer the key and value coders automatically.
    *
@@ -220,7 +220,7 @@ public class StateSpecs {
   }
 
   /**
-   * Create a {@link StateSpec} for a {@link SetState}, optimized for key lookups and writes.
+   * Create a {@link StateSpec} for a {@link MapState}, optimized for key lookups and writes.
    *
    * <p>This method is for storing maps where both the keys and the values are rows with the
    * specified schemas.
@@ -247,6 +247,46 @@ public class StateSpecs {
   public static StateSpec<OrderedListState<Row>> rowOrderedList(Schema valueSchema) {
     return new OrderedListStateSpec<>(RowCoder.of(valueSchema));
   }
+
+  /**
+   * Create a {@link StateSpec} for a {@link MultimapState}, optimized for key lookups, key puts,
+   * and clear.
+   *
+   * <p>This method attempts to infer the key and value coders automatically.
+   *
+   * <p>If the key and value types have schemas registered, then the schemas will be used to encode
+   * the elements.
+   *
+   * @see #multimap(Coder, Coder)
+   */
+  public static <K, V> StateSpec<MultimapState<K, V>> multimap() {
+    return new MultimapStateSpec<>(null, null);
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link MultimapState}, optimized for key lookups, key puts,
+   * and clear.
+   *
+   * <p>This method is for storing multimaps where both the keys and the values are rows with the
+   * specified schemas.
+   *
+   * @see #multimap(Coder, Coder)
+   */
+  public static StateSpec<MultimapState<Row, Row>> rowMultimap(
+      Schema keySchema, Schema valueSchema) {
+    return new MultimapStateSpec<>(RowCoder.of(keySchema), RowCoder.of(valueSchema));
+  }
+
+  /**
+   * Identical to {@link #multimap()}, but with key and value coders explicitly supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
+   */
+  public static <K, V> StateSpec<MultimapState<K, V>> multimap(
+      Coder<K> keyCoder, Coder<V> valueCoder) {
+    return new MultimapStateSpec<>(keyCoder, valueCoder);
+  }
+
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
@@ -723,6 +763,69 @@ public class StateSpecs {
       }
 
       MapStateSpec<?, ?> that = (MapStateSpec<?, ?>) obj;
+      return Objects.equals(this.keyCoder, that.keyCoder)
+          && Objects.equals(this.valueCoder, that.valueCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), keyCoder, valueCoder);
+    }
+  }
+
+  private static class MultimapStateSpec<K, V> implements StateSpec<MultimapState<K, V>> {
+
+    private @Nullable Coder<K> keyCoder;
+    private @Nullable Coder<V> valueCoder;
+
+    private MultimapStateSpec(@Nullable Coder<K> keyCoder, @Nullable Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public MultimapState<K, V> bind(String id, StateBinder visitor) {
+      return visitor.bindMultimap(id, this, keyCoder, valueCoder);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchMultimap(keyCoder, valueCoder);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.keyCoder == null && coders[0] != null) {
+        this.keyCoder = (Coder<K>) coders[0];
+      }
+      if (this.valueCoder == null && coders[1] != null) {
+        this.valueCoder = (Coder<V>) coders[1];
+      }
+    }
+
+    @Override
+    public void finishSpecifying() {
+      if (keyCoder == null || valueCoder == null) {
+        throw new IllegalStateException(
+            "Unable to infer a coder for MultimapState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.multimap(Coder<K> keyCoder, Coder<V> valueCoder) or by registering"
+                + " the coder in the Pipeline's CoderRegistry.");
+      }
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof MultimapStateSpec)) {
+        return false;
+      }
+
+      MultimapStateSpec<?, ?> that = (MultimapStateSpec<?, ?>) obj;
       return Objects.equals(this.keyCoder, that.keyCoder)
           && Objects.equals(this.valueCoder, that.valueCoder);
     }

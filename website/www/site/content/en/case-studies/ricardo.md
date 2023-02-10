@@ -79,7 +79,7 @@ helping their team focus on creating new value for customers and business
 Ricardo’s data intelligence team began modernizing their stack in 2018. They selected frameworks that provide reliable
 and scalable data processing both on-premises and in the cloud. Apache Beam enables users to create pipelines in their
 favorite programming language offering SDKs in Java, Python, Go, SQL, Scala (SCIO).
-A [Beam Runner](https://beam.apache.org/documentation/#available-runners) runs a Beam pipeline on a specific (often
+A [Beam Runner](/documentation/#available-runners) runs a Beam pipeline on a specific (often
 distributed) data processing system. Ricardo selected the Apache Beam Flink runner for executing pipelines on-premises
 and the Dataflow runner as a managed cloud service for the same pipelines developed using Apache Beam Java SDK. Apache
 Flink is well known for its reliability and cost-efficiency and an on-premises cluster was spun up at Ricardo’s
@@ -180,7 +180,7 @@ data science and ML.
 As an eCommerce retailer, Ricardo faces the increasing scale and sophistication of fraud transactions and takes a
 strategic approach by employing Beam pipelines for fraud detection and prevention. Beam pipelines act on an external
 intelligent API to identify the signs of fraudulent behaviour, like device characteristics or user activity. Apache Beam
-[stateful processing](https://beam.apache.org/documentation/programming-guide/#state-and-timers) feature enables Ricardo
+[stateful processing](/documentation/programming-guide/#state-and-timers) feature enables Ricardo
 to apply an associating operation to the streams of data (trigger banishing a user for example). Thus, Apache Beam saves
 Ricardo’s customer care team's time and effort on investigating duplicate cases. It also runs batch pipelines
 to [find linked accounts](https://www.youtube.com/watch?v=LXnh9jNNfYY), associate products to categories by

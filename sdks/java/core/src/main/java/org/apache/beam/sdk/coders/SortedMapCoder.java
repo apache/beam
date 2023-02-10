@@ -117,11 +117,13 @@ public class SortedMapCoder<K extends Comparable<? super K>, V>
 
     SortedMap<K, V> retval = Maps.newTreeMap();
     for (int i = 0; i < size - 1; ++i) {
+      @SuppressWarnings("bound") // confusing error with nested generic bounds
       K key = keyCoder.decode(inStream);
       V value = valueCoder.decode(inStream);
       retval.put(key, value);
     }
 
+    @SuppressWarnings("bound") // confusing error with nested generic bounds
     K key = keyCoder.decode(inStream);
     V value = valueCoder.decode(inStream, context);
     retval.put(key, value);

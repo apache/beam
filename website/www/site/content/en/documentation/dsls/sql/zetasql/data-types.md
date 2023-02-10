@@ -29,7 +29,7 @@ each property applies to:</p>
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Property</th>
@@ -107,7 +107,7 @@ Types</a> for an explanation of join conditions.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Name</th>
@@ -132,7 +132,7 @@ Types</a> for an explanation of join conditions.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Name</th>
@@ -236,7 +236,7 @@ throws an `IllegalArgumentException`.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Name</th>

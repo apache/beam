@@ -22,7 +22,7 @@ limitations under the License.
 
 Hop is a codeless visual development environment for Apache Beam pipelines that
 can run jobs in any Beam runner, such as Dataflow, Flink or Spark. [In a
-previous post](https://beam.apache.org/blog/apache-hop-with-dataflow/), we
+previous post](/blog/apache-hop-with-dataflow/), we
 introduced the desktop version of Apache Hop. Hop also has a web environment,
 Hop Web, that you can run from a container, so you don't have to install
 anything on your computer to use it.
@@ -234,7 +234,7 @@ access your Apache Hop instance.
 You are now ready to use Apache Hop in a web browser!
 
 You can try to replicate the example that was given [in a previous
-post](https://beam.apache.org/blog/apache-hop-with-dataflow/) using Hop web, or
+post](/blog/apache-hop-with-dataflow/) using Hop web, or
 just try to launch any other project from the samples included with Hop:
 
 ![Sample projects in Hop](/images/blog/hop-web-cloud/hop-web-cloud-image5.png)
@@ -300,5 +300,5 @@ nothing, just your favourite web browser.
 
 If you followed the instructions in this post, head over to the post [Running
 Apache Hop visual pipelines with Google Cloud
-Dataflow](https://beam.apache.org/blog/apache-hop-with-dataflow/) to run a
+Dataflow](/blog/apache-hop-with-dataflow/) to run a
 Dataflow pipeline right from your web browser!

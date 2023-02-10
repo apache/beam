@@ -31,6 +31,7 @@ type IContent interface {
 	GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (tob.SdkProgress, error)
 	SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error
 	SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string, userRequest tob.UserCodeRequest) error
+	DeleteProgress(ctx context.Context, uid string) error
 }
 
 type Svc struct {
@@ -101,4 +102,8 @@ func (s *Svc) SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string,
 	}
 
 	return s.Repo.SaveUserSnippetId(ctx, sdk, unitId, uid, savePgSnippet)
+}
+
+func (s *Svc) DeleteProgress(ctx context.Context, uid string) error {
+	return s.Repo.DeleteProgress(ctx, uid)
 }

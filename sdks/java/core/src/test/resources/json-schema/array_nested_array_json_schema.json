@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "properties": {
+    "complexMatrix": {
+      "type": "array",
+      "items": {
+        "type": "array",
+	"items": {
+          "type": "object",
+          "properties": {
+            "real": {"type": "number"},
+	    "imaginary": {"type": "number"}
+	  }
+	}
+      }
+    }
+  }
+}

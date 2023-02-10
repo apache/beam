@@ -45,7 +45,7 @@ func init() {
 	exec.RegisterEmitter(reflect.TypeOf((*func(string, int))(nil)).Elem(), emitMakerStringInt)
 }
 
-func wrapMakerSCombine(fn interface{}) map[string]reflectx.Func {
+func wrapMakerSCombine(fn any) map[string]reflectx.Func {
 	dfn := fn.(*SCombine)
 	return map[string]reflectx.Func{
 		"MergeAccumulators": reflectx.MakeFunc(func(a0 int, a1 int) int { return dfn.MergeAccumulators(a0, a1) }),
@@ -56,7 +56,7 @@ type callerIntIntГInt struct {
 	fn func(int, int) int
 }
 
-func funcMakerIntIntГInt(fn interface{}) reflectx.Func {
+func funcMakerIntIntГInt(fn any) reflectx.Func {
 	f := fn.(func(int, int) int)
 	return &callerIntIntГInt{fn: f}
 }
@@ -69,12 +69,12 @@ func (c *callerIntIntГInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerIntIntГInt) Call(args []interface{}) []interface{} {
+func (c *callerIntIntГInt) Call(args []any) []any {
 	out0 := c.fn(args[0].(int), args[1].(int))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *callerIntIntГInt) Call2x1(arg0, arg1 interface{}) interface{} {
+func (c *callerIntIntГInt) Call2x1(arg0, arg1 any) any {
 	return c.fn(arg0.(int), arg1.(int))
 }
 
@@ -82,7 +82,7 @@ type callerIntГStringInt struct {
 	fn func(int) (string, int)
 }
 
-func funcMakerIntГStringInt(fn interface{}) reflectx.Func {
+func funcMakerIntГStringInt(fn any) reflectx.Func {
 	f := fn.(func(int) (string, int))
 	return &callerIntГStringInt{fn: f}
 }
@@ -95,12 +95,12 @@ func (c *callerIntГStringInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerIntГStringInt) Call(args []interface{}) []interface{} {
+func (c *callerIntГStringInt) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(int))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *callerIntГStringInt) Call1x2(arg0 interface{}) (interface{}, interface{}) {
+func (c *callerIntГStringInt) Call1x2(arg0 any) (any, any) {
 	return c.fn(arg0.(int))
 }
 
@@ -108,7 +108,7 @@ type callerStringIntEmitStringIntГ struct {
 	fn func(string, int, func(string, int))
 }
 
-func funcMakerStringIntEmitStringIntГ(fn interface{}) reflectx.Func {
+func funcMakerStringIntEmitStringIntГ(fn any) reflectx.Func {
 	f := fn.(func(string, int, func(string, int)))
 	return &callerStringIntEmitStringIntГ{fn: f}
 }
@@ -121,12 +121,12 @@ func (c *callerStringIntEmitStringIntГ) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerStringIntEmitStringIntГ) Call(args []interface{}) []interface{} {
+func (c *callerStringIntEmitStringIntГ) Call(args []any) []any {
 	c.fn(args[0].(string), args[1].(int), args[2].(func(string, int)))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *callerStringIntEmitStringIntГ) Call3x0(arg0, arg1, arg2 interface{}) {
+func (c *callerStringIntEmitStringIntГ) Call3x0(arg0, arg1, arg2 any) {
 	c.fn(arg0.(string), arg1.(int), arg2.(func(string, int)))
 }
 
@@ -134,7 +134,7 @@ type callerStringIntГStringInt struct {
 	fn func(string, int) (string, int)
 }
 
-func funcMakerStringIntГStringInt(fn interface{}) reflectx.Func {
+func funcMakerStringIntГStringInt(fn any) reflectx.Func {
 	f := fn.(func(string, int) (string, int))
 	return &callerStringIntГStringInt{fn: f}
 }
@@ -147,18 +147,18 @@ func (c *callerStringIntГStringInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerStringIntГStringInt) Call(args []interface{}) []interface{} {
+func (c *callerStringIntГStringInt) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(string), args[1].(int))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *callerStringIntГStringInt) Call2x2(arg0, arg1 interface{}) (interface{}, interface{}) {
+func (c *callerStringIntГStringInt) Call2x2(arg0, arg1 any) (any, any) {
 	return c.fn(arg0.(string), arg1.(int))
 }
 
 type emitNative struct {
 	n   exec.ElementProcessor
-	fn  interface{}
+	fn  any
 	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
@@ -174,7 +174,7 @@ func (e *emitNative) Init(ctx context.Context, ws []typex.Window, et typex.Event
 	return nil
 }
 
-func (e *emitNative) Value() interface{} {
+func (e *emitNative) Value() any {
 	return e.fn
 }
 

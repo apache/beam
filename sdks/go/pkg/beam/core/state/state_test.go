@@ -27,9 +27,9 @@ var (
 )
 
 type fakeProvider struct {
-	initialState      map[string]interface{}
-	initialBagState   map[string][]interface{}
-	initialMapState   map[string]map[string]interface{}
+	initialState      map[string]any
+	initialBagState   map[string][]any
+	initialMapState   map[string]map[string]any
 	transactions      map[string][]Transaction
 	err               map[string]error
 	createAccumForKey map[string]bool
@@ -38,7 +38,7 @@ type fakeProvider struct {
 	extractOutForKey  map[string]bool
 }
 
-func (s *fakeProvider) ReadValueState(userStateID string) (interface{}, []Transaction, error) {
+func (s *fakeProvider) ReadValueState(userStateID string) (any, []Transaction, error) {
 	if err, ok := s.err[userStateID]; ok {
 		return nil, nil, err
 	}
@@ -60,7 +60,7 @@ func (s *fakeProvider) ClearValueState(val Transaction) error {
 	return nil
 }
 
-func (s *fakeProvider) ReadBagState(userStateID string) ([]interface{}, []Transaction, error) {
+func (s *fakeProvider) ReadBagState(userStateID string) ([]any, []Transaction, error) {
 	if err, ok := s.err[userStateID]; ok {
 		return nil, nil, err
 	}
@@ -123,7 +123,7 @@ func (s *fakeProvider) ExtractOutputFn(userStateID string) reflectx.Func {
 	return nil
 }
 
-func (s *fakeProvider) ReadMapStateValue(userStateID string, key interface{}) (interface{}, []Transaction, error) {
+func (s *fakeProvider) ReadMapStateValue(userStateID string, key any) (any, []Transaction, error) {
 	keyString := key.(string)
 	if err, ok := s.err[userStateID]; ok {
 		return nil, nil, err
@@ -136,12 +136,12 @@ func (s *fakeProvider) ReadMapStateValue(userStateID string, key interface{}) (i
 	return base, trans, nil
 }
 
-func (s *fakeProvider) ReadMapStateKeys(userStateID string) ([]interface{}, []Transaction, error) {
+func (s *fakeProvider) ReadMapStateKeys(userStateID string) ([]any, []Transaction, error) {
 	if err, ok := s.err[userStateID]; ok {
 		return nil, nil, err
 	}
 	base := s.initialMapState[userStateID]
-	keys := make([]interface{}, len(base))
+	keys := make([]any, len(base))
 	i := 0
 	for k := range base {
 		keys[i] = k
@@ -178,7 +178,7 @@ func (s *fakeProvider) ClearMapState(val Transaction) error {
 }
 
 func TestValueRead(t *testing.T) {
-	is := make(map[string]interface{})
+	is := make(map[string]any)
 	ts := make(map[string][]Transaction)
 	es := make(map[string]error)
 	is["no_transactions"] = 1
@@ -244,7 +244,7 @@ func TestValueWrite(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -280,7 +280,7 @@ func TestValueClear(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -304,22 +304,22 @@ func TestValueClear(t *testing.T) {
 }
 
 func TestBagRead(t *testing.T) {
-	is := make(map[string][]interface{})
+	is := make(map[string][]any)
 	ts := make(map[string][]Transaction)
 	es := make(map[string]error)
-	is["no_transactions"] = []interface{}{1}
+	is["no_transactions"] = []any{1}
 	ts["no_transactions"] = nil
-	is["basic_append"] = []interface{}{}
+	is["basic_append"] = []any{}
 	ts["basic_append"] = []Transaction{{Key: "basic_append", Type: TransactionTypeAppend, Val: 3}}
-	is["multi_append"] = []interface{}{}
+	is["multi_append"] = []any{}
 	ts["multi_append"] = []Transaction{{Key: "multi_append", Type: TransactionTypeAppend, Val: 3}, {Key: "multi_append", Type: TransactionTypeAppend, Val: 2}}
-	is["basic_clear"] = []interface{}{1}
+	is["basic_clear"] = []any{1}
 	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionTypeClear, Val: nil}}
-	is["append_then_clear"] = []interface{}{1}
+	is["append_then_clear"] = []any{1}
 	ts["append_then_clear"] = []Transaction{{Key: "append_then_clear", Type: TransactionTypeAppend, Val: 3}, {Key: "append_then_clear", Type: TransactionTypeClear, Val: nil}}
-	is["append_then_clear_then_append"] = []interface{}{1}
+	is["append_then_clear_then_append"] = []any{1}
 	ts["append_then_clear_then_append"] = []Transaction{{Key: "append_then_clear_then_append", Type: TransactionTypeAppend, Val: 3}, {Key: "append_then_clear_then_append", Type: TransactionTypeClear, Val: nil}, {Key: "append_then_clear_then_append", Type: TransactionTypeAppend, Val: 4}}
-	is["err"] = []interface{}{1}
+	is["err"] = []any{1}
 	ts["err"] = []Transaction{{Key: "err", Type: TransactionTypeAppend, Val: 3}}
 	es["err"] = errFake
 
@@ -383,7 +383,7 @@ func TestBagAdd(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -429,7 +429,7 @@ func TestBagClear(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -453,7 +453,7 @@ func TestBagClear(t *testing.T) {
 }
 
 func TestCombiningRead(t *testing.T) {
-	is := make(map[string]interface{})
+	is := make(map[string]any)
 	ts := make(map[string][]Transaction)
 	es := make(map[string]error)
 	ca := make(map[string]bool)
@@ -561,7 +561,7 @@ func TestCombiningClear(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		is := make(map[string]interface{})
+		is := make(map[string]any)
 		ts := make(map[string][]Transaction)
 		es := make(map[string]error)
 		ca := make(map[string]bool)
@@ -643,7 +643,7 @@ func TestCombiningAdd(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		is := make(map[string]interface{})
+		is := make(map[string]any)
 		ts := make(map[string][]Transaction)
 		es := make(map[string]error)
 		ca := make(map[string]bool)
@@ -688,20 +688,20 @@ func TestCombiningAdd(t *testing.T) {
 }
 
 func TestMapGet(t *testing.T) {
-	is := make(map[string]interface{})
-	im := make(map[string]map[string]interface{})
+	is := make(map[string]any)
+	im := make(map[string]map[string]any)
 	ts := make(map[string][]Transaction)
 	es := make(map[string]error)
 	ca := make(map[string]bool)
 	eo := make(map[string]bool)
 	ts["no_transactions"] = nil
-	im["basic_set"] = map[string]interface{}{"foo": 2}
+	im["basic_set"] = map[string]any{"foo": 2}
 	ts["basic_set"] = []Transaction{{Key: "basic_set", Type: TransactionTypeSet, Val: 3, MapKey: "foo"}, {Key: "basic_set", Type: TransactionTypeSet, Val: 1, MapKey: "bar"}}
-	im["basic_clear"] = map[string]interface{}{"foo": 2, "bar": 1}
+	im["basic_clear"] = map[string]any{"foo": 2, "bar": 1}
 	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
-	im["set_then_clear"] = map[string]interface{}{"foo": 2, "bar": 1}
+	im["set_then_clear"] = map[string]any{"foo": 2, "bar": 1}
 	ts["set_then_clear"] = []Transaction{{Key: "set_then_clear", Type: TransactionTypeSet, Val: 3, MapKey: "foo"}, {Key: "set_then_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
-	im["err"] = map[string]interface{}{"foo": 2}
+	im["err"] = map[string]any{"foo": 2}
 	ts["err"] = []Transaction{{Key: "err", Type: TransactionTypeSet, Val: 3}}
 	es["err"] = errFake
 
@@ -758,20 +758,20 @@ func TestMapGet(t *testing.T) {
 }
 
 func TestMapKeys(t *testing.T) {
-	is := make(map[string]interface{})
-	im := make(map[string]map[string]interface{})
+	is := make(map[string]any)
+	im := make(map[string]map[string]any)
 	ts := make(map[string][]Transaction)
 	es := make(map[string]error)
 	ca := make(map[string]bool)
 	eo := make(map[string]bool)
 	ts["no_transactions"] = nil
-	im["basic_set"] = map[string]interface{}{"foo": 2}
+	im["basic_set"] = map[string]any{"foo": 2}
 	ts["basic_set"] = []Transaction{{Key: "basic_set", Type: TransactionTypeSet, Val: 3, MapKey: "foo"}, {Key: "basic_set", Type: TransactionTypeSet, Val: 1, MapKey: "bar"}}
-	im["basic_clear"] = map[string]interface{}{"foo": 2, "bar": 1}
+	im["basic_clear"] = map[string]any{"foo": 2, "bar": 1}
 	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
-	im["set_then_clear"] = map[string]interface{}{"foo": 2, "bar": 1}
+	im["set_then_clear"] = map[string]any{"foo": 2, "bar": 1}
 	ts["set_then_clear"] = []Transaction{{Key: "set_then_clear", Type: TransactionTypeSet, Val: 3, MapKey: "foo"}, {Key: "set_then_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
-	im["err"] = map[string]interface{}{"foo": 2}
+	im["err"] = map[string]any{"foo": 2}
 	ts["err"] = []Transaction{{Key: "err", Type: TransactionTypeSet, Val: 3}}
 	es["err"] = errFake
 
@@ -834,7 +834,7 @@ func TestMapPut(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -869,7 +869,7 @@ func TestMapRemove(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -913,7 +913,7 @@ func TestMapClear(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -945,20 +945,20 @@ func TestMapClear(t *testing.T) {
 }
 
 func TestSetContains(t *testing.T) {
-	is := make(map[string]interface{})
-	im := make(map[string]map[string]interface{})
+	is := make(map[string]any)
+	im := make(map[string]map[string]any)
 	ts := make(map[string][]Transaction)
 	es := make(map[string]error)
 	ca := make(map[string]bool)
 	eo := make(map[string]bool)
 	ts["no_transactions"] = nil
-	im["basic_set"] = map[string]interface{}{}
+	im["basic_set"] = map[string]any{}
 	ts["basic_set"] = []Transaction{{Key: "basic_set", Type: TransactionTypeSet, Val: true, MapKey: "foo"}, {Key: "basic_set", Type: TransactionTypeSet, Val: true, MapKey: "bar"}}
-	im["basic_clear"] = map[string]interface{}{"foo": true, "bar": true}
+	im["basic_clear"] = map[string]any{"foo": true, "bar": true}
 	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
-	im["set_then_clear"] = map[string]interface{}{"foo": true, "bar": true}
+	im["set_then_clear"] = map[string]any{"foo": true, "bar": true}
 	ts["set_then_clear"] = []Transaction{{Key: "set_then_clear", Type: TransactionTypeSet, Val: true, MapKey: "foo"}, {Key: "set_then_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
-	im["err"] = map[string]interface{}{"foo": true}
+	im["err"] = map[string]any{"foo": true}
 	ts["err"] = []Transaction{{Key: "err", Type: TransactionTypeSet, Val: true}}
 	es["err"] = errFake
 
@@ -1009,20 +1009,20 @@ func TestSetContains(t *testing.T) {
 }
 
 func TestSetKeys(t *testing.T) {
-	is := make(map[string]interface{})
-	im := make(map[string]map[string]interface{})
+	is := make(map[string]any)
+	im := make(map[string]map[string]any)
 	ts := make(map[string][]Transaction)
 	es := make(map[string]error)
 	ca := make(map[string]bool)
 	eo := make(map[string]bool)
 	ts["no_transactions"] = nil
-	im["basic_set"] = map[string]interface{}{"foo": true}
+	im["basic_set"] = map[string]any{"foo": true}
 	ts["basic_set"] = []Transaction{{Key: "basic_set", Type: TransactionTypeSet, Val: true, MapKey: "foo"}, {Key: "basic_set", Type: TransactionTypeSet, Val: true, MapKey: "bar"}}
-	im["basic_clear"] = map[string]interface{}{"foo": true, "bar": true}
+	im["basic_clear"] = map[string]any{"foo": true, "bar": true}
 	ts["basic_clear"] = []Transaction{{Key: "basic_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
-	im["set_then_clear"] = map[string]interface{}{"foo": true, "bar": true}
+	im["set_then_clear"] = map[string]any{"foo": true, "bar": true}
 	ts["set_then_clear"] = []Transaction{{Key: "set_then_clear", Type: TransactionTypeSet, Val: true, MapKey: "foo"}, {Key: "set_then_clear", Type: TransactionTypeClear, Val: nil, MapKey: "foo"}}
-	im["err"] = map[string]interface{}{"foo": true}
+	im["err"] = map[string]any{"foo": true}
 	ts["err"] = []Transaction{{Key: "err", Type: TransactionTypeSet, Val: true}}
 	es["err"] = errFake
 
@@ -1085,7 +1085,7 @@ func TestSetAdd(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -1126,7 +1126,7 @@ func TestSetRemove(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}
@@ -1170,7 +1170,7 @@ func TestSetClear(t *testing.T) {
 
 	for _, tt := range tests {
 		f := fakeProvider{
-			initialState: make(map[string]interface{}),
+			initialState: make(map[string]any),
 			transactions: make(map[string][]Transaction),
 			err:          make(map[string]error),
 		}

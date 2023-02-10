@@ -17,9 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../pages/standalone_playground/notifiers/example_selector_state.dart';
 
 class TypeBubble extends StatelessWidget {
   final ExampleType type;

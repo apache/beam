@@ -54,7 +54,7 @@ We introduce the `GlobalWindow`, `FixedWindows`, `SlidingWindows`, and `Sessions
 Beam DataFrames provide a pandas-like [DataFrame](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html)
 API to declare Beam pipelines.
 To learn more about Beam DataFrames, take a look at the
-[Beam DataFrames overview](https://beam.apache.org/documentation/dsls/dataframes/overview) page.
+[Beam DataFrames overview](/documentation/dsls/dataframes/overview) page.
 
 {{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb" >}}
 

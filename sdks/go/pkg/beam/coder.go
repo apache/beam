@@ -105,7 +105,7 @@ type execEncoder struct {
 	coder *coder.Coder
 }
 
-func (e *execEncoder) Encode(element interface{}, w io.Writer) error {
+func (e *execEncoder) Encode(element any, w io.Writer) error {
 	return e.enc.Encode(&exec.FullValue{Elm: element}, w)
 }
 
@@ -129,7 +129,7 @@ type execDecoder struct {
 	coder *coder.Coder
 }
 
-func (d *execDecoder) Decode(r io.Reader) (interface{}, error) {
+func (d *execDecoder) Decode(r io.Reader) (any, error) {
 	fv, err := d.dec.Decode(r)
 	if err != nil {
 		return nil, err
@@ -331,10 +331,10 @@ func newJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
 // These maps and mutexes are actuated per element, which can be expensive.
 var (
 	encMu      sync.Mutex
-	schemaEncs = map[reflect.Type]func(interface{}, io.Writer) error{}
+	schemaEncs = map[reflect.Type]func(any, io.Writer) error{}
 
 	decMu      sync.Mutex
-	schemaDecs = map[reflect.Type]func(io.Reader) (interface{}, error){}
+	schemaDecs = map[reflect.Type]func(io.Reader) (any, error){}
 )
 
 // schemaEnc encodes the supplied value as beam schema.

@@ -28,6 +28,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.bson.BsonDocument;
 import org.bson.Document;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Builds a MongoDB AggregateIterable object. */
 @Experimental(Kind.SOURCE_SINK)
@@ -35,8 +36,10 @@ import org.bson.Document;
 public abstract class AggregationQuery
     implements SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> {
 
+  @Pure
   abstract List<BsonDocument> mongoDbPipeline();
 
+  @Pure
   abstract @Nullable BsonDocument bucket();
 
   private static Builder builder() {
@@ -53,8 +56,10 @@ public abstract class AggregationQuery
   abstract static class Builder {
     abstract Builder setMongoDbPipeline(List<BsonDocument> mongoDbPipeline);
 
+    @Pure
     abstract Builder setBucket(BsonDocument bucket);
 
+    @Pure
     abstract AggregationQuery build();
   }
 

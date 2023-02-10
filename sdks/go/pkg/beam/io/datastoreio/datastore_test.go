@@ -55,7 +55,7 @@ type Bar struct {
 
 func Test_query(t *testing.T) {
 	testCases := []struct {
-		v           interface{}
+		v           any
 		shard       int
 		expectRun   int
 		expectClose int
@@ -95,7 +95,7 @@ func Test_query(t *testing.T) {
 
 func Test_query_Bad(t *testing.T) {
 	testCases := []struct {
-		v            interface{}
+		v            any
 		itemType     reflect.Type
 		itemKey      string
 		expectErrStr string

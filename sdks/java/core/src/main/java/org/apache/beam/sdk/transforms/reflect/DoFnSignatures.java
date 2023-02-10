@@ -44,6 +44,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
@@ -2338,7 +2339,11 @@ public class DoFnSignatures {
         ReflectHelpers.declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
     if (matches.isEmpty()) {
-      errors.checkArgument(!required, "No method annotated with @%s found", format(anno));
+      errors.checkArgument(
+          !required,
+          "No method annotated with @%s found in class %s",
+          format(anno),
+          format(fnClazz));
       return null;
     }
 
@@ -2350,10 +2355,11 @@ public class DoFnSignatures {
       errors.checkArgument(
           first.getName().equals(other.getName())
               && Arrays.equals(first.getParameterTypes(), other.getParameterTypes()),
-          "Found multiple methods annotated with @%s. [%s] and [%s]",
+          "Found multiple methods annotated with @%s. [%s] and [%s] in class %s",
           format(anno),
           format(first),
-          format(other));
+          format(other),
+          format(fnClazz));
     }
 
     ErrorReporter methodErrors = errors.forMethod(anno, first);
@@ -2374,7 +2380,7 @@ public class DoFnSignatures {
   }
 
   private static String format(Class<?> kls) {
-    return kls.getSimpleName();
+    return kls.getSimpleName().isEmpty() ? kls.getName() : kls.getSimpleName();
   }
 
   static class ErrorReporter {
@@ -2501,6 +2507,10 @@ public class DoFnSignatures {
 
   public static boolean usesOrderedListState(DoFn<?, ?> doFn) {
     return usesGivenStateClass(doFn, OrderedListState.class);
+  }
+
+  public static boolean usesMultimapState(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, MultimapState.class);
   }
 
   public static boolean usesValueState(DoFn<?, ?> doFn) {

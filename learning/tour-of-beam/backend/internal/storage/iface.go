@@ -37,4 +37,6 @@ type Iface interface {
 		ctx context.Context, sdk tob.Sdk, unitId, uid string,
 		externalSave func(string) (string, error),
 	) error
+
+	DeleteProgress(ctx context.Context, uid string) error
 }

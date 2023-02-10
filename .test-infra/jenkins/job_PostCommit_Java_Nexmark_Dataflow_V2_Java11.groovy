@@ -23,10 +23,6 @@ import CommonTestProperties.TriggeringContext
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
-import InfluxDBCredentialsHelper
-
-import static NexmarkDatabaseProperties.nexmarkBigQueryArgs
-import static NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
 // This job runs the suite of Nexmark tests against the Dataflow runner V2.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow_V2_Java11',

@@ -32,13 +32,11 @@ import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Beam {@link org.apache.beam.sdk.schemas.Schema.LogicalType} implementations of JDBC types. */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class LogicalTypes {
   static final Schema.FieldType JDBC_BIT_TYPE =
       Schema.FieldType.logicalType(
@@ -117,7 +115,8 @@ class LogicalTypes {
   }
 
   /** Base class for JDBC logical types. */
-  abstract static class JdbcLogicalType<T> implements Schema.LogicalType<T, T> {
+  abstract static class JdbcLogicalType<T extends @NonNull Object>
+      implements Schema.LogicalType<T, T> {
     protected final String identifier;
     protected final Schema.FieldType argumentType;
     protected final Schema.FieldType baseType;

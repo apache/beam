@@ -12,6 +12,8 @@
 
 {{ if eq (.Get "class") "table-bordered" }}
   <div class="table-bordered-wrapper">{{ .Inner | markdownify }}</div>
+{{ else if eq (.Get "class") "table-wrapper--equal-p" }}
+  <div class="table-wrapper table-wrapper--equal-p">{{ .Inner | markdownify }}</div>
 {{ else }}
   <div class="table-wrapper">{{ .Inner | markdownify }}</div>
 {{ end }}

@@ -25,12 +25,6 @@ variable "machine_type" {
   description = "Node pool machine types , for prod set  c2d-highcpu-16"
   default     = "e2-standard-4"
 }
-
-variable "node_count" {
-  description = "Node pool size"
-  default     = 1
-}
-
 variable "service_account_email" {
   description = "Service account email"
 }
@@ -50,4 +44,14 @@ variable "network" {
 
 variable "subnetwork" {
   description = "GCP subnetwork within which resources are provisioned"
+}
+
+variable "min_count" {
+  description = "Min cluster node count"
+  default     = 2
+}
+
+variable "max_count" {
+  description = "Max cluster node count"
+  default     = 6
 }

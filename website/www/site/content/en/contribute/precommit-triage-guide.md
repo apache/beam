@@ -55,8 +55,8 @@ down to a specific test suite by clicking on it.
 ## Triage Process
 
 1. [Search for existing
-   issues](https://github.com/apache/tag-beam-it/issues)
-1. Create a new issue if needed: [GitHub Issues](https://github.com/apache/tag-beam-it/issues/new/choose)
+   issues](https://github.com/apache/beam/issues)
+1. Create a new issue if needed: [GitHub Issues](https://github.com/apache/beam/issues/new/choose)
   - Components: testing, anything else relevant
   - Label: precommit
   - Reference this page in the description.

@@ -21,6 +21,7 @@ import 'package:playground/modules/messages/models/abstract_message.dart';
 import 'package:playground/modules/messages/models/set_sdk_message.dart';
 import 'package:playground_components/playground_components.dart';
 
+/// A handler for [SetSdkMessage].
 class SetSdkMessageHandler extends AbstractMessageHandler {
   final PlaygroundController playgroundController;
 

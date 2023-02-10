@@ -127,10 +127,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.copy': ['*'],
             'pandas.core.generic.NDFrame.droplevel': ['*'],
             'pandas.core.generic.NDFrame.get': ['*'],
-            'pandas.core.generic.NDFrame.rank': [
-                # Modified dataframe
-                'df'
-            ],
+            'pandas.core.generic.NDFrame.rank': ['*'],
             'pandas.core.generic.NDFrame.rename': [
                 # Seems to be an upstream bug. The actual error has a different
                 # message:
@@ -704,14 +701,19 @@ class DoctestTest(unittest.TestCase):
     result = doctests.testmod(
         pd.core.groupby.groupby,
         use_beam=False,
+        verbose=True,
         wont_implement_ok={
+            'pandas.core.groupby.groupby.GroupBy.first': ['*'],
             'pandas.core.groupby.groupby.GroupBy.head': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.last': ['*'],
             'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': ['*'],
             'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.groupby.groupby.GroupBy.first': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.last': ['*'],
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.rank': ['*'],
@@ -831,6 +833,7 @@ class DoctestTest(unittest.TestCase):
             'crosstab': ['*'],
             'cut': ['*'],
             'eval': ['*'],
+            'from_dummies': ['*'],
             'get_dummies': ['*'],
             'infer_freq': ['*'],
             'lreshape': ['*'],
@@ -863,7 +866,10 @@ class DoctestTest(unittest.TestCase):
         },
         skip={
             # error formatting
-            'concat': ['pd.concat([df5, df6], verify_integrity=True)'],
+            'concat': [
+                'pd.concat([df5, df6], verify_integrity=True)',
+                'pd.concat([df7, new_row.to_frame().T], ignore_index=True)'
+            ],
             # doctest DeprecationWarning
             'melt': ['df'],
             # Order-sensitive re-indexing.

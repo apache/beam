@@ -37,7 +37,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:python:test-suites:dataflow:validatesRunnerBatchTests')
-          tasks(':sdks:python:test-suites:dataflow:validatesRunnerStreamingTests')
           switches('-PdisableRunnerV2')
           commonJobProperties.setGradleSwitches(delegate)
         }

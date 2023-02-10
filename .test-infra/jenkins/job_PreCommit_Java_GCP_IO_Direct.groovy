@@ -21,13 +21,26 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java_GCP_IO_Direct',
-    gradleTask: ':sdks:java:io:google-cloud-platform:postCommit',
+    gradleTasks: [
+      ':sdks:java:io:google-cloud-platform:build',
+      ':sdks:java:io:google-cloud-platform:expansion-service:build',
+      ':sdks:java:io:google-cloud-platform:postCommit',
+    ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     timeoutMins: 120,
     triggerPathPatterns: [
+      '^runners/core-construction-java/.*$',
+      '^runners/core-java/.*$',
+      '^sdks/java/core/src/main/.*$',
+      '^sdks/java/extensions/arrow/.*$',
+      '^sdks/java/extensions/google-cloud-platform-core/.*$',
+      '^sdks/java/extensions/protobuf/.*$',
+      '^sdks/java/testing/test-utils/.*$',
+      '^sdks/java/io/common/.*$',
+      '^sdks/java/io/expansion-service/.*$',
       '^sdks/java/io/google-cloud-platform/.*$',
     ]
     )

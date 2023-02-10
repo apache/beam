@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Python SDK Quickstart
+# WordCount quickstart for Python
 
 This guide shows you how to set up your Python development environment, get the Apache Beam SDK for Python, and run an example pipeline.
 
@@ -27,33 +27,8 @@ The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last relea
 
 ## Set up your environment
 
-### Check your Python version
-
-The Beam SDK requires Python users to use Python version 3.6 or higher. Check your version by running:
-
-{{< highlight >}}
-python --version
-{{< /highlight >}}
-
-### Install pip
-
-Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer by running:
-
-{{< highlight >}}
-pip --version
-{{< /highlight >}}
-
-If you do not have `pip` version 7.0.0 or newer, run the following command to
-install it. This command might require administrative privileges.
-
-{{< shell unix >}}
-pip install --upgrade pip
-{{< /shell >}}
-
-{{< shell powerShell >}}
-PS> python -m pip install --upgrade pip
-{{< /shell >}}
-
+For details, see
+[Set up your development environment](/get-started/quickstart/python#set-up-your-development-environment).
 
 ## Get Apache Beam
 
@@ -169,7 +144,7 @@ sequentially in the format `counts-0000-of-0001`.
   and look through the [Python SDK API reference](https://beam.apache.org/releases/pydoc).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

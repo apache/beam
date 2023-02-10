@@ -95,10 +95,10 @@ class S3FileSystemTest(unittest.TestCase):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
     s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
-    s3io_mock.list_prefix.return_value = {
-        's3://bucket/file1': (1, 9999999.0),
-        's3://bucket/file2': (2, 8888888.0)
-    }
+    s3io_mock.list_files.return_value = iter([
+        ('s3://bucket/file1', (1, 9999999.0)),
+        ('s3://bucket/file2', (2, 8888888.0))
+    ])
     expected_results = set([
         FileMetadata('s3://bucket/file1', 1, 9999999.0),
         FileMetadata('s3://bucket/file2', 2, 8888888.0)
@@ -106,7 +106,7 @@ class S3FileSystemTest(unittest.TestCase):
     match_result = self.fs.match(['s3://bucket/'])[0]
 
     self.assertEqual(set(match_result.metadata_list), expected_results)
-    s3io_mock.list_prefix.assert_called_once_with(
+    s3io_mock.list_files.assert_called_once_with(
         's3://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
@@ -115,12 +115,14 @@ class S3FileSystemTest(unittest.TestCase):
     s3io_mock = mock.MagicMock()
     limit = 1
     s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
-    s3io_mock.list_prefix.return_value = {'s3://bucket/file1': (1, 99999.0)}
+    s3io_mock.list_files.return_value = iter([
+        ('s3://bucket/file1', (1, 99999.0))
+    ])
     expected_results = set([FileMetadata('s3://bucket/file1', 1, 99999.0)])
     match_result = self.fs.match(['s3://bucket/'], [limit])[0]
     self.assertEqual(set(match_result.metadata_list), expected_results)
     self.assertEqual(len(match_result.metadata_list), limit)
-    s3io_mock.list_prefix.assert_called_once_with(
+    s3io_mock.list_files.assert_called_once_with(
         's3://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
@@ -129,13 +131,13 @@ class S3FileSystemTest(unittest.TestCase):
     s3io_mock = mock.MagicMock()
     s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
     exception = IOError('Failed')
-    s3io_mock.list_prefix.side_effect = exception
+    s3io_mock.list_files.side_effect = exception
 
     with self.assertRaises(BeamIOError) as error:
       self.fs.match(['s3://bucket/'])
 
     self.assertIn('Match operation failed', str(error.exception))
-    s3io_mock.list_prefix.assert_called_once_with(
+    s3io_mock.list_files.assert_called_once_with(
         's3://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
@@ -143,13 +145,9 @@ class S3FileSystemTest(unittest.TestCase):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
     s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
-    s3io_mock.list_prefix.side_effect = [
-        {
-            's3://bucket/file1': (1, 99999.0)
-        },
-        {
-            's3://bucket/file2': (2, 88888.0)
-        },
+    s3io_mock.list_files.side_effect = [
+        iter([('s3://bucket/file1', (1, 99999.0))]),
+        iter([('s3://bucket/file2', (2, 88888.0))]),
     ]
     expected_results = [[FileMetadata('s3://bucket/file1', 1, 99999.0)],
                         [FileMetadata('s3://bucket/file2', 2, 88888.0)]]

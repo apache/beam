@@ -44,8 +44,8 @@ func init() {
 // The recommended way to create StepConfigs is via the StepConfigBuilder.
 // Usage example:
 //
-//    cfg := synthetic.DefaultStepConfig().OutputPerInput(10).FilterRatio(0.5).Build()
-//    step := synthetic.Step(s, cfg, input)
+//	cfg := synthetic.DefaultStepConfig().OutputPerInput(10).FilterRatio(0.5).Build()
+//	step := synthetic.Step(s, cfg, input)
 func Step(s beam.Scope, cfg StepConfig, col beam.PCollection) beam.PCollection {
 	s = s.Scope("synthetic.Step")
 	if cfg.Splittable {
@@ -147,7 +147,7 @@ func (fn *sdfStepFn) ProcessElement(rt *sdf.LockRTracker, key, val []byte, emit 
 //
 // Usage example:
 //
-//    cfg := synthetic.DefaultStepConfig().OutputPerInput(10).FilterRatio(0.5).Build()
+//	cfg := synthetic.DefaultStepConfig().OutputPerInput(10).FilterRatio(0.5).Build()
 type StepConfigBuilder struct {
 	cfg StepConfig
 }

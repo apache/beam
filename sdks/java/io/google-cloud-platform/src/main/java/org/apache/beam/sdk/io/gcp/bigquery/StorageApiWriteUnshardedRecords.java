@@ -26,6 +26,7 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DynamicMessage;
@@ -41,6 +42,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -92,6 +94,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
+  private final boolean autoUpdateSchema;
+  private final boolean ignoreUnknownValues;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
   /**
@@ -128,7 +132,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           try {
             task.run();
           } catch (Exception e) {
-            //
+            System.err.println("Exception happened while executing async task. Ignoring: " + e);
           }
         });
   }
@@ -137,11 +141,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
-      Coder<BigQueryStorageApiInsertError> failedRowsCoder) {
+      Coder<BigQueryStorageApiInsertError> failedRowsCoder,
+      boolean autoUpdateSchema,
+      boolean ignoreUnknownValues) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
     this.failedRowsCoder = failedRowsCoder;
+    this.autoUpdateSchema = autoUpdateSchema;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   @Override
@@ -164,7 +172,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         options.getStorageApiAppendThresholdRecordCount(),
                         options.getNumStorageWriteApiStreamAppendClients(),
                         finalizeTag,
-                        failedRowsTag))
+                        failedRowsTag,
+                        autoUpdateSchema,
+                        ignoreUnknownValues))
                 .withOutputTags(finalizeTag, TupleTagList.of(failedRowsTag))
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
@@ -185,6 +195,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
     private final TupleTag<KV<String, String>> finalizeTag;
     private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
+    private final boolean autoUpdateSchema;
+    private final boolean ignoreUnknownValues;
 
     static class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
       long offset;
@@ -215,7 +227,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               "rowsSentToFailedRowsCollection");
 
       private final boolean useDefaultStream;
-      private TableSchema tableSchema;
+      private TableSchema initialTableSchema;
       private Instant nextCacheTickle = Instant.MAX;
       private final int clientNumber;
       private final boolean usingMultiplexing;
@@ -234,7 +246,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.pendingMessages = Lists.newArrayList();
         this.maybeDatasetService = datasetService;
         this.useDefaultStream = useDefaultStream;
-        this.tableSchema = messageConverter.getTableSchema();
+        this.initialTableSchema = messageConverter.getTableSchema();
         this.clientNumber = new Random().nextInt(streamAppendClientCount);
         this.usingMultiplexing = usingMultiplexing;
         this.maxRequestSize = maxRequestSize;
@@ -243,8 +255,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       void teardown() {
         maybeTickleCache();
         if (appendClientInfo != null) {
-          if (appendClientInfo.streamAppendClient != null) {
-            runAsyncIgnoreFailure(closeWriterExecutor, appendClientInfo.streamAppendClient::unpin);
+          StreamAppendClient client = appendClientInfo.getStreamAppendClient();
+          if (client != null) {
+            runAsyncIgnoreFailure(closeWriterExecutor, client::unpin);
           }
           appendClientInfo = null;
         }
@@ -277,24 +290,49 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return this.streamName;
       }
 
-      AppendClientInfo generateClient(boolean createAppendClient) throws Exception {
-        Preconditions.checkStateNotNull(maybeDatasetService);
+      AppendClientInfo generateClient(@Nullable TableSchema updatedSchema) throws Exception {
+        TableSchema tableSchema =
+            (updatedSchema != null) ? updatedSchema : getCurrentTableSchema(streamName);
         AppendClientInfo appendClientInfo =
-            new AppendClientInfo(
+            AppendClientInfo.of(
                 tableSchema,
                 // Make sure that the client is always closed in a different thread to avoid
                 // blocking.
-                client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close));
-        if (createAppendClient) {
-          appendClientInfo =
-              appendClientInfo.createAppendClient(
-                  maybeDatasetService, () -> streamName, usingMultiplexing);
-          Preconditions.checkStateNotNull(appendClientInfo.streamAppendClient).pin();
-        }
+                client ->
+                    runAsyncIgnoreFailure(
+                        closeWriterExecutor,
+                        () -> {
+                          synchronized (APPEND_CLIENTS) {
+                            // Remove the pin owned by the cache.
+                            client.unpin();
+                            client.close();
+                          }
+                        }));
+        appendClientInfo =
+            appendClientInfo.withAppendClient(
+                Preconditions.checkStateNotNull(maybeDatasetService),
+                () -> streamName,
+                usingMultiplexing);
+        // This pin is "owned" by the cache.
+        Preconditions.checkStateNotNull(appendClientInfo.getStreamAppendClient()).pin();
         return appendClientInfo;
       }
 
-      AppendClientInfo getAppendClientInfo(boolean lookupCache, boolean createAppendClient) {
+      TableSchema getCurrentTableSchema(String stream) {
+        TableSchema currentSchema = initialTableSchema;
+        if (autoUpdateSchema) {
+          @Nullable
+          WriteStream writeStream =
+              Preconditions.checkStateNotNull(maybeDatasetService).getWriteStream(streamName);
+          if (writeStream != null && writeStream.hasTableSchema()) {
+            currentSchema = writeStream.getTableSchema();
+          }
+        }
+        return currentSchema;
+      }
+
+      AppendClientInfo getAppendClientInfo(
+          boolean lookupCache, final @Nullable TableSchema updatedSchema) {
         try {
           if (this.appendClientInfo == null) {
             getOrCreateStreamName();
@@ -303,19 +341,20 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               if (lookupCache) {
                 newAppendClientInfo =
                     APPEND_CLIENTS.get(
-                        getStreamAppendClientCacheEntryKey(),
-                        () -> generateClient(createAppendClient));
+                        getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema));
               } else {
-                newAppendClientInfo = generateClient(createAppendClient);
+                newAppendClientInfo = generateClient(updatedSchema);
                 // override the clients in the cache.
                 APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), newAppendClientInfo);
               }
+              // This pin is "owned" by the current DoFn.
+              Preconditions.checkStateNotNull(newAppendClientInfo.getStreamAppendClient()).pin();
             }
             this.currentOffset = 0;
             nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
             this.appendClientInfo = newAppendClientInfo;
           }
-          return appendClientInfo;
+          return Preconditions.checkStateNotNull(appendClientInfo);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
@@ -334,9 +373,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         if (appendClientInfo != null) {
           synchronized (APPEND_CLIENTS) {
             // Unpin in a different thread, as it may execute a blocking close.
-            if (appendClientInfo.streamAppendClient != null) {
-              runAsyncIgnoreFailure(
-                  closeWriterExecutor, appendClientInfo.streamAppendClient::unpin);
+            StreamAppendClient client = appendClientInfo.getStreamAppendClient();
+            if (client != null) {
+              runAsyncIgnoreFailure(closeWriterExecutor, client::unpin);
             }
             // The default stream is cached across multiple different DoFns. If they all try and
             // invalidate, then we can get races between threads invalidating and recreating
@@ -357,9 +396,37 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
       }
 
-      void addMessage(StorageApiWritePayload payload) throws Exception {
+      void addMessage(
+          StorageApiWritePayload payload,
+          OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver)
+          throws Exception {
         maybeTickleCache();
         ByteString payloadBytes = ByteString.copyFrom(payload.getPayload());
+        if (autoUpdateSchema) {
+          if (appendClientInfo == null) {
+            appendClientInfo = getAppendClientInfo(true, null);
+          }
+          @Nullable TableRow unknownFields = payload.getUnknownFields();
+          if (unknownFields != null) {
+            try {
+              payloadBytes =
+                  payloadBytes.concat(
+                      Preconditions.checkStateNotNull(appendClientInfo)
+                          .encodeUnknownFields(unknownFields, ignoreUnknownValues));
+            } catch (TableRowToStorageApiProto.SchemaConversionException e) {
+              TableRow tableRow = appendClientInfo.toTableRow(payloadBytes);
+              // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we only
+              // execute this
+              // codepath when ignoreUnknownFields==true, so we should never hit this codepath.
+              // However once
+              // 24926 is fixed, we need to merge the unknownFields back into the main row before
+              // outputting to the
+              // failed-rows consumer.
+              failedRowsReceiver.output(new BigQueryStorageApiInsertError(tableRow, e.toString()));
+              return;
+            }
+          }
+        }
         pendingMessages.add(payloadBytes);
       }
 
@@ -392,7 +459,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             TableRow failedRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
                     DynamicMessage.parseFrom(
-                        getAppendClientInfo(true, false).descriptor, rowBytes));
+                        getAppendClientInfo(true, null).getDescriptor(), rowBytes));
             failedRowsReceiver.output(
                 new BigQueryStorageApiInsertError(
                     failedRow, "Row payload too large. Maximum size " + maxRequestSize));
@@ -417,7 +484,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               try {
                 StreamAppendClient writeStream =
                     Preconditions.checkStateNotNull(
-                        getAppendClientInfo(true, true).streamAppendClient);
+                        getAppendClientInfo(true, null).getStreamAppendClient());
                 ApiFuture<AppendRowsResponse> response =
                     writeStream.appendRows(c.offset, c.protoRows);
                 inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
@@ -449,10 +516,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     TableRow failedRow =
                         TableRowToStorageApiProto.tableRowFromMessage(
                             DynamicMessage.parseFrom(
-                                Preconditions.checkStateNotNull(appendClientInfo).descriptor,
+                                Preconditions.checkStateNotNull(appendClientInfo).getDescriptor(),
                                 protoBytes));
-                    new BigQueryStorageApiInsertError(
-                        failedRow, error.getRowIndexToErrorMessage().get(failedIndex));
                     failedRowsReceiver.output(
                         new BigQueryStorageApiInsertError(
                             failedRow, error.getRowIndexToErrorMessage().get(failedIndex)));
@@ -485,29 +550,48 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               }
 
               LOG.warn(
-                  "Append to stream {} by client #{} failed with error, operations will be retried. Details: {}",
+                  "Append to stream {} by client #{} failed with error, operations will be retried.\n{}",
                   streamName,
                   clientNumber,
-                  retrieveErrorDetails(failedContext));
+                  retrieveErrorDetails(contexts));
               invalidateWriteStream();
               appendFailures.inc();
               return RetryType.RETRY_ALL_OPERATIONS;
             },
-            c -> {
-              recordsAppended.inc(c.protoRows.getSerializedRowsCount());
-            },
+            c -> recordsAppended.inc(c.protoRows.getSerializedRowsCount()),
             appendRowsContext);
         maybeTickleCache();
         return inserts.getSerializedRowsCount();
       }
 
-      String retrieveErrorDetails(AppendRowsContext failedContext) {
-        return (failedContext.getError() != null)
-            ? Arrays.stream(
-                    Preconditions.checkStateNotNull(failedContext.getError()).getStackTrace())
-                .map(StackTraceElement::toString)
-                .collect(Collectors.joining("\n"))
-            : "no execption";
+      String retrieveErrorDetails(Iterable<AppendRowsContext> failedContext) {
+        return StreamSupport.stream(failedContext.spliterator(), false)
+            .<@Nullable Throwable>map(AppendRowsContext::getError)
+            .filter(err -> err != null)
+            .map(
+                thrw ->
+                    Preconditions.checkStateNotNull(thrw).toString()
+                        + "\n"
+                        + Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace())
+                            .map(StackTraceElement::toString)
+                            .collect(Collectors.joining("\n")))
+            .collect(Collectors.joining("\n"));
+      }
+
+      void postFlush() {
+        // If we got a response indicating an updated schema, recreate the client.
+        if (this.appendClientInfo != null) {
+          @Nullable
+          StreamAppendClient streamAppendClient = appendClientInfo.getStreamAppendClient();
+          @Nullable
+          TableSchema updatedTableSchema =
+              (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
+          if (updatedTableSchema != null) {
+            invalidateWriteStream();
+            appendClientInfo =
+                Preconditions.checkStateNotNull(getAppendClientInfo(false, updatedTableSchema));
+          }
+        }
       }
     }
 
@@ -532,7 +616,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         int flushThresholdCount,
         int streamAppendClientCount,
         TupleTag<KV<String, String>> finalizeTag,
-        TupleTag<BigQueryStorageApiInsertError> failedRowsTag) {
+        TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
+        boolean autoUpdateSchema,
+        boolean ignoreUnknownValues) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
@@ -542,6 +628,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.streamAppendClientCount = streamAppendClientCount;
       this.finalizeTag = finalizeTag;
       this.failedRowsTag = failedRowsTag;
+      this.autoUpdateSchema = autoUpdateSchema;
+      this.ignoreUnknownValues = ignoreUnknownValues;
     }
 
     boolean shouldFlush() {
@@ -581,6 +669,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           retryManager.await();
         }
       }
+      for (DestinationState destinationState :
+          Preconditions.checkStateNotNull(destinations).values()) {
+        destinationState.postFlush();
+      }
       numPendingRecords = 0;
       numPendingRecordBytes = 0;
     }
@@ -616,7 +708,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       try {
         messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
         return new DestinationState(
-            tableDestination1.getTableUrn(),
+            tableDestination1.getTableUrn(bigQueryOptions),
             messageConverter,
             datasetService,
             useDefaultStream,
@@ -644,8 +736,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               k ->
                   createDestinationState(
                       c, k, initializedDatasetService, pipelineOptions.as(BigQueryOptions.class)));
-      flushIfNecessary(o.get(failedRowsTag));
-      state.addMessage(element.getValue());
+
+      OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
+      flushIfNecessary(failedRowsReceiver);
+      state.addMessage(element.getValue(), failedRowsReceiver);
       ++numPendingRecords;
       numPendingRecordBytes += element.getValue().getPayload().length;
     }

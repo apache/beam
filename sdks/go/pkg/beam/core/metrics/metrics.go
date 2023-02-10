@@ -49,6 +49,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"hash"
 	"hash/fnv"
 	"sort"
 	"sync"
@@ -84,7 +85,7 @@ type beamCtx struct {
 // Value implements the Context interface Value method for beamCtx.
 // The implementation lifts the stored values for metrics keys to the
 // top level beamCtx for faster lookups.
-func (ctx *beamCtx) Value(key interface{}) interface{} {
+func (ctx *beamCtx) Value(key any) any {
 	switch key {
 	case counterSetKey:
 		if ctx.cs == nil {
@@ -221,28 +222,33 @@ func newName(ns, n string) name {
 // We hash the name to a uint64 so we avoid using go's native string hashing for
 // every use of a metrics. uint64s have faster lookup than strings as a result.
 // Collisions are possible, but statistically unlikely as namespaces and names
-// are usually short enough to avoid this.
+// are usually short enough to avoid this. A sync.Pool is used  because it can provide
+// goroutine-local values that reduce contention and profiling shows hashName from NewCounter
+// can be a contention hotspot. See parallel benches metrics_test.go:BenchmarkMetrics/*
 var (
-	hasherMu sync.Mutex
-	hasher   = fnv.New64a()
+	hashPool = sync.Pool{
+		New: func() interface{} {
+			return fnv.New64a()
+		},
+	}
 )
 
 func hashName(ns, n string) nameHash {
-	hasherMu.Lock()
+	hasher := hashPool.Get().(hash.Hash64)
 	hasher.Reset()
 	var buf [64]byte
 	b := buf[:]
-	hashString(ns, b)
-	hashString(n, b)
+	hashString(hasher, ns, b)
+	hashString(hasher, n, b)
 	h := hasher.Sum64()
-	hasherMu.Unlock()
+	hashPool.Put(hasher)
 	return nameHash(h)
 }
 
 // hashString hashes a string with the package level hasher
 // and requires posession of the hasherMu lock. The byte
 // slice is assumed to be backed by a [64]byte.
-func hashString(s string, b []byte) {
+func hashString(hasher hash.Hash64, s string, b []byte) {
 	l := len(s)
 	i := 0
 	for len(s)-i > 64 {
@@ -525,9 +531,10 @@ type SingleResult interface {
 }
 
 // Query allows metrics querying with filter. The filter takes the form of predicate function. Example:
-//   qr = pr.Metrics().Query(func(mr beam.MetricResult) bool {
-//       return sr.Namespace() == test.namespace
-//   })
+//
+//	qr = pr.Metrics().Query(func(mr beam.MetricResult) bool {
+//	    return sr.Namespace() == test.namespace
+//	})
 func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 	counters := []CounterResult{}
 	distributions := []DistributionResult{}
@@ -889,7 +896,7 @@ func MergeMsecs(
 // This is same as what metrics.dumperExtractor and metrics.dumpTo would do together.
 func ResultsExtractor(ctx context.Context) Results {
 	store := GetStore(ctx)
-	m := make(map[Labels]interface{})
+	m := make(map[Labels]any)
 	e := &Extractor{
 		SumInt64: func(l Labels, v int64) {
 			m[l] = &counter{value: v}

@@ -30,8 +30,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -79,7 +79,7 @@ public class BoundedDatasetFactory {
   public static <T> Dataset<WindowedValue<T>> createDatasetFromRows(
       SparkSession session,
       BoundedSource<T> source,
-      SerializablePipelineOptions options,
+      Supplier<PipelineOptions> options,
       Encoder<WindowedValue<T>> encoder) {
     Params<T> params = new Params<>(encoder, options, session.sparkContext().defaultParallelism());
     BeamTable<T> table = new BeamTable<>(source, params);
@@ -95,7 +95,7 @@ public class BoundedDatasetFactory {
   public static <T> Dataset<WindowedValue<T>> createDatasetFromRDD(
       SparkSession session,
       BoundedSource<T> source,
-      SerializablePipelineOptions options,
+      Supplier<PipelineOptions> options,
       Encoder<WindowedValue<T>> encoder) {
     Params<T> params = new Params<>(encoder, options, session.sparkContext().defaultParallelism());
     RDD<WindowedValue<T>> rdd = new BoundedRDD<>(session.sparkContext(), source, params);
@@ -310,11 +310,11 @@ public class BoundedDatasetFactory {
   /** Shared parameters. */
   private static class Params<T> implements Serializable {
     final Encoder<WindowedValue<T>> encoder;
-    final SerializablePipelineOptions options;
+    final Supplier<PipelineOptions> options;
     final int numPartitions;
 
     Params(
-        Encoder<WindowedValue<T>> encoder, SerializablePipelineOptions options, int numPartitions) {
+        Encoder<WindowedValue<T>> encoder, Supplier<PipelineOptions> options, int numPartitions) {
       checkArgument(numPartitions > 0, "Number of partitions must be greater than zero.");
       this.encoder = encoder;
       this.options = options;

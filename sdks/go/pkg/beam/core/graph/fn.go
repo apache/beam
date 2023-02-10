@@ -34,7 +34,7 @@ type Fn struct {
 	Fn *funcx.Fn
 	// Recv hold the struct receiver, if present. If Recv is nil, Fn
 	// must be non-nil.
-	Recv interface{}
+	Recv any
 	// DynFn holds the function-generator, if dynamic. If not nil, Fn
 	// holds the generated function.
 	DynFn *DynFn
@@ -57,7 +57,7 @@ func (f *Fn) Name() string {
 
 // DynFn is a generator for dynamically-created functions:
 //
-//    gen: (name string, t reflect.Type, []byte) -> func : T
+//	gen: (name string, t reflect.Type, []byte) -> func : T
 //
 // where the generated function, fn : T, is re-created at runtime. This concept
 // allows serialization of dynamically-generated functions, which do not have a
@@ -78,7 +78,7 @@ type DynFn struct {
 
 // NewFn pre-processes a function, dynamic function or struct for graph
 // construction.
-func NewFn(fn interface{}) (*Fn, error) {
+func NewFn(fn any) (*Fn, error) {
 	if gen, ok := fn.(*DynFn); ok {
 		f, err := funcx.New(gen.Gen(gen.Name, gen.T, gen.Data))
 		if err != nil {
@@ -415,7 +415,8 @@ func defaultConfig() *config {
 // validation. Valid inputs are the package constants of type mainInputs.
 //
 // Example usage:
-//   graph.NewDoFn(fn, graph.NumMainInputs(graph.MainKv))
+//
+//	graph.NewDoFn(fn, graph.NumMainInputs(graph.MainKv))
 func NumMainInputs(num mainInputs) func(*config) {
 	return func(cfg *config) {
 		cfg.numMainIn = num
@@ -427,8 +428,9 @@ func NumMainInputs(num mainInputs) func(*config) {
 // validation.
 //
 // Example usage:
-//   var col beam.PCollection
-//   graph.NewDoFn(fn, graph.CoGBKMainInput(len(col.Type().Components())))
+//
+//	var col beam.PCollection
+//	graph.NewDoFn(fn, graph.CoGBKMainInput(len(col.Type().Components())))
 func CoGBKMainInput(components int) func(*config) {
 	return func(cfg *config) {
 		cfg.numMainIn = mainInputs(components)
@@ -436,7 +438,7 @@ func CoGBKMainInput(components int) func(*config) {
 }
 
 // NewDoFn constructs a DoFn from the given value, if possible.
-func NewDoFn(fn interface{}, options ...func(*config)) (*DoFn, error) {
+func NewDoFn(fn any, options ...func(*config)) (*DoFn, error) {
 	ret, err := NewFn(fn)
 	if err != nil {
 		return nil, errors.WithContext(errors.Wrapf(err, "invalid DoFn"), "constructing DoFn")
@@ -804,11 +806,12 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 // requirements for either case.
 //
 // For a Fn to be an SDF it must:
-//   * Implement all the required (non-watermark related) SDF methods.
-//   * Include an RTracker parameter in ProcessElement.
+//   - Implement all the required (non-watermark related) SDF methods.
+//   - Include an RTracker parameter in ProcessElement.
+//
 // For a Fn to not be an SDF, it must:
-//   * Implement none of the SDF methods.
-//   * Not include an RTracker parameter in ProcessElement.
+//   - Implement none of the SDF methods.
+//   - Not include an RTracker parameter in ProcessElement.
 func validateIsSdf(fn *Fn) (bool, error) {
 	// Store missing method names so we can output them to the user if validation fails.
 	var missing []string
@@ -1354,7 +1357,7 @@ func (f *CombineFn) Name() string {
 }
 
 // NewCombineFn constructs a CombineFn from the given value, if possible.
-func NewCombineFn(fn interface{}) (*CombineFn, error) {
+func NewCombineFn(fn any) (*CombineFn, error) {
 	ret, err := NewFn(fn)
 	if err != nil {
 		return nil, errors.WithContext(errors.Wrapf(err, "invalid CombineFn"), "constructing CombineFn")

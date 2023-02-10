@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// Describes an example with the code to be fetched from [uri].
 class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk sdk;
   final Uri uri;
@@ -31,8 +33,37 @@ class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   @override
   List<Object> get props => [
-        sdk,
+        sdk.id,
         uri,
         viewOptions,
       ];
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'sdk': sdk.id,
+        'url': uri.toString(),
+      };
+
+  static HttpExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {
+    final urlString = map['url'];
+    if (urlString == null) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(urlString);
+    if (uri == null) {
+      return null;
+    }
+
+    final sdkId = map['sdk'];
+    if (sdkId == null) {
+      return null;
+    }
+
+    return HttpExampleLoadingDescriptor(
+      sdk: Sdk.parseOrCreate(sdkId),
+      uri: uri,
+      viewOptions: ExampleViewOptions.fromShortMap(map),
+    );
+  }
 }

@@ -45,7 +45,7 @@ var (
 func TestValidEncoderForms(t *testing.T) {
 	tests := []struct {
 		t   reflect.Type
-		enc interface{}
+		enc any
 	}{
 		{t: mT, enc: func(MyType) []byte { return nil }},
 		{t: mT, enc: func(MyType) ([]byte, error) { return nil, nil }},
@@ -84,7 +84,7 @@ func TestValidEncoderForms(t *testing.T) {
 func TestValidDecoderForms(t *testing.T) {
 	tests := []struct {
 		t   reflect.Type
-		dec interface{}
+		dec any
 	}{
 		{t: mT, dec: func([]byte) MyType { return MyType{} }},
 		{t: mT, dec: func([]byte) (MyType, error) { return MyType{}, nil }},
@@ -314,7 +314,7 @@ func TestCustomCoder_Equals(t *testing.T) {
 	cusStrEnc2 := func(string) []byte { return nil }
 	cusStrDec2 := func([]byte) string { return "" }
 
-	newCC := func(t *testing.T, name string, et reflect.Type, enc, dec interface{}) *CustomCoder {
+	newCC := func(t *testing.T, name string, et reflect.Type, enc, dec any) *CustomCoder {
 		t.Helper()
 		cc, err := NewCustomCoder(name, et, enc, dec)
 		if err != nil {

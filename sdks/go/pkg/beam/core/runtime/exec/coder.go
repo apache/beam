@@ -44,7 +44,7 @@ type ElementEncoder interface {
 
 // EncodeElement is a convenience function for encoding a single element into a
 // byte slice.
-func EncodeElement(c ElementEncoder, val interface{}) ([]byte, error) {
+func EncodeElement(c ElementEncoder, val any) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := c.Encode(&FullValue{Elm: val}, &buf); err != nil {
 		return nil, err
@@ -610,7 +610,7 @@ func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 //
 // Technically drops window and timestamp info, so only use when those are
 // expected to be empty.
-func elideSingleElmFV(fv *FullValue) interface{} {
+func elideSingleElmFV(fv *FullValue) any {
 	if fv.Elm2 == nil {
 		return fv.Elm
 	}
@@ -619,7 +619,7 @@ func elideSingleElmFV(fv *FullValue) interface{} {
 
 // convertIfNeeded reuses Wrapped KVs if needed, but accepts pointer
 // to a pre-allocated non-nil *FullValue for overwriting and use.
-func convertIfNeeded(v interface{}, allocated *FullValue) *FullValue {
+func convertIfNeeded(v any, allocated *FullValue) *FullValue {
 	if fv, ok := v.(*FullValue); ok {
 		return fv
 	} else if _, ok := v.(FullValue); ok {
@@ -953,7 +953,7 @@ func (d *paneDecoder) Decode(r io.Reader) (*FullValue, error) {
 }
 
 type rowEncoder struct {
-	enc func(interface{}, io.Writer) error
+	enc func(any, io.Writer) error
 }
 
 func (e *rowEncoder) Encode(val *FullValue, w io.Writer) error {
@@ -961,7 +961,7 @@ func (e *rowEncoder) Encode(val *FullValue, w io.Writer) error {
 }
 
 type rowDecoder struct {
-	dec func(r io.Reader) (interface{}, error)
+	dec func(r io.Reader) (any, error)
 }
 
 func (d *rowDecoder) DecodeTo(r io.Reader, fv *FullValue) error {

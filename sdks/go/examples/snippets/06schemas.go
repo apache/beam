@@ -98,7 +98,7 @@ func (p *TimestampNanosProvider) FromLogicalType(rt reflect.Type) (reflect.Type,
 }
 
 // BuildEncoder builds a Beam schema encoder for the TimestampNanos type.
-func (p *TimestampNanosProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func (p *TimestampNanosProvider) BuildEncoder(rt reflect.Type) (func(any, io.Writer) error, error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (p *TimestampNanosProvider) BuildEncoder(rt reflect.Type) (func(interface{}
 	if err != nil {
 		return nil, err
 	}
-	return func(iface interface{}, w io.Writer) error {
+	return func(iface any, w io.Writer) error {
 		v := iface.(TimestampNanos)
 		return enc(tnStorage{
 			Seconds: v.Seconds(),
@@ -116,7 +116,7 @@ func (p *TimestampNanosProvider) BuildEncoder(rt reflect.Type) (func(interface{}
 }
 
 // BuildDecoder builds a Beam schema decoder for the TimestampNanos type.
-func (p *TimestampNanosProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func (p *TimestampNanosProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (any, error), error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (p *TimestampNanosProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) 
 	if err != nil {
 		return nil, err
 	}
-	return func(r io.Reader) (interface{}, error) {
+	return func(r io.Reader) (any, error) {
 		s, err := dec(r)
 		if err != nil {
 			return nil, err

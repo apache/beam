@@ -24,7 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-//mapFields maps column into field index in record type
+// mapFields maps column into field index in record type
 func mapFields(columns []string, recordType reflect.Type) ([]int, error) {
 	var indexedFields = map[string]int{}
 	for i := 0; i < recordType.NumField(); i++ {
@@ -56,7 +56,7 @@ func mapFields(columns []string, recordType reflect.Type) ([]int, error) {
 	return mappedFieldIndex, nil
 }
 
-func asDereferenceSlice(aSlice []interface{}) {
+func asDereferenceSlice(aSlice []any) {
 	for i, value := range aSlice {
 		if value == nil {
 			continue
@@ -66,8 +66,8 @@ func asDereferenceSlice(aSlice []interface{}) {
 	}
 }
 
-func asMap(keys []string, values []interface{}) map[string]interface{} {
-	var result = make(map[string]interface{})
+func asMap(keys []string, values []any) map[string]any {
+	var result = make(map[string]any)
 	for i, key := range keys {
 		result[key] = values[i]
 	}

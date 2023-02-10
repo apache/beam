@@ -18,7 +18,23 @@ limitations under the License.
 
 # Machine Learning
 
-{{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+<table>
+  <tr>
+    <td>
+      <a>
+      {{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+      </a>
+   </td>
+   <td>
+      <a target="_blank" class="button"
+          href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/extensions/python/transforms/RunInference.html">
+        <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="30px"
+            alt="Javadoc" />
+      Javadoc
+      </a>
+    </td>
+  </tr>
+</table>
 
 You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through tfx-bsl.
 
@@ -157,7 +173,7 @@ with pipeline as p:
          accelerator="type:nvidia-tesla-k80;count:1;install-nvidia-driver")
 ```
 
-For more information on resource hints, see [Resource hints](https://beam.apache.org/documentation/runtime/resource-hints/).
+For more information on resource hints, see [Resource hints](/documentation/runtime/resource-hints/).
 
 ### Use a keyed ModelHandler
 
@@ -219,7 +235,7 @@ For detailed instructions explaining how to build and run a pipeline that uses M
 
 ## Beam Java SDK support
 
-The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language).
+The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language).
 
 ## Troubleshooting
 

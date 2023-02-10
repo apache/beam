@@ -22,7 +22,6 @@ plugins {
 }
 
 applyJavaNature(
-        exportJavadoc: false,
         automaticModuleName: 'org.apache.beam.sdk.io.cdap',
 )
 provideIntegrationTestingDependencies()
@@ -52,7 +51,6 @@ dependencies {
     implementation library.java.cdap_plugin_zendesk
     implementation library.java.commons_lang3
     implementation library.java.guava
-    implementation library.java.google_code_gson
     implementation library.java.hadoop_common
     implementation library.java.hadoop_mapreduce_client_core
     implementation library.java.jackson_core
@@ -71,8 +69,8 @@ dependencies {
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
     testImplementation library.java.testcontainers_postgresql
-    testImplementation project(":sdks:java:io:hadoop-common")
-    testImplementation project(":sdks:java:io:hadoop-format")
+    testImplementation project(path: ":sdks:java:io:hadoop-common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")

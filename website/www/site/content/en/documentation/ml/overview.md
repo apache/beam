@@ -24,6 +24,8 @@ Beam <3 machine learning. Being productive and successful as a machine learning 
   upscaling your data pipelines as part of your MLOps ecosystem in a production environment.
 * It enables you to run your model in production on a varying data load, both in batch and streaming.
 
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
+
 ## AI/ML workloads
 
 Let’s take a look at the different building blocks that we need to create an end-to-end AI/ML use case and where Apache Beam can help.
@@ -43,9 +45,9 @@ You can use Apache Beam for data validation, data preprocessing, and model deplo
 
 ## Data processing
 
-You can use Apache Beam for data validation and preprocessing by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of [I/O connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data, which allows you to integrate it with your existing file system, database, or messaging queue.
+You can use Apache Beam for data validation and preprocessing by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of [I/O connectors](/documentation/io/built-in/) for ingesting and writing data, which allows you to integrate it with your existing file system, database, or messaging queue.
 
-When developing your ML model, you can also first explore your data with the [Beam DataFrame API](https://beam.apache.org/documentation/dsls/dataframes/overview/). The DataFrom API lets you identify and implement the required preprocessing steps, making it easier for you to move your pipeline to production.
+When developing your ML model, you can also first explore your data with the [Beam DataFrame API](/documentation/dsls/dataframes/overview/). The DataFrom API lets you identify and implement the required preprocessing steps, making it easier for you to move your pipeline to production.
 
 Steps executed during preprocessing often also need to be applied before running inference, in which case you can use the same Beam implementation twice. Lastly, when you need to do postprocessing after running inference, Apache Beam allows you to incoporate the postprocessing into your model inference pipeline.
 
@@ -58,7 +60,7 @@ Beam provides different ways to implement inference as part of your pipeline. Yo
 
 ### RunInference
 
-The recommended way to implement inference is by using the [RunInference API](https://beam.apache.org/documentation/sdks/python-machine-learning/). RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
+The recommended way to implement inference is by using the [RunInference API](/documentation/sdks/python-machine-learning/). RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
 
 You can integrate your model in your pipeline by using the corresponding model handlers. A `ModelHandler` is an object that wraps the underlying model and allows you to configure its parameters. Model handlers are available for PyTorch, scikit-learn, and TensorFlow. Examples of how to use RunInference for PyTorch, scikit-learn, and TensorFlow are shown in this [notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb).
 
@@ -91,3 +93,5 @@ You can find examples of end-to-end AI/ML pipelines for several use cases:
 * [Online Clustering in Beam](/documentation/ml/online-clustering): Demonstrates how to set up a real-time clustering pipeline that can read text from Pub/Sub, convert the text into an embedding using a transformer-based language model with the RunInference API, and cluster the text using BIRCH with stateful processing.
 * [Anomaly Detection in Beam](/documentation/ml/anomaly-detection): Demonstrates how to set up an anomaly detection pipeline that reads text from Pub/Sub in real time and then detects anomalies using a trained HDBSCAN clustering model with the RunInference API.
 * [Large Language Model Inference in Beam](/documentation/ml/large-language-modeling): Demonstrates a pipeline that uses RunInference to perform translation with the T5 language model which contains 11 billion parameters.
+* [Per Entity Training in Beam](/documentation/ml/per-entity-training): Demonstrates a pipeline that trains a Decision Tree Classifier per education level for predicting if the salary of a person is >= 50k.
+* [TensorRT Inference](/documentation/ml/tensorrt-runinference): Demonstrates a pipeline that uses TensorRT with the RunInference transform and a BERT-based text classification model.

@@ -86,7 +86,7 @@ func TestMustBeBigtableioMutation(t *testing.T) {
 }
 
 func TestMustNotBeBigtableioMutation(t *testing.T) {
-	failValues := []interface{}{
+	failValues := []any{
 		1,
 		1.0,
 		"strings must fail",

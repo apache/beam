@@ -15,6 +15,16 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
+errors:
+  error: 'Error'
+  loading: 'Error while loading.'
+  loadingCatalog: 'Cannot load the example catalog.'
+  loadingExample: 'Cannot load the example.'
+  savingSnippet: 'Cannot create a shareable link.'
+
+examples:
+  userSharedName: 'User Shared Code'
+
 ui:
   darkMode: 'Dark Mode'
   lightMode: 'Light Mode'
@@ -38,7 +48,6 @@ widgets:
     graph: 'Graph'
     result: 'Result'
 
-
   resetButton:
     label: 'Reset'
 
@@ -49,4 +58,3 @@ widgets:
     notificationTitles:
       run: 'Run Code'
       cancelExecution: 'Cancel Execution'
-

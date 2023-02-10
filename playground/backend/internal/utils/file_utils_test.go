@@ -291,6 +291,11 @@ func TestToSDKFromExt(t *testing.T) {
 			input:    "MOCK",
 			expected: pb.Sdk_SDK_UNSPECIFIED,
 		},
+		{
+			name:     "Transformation a class extension to a Java SDK",
+			input:    classExt,
+			expected: pb.Sdk_SDK_JAVA,
+		},
 	}
 
 	for _, tt := range tests {

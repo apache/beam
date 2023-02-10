@@ -31,7 +31,7 @@ func (f *foo) String() string {
 
 func TestMergeMaps(t *testing.T) {
 	tests := []struct {
-		a, b, exp interface{}
+		a, b, exp any
 	}{
 		{
 			a:   map[string]*foo{"a": {1}},
@@ -71,7 +71,7 @@ func TestMergeMaps(t *testing.T) {
 }
 
 func TestShallowClone(t *testing.T) {
-	tests := []interface{}{
+	tests := []any{
 		nil,
 		2,
 		foo{4},

@@ -117,6 +117,11 @@ public class GroupIntoBatches<K, InputT>
    */
   @AutoValue
   public abstract static class BatchingParams<InputT> implements Serializable {
+    public static <InputT> BatchingParams<InputT> createDefault() {
+      return new AutoValue_GroupIntoBatches_BatchingParams(
+          Long.MAX_VALUE, Long.MAX_VALUE, null, Duration.ZERO);
+    }
+
     public static <InputT> BatchingParams<InputT> create(
         long batchSize,
         long batchSizeBytes,
@@ -170,8 +175,7 @@ public class GroupIntoBatches<K, InputT>
   /** Aim to create batches each with the specified element count. */
   public static <K, InputT> GroupIntoBatches<K, InputT> ofSize(long batchSize) {
     Preconditions.checkState(batchSize < Long.MAX_VALUE);
-    return new GroupIntoBatches<>(
-        BatchingParams.create(batchSize, Long.MAX_VALUE, null, Duration.ZERO));
+    return new GroupIntoBatches<K, InputT>(BatchingParams.createDefault()).withSize(batchSize);
   }
 
   /**
@@ -185,9 +189,8 @@ public class GroupIntoBatches<K, InputT>
    * {@link #ofByteSize(long, SerializableFunction)} to specify code to calculate the byte size.
    */
   public static <K, InputT> GroupIntoBatches<K, InputT> ofByteSize(long batchSizeBytes) {
-    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
-    return new GroupIntoBatches<>(
-        BatchingParams.create(Long.MAX_VALUE, batchSizeBytes, null, Duration.ZERO));
+    return new GroupIntoBatches<K, InputT>(BatchingParams.createDefault())
+        .withByteSize(batchSizeBytes);
   }
 
   /**
@@ -196,14 +199,52 @@ public class GroupIntoBatches<K, InputT>
    */
   public static <K, InputT> GroupIntoBatches<K, InputT> ofByteSize(
       long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
-    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
-    return new GroupIntoBatches<>(
-        BatchingParams.create(Long.MAX_VALUE, batchSizeBytes, getElementByteSize, Duration.ZERO));
+    return new GroupIntoBatches<K, InputT>(BatchingParams.createDefault())
+        .withByteSize(batchSizeBytes, getElementByteSize);
   }
 
   /** Returns user supplied parameters for batching. */
   public BatchingParams<InputT> getBatchingParams() {
     return params;
+  }
+
+  @Override
+  public String toString() {
+    return super.toString() + ", params=" + params;
+  }
+
+  /** @see #ofSize(long) */
+  public GroupIntoBatches<K, InputT> withSize(long batchSize) {
+    Preconditions.checkState(batchSize < Long.MAX_VALUE);
+    return new GroupIntoBatches<>(
+        BatchingParams.create(
+            batchSize,
+            params.getBatchSizeBytes(),
+            params.getElementByteSize(),
+            params.getMaxBufferingDuration()));
+  }
+
+  /** @see #ofByteSize(long) */
+  public GroupIntoBatches<K, InputT> withByteSize(long batchSizeBytes) {
+    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
+    return new GroupIntoBatches<>(
+        BatchingParams.create(
+            params.getBatchSize(),
+            batchSizeBytes,
+            params.getElementByteSize(),
+            params.getMaxBufferingDuration()));
+  }
+
+  /** @see #ofByteSize(long, SerializableFunction) */
+  public GroupIntoBatches<K, InputT> withByteSize(
+      long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
+    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
+    return new GroupIntoBatches<>(
+        BatchingParams.create(
+            params.getBatchSize(),
+            batchSizeBytes,
+            getElementByteSize,
+            params.getMaxBufferingDuration()));
   }
 
   /**
@@ -423,20 +464,56 @@ public class GroupIntoBatches<K, InputT>
         @Timestamp Instant elementTs,
         BoundedWindow window,
         OutputReceiver<KV<K, Iterable<InputT>>> receiver) {
+
+      final boolean shouldCareAboutWeight = weigher != null && batchSizeBytes != Long.MAX_VALUE;
+      final boolean shouldCareAboutMaxBufferingDuration =
+          maxBufferingDuration.isLongerThan(Duration.ZERO);
+
+      if (shouldCareAboutWeight) {
+        storedBatchSizeBytes.readLater();
+      }
+      storedBatchSize.readLater();
+      if (shouldCareAboutMaxBufferingDuration) {
+        minBufferedTs.readLater();
+      }
+
       LOG.debug("*** BATCH *** Add element for window {} ", window);
+      if (shouldCareAboutWeight) {
+        final long elementWeight = weigher.apply(element.getValue());
+        if (elementWeight + storedBatchSizeBytes.read() > batchSizeBytes) {
+          // Firing by count and size limits behave differently.
+          //
+          // We always increase the count by one, so we will fire at the exact limit without any
+          // overflow.
+          // before the addition: x < limit
+          // after the addition: x < limit OR x == limit(triggered)
+          //
+          // Meanwhile when we increase the batched byte size we do it with an undeterministic
+          // amount, so if we only check the limit after we already increased the batch size it
+          // could mean we fire over the limit.
+          // before the addition: x < limit
+          // after the addition: x < limit OR x == limit(triggered) OR x > limit(triggered)
+          // We shouldn't trigger a batch with bigger size than the config to limit it contains, so
+          // we fire it early if necessary.
+          LOG.debug("*** EARLY FIRE OF BATCH *** for window {}", window.toString());
+          flushBatch(
+              receiver,
+              element.getKey(),
+              batch,
+              storedBatchSize,
+              storedBatchSizeBytes,
+              timerTs,
+              minBufferedTs);
+          bufferingTimer.clear();
+        }
+        storedBatchSizeBytes.add(elementWeight);
+      }
       batch.add(element.getValue());
       // Blind add is supported with combiningState
       storedBatchSize.add(1L);
-      if (weigher != null) {
-        storedBatchSizeBytes.add(weigher.apply(element.getValue()));
-        storedBatchSizeBytes.readLater();
-      }
 
-      long num;
-      if (maxBufferingDuration.isLongerThan(Duration.ZERO)) {
-        minBufferedTs.readLater();
-        num = storedBatchSize.read();
-
+      final long num = storedBatchSize.read();
+      if (shouldCareAboutMaxBufferingDuration) {
         long oldOutputTs =
             MoreObjects.firstNonNull(
                 minBufferedTs.read(), BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
@@ -455,7 +532,6 @@ public class GroupIntoBatches<K, InputT>
               .set(Instant.ofEpochMilli(targetTs));
         }
       }
-      num = storedBatchSize.read();
 
       if (num % prefetchFrequency == 0) {
         // Prefetch data and modify batch state (readLater() modifies this)
@@ -463,7 +539,7 @@ public class GroupIntoBatches<K, InputT>
       }
 
       if (num >= batchSize
-          || (batchSizeBytes != Long.MAX_VALUE && storedBatchSizeBytes.read() >= batchSizeBytes)) {
+          || (shouldCareAboutWeight && storedBatchSizeBytes.read() >= batchSizeBytes)) {
         LOG.debug("*** END OF BATCH *** for window {}", window.toString());
         flushBatch(
             receiver,
@@ -545,7 +621,6 @@ public class GroupIntoBatches<K, InputT>
         receiver.output(KV.of(key, values));
       }
       clearState(batch, storedBatchSize, storedBatchSizeBytes, timerTs, minBufferedTs);
-      ;
     }
 
     private void clearState(

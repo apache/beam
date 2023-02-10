@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/components/examples_components.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../constants/sizes.dart';
+import '../../../../pages/standalone_playground/notifiers/example_selector_state.dart';
+import '../examples_components.dart';
 
 class ExamplesFilter extends StatelessWidget {
   const ExamplesFilter({super.key});

@@ -33,21 +33,22 @@ import org.junit.runners.JUnit4;
 public class SourceRecordJsonTest implements Serializable {
   @Test
   public void testSourceRecordJson() {
-    SourceRecord record = this.buildSourceRecord();
+    SourceRecord record = buildSourceRecord();
     SourceRecordJson json = new SourceRecordJson(record);
 
     String jsonString = json.toJson();
 
     String expectedJson =
         "{\"metadata\":"
-            + "{\"connector\":\"test-connector\","
-            + "\"version\":\"version-connector\","
+            + "{\"connector\":\"test-connector\",\"version\":\"version-connector\","
             + "\"name\":\"test-connector-sql\","
-            + "\"database\":\"test-db\","
-            + "\"schema\":\"test-schema\","
-            + "\"table\":\"test-table\"},"
-            + "\"before\":{\"fields\":{\"column1\":\"before-name\"}},"
-            + "\"after\":{\"fields\":{\"column1\":\"after-name\"}}}";
+            + "\"database\":\"test-db\",\"schema\":\"test-schema\",\"table\":\"test-table\"},"
+            + "\"before\":{\"fields\":{\"country\":null,\"distance\":123.423,\"birthYear\":null,"
+            + "\"name\":\"before-name\","
+            + "\"temperature\":104.4,\"childrenAndAge\":null,\"age\":16}},"
+            + "\"after\":{\"fields\":{\"country\":null,\"distance\":123.423,\"birthYear\":null,"
+            + "\"name\":\"after-name\","
+            + "\"temperature\":104.4,\"childrenAndAge\":null,\"age\":16}}}";
 
     assertEquals(expectedJson, jsonString);
   }
@@ -57,7 +58,7 @@ public class SourceRecordJsonTest implements Serializable {
     assertThrows(IllegalArgumentException.class, () -> new SourceRecordJson(null));
   }
 
-  private Schema buildSourceSchema() {
+  private static Schema buildSourceSchema() {
     return SchemaBuilder.struct()
         .field("connector", Schema.STRING_SCHEMA)
         .field("version", Schema.STRING_SCHEMA)
@@ -68,18 +69,32 @@ public class SourceRecordJsonTest implements Serializable {
         .build();
   }
 
-  private Schema buildBeforeSchema() {
-    return SchemaBuilder.struct().field("column1", Schema.STRING_SCHEMA).build();
+  public static Schema buildTableSchema() {
+    return SchemaBuilder.struct()
+        .field("name", Schema.STRING_SCHEMA)
+        .field("age", SchemaBuilder.int8().doc("age of the person").build())
+        .field("temperature", Schema.FLOAT32_SCHEMA)
+        .field("distance", Schema.FLOAT64_SCHEMA)
+        .field("birthYear", Schema.OPTIONAL_INT64_SCHEMA)
+        .field(
+            "country",
+            SchemaBuilder.struct()
+                .optional()
+                .field("name", Schema.STRING_SCHEMA)
+                .field("population", Schema.OPTIONAL_INT64_SCHEMA)
+                .field("latitude", SchemaBuilder.array(Schema.FLOAT32_SCHEMA).optional())
+                .field("longitude", SchemaBuilder.array(Schema.FLOAT32_SCHEMA).optional())
+                .build())
+        .field(
+            "childrenAndAge",
+            SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.INT32_SCHEMA).optional())
+        .build();
   }
 
-  private Schema buildAfterSchema() {
-    return SchemaBuilder.struct().field("column1", Schema.STRING_SCHEMA).build();
-  }
-
-  private SourceRecord buildSourceRecord() {
-    final Schema sourceSchema = this.buildSourceSchema();
-    final Schema beforeSchema = this.buildBeforeSchema();
-    final Schema afterSchema = this.buildAfterSchema();
+  static SourceRecord buildSourceRecord() {
+    final Schema sourceSchema = buildSourceSchema();
+    final Schema beforeSchema = buildTableSchema();
+    final Schema afterSchema = buildTableSchema();
 
     final Schema schema =
         SchemaBuilder.struct()
@@ -101,8 +116,16 @@ public class SourceRecordJsonTest implements Serializable {
     source.put("schema", "test-schema");
     source.put("table", "test-table");
 
-    before.put("column1", "before-name");
-    after.put("column1", "after-name");
+    before
+        .put("name", "before-name")
+        .put("age", (byte) 16)
+        .put("temperature", (float) 104.4)
+        .put("distance", 123.423);
+    after
+        .put("name", "after-name")
+        .put("age", (byte) 16)
+        .put("temperature", (float) 104.4)
+        .put("distance", 123.423);
 
     value.put("source", source);
     value.put("before", before);

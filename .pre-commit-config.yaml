@@ -10,8 +10,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-default_language_version:
-  python: python3.7
 repos:
   - repo: https://github.com/pre-commit/mirrors-yapf
     # this rev is a release tag in the repo above and corresponds with a yapf

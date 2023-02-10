@@ -40,7 +40,6 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -114,7 +113,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
     // Initialize accumulators.
-    AggregatorsAccumulator.init(pipelineOptions, jsc);
     MetricsEnvironment.setMetricsSupported(true);
     MetricsAccumulator.init(pipelineOptions, jsc);
 
@@ -133,9 +131,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       final JavaStreamingContext jssc =
           ((SparkStreamingTranslationContext) context).getStreamingContext();
 
-      jssc.addStreamingListener(
-          new JavaStreamingListenerWrapper(
-              new AggregatorsAccumulator.AccumulatorCheckpointingSparkListener()));
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
               new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));

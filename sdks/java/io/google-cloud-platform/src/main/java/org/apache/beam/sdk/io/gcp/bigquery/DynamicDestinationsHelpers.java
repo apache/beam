@@ -426,7 +426,7 @@ class DynamicDestinationsHelpers {
     public @Nullable TableSchema getSchema(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
       @Nullable Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
-      if (existingTable == null) {
+      if (existingTable == null || existingTable.getSchema() == null) {
         return super.getSchema(destination);
       } else {
         return existingTable.getSchema();

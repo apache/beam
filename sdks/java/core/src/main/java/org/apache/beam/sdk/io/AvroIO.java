@@ -30,6 +30,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
+import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -571,7 +572,8 @@ public class AvroIO {
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .setMetadata(ImmutableMap.of())
         .setWindowedWrites(false)
-        .setNoSpilling(false);
+        .setNoSpilling(false)
+        .setSyncInterval(DataFileConstants.DEFAULT_SYNC_INTERVAL);
   }
 
   @Experimental(Kind.SCHEMAS)
@@ -1318,6 +1320,8 @@ public class AvroIO {
 
     abstract boolean getGenericRecords();
 
+    abstract int getSyncInterval();
+
     abstract @Nullable Schema getSchema();
 
     abstract boolean getWindowedWrites();
@@ -1361,6 +1365,8 @@ public class AvroIO {
           @Nullable String shardTemplate);
 
       abstract Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords);
+
+      abstract Builder<UserT, DestinationT, OutputT> setSyncInterval(int syncInterval);
 
       abstract Builder<UserT, DestinationT, OutputT> setSchema(Schema schema);
 
@@ -1471,6 +1477,14 @@ public class AvroIO {
       return toBuilder()
           .setDynamicDestinations((DynamicAvroDestinations) dynamicDestinations)
           .build();
+    }
+
+    /**
+     * Sets the approximate number of uncompressed bytes to write in each block for the AVRO
+     * container format.
+     */
+    public TypedWrite<UserT, DestinationT, OutputT> withSyncInterval(int syncInterval) {
+      return toBuilder().setSyncInterval(syncInterval).build();
     }
 
     /**
@@ -1659,7 +1673,11 @@ public class AvroIO {
       }
       WriteFiles<UserT, DestinationT, OutputT> write =
           WriteFiles.to(
-              new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()));
+              new AvroSink<>(
+                  tempDirectory,
+                  resolveDynamicDestinations(),
+                  getGenericRecords(),
+                  getSyncInterval()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -1742,10 +1760,16 @@ public class AvroIO {
       return new Write<>(inner.to(dynamicDestinations).withFormatFunction(null));
     }
 
+    /** See {@link TypedWrite#withSyncInterval}. */
+    public Write<T> withSyncInterval(int syncInterval) {
+      return new Write<>(inner.withSyncInterval(syncInterval));
+    }
+
     /** See {@link TypedWrite#withSchema}. */
     public Write<T> withSchema(Schema schema) {
       return new Write<>(inner.withSchema(schema));
     }
+
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {

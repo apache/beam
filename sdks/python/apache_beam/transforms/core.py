@@ -50,6 +50,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.userstate import StateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
@@ -760,19 +761,19 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @property
   def _process_defined(self) -> bool:
-    # Check if this DoFn's process method has heen overriden
+    # Check if this DoFn's process method has been overridden
     # Note that we retrieve the __func__ attribute, if it exists, to get the
     # underlying function from the bound method.
-    # If __func__ doesn't exist, self.process was likely overriden with a free
+    # If __func__ doesn't exist, self.process was likely overridden with a free
     # function, as in CallableWrapperDoFn.
     return getattr(self.process, '__func__', self.process) != DoFn.process
 
   @property
   def _process_batch_defined(self) -> bool:
-    # Check if this DoFn's process_batch method has heen overriden
+    # Check if this DoFn's process_batch method has been overridden
     # Note that we retrieve the __func__ attribute, if it exists, to get the
     # underlying function from the bound method.
-    # If __func__ doesn't exist, self.process_batch was likely overriden with
+    # If __func__ doesn't exist, self.process_batch was likely overridden with
     # a free function.
     return getattr(
         self.process_batch, '__func__',
@@ -2745,6 +2746,11 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     from apache_beam.transforms.trigger import AccumulationMode
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
+
+    if isinstance(pcoll.windowing.windowfn, SlidingWindows):
+      raise ValueError(
+          'CombinePerKey.with_hot_key_fanout does not yet work properly with '
+          'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
 
     class SplitHotCold(DoFn):
       def start_bundle(self):

@@ -94,7 +94,7 @@ func directCountFn(_ int, values func(*int) bool) (int, error) {
 // DirectParDoAfterGBK generates a pipeline with a direct-form
 // ParDo after a GBK. See: BEAM-3978 and BEAM-4175.
 func DirectParDoAfterGBK() *beam.Pipeline {
-	p, s, col := ptest.Create([]interface{}{1, 2, 3, 4})
+	p, s, col := ptest.Create([]any{1, 2, 3, 4})
 
 	keyed := beam.GroupByKey(s, beam.AddFixedKey(s, col))
 	sum := beam.ParDo(s, directCountFn, keyed)
@@ -116,7 +116,7 @@ func emitCountFn(_ int, values func(*int) bool, emit func(int)) error {
 // EmitParDoAfterGBK generates a pipeline with a emit-form
 // ParDo after a GBK. See: BEAM-3978 and BEAM-4175.
 func EmitParDoAfterGBK() *beam.Pipeline {
-	p, s, col := ptest.Create([]interface{}{1, 2, 3, 4})
+	p, s, col := ptest.Create([]any{1, 2, 3, 4})
 
 	keyed := beam.GroupByKey(s, beam.AddFixedKey(s, col))
 	sum := beam.ParDo(s, emitCountFn, keyed)

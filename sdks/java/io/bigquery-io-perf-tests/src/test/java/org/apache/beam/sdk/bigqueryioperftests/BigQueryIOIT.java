@@ -204,7 +204,7 @@ public class BigQueryIOIT {
                 Duration.standardSeconds(options.getPipelineTimeout()));
     extractAndPublishTime(pipelineResult, metricName);
     // Fail the test if pipeline failed.
-    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
+    assertNotEquals(PipelineResult.State.FAILED, pipelineState);
 
     // set back streaming
     options.as(StreamingOptions.class).setStreaming(false);
@@ -223,7 +223,7 @@ public class BigQueryIOIT {
         sourceOptions.numRecords, readElementMetric(result, NAMESPACE, READ_ELEMENT_METRIC_NAME));
     extractAndPublishTime(result, READ_TIME_METRIC_NAME);
     // Fail the test if pipeline failed.
-    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
+    assertNotEquals(PipelineResult.State.FAILED, pipelineState);
   }
 
   private void extractAndPublishTime(PipelineResult pipelineResult, String writeTimeMetricName) {

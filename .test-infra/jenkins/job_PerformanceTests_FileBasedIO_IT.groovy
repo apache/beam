@@ -287,7 +287,7 @@ private void createGCSFileBasedIOITTestJob(testJob) {
     description(testJob.description)
     common.setTopLevelMainJobProperties(delegate)
     common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
-    common.setAutoJob(delegate, 'H H/6 * * *')
+    common.setAutoJob(delegate, 'H H/12 * * *')
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
       influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
@@ -340,7 +340,7 @@ private void createHDFSFileBasedIOITTestJob(testJob) {
     description(testJob.description)
     common.setTopLevelMainJobProperties(delegate)
     common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
-    common.setAutoJob(delegate, 'H H/6 * * *')
+    common.setAutoJob(delegate, 'H H/12 * * *')
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
       influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,

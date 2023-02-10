@@ -26,7 +26,7 @@ including arrays, maps, and nested rows. This page documents supported
 In Java, these types are mapped to Java types large enough to hold the
 full range of values.
 
-{{< table >}}
+{{< table class="table-wrapper--equal-p" >}}
 | SQL Type  | Description  | Java class |
 | --------- | ------------ | ---------- |
 | TINYINT   | 1 byte signed integer in range -128 to 127                                 | java.lang.Byte    |

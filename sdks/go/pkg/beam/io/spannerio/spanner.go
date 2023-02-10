@@ -20,15 +20,19 @@ package spannerio
 import (
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"reflect"
 	"strings"
 
 	"cloud.google.com/go/spanner"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/structx"
 	"google.golang.org/api/iterator"
 )
+
+// spannerTag is the struct tag key used to identify Spanner field names.
+const spannerTag = "spanner"
 
 func init() {
 	register.DoFn3x1[context.Context, []byte, func(beam.X), error]((*queryFn)(nil))
@@ -37,26 +41,13 @@ func init() {
 	register.Iter1[beam.X]()
 }
 
-func columnsFromStruct(t reflect.Type) []string {
-	var columns []string
-
-	for i := 0; i < t.NumField(); i++ {
-		columns = append(columns, t.Field(i).Tag.Get("spanner"))
-	}
-
-	return columns
-}
-
 // Read reads all rows from the given table. The table must have a schema
 // compatible with the given type, t, and Read returns a PCollection<t>. If the
 // table has more rows than t, then Read is implicitly a projection.
 func Read(s beam.Scope, database string, table string, t reflect.Type) beam.PCollection {
 	s = s.Scope("spanner.Read")
 
-	// TODO(herohde) 7/13/2017: using * is probably too inefficient. We could infer
-	// a focused query from the type.
-
-	cols := strings.Join(columnsFromStruct(t), ",")
+	cols := strings.Join(structx.InferFieldNames(t, spannerTag), ",")
 
 	return query(s, database, nil, fmt.Sprintf("SELECT %v from %v", cols, table), t)
 }

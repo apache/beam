@@ -1660,12 +1660,12 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FakeBigtableReader createReader(BigtableSource source) {
+    public FakeBigtableReader createReader(BigtableSource source, int id) {
       return new FakeBigtableReader(source);
     }
 
     @Override
-    public FakeBigtableWriter openForWriting(String tableId, BigtableWriteOptions writeOptions) {
+    public FakeBigtableWriter openForWriting(String tableId, BigtableWriteOptions writeOptions, int id) {
       return new FakeBigtableWriter(tableId);
     }
 
@@ -1730,12 +1730,12 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FakeBigtableReader createReader(BigtableSource source) {
+    public FakeBigtableReader createReader(BigtableSource source, int id) {
       return new FailureBigtableReader(source, this, failureOptions);
     }
 
     @Override
-    public FailureBigtableWriter openForWriting(String tableId, BigtableWriteOptions writeOptions) {
+    public FailureBigtableWriter openForWriting(String tableId, BigtableWriteOptions writeOptions, int id) {
       return new FailureBigtableWriter(tableId, this, failureOptions);
     }
 

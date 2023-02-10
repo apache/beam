@@ -19,14 +19,13 @@ package org.apache.beam.runners.spark.structuredstreaming.metrics.sink;
 
 import com.codahale.metrics.MetricRegistry;
 import java.util.Properties;
-import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.WithMetricsSupport;
 import org.apache.spark.SecurityManager;
 import org.apache.spark.metrics.sink.Sink;
 
 /**
  * A {@link Sink} for <a href="https://spark.apache.org/docs/latest/monitoring.html#metrics">Spark's
- * metric system</a> that is tailored to report {@link AggregatorMetric}s to a CSV file.
+ * metric system</a> reporting metrics (including Beam step metrics) to a CSV file.
  *
  * <p>The sink is configured using Spark configuration parameters, for example:
  *

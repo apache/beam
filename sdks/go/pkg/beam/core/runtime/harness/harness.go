@@ -329,7 +329,7 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 	desc, ok := c.descriptors[bdID]
 	c.mu.Unlock() // Unlock to make the lookup or build the descriptor.
 	if !ok {
-		newDesc, err, _ := c.bundleGetGroup.Do(string(bdID), func() (interface{}, error) {
+		newDesc, err, _ := c.bundleGetGroup.Do(string(bdID), func() (any, error) {
 			newDesc, err := c.lookupDesc(bdID)
 			if err != nil {
 				return nil, errors.WithContextf(err, "execution plan for %v not found", bdID)
@@ -415,6 +415,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
+		checkpoints := plan.Checkpoint()
 		requiresFinalization := false
 		// Move the plan back to the candidate state
 		c.mu.Lock()
@@ -447,21 +448,19 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		// Check if the underlying DoFn self-checkpointed.
-		sr, delay, checkpointed, checkErr := plan.Checkpoint()
-
 		var rRoots []*fnpb.DelayedBundleApplication
-		if checkpointed {
-			rRoots = make([]*fnpb.DelayedBundleApplication, len(sr.RS))
-			for i, r := range sr.RS {
-				rRoots[i] = &fnpb.DelayedBundleApplication{
-					Application: &fnpb.BundleApplication{
-						TransformId:      sr.TId,
-						InputId:          sr.InId,
-						Element:          r,
-						OutputWatermarks: sr.OW,
-					},
-					RequestedTimeDelay: durationpb.New(delay),
+		if len(checkpoints) > 0 {
+			for _, cp := range checkpoints {
+				for _, r := range cp.SR.RS {
+					rRoots = append(rRoots, &fnpb.DelayedBundleApplication{
+						Application: &fnpb.BundleApplication{
+							TransformId:      cp.SR.TId,
+							InputId:          cp.SR.InId,
+							Element:          r,
+							OutputWatermarks: cp.SR.OW,
+						},
+						RequestedTimeDelay: durationpb.New(cp.Reapply),
+					})
 				}
 			}
 		}
@@ -477,11 +476,6 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if err != nil {
 			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
 		}
-
-		if checkErr != nil {
-			return fail(ctx, instID, "process bundle failed at checkpointing for instruction %v using plan %v : %v", instID, bdID, checkErr)
-		}
-
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundle{
@@ -573,7 +567,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if ds == nil {
 			return fail(ctx, instID, "failed to split: desired splits for root of %v was empty.", ref)
 		}
-		sr, err := plan.Split(exec.SplitPoints{
+		sr, err := plan.Split(ctx, exec.SplitPoints{
 			Splits:  ds.GetAllowedSplitPoints(),
 			Frac:    ds.GetFractionOfRemainder(),
 			BufSize: ds.GetEstimatedInputElements(),
@@ -581,6 +575,17 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		if err != nil {
 			return fail(ctx, instID, "unable to split %v: %v", ref, err)
+		}
+
+		// Unsuccessful splits without errors indicate we should return an empty response,
+		// as processing can confinue.
+		if sr.Unsuccessful {
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleSplit{
+					ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				},
+			}
 		}
 
 		var pRoots []*fnpb.BundleApplication
@@ -681,7 +686,7 @@ func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, re
 	return plan, store, nil
 }
 
-func fail(ctx context.Context, id instructionID, format string, args ...interface{}) *fnpb.InstructionResponse {
+func fail(ctx context.Context, id instructionID, format string, args ...any) *fnpb.InstructionResponse {
 	log.Output(ctx, log.SevError, 1, fmt.Sprintf(format, args...))
 	dummy := &fnpb.InstructionResponse_Register{Register: &fnpb.RegisterResponse{}}
 

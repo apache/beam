@@ -21,12 +21,18 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java_JDBC_IO_Direct',
-    gradleTask: ':sdks:java:io:jdbc:integrationTest',
+    gradleTasks: [
+      ':sdks:java:io:jdbc:build',
+      ':sdks:java:io:jdbc:integrationTest',
+    ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
+      '^sdks/java/core/src/main/.*$',
+      '^sdks/java/testing/test-utils/.*$',
+      '^sdks/java/io/common/.*$',
       '^sdks/java/io/jdbc/.*$',
     ],
     timeoutMins: 60,

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static java.util.stream.Collectors.toList;
 
+import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
@@ -36,6 +37,7 @@ import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -52,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.util.Preconditions;
@@ -82,7 +85,7 @@ public class TableRowToStorageApiProto {
           .toFormatter()
           .withZone(ZoneOffset.UTC);
 
-  public static class SchemaConversionException extends Exception {
+  abstract static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
       super(msg);
     }
@@ -105,6 +108,29 @@ public class TableRowToStorageApiProto {
 
     SchemaDoesntMatchException(String msg, Exception e) {
       super(msg + ". Exception: " + e, e);
+    }
+  }
+
+  public static class SingleValueConversionException extends SchemaConversionException {
+    SingleValueConversionException(Object sourceValue, SchemaInformation schema, Exception e) {
+      super(
+          "Column: "
+              + getPrettyFieldName(schema)
+              + " ("
+              + schema.getType()
+              + "). "
+              + "Value: "
+              + sourceValue
+              + " ("
+              + sourceValue.getClass().getName()
+              + "). Reason: "
+              + e);
+    }
+
+    private static String getPrettyFieldName(SchemaInformation schema) {
+      String fullName = schema.getFullName();
+      String rootPrefix = "root.";
+      return fullName.startsWith(rootPrefix) ? fullName.substring(rootPrefix.length()) : fullName;
     }
   }
 
@@ -386,13 +412,18 @@ public class TableRowToStorageApiProto {
       SchemaInformation schemaInformation,
       Descriptor descriptor,
       AbstractMap<String, Object> map,
-      boolean ignoreUnknownValues)
+      boolean ignoreUnknownValues,
+      boolean allowMissingRequiredFields,
+      @Nullable TableRow unknownFields)
       throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
       @Nullable
       FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
       if (fieldDescriptor == null) {
+        if (unknownFields != null) {
+          unknownFields.set(entry.getKey().toLowerCase(), entry.getValue());
+        }
         if (ignoreUnknownValues) {
           continue;
         } else {
@@ -406,10 +437,23 @@ public class TableRowToStorageApiProto {
       SchemaInformation fieldSchemaInformation =
           schemaInformation.getSchemaForField(entry.getKey());
       try {
+        Supplier<@Nullable TableRow> getNestedUnknown =
+            () ->
+                (unknownFields == null)
+                    ? null
+                    : (TableRow)
+                        unknownFields.computeIfAbsent(
+                            entry.getKey().toLowerCase(), k -> new TableRow());
+
         @Nullable
         Object value =
             messageValueFromFieldValue(
-                fieldSchemaInformation, fieldDescriptor, entry.getValue(), ignoreUnknownValues);
+                fieldSchemaInformation,
+                fieldDescriptor,
+                entry.getValue(),
+                ignoreUnknownValues,
+                allowMissingRequiredFields,
+                getNestedUnknown);
         if (value != null) {
           builder.setField(fieldDescriptor, value);
         }
@@ -434,11 +478,14 @@ public class TableRowToStorageApiProto {
    * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
    * using the BigQuery Storage API.
    */
+  @SuppressWarnings("nullness")
   public static DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
       Descriptor descriptor,
       TableRow tableRow,
-      boolean ignoreUnknownValues)
+      boolean ignoreUnknownValues,
+      boolean allowMissingRequiredFields,
+      final @Nullable TableRow unknownFields)
       throws SchemaConversionException {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
@@ -455,15 +502,41 @@ public class TableRowToStorageApiProto {
         }
       }
 
+      if (unknownFields != null) {
+        List<TableCell> unknownValues = Lists.newArrayListWithExpectedSize(cells.size());
+        for (int i = 0; i < cells.size(); ++i) {
+          unknownValues.add(new TableCell().setV(null));
+        }
+        unknownFields.setF(unknownValues);
+      }
+
       for (int i = 0; i < cellsToProcess; ++i) {
         AbstractMap<String, Object> cell = cells.get(i);
         FieldDescriptor fieldDescriptor = descriptor.getFields().get(i);
         SchemaInformation fieldSchemaInformation = schemaInformation.getSchemaForField(i);
         try {
+          final int finalIndex = i;
+          Supplier<@Nullable TableRow> getNestedUnknown =
+              () -> {
+                TableRow localUnknownFields = Preconditions.checkStateNotNull(unknownFields);
+                @Nullable
+                TableRow nested = (TableRow) (localUnknownFields.getF().get(finalIndex).getV());
+                if (nested == null) {
+                  nested = new TableRow();
+                  localUnknownFields.getF().set(finalIndex, new TableCell().setV(nested));
+                }
+                return nested;
+              };
+
           @Nullable
           Object value =
               messageValueFromFieldValue(
-                  fieldSchemaInformation, fieldDescriptor, cell.get("v"), ignoreUnknownValues);
+                  fieldSchemaInformation,
+                  fieldDescriptor,
+                  cell.get("v"),
+                  ignoreUnknownValues,
+                  allowMissingRequiredFields,
+                  getNestedUnknown);
           if (value != null) {
             builder.setField(fieldDescriptor, value);
           }
@@ -477,6 +550,13 @@ public class TableRowToStorageApiProto {
         }
       }
 
+      // If there are unknown fields, copy them into the output.
+      if (unknownFields != null) {
+        for (int i = cellsToProcess; i < cells.size(); ++i) {
+          unknownFields.getF().set(i, new TableCell().setV(cells.get(i).get("v")));
+        }
+      }
+
       try {
         return builder.build();
       } catch (Exception e) {
@@ -484,7 +564,13 @@ public class TableRowToStorageApiProto {
             "Could convert schema for " + schemaInformation.getFullName(), e);
       }
     } else {
-      return messageFromMap(schemaInformation, descriptor, tableRow, ignoreUnknownValues);
+      return messageFromMap(
+          schemaInformation,
+          descriptor,
+          tableRow,
+          ignoreUnknownValues,
+          allowMissingRequiredFields,
+          unknownFields);
     }
   }
 
@@ -551,10 +637,12 @@ public class TableRowToStorageApiProto {
       SchemaInformation schemaInformation,
       FieldDescriptor fieldDescriptor,
       @Nullable Object bqValue,
-      boolean ignoreUnknownValues)
+      boolean ignoreUnknownValues,
+      boolean allowMissingRequiredFields,
+      Supplier<@Nullable TableRow> getUnknownNestedFields)
       throws SchemaConversionException {
     if (bqValue == null) {
-      if (fieldDescriptor.isOptional()) {
+      if (fieldDescriptor.isOptional() || allowMissingRequiredFields) {
         return null;
       } else if (fieldDescriptor.isRepeated()) {
         return Collections.emptyList();
@@ -571,13 +659,23 @@ public class TableRowToStorageApiProto {
         if (o != null) { // repeated field cannot contain null.
           protoList.add(
               singularFieldToProtoValue(
-                  schemaInformation, fieldDescriptor, o, ignoreUnknownValues));
+                  schemaInformation,
+                  fieldDescriptor,
+                  o,
+                  ignoreUnknownValues,
+                  allowMissingRequiredFields,
+                  getUnknownNestedFields));
         }
       }
       return protoList;
     }
     return singularFieldToProtoValue(
-        schemaInformation, fieldDescriptor, bqValue, ignoreUnknownValues);
+        schemaInformation,
+        fieldDescriptor,
+        bqValue,
+        ignoreUnknownValues,
+        allowMissingRequiredFields,
+        getUnknownNestedFields);
   }
 
   @VisibleForTesting
@@ -585,14 +683,32 @@ public class TableRowToStorageApiProto {
       SchemaInformation schemaInformation,
       FieldDescriptor fieldDescriptor,
       @Nullable Object value,
-      boolean ignoreUnknownValues)
+      boolean ignoreUnknownValues,
+      boolean allowMissingRequiredFields,
+      Supplier<@Nullable TableRow> getUnknownNestedFields)
       throws SchemaConversionException {
     switch (schemaInformation.getType()) {
       case INT64:
         if (value instanceof String) {
-          return Long.valueOf((String) value);
+          try {
+            return Long.valueOf((String) value);
+          } catch (NumberFormatException e) {
+            throw new SingleValueConversionException(value, schemaInformation, e);
+          }
         } else if (value instanceof Integer || value instanceof Long) {
           return ((Number) value).longValue();
+        } else if (value instanceof BigDecimal) {
+          try {
+            return ((BigDecimal) value).longValueExact();
+          } catch (ArithmeticException e) {
+            throw new SingleValueConversionException(value, schemaInformation, e);
+          }
+        } else if (value instanceof BigInteger) {
+          try {
+            return ((BigInteger) value).longValueExact();
+          } catch (ArithmeticException e) {
+            throw new SingleValueConversionException(value, schemaInformation, e);
+          }
         }
         break;
       case DOUBLE:
@@ -673,6 +789,9 @@ public class TableRowToStorageApiProto {
         } else if (value instanceof Double || value instanceof Float) {
           return BigDecimalByteStringEncoder.encodeToNumericByteString(
               BigDecimal.valueOf(((Number) value).doubleValue()));
+        } else if (value instanceof Short || value instanceof Integer || value instanceof Long) {
+          return BigDecimalByteStringEncoder.encodeToNumericByteString(
+              BigDecimal.valueOf(((Number) value).longValue()));
         }
         break;
       case BIGNUMERIC:
@@ -684,6 +803,9 @@ public class TableRowToStorageApiProto {
         } else if (value instanceof Double || value instanceof Float) {
           return BigDecimalByteStringEncoder.encodeToBigNumericByteString(
               BigDecimal.valueOf(((Number) value).doubleValue()));
+        } else if (value instanceof Short || value instanceof Integer || value instanceof Long) {
+          return BigDecimalByteStringEncoder.encodeToBigNumericByteString(
+              BigDecimal.valueOf(((Number) value).longValue()));
         }
         break;
       case DATETIME:
@@ -724,12 +846,22 @@ public class TableRowToStorageApiProto {
         if (value instanceof TableRow) {
           TableRow tableRow = (TableRow) value;
           return messageFromTableRow(
-              schemaInformation, fieldDescriptor.getMessageType(), tableRow, ignoreUnknownValues);
+              schemaInformation,
+              fieldDescriptor.getMessageType(),
+              tableRow,
+              ignoreUnknownValues,
+              allowMissingRequiredFields,
+              getUnknownNestedFields.get());
         } else if (value instanceof AbstractMap) {
           // This will handle nested rows.
           AbstractMap<String, Object> map = ((AbstractMap<String, Object>) value);
           return messageFromMap(
-              schemaInformation, fieldDescriptor.getMessageType(), map, ignoreUnknownValues);
+              schemaInformation,
+              fieldDescriptor.getMessageType(),
+              map,
+              ignoreUnknownValues,
+              allowMissingRequiredFields,
+              getUnknownNestedFields.get());
         }
         break;
       default:
@@ -737,7 +869,7 @@ public class TableRowToStorageApiProto {
     }
 
     throw new SchemaDoesntMatchException(
-        "Unexpected value :"
+        "Unexpected value: "
             + value
             + ", type: "
             + (value == null ? "null" : value.getClass())

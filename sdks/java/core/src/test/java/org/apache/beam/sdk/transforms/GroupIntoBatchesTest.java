@@ -24,6 +24,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -51,8 +53,12 @@ import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -116,16 +122,6 @@ public class GroupIntoBatchesTest implements Serializable {
     PAssert.that("Incorrect batch size in one or more elements", collection)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
-
-              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
-                for (KV<String, Iterable<String>> element : listToCheck) {
-                  if (Iterables.size(element.getValue()) != BATCH_SIZE) {
-                    return false;
-                  }
-                }
-                return true;
-              }
-
               @Override
               public Void apply(Iterable<KV<String, Iterable<String>>> input) {
                 assertTrue(checkBatchSizes(input));
@@ -155,33 +151,14 @@ public class GroupIntoBatchesTest implements Serializable {
     PAssert.that("Incorrect batch size in one or more elements", collection)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
-
-              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
-                for (KV<String, Iterable<String>> element : listToCheck) {
-                  long byteSize = 0;
-                  for (String str : element.getValue()) {
-                    if (byteSize >= BATCH_SIZE_BYTES) {
-                      // We already reached the batch size, so extra elements are not expected.
-                      return false;
-                    }
-                    try {
-                      byteSize += StringUtf8Coder.of().getEncodedElementByteSize(str);
-                    } catch (Exception e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-                }
-                return true;
-              }
-
               @Override
               public Void apply(Iterable<KV<String, Iterable<String>>> input) {
-                assertTrue(checkBatchSizes(input));
+                assertTrue(checkBatchByteSizes(input));
                 return null;
               }
             });
     PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
-        .isEqualTo(3L);
+        .isEqualTo(4L);
     pipeline.run();
   }
 
@@ -189,56 +166,53 @@ public class GroupIntoBatchesTest implements Serializable {
   @Category({
     ValidatesRunner.class,
     NeedsRunner.class,
+    UsesTestStream.class,
     UsesTimersInParDo.class,
     UsesStatefulParDo.class,
     UsesOnWindowExpiration.class
   })
   public void testInGlobalWindowBatchSizeByteSizeFn() {
+    SerializableFunction<String, Long> getElementByteSizeFn =
+        s -> {
+          try {
+            return 2 * StringUtf8Coder.of().getEncodedElementByteSize(s);
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        };
+
+    // to ensure ordered processing
+    TestStream.Builder<KV<String, String>> streamBuilder =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(Instant.EPOCH);
+
+    long offset = 0L;
+    for (KV<String, String> kv : data) {
+      streamBuilder =
+          streamBuilder.addElements(
+              TimestampedValue.of(kv, Instant.EPOCH.plus(Duration.standardSeconds(offset))));
+      offset++;
+    }
+
+    // fire them all at once
+    TestStream<KV<String, String>> stream = streamBuilder.advanceWatermarkToInfinity();
+
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
-            .apply("Input data", Create.of(data))
-            .apply(
-                GroupIntoBatches.ofByteSize(
-                    BATCH_SIZE_BYTES,
-                    s -> {
-                      try {
-                        return 2 * StringUtf8Coder.of().getEncodedElementByteSize(s);
-                      } catch (Exception e) {
-                        throw new RuntimeException(e);
-                      }
-                    }))
+            .apply("Input data", stream)
+            .apply(GroupIntoBatches.ofByteSize(BATCH_SIZE_BYTES, getElementByteSizeFn))
             // set output coder
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
     PAssert.that("Incorrect batch size in one or more elements", collection)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
-
-              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
-                for (KV<String, Iterable<String>> element : listToCheck) {
-                  long byteSize = 0;
-                  for (String str : element.getValue()) {
-                    if (byteSize >= BATCH_SIZE_BYTES) {
-                      // We already reached the batch size, so extra elements are not expected.
-                      return false;
-                    }
-                    try {
-                      byteSize += 2 * StringUtf8Coder.of().getEncodedElementByteSize(str);
-                    } catch (Exception e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-                }
-                return true;
-              }
-
               @Override
               public Void apply(Iterable<KV<String, Iterable<String>>> input) {
-                assertTrue(checkBatchSizes(input));
+                assertTrue(checkBatchByteSizes(input, getElementByteSizeFn));
+                assertEquals("Invalid batch count", 9L, Iterables.size(input));
                 return null;
               }
             });
-    PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
-        .isEqualTo(5L);
     pipeline.run();
   }
 
@@ -267,20 +241,9 @@ public class GroupIntoBatchesTest implements Serializable {
     PAssert.that("Incorrect batch size in one or more elements", collection)
         .satisfies(
             new SerializableFunction<Iterable<KV<ShardedKey<String>, Iterable<String>>>, Void>() {
-
-              private boolean checkBatchSizes(
-                  Iterable<KV<ShardedKey<String>, Iterable<String>>> listToCheck) {
-                for (KV<ShardedKey<String>, Iterable<String>> element : listToCheck) {
-                  if (Iterables.size(element.getValue()) > batchSize) {
-                    return false;
-                  }
-                }
-                return true;
-              }
-
               @Override
               public Void apply(Iterable<KV<ShardedKey<String>, Iterable<String>>> input) {
-                assertTrue(checkBatchSizes(input));
+                assertTrue(checkBatchSizes(input, batchSize));
                 return null;
               }
             });
@@ -353,17 +316,6 @@ public class GroupIntoBatchesTest implements Serializable {
     PAssert.that("Incorrect batch size in one or more elements", collection)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
-
-              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
-                for (KV<String, Iterable<String>> element : listToCheck) {
-                  // number of elements should be less than or equal to BATCH_SIZE
-                  if (Iterables.size(element.getValue()) > BATCH_SIZE) {
-                    return false;
-                  }
-                }
-                return true;
-              }
-
               @Override
               public Void apply(Iterable<KV<String, Iterable<String>>> input) {
                 assertTrue(checkBatchSizes(input));
@@ -708,5 +660,146 @@ public class GroupIntoBatchesTest implements Serializable {
             });
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesTestStream.class,
+    UsesStatefulParDo.class,
+    UsesOnWindowExpiration.class
+  })
+  public void testMultipleLimitsAtOnceInGlobalWindowBatchSizeCountAndBatchSizeByteSize() {
+    // with using only one of the limits the result would be only 2 batches,
+    // if we have 3 both limits are exercised
+    List<KV<String, String>> dataToUse =
+        Lists.newArrayList(
+                "a-1",
+                "a-2",
+                // batch byte size limit would be reached with the next one so "firing" current
+                // batch content (BATCH_SIZE_BYTES = 25)
+                "b-3" + Strings.repeat("-", 100),
+                // batch byte size is over the limit, but we have a single element that we can't
+                // split to smaller batches (BATCH_SIZE_BYTES = 25)
+                "c-4",
+                "c-5",
+                "c-6",
+                "c-7",
+                "c-8",
+                // count limit reached (BATCH_SIZE = 5)
+                "d-9")
+            .stream()
+            .map(s -> KV.of("key", s))
+            .collect(Collectors.toList());
+
+    // to ensure ordered processing
+    TestStream.Builder<KV<String, String>> streamBuilder =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(Instant.EPOCH);
+
+    long offset = 0L;
+    for (KV<String, String> kv : dataToUse) {
+      streamBuilder =
+          streamBuilder.addElements(
+              TimestampedValue.of(kv, Instant.EPOCH.plus(Duration.standardSeconds(offset))));
+      offset++;
+    }
+
+    // fire them all at once
+    TestStream<KV<String, String>> stream = streamBuilder.advanceWatermarkToInfinity();
+
+    PCollection<KV<String, Iterable<String>>> collection =
+        pipeline
+            .apply("Input data", stream)
+            .apply(
+                GroupIntoBatches.<String, String>ofSize(BATCH_SIZE).withByteSize(BATCH_SIZE_BYTES))
+            // set output coder
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+    PAssert.that("Incorrect batch size in one or more elements", collection)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
+
+              private void assertExpectedBatchPrefix(
+                  Iterable<KV<String, Iterable<String>>> listToCheck) {
+                for (KV<String, Iterable<String>> element : listToCheck) {
+                  Set<String> batchPrefixes =
+                      Streams.stream(element.getValue())
+                          .map(s -> Iterables.get(Splitter.on('-').split(s), 0))
+                          .collect(Collectors.toSet());
+                  assertEquals("Found invalid batching: " + listToCheck, 1, batchPrefixes.size());
+                }
+              }
+
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<String>>> input) {
+                assertTrue(checkBatchSizes(input));
+                assertTrue(checkBatchByteSizes(input));
+                assertExpectedBatchPrefix(input);
+                assertEquals(
+                    Lists.newArrayList(2, 1, 5, 1),
+                    Streams.stream(input)
+                        .map(KV::getValue)
+                        .map(Iterables::size)
+                        .collect(Collectors.toList()));
+                return null;
+              }
+            });
+
+    pipeline.run();
+  }
+
+  private static <K> boolean checkBatchSizes(Iterable<KV<K, Iterable<String>>> listToCheck) {
+    return checkBatchSizes(listToCheck, BATCH_SIZE);
+  }
+
+  private static <K> boolean checkBatchSizes(
+      Iterable<KV<K, Iterable<String>>> listToCheck, int batchSize) {
+    for (KV<?, Iterable<String>> element : listToCheck) {
+      // number of elements should be less than or equal to the batch size
+      if (Iterables.size(element.getValue()) > batchSize) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static <K> boolean checkBatchByteSizes(Iterable<KV<K, Iterable<String>>> listToCheck) {
+    return checkBatchByteSizes(
+        listToCheck,
+        s -> {
+          try {
+            return StringUtf8Coder.of().getEncodedElementByteSize(s);
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        });
+  }
+
+  private static <K> boolean checkBatchByteSizes(
+      Iterable<KV<K, Iterable<String>>> listToCheck,
+      SerializableFunction<String, Long> getElementByteSizeFn) {
+    for (KV<?, Iterable<String>> element : listToCheck) {
+      List<String> batchElements = Lists.newArrayList(element.getValue());
+      if (batchElements.size() == 1) {
+        // if we have a single element that is over the batch size byte limit, we can't do anything
+        // than to fire it as a 1-element batch
+        continue;
+      }
+      long byteSize = 0;
+      for (String str : batchElements) {
+        try {
+          byteSize += getElementByteSizeFn.apply(str);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+        // size of elements should be less than or equal to the batch size
+        if (byteSize > BATCH_SIZE_BYTES) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 }

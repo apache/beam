@@ -20,8 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsContainerStepMapAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -30,19 +29,19 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
-/** DoFnRunner decorator which registers {@link MetricsContainerImpl}. */
+/** DoFnRunner decorator which registers {@link MetricsContainer}. */
 class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> delegate;
-  private final String stepName;
-  private final MetricsContainerStepMapAccumulator metricsAccum;
+  private final MetricsContainer metrics;
 
   DoFnRunnerWithMetrics(
-      String stepName,
-      DoFnRunner<InputT, OutputT> delegate,
-      MetricsContainerStepMapAccumulator metricsAccum) {
+      String stepName, DoFnRunner<InputT, OutputT> delegate, MetricsAccumulator metricsAccum) {
+    this(delegate, metricsAccum.value().getContainer(stepName));
+  }
+
+  private DoFnRunnerWithMetrics(DoFnRunner<InputT, OutputT> delegate, MetricsContainer metrics) {
     this.delegate = delegate;
-    this.stepName = stepName;
-    this.metricsAccum = metricsAccum;
+    this.metrics = metrics;
   }
 
   @Override
@@ -52,7 +51,7 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
 
   @Override
   public void startBundle() {
-    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metrics)) {
       delegate.startBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -61,7 +60,7 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
 
   @Override
   public void processElement(final WindowedValue<InputT> elem) {
-    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metrics)) {
       delegate.processElement(elem);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -77,7 +76,7 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
       final Instant timestamp,
       final Instant outputTimestamp,
       final TimeDomain timeDomain) {
-    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metrics)) {
       delegate.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -86,7 +85,7 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
 
   @Override
   public void finishBundle() {
-    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metrics)) {
       delegate.finishBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -96,9 +95,5 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
   @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
     delegate.onWindowExpiration(window, timestamp, key);
-  }
-
-  private MetricsContainer metricsContainer() {
-    return metricsAccum.value().getContainer(stepName);
   }
 }

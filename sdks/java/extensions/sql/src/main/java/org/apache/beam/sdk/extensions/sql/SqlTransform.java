@@ -110,7 +110,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoValue
 @AutoValue.CopyAnnotations
 public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> {
-  static final String PCOLLECTION_NAME = "PCOLLECTION";
+
+  public static final String PCOLLECTION_NAME = "PCOLLECTION";
 
   abstract String queryString();
 

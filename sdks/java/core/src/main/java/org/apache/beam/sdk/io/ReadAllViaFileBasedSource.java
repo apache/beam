@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 public class ReadAllViaFileBasedSource<T>
     extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
 
-  protected static final boolean DEFAULT_USES_RESHUFFLE = true;
+  public static final boolean DEFAULT_USES_RESHUFFLE = true;
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;

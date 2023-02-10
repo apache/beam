@@ -23,12 +23,14 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -36,7 +38,9 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.kafka.connect.source.SourceConnector;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,6 +144,8 @@ public class DebeziumIO {
 
     abstract @Nullable Integer getMaxNumberOfRecords();
 
+    abstract @Nullable Long getMaxTimeToRun();
+
     abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
@@ -153,6 +159,8 @@ public class DebeziumIO {
       abstract Builder<T> setFormatFunction(SourceRecordMapper<T> mapperFn);
 
       abstract Builder<T> setMaxNumberOfRecords(Integer maxNumberOfRecords);
+
+      abstract Builder<T> setMaxTimeToRun(Long miliseconds);
 
       abstract Read<T> build();
     }
@@ -202,6 +210,53 @@ public class DebeziumIO {
       return toBuilder().setMaxNumberOfRecords(maxNumberOfRecords).build();
     }
 
+    /**
+     * Once the connector has run for the determined amount of time, it will stop. The value can be
+     * null (default) which means it will not stop. This parameter is mainly intended for testing.
+     *
+     * @param miliseconds The maximum number of miliseconds to run before stopping the connector.
+     * @return PTransform {@link #read}
+     */
+    public Read<T> withMaxTimeToRun(Long miliseconds) {
+      return toBuilder().setMaxTimeToRun(miliseconds).build();
+    }
+
+    protected Schema getRecordSchema() {
+      KafkaSourceConsumerFn<T> fn =
+          new KafkaSourceConsumerFn<>(
+              getConnectorConfiguration().getConnectorClass().get(),
+              getFormatFunction(),
+              getMaxNumberOfRecords());
+      fn.register(
+          new KafkaSourceConsumerFn.OffsetTracker(
+              new KafkaSourceConsumerFn.OffsetHolder(null, null, 0)));
+
+      Map<String, String> connectorConfig =
+          Maps.newHashMap(getConnectorConfiguration().getConfigurationMap());
+      connectorConfig.put("snapshot.mode", "schema_only");
+      SourceRecord sampledRecord =
+          fn.getOneRecord(getConnectorConfiguration().getConfigurationMap());
+      fn.reset();
+      Schema keySchema =
+          sampledRecord.keySchema() != null
+              ? KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.keySchema())
+              : Schema.builder().build();
+      Schema valueSchema =
+          KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.valueSchema());
+
+      return Schema.builder()
+          .addFields(valueSchema.getFields())
+          .setOptions(
+              Schema.Options.builder()
+                  .setOption(
+                      "primaryKeyColumns",
+                      Schema.FieldType.array(Schema.FieldType.STRING),
+                      keySchema.getFields().stream()
+                          .map(Schema.Field::getName)
+                          .collect(Collectors.toList())))
+          .build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       return input
@@ -213,7 +268,8 @@ public class DebeziumIO {
                   new KafkaSourceConsumerFn<>(
                       getConnectorConfiguration().getConnectorClass().get(),
                       getFormatFunction(),
-                      getMaxNumberOfRecords())))
+                      getMaxNumberOfRecords(),
+                      getMaxTimeToRun())))
           .setCoder(getCoder());
     }
   }

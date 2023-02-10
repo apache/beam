@@ -51,7 +51,7 @@ users to specify a DoFn's type hints in one place.
 We've also expanded Beam's support of `typing` module types.
 
 For more background see:
-[Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/).
+[Ensuring Python Type Safety](/documentation/sdks/python-type-safety/).
 
 # Beam Is Typed
 
@@ -132,5 +132,5 @@ native typing types. Native types have  as these are supported by additional too
 While working on Python 3 annotations syntax support, we've also discovered and
 fixed issues with native type support. There may still be bugs and unsupported
 native types. Please
-[let us know](https://beam.apache.org/community/contact-us/) if you encounter
+[let us know](/community/contact-us/) if you encounter
 issues.

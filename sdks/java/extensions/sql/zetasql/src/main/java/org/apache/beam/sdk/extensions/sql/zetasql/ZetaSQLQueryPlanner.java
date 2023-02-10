@@ -34,6 +34,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
@@ -44,7 +45,6 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSch
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.CalciteCatalogReader;
@@ -52,9 +52,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelRoot;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.JoinCommuteRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -77,9 +75,7 @@ import org.slf4j.LoggerFactory;
 })
 public class ZetaSQLQueryPlanner implements QueryPlanner {
   public static final Collection<RelOptRule> DEFAULT_CALC =
-      ImmutableList.<RelOptRule>builder()
-          .add(BeamZetaSqlCalcSplittingRule.INSTANCE, BeamZetaSqlCalcMergeRule.INSTANCE)
-          .build();
+      ImmutableList.<RelOptRule>builder().add(BeamZetaSqlCalcSplittingRule.INSTANCE).build();
 
   private static final Logger LOG = LoggerFactory.getLogger(ZetaSQLQueryPlanner.class);
 
@@ -132,14 +128,6 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
           continue;
-        } else if (rule instanceof FilterCalcMergeRule || rule instanceof ProjectCalcMergeRule) {
-          // In order to support Java UDF, we need both BeamZetaSqlCalcRel and BeamCalcRel. It is
-          // because BeamZetaSqlCalcRel can execute ZetaSQL built-in functions while BeamCalcRel
-          // can execute UDFs. So during planning, we expect both Filter and Project are converted
-          // to Calc nodes before merging with other Project/Filter/Calc nodes. Thus we should not
-          // add FilterCalcMergeRule and ProjectCalcMergeRule. CalcMergeRule will achieve equivalent
-          // planning result eventually.
-          continue;
         } else if (rule instanceof BeamCalcRule) {
           bd.addAll(calc);
         } else if (rule instanceof BeamUnnestRule) {
@@ -150,6 +138,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
           bd.add(rule);
         }
       }
+      bd.add(BeamZetaSqlCalcMergeRule.INSTANCE);
       ret.add(RuleSets.ofList(bd.build()));
     }
     return ret.build();
@@ -220,7 +209,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     root.rel.getCluster().invalidateMetadataQuery();
     try {
       BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
-      LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
+      LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
       return beamRelNode;
     } catch (RelOptPlanner.CannotPlanException e) {
       throw new SqlConversionException("Failed to produce plan for query " + sql, e);

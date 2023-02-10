@@ -89,10 +89,10 @@ interface BigtableService extends Serializable {
   boolean tableExists(String tableId) throws IOException;
 
   /** Returns a {@link Reader} that will read from the specified source. */
-  Reader createReader(BigtableSource source) throws IOException;
+  Reader createReader(BigtableSource source, int id) throws IOException;
 
   /** Returns a {@link Writer} that will write to the specified table. */
-  Writer openForWriting(String tableId, BigtableWriteOptions writeOptions) throws IOException;
+  Writer openForWriting(String tableId, BigtableWriteOptions writeOptions, int id) throws IOException;
 
   /**
    * Returns a set of row keys sampled from the underlying table. These contain information about

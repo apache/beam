@@ -28,19 +28,19 @@ import (
 // The returned PCollections can be used as any other PCollections. The values
 // are JSON-coded. Each runner may place limits on the sizes of the values and
 // Create should generally only be used for small collections.
-func Create(s Scope, values ...interface{}) PCollection {
+func Create(s Scope, values ...any) PCollection {
 	return Must(TryCreate(s, values...))
 }
 
 // CreateList inserts a fixed set of values into the pipeline from a slice or
 // array. Unlike Create this supports the creation of an empty PCollection.
-func CreateList(s Scope, list interface{}) PCollection {
+func CreateList(s Scope, list any) PCollection {
 	return Must(TryCreateList(s, list))
 }
 
 // TryCreate inserts a fixed non-empty set of values into the pipeline. The
 // values must be of the same type.
-func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
+func TryCreate(s Scope, values ...any) (PCollection, error) {
 	if len(values) == 0 {
 		err := errors.New("create has no values")
 		return PCollection{}, addCreateCtx(err, s)
@@ -53,14 +53,14 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 // TryCreateList inserts a fixed set of values into the pipeline from a slice or
 // array. The values must be of the same type. Unlike TryCreate this supports
 // the creation of an empty PCollection.
-func TryCreateList(s Scope, list interface{}) (PCollection, error) {
+func TryCreateList(s Scope, list any) (PCollection, error) {
 	val := reflect.ValueOf(list)
 	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
 		err := errors.Errorf("input %v must be a slice or array", list)
 		return PCollection{}, addCreateCtx(err, s)
 	}
 
-	var ret []interface{}
+	var ret []any
 	for i := 0; i < val.Len(); i++ {
 		ret = append(ret, val.Index(i).Interface())
 	}
@@ -78,7 +78,7 @@ func addCreateCtx(err error, s Scope) error {
 	return errors.WithContextf(err, "inserting Create in scope %s", s)
 }
 
-func createList(s Scope, values []interface{}, t reflect.Type) (PCollection, error) {
+func createList(s Scope, values []any, t reflect.Type) (PCollection, error) {
 	fn := &createFn{Type: EncodedType{T: t}}
 	enc := NewElementEncoder(t)
 

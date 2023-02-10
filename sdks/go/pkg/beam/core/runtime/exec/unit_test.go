@@ -125,6 +125,8 @@ type FixedRoot struct {
 	Out      Node
 }
 
+var _ Root = (*FixedRoot)(nil)
+
 func (n *FixedRoot) ID() UnitID {
 	return n.UID
 }
@@ -137,13 +139,13 @@ func (n *FixedRoot) StartBundle(ctx context.Context, id string, data DataContext
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *FixedRoot) Process(ctx context.Context) error {
+func (n *FixedRoot) Process(ctx context.Context) ([]*Checkpoint, error) {
 	for _, elm := range n.Elements {
 		if err := n.Out.ProcessElement(ctx, &elm.Key, elm.Values...); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (n *FixedRoot) FinishBundle(ctx context.Context) error {
@@ -163,7 +165,7 @@ func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader StateRea
 	return a.Val, nil
 }
 
-func (a *FixedSideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
+func (a *FixedSideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey any) (ReStream, error) {
 	return a.Val, nil
 }
 
@@ -186,13 +188,13 @@ func (n *BenchRoot) StartBundle(ctx context.Context, id string, data DataContext
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *BenchRoot) Process(ctx context.Context) error {
+func (n *BenchRoot) Process(ctx context.Context) ([]*Checkpoint, error) {
 	for elm := range n.Elements {
 		if err := n.Out.ProcessElement(ctx, &elm.Key, elm.Values...); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (n *BenchRoot) FinishBundle(ctx context.Context) error {

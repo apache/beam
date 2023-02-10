@@ -326,7 +326,7 @@ func encodeUserFn(u *funcx.Fn) (*v1pb.UserFn, error) {
 // decodeUserFn receives the wire representation of a Beam user function,
 // extracting the preprocessed representation, expanding all inputs and outputs
 // of the function.
-func decodeUserFn(ref *v1pb.UserFn) (interface{}, error) {
+func decodeUserFn(ref *v1pb.UserFn) (any, error) {
 	t, err := decodeType(ref.GetType())
 	if err != nil {
 		return nil, err
@@ -498,8 +498,11 @@ func encodeType(t reflect.Type) (*v1pb.Type, error) {
 		}
 		return &v1pb.Type{Kind: v1pb.Type_PTR, Element: elm}, nil
 
+	case reflect.Map, reflect.Array:
+		return nil, errors.Errorf("unencodable type '%v', try to wrap the type as a field in a struct, see https://github.com/apache/beam/issues/23101 for details", t.Kind())
+
 	default:
-		return nil, errors.Errorf("unencodable type %v", t)
+		return nil, errors.Errorf("unencodable type '%v'", t.Kind())
 	}
 }
 

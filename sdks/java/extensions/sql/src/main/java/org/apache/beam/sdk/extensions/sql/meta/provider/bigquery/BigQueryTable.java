@@ -105,7 +105,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       method = Method.DIRECT_READ;
     }
 
-    LOG.info("BigQuery method is set to: " + method.toString());
+    LOG.info("BigQuery method is set to: {}", method);
 
     if (table.getProperties().containsKey(WRITE_DISPOSITION_PROPERTY)) {
       List<String> validWriteDispositions =
@@ -130,7 +130,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       writeDisposition = WriteDisposition.WRITE_EMPTY;
     }
 
-    LOG.info("BigQuery writeDisposition is set to: " + writeDisposition.toString());
+    LOG.info("BigQuery writeDisposition is set to: {}", writeDisposition);
   }
 
   @Override
@@ -172,7 +172,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       if (!bigQueryFilter.getSupported().isEmpty()) {
         String rowRestriction = generateRowRestrictions(getSchema(), bigQueryFilter.getSupported());
         if (!rowRestriction.isEmpty()) {
-          LOG.info("Pushing down the following filter: " + rowRestriction);
+          LOG.info("Pushing down the following filter: {}", rowRestriction);
           typedRead = typedRead.withRowRestriction(rowRestriction);
         }
       }

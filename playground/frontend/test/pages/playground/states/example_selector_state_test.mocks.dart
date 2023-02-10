@@ -11,8 +11,6 @@ import 'package:playground_components/src/controllers/example_loaders/examples_l
     as _i3;
 import 'package:playground_components/src/controllers/playground_controller.dart'
     as _i4;
-import 'package:playground_components/src/models/example_loading_descriptors/example_loading_descriptor.dart'
-    as _i8;
 import 'package:playground_components/src/models/example_loading_descriptors/examples_loading_descriptor.dart'
     as _i6;
 import 'package:playground_components/src/models/sdk.dart' as _i7;
@@ -54,14 +52,6 @@ class MockExamplesLoader extends _i1.Mock implements _i3.ExamplesLoader {
   @override
   _i5.Future<void> loadDefaultIfAny(_i7.Sdk? sdk) =>
       (super.noSuchMethod(Invocation.method(#loadDefaultIfAny, [sdk]),
-          returnValue: Future<void>.value(),
-          returnValueForMissingStub: Future<void>.value()) as _i5.Future<void>);
-  @override
-  _i5.Future<void> loadOne(
-          {_i6.ExamplesLoadingDescriptor? group,
-          _i8.ExampleLoadingDescriptor? one}) =>
-      (super.noSuchMethod(
-          Invocation.method(#loadOne, [], {#group: group, #one: one}),
           returnValue: Future<void>.value(),
           returnValueForMissingStub: Future<void>.value()) as _i5.Future<void>);
 }

@@ -35,7 +35,7 @@ limitations under the License.
 
 <div class="collapse dont-collapse-sm" id="collapseOverview">
 
-Apache Beam is a very welcoming and collaborative community, and there are lots of opportunities to contribute, [both code and non-code](https://beam.apache.org/contribute/). You can, for example:
+Apache Beam is a very welcoming and collaborative community, and there are lots of opportunities to contribute, [both code and non-code](/contribute/). You can, for example:
 
 - ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
   [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
@@ -50,7 +50,7 @@ Apache Beam is a very welcoming and collaborative community, and there are lots 
   Cloud Dataflow, etc)
 - improve or add IO connectors
 - add new transform libraries (statistics, ML, image processing, etc)
-- work on the core programming model (read more about what a Beam pipeline is and how it runs here in [Documentation](https://beam.apache.org/documentation/basics/))
+- work on the core programming model (read more about what a Beam pipeline is and how it runs here in [Documentation](/documentation/basics/))
 - improve the developer experience (for example, Windows guides)
 - add answers to the [contribution FAQ](
   https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
@@ -65,14 +65,14 @@ detail.
 
 ### Connect with the Beam community
 
-1. Consider [subscribing to the dev@beam.apache.org](https://beam.apache.org/community/contact-us/) mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.
-1. (Optionally) Join the [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/).
+1. Consider [subscribing to the dev@beam.apache.org](/community/contact-us/) mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.
+1. (Optionally) Join the [#beam channel of the ASF Slack](/community/contact-us/).
 
 ### Accounts and Permissions
 
 - [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam):
   Anyone has read access. If you wish to contribute changes, please create an account and request edit access on the
-  [dev@beam.apache.org](https://beam.apache.org/community/contact-us) mailing list (include your Wiki account user ID).
+  [dev@beam.apache.org](/community/contact-us) mailing list (include your Wiki account user ID).
 
 - Pull requests can only be merged by a
   [Beam committer](https://home.apache.org/phonebook.html?pmc=beam).
@@ -84,9 +84,9 @@ detail.
 
 All communication is expected to align with the [Code of Conduct](https://www.apache.org/foundation/policies/conduct).
 
-Discussion about contributing code to Beam happens on the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/). Introduce yourself!
+Discussion about contributing code to Beam happens on the [dev@beam.apache.org mailing list](/community/contact-us/). Introduce yourself!
 
-Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/). Introduce yourself!
+Questions can be asked on the [#beam channel of the ASF Slack](/community/contact-us/). Introduce yourself!
 
 ## Before You Begin
 
@@ -115,10 +115,10 @@ Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apac
    on the issue first; please tag the user asking them to do so or to comment "\`.take-issue\`".
    The command will be ignored if it is surrounded by `\`` markdown characters.
 3. If your change is large or it is your first change, it is a good idea to
-   [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
+   [discuss it on the dev@beam.apache.org mailing list](/community/contact-us/).
 4. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
-   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
+   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](/community/contact-us/).
 
 ### Setup Your Environment
 
@@ -127,7 +127,7 @@ Before you begin, check out the Wiki pages. There are many useful tips about [Gi
 #### Configuration Options
 You have two options for configuring your development environment:
 - Local:
-  - Manually installing the [prerequisites](https://beam.apache.org/contribute/#prerequisites).
+  - Manually installing the [prerequisites](/contribute/#prerequisites).
   - Using the automated script for Linux and macOS.
 - Container-based: using a [Docker](https://www.docker.com/) image.
 
@@ -320,7 +320,7 @@ that start various post-commit tests suites. Use these sparingly because post-co
    To find a committer for your area, either:
   - look in the OWNERS file of the directory where you changed files, or
   - look for similar code merges, or
-  - ask on [dev@beam.apache.org](https://beam.apache.org/community/contact-us/)
+  - ask on [dev@beam.apache.org](/community/contact-us/)
 
    Use `R: @username` in the pull request to notify a reviewer.
 
@@ -340,7 +340,7 @@ that start various post-commit tests suites. Use these sparingly because post-co
    see the difference between the review iterations, reviewers may ask you to unsquash new changes.
 
 4. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
-   Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
+   Beam committers [can squash](/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
    then the PR author should help squashing fixup commits to maintain a clean commit history.
 
@@ -360,23 +360,23 @@ reopen the same pull request again in the future.
 
 ### Troubleshooting
 
-If you run into any issues, check out the [contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on the [dev@ mailing list](https://beam.apache.org/community/contact-us/) or [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/).
+If you run into any issues, check out the [contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on the [dev@ mailing list](/community/contact-us/) or [#beam channel of the ASF Slack](/community/contact-us/).
 
 If you didn't find the information you were looking for in this guide, please
-[reach out to the Beam community](https://beam.apache.org/community/contact-us/).
+[reach out to the Beam community](/community/contact-us/).
 
 </div>
 
 ## Find Efforts to Contribute to
 A great way to contribute is to join an existing effort. If you want to get involved but don’t have a project in mind, check our [list of open starter tasks](https://s.apache.org/beam-starter-tasks).
-For the most intensive efforts, check out the [roadmap](https://beam.apache.org/roadmap/).
+For the most intensive efforts, check out the [roadmap](/roadmap/).
 
 ## Additional Resources
 Please see Beam developers’ [Wiki Contributor FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) for more information.
 
-If you are contributing a ```PTransform``` to Beam, we have an extensive [PTransform Style Guide](https://beam.apache.org/contribute/ptransform-style-guide).
+If you are contributing a ```PTransform``` to Beam, we have an extensive [PTransform Style Guide](/contribute/ptransform-style-guide).
 
-If you are contributing a Runner to Beam, refer to the [Runner authoring guide](https://beam.apache.org/contribute/runner-guide/).
+If you are contributing a Runner to Beam, refer to the [Runner authoring guide](/contribute/runner-guide/).
 
 Review [design documents](https://s.apache.org/beam-design-docs).
 

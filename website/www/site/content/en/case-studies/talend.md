@@ -1,6 +1,6 @@
 ---
 title:  "Talend"
-icon: /images/logos/powered-by/talend.svg
+icon: /images/logos/powered-by/talend.png
 hasLink: "https://www.youtube.com/watch?v=zwtTa0MHckU&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=17"
 ---
 <!--

@@ -31,11 +31,12 @@ import (
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id    string // id of the bundle descriptor for this plan
-	roots []Root
-	units []Unit
-	pcols []*PCollection
-	bf    *bundleFinalizer
+	id          string // id of the bundle descriptor for this plan
+	roots       []Root
+	units       []Unit
+	pcols       []*PCollection
+	bf          *bundleFinalizer
+	checkpoints []*Checkpoint
 
 	status Status
 
@@ -126,7 +127,11 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 		}
 	}
 	for _, root := range p.roots {
-		if err := callNoPanic(ctx, root.Process); err != nil {
+		if err := callNoPanic(ctx, func(ctx context.Context) error {
+			cps, err := root.Process(ctx)
+			p.checkpoints = cps
+			return err
+		}); err != nil {
 			p.status = Broken
 			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
@@ -251,6 +256,8 @@ type SplitPoints struct {
 
 // SplitResult contains the result of performing a split on a Plan.
 type SplitResult struct {
+	Unsuccessful bool // Indicates the split was unsuccessful.
+
 	// Indices are always included, for both channel and sub-element splits.
 	PI int64 // Primary index, last element of the primary.
 	RI int64 // Residual index, first element of the residual.
@@ -268,19 +275,18 @@ type SplitResult struct {
 // Split takes a set of potential split indexes, and if successful returns
 // the split result.
 // Returns an error when unable to split.
-func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
+func (p *Plan) Split(ctx context.Context, s SplitPoints) (SplitResult, error) {
+	// Can't split inactive plans.
+	if p.status != Active {
+		return SplitResult{Unsuccessful: true}, nil
+	}
 	// TODO: When bundles with multiple sources, are supported, perform splits
 	// on all sources.
-	if p.source != nil {
-		return p.source.Split(s.Splits, s.Frac, s.BufSize)
-	}
-	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+	return p.source.Split(ctx, s.Splits, s.Frac, s.BufSize)
 }
 
 // Checkpoint attempts to split an SDF if the DoFn self-checkpointed.
-func (p *Plan) Checkpoint() (SplitResult, time.Duration, bool, error) {
-	if p.source != nil {
-		return p.source.Checkpoint()
-	}
-	return SplitResult{}, -1 * time.Minute, false, nil
+func (p *Plan) Checkpoint() []*Checkpoint {
+	defer func() { p.checkpoints = nil }()
+	return p.checkpoints
 }

@@ -30,16 +30,16 @@
 //
 // New Concepts:
 //
-//   1. Using a SplittableDoFn transform to read the IOs.
-//   2. Using a Map Side Input to access values for specific keys.
-//   3. Testing your Pipeline via passert and metrics, using Go testing tools.
+//  1. Using a SplittableDoFn transform to read the IOs.
+//  2. Using a Map Side Input to access values for specific keys.
+//  3. Testing your Pipeline via passert and metrics, using Go testing tools.
 //
 // This example will not be enumerating concepts, but will document them as they
 // appear. There may be repetition from previous examples.
 //
 // To change the runner, specify:
 //
-//     --runner=YOUR_SELECTED_RUNNER
+//	--runner=YOUR_SELECTED_RUNNER
 //
 // The input file defaults to a public data set containing the text of King
 // Lear, by William Shakespeare. You can override it and choose your own input

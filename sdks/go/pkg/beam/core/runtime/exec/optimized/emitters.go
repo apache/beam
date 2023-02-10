@@ -1043,7 +1043,7 @@ func init() {
 
 type emitNative struct {
 	n   exec.ElementProcessor
-	fn  interface{}
+	fn  any
 	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
@@ -1059,7 +1059,7 @@ func (e *emitNative) Init(ctx context.Context, ws []typex.Window, et typex.Event
 	return nil
 }
 
-func (e *emitNative) Value() interface{} {
+func (e *emitNative) Value() any {
 	return e.fn
 }
 

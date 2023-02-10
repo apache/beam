@@ -42,6 +42,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
@@ -574,6 +575,16 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                 };
               }
             });
+  }
+
+  @Override
+  public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+      String id,
+      StateSpec<MultimapState<KeyT, ValueT>> spec,
+      Coder<KeyT> keyCoder,
+      Coder<ValueT> valueCoder) {
+    // TODO(https://github.com/apache/beam/issues/23616)
+    throw new UnsupportedOperationException("Multimap is not currently supported with Fn API.");
   }
 
   @Override

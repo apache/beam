@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -79,6 +80,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
               .create());
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/23745")
   public void testSimplePipeline() {
     List<Integer> input = new ArrayList<>();
     for (int i = 1; i < 20; i++) {
@@ -96,6 +98,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/23745")
   public void testPipelineWithState() {
     final List<KV<String, String>> input =
         new ArrayList<>(
@@ -148,6 +151,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/23745")
   public void testPipelineWithAggregation() {
     final List<KV<String, Long>> input =
         new ArrayList<>(

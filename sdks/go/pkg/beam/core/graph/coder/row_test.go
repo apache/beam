@@ -29,7 +29,7 @@ import (
 func TestReflectionRowCoderGeneration(t *testing.T) {
 	num := 35
 	tests := []struct {
-		want interface{}
+		want any
 	}{
 		{
 			// Top level value check
@@ -282,7 +282,7 @@ type userType6 struct {
 // Note: pointers to unexported types can't be handled by
 // this package. See https://golang.org/issue/21357.
 
-func ut1Enc(val interface{}, w io.Writer) error {
+func ut1Enc(val any, w io.Writer) error {
 	if err := WriteSimpleRowHeader(3, w); err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func ut1Enc(val interface{}, w io.Writer) error {
 	return nil
 }
 
-func ut1Dec(r io.Reader) (interface{}, error) {
+func ut1Dec(r io.Reader) (any, error) {
 	if err := ReadSimpleRowHeader(3, r); err != nil {
 		return nil, err
 	}
@@ -329,7 +329,7 @@ func TestRowCoder_CustomCoder(t *testing.T) {
 
 	num := 35
 	tests := []struct {
-		want interface{}
+		want any
 	}{
 		{
 			// Top level value check
@@ -387,13 +387,13 @@ func TestRowCoder_CustomCoder(t *testing.T) {
 		t.Run(fmt.Sprintf("%+v", test.want), func(t *testing.T) {
 			rt := reflect.TypeOf(test.want)
 			var encB RowEncoderBuilder
-			encB.Register(customRT, func(reflect.Type) (func(interface{}, io.Writer) error, error) { return customEnc, nil })
+			encB.Register(customRT, func(reflect.Type) (func(any, io.Writer) error, error) { return customEnc, nil })
 			enc, err := encB.Build(rt)
 			if err != nil {
 				t.Fatalf("RowEncoderBuilder.Build(%v) = %v, want nil error", rt, err)
 			}
 			var decB RowDecoderBuilder
-			decB.Register(customRT, func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return customDec, nil })
+			decB.Register(customRT, func(reflect.Type) (func(io.Reader) (any, error), error) { return customDec, nil })
 			dec, err := decB.Build(rt)
 			if err != nil {
 				t.Fatalf("RowDecoderBuilder.Build(%v) = %v, want nil error", rt, err)
@@ -411,7 +411,7 @@ func TestRowCoder_CustomCoder(t *testing.T) {
 }
 
 func BenchmarkRowCoder_RoundTrip(b *testing.B) {
-	ut1Enc := func(val interface{}, w io.Writer) error {
+	ut1Enc := func(val any, w io.Writer) error {
 		elm := val.(UserType1)
 		// We have 3 fields we use.
 		if err := EncodeVarInt(3, w); err != nil {
@@ -432,7 +432,7 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 		}
 		return nil
 	}
-	ut1Dec := func(r io.Reader) (interface{}, error) {
+	ut1Dec := func(r io.Reader) (any, error) {
 		// We have 3 fields we use.
 		n, err := DecodeVarInt(r)
 		if err != nil {
@@ -470,10 +470,10 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 
 	num := 35
 	benches := []struct {
-		want      interface{}
+		want      any
 		customRT  reflect.Type
-		customEnc func(interface{}, io.Writer) error
-		customDec func(io.Reader) (interface{}, error)
+		customEnc func(any, io.Writer) error
+		customDec func(io.Reader) (any, error)
 	}{
 		{
 			// Top level value check
@@ -603,13 +603,13 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 		}
 		if bench.customEnc != nil && bench.customDec != nil {
 			var encB RowEncoderBuilder
-			encB.Register(bench.customRT, func(reflect.Type) (func(interface{}, io.Writer) error, error) { return bench.customEnc, nil })
+			encB.Register(bench.customRT, func(reflect.Type) (func(any, io.Writer) error, error) { return bench.customEnc, nil })
 			enc, err := encB.Build(rt)
 			if err != nil {
 				b.Fatalf("RowEncoderBuilder.Build(%v) = %v, want nil error", rt, err)
 			}
 			var decB RowDecoderBuilder
-			decB.Register(bench.customRT, func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return bench.customDec, nil })
+			decB.Register(bench.customRT, func(reflect.Type) (func(io.Reader) (any, error), error) { return bench.customDec, nil })
 			dec, err := decB.Build(rt)
 			if err != nil {
 				b.Fatalf("RowDecoderBuilder.Build(%v) = %v, want nil error", rt, err)
@@ -664,12 +664,12 @@ func (p *testProvider) FromLogicalType(rt reflect.Type) (reflect.Type, error) {
 	return testStorageType, nil
 }
 
-func (p *testProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func (p *testProvider) BuildEncoder(rt reflect.Type) (func(any, io.Writer) error, error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
 
-	return func(iface interface{}, w io.Writer) error {
+	return func(iface any, w io.Writer) error {
 		v := iface.(testInterface)
 		data, err := v.TestEncode()
 		if err != nil {
@@ -685,13 +685,13 @@ func (p *testProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Write
 	}, nil
 }
 
-func (p *testProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func (p *testProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (any, error), error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
 	if rt.Kind() == reflect.Ptr {
 		rt = rt.Elem()
-		return func(r io.Reader) (interface{}, error) {
+		return func(r io.Reader) (any, error) {
 			if err := ReadSimpleRowHeader(1, r); err != nil {
 				return nil, err
 			}
@@ -709,7 +709,7 @@ func (p *testProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface
 			return v, nil
 		}, nil
 	}
-	return func(r io.Reader) (interface{}, error) {
+	return func(r io.Reader) (any, error) {
 		if err := ReadSimpleRowHeader(1, r); err != nil {
 			return nil, err
 		}

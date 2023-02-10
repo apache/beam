@@ -24,9 +24,13 @@ on:
 jobs:
   assign:
     name: Generate issue report
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
     - uses: actions/checkout@v3
+    - name: Setup Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
     - run: |
         npm ci
         node generateReport.js

@@ -17,16 +17,22 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tabs/example_share_tabs.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tabs/snippet_save_and_share_tabs.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
+import 'example_share_tabs.dart';
+import 'snippet_save_and_share_tabs.dart';
+
+/// Checks if the playground code is saved yet and shows the specific
+/// content widget accordingly.
+// TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
 class ShareTabs extends StatelessWidget {
+  final VoidCallback onError;
   final TabController tabController;
 
   const ShareTabs({
     super.key,
+    required this.onError,
     required this.tabController,
   });
 
@@ -36,15 +42,22 @@ class ShareTabs extends StatelessWidget {
       color: Theme.of(context).backgroundColor,
       child: Consumer<PlaygroundController>(
         builder: (context, playgroundController, _) {
-          if (playgroundController.isExampleChanged) {
+          final controller =
+              playgroundController.requireSnippetEditingController();
+          final descriptor = controller.descriptor;
+
+          if (descriptor == null || controller.isChanged) {
             return SnippetSaveAndShareTabs(
+              onError: onError,
               playgroundController: playgroundController,
+              sdk: controller.sdk,
               tabController: tabController,
             );
           }
 
           return ExampleShareTabs(
-            examplePath: playgroundController.selectedExample!.path,
+            descriptor: descriptor,
+            sdk: controller.sdk,
             tabController: tabController,
           );
         },

@@ -18,15 +18,13 @@
 
 name: LabelPrs
 on: [pull_request_target]
-
+permissions: read-all
 jobs:
   label:
-
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     permissions:
       contents: read
       pull-requests: write
-
     steps:
     - uses: actions/labeler@v4
       with:

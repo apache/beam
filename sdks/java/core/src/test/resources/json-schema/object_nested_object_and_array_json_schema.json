@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "properties": {
+    "classroom": {
+      "type": "object",
+      "properties": {
+        "teacher": {
+          "type": "string"
+        },
+        "classroom": {
+          "type": "object",
+          "properties": {
+            "building": {
+              "type": "string"
+            },
+            "students": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/student"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "student": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

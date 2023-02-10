@@ -373,5 +373,33 @@ func (d *DatastoreDb) SaveUserSnippetId(
 	return d.upsertUnitProgress(ctx, sdk, unitId, uid, applyChanges)
 }
 
+func (d *DatastoreDb) DeleteProgress(ctx context.Context, uid string) error {
+	userKey := pgNameKey(TbUserKind, uid, nil)
+
+	_, err := d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		query := datastore.NewQuery(TbUserProgressKind).
+			Namespace(PgNamespace).
+			Ancestor(userKey).
+			KeysOnly().
+			Transaction(tx)
+		keys, err := d.Client.GetAll(ctx, query, nil)
+		if err != nil {
+			return fmt.Errorf("query tb_user_progress: %w", err)
+		}
+		log.Printf("deleting %v tb_user_progress entities\n", len(keys))
+		if err := tx.DeleteMulti(keys); err != nil {
+			return fmt.Errorf("delete %v enitities tb_user_progress: %w", len(keys), err)
+		}
+		if err := tx.Delete(userKey); err != nil {
+			return fmt.Errorf("delete tb_user: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to commit: %w", err)
+	}
+	return nil
+}
+
 // check if the interface is implemented.
 var _ Iface = &DatastoreDb{}

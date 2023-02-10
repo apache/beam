@@ -270,7 +270,6 @@ export class DataSourceOperator implements IOperator {
       this.lastToProcessElement < Infinity
         ? this.lastToProcessElement
         : Number(desiredSplit.estimatedInputElements) - 1;
-    console.log(this.lastToProcessElement, this.lastProcessedElement, end);
     if (this.lastProcessedElement >= end) {
       return undefined;
     }

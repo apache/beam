@@ -80,7 +80,8 @@ except ImportError:
 
 # From the Beam site, circa November 2022.
 DEFAULT_EDGE_STYLE = 'color="#ff570b"'
-DEFAULT_TRANSFORM_STYLE = 'shape=rect style="rounded" color="#ff570b"'
+DEFAULT_TRANSFORM_STYLE = (
+    'shape=rect style="rounded, filled" color="#ff570b" fillcolor="#fff6dd"')
 DEFAULT_HIGHLIGHT_STYLE = (
     'shape=rect style="rounded, filled" color="#ff570b" fillcolor="#ffdb97"')
 
@@ -226,7 +227,7 @@ class PipelineRenderer:
         output_label = name if len(transform.outputs) > 1 else ''
         for consumer, is_side_input in pcoll_leaf_consumers[output]:
           # Can't yield this here as the consumer might not be in this cluster.
-          edge_style = 'dotted' if is_side_input else 'solid'
+          edge_style = 'dashed' if is_side_input else 'solid'
           edge_attributes = ' '.join([
               f'label="{output_label}" style={edge_style}',
               DEFAULT_EDGE_STYLE,

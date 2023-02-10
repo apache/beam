@@ -223,6 +223,7 @@ var dataflowFilters = []string{
 	"TestJDBCIO_BasicReadWrite",
 	"TestJDBCIO_PostgresReadWrite",
 	"TestDebeziumIO_BasicRead",
+	"TestMongoDBIO.*",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
 	// The Dataflow runner does not support the TestStream primitive

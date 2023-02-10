@@ -33,7 +33,17 @@ Optional parameters:
 <div
     class="language-{{ .Get "language" }} playground-snippet"
     data-sdk="{{ $sdk }}"
-    data-example="{{ .Get "example" }}"
+
+    {{ if .Get "path" }}
+        data-path="{{ .Get "path" }}"
+    {{ end }}
+    {{ if .Get "shared" }}
+        data-shared="{{ .Get "shared" }}"
+    {{ end }}
+    {{ if .Get "url" }}
+        data-url="{{ .Get "url" }}"
+    {{ end }}
+
     {{ if .Get "readonly" }}
         data-readonly="{{ .Get "readonly" }}"
     {{ end }}

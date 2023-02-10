@@ -181,12 +181,11 @@ public class BigtableServiceImplTest {
             mockBigtableSource.getRanges(),
             null,
             retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout());
+            retrySettings.getTotalTimeout(), 0);
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
-    underTest.close();
 
     verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
   }
@@ -244,12 +243,11 @@ public class BigtableServiceImplTest {
             DEFAULT_BYTE_SEGMENT_SIZE,
             retrySettings.getInitialRpcTimeout(),
             retrySettings.getTotalTimeout(),
-            mockCallMetric);
+            mockCallMetric, 0);
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
-    underTest.close();
 
     Mockito.verify(mockCallMetric, Mockito.times(2)).call("ok");
   }
@@ -302,7 +300,7 @@ public class BigtableServiceImplTest {
             DEFAULT_BYTE_SEGMENT_SIZE,
             retrySettings.getInitialRpcTimeout(),
             retrySettings.getTotalTimeout(),
-            mockCallMetric);
+            mockCallMetric, 0);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -313,7 +311,6 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(
         expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
         actualResults);
-    underTest.close();
     Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
 
@@ -373,7 +370,7 @@ public class BigtableServiceImplTest {
             DEFAULT_BYTE_SEGMENT_SIZE,
             retrySettings.getInitialRpcTimeout(),
             retrySettings.getTotalTimeout(),
-            mockCallMetric);
+            mockCallMetric, 0);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -384,7 +381,6 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(
         expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
         actualResults);
-    underTest.close();
 
     Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
@@ -445,7 +441,7 @@ public class BigtableServiceImplTest {
             DEFAULT_BYTE_SEGMENT_SIZE,
             retrySettings.getInitialRpcTimeout(),
             retrySettings.getTotalTimeout(),
-            mockCallMetric);
+            mockCallMetric, 0);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -456,7 +452,6 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(
         expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
         actualResults);
-    underTest.close();
 
     Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
@@ -502,7 +497,7 @@ public class BigtableServiceImplTest {
             DEFAULT_BYTE_SEGMENT_SIZE,
             retrySettings.getInitialRpcTimeout(),
             retrySettings.getTotalTimeout(),
-            mockCallMetric);
+            mockCallMetric, 0);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -513,7 +508,6 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(
         expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
         actualResults);
-    underTest.close();
 
     Mockito.verify(mockCallMetric, Mockito.times(4)).call("ok");
     ;
@@ -574,7 +568,7 @@ public class BigtableServiceImplTest {
             DEFAULT_BYTE_SEGMENT_SIZE,
             retrySettings.getInitialRpcTimeout(),
             retrySettings.getTotalTimeout(),
-            mockCallMetric);
+            mockCallMetric, 0);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -595,7 +589,6 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(
         expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
         actualResults);
-    underTest.close();
 
     Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
@@ -664,7 +657,7 @@ public class BigtableServiceImplTest {
             segmentByteLimit,
             retrySettings.getInitialRpcTimeout(),
             retrySettings.getTotalTimeout(),
-            mockCallMetric);
+            mockCallMetric, 0);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -675,7 +668,6 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(
         expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
         actualResults);
-    underTest.close();
 
     Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
@@ -731,7 +723,7 @@ public class BigtableServiceImplTest {
             DEFAULT_BYTE_SEGMENT_SIZE,
             retrySettings.getInitialRpcTimeout(),
             retrySettings.getTotalTimeout(),
-            mockCallMetric);
+            mockCallMetric, 0);
 
     IOException returnedError = null;
     try {
@@ -765,7 +757,7 @@ public class BigtableServiceImplTest {
             mockBigtableDataClient,
             bigtableDataSettings.getProjectId(),
             bigtableDataSettings.getInstanceId(),
-            TABLE_ID);
+            TABLE_ID, 0);
 
     ByteString key = ByteString.copyFromUtf8("key");
     Mutation mutation =

@@ -16,19 +16,47 @@
  * limitations under the License.
  */
 
+import '../example_view_options.dart';
+import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// Describes an example to be loaded from the catalog.
 class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  /// The identifier of the example in the catalog.
   final String path;
+  final Sdk sdk;
 
   const StandardExampleLoadingDescriptor({
     required this.path,
+    required this.sdk,
     super.viewOptions,
   });
 
   @override
   List<Object> get props => [
         path,
+        sdk.id,
         viewOptions,
       ];
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'path': path,
+        'sdk': sdk.id,
+      };
+
+  static StandardExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {
+    final path = map['path'];
+    final sdkId = map['sdk'];
+
+    if (path == null || sdkId == null) {
+      return null;
+    }
+
+    return StandardExampleLoadingDescriptor(
+      path: path,
+      sdk: Sdk.parseOrCreate(sdkId),
+      viewOptions: ExampleViewOptions.fromShortMap(map),
+    );
+  }
 }

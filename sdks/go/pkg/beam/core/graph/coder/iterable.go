@@ -29,14 +29,14 @@ import (
 //
 // Returns an error if the given type is invalid or not encodable to a beam
 // schema row.
-func EncoderForSlice(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func EncoderForSlice(rt reflect.Type) (func(any, io.Writer) error, error) {
 	var bld RowEncoderBuilder
 	eEnc, err := bld.encoderForSingleTypeReflect(rt.Elem())
 	if err != nil {
 		return nil, err
 	}
 	enc := iterableEncoder(rt, eEnc)
-	return func(v interface{}, w io.Writer) error {
+	return func(v any, w io.Writer) error {
 		return enc(reflect.ValueOf(v), w)
 	}, nil
 }
@@ -46,14 +46,14 @@ func EncoderForSlice(rt reflect.Type) (func(interface{}, io.Writer) error, error
 //
 // Returns an error if the given type is invalid or not decodable from a beam
 // schema row.
-func DecoderForSlice(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func DecoderForSlice(rt reflect.Type) (func(io.Reader) (any, error), error) {
 	var bld RowDecoderBuilder
 	eDec, err := bld.decoderForSingleTypeReflect(rt.Elem())
 	if err != nil {
 		return nil, err
 	}
 	dec := iterableDecoderForSlice(rt, eDec)
-	return func(r io.Reader) (interface{}, error) {
+	return func(r io.Reader) (any, error) {
 		rv := reflect.New(rt)
 		err := dec(rv.Elem(), r)
 		return rv.Elem().Interface(), err

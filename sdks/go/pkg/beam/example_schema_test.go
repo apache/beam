@@ -104,7 +104,7 @@ func (p *AlphabetProvider) FromLogicalType(rt reflect.Type) (reflect.Type, error
 }
 
 // BuildEncoder returns beam schema encoder functions for types with the Alphabet interface.
-func (p *AlphabetProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func (p *AlphabetProvider) BuildEncoder(rt reflect.Type) (func(any, io.Writer) error, error) {
 	switch rt {
 	case typeCyrillic:
 		if p.enc == nil {
@@ -113,7 +113,7 @@ func (p *AlphabetProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.W
 		// Since Cyrillic is by default encodable, defer to the standard schema row decoder for the type.
 		return p.enc.Build(rt)
 	case typeLatin:
-		return func(iface interface{}, w io.Writer) error {
+		return func(iface any, w io.Writer) error {
 			v := iface.(*Latin)
 			// Beam Schema Rows have a header that indicates which fields if any, are nil.
 			if err := coder.WriteRowHeader(2, func(i int) bool {
@@ -137,7 +137,7 @@ func (p *AlphabetProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.W
 			return nil
 		}, nil
 	case typeΕλληνικά:
-		return func(iface interface{}, w io.Writer) error {
+		return func(iface any, w io.Writer) error {
 			// Since the representation for Ελληνικά never has nil fields
 			// we can use the simple header helper.
 			if err := coder.WriteSimpleRowHeader(1, w); err != nil {
@@ -154,7 +154,7 @@ func (p *AlphabetProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.W
 }
 
 // BuildDecoder returns beam schema decoder functions for types with the Alphabet interface.
-func (p *AlphabetProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func (p *AlphabetProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (any, error), error) {
 	switch rt {
 	case typeCyrillic:
 		if p.dec == nil {
@@ -163,7 +163,7 @@ func (p *AlphabetProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (inter
 		// Since Cyrillic is by default encodable, defer to the standard schema row decoder for the type.
 		return p.dec.Build(rt)
 	case typeLatin:
-		return func(r io.Reader) (interface{}, error) {
+		return func(r io.Reader) (any, error) {
 			// Since the d field can be nil, we use the header get the nil bits.
 			n, nils, err := coder.ReadRowHeader(r)
 			if err != nil {
@@ -194,7 +194,7 @@ func (p *AlphabetProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (inter
 			}, nil
 		}, nil
 	case typeΕλληνικά:
-		return func(r io.Reader) (interface{}, error) {
+		return func(r io.Reader) (any, error) {
 			// Since the representation for Ελληνικά never has nil fields
 			// we can use the simple header helper. Returns an error if
 			// something unexpected occurs.

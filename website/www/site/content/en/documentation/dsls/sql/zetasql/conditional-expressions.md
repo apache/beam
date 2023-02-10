@@ -21,7 +21,7 @@ limitations under the License.
 This page documents the ZetaSQL scalar functions supported by Beam ZetaSQL.
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Syntax</th>

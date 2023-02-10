@@ -18,9 +18,13 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
+import com.google.pubsub.v1.Schema;
 import java.util.Map;
+import org.apache.avro.SchemaParseException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SchemaPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -174,5 +178,113 @@ public class PubsubClientTest {
     TopicPath path = PubsubClient.topicPathFromName("test", "something");
     assertEquals("projects/test/topics/something", path.getPath());
     assertEquals("/topics/test/something", path.getFullPath());
+  }
+
+  @Test
+  public void schemaPathFromIdPathWellFormed() {
+    SchemaPath path = PubsubClient.schemaPathFromId("projectId", "schemaId");
+    assertEquals("projects/projectId/schemas/schemaId", path.getPath());
+    assertEquals("schemaId", path.getId());
+  }
+
+  @Test
+  public void schemaPathFromPathWellFormed() {
+    SchemaPath path = PubsubClient.schemaPathFromPath("projects/projectId/schemas/schemaId");
+    assertEquals("projects/projectId/schemas/schemaId", path.getPath());
+    assertEquals("schemaId", path.getId());
+  }
+
+  @Test
+  public void fromPubsubSchema() {
+    assertThrows(
+        "null definition should throw an exception",
+        NullPointerException.class,
+        () ->
+            PubsubClient.fromPubsubSchema(
+                new com.google.api.services.pubsub.model.Schema().setType("AVRO")));
+
+    assertThrows(
+        "null definition should throw an exception",
+        NullPointerException.class,
+        () ->
+            PubsubClient.fromPubsubSchema(
+                com.google.pubsub.v1.Schema.newBuilder().setType(Schema.Type.AVRO).build()));
+
+    String badSchema =
+        "{\"type\": \"record\", \"name\": \"Avro\",\"fields\": [{\"name\": \"bad\", \"type\": \"notatype\"}]}";
+    String goodSchema =
+        "{"
+            + " \"type\" : \"record\","
+            + " \"name\" : \"Avro\","
+            + " \"fields\" : ["
+            + "   {"
+            + "     \"name\" : \"StringField\","
+            + "     \"type\" : \"string\""
+            + "   },"
+            + "   {"
+            + "     \"name\" : \"FloatField\","
+            + "     \"type\" : \"float\""
+            + "   },"
+            + "   {"
+            + "     \"name\" : \"IntField\","
+            + "     \"type\" : \"int\""
+            + "   },"
+            + "   {"
+            + "     \"name\" : \"LongField\","
+            + "     \"type\" : \"long\""
+            + "   },"
+            + "   {"
+            + "     \"name\" : \"DoubleField\","
+            + "     \"type\" : \"double\""
+            + "   },"
+            + "   {"
+            + "     \"name\" : \"BytesField\","
+            + "     \"type\" : \"bytes\""
+            + "   },"
+            + "   {"
+            + "     \"name\" : \"BooleanField\","
+            + "     \"type\" : \"boolean\""
+            + "   }"
+            + " ]"
+            + "}";
+
+    assertThrows(
+        "unsupported Schema type should throw an exception",
+        IllegalArgumentException.class,
+        () ->
+            PubsubClient.fromPubsubSchema(
+                new com.google.api.services.pubsub.model.Schema()
+                    .setType("PROTOCOL_BUFFER")
+                    .setDefinition(goodSchema)));
+
+    assertThrows(
+        "'notatype' Avro type should throw an exception",
+        SchemaParseException.class,
+        () ->
+            PubsubClient.fromPubsubSchema(
+                new com.google.api.services.pubsub.model.Schema()
+                    .setType("AVRO")
+                    .setDefinition(badSchema)));
+
+    assertEquals(
+        org.apache.beam.sdk.schemas.Schema.of(
+            org.apache.beam.sdk.schemas.Schema.Field.of(
+                "StringField", org.apache.beam.sdk.schemas.Schema.FieldType.STRING),
+            org.apache.beam.sdk.schemas.Schema.Field.of(
+                "FloatField", org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT),
+            org.apache.beam.sdk.schemas.Schema.Field.of(
+                "IntField", org.apache.beam.sdk.schemas.Schema.FieldType.INT32),
+            org.apache.beam.sdk.schemas.Schema.Field.of(
+                "LongField", org.apache.beam.sdk.schemas.Schema.FieldType.INT64),
+            org.apache.beam.sdk.schemas.Schema.Field.of(
+                "DoubleField", org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE),
+            org.apache.beam.sdk.schemas.Schema.Field.of(
+                "BytesField", org.apache.beam.sdk.schemas.Schema.FieldType.BYTES),
+            org.apache.beam.sdk.schemas.Schema.Field.of(
+                "BooleanField", org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN)),
+        PubsubClient.fromPubsubSchema(
+            new com.google.api.services.pubsub.model.Schema()
+                .setType("AVRO")
+                .setDefinition(goodSchema)));
   }
 }

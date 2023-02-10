@@ -38,6 +38,11 @@ func GetSdkKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	return getNameKey(ctx, constants.SdkKind, id, nil)
 }
 
+func GetDatasetKey(ctx context.Context, values ...interface{}) *datastore.Key {
+	id := GetIDWithDelimiter(values...)
+	return getNameKey(ctx, constants.DatasetKind, id, nil)
+}
+
 func GetFileKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)
 	return getNameKey(ctx, constants.FileKind, id, nil)

@@ -140,6 +140,7 @@ tasks.register("validatesRunner", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
@@ -167,10 +168,6 @@ tasks.register("validatesRunner", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedUnbounded'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded'
-  }
-  filter {
-    // Re-enable the test after Samza runner supports same state id across DoFn(s).
-    excludeTest('ParDoTest$StateTests', 'testValueStateSameId')
   }
 }
 
