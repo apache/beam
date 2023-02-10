@@ -22,7 +22,8 @@ import '../../../playground_components.dart';
 
 /// Groups common overlays.
 class BeamOverlays {
-  /// Shows an overlay until future completes.
+  /// Shows an overlay with [CircularProgressIndicator]
+  /// until [future] completes.
   static Future<void> showProgressOverlay(
     BuildContext context,
     Future future,

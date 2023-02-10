@@ -36,8 +36,8 @@ class ConfirmDialog extends StatelessWidget {
   static Future<bool> show({
     required BuildContext context,
     required String title,
-    required String? subtitle,
     required String confirmButtonText,
+    String? subtitle,
   }) async {
     return await showDialog(
       context: context,
