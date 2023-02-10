@@ -1787,7 +1787,7 @@ public class BigtableIO {
 
     abstract BigtableConfig getBigtableConfig();
 
-    abstract @Nullable ValueProvider<String> getTableId();
+    abstract @Nullable String getTableId();
 
     abstract @Nullable Timestamp getStartTime();
 
@@ -1799,7 +1799,7 @@ public class BigtableIO {
 
     abstract BigtableConfig getMetadataTableBigtableConfig();
 
-    abstract @Nullable ValueProvider<String> getMetadataTableId();
+    abstract @Nullable String getMetadataTableId();
 
     abstract ReadChangeStream.Builder toBuilder();
     /**
@@ -1809,32 +1809,11 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public ReadChangeStream withProjectId(ValueProvider<String> projectId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withProjectId(projectId)).build();
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the Cloud Bigtable
-     * project indicated by given parameter, requires {@link #withInstanceId} to be called to
-     * determine the instance.
-     *
-     * <p>Does not modify this object.
-     */
     public ReadChangeStream withProjectId(String projectId) {
-      return withProjectId(StaticValueProvider.of(projectId));
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the Cloud Bigtable
-     * instance indicated by given parameter, requires {@link #withProjectId} to be called to
-     * determine the project.
-     *
-     * <p>Does not modify this object.
-     */
-    public ReadChangeStream withInstanceId(ValueProvider<String> instanceId) {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withInstanceId(instanceId)).build();
+      return toBuilder()
+          .setBigtableConfig(config.withProjectId(StaticValueProvider.of(projectId)))
+          .build();
     }
 
     /**
@@ -1845,16 +1824,10 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public ReadChangeStream withInstanceId(String instanceId) {
-      return withInstanceId(StaticValueProvider.of(instanceId));
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the specified table.
-     *
-     * <p>Does not modify this object.
-     */
-    public ReadChangeStream withTableId(ValueProvider<String> tableId) {
-      return toBuilder().setTableId(tableId).build();
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder()
+          .setBigtableConfig(config.withInstanceId(StaticValueProvider.of(instanceId)))
+          .build();
     }
 
     /**
@@ -1863,22 +1836,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public ReadChangeStream withTableId(String tableId) {
-      return withTableId(StaticValueProvider.of(tableId));
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the cluster specified
-     * by app profile id.
-     *
-     * <p>This must use single-cluster routing policy. If not setting a separate app profile for the
-     * metadata table with {@link BigtableIO.ReadChangeStream#withMetadataTableAppProfileId}, this
-     * app profile also needs to enable allow single-row transactions.
-     *
-     * <p>Does not modify this object.
-     */
-    public ReadChangeStream withAppProfileId(ValueProvider<String> appProfileId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withAppProfileId(appProfileId)).build();
+      return toBuilder().setTableId(tableId).build();
     }
 
     /**
@@ -1892,7 +1850,10 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public ReadChangeStream withAppProfileId(String appProfileId) {
-      return withAppProfileId(StaticValueProvider.of(appProfileId));
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder()
+          .setBigtableConfig(config.withAppProfileId(StaticValueProvider.of(appProfileId)))
+          .build();
     }
 
     /**
@@ -1974,7 +1935,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public ReadChangeStream withMetadataTableTableId(String tableId) {
-      return toBuilder().setMetadataTableId(StaticValueProvider.of(tableId)).build();
+      return toBuilder().setMetadataTableId(tableId).build();
     }
 
     /**
@@ -2013,9 +1974,9 @@ public class BigtableIO {
         metadataTableConfig =
             metadataTableConfig.withInstanceId(getBigtableConfig().getInstanceId());
       }
-      ValueProvider<String> metadataTableId = getMetadataTableId();
-      if (metadataTableId == null || metadataTableId.get().isEmpty()) {
-        metadataTableId = StaticValueProvider.of(MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME);
+      String metadataTableId = getMetadataTableId();
+      if (metadataTableId == null || metadataTableId.isEmpty()) {
+        metadataTableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
       }
       if (metadataTableConfig.getAppProfileId() == null
           || metadataTableConfig.getAppProfileId().get().isEmpty()) {
@@ -2064,12 +2025,12 @@ public class BigtableIO {
 
       abstract ReadChangeStream.Builder setBigtableConfig(BigtableConfig bigtableConfig);
 
-      abstract ReadChangeStream.Builder setTableId(ValueProvider<String> tableId);
+      abstract ReadChangeStream.Builder setTableId(String tableId);
 
       abstract ReadChangeStream.Builder setMetadataTableBigtableConfig(
           BigtableConfig bigtableConfig);
 
-      abstract ReadChangeStream.Builder setMetadataTableId(ValueProvider<String> tableId);
+      abstract ReadChangeStream.Builder setMetadataTableId(String tableId);
 
       abstract ReadChangeStream.Builder setStartTime(Timestamp startTime);
 

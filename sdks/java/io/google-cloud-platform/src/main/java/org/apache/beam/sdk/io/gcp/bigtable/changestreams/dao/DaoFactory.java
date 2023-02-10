@@ -21,11 +21,13 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
 import org.apache.beam.sdk.options.ValueProvider;
 
 // Allows transient fields to be intialized later
 @SuppressWarnings("initialization.fields.uninitialized")
+@Internal
 public class DaoFactory implements Serializable {
   private static final long serialVersionUID = 3732208768248394205L;
 
@@ -36,16 +38,16 @@ public class DaoFactory implements Serializable {
   private final BigtableConfig changeStreamConfig;
   private final BigtableConfig metadataTableConfig;
 
-  private final ValueProvider<String> tableId;
+  private final String tableId;
 
-  private final ValueProvider<String> metadataTableId;
+  private final String metadataTableId;
   private final String changeStreamName;
 
   public DaoFactory(
       BigtableConfig changeStreamConfig,
       BigtableConfig metadataTableConfig,
-      ValueProvider<String> tableId,
-      ValueProvider<String> metadataTableId,
+      String tableId,
+      String metadataTableId,
       String changeStreamName) {
     this.changeStreamConfig = changeStreamConfig;
     this.metadataTableConfig = metadataTableConfig;
@@ -67,7 +69,7 @@ public class DaoFactory implements Serializable {
             + "App Profile Id: %s",
         this.changeStreamConfig.getProjectId(),
         this.changeStreamConfig.getInstanceId(),
-        this.tableId.get(),
+        this.tableId,
         this.changeStreamConfig.getAppProfileId());
   }
 
@@ -80,7 +82,7 @@ public class DaoFactory implements Serializable {
             + "App Profile Id: %s",
         this.metadataTableConfig.getProjectId(),
         this.metadataTableConfig.getInstanceId(),
-        this.metadataTableId.get(),
+        this.metadataTableId,
         this.metadataTableConfig.getAppProfileId());
   }
 
@@ -88,7 +90,7 @@ public class DaoFactory implements Serializable {
     if (changeStreamDao == null) {
       checkArgumentNotNull(changeStreamConfig.getProjectId());
       checkArgumentNotNull(changeStreamConfig.getInstanceId());
-      String tableId = this.tableId.get();
+      String tableId = this.tableId;
       checkArgumentNotNull(changeStreamConfig.getAppProfileId());
       changeStreamDao = new ChangeStreamDao(tableId);
     }
@@ -113,7 +115,7 @@ public class DaoFactory implements Serializable {
     if (metadataTableAdminDao == null) {
       checkArgumentNotNull(metadataTableConfig.getProjectId());
       checkArgumentNotNull(metadataTableConfig.getInstanceId());
-      String tableId = checkArgumentNotNull(this.metadataTableId).get();
+      String tableId = checkArgumentNotNull(this.metadataTableId);
       checkArgumentNotNull(metadataTableConfig.getAppProfileId());
       metadataTableAdminDao = new MetadataTableAdminDao(changeStreamName, tableId);
     }
