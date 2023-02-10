@@ -26,7 +26,7 @@ import sonora.aio
 
 from api.v1 import api_pb2_grpc, api_pb2
 from config import Config
-from infrastructure.constants import BEAM_USE_WEBGRPC_ENV_VAR_KEY, GRPC_TIMEOUT_ENV_VAR_KEY
+from constants import BEAM_USE_WEBGRPC_ENV_VAR_KEY, GRPC_TIMEOUT_ENV_VAR_KEY
 from models import SdkEnum
 
 

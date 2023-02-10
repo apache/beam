@@ -22,7 +22,7 @@ import logging
 import os
 from typing import List
 
-from infrastructure.constants import BEAM_ROOT_DIR_KEY, BEAM_EXAMPLE_CATEGORIES_KEY
+from constants import BEAM_ROOT_DIR_KEY, BEAM_EXAMPLE_CATEGORIES_KEY
 from models import SdkEnum, Example, StringToSdkEnum
 from config import Config, Origin
 from datastore_client import DatastoreClient

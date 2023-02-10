@@ -44,7 +44,7 @@ from api.v1.api_pb2 import (
 )
 from config import Config, TagFields, PrecompiledExampleType
 from grpc_client import GRPCClient
-from infrastructure.constants import BEAM_ROOT_DIR_ENV_VAR_KEY
+from constants import BEAM_ROOT_DIR_ENV_VAR_KEY
 
 from models import Example, Tag, SdkEnum, Dataset
 
