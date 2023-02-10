@@ -17,6 +17,7 @@
  */
 
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:get_it/get_it.dart';
 import 'package:meta/meta.dart';
@@ -28,8 +29,17 @@ abstract class AnalyticsService {
   AnalyticsEvent? _lastEvent;
   AnalyticsEvent? get lastEvent => _lastEvent;
 
+  final _defaultEventParameters = <String, dynamic>{};
+  Map<String, dynamic> get defaultEventParameters =>
+      UnmodifiableMapView(_defaultEventParameters);
+
   static AnalyticsService get() {
     return GetIt.instance.get<AnalyticsService>();
+  }
+
+  void setDefaultEventParameters(Map<String, dynamic> newValue) {
+    _defaultEventParameters.clear();
+    _defaultEventParameters.addAll(newValue);
   }
 
   void sendUnawaited(AnalyticsEvent event) {

@@ -90,6 +90,7 @@ class GoogleAnalytics4ServiceWeb extends GoogleAnalytics4Service {
     // Google Analytics cannot use event names as a dimension,
     // so also add the event name as a parameter.
     final params = {
+      ...defaultEventParameters,
       _eventNameParam: event.name,
       ...event.toJson(),
     };

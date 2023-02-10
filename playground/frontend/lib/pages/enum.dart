@@ -16,15 +16,7 @@
  * limitations under the License.
  */
 
-class PlaygroundAnalyticsEvents {
-  static const newExample = 'new_example';
-  static const shareableCopied = 'shareable_copied';
-  static const shareCodeClicked = 'share_code_clicked';
-  static const shortcutsClicked = 'shortcuts_clicked';
-  static const snippetSelected = 'snippet_selected';
-}
-
-class PlaygroundEventParams {
-  static const layout = 'layout';
-  static const shareFormat = 'shareFormat';
+enum PagesEnum {
+  embeddedPlayground,
+  standalonePlayground,
 }

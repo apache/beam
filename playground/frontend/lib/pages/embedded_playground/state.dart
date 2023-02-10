@@ -23,6 +23,8 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../controllers/factories.dart';
 import '../../modules/examples/models/example_loading_descriptors/no_url_example_loading_descriptor.dart';
+import '../../services/analytics/events/constants.dart';
+import '../enum.dart';
 import 'path.dart';
 
 const _cutUrlDescriptors = {
@@ -42,6 +44,15 @@ class EmbeddedPlaygroundNotifier extends ChangeNotifier
   }) : playgroundController = createPlaygroundController(initialDescriptor) {
     playgroundController.addListener(_onPlaygroundControllerChanged);
     windowCloseNotifier.addListener(dispose);
+
+    // This adds the layout to all events sent from now on.
+    // Ideally we want to set/unset that when this page becomes topmost
+    // or loses that, but we have no API for that so far.
+    // See https://github.com/alexeyinkin/flutter-app-state/issues/23
+    // Anyway we do not switch between embedded/standalone at runtime.
+    PlaygroundComponents.analyticsService.setDefaultEventParameters({
+      PlaygroundEventParams.layout: PagesEnum.embeddedPlayground.name,
+    });
   }
 
   void _onPlaygroundControllerChanged() {
