@@ -31,7 +31,6 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
@@ -107,7 +106,6 @@ public abstract class PTransformRunnerFactoryTestContext
             () -> {
               throw new UnsupportedOperationException("Unexpected call during test.");
             })
-        .processBundleDescriptorId("")
         .cacheTokensSupplier(() -> Collections.emptyList())
         .bundleCacheSupplier(() -> Caches.noop())
         .processWideCache(Caches.noop())
@@ -155,8 +153,6 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder beamFnDataClient(BeamFnDataClient value);
 
     Builder beamFnStateClient(BeamFnStateClient value);
-
-    Builder processBundleDescriptorId(String value);
 
     Builder pTransformId(String value);
 
@@ -209,8 +205,6 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder outgoingTimersEndpoints(List<TimerEndpoint<?>> value);
 
     Builder timerApiServiceDescriptor(ApiServiceDescriptor value);
-
-    Builder dataSampler(DataSampler dataSampler);
 
     PTransformRunnerFactoryTestContext build();
   }

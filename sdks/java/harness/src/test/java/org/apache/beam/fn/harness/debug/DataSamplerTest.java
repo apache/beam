@@ -72,27 +72,12 @@ public class DataSamplerTest {
     return dataSampler.handleDataSampleRequest(request).build();
   }
 
-  BeamFnApi.InstructionResponse getSamplesForDescriptors(
-      DataSampler dataSampler, List<String> descriptors) {
+  BeamFnApi.InstructionResponse getSamplesForPCollections(
+      DataSampler dataSampler, Iterable<String> pcollections) {
     BeamFnApi.InstructionRequest request =
         BeamFnApi.InstructionRequest.newBuilder()
             .setSample(
-                BeamFnApi.SampleDataRequest.newBuilder()
-                    .addAllProcessBundleDescriptorIds(descriptors)
-                    .build())
-            .build();
-    return dataSampler.handleDataSampleRequest(request).build();
-  }
-
-  BeamFnApi.InstructionResponse getSamplesFor(
-      DataSampler dataSampler, String descriptor, String pcollection) {
-    BeamFnApi.InstructionRequest request =
-        BeamFnApi.InstructionRequest.newBuilder()
-            .setSample(
-                BeamFnApi.SampleDataRequest.newBuilder()
-                    .addProcessBundleDescriptorIds(descriptor)
-                    .addPcollectionIds(pcollection)
-                    .build())
+                BeamFnApi.SampleDataRequest.newBuilder().addAllPcollectionIds(pcollections).build())
             .build();
     return dataSampler.handleDataSampleRequest(request).build();
   }
@@ -126,7 +111,7 @@ public class DataSamplerTest {
     DataSampler sampler = new DataSampler();
 
     VarIntCoder coder = VarIntCoder.of();
-    sampler.sampleOutput("descriptor-id", "pcollection-id", coder).sample(1);
+    sampler.sampleOutput("pcollection-id", coder).sample(1);
 
     BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
     assertHasSamples(samples, "pcollection-id", Collections.singleton(encodeInt(1)));
@@ -142,8 +127,8 @@ public class DataSamplerTest {
     DataSampler sampler = new DataSampler();
 
     VarIntCoder coder = VarIntCoder.of();
-    sampler.sampleOutput("descriptor-id", "pcollection-id-1", coder).sample(1);
-    sampler.sampleOutput("descriptor-id", "pcollection-id-2", coder).sample(2);
+    sampler.sampleOutput("pcollection-id-1", coder).sample(1);
+    sampler.sampleOutput("pcollection-id-2", coder).sample(2);
 
     BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
     assertHasSamples(samples, "pcollection-id-1", Collections.singleton(encodeInt(1)));
@@ -156,12 +141,12 @@ public class DataSamplerTest {
    * @throws Exception
    */
   @Test
-  public void testMultipleDescriptors() throws Exception {
+  public void testMultipleSamePCollections() throws Exception {
     DataSampler sampler = new DataSampler();
 
     VarIntCoder coder = VarIntCoder.of();
-    sampler.sampleOutput("descriptor-id-1", "pcollection-id", coder).sample(1);
-    sampler.sampleOutput("descriptor-id-2", "pcollection-id", coder).sample(2);
+    sampler.sampleOutput("pcollection-id", coder).sample(1);
+    sampler.sampleOutput("pcollection-id", coder).sample(2);
 
     BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
     assertHasSamples(samples, "pcollection-id", ImmutableList.of(encodeInt(1), encodeInt(2)));
@@ -169,42 +154,12 @@ public class DataSamplerTest {
 
   void generateStringSamples(DataSampler sampler) {
     StringUtf8Coder coder = StringUtf8Coder.of();
-    sampler.sampleOutput("a", "1", coder).sample("a1");
-    sampler.sampleOutput("a", "2", coder).sample("a2");
-    sampler.sampleOutput("b", "1", coder).sample("b1");
-    sampler.sampleOutput("b", "2", coder).sample("b2");
-  }
-
-  /**
-   * Test that samples can be filtered based on ProcessBundleDescriptor id.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testFiltersSingleDescriptorId() throws Exception {
-    DataSampler sampler = new DataSampler(10, 10);
-    generateStringSamples(sampler);
-
-    BeamFnApi.InstructionResponse samples =
-        getSamplesForDescriptors(sampler, ImmutableList.of("a"));
-    assertHasSamples(samples, "1", Collections.singleton(encodeString("a1")));
-    assertHasSamples(samples, "2", Collections.singleton(encodeString("a2")));
-  }
-
-  /**
-   * Test that samples are unioned based on ProcessBundleDescriptor id.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testFiltersMultipleDescriptorId() throws Exception {
-    DataSampler sampler = new DataSampler(10, 10);
-    generateStringSamples(sampler);
-
-    BeamFnApi.InstructionResponse samples =
-        getSamplesForDescriptors(sampler, ImmutableList.of("a", "b"));
-    assertHasSamples(samples, "1", ImmutableList.of(encodeString("a1"), encodeString("b1")));
-    assertHasSamples(samples, "2", ImmutableList.of(encodeString("a2"), encodeString("b2")));
+    sampler.sampleOutput("a", coder).sample("a1");
+    sampler.sampleOutput("a", coder).sample("a2");
+    sampler.sampleOutput("b", coder).sample("b1");
+    sampler.sampleOutput("b", coder).sample("b2");
+    sampler.sampleOutput("c", coder).sample("c1");
+    sampler.sampleOutput("c", coder).sample("c2");
   }
 
   /**
@@ -217,8 +172,8 @@ public class DataSamplerTest {
     DataSampler sampler = new DataSampler(10, 10);
     generateStringSamples(sampler);
 
-    BeamFnApi.InstructionResponse samples = getSamplesForPCollection(sampler, "1");
-    assertHasSamples(samples, "1", ImmutableList.of(encodeString("a1"), encodeString("b1")));
+    BeamFnApi.InstructionResponse samples = getSamplesForPCollection(sampler, "a");
+    assertHasSamples(samples, "a", ImmutableList.of(encodeString("a1"), encodeString("a2")));
   }
 
   /**
@@ -227,25 +182,15 @@ public class DataSamplerTest {
    * @throws Exception
    */
   @Test
-  public void testFiltersDescriptorAndPCollectionIds() throws Exception {
-    List<String> descriptorIds = ImmutableList.of("a", "b");
-    List<String> pcollectionIds = ImmutableList.of("1", "2");
+  public void testFiltersMultiplePCollectionIds() throws Exception {
+    List<String> pcollectionIds = ImmutableList.of("a", "c");
 
-    // Try all combinations for descriptor and PCollection ids.
-    for (String descriptorId : descriptorIds) {
-      for (String pcollectionId : pcollectionIds) {
-        DataSampler sampler = new DataSampler(10, 10);
-        generateStringSamples(sampler);
+    DataSampler sampler = new DataSampler(10, 10);
+    generateStringSamples(sampler);
 
-        BeamFnApi.InstructionResponse samples = getSamplesFor(sampler, descriptorId, pcollectionId);
-        System.out.print("Testing: " + descriptorId + pcollectionId + "...");
-        assertThat(samples.getSample().getElementSamplesMap().size(), equalTo(1));
-        assertHasSamples(
-            samples,
-            pcollectionId,
-            Collections.singleton(encodeString(descriptorId + pcollectionId)));
-        System.out.println("ok");
-      }
-    }
+    BeamFnApi.InstructionResponse samples = getSamplesForPCollections(sampler, pcollectionIds);
+    assertThat(samples.getSample().getElementSamplesMap().size(), equalTo(2));
+    assertHasSamples(samples, "a", ImmutableList.of(encodeString("a1"), encodeString("a2")));
+    assertHasSamples(samples, "c", ImmutableList.of(encodeString("c1"), encodeString("c2")));
   }
 }

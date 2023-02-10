@@ -32,29 +32,99 @@ import org.slf4j.LoggerFactory;
  * @param <T> the element type of the PCollection.
  */
 public class OutputSampler<T> {
-  private final Coder<T> coder;
+  public static class SampleState<T> {
+    // Temporarily holds elements until the SDK receives a sample data request.
+    private final List<T> buffer;
+
+    // Maximum number of elements in buffer.
+    private final int maxElements;
+
+    // Sampling rate.
+    private final int sampleEveryN;
+
+    // Total number of samples taken.
+    private long numSamples = 0;
+
+    // Index into the buffer of where to overwrite samples.
+    private int resampleIndex = 0;
+
+    private final Coder<T> coder;
+
+    public SampleState(Coder<T> coder, int maxElements, int sampleEveryN) {
+      this.coder = coder;
+      this.maxElements = maxElements;
+      this.sampleEveryN = sampleEveryN;
+      this.buffer = new ArrayList<>(this.maxElements);
+    }
+
+    /**
+     * Samples every 1000th element or if it is part of the first 10 in the (local) PCollection.
+     *
+     * @param element the element to sample.
+     */
+    public synchronized void sample(T element) {
+      // Only sample the first 10 elements then after every `sampleEveryN`th element.
+      numSamples += 1;
+      if (numSamples > 10 && numSamples % sampleEveryN != 0) {
+        return;
+      }
+
+      // Fill buffer until maxElements.
+      if (buffer.size() < maxElements) {
+        buffer.add(element);
+      } else {
+        // Then rewrite sampled elements as a circular buffer.
+        buffer.set(resampleIndex, element);
+        resampleIndex = (resampleIndex + 1) % maxElements;
+      }
+    }
+
+    /**
+     * Clears samples at end of call. This is to help mitigate memory use.
+     *
+     * @return samples taken since last call.
+     */
+    public List<byte[]> samples() {
+      List<byte[]> ret = new ArrayList<>();
+
+      // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
+      // so as to not slow down the main processing hot path.
+      List<T> copiedBuffer;
+      synchronized (this) {
+        copiedBuffer = new ArrayList<>(buffer);
+        clear();
+      }
+
+      ByteArrayOutputStream stream = new ByteArrayOutputStream();
+      for (T el : copiedBuffer) {
+        try {
+          // This is deprecated, but until this is fully removed, this specifically needs the nested
+          // context. This is because the SDK will need to decode the sampled elements with the
+          // ToStringFn.
+          coder.encode(el, stream, Coder.Context.NESTED);
+          ret.add(stream.toByteArray());
+        } catch (Exception exception) {
+          LOG.warn("Could not encode element \"" + el + "\" to bytes: " + exception);
+        } finally {
+          stream.reset();
+        }
+      }
+
+      return ret;
+    }
+
+    private void clear() {
+      buffer.clear();
+      resampleIndex = 0;
+    }
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(OutputSampler.class);
 
-  // Temporarily holds elements until the SDK receives a sample data request.
-  private final List<T> buffer;
+  private final SampleState<T> sampleState;
 
-  // Maximum number of elements in buffer.
-  private final int maxElements;
-
-  // Sampling rate.
-  private final int sampleEveryN;
-
-  // Total number of samples taken.
-  private long numSamples = 0;
-
-  // Index into the buffer of where to overwrite samples.
-  private int resampleIndex = 0;
-
-  public OutputSampler(Coder<T> coder, int maxElements, int sampleEveryN) {
-    this.coder = coder;
-    this.maxElements = maxElements;
-    this.sampleEveryN = sampleEveryN;
-    this.buffer = new ArrayList<>(this.maxElements);
+  public OutputSampler(SampleState<T> sampleState) {
+    this.sampleState = sampleState;
   }
 
   /**
@@ -62,21 +132,8 @@ public class OutputSampler<T> {
    *
    * @param element the element to sample.
    */
-  public synchronized void sample(T element) {
-    // Only sample the first 10 elements then after every `sampleEveryN`th element.
-    numSamples += 1;
-    if (numSamples > 10 && numSamples % sampleEveryN != 0) {
-      return;
-    }
-
-    // Fill buffer until maxElements.
-    if (buffer.size() < maxElements) {
-      buffer.add(element);
-    } else {
-      // Then rewrite sampled elements as a circular buffer.
-      buffer.set(resampleIndex, element);
-      resampleIndex = (resampleIndex + 1) % maxElements;
-    }
+  public void sample(T element) {
+    this.sampleState.sample(element);
   }
 
   /**
@@ -85,36 +142,6 @@ public class OutputSampler<T> {
    * @return samples taken since last call.
    */
   public List<byte[]> samples() {
-    List<byte[]> ret = new ArrayList<>();
-
-    // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
-    // so as to not slow down the main processing hot path.
-    List<T> copiedBuffer;
-    synchronized (this) {
-      copiedBuffer = new ArrayList<>(buffer);
-      clear();
-    }
-
-    ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    for (T el : copiedBuffer) {
-      try {
-        // This is deprecated, but until this is fully removed, this specifically needs the nested
-        // context. This is because the SDK will need to decode the sampled elements with the
-        // ToStringFn.
-        coder.encode(el, stream, Coder.Context.NESTED);
-        ret.add(stream.toByteArray());
-      } catch (Exception exception) {
-        LOG.warn("Could not encode element \"" + el + "\" to bytes: " + exception);
-      } finally {
-        stream.reset();
-      }
-    }
-
-    return ret;
-  }
-
-  private void clear() {
-    buffer.clear();
-    resampleIndex = 0;
+    return this.sampleState.samples();
   }
 }

@@ -20,13 +20,11 @@ package org.apache.beam.fn.harness;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -60,9 +58,6 @@ public interface PTransformRunnerFactory<T> {
 
     /** A client for handling state requests. */
     BeamFnStateClient getBeamFnStateClient();
-
-    /** The id of the parent ProcessBundleDescriptor. */
-    String getProcessBundleDescriptorId();
 
     /** The id of the PTransform. */
     String getPTransformId();
@@ -168,13 +163,6 @@ public interface PTransformRunnerFactory<T> {
      * instant provides the timeout on how long the finalization callback is valid for.
      */
     DoFn.BundleFinalizer getBundleFinalizer();
-
-    /**
-     * A DataSampler can be used to sample in-flight elements. This is used to plumb a global
-     * DataSampler to DataSampler operations in order to perform said sampling. Only present when
-     * using the "enable_data_sampling" experiment.
-     */
-    Optional<DataSampler> getDataSampler();
   }
 
   /**

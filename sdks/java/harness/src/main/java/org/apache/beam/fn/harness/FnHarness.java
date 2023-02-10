@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -33,7 +32,6 @@ import org.apache.beam.fn.harness.control.HarnessMonitoringInfosInstructionHandl
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.debug.DataSampler;
-import org.apache.beam.fn.harness.debug.DataSamplingDescriptorModifier;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.status.BeamFnStatusClient;
@@ -96,7 +94,7 @@ public class FnHarness {
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
   private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
-  private static final DataSampler dataSampler = new DataSampler();
+  private static DataSampler dataSampler = new DataSampler();
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor)
       throws TextFormat.ParseException {
@@ -255,16 +253,12 @@ public class FnHarness {
 
       FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
 
-      // Add any graph modifications.
-      List<ProcessBundleDescriptorModifier> modifierList = new ArrayList<>();
+      // Create the sampler, if the experiment is enabled.
       Optional<List<String>> experimentList =
           Optional.ofNullable(options.as(ExperimentalOptions.class).getExperiments());
-
-      // If data sampling is enabled, then modify the graph to add any DataSampling Operations.
-      if (experimentList.isPresent()
-          && experimentList.get().contains(ENABLE_DATA_SAMPLING_EXPERIMENT)) {
-        modifierList.add(new DataSamplingDescriptorModifier());
-      }
+      boolean shouldSample =
+          experimentList.isPresent()
+              && experimentList.get().contains(ENABLE_DATA_SAMPLING_EXPERIMENT);
 
       // Retrieves the ProcessBundleDescriptor from cache. Requests the PBD from the Runner if it
       // doesn't exist. Additionally, runs any graph modifications.
@@ -274,29 +268,16 @@ public class FnHarness {
             private final Cache<String, BeamFnApi.ProcessBundleDescriptor> cache =
                 Caches.subCache(processWideCache, PROCESS_BUNDLE_DESCRIPTORS);
 
-            private final List<ProcessBundleDescriptorModifier> modifiers = modifierList;
-
             @Override
             public BeamFnApi.ProcessBundleDescriptor apply(String id) {
               return cache.computeIfAbsent(id, this::loadDescriptor);
             }
 
             private BeamFnApi.ProcessBundleDescriptor loadDescriptor(String id) {
-              ProcessBundleDescriptor descriptor =
-                  blockingControlStub.getProcessBundleDescriptor(
-                      BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
-                          .setProcessBundleDescriptorId(id)
-                          .build());
-              for (ProcessBundleDescriptorModifier modifier : modifiers) {
-                try {
-                  LOG.debug("Modifying graph with " + modifier);
-                  descriptor = modifier.modifyProcessBundleDescriptor(descriptor);
-                } catch (ProcessBundleDescriptorModifier.GraphModificationException e) {
-                  LOG.warn("Could not modify graph with " + modifier + ": " + e.getMessage());
-                }
-              }
-
-              return descriptor;
+              return blockingControlStub.getProcessBundleDescriptor(
+                  BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+                      .setProcessBundleDescriptorId(id)
+                      .build());
             }
           };
 
@@ -313,7 +294,7 @@ public class FnHarness {
               metricsShortIds,
               executionStateSampler,
               processWideCache,
-              dataSampler);
+              shouldSample ? dataSampler : null);
       logging.setProcessBundleHandler(processBundleHandler);
 
       BeamFnStatusClient beamFnStatusClient = null;

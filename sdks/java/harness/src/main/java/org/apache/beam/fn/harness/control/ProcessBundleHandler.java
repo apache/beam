@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -167,7 +166,7 @@ public class ProcessBundleHandler {
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
   private final Set<String> runnerCapabilities;
 
-  private final DataSampler dataSampler;
+  private final @Nullable DataSampler dataSampler;
 
   public ProcessBundleHandler(
       PipelineOptions options,
@@ -179,7 +178,7 @@ public class ProcessBundleHandler {
       ShortIdMap shortIds,
       ExecutionStateSampler executionStateSampler,
       Cache<Object, Object> processWideCache,
-      DataSampler dataSampler) {
+      @Nullable DataSampler dataSampler) {
     this(
         options,
         runnerCapabilities,
@@ -208,7 +207,7 @@ public class ProcessBundleHandler {
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap,
       Cache<Object, Object> processWideCache,
       BundleProcessorCache bundleProcessorCache,
-      DataSampler dataSampler) {
+      @Nullable DataSampler dataSampler) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
@@ -326,11 +325,6 @@ public class ProcessBundleHandler {
                     @Override
                     public BeamFnStateClient getBeamFnStateClient() {
                       return beamFnStateClient;
-                    }
-
-                    @Override
-                    public String getProcessBundleDescriptorId() {
-                      return processBundleDescriptor.getId();
                     }
 
                     @Override
@@ -493,11 +487,6 @@ public class ProcessBundleHandler {
                     @Override
                     public BundleFinalizer getBundleFinalizer() {
                       return bundleFinalizer;
-                    }
-
-                    @Override
-                    public Optional<DataSampler> getDataSampler() {
-                      return Optional.ofNullable(dataSampler);
                     }
                   });
       if (runner instanceof BeamFnDataReadRunner) {
@@ -789,7 +778,7 @@ public class ProcessBundleHandler {
     bundleProgressReporterAndRegistrar.register(stateTracker);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
-            stateTracker, shortIds, bundleProgressReporterAndRegistrar, bundleDescriptor);
+            stateTracker, shortIds, bundleProgressReporterAndRegistrar, bundleDescriptor, dataSampler);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =

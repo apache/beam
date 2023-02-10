@@ -59,11 +59,9 @@ public class DataSampler {
   // Sampling rate.
   private final int sampleEveryN;
 
-  // The fully-qualified type is: Map[ProcessBundleDescriptorId, [PCollectionId, OutputSampler]].
-  // The DataSampler object lives on the same level of the FnHarness. This means that many threads
-  // can and will access this simultaneously. However, ProcessBundleDescriptors are unique per
-  // thread, so only synchronization is needed on the outermost map.
-  private final Map<String, Map<String, OutputSampler<?>>> outputSamplers =
+  // The fully-qualified type is: Map[PCollectionId, OutputSampler.SamplerState]. In order to sample
+  // on a PCollection-basis and not per-bundle, this keeps track of shared samples between states.
+  private final Map<String, OutputSampler.SampleState<?>> outputSamplers =
       new ConcurrentHashMap<>();
 
   /**
@@ -71,20 +69,15 @@ public class DataSampler {
    * ProcessBundleDescriptor. Uses the given coder encode samples as bytes when responding to a
    * SampleDataRequest.
    *
-   * @param processBundleDescriptorId The PBD to sample from.
    * @param pcollectionId The PCollection to take intermittent samples from.
    * @param coder The coder associated with the PCollection. Coder may be from a nested context.
    * @param <T> The type of element contained in the PCollection.
    * @return the OutputSampler corresponding to the unique PBD and PCollection.
    */
-  public <T> OutputSampler<T> sampleOutput(
-      String processBundleDescriptorId, String pcollectionId, Coder<T> coder) {
-    outputSamplers.putIfAbsent(processBundleDescriptorId, new HashMap<>());
-    Map<String, OutputSampler<?>> samplers = outputSamplers.get(processBundleDescriptorId);
-    samplers.putIfAbsent(
-        pcollectionId, new OutputSampler<T>(coder, this.maxSamples, this.sampleEveryN));
-
-    return (OutputSampler<T>) samplers.get(pcollectionId);
+  public <T> OutputSampler<T> sampleOutput(String pcollectionId, Coder<T> coder) {
+    outputSamplers.putIfAbsent(
+        pcollectionId, new OutputSampler.SampleState<>(coder, this.maxSamples, this.sampleEveryN));
+    return new OutputSampler<>((OutputSampler.SampleState<T>) outputSamplers.get(pcollectionId));
   }
 
   /**
@@ -99,9 +92,7 @@ public class DataSampler {
     BeamFnApi.SampleDataRequest sampleDataRequest = request.getSample();
 
     Map<String, List<byte[]>> responseSamples =
-        samplesFor(
-            sampleDataRequest.getProcessBundleDescriptorIdsList(),
-            sampleDataRequest.getPcollectionIdsList());
+        samplesFor(sampleDataRequest.getPcollectionIdsList());
 
     BeamFnApi.SampleDataResponse.Builder response = BeamFnApi.SampleDataResponse.newBuilder();
     for (String pcollectionId : responseSamples.keySet()) {
@@ -120,33 +111,23 @@ public class DataSampler {
    * Returns a map from PCollection to its samples. Samples are filtered on
    * ProcessBundleDescriptorIds and PCollections. Thread-safe.
    *
-   * @param descriptors PCollections under each PBD id will be unioned. If empty, allows all
-   *     descriptors.
    * @param pcollections Filters all PCollections on this set. If empty, allows all PCollections.
    * @return a map from PCollection to its samples.
    */
-  private Map<String, List<byte[]>> samplesFor(
-      List<String> descriptors, List<String> pcollections) {
+  private Map<String, List<byte[]>> samplesFor(List<String> pcollections) {
     Map<String, List<byte[]>> samples = new HashMap<>();
 
     // Safe to iterate as the ConcurrentHashMap will return each element at most once and will not
     // throw
     // ConcurrentModificationException.
     outputSamplers.forEach(
-        (descriptorId, samplers) -> {
-          if (!descriptors.isEmpty() && !descriptors.contains(descriptorId)) {
+        (pcollectionId, outputSampler) -> {
+          if (!pcollections.isEmpty() && !pcollections.contains(pcollectionId)) {
             return;
           }
 
-          samplers.forEach(
-              (pcollectionId, outputSampler) -> {
-                if (!pcollections.isEmpty() && !pcollections.contains(pcollectionId)) {
-                  return;
-                }
-
-                samples.putIfAbsent(pcollectionId, new ArrayList<>());
-                samples.get(pcollectionId).addAll(outputSampler.samples());
-              });
+          samples.putIfAbsent(pcollectionId, new ArrayList<>());
+          samples.get(pcollectionId).addAll(outputSampler.samples());
         });
 
     return samples;
