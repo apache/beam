@@ -44,7 +44,7 @@ python apache_beam/examples/inference/pytorch_image_classification_with_side_inp
   --interval=10
   --num_workers=5
   --requirements_file=apache_beam/ml/inference/torch_tests_requirements.txt
-  --topic=<pubusb_topic>
+  --topic=<pubsub_topic>
   --file_pattern=<glob_pattern>
 
 file_pattern is path(can contain glob characters), which will be passed to
