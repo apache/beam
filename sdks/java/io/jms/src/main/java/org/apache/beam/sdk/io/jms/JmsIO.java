@@ -1037,6 +1037,7 @@ public class JmsIO {
             this.destination = session.createTopic(spec.getTopic());
           }
           this.producer = this.session.createProducer(this.destination);
+          this.isProducerNeedsToBeCreated = false;
         }
       }
 
@@ -1048,13 +1049,17 @@ public class JmsIO {
             destinationToSendTo = session.createTopic(spec.getTopicNameMapper().apply(input));
           }
           producer.send(destinationToSendTo, message);
-        } catch (JMSException | JmsIOException exception) {
-          LOG.warn("Error sending message to the topic {}", destinationToSendTo, exception);
+        } catch (JMSException | JmsIOException | NullPointerException exception) {
+          // Handle NPE in case of getValueMapper or getTopicNameMapper returns NPE
+          if (exception instanceof NullPointerException) {
+            throw new JmsIOException("An error occurred", exception);
+          }
           throw exception;
         }
       }
 
       public void close() throws JMSException {
+        isProducerNeedsToBeCreated = true;
         if (producer != null) {
           producer.close();
           producer = null;
@@ -1086,8 +1091,8 @@ public class JmsIO {
         this.jmsConnection = new JmsConnection<>(spec);
       }
 
-      @Setup
-      public void setup() throws JMSException {
+      @StartBundle
+      public void startBundle() throws JMSException {
         this.jmsConnection.start();
       }
 
@@ -1100,8 +1105,13 @@ public class JmsIO {
         }
       }
 
+      @FinishBundle
+      public void finishBundle() throws JMSException {
+        this.jmsConnection.close();
+      }
+
       @Teardown
-      public void teardown() throws JMSException {
+      public void tearDown() throws JMSException {
         this.jmsConnection.close();
       }
     }
@@ -1123,14 +1133,18 @@ public class JmsIO {
       }
 
       @Setup
-      public void setup() throws JMSException {
-        this.jmsConnection.start();
+      public void setup() {
         RetryConfiguration retryConfiguration = checkStateNotNull(spec.getRetryConfiguration());
         retryBackOff =
             FluentBackoff.DEFAULT
                 .withInitialBackoff(checkStateNotNull(retryConfiguration.getInitialDuration()))
                 .withMaxCumulativeBackoff(checkStateNotNull(retryConfiguration.getMaxDuration()))
                 .withMaxRetries(retryConfiguration.getMaxAttempts());
+      }
+
+      @StartBundle
+      public void startBundle() throws JMSException {
+        this.jmsConnection.start();
       }
 
       @ProcessElement
@@ -1150,7 +1164,6 @@ public class JmsIO {
           throws IOException, InterruptedException {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = checkStateNotNull(retryBackOff).backoff();
-        int retryAttempt = 0;
         while (true) {
           try {
             this.jmsConnection.publishMessage(input);
@@ -1162,17 +1175,18 @@ public class JmsIO {
               break;
             } else {
               publicationRetries.inc();
-              LOG.warn(
-                  "Error sending message, retrying to publish attempt {}",
-                  retryAttempt++,
-                  exception);
             }
           }
         }
       }
 
+      @FinishBundle
+      public void finishBundle() throws JMSException {
+        this.jmsConnection.close();
+      }
+
       @Teardown
-      public void teardown() throws JMSException {
+      public void tearDown() throws JMSException {
         this.jmsConnection.close();
       }
     }
