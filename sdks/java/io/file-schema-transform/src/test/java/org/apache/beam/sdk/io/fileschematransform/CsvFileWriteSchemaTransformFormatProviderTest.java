@@ -25,20 +25,27 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.csvConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TimeContaining;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -136,6 +143,7 @@ public class CsvFileWriteSchemaTransformFormatProviderTest
   @Override
   public void arrayPrimitiveDataTypes() {
     assertThrowsWith(
+        "columns in header match fields in Schema with invalid types: shortList,integerList,stringList,doubleList,floatList,booleanList,longList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
         "arrayPrimitiveDataTypes",
         DATA.arrayPrimitiveDataTypesRows,
         ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA);
@@ -144,6 +152,7 @@ public class CsvFileWriteSchemaTransformFormatProviderTest
   @Override
   public void doublyNestedDataTypesRepeat() {
     assertThrowsWith(
+        "columns in header match fields in Schema with invalid types: singlyNestedDataTypes,singlyNestedDataTypesList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
         "doublyNestedDataTypesRepeat",
         DATA.doublyNestedDataTypesRepeatRows,
         DOUBLY_NESTED_DATA_TYPES_SCHEMA);
@@ -152,6 +161,7 @@ public class CsvFileWriteSchemaTransformFormatProviderTest
   @Override
   public void doublyNestedDataTypesNoRepeat() {
     assertThrowsWith(
+        "columns in header match fields in Schema with invalid types: singlyNestedDataTypes,singlyNestedDataTypesList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
         "doublyNestedDataTypesNoRepeat",
         DATA.doublyNestedDataTypesNoRepeatRows,
         DOUBLY_NESTED_DATA_TYPES_SCHEMA);
@@ -160,6 +170,7 @@ public class CsvFileWriteSchemaTransformFormatProviderTest
   @Override
   public void singlyNestedDataTypesRepeated() {
     assertThrowsWith(
+        "columns in header match fields in Schema with invalid types: allPrimitiveDataTypes,allPrimitiveDataTypesList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
         "singlyNestedDataTypesRepeated",
         DATA.singlyNestedDataTypesRepeatedRows,
         SINGLY_NESTED_DATA_TYPES_SCHEMA);
@@ -168,27 +179,70 @@ public class CsvFileWriteSchemaTransformFormatProviderTest
   @Override
   public void singlyNestedDataTypesNoRepeat() {
     assertThrowsWith(
+        "columns in header match fields in Schema with invalid types: allPrimitiveDataTypes,allPrimitiveDataTypesList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
         "singlyNestedDataTypesNoRepeat",
         DATA.singlyNestedDataTypesNoRepeatRows,
         SINGLY_NESTED_DATA_TYPES_SCHEMA);
   }
 
-  private void assertThrowsWith(String name, List<Row> rows, Schema schema) {
+  private void assertThrowsWith(
+      String expectedMessage, String name, List<Row> rows, Schema schema) {
     PCollection<Row> input = errorPipeline.apply(Create.of(rows).withRowSchema(schema));
     FileWriteSchemaTransformConfiguration configuration = buildConfiguration(name);
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> input.apply(getProvider().buildTransform(configuration, schema)));
+    IllegalArgumentException exception =
+        assertThrows(
+            name,
+            IllegalArgumentException.class,
+            () -> input.apply(getProvider().buildTransform(configuration, schema)));
+
+    assertEquals(name, expectedMessage, exception.getMessage());
   }
 
   @Override
   public void timeContaining() {
-    PCollection<Row> input =
+    PCollection<Row> invalidInput =
         errorPipeline.apply(
             Create.of(DATA.timeContainingRows).withRowSchema(TIME_CONTAINING_SCHEMA));
     FileWriteSchemaTransformConfiguration configuration = buildConfiguration("timeContaining");
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> input.apply(getProvider().buildTransform(configuration, TIME_CONTAINING_SCHEMA)));
+    IllegalArgumentException exception =
+        assertThrows(
+            "Schema should throw Exception for containing a field with a repeated type",
+            IllegalArgumentException.class,
+            () ->
+                invalidInput.apply(
+                    getProvider().buildTransform(configuration, TIME_CONTAINING_SCHEMA)));
+
+    assertEquals(
+        "columns in header match fields in Schema with invalid types: instantList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
+        exception.getMessage());
+  }
+
+  @Test
+  public void timeContainingSchemaWithListRemovedShouldWriteCSV() {
+    String prefix =
+        folder(TimeContaining.class, "timeContainingSchemaWithListRemovedShouldWriteCSV");
+    String validField = "instant";
+    PCollection<Row> input =
+        writePipeline.apply(
+            Create.of(DATA.timeContainingRows).withRowSchema(TIME_CONTAINING_SCHEMA));
+    PCollection<Row> modifiedInput = input.apply(Select.fieldNames(validField));
+    Schema modifiedSchema = modifiedInput.getSchema();
+    FileWriteSchemaTransformConfiguration configuration = buildConfiguration(prefix);
+    PCollection<String> result =
+        modifiedInput.apply(getProvider().buildTransform(configuration, modifiedSchema));
+    PCollection<Long> numFiles = result.apply(Count.globally());
+    PAssert.thatSingleton(numFiles).isEqualTo(1L);
+    writePipeline.run().waitUntilFinish();
+
+    PCollection<String> csv =
+        readPipeline.apply(TextIO.read().from(configuration.getFilenamePrefix() + "*"));
+    List<String> expected = new ArrayList<>();
+    expected.add(validField);
+    DateTimeFormatter formatter = ISODateTimeFormat.dateTime();
+    for (Row row : DATA.timeContainingRows) {
+      expected.add(formatter.print(row.getDateTime(validField)));
+    }
+    PAssert.that(csv).containsInAnyOrder(expected);
+    readPipeline.run();
   }
 }

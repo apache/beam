@@ -399,7 +399,7 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
     return loadProviders().get(getFormat());
   }
 
-  private <T> String folder(Class<T> clazz, String additionalPath) {
+  protected <T> String folder(Class<T> clazz, String additionalPath) {
     return folder(getFormat(), clazz.getSimpleName(), additionalPath);
   }
 
