@@ -954,18 +954,15 @@ public class JmsIO {
 
     private static final Logger LOG = LoggerFactory.getLogger(Writer.class);
     private static final String PUBLISH_TO_JMS_STEP_NAME = "Publish to JMS";
-    private static final String REPUBLISH_TO_JMS_STEP_NAME = "Republish to JMS";
 
     private final JmsIO.Write<T> spec;
     private final TupleTag<T> messagesTag;
     private final TupleTag<T> failedMessagesTag;
-    private final TupleTag<T> failedRepublishedMessagesTag;
 
     Writer(JmsIO.Write<T> spec) {
       this.spec = spec;
       this.messagesTag = new TupleTag<>();
       this.failedMessagesTag = new TupleTag<>();
-      this.failedRepublishedMessagesTag = new TupleTag<>();
     }
 
     @Override
@@ -979,20 +976,7 @@ public class JmsIO {
           failedPublishedMessagesTuple.get(failedMessagesTag).setCoder(input.getCoder());
       failedPublishedMessagesTuple.get(messagesTag).setCoder(input.getCoder());
 
-      // Republishing failed messages
-      PCollectionTuple failedRepublishedMessagesTuple =
-          failedPublishedMessages.apply(
-              REPUBLISH_TO_JMS_STEP_NAME,
-              ParDo.of(new JmsIOProduceRetryFn<>(spec, failedRepublishedMessagesTag))
-                  .withOutputTags(messagesTag, TupleTagList.of(failedRepublishedMessagesTag)));
-      PCollection<T> failedRepublishedMessages =
-          failedRepublishedMessagesTuple
-              .get(failedRepublishedMessagesTag)
-              .setCoder(input.getCoder());
-      failedRepublishedMessagesTuple.get(messagesTag).setCoder(input.getCoder());
-
-      return WriteJmsResult.in(
-          input.getPipeline(), failedRepublishedMessagesTag, failedRepublishedMessages);
+      return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedPublishedMessages);
     }
 
     private static class JmsConnection<T> implements Serializable {
@@ -1081,42 +1065,7 @@ public class JmsIO {
       }
     }
 
-    private static class JmsIOProducerFn<T> extends DoFn<T, T> {
-
-      private final @Initialized JmsConnection<T> jmsConnection;
-      private final TupleTag<T> failedMessagesTag;
-
-      JmsIOProducerFn(JmsIO.Write<T> spec, TupleTag<T> failedMessagesTag) {
-        this.failedMessagesTag = failedMessagesTag;
-        this.jmsConnection = new JmsConnection<>(spec);
-      }
-
-      @StartBundle
-      public void startBundle() throws JMSException {
-        this.jmsConnection.start();
-      }
-
-      @ProcessElement
-      public void processElement(@Element T input, ProcessContext context) {
-        try {
-          this.jmsConnection.publishMessage(input);
-        } catch (JMSException | JmsIOException exception) {
-          context.output(this.failedMessagesTag, input);
-        }
-      }
-
-      @FinishBundle
-      public void finishBundle() throws JMSException {
-        this.jmsConnection.close();
-      }
-
-      @Teardown
-      public void tearDown() throws JMSException {
-        this.jmsConnection.close();
-      }
-    }
-
-    static class JmsIOProduceRetryFn<T> extends DoFn<T, T> {
+    static class JmsIOProducerFn<T> extends DoFn<T, T> {
 
       private transient @Initialized FluentBackoff retryBackOff;
 
@@ -1126,7 +1075,7 @@ public class JmsIO {
       private final Counter publicationRetries =
           Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME);
 
-      JmsIOProduceRetryFn(JmsIO.Write<T> spec, TupleTag<T> failedMessagesTags) {
+      JmsIOProducerFn(JmsIO.Write<T> spec, TupleTag<T> failedMessagesTags) {
         this.spec = spec;
         this.failedMessagesTags = failedMessagesTags;
         this.jmsConnection = new JmsConnection<>(spec);
@@ -1150,8 +1099,8 @@ public class JmsIO {
       @ProcessElement
       public void processElement(@Element T input, ProcessContext context) {
         try {
-          publishMessage(input, context);
-        } catch (IOException | InterruptedException exception) {
+          publishMessage(input);
+        } catch (JMSException | JmsIOException | IOException | InterruptedException exception) {
           LOG.error("Error while publishing the message", exception);
           context.output(this.failedMessagesTags, input);
           if (exception instanceof InterruptedException) {
@@ -1160,8 +1109,8 @@ public class JmsIO {
         }
       }
 
-      private void publishMessage(T input, ProcessContext context)
-          throws IOException, InterruptedException {
+      private void publishMessage(T input)
+          throws JMSException, JmsIOException, IOException, InterruptedException {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = checkStateNotNull(retryBackOff).backoff();
         while (true) {
@@ -1170,9 +1119,7 @@ public class JmsIO {
             break;
           } catch (JMSException | JmsIOException exception) {
             if (!BackOffUtils.next(sleeper, backoff)) {
-              LOG.error("Error sending message", exception);
-              context.output(this.failedMessagesTags, input);
-              break;
+              throw exception;
             } else {
               publicationRetries.inc();
             }
