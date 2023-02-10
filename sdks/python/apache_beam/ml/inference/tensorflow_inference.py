@@ -28,6 +28,7 @@ from typing import Sequence
 import numpy
 import sys
 import tensorflow as tf
+import tensorflow_hub as hub
 
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
@@ -54,7 +55,7 @@ class ModelType(enum.Enum):
 
 def _load_model(model_uri, model_type):
   if model_type == ModelType.SAVED_MODEL:
-    return tf.keras.models.load_model(model_uri)
+    return tf.keras.models.load_model(hub.resolve(model_uri))
   else:
     raise AssertionError('Unsupported model type for loading.')
 
