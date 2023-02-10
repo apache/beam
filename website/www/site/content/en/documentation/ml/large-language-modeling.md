@@ -45,12 +45,62 @@ model = T5ForConditionalGeneration.from_pretrained("path/to/cloned/t5-11b")
 torch.save(model.state_dict(), "path/to/save/state_dict.pth")
 ```
 
+The best practice for using large files with Dataflow is to package it in a custom container image and pre-stage it. This approach will significantly reduce worker start-up time. You can use the below Dockerfile to pre-stage `t5-11b` state dict.
+
+```
+ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:22.05-py3
+
+FROM ${BUILD_IMAGE}
+
+WORKDIR /workspace
+
+RUN apt-get update -y && apt-get install -y python3-venv
+RUN pip install --no-cache-dir apache-beam[gcp]==2.44.0
+COPY model_state_dict_t5_11b.pth ./
+COPY --from=apache/beam_python3.8_sdk:2.44.0 /opt/apache/beam /opt/apache/beam
+
+RUN pip install --upgrade pip \
+    && pip install torch==1.13.1 \
+    && pip install torchvision>=0.8.2 \
+    && pip install pillow>=8.0.0 \
+    && pip install transformers>=4.18.0 \
+    && pip install cuda-python
+
+ENTRYPOINT [ "/opt/apache/beam/boot" ]
+```
+
+Using this Dockerfile you can build the image by running the following command, locally or in a GCE VM
+```
+docker build -f torch.dockerfile -t torch_llm .
+
+```
+Once built, you can then tag your image to a URI that you use for your project and then push to the registry. Make sure to replace `GCP_PROJECT` and `MY_DIR` with the appropriate values.
+
+```
+docker tag torch_llm us.gcr.io/{GCP_PROJECT}/{MY_DIR}/torch_llm
+
+docker push us.gcr.io/{GCP_PROJECT}/{MY_DIR}/torch_llm
+
+```
+
 You can view the code on [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/large_language_modeling/main.py)
 
 1. Locally on your machine: `python main.py --runner DirectRunner --model_state_dict_path <local or remote path to state_dict>`. You need to have 45 GB of disk space available to run this example.
-2. On Google Cloud using Dataflow: `python main.py --runner DataflowRunner --model_state_dict_path <gs://path/to/saved/state_dict.pth> --project <PROJECT_ID>
---region <REGION> --requirements_file requirements.txt --temp_location <gs://path/to/temp/location> --experiments "use_runner_v2,no_use_multiple_sdk_containers" --machine_type=n2-standard-16`. You can also pass other configuration parameters as described [here](https://cloud.google.com/dataflow/docs/guides/setting-pipeline-options#setting_required_options).
-
+2. To run this job on Dataflow, run the following command locally:
+```
+python main.py \
+--runner DataflowRunner \
+--model_state_dict_path /workspace/model_state_dict_t5_11b.pth \
+--project <PROJECT_ID> \
+--region <REGION> \
+--temp_location <gs://path/to/temp/location> \
+--experiment="use_runner_v2" \
+--machine_type=n2-standard-16 \
+--disk_size_gb=75 \
+--job_name llm-inference-t5-11b \
+--sdk_container_image="us.gcr.io/{GCP_PROJECT}/{MY_DIR}/torch_llm"
+```
+You can also pass other configuration parameters as described iin [Dataflow docs](https://cloud.google.com/dataflow/docs/guides/setting-pipeline-options#setting_required_options).
 ### Pipeline Steps
 The pipeline contains the following steps:
 1. Read the inputs.
@@ -78,9 +128,9 @@ In order to use it, you must first define a `ModelHandler`. RunInference provide
   gen_fn = make_tensor_model_fn('generate')
 
   model_handler = PytorchModelHandlerTensor(
-      state_dict_path=args.model_state_dict_path,
+      state_dict_path=known_args.model_state_dict_path,
       model_class=T5ForConditionalGeneration,
-      model_params={"config": AutoConfig.from_pretrained(args.model_name)},
+      model_params={"config": AutoConfig.from_pretrained(known_args.model_name)},
       device="cpu",
       inference_fn=gen_fn)
 {{< /highlight >}}
