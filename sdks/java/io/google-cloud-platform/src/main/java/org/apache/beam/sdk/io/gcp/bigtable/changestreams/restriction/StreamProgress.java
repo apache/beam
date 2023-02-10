@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
 
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import com.google.protobuf.Timestamp;
 import java.io.Serializable;
 import java.util.Objects;
@@ -36,9 +37,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 public class StreamProgress implements Serializable {
-  private static final long serialVersionUID = -5384329262726188695L;
+  private static final long serialVersionUID = -8597355120329526194L;
 
   private @Nullable ChangeStreamContinuationToken currentToken;
+  private @Nullable CloseStream closeStream;
   private @Nullable Timestamp lowWatermark;
 
   public @Nullable ChangeStreamContinuationToken getCurrentToken() {
@@ -49,11 +51,19 @@ public class StreamProgress implements Serializable {
     return lowWatermark;
   }
 
+  public @Nullable CloseStream getCloseStream() {
+    return closeStream;
+  }
+
   public StreamProgress() {}
 
   public StreamProgress(@Nullable ChangeStreamContinuationToken token, Timestamp lowWatermark) {
     this.currentToken = token;
     this.lowWatermark = lowWatermark;
+  }
+
+  public StreamProgress(@Nullable CloseStream closeStream) {
+    this.closeStream = closeStream;
   }
 
   @Override
@@ -66,7 +76,8 @@ public class StreamProgress implements Serializable {
     }
     StreamProgress that = (StreamProgress) o;
     return Objects.equals(getCurrentToken(), that.getCurrentToken())
-        && Objects.equals(getLowWatermark(), that.getLowWatermark());
+        && Objects.equals(getLowWatermark(), that.getLowWatermark())
+        && Objects.equals(getCloseStream(), that.getCloseStream());
   }
 
   @Override
@@ -81,6 +92,8 @@ public class StreamProgress implements Serializable {
         + currentToken
         + ", lowWatermark="
         + lowWatermark
+        + ", closeStream="
+        + closeStream
         + '}';
   }
 }
