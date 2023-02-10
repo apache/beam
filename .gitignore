@@ -140,3 +140,4 @@ playground/frontend/playground_components_dev/pubspec.lock
 # Ignore Katas auto-generated files
 **/*-remote-info.yaml
 *.dart
+*.lock
