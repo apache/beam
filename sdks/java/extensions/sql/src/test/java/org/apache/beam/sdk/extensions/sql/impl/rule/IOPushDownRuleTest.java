@@ -61,8 +61,6 @@ public class IOPushDownRuleTest {
   private static final List<RelOptRule> defaultRules =
       ImmutableList.of(
           BeamCalcRule.INSTANCE,
-          CoreRules.FILTER_CALC_MERGE,
-          CoreRules.PROJECT_CALC_MERGE,
           CoreRules.FILTER_TO_CALC,
           CoreRules.PROJECT_TO_CALC,
           CoreRules.CALC_MERGE);
