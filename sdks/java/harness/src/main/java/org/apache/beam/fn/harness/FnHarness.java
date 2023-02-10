@@ -19,8 +19,6 @@ package org.apache.beam.fn.harness;
 
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -92,7 +90,7 @@ public class FnHarness {
   private static final String STATUS_API_SERVICE_DESCRIPTOR = "STATUS_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
-//  private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
+  //  private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
   private static DataSampler dataSampler = new DataSampler();
 
@@ -254,11 +252,11 @@ public class FnHarness {
       FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
 
       // Create the sampler, if the experiment is enabled.
-//      Optional<List<String>> experimentList =
-//          Optional.ofNullable(options.as(ExperimentalOptions.class).getExperiments());
-//      boolean shouldSample =
-//          experimentList.isPresent()
-//              && experimentList.get().contains(ENABLE_DATA_SAMPLING_EXPERIMENT);
+      //      Optional<List<String>> experimentList =
+      //          Optional.ofNullable(options.as(ExperimentalOptions.class).getExperiments());
+      //      boolean shouldSample =
+      //          experimentList.isPresent()
+      //              && experimentList.get().contains(ENABLE_DATA_SAMPLING_EXPERIMENT);
 
       // Retrieves the ProcessBundleDescriptor from cache. Requests the PBD from the Runner if it
       // doesn't exist. Additionally, runs any graph modifications.
