@@ -176,6 +176,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         Otherwise, it will be CPU.
       inference_fn: the inference function to use during RunInference.
         default=_default_tensor_inference_fn
+      min_batch_size: the minimum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Tensors.
+      max_batch_size: the maximum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Tensors.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -364,6 +368,11 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         Otherwise, it will be CPU.
       inference_fn: the function to invoke on run_inference.
         default = default_keyed_tensor_inference_fn
+      min_batch_size: the minimum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
+      max_batch_size: the maximum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
+
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     on torch>=1.9.0,<1.14.0.
