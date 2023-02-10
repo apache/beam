@@ -17,31 +17,38 @@
  */
 package org.apache.beam.sdk.util;
 
+import static java.util.Objects.requireNonNull;
+
 import java.lang.reflect.Method;
 import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for working with Byte Buddy. */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-})
 public final class ByteBuddyUtils {
   private ByteBuddyUtils() {} // Non-instantiable
 
   /** Returns a class loading strategy that is compatible with Java 17+. */
   public static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
+    return getClassLoadingStrategy(targetClass, ByteBuddyUtils.class.getClassLoader());
+  }
+
+  /** Returns a class loading strategy that is compatible with Java 17+. */
+  public static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(
+      Class<?> targetClass, @Nullable ClassLoader classLoader) {
     try {
       ClassLoadingStrategy<ClassLoader> strategy;
       if (ClassInjector.UsingLookup.isAvailable()) {
-        Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles");
+        Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles", true, classLoader);
+        @SuppressWarnings("nullness") // MethodHandles#lookup accepts null
         Object lookup = methodHandles.getMethod("lookup").invoke(null);
+        Class<?> lookupClass =
+            Class.forName("java.lang.invoke.MethodHandles$Lookup", true, classLoader);
         Method privateLookupIn =
-            methodHandles.getMethod(
-                "privateLookupIn",
-                Class.class,
-                Class.forName("java.lang.invoke.MethodHandles$Lookup"));
-        Object privateLookup = privateLookupIn.invoke(null, targetClass, lookup);
-        strategy = ClassLoadingStrategy.UsingLookup.of(privateLookup);
+            methodHandles.getMethod("privateLookupIn", Class.class, lookupClass);
+        @SuppressWarnings("nullness") // this is a static method, the receiver can be null
+        Object privateLookup = requireNonNull(privateLookupIn.invoke(null, targetClass, lookup));
+        strategy = ClassLoadingStrategy.UsingLookup.of(requireNonNull(privateLookup));
       } else if (ClassInjector.UsingReflection.isAvailable()) {
         strategy = ClassLoadingStrategy.Default.INJECTION;
       } else {
