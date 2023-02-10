@@ -30,15 +30,10 @@ public final class ByteBuddyUtils {
 
   /** Returns a class loading strategy that is compatible with Java 17+. */
   public static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
-    return getClassLoadingStrategy(targetClass, ByteBuddyUtils.class.getClassLoader());
-  }
-
-  /** Returns a class loading strategy that is compatible with Java 17+. */
-  public static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(
-      Class<?> targetClass, @Nullable ClassLoader classLoader) {
     try {
       ClassLoadingStrategy<ClassLoader> strategy;
       if (ClassInjector.UsingLookup.isAvailable()) {
+        ClassLoader classLoader = ReflectHelpers.getClassLoader(targetClass.getClassLoader());
         Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles", true, classLoader);
         @SuppressWarnings("nullness") // MethodHandles#lookup accepts null
         Object lookup = methodHandles.getMethod("lookup").invoke(null);
