@@ -308,7 +308,7 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> tempLoadJobIdPrefixView =
         createJobIdPrefixView(p, JobType.TEMP_TABLE_LOAD);
     final PCollectionView<String> zeroLoadJobIdPrefixView =
-        createJobIdPrefixView(p, JobType.ZERO_LOAD);
+        createJobIdPrefixView(p, JobType.SCHEMA_UPDATE);
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
@@ -449,7 +449,7 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> tempLoadJobIdPrefixView =
         createJobIdPrefixView(p, JobType.TEMP_TABLE_LOAD);
     final PCollectionView<String> zeroLoadJobIdPrefixView =
-        createJobIdPrefixView(p, JobType.ZERO_LOAD);
+        createJobIdPrefixView(p, JobType.SCHEMA_UPDATE);
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);

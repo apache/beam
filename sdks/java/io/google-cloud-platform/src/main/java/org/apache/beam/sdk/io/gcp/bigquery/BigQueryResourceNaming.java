@@ -68,10 +68,10 @@ class BigQueryResourceNaming {
   public enum JobType {
     LOAD,
     TEMP_TABLE_LOAD,
-    ZERO_LOAD,
     COPY,
     EXPORT,
     QUERY,
+    SCHEMA_UPDATE,
   }
 
   /**
