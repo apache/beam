@@ -14,14 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import os
+import logging
+import uuid
 
 try:
-  import os
-  import logging
-
   import pytest
   import unittest
-  import uuid
   import xgboost
 
   from apache_beam.examples.inference import xgboost_iris_classification

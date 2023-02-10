@@ -63,10 +63,10 @@ def _compare_prediction_result(a: PredictionResult, b: PredictionResult):
 
 def _compare_keyed_prediction_result(
     a: Tuple[Any, PredictionResult], b: Tuple[Any, PredictionResult]):
-  a_key, a = a
-  b_key, b = b
+  a_key, a_val = a
+  b_key, b_val = b
   keys_equal = a_key == b_key
-  return _compare_prediction_result(a, b) and keys_equal
+  return _compare_prediction_result(a_val, b_val) and keys_equal
 
 
 def predict_fn(self, data):
