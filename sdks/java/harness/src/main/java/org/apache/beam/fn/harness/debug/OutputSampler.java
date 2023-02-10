@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.debug;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.coders.Coder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,7 @@ public class OutputSampler<T> {
   private final int sampleEveryN;
 
   // Total number of samples taken.
-  private long numSamples = 0;
+  private final AtomicLong numSamples = new AtomicLong();
 
   // Index into the buffer of where to overwrite samples.
   private int resampleIndex = 0;
@@ -63,20 +64,27 @@ public class OutputSampler<T> {
    *
    * @param element the element to sample.
    */
-  public synchronized void sample(T element) {
+  public void sample(T element) {
     // Only sample the first 10 elements then after every `sampleEveryN`th element.
-    numSamples += 1;
-    if (numSamples > 10 && numSamples % sampleEveryN != 0) {
+    long samples = numSamples.get();
+
+    // This has eventual consistency. If there are many threads lazy setting, this will be set to
+    // the slowest thread accessing the atomic. But over time, it will still increase. This is ok
+    // because this is a debugging feature and doesn't need strict atomics.
+    numSamples.lazySet(samples + 1);
+    if (samples > 10 && samples % sampleEveryN != 0) {
       return;
     }
 
-    // Fill buffer until maxElements.
-    if (buffer.size() < maxElements) {
-      buffer.add(element);
-    } else {
-      // Then rewrite sampled elements as a circular buffer.
-      buffer.set(resampleIndex, element);
-      resampleIndex = (resampleIndex + 1) % maxElements;
+    synchronized(this) {
+      // Fill buffer until maxElements.
+      if (buffer.size() < maxElements) {
+        buffer.add(element);
+      } else {
+        // Then rewrite sampled elements as a circular buffer.
+        buffer.set(resampleIndex, element);
+        resampleIndex = (resampleIndex + 1) % maxElements;
+      }
     }
   }
 
