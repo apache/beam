@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.byteString;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.byteStringUtf8;
 
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.auth.Credentials;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
@@ -30,11 +31,9 @@ import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-@Internal
-public class BigtableClientWrapper implements Serializable {
+class BigtableClientWrapper implements Serializable {
   private final BigtableTableAdminClient tableAdminClient;
   private final BigtableDataClient dataClient;
 
@@ -47,7 +46,8 @@ public class BigtableClientWrapper implements Serializable {
     BigtableDataSettings.Builder settings =
         BigtableDataSettings.newBuilderForEmulator(emulatorPort)
             .setProjectId(project)
-            .setInstanceId(instanceId);
+            .setInstanceId(instanceId)
+            .setCredentialsProvider(FixedCredentialsProvider.create(gcpCredentials));
 
     settings
         .stubSettings()
@@ -61,7 +61,7 @@ public class BigtableClientWrapper implements Serializable {
     tableAdminClient = BigtableTableAdminClient.create(tableSettings);
   }
 
-  public void writeRow(
+  void writeRow(
       String key,
       String table,
       String familyColumn,
@@ -75,16 +75,16 @@ public class BigtableClientWrapper implements Serializable {
     dataClient.mutateRow(rowMutation);
   }
 
-  public void createTable(String tableName, String familyName) {
+  void createTable(String tableName, String familyName) {
     CreateTableRequest createTableRequest = CreateTableRequest.of(tableName).addFamily(familyName);
     tableAdminClient.createTable(createTableRequest);
   }
 
-  public void deleteTable(String tableId) {
+  void deleteTable(String tableId) {
     tableAdminClient.deleteTable(tableId);
   }
 
-  public void closeSession() throws IOException {
+  void closeSession() throws IOException {
     dataClient.close();
     tableAdminClient.close();
   }
