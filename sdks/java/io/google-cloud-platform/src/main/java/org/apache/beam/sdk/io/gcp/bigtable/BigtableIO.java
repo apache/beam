@@ -1117,7 +1117,6 @@ public class BigtableIO {
     }
   }
 
-
   private static class BigtableWriterFn
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
@@ -1630,7 +1629,6 @@ public class BigtableIO {
     private static AtomicInteger uuid = new AtomicInteger(0);
 
     private int id;
-
 
     public BigtableReader(BigtableSource source, BigtableService service) {
       checkArgument(source.getRanges().size() == 1, "source must have exactly one key range");

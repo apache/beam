@@ -1665,7 +1665,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FakeBigtableWriter openForWriting(String tableId, BigtableWriteOptions writeOptions, int id) {
+    public FakeBigtableWriter openForWriting(
+        String tableId, BigtableWriteOptions writeOptions, int id) {
       return new FakeBigtableWriter(tableId);
     }
 
@@ -1735,7 +1736,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FailureBigtableWriter openForWriting(String tableId, BigtableWriteOptions writeOptions, int id) {
+    public FailureBigtableWriter openForWriting(
+        String tableId, BigtableWriteOptions writeOptions, int id) {
       return new FailureBigtableWriter(tableId, this, failureOptions);
     }
 

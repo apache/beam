@@ -106,11 +106,11 @@ class BigtableServiceImpl implements BigtableService {
   // Percentage of max number of rows allowed in the buffer
   private static final double WATERMARK_PERCENTAGE = .1;
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
-  private static ConcurrentHashMap<Integer, Tuple<AtomicInteger, BigtableDataClient>> writeClients
-          = new ConcurrentHashMap<>();
+  private static ConcurrentHashMap<Integer, Tuple<AtomicInteger, BigtableDataClient>> writeClients =
+      new ConcurrentHashMap<>();
 
-  private static ConcurrentHashMap<Integer, Tuple<AtomicInteger, BigtableDataClient>> readClients
-           = new ConcurrentHashMap<>();
+  private static ConcurrentHashMap<Integer, Tuple<AtomicInteger, BigtableDataClient>> readClients =
+      new ConcurrentHashMap<>();
 
   public BigtableServiceImpl(BigtableConfig config) {
     try {
@@ -142,10 +142,7 @@ class BigtableServiceImpl implements BigtableService {
     }
     clientTuple.x().getAndIncrement();
     return new BigtableWriterImpl(
-        clientTuple.y(),
-        dataSettings.getProjectId(),
-        dataSettings.getInstanceId(),
-        tableId, id);
+        clientTuple.y(), dataSettings.getProjectId(), dataSettings.getInstanceId(), tableId, id);
   }
 
   @Override
@@ -341,7 +338,8 @@ class BigtableServiceImpl implements BigtableService {
           maxSegmentByteSize,
           attemptTimeout,
           operationTimeout,
-          createCallMetric(projectId, instanceId, tableId), id);
+          createCallMetric(projectId, instanceId, tableId),
+          id);
     }
 
     @VisibleForTesting
@@ -651,7 +649,8 @@ class BigtableServiceImpl implements BigtableService {
           source.getRowFilter(),
           source.getMaxBufferElementCount(),
           retrySettings.getInitialRpcTimeout(),
-          retrySettings.getTotalTimeout(), id);
+          retrySettings.getTotalTimeout(),
+          id);
     } else {
       return new BigtableReaderImpl(
           client.y(),
@@ -661,7 +660,8 @@ class BigtableServiceImpl implements BigtableService {
           source.getRanges(),
           source.getRowFilter(),
           retrySettings.getInitialRpcTimeout(),
-          retrySettings.getTotalTimeout(), id);
+          retrySettings.getTotalTimeout(),
+          id);
     }
   }
 

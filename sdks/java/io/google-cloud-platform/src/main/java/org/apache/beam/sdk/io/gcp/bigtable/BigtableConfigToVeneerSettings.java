@@ -149,15 +149,6 @@ class BigtableConfigToVeneerSettings {
           });
     }
 
-    channelProvider.setChannelPoolSettings(
-        ChannelPoolSettings.builder()
-            .setMaxRpcsPerChannel(50)
-            .setMinRpcsPerChannel(1)
-            .setPreemptiveRefreshEnabled(true)
-            .setInitialChannelCount(1)
-            .setMinChannelCount(1)
-            .setMaxChannelCount(4)
-            .build());
     stubSettings.setTransportChannelProvider(channelProvider.build());
   }
 
