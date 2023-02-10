@@ -37,9 +37,8 @@ task copyDockerfileDependencies(type: Copy) {
    dependsOn(":playground:kafka-emulator:build")
 
    copy {
-      from "../../../kafka-emulator/build/distributions/kafka-emulator-${project.version}.tar"
+      from "../../../kafka-emulator/build/distributions/kafka-emulator.tar"
       into 'build/kafka-emulator'
-      rename ("kafka-emulator-${project.version}.tar", "kafka-emulator.tar")
    }
    copy {
       from '../../../backend/'

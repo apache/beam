@@ -23,6 +23,14 @@ plugins {
 
 applyJavaNature(exportJavadoc: false, publish: false)
 
+distZip {
+   archiveName "${baseName}.zip"
+}
+
+distTar {
+   archiveName "${baseName}.tar"
+}
+
 dependencies {
    implementation 'io.github.embeddedkafka:embedded-kafka_2.11:2.4.1.1'
    implementation 'org.scala-lang:scala-library:2.11.12'
@@ -38,8 +46,8 @@ jar {
 distributions {
    main {
       contents {
-         from jar // copies your jar
-         from(project.configurations.runtimeClasspath) // copies dependency jars
+         from jar
+         from(project.configurations.runtimeClasspath)
       }
    }
 }

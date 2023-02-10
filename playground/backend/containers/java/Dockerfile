@@ -109,7 +109,7 @@ COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 COPY kafka-emulator/kafka-emulator.tar /opt/playground/backend/kafka-emulator/
 RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar && rm kafka-emulator.tar &&\
-    mv kafka-emulator-*/*.jar . && rmdir kafka-emulator-*/ &&\
+    mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
     mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
 
 # Create a user group `appgroup` and a user `appuser`
