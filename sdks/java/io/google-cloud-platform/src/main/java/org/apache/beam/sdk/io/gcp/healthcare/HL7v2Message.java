@@ -22,6 +22,7 @@ import com.google.api.services.healthcare.v1.model.Message;
 import com.google.api.services.healthcare.v1.model.SchematizedData;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
@@ -179,5 +180,30 @@ public class HL7v2Message {
    */
   public Map<String, String> getLabels() {
     return labels;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof HL7v2Message)) {
+      return false;
+    }
+    HL7v2Message other = (HL7v2Message) o;
+    return Objects.equals(name, other.getName())
+        && Objects.equals(messageType, other.getMessageType())
+        && Objects.equals(sendTime, other.getSendTime())
+        && Objects.equals(createTime, other.getCreateTime())
+        && Objects.equals(data, other.getData())
+        && Objects.equals(sendFacility, other.getSendFacility())
+        && Objects.equals(schematizedData, other.getSchematizedData())
+        && Objects.equals(labels, other.getLabels());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        name, messageType, sendTime, createTime, data, sendFacility, schematizedData, labels);
   }
 }

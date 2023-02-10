@@ -520,6 +520,53 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(
               KEYED_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
 
+  def test_pipeline_local_model_extra_inference_args_batching_args(self):
+    with TestPipeline() as pipeline:
+      inference_args = {
+          'prediction_param_array': torch.from_numpy(
+              np.array([1, 2], dtype="float32")),
+          'prediction_param_bool': True
+      }
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      def batch_validator_keyed_tensor_inference_fn(
+          batch,
+          model,
+          device,
+          inference_args,
+          model_id,
+      ):
+        if len(batch) != 2:
+          raise Exception(
+              f'Expected batch of size 2, received batch of size {len(batch)}')
+        return default_keyed_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
+
+      model_handler = PytorchModelHandlerKeyedTensor(
+          state_dict_path=path,
+          model_class=PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          },
+          inference_fn=batch_validator_keyed_tensor_inference_fn,
+          min_batch_size=2,
+          max_batch_size=2)
+
+      pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
+      inference_args_side_input = (
+          pipeline | 'create side' >> beam.Create(inference_args))
+      predictions = pcoll | RunInference(
+          model_handler=model_handler,
+          inference_args=beam.pvalue.AsDict(inference_args_side_input))
+      assert_that(
+          predictions,
+          equal_to(
+              KEYED_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
+
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
@@ -541,6 +588,51 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           model_params={
               'input_dim': 1, 'output_dim': 1
           })
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(expected_predictions, equals_fn=_compare_prediction_result))
+
+  @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
+  def test_pipeline_gcs_model_control_batching(self):
+    with TestPipeline() as pipeline:
+      examples = torch.from_numpy(
+          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
+      expected_predictions = [
+          PredictionResult(ex, pred) for ex,
+          pred in zip(
+              examples,
+              torch.Tensor([example * 2.0 + 0.5
+                            for example in examples]).reshape(-1, 1))
+      ]
+
+      def batch_validator_tensor_inference_fn(
+          batch,
+          model,
+          device,
+          inference_args,
+          model_id,
+      ):
+        if len(batch) != 2:
+          raise Exception(
+              f'Expected batch of size 2, received batch of size {len(batch)}')
+        return default_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
+
+
+      gs_pth = 'gs://apache-beam-ml/models/' \
+          'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
+      model_handler = PytorchModelHandlerTensor(
+          state_dict_path=gs_pth,
+          model_class=PytorchLinearRegression,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          },
+          inference_fn=batch_validator_tensor_inference_fn,
+          min_batch_size=2,
+          max_batch_size=2)
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
       predictions = pcoll | RunInference(model_handler)

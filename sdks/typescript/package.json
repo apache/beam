@@ -28,6 +28,7 @@
     "pretest": "npm run build",
     "test": "mocha dist/test dist/test/docs",
     "codecovTest": "istanbul cover mocha dist/test --reporter lcovonly -- -R spec && codecov",
+    "predocs": "npm run build",
     "docs": "typedoc",
     "prettier": "prettier --write src/",
     "prettier-check": "prettier --check src/",
