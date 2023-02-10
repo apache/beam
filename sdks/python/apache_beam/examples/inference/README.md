@@ -32,6 +32,15 @@ because the `apache_beam.examples.inference` module was added in that release.
 pip install apache-beam==2.40.0
 ```
 
+### Tensorflow dependencies
+
+The following installation requirement is for the Tensorflow model handler examples.
+
+The RunInference API supports the Tensorflow framework. To use Tensorflow locally, first install `tensorflow`.
+```
+pip install tensorflow==2.11.0
+```
+
 ### PyTorch dependencies
 
 The following installation requirements are for the files used in these examples.
@@ -418,3 +427,52 @@ This writes the output to the output file path with contents like:
 ```
 A comedy-drama of nearly epic proportions rooted in a sincere performance by the title character undergoing midlife crisis .;1
 ```
+
+## MNIST digit classification with Tensorflow
+[`tensorflow_mnist_classification.py`](./tensorflow_mnist_classification.py) contains an implementation for a RunInference pipeline that performs image classification on handwritten digits from the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
+
+The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for language modeling
+
+To use this transform, you need a dataset and model for language modeling.
+
+1. Create a file named `INPUT.csv` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
+```
+1,0,0,0...
+0,0,0,0...
+1,0,0,0...
+4,0,0,0...
+...
+```
+2. Save the trained tensorflow model to a directory `MODEL_DIR` .
+
+
+### Running `tensorflow_mnist_classification.py`
+
+To run the MNIST classification pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.tensorflow_mnist_classification.py \
+  --input INPUT \
+  --output OUTPUT \
+  --model_path MODEL_DIR
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.tensorflow_mnist_classification.py \
+  --input INPUT.csv \
+  --output predictions.txt \
+  --model_path MODEL_DIR
+```
+
+This writes the output to the `predictions.txt` with contents like:
+```
+1,1
+4,4
+0,0
+7,7
+3,3
+5,5
+...
+```
+Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
