@@ -61,6 +61,7 @@ if err := p.Run(); err != nil {
     fmt.Printf("Failed to execute job: %v", err)
 }
 ```
+{{end}}
 {{if (eq .Sdk "java")}}
 ```
 Pipeline p = Pipeline.create();

@@ -25,7 +25,7 @@ id: io
 name: IO Connectors
 complexity: ADVANCED
 content:
-- textIO
-- big-queryIO
-- kafkaIO
-- rest-api-io
+- text-io
+- big-query-io
+- kafka-io
+- rest-api

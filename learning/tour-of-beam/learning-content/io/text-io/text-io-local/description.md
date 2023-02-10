@@ -52,7 +52,7 @@ p.run()
 
 To write data to a local file, you can use the Write method and pass in the file path as a string. Here is an example of writing a string to a local text file named "**myfile.txt**":
 
-{{if (eq .Sdk "java")}}
+{{if (eq .Sdk "go")}}
 ```
 p := beam.NewPipeline()
 s := beam.Create(p, "Hello, World!")

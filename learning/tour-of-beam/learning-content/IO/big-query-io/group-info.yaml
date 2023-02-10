@@ -27,5 +27,5 @@ name: BigQueryIO
 content:
   - read-table
   - read-query
-  - write-table-schema
-  - write-beam-schema
+  - table-schema
+  - beam-schema

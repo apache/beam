@@ -26,24 +26,26 @@
 #     - hellobeam
 
 
-from google.cloud import bigquery
+print('Hello, world!')
 
-def write_to_bigquery(project_id, dataset_id, table_id, rows):
-    client = bigquery.Client(project=project_id)
-    dataset_ref = client.dataset(dataset_id)
-    table_ref = dataset_ref.table(table_id)
-    table = client.get_table(table_ref)  # API call
+# from google.cloud import bigquery
 
-    # Write the data to BigQuery
-    errors = client.insert_rows(table, rows)
-    if not errors:
-        print("Data written to table {}".format(table_id))
-    else:
-        print("Errors occurred while writing data to table {}: {}".format(table_id, errors))
+# def write_to_bigquery(project_id, dataset_id, table_id, rows):
+#     client = bigquery.Client(project=project_id)
+#     dataset_ref = client.dataset(dataset_id)
+#     table_ref = dataset_ref.table(table_id)
+#     table = client.get_table(table_ref)  # API call
 
-rows = [
-    (1, "John Doe", 30),
-    (2, "Jane Doe", 25),
-    (3, "Jim Smith", 40),
-]
-write_to_bigquery("tess-372508", "fir", "xasw", rows)
+#     # Write the data to BigQuery
+#     # errors = client.insert_rows(table, rows)
+#     # if not errors:
+#     #     print("Data written to table {}".format(table_id))
+#     # else:
+#     #     print("Errors occurred while writing data to table {}: {}".format(table_id, errors))
+
+# rows = [
+#     (1, "John Doe", 30),
+#     (2, "Jane Doe", 25),
+#     (3, "Jim Smith", 40),
+# ]
+# write_to_bigquery("tess-372508", "fir", "xasw", rows)

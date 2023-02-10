@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: read-query
+#   name: kafkaIO
 #   description: TextIO read query example.
 #   multifile: false
 #   context_line: 34
@@ -40,15 +40,15 @@ input_topic = 'input-topic'
 output_topic = 'output-topic'
 bootstrap_servers = {"bootstrap.servers": "localhost:9092"}
 
-(p | "Read from Kafka" >> ReadFromKafka(
-      topics=[input_topic],
-      consumer_config=bootstrap_servers)
- | "Process data" >> beam.Map(process_data)
- | "Write to Kafka" >> WriteToKafka(
-      topic=output_topic,
-      producer_config = bootstrap_servers,
-      key='key',
-      value='value')
-)
+# (p | "Read from Kafka" >> ReadFromKafka(
+#       topics=[input_topic],
+#       consumer_config=bootstrap_servers)
+#  | "Process data" >> beam.Map(process_data)
+#  | "Write to Kafka" >> WriteToKafka(
+#       topic=output_topic,
+#       producer_config = bootstrap_servers,
+#       key='key',
+#       value='value')
+# )
 
 p.run().wait_until_finish()

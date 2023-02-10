@@ -17,7 +17,9 @@
 # beam-playground:
 #   name: text-io-local
 #   description: TextIO local file example.
-#   multifile: false
+#   multifile: true
+#   files:
+#     - name: myfile.txt
 #   context_line: 30
 #   categories:
 #     - Quickstart
@@ -35,7 +37,7 @@ lines = p | 'ReadMyFile' >> beam.io.ReadFromText('myfile.txt')
 lines | 'PrintMyFile' >> beam.Map(print_lines)
 
 data = ['Hello, World!', 'Apache Beam']
-p | 'CreateMyData' >> beam.Create(data)
+p | 'CreateMyData' >> beam.Create(data) \
   | 'WriteMyFile' >> beam.io.WriteToText('output.txt')
 
 p.run()

@@ -14,7 +14,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-# beam-playground:
+# beam-playground-broken:
 #   name: read-table
 #   description: TextIO read table example.
 #   multifile: false
@@ -30,6 +30,7 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToBigQuery
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+
 
 def run(argv=None):
     parser = argparse.ArgumentParser()
@@ -53,5 +54,6 @@ def run(argv=None):
             # Each row is a dictionary where the keys are the BigQuery columns
             | beam.Map(lambda elem: elem['max_temperature']))
 
+
 if __name__ == '__main__':
-    run()
+  run()
