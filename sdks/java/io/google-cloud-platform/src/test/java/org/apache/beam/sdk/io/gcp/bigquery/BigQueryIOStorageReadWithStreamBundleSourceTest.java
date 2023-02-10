@@ -1103,22 +1103,31 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             new FakeBigQueryServices().withStorageClient(fakeStorageClient),
             1L);
 
-    // Read a few records from the primary bundle and ensure that records are returned in the
+    // Read a few records from the primary Source and ensure that records are returned in the
     // prescribed order.
     BoundedReader<TableRow> primary = primarySource.createReader(options);
+
     assertTrue(primary.start());
+
+    // Attempting to split at a sub-Stream level which is NOT supported by the
+    // `BigQueryStorageStreamBundleSource`. IOTW, since there are exactly 3 Streams in the Source,
+    // a split will only occur for fraction > 0.33.
+    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.05);
+    assertNull(secondarySource);
+
     assertEquals("A", primary.getCurrent().get("name"));
     assertTrue(primary.advance());
     assertEquals("B", primary.getCurrent().get("name"));
     assertTrue(primary.advance());
+    assertEquals("C", primary.getCurrent().get("name"));
 
-    // Now split the StreamBundle, and ensure that the returned source points to a non-null
-    // secondary StreamBundle.
-    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.35);
+    // Now split the primary Source, and ensure that the returned source points to a non-null
+    // StreamBundle containing Streams 2 & 3.
+    secondarySource = primary.splitAtFraction(0.5);
     assertNotNull(secondarySource);
     BoundedReader<TableRow> secondary = secondarySource.createReader(options);
 
-    assertEquals("C", primary.getCurrent().get("name"));
+    // Since the last two streams were split out the Primary source has been exhausted.
     assertFalse(primary.advance());
 
     assertTrue(secondary.start());
@@ -1128,6 +1137,12 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
     assertTrue(secondary.advance());
     assertEquals("F", secondary.getCurrent().get("name"));
     assertTrue((secondary.advance()));
+
+    // Since we have already started reading from the last Stream in the StreamBundle, splitting
+    // is now a no-op.
+    BoundedSource<TableRow> tertiarySource = secondary.splitAtFraction(0.55);
+    assertNull(tertiarySource);
+
     assertEquals("G", secondary.getCurrent().get("name"));
     assertFalse((secondary.advance()));
   }
@@ -1185,44 +1200,49 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             new FakeBigQueryServices().withStorageClient(fakeStorageClient),
             1L);
 
-    // Read a few records from the primary bundle and ensure that records are returned in the
+    // Read a few records from the primary Source and ensure that records are returned in the
     // prescribed order.
     BoundedReader<TableRow> primary = primarySource.createReader(options);
+
     assertTrue(primary.start());
     assertEquals("A", primary.getCurrent().get("name"));
     assertTrue(primary.advance());
     assertEquals("B", primary.getCurrent().get("name"));
     assertTrue(primary.advance());
+    assertEquals("C", primary.getCurrent().get("name"));
 
-    // Now split the StreamBundle, and ensure that the returned source points to a non-null
-    // secondary StreamBundle. Since there are 3 streams in this Bundle, splitting will only
-    // occur when fraction >= 0.33.
-    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.35);
+    // Now split the primary Source, and ensure that the returned source points to a non-null
+    // StreamBundle containing ONLY Stream 3. Since there are exactly 3 Streams in the Source,
+    // a split will only occur for fraction > 0.33.
+    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.7);
     assertNotNull(secondarySource);
     BoundedReader<TableRow> secondary = secondarySource.createReader(options);
-
-    assertEquals("C", primary.getCurrent().get("name"));
-    assertFalse(primary.advance());
-
     assertTrue(secondary.start());
-    assertEquals("D", secondary.getCurrent().get("name"));
-    assertTrue(secondary.advance());
-    assertEquals("E", secondary.getCurrent().get("name"));
-    assertTrue(secondary.advance());
-
-    // Now split the StreamBundle again, and ensure that the returned source points to a non-null
-    // tertiary StreamBundle. Since there are 2 streams in this Bundle, splitting will only
-    // occur when fraction >= 0.5.
-    BoundedSource<TableRow> tertiarySource = secondary.splitAtFraction(0.5);
-    assertNotNull(tertiarySource);
-    BoundedReader<TableRow> tertiary = tertiarySource.createReader(options);
-
-    assertEquals("F", secondary.getCurrent().get("name"));
+    assertEquals("G", secondary.getCurrent().get("name"));
     assertFalse((secondary.advance()));
 
+    // A second splitAtFraction() call on the primary source. The resulting source should
+    // contain a StreamBundle containing ONLY Stream 2. Since there are 2 Streams in the Source,
+    // a split will only occur for fraction > 0.50.
+    BoundedSource<TableRow> tertiarySource = primary.splitAtFraction(0.55);
+    assertNotNull(tertiarySource);
+    BoundedReader<TableRow> tertiary = tertiarySource.createReader(options);
     assertTrue(tertiary.start());
-    assertEquals("G", tertiary.getCurrent().get("name"));
-    assertFalse((tertiary.advance()));
+    assertEquals("D", tertiary.getCurrent().get("name"));
+    assertTrue(tertiary.advance());
+    assertEquals("E", tertiary.getCurrent().get("name"));
+    assertTrue(tertiary.advance());
+    assertEquals("F", tertiary.getCurrent().get("name"));
+    assertFalse(tertiary.advance());
+
+    // A third attempt to split the primary source. This will be ignored since the primary source
+    // since the Source contains only a single stream now and `BigQueryStorageStreamBundleSource`
+    // does NOT support sub-stream splitting.
+    tertiarySource = primary.splitAtFraction(0.9);
+    assertNull(tertiarySource);
+
+    // All the rows in the primary Source have been read.
+    assertFalse(primary.advance());
   }
 
   @Test

@@ -47,6 +47,34 @@ import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A {@link org.apache.beam.sdk.io.Source} representing a bundle of Streams in a BigQuery ReadAPI
+ * Session. This Source ONLY supports splitting at the StreamBundle level.
+ *
+ * <p>{@link BigQueryStorageStreamBundleSource} defines a split-point as the starting offset of each
+ * Stream. As a result, the number of valid split points in the Source is equal to the number of
+ * Streams in the StreamBundle and this Source does NOT support sub-Stream splitting.
+ *
+ * <p>Additionally, the underlying {@link org.apache.beam.sdk.io.range.OffsetRangeTracker} and
+ * {@link OffsetBasedSource} operate in the split point space and do NOT directly interact with the
+ * Streams constituting the StreamBundle. Consequently, fractional values used in
+ * `splitAtFraction()` are translated into StreamBundleIndices and the underlying RangeTracker
+ * handles the split operation by checking the validity of the split point. This has the following
+ * implications for the `splitAtFraction()` operation:
+ *
+ * 1. Fraction values that point to the "middle" of a Stream will be translated to the appropriate
+ * Stream boundary by the RangeTracker.
+ *
+ * 2. Once a Stream is being read from, the RangeTracker will only accept `splitAtFraction()` calls
+ * that point to StreamBundleIndices that are greater than the StreamBundleIndex of the current
+ * Stream</p>
+ *
+ * @param <T> Type of records represented by the source.
+ * @see OffsetBasedSource
+ * @see org.apache.beam.sdk.io.range.OffsetRangeTracker
+ * @see org.apache.beam.sdk.io.OffsetBasedSource
+ * (semantically similar to {@link BigQueryStorageStreamBundleSource})
+ */
 class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
   public static <T> BigQueryStorageStreamBundleSource<T> create(
@@ -97,9 +125,6 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       Coder<T> outputCoder,
       BigQueryServices bqServices,
       long minBundleSize) {
-    // The underlying OffsetBasedSource (and RangeTracker) operate only on the StreamBundle and NOT
-    // the Streams that constitute the StreamBundle. More specifically, the offsets in the
-    // OffsetBasedSource are indices for the StreamBundle List.
     super(0, streamBundle.size(), minBundleSize);
     this.readSession = Preconditions.checkArgumentNotNull(readSession, "readSession");
     this.streamBundle = Preconditions.checkArgumentNotNull(streamBundle, "streams");
@@ -215,8 +240,6 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
     @Override
     protected boolean isAtSplitPoint() throws NoSuchElementException {
-      // The start of every Stream within a StreamBundle is being defined as a split point. This
-      // implies that we cannot split below the granularity of a Stream
       if (currentStreamOffset == 0) {
         return true;
       }
@@ -235,7 +258,7 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       return readNextRecord();
     }
 
-    private synchronized boolean readNextStream() throws IOException {
+    private boolean readNextStream() throws IOException {
       BigQueryStorageStreamBundleSource<T> source = getCurrentSource();
       if (currentStreamBundleIndex == source.streamBundle.size()) {
         fractionOfStreamBundleConsumed = 1d;
@@ -267,8 +290,8 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
           synchronized (this) {
             currentStreamOffset = 0;
             currentStreamBundleIndex++;
-            return readNextStream();
           }
+          return readNextStream();
         }
 
         ReadRowsResponse response;
@@ -324,10 +347,11 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
           progressAtResponseStart
               + ((progressAtResponseEnd - progressAtResponseStart)
                   * (rowsConsumedFromCurrentResponse * 1.0 / totalRowsInCurrentResponse));
-      // Assuming that each Stream in the StreamBundle has approximately the same amount of data,
-      // we can use the `fractionOfCurrentStreamConsumed` value to calculate the progress made over
-      // the
-      // entire StreamBundle.
+
+      // We now calculate the progress made over the entire StreamBundle by assuming that each
+      // Stream in the StreamBundle has approximately the same amount of data. Given this, merely
+      // counting the number of Streams that have been read and linearly interpolating with the
+      // progress made in the current Stream gives us the overall StreamBundle progress.
       fractionOfStreamBundleConsumed =
           (currentStreamBundleIndex + fractionOfCurrentStreamConsumed) / source.streamBundle.size();
       return true;
