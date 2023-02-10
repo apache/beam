@@ -66,7 +66,7 @@ class ShareButton extends StatelessWidget {
         createDropdown: (closeCallback) {
           PlaygroundComponents.analyticsService.sendUnawaited(
             ShareCodeClickedAnalyticsEvent(
-              context: playgroundController.eventContext,
+              snippetContext: playgroundController.eventSnippetContext,
             ),
           );
           return ShareDropdownBody(

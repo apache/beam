@@ -31,7 +31,7 @@ class ResetAction extends StatelessWidget {
         beforeReset: () {
           PlaygroundComponents.analyticsService.sendUnawaited(
             ResetSnippetAnalyticsEvent(
-              context: playgroundController.eventContext,
+              snippetContext: playgroundController.eventSnippetContext,
             ),
           );
         },

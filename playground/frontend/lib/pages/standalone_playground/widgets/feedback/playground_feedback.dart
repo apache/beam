@@ -80,7 +80,7 @@ class PlaygroundFeedback extends StatelessWidget {
 
     PlaygroundComponents.analyticsService.sendUnawaited(
       RatedAnalyticsEvent(
-        context: playgroundController.eventContext,
+        snippetContext: playgroundController.eventSnippetContext,
         rating: rating,
       ),
     );

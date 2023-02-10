@@ -23,11 +23,11 @@ import 'constants.dart';
 /// Feedback with the [rating] and the [text] is sent.
 ///
 /// Currently this analytics event is the only medium to log the feedback.
-class FeedbackFormAnalyticsEvent extends SnippetAnalyticsEvent {
+class FeedbackFormAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const FeedbackFormAnalyticsEvent({
     required this.rating,
     required this.text,
-    required super.context,
+    required super.snippetContext,
   }) : super(
           name: BeamAnalyticsEvents.feedbackForm,
         );

@@ -196,11 +196,11 @@ void main() async {
       });
     });
 
-    group('EventContext.', () {
+    group('EventSnippetContext.', () {
       test('Uninitialized', () {
         expect(
-          controller.eventContext,
-          const EventContext(
+          controller.eventSnippetContext,
+          const EventSnippetContext(
             originalSnippet: null,
             sdk: Sdk.python,
             snippet: null,
@@ -228,8 +228,8 @@ void main() async {
           controller.setExample(examplePython1, descriptor: descriptor);
 
           expect(
-            controller.eventContext,
-            EventContext(
+            controller.eventSnippetContext,
+            EventSnippetContext(
               originalSnippet: descriptor.token,
               sdk: controller.sdk,
               snippet: descriptor.token,
@@ -239,8 +239,8 @@ void main() async {
           controller.activeFileController!.codeController.text += 'changed';
 
           expect(
-            controller.eventContext,
-            EventContext(
+            controller.eventSnippetContext,
+            EventSnippetContext(
               originalSnippet: descriptor.token,
               sdk: controller.sdk,
               snippet: null,

@@ -24,8 +24,8 @@ const _none = 'none';
 
 /// Basic information of the Playground state at a particular moment of time
 /// to augment analytics events.
-class EventContext with EquatableMixin {
-  const EventContext({
+class EventSnippetContext with EquatableMixin {
+  const EventSnippetContext({
     required this.originalSnippet,
     required this.sdk,
     required this.snippet,
@@ -42,7 +42,8 @@ class EventContext with EquatableMixin {
   /// Any identifier of the current snippet if it is unchanged.
   final String? snippet;
 
-  static const empty = EventContext(
+  /// An empty [EventSnippetContext] for events before anything loaded.
+  static const empty = EventSnippetContext(
     originalSnippet: null,
     sdk: null,
     snippet: null,

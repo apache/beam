@@ -19,7 +19,8 @@ import 'package:playground_components/src/controllers/snippet_editing_controller
     as _i8;
 import 'package:playground_components/src/models/category_with_examples.dart'
     as _i18;
-import 'package:playground_components/src/models/event_context.dart' as _i7;
+import 'package:playground_components/src/models/event_snippet_context.dart'
+    as _i7;
 import 'package:playground_components/src/models/example.dart' as _i12;
 import 'package:playground_components/src/models/example_base.dart' as _i11;
 import 'package:playground_components/src/models/example_loading_descriptors/example_loading_descriptor.dart'
@@ -54,7 +55,8 @@ class _FakeCodeRunner_3 extends _i1.Fake implements _i5.CodeRunner {}
 
 class _FakeBeamShortcut_4 extends _i1.Fake implements _i6.BeamShortcut {}
 
-class _FakeEventContext_5 extends _i1.Fake implements _i7.EventContext {}
+class _FakeEventSnippetContext_5 extends _i1.Fake
+    implements _i7.EventSnippetContext {}
 
 class _FakeSnippetEditingController_6 extends _i1.Fake
     implements _i8.SnippetEditingController {}
@@ -139,10 +141,10 @@ class MockPlaygroundController extends _i1.Mock
         returnValue: '',
       ) as String);
   @override
-  _i7.EventContext get eventContext => (super.noSuchMethod(
-        Invocation.getter(#eventContext),
-        returnValue: _FakeEventContext_5(),
-      ) as _i7.EventContext);
+  _i7.EventSnippetContext get eventSnippetContext => (super.noSuchMethod(
+        Invocation.getter(#eventSnippetContext),
+        returnValue: _FakeEventSnippetContext_5(),
+      ) as _i7.EventSnippetContext);
   @override
   bool get graphAvailable => (super.noSuchMethod(
         Invocation.getter(#graphAvailable),

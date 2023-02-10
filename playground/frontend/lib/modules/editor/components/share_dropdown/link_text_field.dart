@@ -28,13 +28,13 @@ import 'share_tabs/share_format_enum.dart';
 const _kTextFieldMaxHeight = 45.0;
 
 class LinkTextField extends StatefulWidget {
-  final EventContext eventContext;
+  final EventSnippetContext eventSnippetContext;
   final ShareFormat shareFormat;
   final String text;
 
   const LinkTextField({
     super.key,
-    required this.eventContext,
+    required this.eventSnippetContext,
     required this.shareFormat,
     required this.text,
   });
@@ -112,7 +112,7 @@ class _LinkTextFieldState extends State<LinkTextField> {
   Future<void> _copyLinkText() async {
     PlaygroundComponents.analyticsService.sendUnawaited(
       ShareableCopiedAnalyticsEvent(
-        context: widget.eventContext,
+        snippetContext: widget.eventSnippetContext,
         shareFormat: widget.shareFormat,
       ),
     );

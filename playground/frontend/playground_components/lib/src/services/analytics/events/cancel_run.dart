@@ -19,10 +19,10 @@
 import 'abstract.dart';
 import 'constants.dart';
 
-class CancelRunAnalyticsEvent extends SnippetAnalyticsEvent {
+class CancelRunAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const CancelRunAnalyticsEvent({
     required this.duration,
-    required super.context,
+    required super.snippetContext,
   }) : super(
           name: BeamAnalyticsEvents.cancelRun,
         );

@@ -151,7 +151,8 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
                     ),
                     child: FeedbackDropdownContent(
                       close: _close,
-                      eventContext: widget.playgroundController.eventContext,
+                      eventSnippetContext:
+                          widget.playgroundController.eventSnippetContext,
                       feedbackRating: widget.feedbackRating,
                       textController: feedbackTextController,
                     ),

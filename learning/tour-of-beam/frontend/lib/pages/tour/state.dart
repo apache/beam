@@ -29,7 +29,6 @@ import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
-// import '../../modules/analytics/google_analytics_service.dart';
 import '../../state.dart';
 import 'controllers/content_tree.dart';
 import 'controllers/unit.dart';
@@ -124,18 +123,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  Future<void> _onTabClosed() async {
-    print(['_onTabClosed']);
-    if (currentUnitController != null) {
-      // TODO: Send event.
-      // await TobGoogleAnalyticsService.get().closeUnit(
-      //   currentUnitController!.sdk,
-      //   currentUnitController!.unit.id,
-      //   DateTime.now().difference(_currentUnitOpenedAt!),
-      // );
-    }
-  }
-
   Future<void> _setCurrentUnitContent(
     UnitModel unit, {
     required Sdk sdk,
@@ -149,15 +136,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     if (_currentUnitOpenedAt != null && _currentUnitContent != null) {
-      // TODO: Send event.
-      // await TobGoogleAnalyticsService.get().closeUnit(
-      //   sdk,
-      //   // TODO(nausharipov): review
-      //   // If unit object is needed, tracking can be
-      //   // moved into _createCurrentUnitController
-      //   _currentUnitContent!.id,
-      //   DateTime.now().difference(_currentUnitOpenedAt!),
-      // );
+      // TODO: Send close unit event.
     }
 
     _currentUnitContent = content;
@@ -166,8 +145,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     _currentUnitOpenedAt = DateTime.now();
-    // TODO: Send event.
-    // await TobGoogleAnalyticsService.get().openUnit(sdk, unit);
+    // TODO: Send open unit event.
 
     final taskSnippetId = content.taskSnippetId;
     await _setPlaygroundSnippet(taskSnippetId);

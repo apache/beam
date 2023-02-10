@@ -20,9 +20,9 @@ import 'package:playground_components/playground_components.dart';
 
 import 'constants.dart';
 
-class ShareCodeClickedAnalyticsEvent extends SnippetAnalyticsEvent {
+class ShareCodeClickedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const ShareCodeClickedAnalyticsEvent({
-    required super.context,
+    required super.snippetContext,
   }) : super(
           name: PlaygroundAnalyticsEvents.shareCodeClicked,
         );

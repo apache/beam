@@ -60,7 +60,7 @@ Future<void> _checkEnjoyingAndSendFeedback(WidgetTester wt) async {
   expect(
     lastEvent,
     const FeedbackFormAnalyticsEvent(
-      context: EventContext(
+      snippetContext: EventSnippetContext(
         // TODO: Replace with values from the example object when merged https://github.com/apache/beam/pull/25034
         originalSnippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
         sdk: Sdk.java,
@@ -93,7 +93,7 @@ Future<void> _checkNotEnjoyingAndSendFeedback(WidgetTester wt) async {
   expect(
     lastEvent,
     const FeedbackFormAnalyticsEvent(
-      context: EventContext(
+      snippetContext: EventSnippetContext(
         // TODO: Replace with values from the example object when merged https://github.com/apache/beam/pull/25034
         originalSnippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
         sdk: Sdk.java,

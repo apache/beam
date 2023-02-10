@@ -32,7 +32,7 @@ export 'src/enums/feedback_rating.dart';
 
 export 'src/models/category_with_examples.dart';
 export 'src/models/dataset.dart';
-export 'src/models/event_context.dart';
+export 'src/models/event_snippet_context.dart';
 export 'src/models/example.dart';
 export 'src/models/example_base.dart';
 export 'src/models/example_loading_descriptors/catalog_default_example_loading_descriptor.dart';

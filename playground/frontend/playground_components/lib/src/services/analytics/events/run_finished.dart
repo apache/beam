@@ -19,10 +19,10 @@
 import 'abstract.dart';
 import 'constants.dart';
 
-class RunFinishedAnalyticsEvent extends SnippetAnalyticsEvent {
+class RunFinishedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const RunFinishedAnalyticsEvent({
     required this.duration,
-    required super.context,
+    required super.snippetContext,
   }) : super(
           name: BeamAnalyticsEvents.runFinished,
         );

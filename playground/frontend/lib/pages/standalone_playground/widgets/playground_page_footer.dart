@@ -58,7 +58,7 @@ class PlaygroundPageFooter extends StatelessWidget {
                   launchUrl(Uri.parse(kReportIssueLink));
                   PlaygroundComponents.analyticsService.sendUnawaited(
                     ReportIssueAnalyticsEvent(
-                      context: playgroundController.eventContext,
+                      snippetContext: playgroundController.eventSnippetContext,
                     ),
                   );
                 },

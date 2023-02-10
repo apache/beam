@@ -19,9 +19,9 @@
 import 'abstract.dart';
 import 'constants.dart';
 
-class ReportIssueAnalyticsEvent extends SnippetAnalyticsEvent {
+class ReportIssueAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const ReportIssueAnalyticsEvent({
-    required super.context,
+    required super.snippetContext,
   }) : super(
           name: BeamAnalyticsEvents.reportIssue,
         );

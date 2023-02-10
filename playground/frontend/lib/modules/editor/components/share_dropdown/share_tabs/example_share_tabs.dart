@@ -32,13 +32,13 @@ import 'share_format_enum.dart';
 // TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
 class ExampleShareTabs extends StatelessWidget {
   final ExampleLoadingDescriptor descriptor;
-  final EventContext eventContext;
+  final EventSnippetContext eventSnippetContext;
   final Sdk sdk;
   final TabController tabController;
 
   const ExampleShareTabs({
     required this.descriptor,
-    required this.eventContext,
+    required this.eventSnippetContext,
     required this.sdk,
     required this.tabController,
   });
@@ -64,7 +64,7 @@ class ExampleShareTabs extends StatelessWidget {
           children: [
             Text(appLocale.linkReady),
             LinkTextField(
-              eventContext: eventContext,
+              eventSnippetContext: eventSnippetContext,
               shareFormat: ShareFormat.linkStandalone,
               text: standaloneUri.toString(),
             ),
@@ -74,7 +74,7 @@ class ExampleShareTabs extends StatelessWidget {
           children: [
             Text(appLocale.iframeCodeReady),
             LinkTextField(
-              eventContext: eventContext,
+              eventSnippetContext: eventSnippetContext,
               shareFormat: ShareFormat.iframeEmbedded,
               text: ShareCodeUtils.iframe(
                 src: embeddedUri,

@@ -19,9 +19,9 @@
 import 'abstract.dart';
 import 'constants.dart';
 
-class ResetSnippetAnalyticsEvent extends SnippetAnalyticsEvent {
+class ResetSnippetAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const ResetSnippetAnalyticsEvent({
-    required super.context,
+    required super.snippetContext,
   }) : super(
           name: BeamAnalyticsEvents.resetSnippet,
         );

@@ -23,7 +23,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 
 import '../controllers/snippet_file_editing_controller.dart';
-import '../models/event_context.dart';
+import '../models/event_snippet_context.dart';
 import '../services/analytics/analytics_service.dart';
 import '../services/analytics/events/snippet_modified.dart';
 import '../theme/theme.dart';
@@ -31,7 +31,7 @@ import '../theme/theme.dart';
 class SnippetFileEditor extends StatefulWidget {
   SnippetFileEditor({
     required this.controller,
-    required this.eventContext,
+    required this.eventSnippetContext,
     required this.isEditable,
   }) : super(
           // When the example is changed, will scroll to the context line again.
@@ -39,7 +39,7 @@ class SnippetFileEditor extends StatefulWidget {
         );
 
   final SnippetFileEditingController controller;
-  final EventContext eventContext;
+  final EventSnippetContext eventSnippetContext;
   final bool isEditable;
 
   @override
@@ -138,7 +138,7 @@ class _SnippetFileEditorState extends State<SnippetFileEditor> {
 
   void _onChanged() {
     if (widget.controller.isChanged && !_isEverModified) {
-      final snippet = widget.eventContext.originalSnippet;
+      final snippet = widget.eventSnippetContext.originalSnippet;
 
       if (snippet != null) {
         AnalyticsService.get().sendUnawaited(

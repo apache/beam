@@ -18,7 +18,7 @@
 
 import 'package:equatable/equatable.dart';
 
-import '../../../models/event_context.dart';
+import '../../../models/event_snippet_context.dart';
 
 abstract class AnalyticsEvent with EquatableMixin {
   const AnalyticsEvent({
@@ -35,24 +35,24 @@ abstract class AnalyticsEvent with EquatableMixin {
   Map<String, dynamic> toJson() => const {};
 }
 
-/// An [AnalyticsEvent] with [EventContext].
-abstract class SnippetAnalyticsEvent extends AnalyticsEvent {
-  const SnippetAnalyticsEvent({
-    required this.context,
+/// An [AnalyticsEvent] with [EventSnippetContext].
+abstract class AnalyticsEventWithSnippetContext extends AnalyticsEvent {
+  const AnalyticsEventWithSnippetContext({
+    required this.snippetContext,
     required super.name,
   });
 
-  final EventContext context;
+  final EventSnippetContext snippetContext;
 
   @override
   List<Object?> get props => [
         ...super.props,
-        context,
+        snippetContext,
       ];
 
   @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
-        ...context.toJson(),
+        ...snippetContext.toJson(),
       };
 }

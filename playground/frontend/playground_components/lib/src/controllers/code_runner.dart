@@ -48,10 +48,10 @@ class CodeRunner extends ChangeNotifier {
       ? null
       : (_runStopDate ?? clock.now()).difference(_runStartDate!);
 
-  EventContext? _eventContext;
+  EventSnippetContext? _eventContext;
 
-  /// [EventContext] for which the execution last started.
-  EventContext? get eventContext => _eventContext;
+  /// [EventSnippetContext] for which the execution last started.
+  EventSnippetContext? get eventSnippetContext => _eventContext;
 
   String? get pipelineOptions =>
       _snippetEditingControllerGetter().pipelineOptions;
@@ -79,7 +79,7 @@ class CodeRunner extends ChangeNotifier {
     _runStopDate = null;
     notifyListeners();
     snippetEditingController = _snippetEditingControllerGetter();
-    _eventContext = snippetEditingController!.eventContext;
+    _eventContext = snippetEditingController!.eventSnippetContext;
 
     final parsedPipelineOptions =
         parsePipelineOptions(snippetEditingController!.pipelineOptions);

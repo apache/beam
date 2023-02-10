@@ -39,17 +39,16 @@ class FeedbackDropdownContent extends StatelessWidget {
   static const sendButtonKey = Key('sendFeedbackButtonKey');
 
   final void Function() close;
-  final EventContext eventContext;
+  final EventSnippetContext eventSnippetContext;
   final FeedbackRating feedbackRating;
   final TextEditingController textController;
 
   const FeedbackDropdownContent({
-    Key? key,
     required this.close,
-    required this.eventContext,
+    required this.eventSnippetContext,
     required this.feedbackRating,
     required this.textController,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +178,7 @@ class FeedbackDropdownContent extends StatelessWidget {
                           FeedbackFormAnalyticsEvent(
                             rating: feedbackRating,
                             text: textController.text,
-                            context: eventContext,
+                            snippetContext: eventSnippetContext,
                           ),
                         );
                       }

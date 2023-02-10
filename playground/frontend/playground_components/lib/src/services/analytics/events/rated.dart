@@ -21,10 +21,10 @@ import 'abstract.dart';
 import 'constants.dart';
 
 /// A thump-up or thumb-down button pressed without yet entering feedback text.
-class RatedAnalyticsEvent extends SnippetAnalyticsEvent {
+class RatedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const RatedAnalyticsEvent({
     required this.rating,
-    required super.context,
+    required super.snippetContext,
   }) : super(
           name: BeamAnalyticsEvents.rated,
         );
