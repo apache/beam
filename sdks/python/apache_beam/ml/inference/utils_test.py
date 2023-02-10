@@ -97,3 +97,7 @@ class WatchFilePatternTest(unittest.TestCase):
           | beam.ParDo(utils._ConvertIterToSingleton())
           | beam.Map(lambda x: x[0]))
       assert_that(files_pc, equal_to(['', 'path3.py', 'path4.py']))
+
+
+if __name__ == '__main__':
+  unittest.main()
