@@ -177,7 +177,9 @@ class SelectByteBuddyHelpers {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(schemaAndDescriptor.getClass().getClassLoader()), getClassLoadingStrategy(schemaAndDescriptor.getClass()))
+          .load(
+              ReflectHelpers.findClassLoader(schemaAndDescriptor.getClass().getClassLoader()),
+              getClassLoadingStrategy(schemaAndDescriptor.getClass()))
           .getLoaded()
           .getDeclaredConstructor(Schema.class)
           .newInstance(outputSchema);
