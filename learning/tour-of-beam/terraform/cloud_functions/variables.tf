@@ -38,3 +38,7 @@ variable "entry_point_names" {
   type = list
   default = ["getSdkList", "getContentTree", "getUnitContent", "getUserProgress", "postUnitComplete", "postUserCode", "postDeleteProgress"]
 }
+
+variable "pg_router_host" {
+  description = "Hostname:port of Playground GKE cluster's router grpc workload"
+}

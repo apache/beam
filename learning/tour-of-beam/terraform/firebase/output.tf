@@ -15,34 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-output "service-account-email" {
-  value = module.setup.service-account-email
-}
-
-output "cloud-function-trigger-url" {
-  value = module.cloud_functions.cloud-function-trigger-url
-}
-
-output "functions-bucket-name" {
-  value = module.functions_buckets.functions-bucket-name
-}
-
-output "function-bucket-object" {
-  value = module.functions_buckets.function-bucket-object
-}
-
 output "firebase_project_name" {
-value = module.firebase.firebase_project_name
+value = google_firebase_project.tob_firebase_project.display_name
 }
 
 output "firebase_web_app_name" {
-value = module.firebase.firebase_web_app_name
+value = google_firebase_web_app.tob_firebase_firebase_webapp.name
 }
 
 output "firebase_web_app_id" {
-value = module.firebase.firebase_web_app_id
+value = google_firebase_web_app.tob_firebase_firebase_webapp.app_id
 }
 
 output "firebase_hosting" {
-value = module.firebase.firebase_hosting
+value = google_firebase_hosting_site.tob_firebase_hosting.app_id
 }
