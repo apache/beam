@@ -196,8 +196,8 @@ tasks.register("populateDatastore") {
 
 tasks.register("readState") {
     group = "deploy"
-    dependsOn(":playground:terraform:terraformInit")
-    dependsOn(":playground:terraform:terraformRef")
+    dependsOn(":learning:tour-of-beam:terraform:terraformInit")
+    dependsOn(":learning:tour-of-beam:terraform:terraformRef")
 }
 
 /* initialization infrastructure */
