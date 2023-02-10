@@ -392,7 +392,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     test_pipeline = TestPipeline()
     side_input = (
         test_pipeline | "CreateDummySideInput" >> beam.Create(
-            [base.ModelMetdata(1, 1), base.ModelMetdata(2, 2)])
+            [base.ModelMetadata(1, 1), base.ModelMetadata(2, 2)])
         | "ApplySideInputWindow" >> beam.WindowInto(
             window.GlobalWindows(),
             trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
@@ -442,11 +442,11 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     sample_side_input_elements = [(
         first_ts + 8,
-        base.ModelMetdata(
+        base.ModelMetadata(
             model_id='fake_model_id_1', model_name='fake_model_id_1')),
                                   (
                                       first_ts + 15,
-                                      base.ModelMetdata(
+                                      base.ModelMetadata(
                                           model_id='fake_model_id_2',
                                           model_name='fake_model_id_2'))]
 

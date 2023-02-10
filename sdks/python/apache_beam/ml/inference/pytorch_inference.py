@@ -218,6 +218,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
          the model will be loaded using `torch.jit.load()`.
         `state_dict_path`, `model_class` and `model_params`
          arguments will be disregarded.
+      min_batch_size: the minimum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Tensors.
+      max_batch_size: the maximum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Tensors.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -433,6 +437,11 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
          the model will be loaded using `torch.jit.load()`.
         `state_dict_path`, `model_class` and `model_params`
          arguments will be disregarded..
+      min_batch_size: the minimum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
+      max_batch_size: the maximum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
+
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     on torch>=1.9.0,<1.14.0.
