@@ -28,8 +28,6 @@ import '../../modules/examples/example_selector.dart';
 import '../../modules/sdk/components/sdk_selector.dart';
 import '../../modules/shortcuts/components/shortcuts_manager.dart';
 import 'state.dart';
-import 'widgets/close_listener_nonweb.dart'
-    if (dart.library.html) 'widgets/close_listener.dart';
 import 'widgets/more_actions.dart';
 import 'widgets/playground_page_body.dart';
 import 'widgets/playground_page_footer.dart';
@@ -42,73 +40,71 @@ class StandalonePlaygroundScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CloseListener(
-      child: PlaygroundPageProviders(
+    return PlaygroundPageProviders(
+      playgroundController: notifier.playgroundController,
+      child: PlaygroundShortcutsManager(
         playgroundController: notifier.playgroundController,
-        child: PlaygroundShortcutsManager(
-          playgroundController: notifier.playgroundController,
-          child: AnimatedBuilder(
-            animation: notifier.playgroundController,
-            builder: (context, child) {
-              final snippetController =
-                  notifier.playgroundController.snippetEditingController;
+        child: AnimatedBuilder(
+          animation: notifier.playgroundController,
+          builder: (context, child) {
+            final snippetController =
+                notifier.playgroundController.snippetEditingController;
 
-              return Scaffold(
-                appBar: AppBar(
-                  automaticallyImplyLeading: false,
-                  title: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: kXlSpacing,
-                    children: [
-                      const Logo(),
-                      AnimatedBuilder(
-                        animation: notifier.playgroundController.exampleCache,
-                        builder: (context, child) => ExampleSelector(
-                          isSelectorOpened: notifier.playgroundController
-                              .exampleCache.isSelectorOpened,
-                          playgroundController: notifier.playgroundController,
-                        ),
-                      ),
-                      SDKSelector(
-                        value: notifier.playgroundController.sdk,
-                        onChanged: (newSdk) {
-                          PlaygroundComponents.analyticsService.sendUnawaited(
-                            SdkSelectedAnalyticsEvent(
-                              sdk: newSdk,
-                            ),
-                          );
-                          notifier.playgroundController.setSdk(newSdk);
-                        },
-                      ),
-                      if (snippetController != null)
-                        PipelineOptionsDropdown(
-                          pipelineOptions: snippetController.pipelineOptions,
-                          setPipelineOptions:
-                              notifier.playgroundController.setPipelineOptions,
-                        ),
-                      const NewExampleAction(),
-                      const ResetAction(),
-                    ],
-                  ),
-                  actions: [
-                    const ToggleThemeButton(),
-                    MoreActions(
-                      playgroundController: notifier.playgroundController,
-                    ),
-                  ],
-                ),
-                body: Column(
+            return Scaffold(
+              appBar: AppBar(
+                automaticallyImplyLeading: false,
+                title: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: kXlSpacing,
                   children: [
-                    const Expanded(child: PlaygroundPageBody()),
-                    Semantics(
-                      container: true,
-                      child: const PlaygroundPageFooter(),
+                    const Logo(),
+                    AnimatedBuilder(
+                      animation: notifier.playgroundController.exampleCache,
+                      builder: (context, child) => ExampleSelector(
+                        isSelectorOpened: notifier
+                            .playgroundController.exampleCache.isSelectorOpened,
+                        playgroundController: notifier.playgroundController,
+                      ),
                     ),
+                    SDKSelector(
+                      value: notifier.playgroundController.sdk,
+                      onChanged: (newSdk) {
+                        PlaygroundComponents.analyticsService.sendUnawaited(
+                          SdkSelectedAnalyticsEvent(
+                            sdk: newSdk,
+                          ),
+                        );
+                        notifier.playgroundController.setSdk(newSdk);
+                      },
+                    ),
+                    if (snippetController != null)
+                      PipelineOptionsDropdown(
+                        pipelineOptions: snippetController.pipelineOptions,
+                        setPipelineOptions:
+                            notifier.playgroundController.setPipelineOptions,
+                      ),
+                    const NewExampleAction(),
+                    const ResetAction(),
                   ],
                 ),
-              );
-            },
-          ),
+                actions: [
+                  const ToggleThemeButton(),
+                  MoreActions(
+                    playgroundController: notifier.playgroundController,
+                  ),
+                ],
+              ),
+              body: Column(
+                children: [
+                  const Expanded(child: PlaygroundPageBody()),
+                  Semantics(
+                    container: true,
+                    child: const PlaygroundPageFooter(),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

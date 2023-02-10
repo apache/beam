@@ -16,23 +16,5 @@
  * limitations under the License.
  */
 
-import 'package:meta/meta.dart';
-
-import 'events/abstract.dart';
-import 'google_analytics4_service.dart';
-
-@internal
-GoogleAnalytics4Service createGoogleAnalytics4Service({
-  required String propertyId,
-}) =>
-    GoogleAnalytics4NonWebService();
-
-/// The required placeholder for non-web builds, e.g. unit tests.
-class GoogleAnalytics4NonWebService extends GoogleAnalytics4Service {
-  GoogleAnalytics4NonWebService() : super.create();
-
-  @override
-  Future<void> sendProtected(AnalyticsEvent event) {
-    throw UnimplementedError();
-  }
-}
+export 'window_close_notifier_non_web.dart'
+    if (dart.libraries.html) 'window_close_notifier_web.dart';

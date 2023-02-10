@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
+import 'dart:html'; // ignore: avoid_web_libraries_in_flutter
+
 import 'package:flutter/material.dart';
 
-class CloseListener extends StatelessWidget {
-  final Widget child;
-  const CloseListener({Key? key, required this.child}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return child;
+/// Notifies when the browser window is being closed.
+class WindowCloseNotifier extends ChangeNotifier {
+  WindowCloseNotifier() {
+    window.onBeforeUnload.listen((_) {
+      notifyListeners();
+    });
   }
 }

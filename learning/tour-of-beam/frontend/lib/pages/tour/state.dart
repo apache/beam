@@ -31,7 +31,6 @@ import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 // import '../../modules/analytics/google_analytics_service.dart';
 import '../../state.dart';
-import '../../window_close_notifier.dart';
 import 'controllers/content_tree.dart';
 import 'controllers/unit.dart';
 import 'path.dart';
@@ -60,7 +59,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onUnitProgressChanged);
     _onUnitChanged();
-    WindowCloseNotifier().addListener(_onTabClosed);
   }
 
   @override

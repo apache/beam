@@ -57,6 +57,7 @@ void _initializeState() {
       routeInformationParser: PlaygroundRouteInformationParser(),
     ),
   );
+  GetIt.instance.registerSingleton(WindowCloseNotifier());
 }
 
 void _initializeServices() {

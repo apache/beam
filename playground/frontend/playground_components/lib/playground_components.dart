@@ -25,6 +25,7 @@ export 'src/constants/sizes.dart';
 export 'src/controllers/example_loaders/examples_loader.dart';
 export 'src/controllers/playground_controller.dart';
 export 'src/controllers/public_notifier.dart';
+export 'src/controllers/window_close_notifier/window_close_notifier.dart';
 
 export 'src/enums/complexity.dart';
 export 'src/enums/feedback_rating.dart';
@@ -74,7 +75,7 @@ export 'src/services/analytics/events/reset_snippet.dart';
 export 'src/services/analytics/events/run.dart';
 export 'src/services/analytics/events/run_finished.dart';
 export 'src/services/analytics/events/sdk_selected.dart';
-export 'src/services/analytics/google_analytics4_service.dart';
+export 'src/services/analytics/google_analytics4_service/google_analytics4_service.dart';
 export 'src/services/symbols/loaders/yaml.dart';
 
 export 'src/theme/switch_notifier.dart';

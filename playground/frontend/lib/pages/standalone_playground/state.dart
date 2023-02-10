@@ -18,6 +18,7 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../controllers/factories.dart';
@@ -33,11 +34,13 @@ const _cutUrlDescriptors = {
 class StandalonePlaygroundNotifier extends ChangeNotifier
     with PageStateMixin<void> {
   final PlaygroundController playgroundController;
+  final windowCloseNotifier = GetIt.instance.get<WindowCloseNotifier>();
 
   StandalonePlaygroundNotifier({
     required ExamplesLoadingDescriptor initialDescriptor,
   }) : playgroundController = createPlaygroundController(initialDescriptor) {
     playgroundController.addListener(_onPlaygroundControllerChanged);
+    windowCloseNotifier.addListener(dispose);
   }
 
   void _onPlaygroundControllerChanged() {
@@ -63,5 +66,13 @@ class StandalonePlaygroundNotifier extends ChangeNotifier
     return _cutUrlDescriptors.contains(descriptor.runtimeType)
         ? const NoUrlExampleLoadingDescriptor()
         : descriptor;
+  }
+
+  @override
+  void dispose() {
+    playgroundController.codeRunner.cancelRun();
+    playgroundController.dispose();
+    windowCloseNotifier.removeListener(dispose);
+    super.dispose();
   }
 }

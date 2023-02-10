@@ -23,7 +23,7 @@ import 'dart:js' as js; // ignore: avoid_web_libraries_in_flutter
 
 import 'package:meta/meta.dart';
 
-import 'events/abstract.dart';
+import '../events/abstract.dart';
 import 'google_analytics4_service.dart';
 
 final _urlTemplate = Uri.parse('https://www.googletagmanager.com/gtag/js');
@@ -34,14 +34,14 @@ const _function = 'gtag';
 GoogleAnalytics4Service createGoogleAnalytics4Service({
   required String propertyId,
 }) =>
-    GoogleAnalytics4WebService(propertyId: propertyId);
+    GoogleAnalytics4ServiceWeb(propertyId: propertyId);
 
 /// Submits data to a Google Analytics 4 property using JavaScript.
-class GoogleAnalytics4WebService extends GoogleAnalytics4Service {
+class GoogleAnalytics4ServiceWeb extends GoogleAnalytics4Service {
   final String propertyId;
   final _readyCompleter = Completer<void>();
 
-  GoogleAnalytics4WebService({
+  GoogleAnalytics4ServiceWeb({
     required this.propertyId,
   }) : super.create() {
     _loadGoogleJs();

@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html';
+import 'package:meta/meta.dart';
 
-import 'package:flutter/material.dart';
+import '../events/abstract.dart';
+import 'google_analytics4_service.dart';
 
-// TODO(nausharipov): review
-// Moved the file from PGC, because it causes test failure:
-// Error: The getter 'window' isn't defined for the class 'WindowCloseNotifier'.
-//  - 'WindowCloseNotifier' is from 'package:playground_components/src/controllers/window_close_notifier.dart' ('lib/src/controllers/window_close_notifier.dart').
-// Try correcting the name to the name of an existing getter, or defining a getter or field named 'window'.
-//     window.onBeforeUnload.listen((_) {
-//     ^^^^^^
+@internal
+GoogleAnalytics4Service createGoogleAnalytics4Service({
+  required String propertyId,
+}) =>
+    GoogleAnalytics4ServiceNonWeb();
 
-class WindowCloseNotifier extends ChangeNotifier {
-  WindowCloseNotifier() {
-    window.onBeforeUnload.listen((_) {
-      notifyListeners();
-    });
+/// The required placeholder for non-web builds, e.g. unit tests.
+class GoogleAnalytics4ServiceNonWeb extends GoogleAnalytics4Service {
+  GoogleAnalytics4ServiceNonWeb() : super.create();
+
+  @override
+  Future<void> sendProtected(AnalyticsEvent event) {
+    throw UnimplementedError();
   }
 }
