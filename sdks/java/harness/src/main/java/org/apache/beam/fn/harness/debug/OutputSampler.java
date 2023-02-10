@@ -66,17 +66,17 @@ public class OutputSampler<T> {
    */
   public void sample(T element) {
     // Only sample the first 10 elements then after every `sampleEveryN`th element.
-    long samples = numSamples.get();
+    long samples = numSamples.get() + 1;
 
     // This has eventual consistency. If there are many threads lazy setting, this will be set to
     // the slowest thread accessing the atomic. But over time, it will still increase. This is ok
     // because this is a debugging feature and doesn't need strict atomics.
-    numSamples.lazySet(samples + 1);
+    numSamples.lazySet(samples);
     if (samples > 10 && samples % sampleEveryN != 0) {
       return;
     }
 
-    synchronized(this) {
+    synchronized (this) {
       // Fill buffer until maxElements.
       if (buffer.size() < maxElements) {
         buffer.add(element);
