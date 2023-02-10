@@ -67,4 +67,6 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
   && chmod +x /entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
+USER appuser
+
+ENTRYPOINT ["/opt/playground/backend/server_python_backend"]

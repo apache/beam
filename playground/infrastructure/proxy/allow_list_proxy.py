@@ -13,14 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from mitmproxy import http
+from mitmproxy.proxy import server_hooks
 
 from allow_list import ALLOWED_LIST
 
 def request(flow: http.HTTPFlow) -> None:
-  allowed_host = flow.request.pretty_host in ALLOWED_LIST
-  if not allowed_host:
-    flow.response = http.Response.make(
-        status_code=403,
-        content="Making requests to the hosts that are not listed "
-        "in the allowed list is forbidden. "
-        "host:" + flow.request.pretty_host + ", path: " + flow.request.path)
+    handle_request_common(flow)
+
+def http_connect(flow: http.HTTPFlow):
+    handle_request_common(flow)
+
+def http_connect_upstream(self, flow: http.HTTPFlow):
+    handle_request_common(flow)
+
+def handle_request_common(flow: http.HTTPFlow):
+    allowed_host = flow.request.pretty_host in ALLOWED_LIST
+    if not allowed_host:
+        flow.response = http.Response.make(
+            status_code=403,
+            content="Making requests to the hosts that are not listed "
+            "in the allowed list is forbidden. "
+            "host:" + flow.request.pretty_host + ", path: " + flow.request.path)
