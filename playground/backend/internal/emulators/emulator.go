@@ -57,6 +57,11 @@ func PrepareMockClusters(configuration EmulatorConfiguration) ([]EmulatorMockClu
 
 	var mockClusters = make([]EmulatorMockCluster, 0)
 	for emulatorType, datasets := range datasetsByEmulatorTypeMap {
+		datasetDTOs, err := toDatasetDTOs(configuration.DatasetsPath, datasets)
+		if err != nil {
+			logger.Errorf("failed to get datasets from the repository, %v", err)
+			return nil, err
+		}
 		switch emulatorType {
 		case pb.EmulatorType_EMULATOR_TYPE_KAFKA:
 			kafkaMockCluster, err := NewKafkaMockCluster(configuration.KafkaEmulatorExecutablePath)
@@ -65,12 +70,6 @@ func PrepareMockClusters(configuration EmulatorConfiguration) ([]EmulatorMockClu
 				return nil, err
 			}
 			mockClusters = append(mockClusters, kafkaMockCluster)
-			datasetDTOs, err := toDatasetDTOs(configuration.DatasetsPath, datasets)
-			if err != nil {
-				logger.Errorf("failed to get datasets from the repository, %v", err)
-				kafkaMockCluster.Stop()
-				return nil, err
-			}
 			producer, err := NewKafkaProducer(kafkaMockCluster)
 			if err != nil {
 				logger.Errorf("failed to create a producer, %v", err)
