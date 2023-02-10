@@ -20,11 +20,9 @@ package org.apache.beam.sdk.io.fileschematransform;
 import com.google.auto.value.AutoValue;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 
 /**
@@ -136,24 +134,9 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @AutoValue
   public abstract static class CsvConfiguration {
 
-    public static final Set<String> ALLOWED_PREDEFINED_CSV_FORMATS =
-        ImmutableSet.of(
-            CSVFormat.Predefined.Default.name(),
-            CSVFormat.Predefined.Excel.name(),
-            CSVFormat.Predefined.InformixUnload.name(),
-            CSVFormat.Predefined.InformixUnloadCsv.name(),
-            CSVFormat.Predefined.MongoDBCsv.name(),
-            CSVFormat.Predefined.MySQL.name(),
-            CSVFormat.Predefined.Oracle.name(),
-            CSVFormat.Predefined.PostgreSQLCsv.name(),
-            CSVFormat.Predefined.PostgreSQLText.name(),
-            CSVFormat.Predefined.RFC4180.name(),
-            CSVFormat.Predefined.TDF.name());
-
     /**
      * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link
-     * #ALLOWED_PREDEFINED_CSV_FORMATS} for a list of available {@link
-     * CSVFormat.Predefined#name()}s.
+     * CSVFormat.Predefined#values()} for a list of allowed values.
      */
     public abstract String getPredefinedCsvFormat();
 
@@ -162,8 +145,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
 
       /**
        * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link
-       * #ALLOWED_PREDEFINED_CSV_FORMATS} for a list of available {@link
-       * CSVFormat.Predefined#name()}s.
+       * CSVFormat.Predefined#values()} for a list of allowed values.
        */
       public abstract Builder setPredefinedCsvFormat(String value);
 

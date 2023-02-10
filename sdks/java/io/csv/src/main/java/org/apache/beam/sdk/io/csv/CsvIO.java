@@ -475,12 +475,16 @@ public class CsvIO {
         }
       }
 
-      CSVFormat withHeaderComments = csvFormat.withHeaderComments();
+      // We remove header comments since we've already processed them above.
+      // CSV commons library was designed with a single file write in mind
+      // which is why we need to manipulate CSVFormat in this way to be compatible
+      // in a TextIO.Write context.
+      CSVFormat withHeaderCommentsRemoved = csvFormat.withHeaderComments();
 
       result.add(
-          withHeaderComments
+          withHeaderCommentsRemoved
               // The withSkipHeaderRecord parameter prevents CSVFormat from outputting two copies of
-              // the header.
+              // the header; we already
               .withSkipHeaderRecord()
               .format((Object[]) header));
 
