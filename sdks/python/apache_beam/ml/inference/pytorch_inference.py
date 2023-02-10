@@ -243,9 +243,6 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._torch_script_model_path = torch_script_model_path
 
-    self.validate_constructor_args()
-
-  def validate_constructor_args(self):
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
         model_class=self._model_class,
@@ -462,10 +459,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._torch_script_model_path = torch_script_model_path
-
-    self.validate_constructor_args()
-
-  def validate_constructor_args(self):
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
         model_class=self._model_class,
