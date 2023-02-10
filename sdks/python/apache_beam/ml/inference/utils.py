@@ -131,9 +131,10 @@ class WatchFilePattern(beam.PTransform):
 
     **Note**:
 
-    1. If the file is read and then there is an update to that file, this
-        transform will ignore that update. Always update a file with unique
-        name.
+    1. Any previously used filenames cannot be reused. If a file is added
+        or updated to a previously used filename, this transform will ignore
+        that update. To trigger a model update, always upload a file with
+        unique name.
     2. Initially, before the pipeline startup time, WatchFilePattern expects
         at least one file present that matches the file_pattern.
     3. This transform is supported in streaming mode since
