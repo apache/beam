@@ -109,7 +109,7 @@ message InstructionRequest {
     FinalizeBundleRequest finalize_bundle = 1004;
     MonitoringInfosMetadataRequest monitoring_infos = 1005;
     HarnessMonitoringInfosRequest harness_monitoring_infos = 1006;
-    SampleDataRequest sample = 1007;
+    SampleDataRequest sample_data = 1007;
 
     // DEPRECATED
     RegisterRequest register = 1000;
@@ -138,7 +138,7 @@ message InstructionResponse {
     FinalizeBundleResponse finalize_bundle = 1004;
     MonitoringInfosMetadataResponse monitoring_infos = 1005;
     HarnessMonitoringInfosResponse harness_monitoring_infos = 1006;
-    SampleDataResponse sample = 1007;
+    SampleDataResponse sample_data = 1007;
 
     // DEPRECATED
     RegisterResponse register = 1000;
