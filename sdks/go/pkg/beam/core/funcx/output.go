@@ -79,12 +79,12 @@ func unfoldEmit(t reflect.Type) ([]reflect.Type, bool, error) {
 	if t.NumIn()-skip > 2 || t.NumIn() == skip {
 		return nil, false, nil
 	}
-
+	
+	emptyInterface := reflect.TypeOf((*any)(nil)).Elem()
 	for i := skip; i < t.NumIn(); i++ {
 		if ok, err := isInParam(t.In(i)); !ok {
 			return nil, false, errors.Wrap(err, errIllegalParametersInEmit)
 		}
-		emptyInterface := reflect.TypeOf((*any)(nil)).Elem()
 		if ((t.In(i).Kind() == reflect.Ptr && t.In(i).Elem() == emptyInterface) || t.In(i) == emptyInterface) && !typex.IsUniversal(t.In(i)) {
 			return nil, false, errors.New("Type interface{} isn't a supported PCollection type")
 		}
