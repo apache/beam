@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DOUBLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
@@ -26,13 +27,13 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
 import static org.junit.Assert.assertThrows;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -61,17 +62,38 @@ public class CsvFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected void assertFolderContainsInAnyOrder(String folder, List<Row> rows, Schema beamSchema) {
-    PCollection<Long> actual =
-        readPipeline.apply(TextIO.read().from(folder + "*")).apply(Count.globally());
-    // TODO(https://github.com/apache/beam/issues/24552) refactor test to compare string CSV to Row
-    // converted values.
-    PAssert.thatSingleton(actual).notEqualTo(0L);
+    PCollection<String> actual = readPipeline.apply(TextIO.read().from(folder + "*"));
+    CSVFormat csvFormat =
+        CSVFormat.Predefined.valueOf(
+                requireNonNull(buildConfiguration(folder).getCsvConfiguration())
+                    .getPredefinedCsvFormat())
+            .getFormat();
+    List<String> expected = toCsv(rows, beamSchema, csvFormat);
+    PAssert.that(actual).containsInAnyOrder(expected);
+  }
+
+  private static List<String> toCsv(List<Row> rows, Schema beamSchema, CSVFormat csvFormat) {
+    beamSchema = beamSchema.sorted();
+    List<String> result = new ArrayList<>();
+    csvFormat = csvFormat.withSkipHeaderRecord().withHeader();
+    String header = csvFormat.format(beamSchema.getFieldNames().toArray());
+    result.add(header);
+    for (Row row : rows) {
+      List<Object> values = new ArrayList<>();
+      for (String column : beamSchema.getFieldNames()) {
+        values.add(row.getValue(column));
+      }
+      String record = csvFormat.format(values.toArray());
+      result.add(record);
+    }
+    return result;
   }
 
   @Override
   protected FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
     return defaultConfiguration(folder)
         .toBuilder()
+        .setNumShards(1)
         .setCsvConfiguration(
             csvConfigurationBuilder()
                 .setPredefinedCsvFormat(CSVFormat.Predefined.Default.name())
