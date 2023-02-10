@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getCompression;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getFilenameSuffix;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getNumShards;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getShardNameTemplate;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
@@ -65,16 +66,20 @@ public class CsvWriteSchemaTransformFormatProvider
           write = write.withCompression(getCompression(configuration));
         }
 
-        if (!Strings.isNullOrEmpty(configuration.getFilenameSuffix())) {
-          write = write.withSuffix(getFilenameSuffix(configuration));
-        }
-
         if (configuration.getNumShards() != null) {
           int numShards = getNumShards(configuration);
           // Python SDK external transforms do not support null values requiring additional check.
           if (numShards > 0) {
             write = write.withNumShards(numShards);
           }
+        }
+
+        if (!Strings.isNullOrEmpty(configuration.getShardNameTemplate())) {
+          write = write.withShardTemplate(getShardNameTemplate(configuration));
+        }
+
+        if (!Strings.isNullOrEmpty(configuration.getFilenameSuffix())) {
+          write = write.withSuffix(getFilenameSuffix(configuration));
         }
 
         WriteFilesResult<String> result = input.apply("Row to CSV", write);

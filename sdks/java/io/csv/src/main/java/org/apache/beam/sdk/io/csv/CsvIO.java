@@ -484,7 +484,7 @@ public class CsvIO {
       result.add(
           withHeaderCommentsRemoved
               // The withSkipHeaderRecord parameter prevents CSVFormat from outputting two copies of
-              // the header; we already
+              // the header.
               .withSkipHeaderRecord()
               .format((Object[]) header));
 
