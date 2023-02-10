@@ -330,16 +330,17 @@ class GrpcExampleClient implements ExampleClient {
     return ExampleBase(
       complexity: example.complexity.model,
       contextLine: example.contextLine,
-      datasets: example.datasets.map((e) => e.model).toList(growable: false),
       description: example.description,
+      datasets: example.datasets.map((e) => e.model).toList(growable: false),
       isMultiFile: example.multifile,
-      link: example.link,
       name: example.name,
       path: example.cloudPath,
       pipelineOptions: example.pipelineOptions,
       sdk: sdk,
       tags: example.tags,
       type: _exampleTypeFromString(example.type),
+      urlNotebook: example.urlNotebook,
+      urlVcs: example.urlVcs,
     );
   }
 

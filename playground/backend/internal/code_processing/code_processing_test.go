@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -626,10 +627,18 @@ func Test_getRunOrTestCmd(t *testing.T) {
 			want: wantTestExec,
 		},
 	}
+
+	execComparer := cmp.Comparer(func(a exec.Cmd, b exec.Cmd) bool {
+		return a.Path == b.Path &&
+			cmp.Equal(a.Args, b.Args) &&
+			cmp.Equal(a.Env, b.Env) &&
+			a.Dir == b.Dir
+	})
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getExecuteCmd(tt.args.isUnitTest, tt.args.executor, tt.args.ctxWithTimeout); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getExecuteCmd() = %v, want %v", got, tt.want)
+			if got := getExecuteCmd(tt.args.isUnitTest, tt.args.executor, tt.args.ctxWithTimeout); !cmp.Equal(got, tt.want, execComparer) {
+				t.Errorf("getExecuteCmd() = '%v', want '%v', diff = %v", got, tt.want, cmp.Diff(got, tt.want, execComparer))
 			}
 		})
 	}

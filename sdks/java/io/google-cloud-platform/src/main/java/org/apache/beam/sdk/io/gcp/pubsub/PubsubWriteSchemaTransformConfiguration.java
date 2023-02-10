@@ -126,7 +126,7 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
      */
     public abstract Builder setIdAttribute(String value);
 
-    abstract PubsubWriteSchemaTransformConfiguration build();
+    public abstract PubsubWriteSchemaTransformConfiguration build();
   }
 
   @DefaultSchema(AutoValueSchema.class)

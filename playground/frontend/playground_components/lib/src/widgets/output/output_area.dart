@@ -17,8 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
+import '../../controllers/playground_controller.dart';
+import '../../models/outputs.dart';
 import 'graph/graph.dart';
 import 'output_result.dart';
 
@@ -28,35 +29,52 @@ class OutputArea extends StatelessWidget {
   final Axis graphDirection;
 
   const OutputArea({
-    Key? key,
+    super.key,
     required this.playgroundController,
     required this.tabController,
     required this.graphDirection,
-  }) : super(key: key);
+  });
+
+  String _getResultOutput() {
+    final outputType =
+        playgroundController.outputTypeController.outputFilterType;
+    switch (outputType) {
+      case OutputType.log:
+        return playgroundController.codeRunner.resultLog;
+      case OutputType.output:
+        return playgroundController.codeRunner.resultOutput;
+      case OutputType.all:
+        return playgroundController.codeRunner.resultLogOutput;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final sdk = playgroundController.sdk;
 
-    return Container(
-      color: Theme.of(context).backgroundColor,
-      child: TabBarView(
-        controller: tabController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: <Widget>[
-          OutputResult(
-            text: playgroundController.outputResult,
-            isSelected: tabController.index == 0,
-          ),
-          if (playgroundController.graphAvailable)
-            sdk == null
-                ? Container()
-                : GraphTab(
-                    graph: playgroundController.result?.graph ?? '',
-                    sdk: sdk,
-                    direction: graphDirection,
-                  ),
-        ],
+    return AnimatedBuilder(
+      animation: playgroundController.outputTypeController,
+      builder: (context, child) => ColoredBox(
+        color: Theme.of(context).backgroundColor,
+        child: TabBarView(
+          controller: tabController,
+          physics: const NeverScrollableScrollPhysics(),
+          children: <Widget>[
+            OutputResult(
+              text: _getResultOutput(),
+              isSelected: tabController.index == 0,
+            ),
+            if (playgroundController.graphAvailable)
+              sdk == null
+                  ? Container()
+                  : GraphTab(
+                      graph:
+                          playgroundController.codeRunner.result?.graph ?? '',
+                      sdk: sdk,
+                      direction: graphDirection,
+                    ),
+          ],
+        ),
       ),
     );
   }

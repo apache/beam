@@ -1629,6 +1629,7 @@ public class SpannerIO {
               .toBuilder()
               .setInstanceId(StaticValueProvider.of(partitionMetadataInstanceId))
               .setDatabaseId(StaticValueProvider.of(partitionMetadataDatabaseId))
+              .setDatabaseRole(null)
               .build();
       Dialect changeStreamDatabaseDialect = getDialect(changeStreamSpannerConfig);
       Dialect metadataDatabaseDialect = getDialect(partitionMetadataSpannerConfig);

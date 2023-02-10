@@ -66,21 +66,25 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
+import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -98,6 +102,10 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -112,6 +120,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -147,6 +156,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -182,6 +192,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Parameter(2)
   public boolean useStreaming;
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Rule
   public final transient TestRule folderThenPipeline =
@@ -298,6 +310,11 @@ public class BigQueryIOWriteTest implements Serializable {
 
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
 
+    // Explicitly set maxNumWritersPerBundle and the parallelism for the runner to make sure
+    // bundle size is predictable and maxNumWritersPerBundle can be reached.
+    final int maxNumWritersPerBundle = 5;
+    p.getOptions().as(DirectOptions.class).setTargetParallelism(3);
+
     final PCollectionView<List<String>> sideInput1 =
         p.apply("Create SideInput 1", Create.of("a", "b", "c").withCoder(StringUtf8Coder.of()))
             .apply("asList", View.asList());
@@ -307,16 +324,19 @@ public class BigQueryIOWriteTest implements Serializable {
 
     final List<String> allUsernames = ImmutableList.of("bill", "bob", "randolph");
     List<String> userList = Lists.newArrayList();
-    // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill to
-    // WriteGroupedRecordsToFiles.
-    for (int i = 0; i < BatchLoads.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE * 10; ++i) {
-      // Every user has 10 nicknames.
-      for (int j = 0; j < 10; ++j) {
+    // i controls the number of destinations
+    for (int i = 0; i < maxNumWritersPerBundle * 2; ++i) {
+      // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill to
+      // WriteGroupedRecordsToFiles.
+      for (int j = 0; j < 40; ++j) {
         String nickname =
             allUsernames.get(ThreadLocalRandom.current().nextInt(allUsernames.size()));
         userList.add(nickname + i);
       }
     }
+    // shuffle the input so that each bundle gets evenly distributed destinations
+    Collections.shuffle(userList);
+
     PCollection<String> users =
         p.apply("CreateUsers", Create.of(userList))
             .apply(Window.into(new PartitionedGlobalWindows<>(arg -> arg)));
@@ -347,8 +367,9 @@ public class BigQueryIOWriteTest implements Serializable {
     BigQueryIO.Write<String> write =
         BigQueryIO.<String>write()
             .withTestServices(fakeBqServices)
-            .withMaxFilesPerBundle(5)
-            .withMaxFileSize(10)
+            .withMaxFilesPerBundle(maxNumWritersPerBundle)
+            // a file can contain a couple of records in this size limit
+            .withMaxFileSize(30)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .to(
                 new StringLongDestinations() {
@@ -1852,6 +1873,214 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testUpdateTableSchemaUseSet() throws Exception {
+    updateTableSchemaTest(true);
+  }
+
+  @Test
+  public void testUpdateTableSchemaUseSetF() throws Exception {
+    updateTableSchemaTest(false);
+  }
+
+  @Test
+  public void testUpdateTableSchemaNoUnknownValues() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApi);
+    thrown.expect(IllegalArgumentException.class);
+    p.apply("create", Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(BigQueryHelpers.parseTableSpec("project-id:dataset-id.table"))
+                .withMethod(Method.STORAGE_WRITE_API)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+                .withAutoSchemaUpdate(true)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+  }
+
+  @SuppressWarnings({"unused"})
+  static class UpdateTableSchemaDoFn extends DoFn<KV<String, TableRow>, TableRow> {
+    @TimerId("updateTimer")
+    private final TimerSpec updateTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    private final Duration timerOffset;
+    private final String updatedSchema;
+    private final FakeDatasetService fakeDatasetService;
+
+    UpdateTableSchemaDoFn(
+        Duration timerOffset, TableSchema updatedSchema, FakeDatasetService fakeDatasetService) {
+      this.timerOffset = timerOffset;
+      this.updatedSchema = BigQueryHelpers.toJsonString(updatedSchema);
+      this.fakeDatasetService = fakeDatasetService;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<String, TableRow> element,
+        @TimerId("updateTimer") Timer updateTimer,
+        OutputReceiver<TableRow> o)
+        throws IOException {
+      updateTimer.offset(timerOffset).setRelative();
+      o.output(element.getValue());
+    }
+
+    @OnTimer("updateTimer")
+    public void onTimer(@Key String tableSpec) throws IOException {
+      fakeDatasetService.updateTableSchema(
+          BigQueryHelpers.parseTableSpec(tableSpec),
+          BigQueryHelpers.fromJsonString(updatedSchema, TableSchema.class));
+    }
+  }
+
+  public void updateTableSchemaTest(boolean useSet) throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApi);
+
+    // Make sure that GroupIntoBatches does not buffer data.
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
+    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
+
+    BigQueryIO.Write.Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    p.enableAbandonedNodeEnforcement(false);
+
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset-id.table");
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
+    TableSchema tableSchemaUpdated =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("req").setType("STRING"),
+                    new TableFieldSchema().setName("double_number").setType("INTEGER")));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
+
+    LongFunction<TableRow> getRowSet =
+        (LongFunction<TableRow> & Serializable)
+            (long i) -> {
+              TableRow row =
+                  new TableRow()
+                      .set("name", "name" + i)
+                      .set("number", Long.toString(i))
+                      .set("double_number", Long.toString(i * 2));
+              if (i <= 5) {
+                row = row.set("req", "foo");
+              }
+              return row;
+            };
+
+    LongFunction<TableRow> getRowSetF =
+        (LongFunction<TableRow> & Serializable)
+            (long i) ->
+                new TableRow()
+                    .setF(
+                        ImmutableList.of(
+                            new TableCell().setV("name" + i),
+                            new TableCell().setV(Long.toString(i)),
+                            new TableCell().setV(i > 5 ? null : "foo"),
+                            new TableCell().setV(Long.toString(i * 2))));
+
+    LongFunction<TableRow> getRow = useSet ? getRowSet : getRowSetF;
+
+    TestStream.Builder<Long> testStream =
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+    // These rows contain unknown fields, which should be dropped.
+    for (long i = 0; i < 5; i++) {
+      testStream = testStream.addElements(i);
+    }
+    // Expire the timer, which should update the schema.
+    testStream = testStream.advanceProcessingTime(Duration.standardSeconds(10));
+    // Add one element to trigger discovery of new schema.
+    testStream = testStream.addElements(5L);
+    testStream = testStream.advanceProcessingTime(Duration.standardSeconds(10));
+
+    // Now all fields should be known.
+    for (long i = 6; i < 10; i++) {
+      testStream = testStream.addElements(i);
+    }
+
+    PCollection<TableRow> tableRows =
+        p.apply(testStream.advanceWatermarkToInfinity())
+            .apply("getRow", MapElements.into(TypeDescriptor.of(TableRow.class)).via(getRow::apply))
+            .apply("add key", WithKeys.of("project-id:dataset-id.table"))
+            .apply(
+                "update schema",
+                ParDo.of(
+                    new UpdateTableSchemaDoFn(
+                        Duration.standardSeconds(5), tableSchemaUpdated, fakeDatasetService)))
+            .setCoder(TableRowJsonCoder.of());
+
+    tableRows.apply(
+        BigQueryIO.writeTableRows()
+            .to(tableRef)
+            .withMethod(method)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .ignoreUnknownValues()
+            .withAutoSchemaUpdate(true)
+            .withTestServices(fakeBqServices)
+            .withoutValidation());
+
+    p.run();
+
+    Iterable<TableRow> expectedDroppedValues =
+        LongStream.range(0, 6)
+            .mapToObj(getRowSet)
+            .map(tr -> filterUnknownValues(tr, tableSchema.getFields()))
+            .collect(Collectors.toList());
+    Iterable<TableRow> expectedFullValues =
+        LongStream.range(6, 10).mapToObj(getRowSet).collect(Collectors.toList());
+    assertThat(
+        fakeDatasetService.getAllRows(
+            tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+        containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.concat(expectedDroppedValues, expectedFullValues), TableRow.class)));
+  }
+
+  TableRow filterUnknownValues(TableRow row, List<TableFieldSchema> tableSchemaFields) {
+    Map<String, String> schemaTypes =
+        tableSchemaFields.stream()
+            .collect(Collectors.toMap(TableFieldSchema::getName, TableFieldSchema::getType));
+    Map<String, List<TableFieldSchema>> schemaFields =
+        tableSchemaFields.stream()
+            .filter(tf -> tf.getFields() != null && !tf.getFields().isEmpty())
+            .collect(Collectors.toMap(TableFieldSchema::getName, TableFieldSchema::getFields));
+    TableRow filtered = new TableRow();
+    if (row.getF() != null) {
+      List<TableCell> values = Lists.newArrayList();
+      for (int i = 0; i < tableSchemaFields.size(); ++i) {
+        String fieldType = tableSchemaFields.get(i).getType();
+        Object value = row.getF().get(i).getV();
+        if (fieldType.equals("STRUCT") || fieldType.equals("RECORD")) {
+          value = filterUnknownValues((TableRow) value, tableSchemaFields.get(i).getFields());
+        }
+        values.add(new TableCell().setV(value));
+      }
+      filtered = filtered.setF(values);
+    } else {
+      for (Map.Entry<String, Object> entry : row.entrySet()) {
+        Object value = entry.getValue();
+        @Nullable String fieldType = schemaTypes.get(entry.getKey());
+        if (fieldType != null) {
+          if (fieldType.equals("STRUCT") || fieldType.equals("RECORD")) {
+            value = filterUnknownValues((TableRow) value, schemaFields.get(entry.getKey()));
+          }
+          filtered = filtered.set(entry.getKey(), value);
+        }
+      }
+    }
+    return filtered;
+  }
+
+  @Test
   public void testBigQueryIOGetName() {
     assertEquals(
         "BigQueryIO.Write", BigQueryIO.<TableRow>write().to("somedataset.sometable").getName());
@@ -1953,6 +2182,20 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withMethod(Method.STREAMING_INSERTS)
                 .withAutoSharding()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testMaxRetryJobs() {
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset.table")
+            .withSchema(new TableSchema())
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(
+                EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
+            .withMaxRetryJobs(500);
+    assertEquals(500, write.getMaxRetryJobs());
   }
 
   @Test
