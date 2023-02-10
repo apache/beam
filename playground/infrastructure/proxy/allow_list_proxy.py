@@ -23,7 +23,7 @@ def request(flow: http.HTTPFlow) -> None:
 def http_connect(flow: http.HTTPFlow):
     handle_request_common(flow)
 
-def http_connect_upstream(self, flow: http.HTTPFlow):
+def http_connect_upstream(flow: http.HTTPFlow):
     handle_request_common(flow)
 
 def handle_request_common(flow: http.HTTPFlow):
