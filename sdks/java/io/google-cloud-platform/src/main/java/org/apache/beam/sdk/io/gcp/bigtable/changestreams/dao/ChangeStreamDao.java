@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +26,11 @@ import org.slf4j.LoggerFactory;
 public class ChangeStreamDao {
   private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamDao.class);
 
+  private final BigtableDataClient dataClient;
   private final String tableId;
 
-  public ChangeStreamDao(String tableId) {
+  public ChangeStreamDao(BigtableDataClient dataClient, String tableId) {
+    this.dataClient = dataClient;
     this.tableId = tableId;
   }
 }
