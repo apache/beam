@@ -22,6 +22,7 @@
 import bz2
 import gzip
 import logging
+import lzma
 import ntpath
 import os
 import posixpath
@@ -29,7 +30,6 @@ import sys
 import tempfile
 import unittest
 import zlib
-import lzma
 from io import BytesIO
 
 import zstandard
