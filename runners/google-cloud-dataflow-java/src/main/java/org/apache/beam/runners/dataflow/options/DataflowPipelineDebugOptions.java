@@ -136,12 +136,12 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   }
 
   /**
-   * Mapping of old PTranform names to new ones, specified as JSON <code>{"oldName":"newName",...}
+   * Mapping of old PTransform names to new ones, specified as JSON <code>{"oldName":"newName",...}
    * </code>. To mark a transform as deleted, make newName the empty string.
    */
   @JsonIgnore
   @Description(
-      "Mapping of old PTranform names to new ones, specified as JSON "
+      "Mapping of old PTransform names to new ones, specified as JSON "
           + "{\"oldName\":\"newName\",...}. To mark a transform as deleted, make newName the empty "
           + "string.")
   Map<String, String> getTransformNameMapping();

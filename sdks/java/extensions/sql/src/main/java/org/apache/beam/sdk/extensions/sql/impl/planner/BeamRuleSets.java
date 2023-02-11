@@ -43,7 +43,6 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamWindowRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.LogicalCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
@@ -63,8 +62,6 @@ public class BeamRuleSets {
           // Rules for window functions
           CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
           // Rules so we only have to implement Calc
-          CoreRules.FILTER_CALC_MERGE,
-          CoreRules.PROJECT_CALC_MERGE,
           CoreRules.FILTER_TO_CALC,
           CoreRules.PROJECT_TO_CALC,
           BeamIOPushDownRule.INSTANCE,
@@ -72,7 +69,6 @@ public class BeamRuleSets {
           // CoreRules.CALC_REMOVE,
 
           // Rules to merge matching Calcs together.
-          LogicalCalcMergeRule.INSTANCE,
           BeamCalcMergeRule.INSTANCE,
 
           // push a filter into a join

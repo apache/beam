@@ -94,3 +94,4 @@ You can find examples of end-to-end AI/ML pipelines for several use cases:
 * [Anomaly Detection in Beam](/documentation/ml/anomaly-detection): Demonstrates how to set up an anomaly detection pipeline that reads text from Pub/Sub in real time and then detects anomalies using a trained HDBSCAN clustering model with the RunInference API.
 * [Large Language Model Inference in Beam](/documentation/ml/large-language-modeling): Demonstrates a pipeline that uses RunInference to perform translation with the T5 language model which contains 11 billion parameters.
 * [Per Entity Training in Beam](/documentation/ml/per-entity-training): Demonstrates a pipeline that trains a Decision Tree Classifier per education level for predicting if the salary of a person is >= 50k.
+* [TensorRT Inference](/documentation/ml/tensorrt-runinference): Demonstrates a pipeline that uses TensorRT with the RunInference transform and a BERT-based text classification model.
