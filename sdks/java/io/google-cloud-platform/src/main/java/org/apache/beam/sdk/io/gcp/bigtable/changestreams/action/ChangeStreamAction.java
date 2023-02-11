@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.protobuf.ByteString;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -96,8 +97,7 @@ public class ChangeStreamAction {
    */
   public Optional<DoFn.ProcessContinuation> run(
       PartitionRecord partitionRecord,
-      Object record, // TODO: Update once bigtable client includes
-      // https://github.com/googleapis/java-bigtable/pull/1569
+      ChangeStreamRecord record,
       RestrictionTracker<StreamProgress, StreamProgress> tracker,
       DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,

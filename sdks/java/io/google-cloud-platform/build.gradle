@@ -18,7 +18,13 @@
 
 import groovy.json.JsonOutput
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  // For resolving Cloud Bigtable dependencies from custom registry that includes Change Stream API.
+  id "maven-publish"
+  id "com.google.cloud.artifactregistry.gradle-plugin" version "2.1.5"
+  // End: Temporary Cloud Bigtable dependencies.
+}
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
@@ -26,6 +32,22 @@ applyJavaNature(
     'PubSubPayloadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
   ],
 )
+
+// For resolving Cloud Bigtable dependencies from custom registry that includes Change Stream API.
+repositories {
+  maven {
+    url "artifactregistry://us-central1-maven.pkg.dev/cloud-bigtable-ecosystem/bigtable-change-streams-preview"
+  }
+}
+configurations.all {
+  resolutionStrategy {
+    force group: 'com.google.cloud', name: 'google-cloud-bigtable', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+    force group: 'com.google.api.grpc', name: 'proto-google-cloud-bigtable-v2', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+    force group: 'com.google.api.grpc', name: 'grpc-google-cloud-bigtable-v2', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+    force group: 'com.google.api.grpc', name: 'proto-google-cloud-bigtable-admin-v2', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+    force group: 'com.google.api.grpc', name: 'grpc-google-cloud-bigtable-admin-v2', version: '2.11.2-change-streams-preview1-SNAPSHOT'
+  }
+}
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
@@ -163,6 +185,7 @@ dependencies {
   testImplementation library.java.powermock_mockito
   testImplementation library.java.joda_time
   testImplementation library.java.google_cloud_spanner_test
+  testImplementation library.java.google_cloud_bigtable_emulator
   testRuntimeOnly library.java.slf4j_jdk14
   // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
   permitUnusedDeclared library.java.everit_json_schema
