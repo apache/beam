@@ -27,9 +27,11 @@ import org.slf4j.LoggerFactory;
 public class ChangeStreamDao {
   private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamDao.class);
 
+  private final BigtableDataClient dataClient;
   private final String tableId;
 
-  public ChangeStreamDao(String tableId) {
+  public ChangeStreamDao(BigtableDataClient dataClient, String tableId) {
+    this.dataClient = dataClient;
     this.tableId = tableId;
   }
 }
