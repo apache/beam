@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * This is a placeholder class that will be replaced by updated Cloud Bigtable java client. The java
  * client is work in progress and will be checked in and updated soon.
  */
+@Internal
 public class ChangeStreamMutation {}

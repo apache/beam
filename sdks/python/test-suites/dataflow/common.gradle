@@ -380,18 +380,20 @@ task tftTests {
   dependsOn "installTFTRequirements"
 
   doLast {
+    def opts = project.findProperty('opts')
+    opts += " --sdk_location=${files(configurations.distTarBall.files).singleFile}"
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
         "suite": "TFTransformTests-df${pythonVersionSuffix}",
         "collect": "uses_tft",
-        "requirements_file": "apache_beam/testing/benchmarks/cloudml/requirements.txt"
+        "requirements_file": "apache_beam/testing/benchmarks/cloudml/requirements.txt",
+        "pipeline_opts": opts,
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs "
     }
   }
 }

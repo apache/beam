@@ -990,7 +990,7 @@ public class BigQueryIO {
        * Specifies that a query should be run with a BATCH priority.
        *
        * <p>Batch mode queries are queued by BigQuery. These are started as soon as idle resources
-       * are available, usually within a few minutes. Batch queries don’t count towards your
+       * are available, usually within a few minutes. Batch queries don't count towards your
        * concurrent rate limit.
        */
       BATCH

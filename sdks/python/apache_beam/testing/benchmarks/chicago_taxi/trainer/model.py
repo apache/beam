@@ -99,7 +99,7 @@ def eval_input_receiver_fn(tf_transform_output, schema):
 
   Returns:
     EvalInputReceiver function, which contains:
-      - Tensorflow graph which parses raw untranformed features, applies the
+      - Tensorflow graph which parses raw untransformed features, applies the
         tf-transform preprocessing operators.
       - Set of raw, untransformed features.
       - Label against which predictions will be compared.

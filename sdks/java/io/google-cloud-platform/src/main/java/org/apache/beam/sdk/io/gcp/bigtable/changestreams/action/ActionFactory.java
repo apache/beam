@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
@@ -31,6 +32,7 @@ import org.joda.time.Duration;
  */
 // Allows for transient fields to be initialized later
 @SuppressWarnings("initialization.field.uninitialized")
+@Internal
 public class ActionFactory implements Serializable {
   private static final long serialVersionUID = -6780082495458582986L;
 
