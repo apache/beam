@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
