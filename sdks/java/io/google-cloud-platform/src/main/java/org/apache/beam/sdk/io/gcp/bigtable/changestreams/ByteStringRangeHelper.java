@@ -19,8 +19,10 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.protobuf.TextFormat;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Helper functions to evaluate the completeness of collection of ByteStringRanges. */
+@Internal
 public class ByteStringRangeHelper {
 
   /**

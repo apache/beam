@@ -1304,10 +1304,10 @@ public class DatastoreV1 {
   /**
    * A {@link PTransform} that writes mutations to Cloud Datastore.
    *
-   * <p>It requires a {@link DoFn} that tranforms an object of type {@code T} to a {@link Mutation}.
-   * {@code T} is usually either an {@link Entity} or a {@link Key} <b>Note:</b> Only idempotent
-   * Cloud Datastore mutation operations (upsert and delete) should be used by the {@code DoFn}
-   * provided, as the commits are retried when failures occur.
+   * <p>It requires a {@link DoFn} that transforms an object of type {@code T} to a {@link
+   * Mutation}. {@code T} is usually either an {@link Entity} or a {@link Key} <b>Note:</b> Only
+   * idempotent Cloud Datastore mutation operations (upsert and delete) should be used by the {@code
+   * DoFn} provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
 

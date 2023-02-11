@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.python.transforms;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -34,12 +36,14 @@ public class PythonMap<InputT, OutputT>
   private static final String PYTHON_MAP_FN_TRANSFORM = "apache_beam.Map";
   private static final String PYTHON_FLATMAP_FN_TRANSFORM = "apache_beam.FlatMap";
   private String pythonTransform;
+  private final List<String> extraPackages;
 
   private PythonMap(
       PythonCallableSource pythonFunction, Coder<?> outputCoder, String pythonTransform) {
     this.pythonFunction = pythonFunction;
     this.outputCoder = outputCoder;
     this.pythonTransform = pythonTransform;
+    this.extraPackages = new ArrayList<>();
   }
 
   public static <InputT, OutputT> PythonMap<InputT, OutputT> viaMapFn(
@@ -59,13 +63,33 @@ public class PythonMap<InputT, OutputT>
     return this;
   }
 
+  /**
+   * Specifies any extra packages required by the Python function.
+   *
+   * <p>This should only be specified when using the default expansion service, i.e. when not using
+   * {@link #withExpansionService(String)} to provide an expansion service.
+   *
+   * <p>The package can either be a PyPi package or the path to a locally available Python package.
+   *
+   * @param extraPackages a list of PyPi packages. May include the version.
+   * @return A {@link PythonMap} with extra packages.
+   */
+  public PythonMap<InputT, OutputT> withExtraPackages(List<String> extraPackages) {
+    if (!this.extraPackages.isEmpty()) {
+      throw new IllegalArgumentException("Extra packages were already specified");
+    }
+    this.extraPackages.addAll(extraPackages);
+    return this;
+  }
+
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
     expansionService = (expansionService != null) ? expansionService : "";
-    PythonExternalTransform<PCollection<? extends InputT>, PCollection<OutputT>> pythonMapElements =
-        PythonExternalTransform.from(pythonTransform, expansionService);
-    pythonMapElements.withArgs(pythonFunction);
-    pythonMapElements.withOutputCoder(outputCoder);
-    return input.apply(pythonMapElements);
+    return (PCollection<OutputT>)
+        input.apply(
+            PythonExternalTransform.from(pythonTransform, expansionService)
+                .withArgs(pythonFunction)
+                .withOutputCoder(outputCoder)
+                .withExtraPackages(this.extraPackages));
   }
 }

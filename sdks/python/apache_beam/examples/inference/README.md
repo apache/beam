@@ -68,6 +68,24 @@ docker pull nvcr.io/nvidia/tensorrt:22.04-py3
 ```
 as an existing container base to [build custom Apache Beam container](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image).
 
+
+### ONNX dependencies
+
+The RunInference API supports ONNX runtime for accelerated inference.
+To use ONNX, we suggest installing the following dependencies:
+```
+pip install onnxruntime==1.13.1
+```
+The onnxruntime dependency is sufficient if you already have a model in onnx format. This library also supports conversion from PyTorch models to ONNX.
+If you need to convert TensorFlow models into ONNX, please install:
+```
+pip install tf2onnx==1.13.0
+```
+If you need to convert sklearn models into ONNX, please install:
+```
+pip install skl2onnx
+```
+
 ### Additional resources
 For more information, see the
 [Machine Learning](/documentation/sdks/python-machine-learning) and the
@@ -374,3 +392,29 @@ True Price 31000000.0, Predicted Price 25654277.256461
 ...
 ```
 
+---
+## Sentiment classification using ONNX version of RoBERTa
+[`onnx_sentiment_classification.py`](./onnx_sentiment_classification.py) contains an implementation for a RunInference pipeline that performs sentiment classification on movie reviews.
+
+The pipeline reads rows of txt files corresponding to movie reviews, performs basic preprocessing, passes the pixels to the ONNX version of RoBERTa via RunInference, and then writes the predictions (0 for negative, 1 for positive) to a text file.
+
+### Dataset and model for sentiment classification
+We assume you already have a trained model in onnx format. In our example, we use RoBERTa from https://github.com/SeldonIO/seldon-models/blob/master/pytorch/moviesentiment_roberta/pytorch-roberta-onnx.ipynb.
+
+For input data, you can generate your own movie reviews (separated by line breaks) or use IMDB reviews online (https://ai.stanford.edu/~amaas/data/sentiment/).
+
+The output will be a text file, with a binary label (0 for negative, 1 for positive) appended to the review, separated by a semicolon.
+
+### Running the pipeline
+To run locally, you can use the following command:
+```sh
+python -m apache_beam.examples.inference.onnx_sentiment_classification.py \
+  --input_file [input file path] \
+  --output [output file path] \
+  --model_uri [path to onnx model]
+```
+
+This writes the output to the output file path with contents like:
+```
+A comedy-drama of nearly epic proportions rooted in a sincere performance by the title character undergoing midlife crisis .;1
+```
