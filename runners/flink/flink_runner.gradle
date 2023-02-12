@@ -179,6 +179,7 @@ dependencies {
   if (flink_version.compareTo("1.14") >= 0) {
     implementation "org.apache.flink:flink-runtime:$flink_version"
     implementation "org.apache.flink:flink-optimizer:$flink_version"
+    implementation "org.apache.flink:flink-metrics-core:$flink_version"
     testImplementation "org.apache.flink:flink-runtime:$flink_version:tests"
     testImplementation "org.apache.flink:flink-rpc-akka:$flink_version"
   } else {
@@ -197,6 +198,7 @@ dependencies {
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation "org.apache.flink:flink-core:$flink_version:tests"
+  testImplementation "org.apache.flink:flink-connector-test-utils:$flink_version"
   testImplementation project(":sdks:java:harness")
   testRuntimeOnly library.java.slf4j_simple
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
