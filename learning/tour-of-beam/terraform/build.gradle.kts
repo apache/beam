@@ -146,20 +146,20 @@ tasks.register("getGKEClusterZone") {
 tasks.register("getCredentials") {
     var gke_cluster_name = ""
     var gke_zone = "unknown"
-    var project_id = "unknown"
+    var projectId = "unknown"
     if (project.extensions.extraProperties.get("gke_cluster_name") != null) {
         gke_cluster_name = project.extensions.extraProperties.get("gke_cluster_name") as String
     }
     if (project.extensions.extraProperties.get("gke_zone") != null) {
         gke_cluster_name = project.extensions.extraProperties.get("gke_zone") as String
     }
-    if (project.hasProperty("project_id")) {
-        project_id = project.property("project_id") as String
+    if (project.hasProperty("projectId")) {
+        projectId = project.property("projectId") as String
     }
     doLast{
         exec {
             executable("gcloud")
-            args("container", "clusters", "get-credentials", "$gke_cluster_name", "--zone $gke_zone", "--project $project_id")
+            args("container", "clusters", "get-credentials", "$gke_cluster_name", "--zone $gke_zone", "--project $projectId")
         }
     }
 }
@@ -196,30 +196,18 @@ tasks.register("populateDatastore") {
         environment = project.property("project_environment") as String
     }
     doLast {
-        val file = File("./environment/$environment/terraform.tfvars")
-        val lines = file.readLines()
-        for (line in lines) {
-            val pattern = "project_id = '(.*?)'".toRegex()
-            val matchResult = pattern.find(line)
-            if (matchResult != null) {
-                val value = matchResult.groupValues[1]
-                System.setProperty("DATASTORE_PROJECT_ID", value)
-                System.setProperty("GOOGLE_PROJECT_ID", value)
-                System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
+        val projectId = System.getProperty("projectId") ?: throw IllegalStateException("projectId must be set")
+        System.setProperty("DATASTORE_PROJECT_ID", projectId)
+        System.setProperty("GOOGLE_PROJECT_ID", projectId)
+        System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
 
-                val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "go ../backend/cmd/ci_cd/ci_cd.go"))
-                val output = process.inputStream.bufferedReader().use {
-                    it.readText().trim()
-                }
-                println("Output of go run cmd/ci_cd/ci_cd.go command: $output")
+        val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "go ../backend/cmd/ci_cd/ci_cd.go"))
+        val output = process.inputStream.bufferedReader().use {
+            it.readText().trim()
+        }
+        println("Output of go run cmd/ci_cd/ci_cd.go command: $output")
             }
         }
-
-// command to run
-// ./gradlew runGoCommand \
-// -PdatastoreProjectId=my-datastore-project-id \
-// -PgoogleProjectId=my-google-project-id \
-// -PtobLearningRoot=path/to/tob-learning-root
 
         tasks.register("readState") {
             group = "deploy"
@@ -232,6 +220,14 @@ tasks.register("populateDatastore") {
             group = "deploy"
             doLast {
                 var dns_name = ""
+                var region = ""
+                var projectId = ""
+                if (project.hasProperty("region")) {
+                    region = project.property("region") as String
+                }
+                if (project.hasProperty("projectId")) {
+                    projectId = project.property("projectId") as String
+                }
                 if (project.hasProperty("dns-name")) {
                     dns_name = project.property("dns-name") as String
                 }
@@ -241,6 +237,13 @@ tasks.register("populateDatastore") {
 
                 file.writeText(
                         """
+const _cloudFunctionsProjectRegion = '$region';
+const _cloudFunctionsProjectId = '$projectId';
+const cloudFunctionsBaseUrl = 'https://'
+    '$region-$projectId'
+    '.cloudfunctions.net';
+
+
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
 'https://router.${dns_name}';
