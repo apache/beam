@@ -30,10 +30,6 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: {{ .Values.service.targetPort }}
-  - name: http
-    port: 8080
-    protocol: http
-    targetPort: {{ .Values.service.targetPort }}
   selector:
     app: backend-mitm
   type: {{ .Values.service.type }}
