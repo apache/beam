@@ -33,7 +33,7 @@ public final class ByteBuddyUtils {
     try {
       ClassLoadingStrategy<ClassLoader> strategy;
       if (ClassInjector.UsingLookup.isAvailable()) {
-        ClassLoader classLoader = ReflectHelpers.findClassLoader(targetClass.getClassLoader());
+        ClassLoader classLoader = ReflectHelpers.findClassLoader(targetClass);
         Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles", true, classLoader);
         @SuppressWarnings("nullness") // MethodHandles#lookup accepts null
         Object lookup = methodHandles.getMethod("lookup").invoke(null);
