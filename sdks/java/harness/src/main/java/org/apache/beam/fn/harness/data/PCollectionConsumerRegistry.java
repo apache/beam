@@ -330,7 +330,7 @@ public class PCollectionConsumerRegistry {
     private final BundleCounter elementCountCounter;
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
-    private @Nullable OutputSampler<T> outputSampler = null;
+    private final @Nullable OutputSampler<T> outputSampler;
 
     public MultiplexingMetricTrackingFnDataReceiver(
         String pCollectionId, Coder<T> coder, List<ConsumerAndMetadata> consumerAndMetadatas,
