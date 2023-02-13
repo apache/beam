@@ -33,7 +33,6 @@ func TestExecutor_Compile(t *testing.T) {
 	type fields struct {
 		compileArgs CmdConfiguration
 		runArgs     CmdConfiguration
-		validators  []validators.Validator
 	}
 	tests := []struct {
 		name   string
@@ -71,7 +70,6 @@ func TestExecutor_Compile(t *testing.T) {
 			ex := &Executor{
 				compileArgs: tt.fields.compileArgs,
 				runArgs:     tt.fields.runArgs,
-				validators:  tt.fields.validators,
 			}
 			if got := ex.Compile(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("WithCompiler() = %v, want %v", got, tt.want)
@@ -154,7 +152,6 @@ func TestExecutor_Run(t *testing.T) {
 				compileArgs: tt.fields.compileArgs,
 				runArgs:     tt.fields.runArgs,
 				testArgs:    tt.fields.testArgs,
-				validators:  tt.fields.validators,
 				preparers:   tt.fields.preparers,
 			}
 			if got := ex.Run(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
@@ -214,7 +211,6 @@ func TestExecutor_RunTest(t *testing.T) {
 				compileArgs: tt.fields.compileArgs,
 				runArgs:     tt.fields.runArgs,
 				testArgs:    tt.fields.testArgs,
-				validators:  tt.fields.validators,
 				preparers:   tt.fields.preparers,
 			}
 			if got := ex.RunTest(tt.args.ctx); !reflect.DeepEqual(got.String(), tt.want.String()) {
@@ -278,7 +274,6 @@ func TestExecutor_Prepare(t *testing.T) {
 				compileArgs: tt.fields.compileArgs,
 				runArgs:     tt.fields.runArgs,
 				testArgs:    tt.fields.testArgs,
-				validators:  tt.fields.validators,
 				preparers:   tt.fields.preparers,
 			}
 			prepareFunc := ex.Prepare()
@@ -292,76 +287,6 @@ func TestExecutor_Prepare(t *testing.T) {
 			got := <-tt.fields.boolChan
 			if got != tt.want {
 				t.Errorf("Prepare() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestExecutor_Validate(t *testing.T) {
-	valResult := &sync.Map{}
-	validatorsArray, err := validators.GetValidators(pb.Sdk_SDK_JAVA, "./")
-	if err != nil {
-		panic(err)
-	}
-	type fields struct {
-		compileArgs CmdConfiguration
-		runArgs     CmdConfiguration
-		testArgs    CmdConfiguration
-		validators  []validators.Validator
-		preparers   []preparers.Preparer
-		boolChan    chan bool
-		errorChan   chan error
-		valResult   *sync.Map
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    bool
-		wantErr bool
-	}{
-		{
-			name: "Test Validate method with prepared validators",
-			fields: fields{
-				validators: *validatorsArray,
-				boolChan:   make(chan bool),
-				errorChan:  make(chan error),
-				valResult:  valResult,
-			},
-			want:    false,
-			wantErr: true,
-		},
-		{
-			name: "Test Validate method without validators",
-			fields: fields{
-				validators: nil,
-				boolChan:   make(chan bool),
-				errorChan:  make(chan error),
-				valResult:  valResult,
-			},
-			want:    true,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ex := &Executor{
-				compileArgs: tt.fields.compileArgs,
-				runArgs:     tt.fields.runArgs,
-				testArgs:    tt.fields.testArgs,
-				validators:  tt.fields.validators,
-				preparers:   tt.fields.preparers,
-			}
-			valFunc := ex.Validate()
-			go valFunc(tt.fields.boolChan, tt.fields.errorChan, tt.fields.valResult)
-			if tt.wantErr {
-				err := <-tt.fields.errorChan
-				if (err != nil) != tt.wantErr {
-					t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
-				}
-			}
-			got := <-tt.fields.boolChan
-			if got != tt.want {
-				t.Errorf("Validate() = %v, want %v", got, tt.want)
 			}
 		})
 	}

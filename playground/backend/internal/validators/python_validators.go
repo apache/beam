@@ -17,28 +17,32 @@ package validators
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
 const pyUnitTestPattern = "import unittest"
 
-// GetPyValidators return validators methods that should be applied to Python code
-func GetPyValidators(filePath string) *[]Validator {
-	validatorArgs := make([]interface{}, 1)
-	validatorArgs[0] = filePath
-	unitTestValidator := Validator{
-		Validator: CheckIsUnitTestPy,
-		Args:      validatorArgs,
-		Name:      UnitTestValidatorName,
+type pythonValidator struct {
+	filepath string
+}
+
+func GetPythonValidator(filepath string) Validator {
+	return pythonValidator{filepath: filepath}
+}
+
+func (v pythonValidator) Validate() (map[string]bool, error) {
+	var result = make(map[string]bool)
+	var err error
+	if result[UnitTestValidatorName], err = CheckIsUnitTestPy(v.filepath); err != nil {
+		return result, err
 	}
-	validators := []Validator{unitTestValidator}
-	return &validators
+	return result, nil
 }
 
 func CheckIsUnitTestPy(args ...interface{}) (bool, error) {
 	filePath := args[0].(string)
-	code, err := ioutil.ReadFile(filePath)
+	code, err := os.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
 		return false, err

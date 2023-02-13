@@ -27,17 +27,8 @@ const (
 )
 
 func TestCheckIsUnitTestGo(t *testing.T) {
-	testValidatorArgs := make([]interface{}, 1)
-	testValidatorArgs[0] = goUnitTestFilePath
-
-	validatorArgs := make([]interface{}, 1)
-	validatorArgs[0] = goCodePath
-
-	argsWithoutRealFile := make([]interface{}, 1)
-	argsWithoutRealFile[0] = "fileNotExists.go"
-
 	type args struct {
-		args []interface{}
+		filepath string
 	}
 	tests := []struct {
 		name    string
@@ -48,7 +39,7 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 		{
 			name: "Check that file is a go unit test",
 			args: args{
-				testValidatorArgs,
+				goUnitTestFilePath,
 			},
 			want:    true,
 			wantErr: false,
@@ -56,21 +47,23 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 		{
 			name: "Check that file is not a go unit test",
 			args: args{
-				validatorArgs,
+				goCodePath,
 			},
 			want:    false,
 			wantErr: false,
 		},
 		{
-			name:    "Error if file not exists",
-			args:    args{args: argsWithoutRealFile},
+			name: "Error if file not exists",
+			args: args{
+				filepath: "fileNotExists.go",
+			},
 			want:    false,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CheckIsUnitTestGo(tt.args.args...)
+			got, err := CheckIsUnitTestGo(tt.args.filepath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CheckIsUnitTestGo() error = %v, wantErr %v", err, tt.wantErr)
 				return

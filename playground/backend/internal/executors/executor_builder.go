@@ -17,7 +17,6 @@ package executors
 
 import (
 	"beam.apache.org/playground/backend/internal/preparers"
-	"beam.apache.org/playground/backend/internal/validators"
 )
 
 type handler func(executor *Executor)
@@ -190,14 +189,6 @@ func (b *UnitTestExecutorBuilder) WithGraphOutput() *UnitTestExecutorBuilder {
 func (b *UnitTestExecutorBuilder) WithExecutableFileName(name string) *UnitTestExecutorBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
 		e.testArgs.fileName = name
-	})
-	return b
-}
-
-// WithSdkValidators sets validators to executor
-func (b *ValidatorBuilder) WithSdkValidators(validators *[]validators.Validator) *ValidatorBuilder {
-	b.actions = append(b.actions, func(e *Executor) {
-		e.validators = *validators
 	})
 	return b
 }

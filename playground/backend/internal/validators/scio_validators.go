@@ -15,32 +15,25 @@
 
 package validators
 
-import (
-	"beam.apache.org/playground/backend/internal/fs_tool"
-)
-
 const (
 	scalaExtension = ".scala"
 )
 
-// GetScioValidators return validators methods that should be applied to scio code
-// The last validator should check that the code is unit tests or not
-func GetScioValidators(filePath string) *[]Validator {
-	validatorArgs := make([]interface{}, 2)
-	validatorArgs[0] = filePath
-	validatorArgs[1] = scalaExtension
-	pathCheckerValidator := Validator{
-		Validator: fs_tool.CheckPathIsValid,
-		Args:      validatorArgs,
-		Name:      "Valid path",
+type scioValidator struct {
+	filepath string
+}
+
+func GetScioValidator(filepath string) Validator {
+	return scioValidator{filepath: filepath}
+}
+
+func (v scioValidator) Validate() (map[string]bool, error) {
+	var result = make(map[string]bool)
+	var err error
+	if result[UnitTestValidatorName], err = checkIsUnitTestScio(v.filepath, scalaExtension); err != nil {
+		return result, err
 	}
-	unitTestValidator := Validator{
-		Validator: checkIsUnitTestScio,
-		Args:      validatorArgs,
-		Name:      UnitTestValidatorName,
-	}
-	validators := []Validator{pathCheckerValidator, unitTestValidator}
-	return &validators
+	return result, nil
 }
 
 // checkIsUnitTestScio checks if the pipeline is a UnitTest

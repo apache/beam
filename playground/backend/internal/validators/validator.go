@@ -25,26 +25,21 @@ const (
 	KatasValidatorName    = "Katas"
 )
 
-type Validator struct {
-	Validator func(args ...interface{}) (bool, error)
-	Args      []interface{}
-	Name      string
+type Validator interface {
+	Validate() (map[string]bool, error)
 }
 
-// GetValidators returns slice of validators.Validator according to sdk
-func GetValidators(sdk pb.Sdk, filepath string) (*[]Validator, error) {
-	var val *[]Validator
+func GetValidator(sdk pb.Sdk, filepath string) (Validator, error) {
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		val = GetJavaValidators(filepath)
+		return GetJavaValidator(filepath), nil
 	case pb.Sdk_SDK_GO:
-		val = GetGoValidators(filepath)
+		return GetGoValidator(filepath), nil
 	case pb.Sdk_SDK_PYTHON:
-		val = GetPyValidators(filepath)
+		return GetPythonValidator(filepath), nil
 	case pb.Sdk_SDK_SCIO:
-		val = GetScioValidators(filepath)
+		return GetScioValidator(filepath), nil
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
-	return val, nil
 }

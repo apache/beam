@@ -117,38 +117,6 @@ func TestExecutorBuilder_WithRunner(t *testing.T) {
 	}
 }
 
-func TestExecutorBuilder_WithValidator(t *testing.T) {
-	type fields struct {
-		actions []handler
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   *ValidatorBuilder
-	}{
-		{
-			name:   "Get ValidatorBuilder with prepared actions",
-			fields: fields{actions: handlers},
-			want:   &ValidatorBuilder{ExecutorBuilder{actions: handlers}},
-		},
-		{
-			name:   "Get ValidatorBuilder with empty actions",
-			fields: fields{actions: []handler{}},
-			want:   &ValidatorBuilder{ExecutorBuilder{actions: []handler{}}},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := &ExecutorBuilder{
-				actions: tt.fields.actions,
-			}
-			if got := b.WithValidator(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("WithValidator() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestExecutorBuilder_WithPreparer(t *testing.T) {
 	type fields struct {
 		actions []handler
@@ -231,7 +199,6 @@ func TestExecutorBuilder_Build(t *testing.T) {
 				compileArgs: CmdConfiguration{},
 				runArgs:     CmdConfiguration{pipelineOptions: []string{pipelineOptions}},
 				testArgs:    CmdConfiguration{},
-				validators:  nil,
 				preparers:   nil,
 			},
 		},
