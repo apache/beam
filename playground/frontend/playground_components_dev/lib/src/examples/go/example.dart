@@ -20,6 +20,7 @@ import 'package:playground_components/playground_components.dart';
 
 import '../example_descriptor.dart';
 
+/// To test code folding, read-only, and visible sections. Not runnable.
 const goExample = ExampleDescriptor(
   //
   '',

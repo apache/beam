@@ -57,23 +57,5 @@ Edges: 1: Impulse [] -> [Out: []uint8 -> {1: []uint8/bytes GLO}]
 11: ParDo [In(Main): T <- {10: string/string GLO}] -> [Out: KV<int,T> -> {11: KV<int,string>/KV<int[varintz],string> GLO}]
 12: CoGBK [In(Main): KV<int,string> <- {11: KV<int,string>/KV<int[varintz],string> GLO}] -> [Out: CoGBK<int,string> -> {12: CoGBK<int,string>/CoGBK<int[varintz],string> GLO}]
 13: ParDo [In(Main): CoGBK<int,string> <- {12: CoGBK<int,string>/CoGBK<int[varintz],string> GLO}] -> []
-''',
-    '''
-Plan[plan]:
-15: Impulse[0]
-1: ParDo[textio.writeFileFn] Out:[]
-2: CoGBK. Out:1
-3: Inject[0]. Out:2
-4: ParDo[beam.addFixedKeyFn] Out:[3]
-5: ParDo[main.main.func2] Out:[4]
-6: Combine[stats.sumIntFn] Keyed:false Out:5
-7: CoGBK. Out:6
-8: Inject[0]. Out:7
-9: ParDo[stats.keyedCountFn] Out:[8]
-10: ParDo[main.main.func1] Out:[9]
-11: SDF.SdfFallback[textio.readFn] UID:11 Out:[10]
-12: ParDo[textio.sizeFn] Out:[11]
-13: ParDo[textio.expandFn] Out:[12]
-14: ParDo[beam.createFn] Out:[13]
 '''],
 );

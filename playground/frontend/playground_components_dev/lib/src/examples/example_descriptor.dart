@@ -59,8 +59,10 @@ class ExampleDescriptor {
   /// File path relative to the repository root, starting with `/`.
   final String path;
 
+  /// The part in GitHub URL corresponding to repository and branch names.
   final String repositoryAndRef;
 
+  /// The SDK of this example.
   final Sdk sdk;
 
   /// Visible text when using `visibleSectionNames` and `foldOutsideSections()`.
@@ -69,25 +71,33 @@ class ExampleDescriptor {
   /// Visible text when using `foldOutsideSections()`.
   final String? foldedVisibleText;
 
+  /// The strings that the example's output must contain.
   final List<String>? outputContains;
+
+  /// The string that the example's output must end with.
   final String? outputTail;
 
+  /// Whether the example tab must be visible after running this example.
   bool get hasGraphTab => !_noGraphSdks.contains(sdk);
 
   /// The URL to view the file raw content on GitHub.
   String get url => '$_schemaAndHost$repositoryAndRef$path';
 
+  /// The visible text in the code editor after required foldings.
   Future<String> getVisibleText() async {
     final content = await getFullText();
 
     return foldLicenseAndImports(content, sdk.highlightMode!);
   }
 
+  /// The full code of the example.
   Future<String> getFullText() async {
     final response = await http.get(Uri.parse(url));
     return cutTagComments(response.body);
   }
 
+  /// Cuts the comments containing meta tags from the file in the repository
+  /// so that it matches the source that must be provided by the backend.
   static String cutTagComments(String code) {
     const commentSequences = ['//', '#'];
     const firstString = 'beam-playground:';
