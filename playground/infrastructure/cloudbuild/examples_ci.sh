@@ -63,7 +63,7 @@ BEAM_ROOT_DIR="../.." \
 SDK_CONFIG="../sdks.yaml" \
 BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
 BEAM_CONCURRENCY=4 \
-BEAM_VERSION=2.43.0 \
+BEAM_VERSION=${beam_version} \
 sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
@@ -104,17 +104,13 @@ do
 # Run main logic if examples have been changed
       if [[ $example_has_changed == "True" ]]
       then
-            if [ -z "${tag_name}" ] && [ "${commit_sha}" ]
+            if [ "${tag_name}" ]
+            then
+                DOCKERTAG=${tag_name}
+            elif [ "${commit_sha}" ]
             then
                 DOCKERTAG=${commit_sha}
-            elif [ "${tag_name}" ] && [ "${commit_sha}" ]
-            then
-                DOCKERTAG=${tag_name}
-            elif [ "${tag_name}" ] && [ -z "${commit_sha}" ]
-            then
-                DOCKERTAG=${tag_name}
-            elif [ -z "${tag_name}" ] && [ -z "${commit_sha}" ]
-            then
+            else
                 echo "Error: DOCKERTAG is empty"
                 exit 1
             fi
@@ -138,7 +134,7 @@ do
             if [ "$sdk" == "java" ]
             then
                 # Java uses a fixed BEAM_VERSION
-                opts="$opts -Pbase-image=apache/beam_java8_sdk:2.43.0"
+                opts="$opts -Pbase-image=apache/beam_java8_sdk:${beam_version}"
             fi
 
             ./gradlew -i playground:backend:containers:"${sdk}":docker ${opts}
