@@ -125,7 +125,7 @@ tasks.register("getGKEClusterName") {
                 Thread.sleep(5000)
             }
             val gkeClusterName = outputFile.readText().trim()
-            extra["gkeClusterName"] = gkeClusterName
+            project.rootProject.extra["gkeClusterName"] = gkeClusterName
             logger.info("GKE cluster name retrieved successfully: $gkeClusterName")
             outputFile.delete()
         } catch (e: Exception) {
@@ -146,7 +146,7 @@ tasks.register("getGKEClusterZone") {
                 Thread.sleep(5000)
             }
             val gkeClusterZone = outputFile.readText().trim()
-            extra["gkeClusterZone"] = gkeClusterZone
+            project.rootProject.extra["gkeClusterZone"] = gkeClusterZone
             println("GKE cluster zone retrieved successfully: $gkeClusterZone")
             outputFile.delete()
         } catch (e: Exception) {
@@ -161,8 +161,8 @@ tasks.register("getCredentials") {
     dependsOn("getGKEClusterName", "getGKEClusterZone")
     mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName", ":learning:tour-of-beam:terraform:getGKEClusterZone")
     group = "backend-deploy"
-    val gkeClusterName = extra["gkeClusterName"] as? String ?: throw GradleException("gke_cluster_name property not found")
-    val gkeClusterZone = extra["gkeClusterZone"] as? String ?: throw GradleException("gkeClusterZone property not found")
+    val gkeClusterName = rootProject.extra["gkeClusterName"] as? String ?: throw GradleException("gke_cluster_name property not found")
+    val gkeClusterZone = rootProject.extra["gkeClusterZone"] as? String ?: throw GradleException("gkeClusterZone property not found")
     val projectId = property("projectId") as? String ?: throw GradleException("projectId property not found")
     doLast {
         exec {
