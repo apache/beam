@@ -150,7 +150,7 @@ tasks.register("getCredentials") {
     var projectId = ""
     doLast {
         exec {
-            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone, "--project $projectId")
+            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone, "--project", "$projectId")
         }
     }
 }
