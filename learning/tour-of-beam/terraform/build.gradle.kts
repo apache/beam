@@ -69,7 +69,10 @@ tasks {
     register<TerraformTask>("terraformApplyBackend") {
         group = "backend-deploy"
         var pg_router_host = ""
-        var environment = ""
+        var environment = "unknown"
+        if (project.extensions.extraProperties.get("pg_router_host") != null) {
+            pg_router_host = project.extensions.extraProperties.get("pg_router_hots") as String
+        }
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
@@ -113,47 +116,55 @@ tasks {
 
 tasks.register("getGKEClusterName") {
     group = "backend-deploy"
-    var stdout = ByteArrayOutputStream()
-    var gkeClusterName = ""
     doLast {
+        try {
+            val outputFile = createTempFile("gkeClusterName", ".tmp")
             exec {
                 commandLine("gcloud", "container", "clusters", "list", "--format=value(name)")
-                standardOutput = stdout
+                standardOutput = outputFile.outputStream()
             }
-            gkeClusterName = stdout.toString().trim().replace("\"", "")
-            stdout = ByteArrayOutputStream()
-            println("GKE cluster zone retrieved successfully: $gkeClusterName")
+            val gkeClusterName = outputFile.readText().trim()
+            extra["gkeClusterName"] = gkeClusterName
+            logger.info("GKE cluster name retrieved successfully: $gkeClusterName")
+            outputFile.delete()
+        } catch (e: Exception) {
+            logger.error("Error retrieving GKE cluster name: ${e.message}")
+            throw GradleException("Error retrieving GKE cluster name: ${e.message}")
         }
     }
+}
 
 tasks.register("getGKEClusterZone") {
     group = "backend-deploy"
-    var stdout = ByteArrayOutputStream()
-    var gkeClusterZone = ""
     doLast {
+        try {
+            val outputFile = createTempFile("gke_cluster_zone", ".tmp")
             exec {
                 commandLine("gcloud", "container", "clusters", "list", "--format=value(zone)")
-                standardOutput = stdout
+                standardOutput = outputFile.outputStream()
             }
-            gkeClusterZone = stdout.toString().trim().replace("\"", "")
-            stdout = ByteArrayOutputStream()
+            val gkeClusterZone = outputFile.readText().trim()
+            extra["gkeClusterZone"] = gkeClusterZone
             println("GKE cluster zone retrieved successfully: $gkeClusterZone")
+            outputFile.delete()
+        } catch (e: Exception) {
+            logger.error("Error retrieving GKE cluster zone: ${e.message}")
+            throw GradleException("Error retrieving GKE cluster zone: ${e.message}")
+
         }
     }
+}
 
 tasks.register("getCredentials") {
     dependsOn("getGKEClusterName", "getGKEClusterZone")
     mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName", ":learning:tour-of-beam:terraform:getGKEClusterZone")
     group = "backend-deploy"
-    var gkeClusterName = ""
-    var gkeClusterZone = ""
-    var projectId = ""
-    if (project.hasProperty("project_id")) {
-        projectId = project.property("project_id") as String
-    }
+    val gkeClusterName = extra["gkeClusterName"] as? String ?: throw GradleException("gke_cluster_name property not found")
+    val gkeClusterZone = extra["gkeClusterZone"] as? String ?: throw GradleException("gkeClusterZone property not found")
+    val projectId = property("projectId") as? String ?: throw GradleException("projectId property not found")
     doLast {
         exec {
-            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone, "--project", "$projectId")
+            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone, "--project", projectId)
         }
     }
 }
@@ -169,8 +180,8 @@ tasks.register("getRouterHost") {
             standardOutput = stdout
         }
         pg_router_host = stdout.toString().trim().replace("\"", "")
+        project.extensions.extraProperties.set("pg_router_host", pg_router_host)
         stdout = ByteArrayOutputStream()
-        println("GKE cluster zone retrieved successfully: $pg_router_host")
     }
 }
 
