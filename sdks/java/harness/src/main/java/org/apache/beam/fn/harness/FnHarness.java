@@ -342,7 +342,8 @@ public class FnHarness {
       handlers.put(
           InstructionRequest.RequestCase.HARNESS_MONITORING_INFOS,
           processWideHandler::harnessMonitoringInfos);
-      handlers.put(InstructionRequest.RequestCase.SAMPLE, dataSampler::handleDataSampleRequest);
+      handlers.put(
+          InstructionRequest.RequestCase.SAMPLE_DATA, dataSampler::handleDataSampleRequest);
 
       JvmInitializers.runBeforeProcessing(options);
 

@@ -97,12 +97,7 @@ public class PCollectionConsumerRegistry {
       ShortIdMap shortIdMap,
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor) {
-    this(
-        stateTracker,
-        shortIdMap,
-        bundleProgressReporterRegistrar,
-        processBundleDescriptor,
-        null);
+    this(stateTracker, shortIdMap, bundleProgressReporterRegistrar, processBundleDescriptor, null);
   }
 
   public PCollectionConsumerRegistry(
@@ -220,7 +215,8 @@ public class PCollectionConsumerRegistry {
           if (consumerAndMetadatas.size() == 1) {
             ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(0);
             if (consumerAndMetadata.getConsumer() instanceof HandlesSplits) {
-              return new SplittingMetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata, dataSampler);
+              return new SplittingMetricTrackingFnDataReceiver(
+                  pcId, coder, consumerAndMetadata, dataSampler);
             }
             return new MetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata, dataSampler);
           } else {
@@ -250,7 +246,9 @@ public class PCollectionConsumerRegistry {
     private final @Nullable OutputSampler<T> outputSampler;
 
     public MetricTrackingFnDataReceiver(
-        String pCollectionId, Coder<T> coder, ConsumerAndMetadata consumerAndMetadata,
+        String pCollectionId,
+        Coder<T> coder,
+        ConsumerAndMetadata consumerAndMetadata,
         @Nullable DataSampler dataSampler) {
       this.delegate = consumerAndMetadata.getConsumer();
       this.executionState = consumerAndMetadata.getExecutionState();
@@ -335,7 +333,9 @@ public class PCollectionConsumerRegistry {
     private final @Nullable OutputSampler<T> outputSampler;
 
     public MultiplexingMetricTrackingFnDataReceiver(
-        String pCollectionId, Coder<T> coder, List<ConsumerAndMetadata> consumerAndMetadatas,
+        String pCollectionId,
+        Coder<T> coder,
+        List<ConsumerAndMetadata> consumerAndMetadatas,
         @Nullable DataSampler dataSampler) {
       this.consumerAndMetadatas = consumerAndMetadatas;
 
@@ -418,7 +418,9 @@ public class PCollectionConsumerRegistry {
     private final HandlesSplits delegate;
 
     public SplittingMetricTrackingFnDataReceiver(
-        String pCollection, Coder<T> coder, ConsumerAndMetadata consumerAndMetadata,
+        String pCollection,
+        Coder<T> coder,
+        ConsumerAndMetadata consumerAndMetadata,
         @Nullable DataSampler dataSampler) {
       super(pCollection, coder, consumerAndMetadata, dataSampler);
       this.delegate = (HandlesSplits) consumerAndMetadata.getConsumer();

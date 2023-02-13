@@ -778,7 +778,11 @@ public class ProcessBundleHandler {
     bundleProgressReporterAndRegistrar.register(stateTracker);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
-            stateTracker, shortIds, bundleProgressReporterAndRegistrar, bundleDescriptor, dataSampler);
+            stateTracker,
+            shortIds,
+            bundleProgressReporterAndRegistrar,
+            bundleDescriptor,
+            dataSampler);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =

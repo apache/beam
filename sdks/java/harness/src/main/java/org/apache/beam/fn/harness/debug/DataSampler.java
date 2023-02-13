@@ -88,7 +88,7 @@ public class DataSampler {
    */
   public BeamFnApi.InstructionResponse.Builder handleDataSampleRequest(
       BeamFnApi.InstructionRequest request) {
-    BeamFnApi.SampleDataRequest sampleDataRequest = request.getSample();
+    BeamFnApi.SampleDataRequest sampleDataRequest = request.getSampleData();
 
     Map<String, List<byte[]>> responseSamples =
         samplesFor(sampleDataRequest.getPcollectionIdsList());
@@ -103,7 +103,7 @@ public class DataSampler {
       response.putElementSamples(pcollectionId, elementList.build());
     }
 
-    return BeamFnApi.InstructionResponse.newBuilder().setSample(response);
+    return BeamFnApi.InstructionResponse.newBuilder().setSampleData(response);
   }
 
   /**
