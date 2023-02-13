@@ -19,3 +19,4 @@ openssl x509 -in /home/appuser/.mitmproxy/mitmproxy-ca.pem -inform PEM -out /usr
 update-ca-certificates
 
 su appuser -c /opt/playground/backend/server_go_backend
+MITM_HTTP=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT_HTTP
