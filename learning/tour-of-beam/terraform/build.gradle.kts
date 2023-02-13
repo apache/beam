@@ -126,6 +126,7 @@ tasks.register("getGKEClusterName", DefaultTask::class) {
             val gkeClusterName = outputFile.readText().trim()
             extra["gkeClusterName"] = gkeClusterName
             logger.info("GKE cluster name retrieved successfully: $gkeClusterName")
+            println("getGKEClusterZone is completed: $gkeClusterName")
             outputFile.delete()
         } catch (e: Exception) {
             logger.error("Error retrieving GKE cluster name: ${e.message}")
@@ -146,10 +147,12 @@ tasks.register("getGKEClusterZone") {
             val gkeClusterZone = outputFile.readText().trim()
             extra["gkeClusterZone"] = gkeClusterZone
             logger.info("GKE cluster zone retrieved successfully: $gkeClusterZone")
+            println("getGKEClusterZone is completed: $gkeClusterZone")
             outputFile.delete()
         } catch (e: Exception) {
             logger.error("Error retrieving GKE cluster zone: ${e.message}")
             throw GradleException("Error retrieving GKE cluster zone: ${e.message}")
+
         }
     }
 }
