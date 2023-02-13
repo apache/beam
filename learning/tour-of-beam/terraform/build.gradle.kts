@@ -118,18 +118,18 @@ tasks.register("getGKEClusterName", DefaultTask::class) {
     group = "backend-deploy"
     doLast {
         try {
-            val outputFile = File.createTempFile("gke_cluster_name", ".tmp")
+            val outputFile = createTempFile("gke_cluster_name", ".tmp")
             exec {
-                executable("gcloud")
-                args("container", "clusters", "list", "--format=value(name)")
-                standardOutput = java.io.FileOutputStream(outputFile as File)
+                commandLine("gcloud", "container", "clusters", "list", "--format=value(name)")
+                standardOutput = outputFile.outputStream()
             }
             val gke_cluster_name = outputFile.readText().trim()
-            project.extensions.extraProperties.set("gke_cluster_name", gke_cluster_name)
+            extra["gke_cluster_name"] = gke_cluster_name
             logger.info("GKE cluster name retrieved successfully: $gke_cluster_name")
+            outputFile.delete()
         } catch (e: Exception) {
             logger.error("Error retrieving GKE cluster name: ${e.message}")
-            throw e
+            throw GradleException("Error retrieving GKE cluster name: ${e.message}")
         }
     }
 }
@@ -138,34 +138,30 @@ tasks.register("getGKEClusterZone") {
     group = "backend-deploy"
     doLast {
         try {
-            val outputFile = File.createTempFile("gke_cluster_zone", ".tmp")
+            val outputFile = createTempFile("gke_cluster_zone", ".tmp")
             exec {
-                executable("gcloud")
-                args("container", "clusters", "list", "--format=value(zone)")
-                standardOutput = java.io.FileOutputStream(outputFile as File)
+                commandLine("gcloud", "container", "clusters", "list", "--format=value(zone)")
+                standardOutput = outputFile.outputStream()
             }
             val gke_zone = outputFile.readText().trim()
-            project.extensions.extraProperties.set("gke_zone", gke_zone)
+            extra["gke_zone"] = gke_zone
             logger.info("GKE cluster zone retrieved successfully: $gke_zone")
+            outputFile.delete()
         } catch (e: Exception) {
             logger.error("Error retrieving GKE cluster zone: ${e.message}")
-            throw e
+            throw GradleException("Error retrieving GKE cluster zone: ${e.message}")
         }
     }
 }
 
 tasks.register("getCredentials") {
     group = "backend-deploy"
-    val gke_cluster_name = project.extensions.extraProperties["gke_cluster_name"] as String
-    val gke_zone = project.extensions.extraProperties["gke_zone"] as String
-    var projectId = "unknown"
-    if (project.hasProperty("projectId")) {
-        projectId = project.property("projectId") as String
-    }
-    doLast{
+    val gke_cluster_name = extra["gke_cluster_name"] as? String ?: throw GradleException("gke_cluster_name property not found")
+    val gke_zone = extra["gke_zone"] as? String ?: throw GradleException("gke_zone property not found")
+    val projectId = property("projectId") as? String ?: throw GradleException("projectId property not found")
+    doLast {
         exec {
-            executable("gcloud")
-            args("container", "clusters", "get-credentials", "${gke_cluster_name}", "--zone ${gke_zone}", "--project ${projectId}")
+            commandLine("gcloud", "container", "clusters", "get-credentials", gke_cluster_name, "--zone", gke_zone, "--project", projectId)
         }
     }
 }
