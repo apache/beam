@@ -17,9 +17,10 @@
 
 # pytype: skip-file
 
+import unittest
+
 import numpy
 import pytest
-import unittest
 
 try:
   import tensorflow as tf
@@ -46,6 +47,7 @@ def _compare_tensor_prediction_result(x, y):
   return tf.math.equal(x.inference, y.inference)
 
 
+@pytest.mark.uses_tf
 class TFRunInferenceTest(unittest.TestCase):
   def test_predict_numpy(self):
     fake_model = FakeTFNumpyModel()
@@ -60,7 +62,6 @@ class TFRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
-  @pytest.mark.uses_tf
   def test_predict_tensor(self):
     fake_model = FakeTFTensorModel()
     inference_runner = TFModelHandlerTensor(model_uri='unused')
@@ -80,7 +81,6 @@ class TFRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual, expected))
 
-  @pytest.mark.uses_tf
   def test_predict_tensor_with_args(self):
     fake_model = FakeTFTensorModel()
     inference_runner = TFModelHandlerTensor(model_uri='unused')

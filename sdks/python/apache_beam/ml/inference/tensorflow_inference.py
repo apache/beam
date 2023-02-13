@@ -18,18 +18,18 @@
 # pytype: skip-file
 
 import enum
-from typing import Any, Union
+import sys
+from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 import numpy
-import sys
 import tensorflow as tf
 import tensorflow_hub as hub
-
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult

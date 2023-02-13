@@ -18,12 +18,13 @@
 """End-to-End test for Tensorflow Inference"""
 
 import logging
-import pytest
 import unittest
 import uuid
 
-from apache_beam.io.filesystems import FileSystems
+import pytest
+
 from apache_beam.examples.inference import tensorflow_imagenet_segmentation
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
