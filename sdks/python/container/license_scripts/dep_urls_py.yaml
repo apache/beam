@@ -154,3 +154,5 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/pytorch/pytorch/master/LICENSE"
   wget:
     license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"
+  zstd:
+    license: "https://opensource.org/license/bsd-license-php/"
