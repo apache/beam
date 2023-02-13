@@ -112,7 +112,8 @@ tasks.register("mongodbioIT") {
   doFirst {
     exec {
       executable 'sh'
-      args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:latest"
+      // TODO(https://github.com/apache/beam/issues/25359) switch back to use latest container when issue resolved.
+      args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:6.0.3"
     }
   }
 
