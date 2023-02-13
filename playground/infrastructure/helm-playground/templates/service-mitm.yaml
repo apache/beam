@@ -31,8 +31,8 @@ spec:
     protocol: TCP
     targetPort: {{ .Values.service.targetPort }}
   - name: HTTP
-    port: 808
-    protocol: HTTP
+    port: 443
+    protocol: HTTPS
     targetPort: {{ .Values.service.targetPort }}
   selector:
     app: backend-mitm
