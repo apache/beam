@@ -27,5 +27,6 @@ if [[ "$1" = "reverseproxy" ]]; then
     shift
   done
 fi
-
+export http_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
+export https_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
 gosu mitmproxy mitmdump -s /home/mitmproxy/allow_list_proxy.py -p 8080 --ignore-hosts "storage.googleapis.com"
