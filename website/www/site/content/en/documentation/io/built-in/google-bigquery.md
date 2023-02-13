@@ -324,8 +324,8 @@ in the following example:
 {{< /highlight >}}
 
 {{< highlight java >}}
-#### Query execution project
-By default the pipeline executes the query in the Google Cloud project associated with the pipeline (in case of the Dataflow runner it's the project where the pipeline runs). There are cases where the query execution project should be different from the pipeline project. You can define the query execution project by setting the pipeline option "[bigQueryProject](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html#getBigQueryProject--)" to the desired Google Cloud project id.
+### Query execution project
+By default the pipeline executes the query in the Google Cloud project associated with the pipeline (in case of the Dataflow runner it's the project where the pipeline runs). There are cases where the query execution project should be different from the pipeline project. You can define the query execution project by setting the pipeline option [bigQueryProject](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html#getBigQueryProject--) to the desired Google Cloud project id.
 {{< /highlight >}}
 
 ### Using the Storage Read API {#storage-api}
