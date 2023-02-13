@@ -469,6 +469,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def gax_version = "2.22.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.6"
+    // TODO: Remove once google_cloud_platform_libraries_bom includes bigtable 2.19.0 or higher
+    def google_cloud_bigtable_version = "2.19.0"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
     def google_cloud_spanner_version = "6.35.2"
     def google_code_gson_version = "2.9.1"
@@ -597,7 +599,8 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage", // google_cloud_platform_libraries_bom sets version
-        google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable", // google_cloud_platform_libraries_bom sets version
+        google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable:$google_cloud_bigtable_version",
+        google_cloud_bigtable_stats                 : "com.google.cloud:google-cloud-bigtable-stats:$google_cloud_bigtable_version",
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.26.3",
         google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.137.1",
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
@@ -633,6 +636,8 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_census                                 : "io.grpc:grpc-census:$grpc_version",
         grpc_context                                : "io.grpc:grpc-context", // google_cloud_platform_libraries_bom sets version
         grpc_core                                   : "io.grpc:grpc-core", // google_cloud_platform_libraries_bom sets version
+        grpc_google_cloud_bigtable_admin_v2         : "com.google.api.grpc:grpc-google-cloud-bigtable-admin-v2:$google_cloud_bigtable_version",
+        grpc_google_cloud_bigtable_v2               : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$google_cloud_bigtable_version",
         grpc_google_cloud_firestore_v1              : "com.google.api.grpc:grpc-google-cloud-firestore-v1", // google_cloud_platform_libraries_bom sets version
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         grpc_google_cloud_pubsublite_v1             : "com.google.api.grpc:grpc-google-cloud-pubsublite-v1",  // google_cloud_platform_libraries_bom sets version
@@ -706,8 +711,8 @@ class BeamModulePlugin implements Plugin<Project> {
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
         proto_google_cloud_bigquery_storage_v1      : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_bigtable_admin_v2        : "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_bigtable_admin_v2        : "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2:$google_cloud_bigtable_version",
+        proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2:$google_cloud_bigtable_version",
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_firestore_v1             : "com.google.api.grpc:proto-google-cloud-firestore-v1", // google_cloud_platform_libraries_bom sets version
