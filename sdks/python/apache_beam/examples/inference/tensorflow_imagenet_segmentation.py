@@ -30,7 +30,7 @@ from apache_beam.runners.runner import PipelineResult
 
 class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
-  Returns a comma separated string with true label and predicted label.
+  Returns predicted label.
   """
   def process(self, element: PredictionResult) -> Iterable[str]:
     print("prediction result---->: %", element)

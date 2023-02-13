@@ -18,8 +18,8 @@
 # pytype: skip-file
 
 import numpy
-import unittest
 import pytest
+import unittest
 
 try:
   import tensorflow as tf
