@@ -20,10 +20,9 @@ package org.apache.beam.sdk.util;
 import static java.util.Objects.requireNonNull;
 
 import java.lang.reflect.Method;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /** Utilities for working with Byte Buddy. */
 public final class ByteBuddyUtils {
@@ -34,7 +33,7 @@ public final class ByteBuddyUtils {
     try {
       ClassLoadingStrategy<ClassLoader> strategy;
       if (ClassInjector.UsingLookup.isAvailable()) {
-        ClassLoader classLoader = ReflectHelpers.getClassLoader(targetClass.getClassLoader());
+        ClassLoader classLoader = ReflectHelpers.findClassLoader(targetClass.getClassLoader());
         Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles", true, classLoader);
         @SuppressWarnings("nullness") // MethodHandles#lookup accepts null
         Object lookup = methodHandles.getMethod("lookup").invoke(null);
