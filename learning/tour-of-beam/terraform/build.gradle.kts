@@ -69,10 +69,7 @@ tasks {
     register<TerraformTask>("terraformApplyBackend") {
         group = "backend-deploy"
         var pg_router_host = ""
-        var environment = "unknown"
-        if (project.extensions.extraProperties.get("pg_router_host") != null) {
-            pg_router_host = project.extensions.extraProperties.get("pg_router_hots") as String
-        }
+        var environment = ""
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
