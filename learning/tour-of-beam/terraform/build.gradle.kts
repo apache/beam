@@ -169,8 +169,8 @@ tasks.register("getRouterHost") {
             standardOutput = stdout
         }
         pg_router_host = stdout.toString().trim().replace("\"", "")
-        project.extensions.extraProperties.set("pg_router_host", pg_router_host)
         stdout = ByteArrayOutputStream()
+        println("GKE cluster zone retrieved successfully: $pg_router_host")
     }
 }
 
