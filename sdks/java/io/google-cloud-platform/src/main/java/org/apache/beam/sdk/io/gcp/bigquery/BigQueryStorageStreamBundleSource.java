@@ -62,18 +62,18 @@ import org.slf4j.LoggerFactory;
  * handles the split operation by checking the validity of the split point. This has the following
  * implications for the `splitAtFraction()` operation:
  *
- * 1. Fraction values that point to the "middle" of a Stream will be translated to the appropriate
- * Stream boundary by the RangeTracker.
+ * <p>1. Fraction values that point to the "middle" of a Stream will be translated to the
+ * appropriate Stream boundary by the RangeTracker.
  *
- * 2. Once a Stream is being read from, the RangeTracker will only accept `splitAtFraction()` calls
- * that point to StreamBundleIndices that are greater than the StreamBundleIndex of the current
- * Stream</p>
+ * <p>2. Once a Stream is being read from, the RangeTracker will only accept `splitAtFraction()`
+ * calls that point to StreamBundleIndices that are greater than the StreamBundleIndex of the
+ * current Stream
  *
  * @param <T> Type of records represented by the source.
  * @see OffsetBasedSource
  * @see org.apache.beam.sdk.io.range.OffsetRangeTracker
- * @see org.apache.beam.sdk.io.OffsetBasedSource
- * (semantically similar to {@link BigQueryStorageStreamBundleSource})
+ * @see org.apache.beam.sdk.io.OffsetBasedSource (semantically similar to {@link
+ *     BigQueryStorageStreamBundleSource})
  */
 class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
