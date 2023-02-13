@@ -123,7 +123,7 @@ tasks.register("getGKEClusterName") {
         val outputFile = File.createTempFile("gke_cluster_name", ".tmp")
         exec {
             executable("gcloud")
-            args("container", "clusters", "list")
+            args("container", "clusters", "list", "--format=value(name)")
             standardOutput = java.io.FileOutputStream(outputFile)
         }
         val gke_cluster_name = outputFile.readText().trim()
