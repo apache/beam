@@ -18,6 +18,7 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
 import 'auth/notifier.dart';
 import 'cache/content_tree.dart';
@@ -52,12 +53,12 @@ void _initializeCaches() {
 }
 
 void _initializeState() {
-  GetIt.instance.registerSingleton(AppNotifier());
-  GetIt.instance.registerSingleton(
-    PageStack(
-      bottomPage: WelcomePage(),
-      createPage: PageFactory.createPage,
-      routeInformationParser: TobRouteInformationParser(),
-    ),
+  final pageStack = PageStack(
+    bottomPage: WelcomePage(),
+    createPage: PageFactory.createPage,
+    routeInformationParser: TobRouteInformationParser(),
   );
+  GetIt.instance.registerSingleton(AppNotifier());
+  GetIt.instance.registerSingleton(pageStack);
+  GetIt.instance.registerSingleton(BeamRouterDelegate(pageStack));
 }

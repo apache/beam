@@ -89,18 +89,13 @@ class _Info extends StatelessWidget {
   }
 }
 
-class _Buttons extends StatefulWidget {
+class _Buttons extends StatelessWidget {
   final VoidCallback closeOverlayCallback;
 
   const _Buttons({
     required this.closeOverlayCallback,
   });
 
-  @override
-  State<_Buttons> createState() => _ButtonsState();
-}
-
-class _ButtonsState extends State<_Buttons> {
   @override
   Widget build(BuildContext context) {
     final authNotifier = GetIt.instance.get<AuthNotifier>();
@@ -123,7 +118,7 @@ class _ButtonsState extends State<_Buttons> {
         _IconLabel(
           onTap: () async {
             await authNotifier.logOut();
-            widget.closeOverlayCallback();
+            closeOverlayCallback();
           },
           iconPath: Assets.svg.profileLogout,
           label: 'ui.signOut'.tr(),
@@ -131,17 +126,18 @@ class _ButtonsState extends State<_Buttons> {
         const BeamDivider(),
         _IconLabel(
           onTap: () async {
-            widget.closeOverlayCallback();
+            closeOverlayCallback();
             final confirmed = await ConfirmDialog.show(
               context: context,
               confirmButtonText: 'ui.deleteMyAccount'.tr(),
               subtitle: 'dialogs.deleteAccountWarning'.tr(),
               title: 'ui.deleteTobAccount'.tr(),
             );
-            if (confirmed && mounted) {
-              await BeamOverlays.showProgressOverlay(
-                this.context,
-                authNotifier.deleteAccount(),
+            if (confirmed) {
+              ProgressDialog.show(
+                future: authNotifier.deleteAccount(),
+                navigatorKey:
+                    GetIt.instance.get<BeamRouterDelegate>().navigatorKey!,
               );
             }
           },

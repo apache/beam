@@ -16,32 +16,42 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import '../../../playground_components.dart';
+class ProgressDialog extends StatelessWidget {
+  const ProgressDialog();
 
-/// Groups common overlays.
-class BeamOverlays {
-  /// Shows an overlay with [CircularProgressIndicator]
-  /// until [future] completes.
-  static Future<void> showProgressOverlay(
-    BuildContext context,
-    Future future,
-  ) async {
-    final closeNotifier = PublicNotifier();
-    showOverlay(
-      context: context,
-      closeNotifier: closeNotifier,
-      barrierDismissible: false,
-      positioned: Positioned.fill(
-        child: Container(
-          alignment: Alignment.center,
-          color: Theme.of(context).dialogBackgroundColor.withOpacity(0.2),
-          child: const CircularProgressIndicator(),
-        ),
+  static void show({
+    required Future future,
+    required GlobalKey<NavigatorState> navigatorKey,
+  }) {
+    var shown = true;
+    unawaited(
+      showDialog(
+        context: navigatorKey.currentContext!,
+        builder: (_) => const ProgressDialog(),
+      ).whenComplete(() {
+        shown = false;
+      }),
+    );
+    unawaited(
+      future.whenComplete(() {
+        if (shown) {
+          navigatorKey.currentState!.pop();
+        }
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Dialog(
+      backgroundColor: Colors.transparent,
+      child: Center(
+        child: CircularProgressIndicator(),
       ),
     );
-    await future;
-    closeNotifier.notifyPublic();
   }
 }
