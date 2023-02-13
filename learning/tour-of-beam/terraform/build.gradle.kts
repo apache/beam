@@ -99,9 +99,6 @@ tasks {
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
-          else {
-            environment
-          }
         args(
                 "apply",
                 "-auto-approve",
@@ -178,7 +175,7 @@ tasks.register("getRouterHost") {
     var pg_router_host = ""
     var stdout = ByteArrayOutputStream()
     doLast{
-        val result = exec {
+        exec {
             executable("kubectl")
             args("get", "svc", "-l", "app=backend-router-grpc", "-o", "jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'")
             standardOutput = stdout
@@ -202,10 +199,6 @@ tasks.register("indexcreate") {
 
 tasks.register("populateDatastore") {
     group = "backend-deploy"
-    var environment = "unknown"
-    if (project.hasProperty("project_environment")) {
-        environment = project.property("project_environment") as String
-    }
     doLast {
         val projectId = System.getProperty("projectId") ?: throw IllegalStateException("projectId must be set")
         System.setProperty("DATASTORE_PROJECT_ID", projectId)
