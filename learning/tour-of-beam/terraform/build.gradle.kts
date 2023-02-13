@@ -116,24 +116,17 @@ tasks {
 
 tasks.register("getGKEClusterName") {
     group = "backend-deploy"
+    var stdout = ByteArrayOutputStream()
+    var gkeClusterName = ""
     doLast {
-        try {
-            val outputFile = createTempFile("gkeClusterName", ".tmp")
             exec {
                 commandLine("gcloud", "container", "clusters", "list", "--format=value(name)")
-                standardOutput = outputFile.outputStream()
-                Thread.sleep(5000)
+                standardOutput = stdout
             }
-            val gkeClusterName = outputFile.readText().trim()
-            project.rootProject.extra["gkeClusterName"] = gkeClusterName
-            logger.info("GKE cluster name retrieved successfully: $gkeClusterName")
-            outputFile.delete()
-        } catch (e: Exception) {
-            logger.error("Error retrieving GKE cluster name: ${e.message}")
-            throw GradleException("Error retrieving GKE cluster name: ${e.message}")
+            gkeClusterName = stdout.toString().trim().replace("\"", "")
+            stdout = ByteArrayOutputStream()
         }
     }
-}
 
 tasks.register("getGKEClusterZone") {
     group = "backend-deploy"
