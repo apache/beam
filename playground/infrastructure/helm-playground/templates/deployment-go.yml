@@ -41,8 +41,6 @@ spec:
            value: {{ .Values.redis_ip }}
          - name: NUM_PARALLEL_JOBS
            value: "10"
-         - name: "http_proxy"
-           value: $PLAYGROUND_MITM_SERVICE_HOST
        livenessProbe:
          httpGet:
            path: /liveness
