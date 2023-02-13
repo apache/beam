@@ -148,6 +148,9 @@ tasks.register("getCredentials") {
     var gkeClusterName = ""
     var gkeClusterZone = ""
     var projectId = ""
+    if (project.hasProperty("project_id")) {
+        projectId = project.property("project_id") as String
+    }
     doLast {
         exec {
             commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone, "--project", "$projectId")
