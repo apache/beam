@@ -122,6 +122,7 @@ class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
   def __init__(self, device, *, inference_fn=default_tensor_inference_fn):
     self._device = device
     self._inference_fn = inference_fn
+    self._state_dict_path = None
 
 
 class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
@@ -129,6 +130,7 @@ class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
   def __init__(self, device, *, inference_fn=default_keyed_tensor_inference_fn):
     self._device = device
     self._inference_fn = inference_fn
+    self._state_dict_path = None
 
 
 def _compare_prediction_result(x, y):
@@ -149,7 +151,8 @@ def _compare_prediction_result(x, y):
   return torch.equal(x.inference, y.inference)
 
 
-def custom_tensor_inference_fn(batch, model, device, inference_args):
+def custom_tensor_inference_fn(
+    batch, model, device, inference_args, model_id=None):
   predictions = [
       PredictionResult(ex, pred) for ex,
       pred in zip(

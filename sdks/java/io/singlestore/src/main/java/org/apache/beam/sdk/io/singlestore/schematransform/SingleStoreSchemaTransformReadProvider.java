@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.singlestore.schematransform;
 
+import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.singlestore.SingleStoreIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -33,6 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
  * An implementation of {@link TypedSchemaTransformProvider} for SingleStoreDB read jobs configured
  * using {@link SingleStoreSchemaTransformReadConfiguration}.
  */
+@AutoService(SchemaTransformProvider.class)
 public class SingleStoreSchemaTransformReadProvider
     extends TypedSchemaTransformProvider<SingleStoreSchemaTransformReadConfiguration> {
   private static final String OUTPUT_TAG = "OUTPUT";
