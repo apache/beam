@@ -67,5 +67,5 @@ org.eclipse.jgit:
     type: "Eclipse Distribution License - v1.0"
 zstd-jni:
   '1.5.2-5':
-    license: "https://github.com/luben/zstd-jni/blob/master/LICENSE"
+    license: "https://raw.githubusercontent.com/luben/zstd-jni/master/LICENSE"
     type: "2-Clause BSD"
