@@ -158,10 +158,8 @@ tasks.register("getGKEClusterZone") {
 }
 
 tasks.register("getCredentials") {
-    dependsOn("getGKEClusterName")
-    dependsOn("getGKEClusterZone")
-    mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName")
-    mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterZone")
+    dependsOn("getGKEClusterName", "getGKEClusterZone")
+    mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName", ":learning:tour-of-beam:terraform:getGKEClusterZone")
     group = "backend-deploy"
     val gkeClusterName = extra["gkeClusterName"] as? String ?: throw GradleException("gke_cluster_name property not found")
     val gkeClusterZone = extra["gkeClusterZone"] as? String ?: throw GradleException("gkeClusterZone property not found")
