@@ -150,7 +150,7 @@ tasks.register("getCredentials") {
     group = "backend-deploy"
     var gkeClusterName = ""
     var gkeClusterZone = ""
-    val projectId = property("projectId") as? String ?: throw GradleException("projectId property not found")
+    var projectId = ""
     doLast {
         exec {
             commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone, "--project", projectId)
