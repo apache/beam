@@ -766,7 +766,7 @@ class UtilTest(unittest.TestCase):
         '--transform_name_mapping',
         '{\"from\":\"to\"}'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertIsNotNone(job.proto.transformNameMapping)
 
   def test_created_from_snapshot_id(self):
@@ -780,7 +780,7 @@ class UtilTest(unittest.TestCase):
         '--create_from_snapshot',
         'test_snapshot_id'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertEqual('test_snapshot_id', job.proto.createdFromSnapshotId)
 
   def test_labels(self):
@@ -792,7 +792,7 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://test-location/temp'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertIsNone(job.proto.labels)
 
     pipeline_options = PipelineOptions([
@@ -813,7 +813,7 @@ class UtilTest(unittest.TestCase):
         '--labels',
         'key5'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertEqual(5, len(job.proto.labels.additionalProperties))
     self.assertEqual('key1', job.proto.labels.additionalProperties[0].key)
     self.assertEqual('value1', job.proto.labels.additionalProperties[0].value)
@@ -983,7 +983,7 @@ class UtilTest(unittest.TestCase):
         '--experiments',
         'upload_graph'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
     with mock.patch.object(client, 'stage_file', side_effect=None):
@@ -1006,7 +1006,7 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://test-location/temp',
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
@@ -1048,7 +1048,7 @@ class UtilTest(unittest.TestCase):
     with mock.patch('apache_beam.runners.dataflow.internal.apiclient.Job.'
                     'job_id_for_name',
                     return_value=replace_job_id) as job_id_for_name_mock:
-      job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+      job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     job_id_for_name_mock.assert_called_once()
 
     self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
@@ -1090,7 +1090,7 @@ class UtilTest(unittest.TestCase):
         '--template_location',
         'gs://test-location/template'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     job.proto.steps.append(dataflow.Step(name='test_step_name'))
 
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
