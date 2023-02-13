@@ -117,14 +117,14 @@ tasks {
     }
 }
 
-tasks.register("getGKEClusterName") {
+tasks.register("getGKEClusterName", DefaultTask::class) {
     group = "backend-deploy"
     doLast {
         val outputFile = File.createTempFile("gke_cluster_name", ".tmp")
         exec {
             executable("gcloud")
             args("container", "clusters", "list", "--format=value(name)")
-            standardOutput = java.io.FileOutputStream(outputFile)
+            standardOutput = java.io.FileOutputStream(outputFile as File)
         }
         val gke_cluster_name = outputFile.readText().trim()
         project.extensions.extraProperties.set("gke_cluster_name", gke_cluster_name)
@@ -133,13 +133,12 @@ tasks.register("getGKEClusterName") {
 
 tasks.register("getGKEClusterZone") {
     group = "backend-deploy"
-    var gke_cluster_name = ""
     doLast {
         val outputFile = File.createTempFile("gke_cluster_zone", ".tmp")
         exec {
             executable("gcloud")
-        args("container", "clusters", "list", "--format=value(zone)")
-        standardOutput = java.io.FileOutputStream(outputFile)
+            args("container", "clusters", "list", "--format=value(zone)")
+        standardOutput = java.io.FileOutputStream(outputFile as File)
         }
         val gke_zone = outputFile.readText().trim()
         project.extensions.extraProperties.set("gke_zone", gke_zone)
@@ -148,22 +147,16 @@ tasks.register("getGKEClusterZone") {
 
 tasks.register("getCredentials") {
     group = "backend-deploy"
-    var gke_cluster_name = ""
-    var gke_zone = ""
+    val gke_cluster_name = project.extensions.extraProperties["gke_cluster_name"] as String
+    val gke_zone = project.extensions.extraProperties["gke_zone"] as String
     var projectId = "unknown"
-    if (project.extensions.extraProperties.get("gke_cluster_name") != null) {
-        gke_cluster_name = project.extensions.extraProperties.get("gke_cluster_name") as String
-    }
-    if (project.extensions.extraProperties.get("gke_zone") != null) {
-        gke_zone = project.extensions.extraProperties.get("gke_zone") as String
-    }
     if (project.hasProperty("projectId")) {
         projectId = project.property("projectId") as String
     }
     doLast{
         exec {
             executable("gcloud")
-            args("container", "clusters", "get-credentials", "$gke_cluster_name", "--zone $gke_zone", "--project $projectId")
+            args("container", "clusters", "get-credentials", "${gke_cluster_name}", "--zone ${gke_zone}", "--project ${projectId}")
         }
     }
 }
