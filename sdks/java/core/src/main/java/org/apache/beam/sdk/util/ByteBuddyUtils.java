@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import static java.util.Objects.requireNonNull;
 
 import java.lang.reflect.Method;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
