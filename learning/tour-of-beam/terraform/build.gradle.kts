@@ -134,14 +134,20 @@ tasks.register("getGKEClusterName", DefaultTask::class) {
 tasks.register("getGKEClusterZone") {
     group = "backend-deploy"
     doLast {
-        val outputFile = File.createTempFile("gke_cluster_zone", ".tmp")
-        exec {
-            executable("gcloud")
-            args("container", "clusters", "list", "--format=value(zone)")
-        standardOutput = java.io.FileOutputStream(outputFile as File)
+        try {
+            val outputFile = File.createTempFile("gke_cluster_zone", ".tmp")
+            exec {
+                executable("gcloud")
+                args("container", "clusters", "list", "--format=value(zone)")
+                standardOutput = java.io.FileOutputStream(outputFile as File)
+            }
+            val gke_zone = outputFile.readText().trim()
+            project.extensions.extraProperties.set("gke_zone", gke_zone)
+            logger.info("GKE cluster zone retrieved successfully: $gke_zone")
+        } catch (e: Exception) {
+            logger.error("Error retrieving GKE cluster zone: ${e.message}")
+            throw e
         }
-        val gke_zone = outputFile.readText().trim()
-        project.extensions.extraProperties.set("gke_zone", gke_zone)
     }
 }
 
