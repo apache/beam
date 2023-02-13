@@ -55,11 +55,16 @@ class RowTest(unittest.TestCase):
     row = Row(a=1, b=2)
     same = Row(a=1, b=2)
     self.assertEqual(row, same)
-  
+
   def test_trailing_column_row_neq(self):
     row = Row(a=1, b=2)
     trail = Row(a=1, b=2, c=3)
     self.assertNotEqual(row, trail)
+
+  def test_row_comparison_respects_element_order(self):
+    row = Row(a=1, b=2)
+    different = Row(b=2, a=1)
+    self.assertNotEqual(row, different)
 
 
 if __name__ == '__main__':
