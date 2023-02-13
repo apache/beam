@@ -122,6 +122,7 @@ tasks.register("getGKEClusterName") {
             exec {
                 commandLine("gcloud", "container", "clusters", "list", "--format=value(name)")
                 standardOutput = outputFile.outputStream()
+                Thread.sleep(5000)
             }
             val gkeClusterName = outputFile.readText().trim()
             extra["gkeClusterName"] = gkeClusterName
@@ -142,6 +143,7 @@ tasks.register("getGKEClusterZone") {
             exec {
                 commandLine("gcloud", "container", "clusters", "list", "--format=value(zone)")
                 standardOutput = outputFile.outputStream()
+                Thread.sleep(5000)
             }
             val gkeClusterZone = outputFile.readText().trim()
             extra["gkeClusterZone"] = gkeClusterZone
