@@ -29,10 +29,10 @@ const _noGraphSdks = [Sdk.go, Sdk.scio];
 class ExampleDescriptor {
   static const _schemaAndHost = 'https://raw.githubusercontent.com/';
 
-  static const _defaultRepositoryAndRef = 'apache/beam/master';
+  // static const _defaultRepositoryAndRef = 'apache/beam/master';
   // If running before this is deployed, change to this:
-  // static const _defaultRepositoryAndRef =
-  //     'akvelon/beam/issue24959_test-loading-url';
+  static const _defaultRepositoryAndRef =
+      'akvelon/beam/issue24959_test-loading-url';
 
   const ExampleDescriptor(
     this.name, {
