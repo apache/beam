@@ -31,7 +31,7 @@ spec:
     protocol: TCP
     targetPort: {{ .Values.service.targetPort }}
   - name: HTTP
-    port: 8080
+    port: 808
     protocol: HTTP
     targetPort: {{ .Values.service.targetPort }}
   selector:
