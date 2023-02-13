@@ -120,14 +120,20 @@ tasks {
 tasks.register("getGKEClusterName", DefaultTask::class) {
     group = "backend-deploy"
     doLast {
-        val outputFile = File.createTempFile("gke_cluster_name", ".tmp")
-        exec {
-            executable("gcloud")
-            args("container", "clusters", "list", "--format=value(name)")
-            standardOutput = java.io.FileOutputStream(outputFile as File)
+        try {
+            val outputFile = File.createTempFile("gke_cluster_name", ".tmp")
+            exec {
+                executable("gcloud")
+                args("container", "clusters", "list", "--format=value(name)")
+                standardOutput = java.io.FileOutputStream(outputFile as File)
+            }
+            val gke_cluster_name = outputFile.readText().trim()
+            project.extensions.extraProperties.set("gke_cluster_name", gke_cluster_name)
+            logger.info("GKE cluster name retrieved successfully: $gke_cluster_name")
+        } catch (e: Exception) {
+            logger.error("Error retrieving GKE cluster name: ${e.message}")
+            throw e
         }
-        val gke_cluster_name = outputFile.readText().trim()
-        project.extensions.extraProperties.set("gke_cluster_name", gke_cluster_name)
     }
 }
 
