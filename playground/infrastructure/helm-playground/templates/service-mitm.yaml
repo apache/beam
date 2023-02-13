@@ -28,11 +28,11 @@ spec:
   ports:
   - name: tcp
     port: 8080
-    protocol: tcp
+    protocol: TCP
     targetPort: {{ .Values.service.targetPort }}
-  - name: HTTP
-    port: 443
-    protocol: https
+  - name: http
+    port: 8080
+    protocol: http
     targetPort: {{ .Values.service.targetPort }}
   selector:
     app: backend-mitm
