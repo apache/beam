@@ -94,7 +94,7 @@ public class FnHarness {
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
   private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
-  private static DataSampler dataSampler = new DataSampler();
+  private static final DataSampler dataSampler = new DataSampler();
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor)
       throws TextFormat.ParseException {
