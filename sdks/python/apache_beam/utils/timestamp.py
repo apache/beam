@@ -104,7 +104,10 @@ class Timestamp(object):
       dt: A ``datetime.datetime`` object in UTC (offset-aware).
     """
     if dt.tzinfo is None:
-      raise ValueError('dt has no timezone info (https://docs.python.org/3/library/datetime.html#datetime.tzinfo:~:text=For%20applications%20requiring,is%20in%20effect.): %s' % dt)
+      raise ValueError(
+          "dt has no timezone info " +
+          "(https://docs.python.org/3/library/datetime.html#datetime.tzinfo" +
+          ":~:text=For%20applications%20requiring,is%20in%20effect.): %s" % dt)
     if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc:
       raise ValueError('dt not in UTC: %s' % dt)
     duration = dt - cls._epoch_datetime_utc()
