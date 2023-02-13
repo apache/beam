@@ -101,7 +101,8 @@ public class OutputSampler<T> {
     List<T> copiedBuffer;
     synchronized (this) {
       copiedBuffer = new ArrayList<>(buffer);
-      clear();
+      buffer.clear();
+      resampleIndex = 0;
     }
 
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -120,10 +121,5 @@ public class OutputSampler<T> {
     }
 
     return ret;
-  }
-
-  private void clear() {
-    buffer.clear();
-    resampleIndex = 0;
   }
 }
