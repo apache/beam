@@ -35,6 +35,8 @@ void main() {
       final sdk = entry.key;
       final example = entry.value;
 
+      print('${sdk.id}: ${example.path}');
+
       if (sdk != playgroundController.sdk) {
         await wt.changeSdk(sdk);
       }
