@@ -114,7 +114,7 @@ tasks {
     }
 }
 
-tasks.register("getGKEClusterName", DefaultTask::class) {
+tasks.register("getGKEClusterName") {
     group = "backend-deploy"
     doLast {
         try {
@@ -145,7 +145,7 @@ tasks.register("getGKEClusterZone") {
             }
             val gkeClusterZone = outputFile.readText().trim()
             extra["gkeClusterZone"] = gkeClusterZone
-            logger.info("GKE cluster zone retrieved successfully: $gkeClusterZone")
+            println("GKE cluster zone retrieved successfully: $gkeClusterZone")
             outputFile.delete()
         } catch (e: Exception) {
             logger.error("Error retrieving GKE cluster zone: ${e.message}")
@@ -269,8 +269,11 @@ tasks.register("InitBackend") {
     val tfApplyBackend = tasks.getByName("terraformApplyBackend")
     val initDatastore = tasks.getByName("populateDatastore")
     dependsOn(getGkeName)
+    Thread.sleep(10)
     dependsOn(getGkeZone)
+    Thread.sleep(10)
     dependsOn(getCreds)
+    Thread.sleep(10)
     dependsOn(getRouterHost)
     dependsOn(indexCreate)
     dependsOn(tfInit)
