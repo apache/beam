@@ -57,7 +57,7 @@ public class DataSamplerTest {
   BeamFnApi.InstructionResponse getAllSamples(DataSampler dataSampler) {
     BeamFnApi.InstructionRequest request =
         BeamFnApi.InstructionRequest.newBuilder()
-            .setSample(BeamFnApi.SampleDataRequest.newBuilder().build())
+            .setSampleData(BeamFnApi.SampleDataRequest.newBuilder().build())
             .build();
     return dataSampler.handleDataSampleRequest(request).build();
   }
@@ -66,7 +66,7 @@ public class DataSamplerTest {
       DataSampler dataSampler, String pcollection) {
     BeamFnApi.InstructionRequest request =
         BeamFnApi.InstructionRequest.newBuilder()
-            .setSample(
+            .setSampleData(
                 BeamFnApi.SampleDataRequest.newBuilder().addPcollectionIds(pcollection).build())
             .build();
     return dataSampler.handleDataSampleRequest(request).build();
@@ -76,7 +76,7 @@ public class DataSamplerTest {
       DataSampler dataSampler, Iterable<String> pcollections) {
     BeamFnApi.InstructionRequest request =
         BeamFnApi.InstructionRequest.newBuilder()
-            .setSample(
+            .setSampleData(
                 BeamFnApi.SampleDataRequest.newBuilder().addAllPcollectionIds(pcollections).build())
             .build();
     return dataSampler.handleDataSampleRequest(request).build();
@@ -85,7 +85,7 @@ public class DataSamplerTest {
   void assertHasSamples(
       BeamFnApi.InstructionResponse response, String pcollection, Iterable<byte[]> elements) {
     Map<String, BeamFnApi.SampleDataResponse.ElementList> elementSamplesMap =
-        response.getSample().getElementSamplesMap();
+        response.getSampleData().getElementSamplesMap();
 
     assertFalse(elementSamplesMap.isEmpty());
 
@@ -189,7 +189,7 @@ public class DataSamplerTest {
     generateStringSamples(sampler);
 
     BeamFnApi.InstructionResponse samples = getSamplesForPCollections(sampler, pcollectionIds);
-    assertThat(samples.getSample().getElementSamplesMap().size(), equalTo(2));
+    assertThat(samples.getSampleData().getElementSamplesMap().size(), equalTo(2));
     assertHasSamples(samples, "a", ImmutableList.of(encodeString("a1"), encodeString("a2")));
     assertHasSamples(samples, "c", ImmutableList.of(encodeString("c1"), encodeString("c2")));
   }

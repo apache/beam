@@ -165,7 +165,6 @@ public class ProcessBundleHandler {
   private final Cache<Object, Object> processWideCache;
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
   private final Set<String> runnerCapabilities;
-
   private final @Nullable DataSampler dataSampler;
 
   public ProcessBundleHandler(
