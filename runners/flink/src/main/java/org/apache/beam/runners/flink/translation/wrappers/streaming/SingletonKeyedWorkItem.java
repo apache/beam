@@ -51,4 +51,9 @@ public class SingletonKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT>
   public Iterable<WindowedValue<ElemT>> elementsIterable() {
     return Collections.singletonList(value);
   }
+
+  @Override
+  public String toString() {
+    return String.format("{%s, [%s]}", key, value);
+  }
 }
