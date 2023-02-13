@@ -428,6 +428,7 @@ This writes the output to the output file path with contents like:
 A comedy-drama of nearly epic proportions rooted in a sincere performance by the title character undergoing midlife crisis .;1
 ```
 
+---
 ## MNIST digit classification with Tensorflow
 [`tensorflow_mnist_classification.py`](./tensorflow_mnist_classification.py) contains an implementation for a RunInference pipeline that performs image classification on handwritten digits from the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
 
@@ -476,3 +477,49 @@ This writes the output to the `predictions.txt` with contents like:
 ...
 ```
 Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
+
+---
+## Image segmentation with Tensorflow and TensorflowHub
+
+[`tensorflow_image_segmentation.py`](./tensorflow_image_segmentation.py) contains an implementation for a RunInference pipeline that performs image segementation using the [`mobilenet_v2`]("https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4") architecture from the tensorflow hub.
+
+The pipeline reads images, performs basic preprocessing, passes the images to the Tensorflow implementation of RunInference, and then writes predictions to a text file.
+
+### Dataset and model for image segmentation
+
+To use this transform, you need a dataset and model for image segmentation.
+
+1. Create a directory named `IMAGE_DIR`. Create or download images and put them in this directory. We
+will use the [example image]("https://storage.googleapis.com/download.tensorflow.org/example_images/") on tensorflow.
+2. Create a file named `IMAGE_FILE_NAMES.txt` that names of each of the images in `IMAGE_DIR` that you want to use to run image segmentation. For example:
+```
+grace_hopper.jpg
+```
+3. A tensorflow `MODEL_PATH`, we will use the [mobilenet]("https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4") model.
+4. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
+
+### Running `tensorflow_image_segmentation.py`
+
+To run the image segmentation pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.tensorflow_image_segmentation \
+  --input IMAGE_FILE_NAMES \
+  --image_dir IMAGES_DIR \
+  --output OUTPUT \
+  --model_path MODEL_PATH
+```
+
+For example, if you've followed the naming conventions recommended above:
+```sh
+python -m apache_beam.examples.inference.tensorflow_image_segmentation \
+  --input IMAGE_FILE_NAMES.txt \
+  --image_dir "https://storage.googleapis.com/download.tensorflow.org/example_images/"
+  --output predictions.txt \
+  --model_path "https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4"
+```
+This writes the output to the `predictions.txt` with contents like:
+```
+background
+...
+```
+Each line has a list of predicted label.

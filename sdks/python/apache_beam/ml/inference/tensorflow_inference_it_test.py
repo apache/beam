@@ -23,6 +23,7 @@ import unittest
 import uuid
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.examples.inference import tensorflow_imagenet_segmentation
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
@@ -76,6 +77,33 @@ class TensorflowInference(unittest.TestCase):
     for i in range(len(expected_outputs)):
       true_label, expected_prediction = expected_outputs[i].split(',')
       self.assertEqual(predictions_dict[true_label], expected_prediction)
+
+  def test_tf_imagenet_image_classification(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    input_file = 'gs://clouddfe-riteshghorse/tf/imagenet/input/input_labels.txt'  # pylint: disable=line-too-long
+    image_dir = 'https://storage.googleapis.com/download.tensorflow.org/example_images/'  # pylint: disable=line-too-long
+    output_file_dir = 'gs://clouddfe-riteshghorse/tf/imagenet/output'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+    model_path = 'https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4'  # pylint: disable=line-too-long
+    extra_opts = {
+        'input': input_file,
+        'output': output_file,
+        'model_path': model_path,
+        'image_dir': image_dir
+    }
+    tensorflow_imagenet_segmentation.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+    self.assertEqual(FileSystems().exists(output_file), True)
+
+    expected_output_filepath = 'gs://clouddfe-riteshghorse/tf/imagenet/output/actuals.txt'  # pylint: disable=line-too-long
+    expected_outputs = process_outputs(expected_output_filepath)
+
+    predicted_outputs = process_outputs(output_file)
+    self.assertEqual(len(expected_outputs), len(predicted_outputs))
+
+    for true_label, predicted_label in zip(expected_outputs, predicted_outputs):
+      self.assertEqual(true_label, predicted_label)
 
 
 if __name__ == '__main__':

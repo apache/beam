@@ -66,8 +66,11 @@ def default_numpy_inference_fn(
     inference_args: Optional[Dict[str, Any]] = None,
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = numpy.stack(batch, axis=0)
-  return utils._convert_to_result(
-      batch, model.predict(vectorized_batch, **inference_args), model_id)
+  if inference_args:
+    predictions = model(vectorized_batch, **inference_args)
+  else:
+    predictions = model(vectorized_batch)
+  return utils._convert_to_result(batch, predictions, model_id)
 
 
 def default_tensor_inference_fn(
@@ -76,8 +79,11 @@ def default_tensor_inference_fn(
     inference_args: Optional[Dict[str, Any]] = None,
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = tf.stack(batch, axis=0)
-  return utils._convert_to_result(
-      batch, model.predict(vectorized_batch, **inference_args), model_id)
+  if inference_args:
+    predictions = model(vectorized_batch, **inference_args)
+  else:
+    predictions = model(vectorized_batch)
+  return utils._convert_to_result(batch, predictions, model_id)
 
 
 class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
