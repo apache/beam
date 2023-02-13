@@ -90,14 +90,14 @@ do
       cd -
       if [ $checker_status -eq 0 ]
       then
-          echo "Checker has found changed examples for ${sdk^^}" >> ${1}
+          echo "Checker has found changed examples for ${sdk^^}" >> ${log_location}
           example_has_changed=True
       elif [ $checker_status -eq 11 ]
       then
-          echo "Checker has not found changed examples for ${sdk^^}" >> ${1}
+          echo "Checker has not found changed examples for ${sdk^^}" >> ${log_location}
           example_has_changed=False
       else
-          echo "Error: Checker is broken" >> ${1}
+          echo "Error: Checker is broken" >> ${log_location}
           exit 1
       fi
 
@@ -150,12 +150,12 @@ do
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
-            --subdirs ${SUBDIRS} >> ${1}
+            --subdirs ${SUBDIRS} >> ${log_location} 2>&1
 
             docker stop container-${sdk}
             docker rm container-${sdk}
             cd -
       else
-            echo "No changes in examples. CI stage is skipped" >> ${1}
+            echo "No changes in examples. CI stage is skipped" >> ${log_location}
       fi
 done
