@@ -67,6 +67,7 @@ tasks {
     }
 
     register<TerraformTask>("terraformApplyBackend") {
+        group = "backend-deploy"
         var pg_router_host = ""
         var environment = "unknown"
         if (project.extensions.extraProperties.get("pg_router_host") != null) {
@@ -117,6 +118,7 @@ tasks {
 }
 
 tasks.register("getGKEClusterName") {
+    group = "backend-deploy"
     doLast {
         val outputFile = File.createTempFile("gke_cluster_name", ".tmp")
         exec {
@@ -130,13 +132,14 @@ tasks.register("getGKEClusterName") {
 }
 
 tasks.register("getGKEClusterZone") {
+    group = "backend-deploy"
     var gke_cluster_name = ""
     doLast {
         val outputFile = File.createTempFile("gke_cluster_zone", ".tmp")
         exec {
             executable("gcloud")
-            args("container", "clusters", "describe", "$gke_cluster_name", "--format='value(zone)'")
-            standardOutput = java.io.FileOutputStream(outputFile)
+        args("container", "clusters", "describe", "$gke_cluster_name", "--format='value(zone)'")
+        standardOutput = java.io.FileOutputStream(outputFile)
         }
         val gke_zone = outputFile.readText().trim()
         project.extensions.extraProperties.set("gke_zone", gke_zone)
@@ -144,14 +147,15 @@ tasks.register("getGKEClusterZone") {
 }
 
 tasks.register("getCredentials") {
+    group = "backend-deploy"
     var gke_cluster_name = ""
-    var gke_zone = "unknown"
+    var gke_zone = ""
     var projectId = "unknown"
     if (project.extensions.extraProperties.get("gke_cluster_name") != null) {
         gke_cluster_name = project.extensions.extraProperties.get("gke_cluster_name") as String
     }
     if (project.extensions.extraProperties.get("gke_zone") != null) {
-        gke_cluster_name = project.extensions.extraProperties.get("gke_zone") as String
+        gke_zone = project.extensions.extraProperties.get("gke_zone") as String
     }
     if (project.hasProperty("projectId")) {
         projectId = project.property("projectId") as String
@@ -165,6 +169,7 @@ tasks.register("getCredentials") {
 }
 
 tasks.register("getRouterHost") {
+    group = "backend-deploy"
     var pg_router_host = ""
     var stdout = ByteArrayOutputStream()
     doLast{
@@ -180,7 +185,7 @@ tasks.register("getRouterHost") {
 }
 
 tasks.register("indexcreate") {
-    group = "deploy"
+    group = "backend-deploy"
     val indexpath = "../backend/internal/storage/index.yaml"
     doLast{
         exec {
@@ -191,6 +196,7 @@ tasks.register("indexcreate") {
 }
 
 tasks.register("populateDatastore") {
+    group = "backend-deploy"
     var environment = "unknown"
     if (project.hasProperty("project_environment")) {
         environment = project.property("project_environment") as String
@@ -209,15 +215,8 @@ tasks.register("populateDatastore") {
             }
         }
 
-        tasks.register("readState") {
-            group = "deploy"
-            dependsOn(":learning:tour-of-beam:terraform:terraformInit")
-            dependsOn(":learning:tour-of-beam:terraform:terraformRef")
-        }
-
-
         tasks.register("prepareConfig") {
-            group = "deploy"
+            group = "frontend-deploy"
             doLast {
                 var dns_name = ""
                 var region = ""
@@ -260,18 +259,31 @@ const String kApiScioClientURL =
             }
         }
 
-        /* initialization infrastructure */
-        tasks.register("InitInfrastructure") {
-            group = "deploy"
-            description = "initialization infrastructure"
-            val init = tasks.getByName("terraformInit")
-            val apply = tasks.getByName("terraformApply")
-            val prepare = tasks.getByName("prepareConfig")
-            dependsOn(init)
-            dependsOn(apply)
-            dependsOn(prepare)
-            apply.mustRunAfter(init)
-            prepare.mustRunAfter(apply)
-        }
-    }
+/* Tour of Beam backend init */
+tasks.register("InitBackend") {
+    group = "backend-deploy"
+    description = "ToB Backend Init"
+    val getGkeName = tasks.getByName("getGKEClusterName")
+    val getGkeZone = tasks.getByName("getGKEClusterZone")
+    val getCreds = tasks.getByName("getCredentials")
+    val getRouterHost = tasks.getByName("getRouterHost")
+    val indexCreate = tasks.getByName("indexcreate")
+    val tfInit = tasks.getByName("terraformInit")
+    val tfApplyBackend = tasks.getByName("terraformApplyBackend")
+    val initDatastore = tasks.getByName("populateDatastore")
+    dependsOn(getGkeName)
+    dependsOn(getGkeZone)
+    dependsOn(getCreds)
+    dependsOn(getRouterHost)
+    dependsOn(indexCreate)
+    dependsOn(tfInit)
+    dependsOn(tfApplyBackend)
+    dependsOn(initDatastore)
+    getGkeZone.mustRunAfter(getGkeName)
+    getCreds.mustRunAfter(getGkeZone)
+    getRouterHost.mustRunAfter(getCreds)
+    indexCreate.mustRunAfter(getRouterHost)
+    tfInit.mustRunAfter(indexCreate)
+    tfApplyBackend.mustRunAfter(tfInit)
+    initDatastore.mustRunAfter(tfApplyBackend)
 }
