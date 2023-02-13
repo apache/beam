@@ -287,7 +287,9 @@ public class PCollectionConsumerRegistry {
       bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
 
       this.coder = coder;
-      if (dataSampler != null) {
+      if (dataSampler == null) {
+        this.outputSampler = null;
+      } else {
         this.outputSampler = dataSampler.sampleOutput(pCollectionId, coder);
       }
     }
@@ -369,7 +371,9 @@ public class PCollectionConsumerRegistry {
       bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
 
       this.coder = coder;
-      if (dataSampler != null) {
+      if (dataSampler == null) {
+        this.outputSampler = null;
+      } else {
         this.outputSampler = dataSampler.sampleOutput(pCollectionId, coder);
       }
     }
