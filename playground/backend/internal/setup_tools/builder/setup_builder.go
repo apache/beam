@@ -28,27 +28,12 @@ import (
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/utils"
-	"beam.apache.org/playground/backend/internal/validators"
 )
 
 const (
 	javaLogConfigFileName        = "logging.properties"
 	javaLogConfigFilePlaceholder = "{logConfigFile}"
 )
-
-// Validator return executor with set args for validator
-func Validator(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
-	sdk := sdkEnv.ApacheBeamSdk
-	val, err := validators.GetValidators(sdk, paths.AbsoluteSourceFilePath)
-	if err != nil {
-		return nil, err
-	}
-	builder := executors.NewExecutorBuilder().
-		WithValidator().
-		WithSdkValidators(val).
-		ExecutorBuilder
-	return &builder, err
-}
 
 // Preparer return executor with set args for preparer
 func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs, valResults *sync.Map, prepareParams map[string]string) (*executors.ExecutorBuilder, error) {

@@ -17,30 +17,33 @@ package validators
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
 const goUnitTestPattern = "*testing.T"
 
-// GetGoValidators return validators methods that should be applied to Go code
-func GetGoValidators(filePath string) *[]Validator {
-	validatorArgs := make([]interface{}, 1)
-	validatorArgs[0] = filePath
-	unitTestValidator := Validator{
-		Validator: CheckIsUnitTestGo,
-		Args:      validatorArgs,
-		Name:      UnitTestValidatorName,
-	}
-	validators := []Validator{unitTestValidator}
-	return &validators
+type goValidator struct {
+	filepath string
 }
 
-func CheckIsUnitTestGo(args ...interface{}) (bool, error) {
-	filePath := args[0].(string)
-	code, err := ioutil.ReadFile(filePath)
+func GetGoValidator(filepath string) Validator {
+	return goValidator{filepath: filepath}
+}
+
+func (v goValidator) Validate() (map[string]bool, error) {
+	var result = make(map[string]bool)
+	var err error
+	if result[UnitTestValidatorName], err = CheckIsUnitTestGo(v.filepath); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+func CheckIsUnitTestGo(filepath string) (bool, error) {
+	code, err := os.ReadFile(filepath)
 	if err != nil {
-		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
+		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filepath, err.Error())
 		return false, err
 	}
 	// check whether Go code is unit test code

@@ -186,7 +186,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 		executorBuilder, err := builder.Compiler(paths, sdkEnv)
 		if err != nil {
 			logger.Errorf("compileStep(): failed creating ExecutorBuilder = %v", executorBuilder)
-			return nil
+			return err
 		}
 		executor := executorBuilder.Build()
 		logger.Infof("%s: Compile() ...\n", pipelineId)
@@ -252,17 +252,31 @@ func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 
 func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map) error {
 	errorChannel, successChannel := createStatusChannels()
-	executorBuilder, err := builder.Validator(paths, sdkEnv)
+
+	logger.Infof("%s: Validate() ...\n", pipelineId)
+
+	validator, err := validators.GetValidator(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath)
 	if err != nil {
 		if processingError := processSetupError(err, pipelineId, cacheService); processingError != nil {
 			return processingError
 		}
 		return err
 	}
-	executor := executorBuilder.Build()
-	logger.Infof("%s: Validate() ...\n", pipelineId)
-	validateFunc := executor.Validate()
-	go validateFunc(successChannel, errorChannel, validationResults)
+
+	go func() {
+		result, err := validator.Validate()
+		if err != nil {
+			errorChannel <- err
+			successChannel <- false
+			return
+		}
+
+		for key, value := range result {
+			validationResults.Store(key, value)
+		}
+
+		successChannel <- true
+	}()
 
 	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
 	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
@@ -283,7 +297,7 @@ func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.
 	if err := processSuccess(pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
 		return err
 	}
-	return err
+	return nil
 }
 
 func createStatusChannels() (chan error, chan bool) {
