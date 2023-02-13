@@ -138,7 +138,7 @@ tasks.register("getGKEClusterZone") {
         val outputFile = File.createTempFile("gke_cluster_zone", ".tmp")
         exec {
             executable("gcloud")
-        args("container", "clusters", "describe", "$gke_cluster_name", "--format='value(zone)'")
+        args("container", "clusters", "list", "--format=value(zone)")
         standardOutput = java.io.FileOutputStream(outputFile)
         }
         val gke_zone = outputFile.readText().trim()
