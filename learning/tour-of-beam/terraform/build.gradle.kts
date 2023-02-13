@@ -125,37 +125,31 @@ tasks.register("getGKEClusterName") {
             }
             gkeClusterName = stdout.toString().trim().replace("\"", "")
             stdout = ByteArrayOutputStream()
+            println("GKE cluster zone retrieved successfully: $gkeClusterName")
         }
     }
 
 tasks.register("getGKEClusterZone") {
     group = "backend-deploy"
+    var stdout = ByteArrayOutputStream()
+    var gkeClusterZone = ""
     doLast {
-        try {
-            val outputFile = createTempFile("gke_cluster_zone", ".tmp")
             exec {
                 commandLine("gcloud", "container", "clusters", "list", "--format=value(zone)")
-                standardOutput = outputFile.outputStream()
-                Thread.sleep(5000)
+                standardOutput = stdout
             }
-            val gkeClusterZone = outputFile.readText().trim()
-            project.rootProject.extra["gkeClusterZone"] = gkeClusterZone
+            gkeClusterZone = stdout.toString().trim().replace("\"", "")
+            stdout = ByteArrayOutputStream()
             println("GKE cluster zone retrieved successfully: $gkeClusterZone")
-            outputFile.delete()
-        } catch (e: Exception) {
-            logger.error("Error retrieving GKE cluster zone: ${e.message}")
-            throw GradleException("Error retrieving GKE cluster zone: ${e.message}")
-
         }
     }
-}
 
 tasks.register("getCredentials") {
     dependsOn("getGKEClusterName", "getGKEClusterZone")
     mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName", ":learning:tour-of-beam:terraform:getGKEClusterZone")
     group = "backend-deploy"
-    val gkeClusterName = rootProject.extra["gkeClusterName"] as? String ?: throw GradleException("gke_cluster_name property not found")
-    val gkeClusterZone = rootProject.extra["gkeClusterZone"] as? String ?: throw GradleException("gkeClusterZone property not found")
+    var gkeClusterName = ""
+    var gkeClusterZone = ""
     val projectId = property("projectId") as? String ?: throw GradleException("projectId property not found")
     doLast {
         exec {
