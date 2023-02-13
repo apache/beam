@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> Type of records represented by the source.
  * @see OffsetBasedSource
  * @see org.apache.beam.sdk.io.range.OffsetRangeTracker
- * @see org.apache.beam.sdk.io.OffsetBasedSource (semantically similar to {@link
+ * @see org.apache.beam.sdk.io.BlockBasedSource (semantically similar to {@link
  *     BigQueryStorageStreamBundleSource})
  */
 class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
