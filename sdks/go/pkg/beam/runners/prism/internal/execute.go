@@ -110,7 +110,7 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 			}
 			stage.OutputsToCoders = map[string]engine.PColInfo{}
 			coders := map[string]*pipepb.Coder{}
-			makeWindowedValueCoder(t, onlyOut, comps, coders)
+			makeWindowedValueCoder(onlyOut, comps, coders)
 
 			col := comps.GetPcollections()[onlyOut]
 			ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
@@ -219,7 +219,7 @@ func buildStage(s *stage, tid string, t *pipepb.PTransform, comps *pipepb.Compon
 		// This id is directly used for the source, but this also copies
 		// coders used by side inputs to the coders map for the bundle, so
 		// needs to be run for every ID.
-		wInCid := makeWindowedValueCoder(t, global, comps, coders)
+		wInCid := makeWindowedValueCoder(global, comps, coders)
 		_, ok := sis[local]
 		if ok {
 			sides = append(sides, global)
@@ -251,7 +251,7 @@ func buildStage(s *stage, tid string, t *pipepb.PTransform, comps *pipepb.Compon
 	sink2Col := map[string]string{}
 	col2Coders := map[string]engine.PColInfo{}
 	for local, global := range t.GetOutputs() {
-		wOutCid := makeWindowedValueCoder(t, global, comps, coders)
+		wOutCid := makeWindowedValueCoder(global, comps, coders)
 		sinkID := tid + "_" + local
 		col := comps.GetPcollections()[global]
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)

@@ -17,6 +17,8 @@ package internal
 
 import (
 	"bytes"
+	"encoding/binary"
+	"math"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -271,6 +273,104 @@ func Test_reconcileCoders(t *testing.T) {
 
 			if d := cmp.Diff(test.want, test.bundle, protocmp.Transform()); d != "" {
 				t.Fatalf("reconcileCoders(...); (-want, +got):\n%v", d)
+			}
+		})
+	}
+}
+
+func Test_pullDecoder(t *testing.T) {
+
+	doubleBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(doubleBytes, math.Float64bits(math.SqrtPi))
+
+	tests := []struct {
+		name   string
+		coder  *pipepb.Coder
+		coders map[string]*pipepb.Coder
+		input  []byte
+	}{
+		{
+			"bytes",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderBytes,
+				},
+			},
+			map[string]*pipepb.Coder{},
+			[]byte{3, 1, 2, 3},
+		}, {
+			"varint",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderVarInt,
+				},
+			},
+			map[string]*pipepb.Coder{},
+			[]byte{255, 3},
+		}, {
+			"bool",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderBool,
+				},
+			},
+			map[string]*pipepb.Coder{},
+			[]byte{1},
+		}, {
+			"double",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderDouble,
+				},
+			},
+			map[string]*pipepb.Coder{},
+			doubleBytes,
+		}, {
+			"iterable",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderIterable,
+				},
+				ComponentCoderIds: []string{"elm"},
+			},
+			map[string]*pipepb.Coder{
+				"elm": &pipepb.Coder{
+					Spec: &pipepb.FunctionSpec{
+						Urn: urns.CoderVarInt,
+					},
+				},
+			},
+			[]byte{4, 0, 1, 2, 3},
+		}, {
+			"kv",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderKV,
+				},
+				ComponentCoderIds: []string{"key", "value"},
+			},
+			map[string]*pipepb.Coder{
+				"key": &pipepb.Coder{
+					Spec: &pipepb.FunctionSpec{
+						Urn: urns.CoderVarInt,
+					},
+				},
+				"value": &pipepb.Coder{
+					Spec: &pipepb.FunctionSpec{
+						Urn: urns.CoderBool,
+					},
+				},
+			},
+			[]byte{3, 0},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dec := pullDecoder(test.coder, test.coders)
+			buf := bytes.NewBuffer(test.input)
+			got := dec(buf)
+			if !bytes.EqualFold(test.input, got) {
+				t.Fatalf("pullDecoder(%v)(...) = %v, want %v", test.coder, got, test.input)
 			}
 		})
 	}
