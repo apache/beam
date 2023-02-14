@@ -97,7 +97,7 @@ func (h *runner) ExecuteTransform(tid string, t *pipepb.PTransform, comps *pipep
 
 	case urns.TransformGBK:
 		ws := windowingStrategy(comps, tid)
-		kvc := kvcoder(comps, tid)
+		kvc := onlyInputCoderForTransform(comps, tid)
 
 		coders := map[string]*pipepb.Coder{}
 
@@ -285,4 +285,14 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 		}
 	}
 	return buf.Bytes()
+}
+
+func onlyInputCoderForTransform(comps *pipepb.Components, tid string) *pipepb.Coder {
+	t := comps.GetTransforms()[tid]
+	var inputPColID string
+	for _, pcolID := range t.GetInputs() {
+		inputPColID = pcolID
+	}
+	pcol := comps.GetPcollections()[inputPColID]
+	return comps.GetCoders()[pcol.GetCoderId()]
 }
