@@ -172,7 +172,11 @@ Server testing has not been verified yet.
 4. Run:
 
 ```bash
+# To run a visible Chrome window:
 ./gradlew :playground:frontend:integrationTest
+
+# Headless run without a browser window:
+./gradlew :playground:frontend:integrationTest -PdeviceId=web-server
 ```
 
 ## Localization
