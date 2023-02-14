@@ -110,4 +110,6 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod o+r /opt/apache/beam/jars/* \
   && chmod +x /entrypoint.sh
 
+USER appuser
+
 ENTRYPOINT ["/entrypoint.sh"]

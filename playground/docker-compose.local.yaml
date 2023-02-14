@@ -20,8 +20,6 @@ services:
     image: redis:7.0.4-alpine
     expose:
       - 6379
-    networks:
-      - internal
 
   datastore:
     build: "./backend/containers/router/datastore"
@@ -30,33 +28,11 @@ services:
       DATASTORE_LISTEN_ADDRESS: 0.0.0.0:8081
     expose:
       - 8081
-    networks:
-      - internal
 
   mitmproxy:
-    build: "./infrastructure/proxy"
+    image: apache/beam_playground-backend-mitmproxy
     expose:
       - 8080
-    ports:
-      - "8082:8082"
-      - "8084:8084"
-      - "8086:8086"
-      - "8088:8088"
-      - "8090:8090"
-      - "1234:1234"
-    volumes:
-      - mitmproxy_certificates:/home/mitmproxy/.mitmproxy
-    command:
-      - "reverseproxy"
-      - "8082:router:8082"
-      - "8084:go_runner:8084"
-      - "8086:java_runner:8086"
-      - "8088:python_runner:8088"
-      - "8090:scio_runner:8090"
-      - "1234:frontend:1234"
-    networks:
-      - internal
-      - external
 
   router:
     image: apache/beam_playground-backend-router
@@ -67,13 +43,11 @@ services:
       CACHE_ADDRESS: redis:6379
       SDK_CONFIG: /opt/playground/backend/sdks-emulator.yaml
       SERVER_PORT: 8082
-    expose:
-      - 8082
+    ports:
+      - "8082:8082"
     depends_on:
       - redis
       - datastore
-    networks:
-      - internal
 
   go_runner:
     image: apache/beam_playground-backend-go
@@ -83,16 +57,12 @@ services:
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8084
       http_proxy: http://mitmproxy:8080
-      https_proxy: https://mitmproxy:8080
-    volumes:
-      - mitmproxy_certificates:/home/appuser/.mitmproxy
-    expose:
-      - 8084
+      https_proxy: http://mitmproxy:8080
+    ports:
+      - "8084:8084"
     depends_on:
       - redis
       - mitmproxy
-    networks:
-      - internal
 
   java_runner:
     image: apache/beam_playground-backend-java
@@ -102,17 +72,13 @@ services:
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8086
       http_proxy: http://mitmproxy:8080
-      https_proxy: https://mitmproxy:8080
+      https_proxy: http://mitmproxy:8080
       JAVA_TOOL_OPTIONS: "-Dhttp.proxyHost=mitmproxy -Dhttp.proxyPort:8080 -Dhttps.proxyHost=mitmproxy -Dhttps.proxyPort=8080"
-    volumes:
-      - mitmproxy_certificates:/home/appuser/.mitmproxy
-    expose:
-      - 8086
+    ports:
+      - "8086:8086"
     depends_on:
       - redis
       - mitmproxy
-    networks:
-      - internal
 
   python_runner:
     image: apache/beam_playground-backend-python
@@ -122,16 +88,12 @@ services:
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8088
       http_proxy: http://mitmproxy:8080
-      https_proxy: https://mitmproxy:8080
-    volumes:
-      - mitmproxy_certificates:/home/appuser/.mitmproxy
-    expose:
-      - 8088
+      https_proxy: http://mitmproxy:8080
+    ports:
+      - "8088:8088"
     depends_on:
       - redis
       - mitmproxy
-    networks:
-      - internal
 
   scio_runner:
     image: apache/beam_playground-backend-scio
@@ -141,32 +103,18 @@ services:
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8090
       http_proxy: http://mitmproxy:8080
-      https_proxy: https://mitmproxy:8080
+      https_proxy: http://mitmproxy:8080
       JAVA_TOOL_OPTIONS: "-Dhttp.proxyHost=mitmproxy -Dhttp.proxyPort=8080 -Dhttps.proxyHost=mitmproxy -Dhttps.proxyPort=8080"
       SBT_OPTS: "-Dhttp.proxyHost=mitmproxy -Dhttp.proxyPort=8080 -Dhttps.proxyHost=mitmproxy -Dhttps.proxyPort=8080"
-    volumes:
-      - mitmproxy_certificates:/home/appuser/.mitmproxy
-    expose:
-      - 8090
+    ports:
+      - "8090:8090"
     depends_on:
       - redis
       - mitmproxy
-    networks:
-      - internal
 
   frontend:
     image: apache/beam_playground-frontend
-    expose:
-      - 8080
+    ports:
+      - "1234:8080"
     depends_on:
       - router
-    networks:
-      - internal
-
-volumes:
-  mitmproxy_certificates: {}
-
-networks:
-  internal:
-    internal: true
-  external:

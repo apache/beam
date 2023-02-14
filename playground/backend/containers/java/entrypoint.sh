@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-openssl x509 -in /home/appuser/.mitmproxy/mitmproxy-ca.pem -inform PEM -out /usr/local/share/ca-certificates/extra/mitmproxy-ca.crt
-keytool -importcert -trustcacerts -storepass changeit -alias mitmproxy -file /home/appuser/.mitmproxy/mitmproxy-ca-cert.pem -noprompt -keystore $JAVA_HOME/jre/lib/security/cacerts
-update-ca-certificates
 export http_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
 export https_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
-su appuser -c /opt/playground/backend/server_java_backend
+/opt/playground/backend/server_java_backend
