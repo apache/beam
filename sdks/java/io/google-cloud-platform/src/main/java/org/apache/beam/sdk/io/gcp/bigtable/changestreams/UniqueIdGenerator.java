@@ -19,8 +19,10 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Generate unique IDs that can be used to differentiate different jobs and partitions. */
+@Internal
 public class UniqueIdGenerator {
   private static final SecureRandom secureRandom = new SecureRandom();
 

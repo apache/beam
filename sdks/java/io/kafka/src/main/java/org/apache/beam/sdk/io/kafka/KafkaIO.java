@@ -229,7 +229,7 @@ import org.slf4j.LoggerFactory;
  *       TopicPartition} has been stopped/removed, so it stops reading from it and returns {@code
  *       ProcessContinuation.stop()}.
  *   <li>At 10:45 the pipeline author wants to read from TopicPartition A again.
- *   <li>At 11:00AM when {@link WatchForKafkaTopicPartitions} is invoked by firing timer, it doesn’t
+ *   <li>At 11:00AM when {@link WatchForKafkaTopicPartitions} is invoked by firing timer, it doesn't
  *       know that TopicPartition A has been stopped/removed. All it knows is that TopicPartition A
  *       is still an active TopicPartition and it will not emit TopicPartition A again.
  * </ul>

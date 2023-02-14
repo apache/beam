@@ -25,6 +25,7 @@ export 'src/controllers/playground_controller.dart';
 export 'src/controllers/public_notifier.dart';
 export 'src/enums/complexity.dart';
 export 'src/models/category_with_examples.dart';
+export 'src/models/dataset.dart';
 export 'src/models/example.dart';
 export 'src/models/example_base.dart';
 export 'src/models/example_loading_descriptors/catalog_default_example_loading_descriptor.dart';

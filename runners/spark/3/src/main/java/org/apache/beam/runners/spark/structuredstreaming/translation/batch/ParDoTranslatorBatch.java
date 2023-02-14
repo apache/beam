@@ -79,6 +79,10 @@ class ParDoTranslatorBatch<InputT, OutputT>
   private static final ClassTag<Tuple2<Integer, WindowedValue<Object>>> TUPLE2_CTAG =
       ClassTag.apply(Tuple2.class);
 
+  ParDoTranslatorBatch() {
+    super(0.2f);
+  }
+
   @Override
   public boolean canTranslate(ParDo.MultiOutput<InputT, OutputT> transform) {
     DoFn<InputT, OutputT> doFn = transform.getFn();
@@ -123,7 +127,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     Map<TupleTag<?>, PCollection<?>> outputs =
         Maps.filterEntries(
             cxt.getOutputs(),
-            e -> e != null && (e.getKey().equals(mainOut) || !cxt.isLeave(e.getValue())));
+            e -> e != null && (e.getKey().equals(mainOut) || !cxt.isLeaf(e.getValue())));
 
     if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.

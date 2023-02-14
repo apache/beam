@@ -109,7 +109,7 @@ message InstructionRequest {
     FinalizeBundleRequest finalize_bundle = 1004;
     MonitoringInfosMetadataRequest monitoring_infos = 1005;
     HarnessMonitoringInfosRequest harness_monitoring_infos = 1006;
-    SampleDataRequest sample = 1007;
+    SampleDataRequest sample_data = 1007;
 
     // DEPRECATED
     RegisterRequest register = 1000;
@@ -138,7 +138,7 @@ message InstructionResponse {
     FinalizeBundleResponse finalize_bundle = 1004;
     MonitoringInfosMetadataResponse monitoring_infos = 1005;
     HarnessMonitoringInfosResponse harness_monitoring_infos = 1006;
-    SampleDataResponse sample = 1007;
+    SampleDataResponse sample_data = 1007;
 
     // DEPRECATED
     RegisterResponse register = 1000;
@@ -147,15 +147,11 @@ message InstructionResponse {
 
 // If supported, the `SampleDataRequest` will respond with a
 // `SampleDataResponse`. The SDK being queried must have the
-// "beam:protocol:data_sampling:v1" capability. Samples are taken from all
-// specified ProcessBundleDescriptor ids and all specified PCollection ids
-// (equivalent to OR clause). An empty list will match everything.
+// "beam:protocol:data_sampling:v1" capability. Samples are taken only from the
+// specified PCollection ids. An empty list will return everything.
 message SampleDataRequest {
-  // (Optional) The ProcessBundleDescriptor ids to filter for.
-  repeated string process_bundle_descriptor_ids = 1;
-
   // (Optional) The PCollection ids to filter for.
-  repeated string pcollection_ids = 2;
+  repeated string pcollection_ids = 1;
 }
 
 
