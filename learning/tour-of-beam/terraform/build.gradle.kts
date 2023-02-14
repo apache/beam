@@ -170,8 +170,10 @@ tasks.register("indexcreate") {
 
 tasks.register("populateDatastore") {
     group = "backend-deploy"
-    val result = ByteArrayOutputStream()
-    val project_id = System.getProperty("project_id") ?: throw IllegalStateException("projectId must be set")
+    var project_id = "unknown"
+    if (project.hasProperty("project_id")) {
+        project_id = project.property("project_id") as String
+    }
     doLast {
         System.setProperty("DATASTORE_PROJECT_ID", project_id)
         System.setProperty("GOOGLE_PROJECT_ID", project_id)
