@@ -16,32 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'common.dart';
+import '../example_descriptor.dart';
 
-void main() {
-  group('CatalogDefaultExampleLoadingDescriptor', () {
-    const descriptor = CatalogDefaultExampleLoadingDescriptor(
-      sdk: Sdk.go,
-      viewOptions: viewOptions,
-    );
-
-    test('toJson -> tryParse', () {
-      final map = descriptor.toJson();
-      final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed, descriptor);
-    });
-
-    test('copyWithoutViewOptions', () {
-      expect(
-        descriptor.copyWithoutViewOptions(),
-        CatalogDefaultExampleLoadingDescriptor(
-          sdk: descriptor.sdk,
-        ),
-      );
-    });
-  });
-}
+const goWordCount = ExampleDescriptor(
+  'WordCount',
+  dbPath: 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount',
+  path: '/sdks/go/examples/wordcount/wordcount.go',
+  sdk: Sdk.go,
+);

@@ -16,32 +16,17 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'common.dart';
+import '../example_descriptor.dart';
 
-void main() {
-  group('CatalogDefaultExampleLoadingDescriptor', () {
-    const descriptor = CatalogDefaultExampleLoadingDescriptor(
-      sdk: Sdk.go,
-      viewOptions: viewOptions,
-    );
+const javaAggregationMax = ExampleDescriptor(
+  //
+  'AggregationMax',
+  dbPath: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax',
+  path:
+      '/learning/katas/java/Common Transforms/Aggregation/Max/src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java',
+  sdk: Sdk.java,
 
-    test('toJson -> tryParse', () {
-      final map = descriptor.toJson();
-      final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed, descriptor);
-    });
-
-    test('copyWithoutViewOptions', () {
-      expect(
-        descriptor.copyWithoutViewOptions(),
-        CatalogDefaultExampleLoadingDescriptor(
-          sdk: descriptor.sdk,
-        ),
-      );
-    });
-  });
-}
+  outputTail: 'INFO: 10\n',
+);

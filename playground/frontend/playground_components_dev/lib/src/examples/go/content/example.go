@@ -16,32 +16,27 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground_components/playground_components.dart';
+package main
 
-import 'common.dart';
+import (
+	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+)
 
-void main() {
-  group('CatalogDefaultExampleLoadingDescriptor', () {
-    const descriptor = CatalogDefaultExampleLoadingDescriptor(
-      sdk: Sdk.go,
-      viewOptions: viewOptions,
-    );
-
-    test('toJson -> tryParse', () {
-      final map = descriptor.toJson();
-      final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed, descriptor);
-    });
-
-    test('copyWithoutViewOptions', () {
-      expect(
-        descriptor.copyWithoutViewOptions(),
-        CatalogDefaultExampleLoadingDescriptor(
-          sdk: descriptor.sdk,
-        ),
-      );
-    });
-  });
+func OutsideOfSections() {
 }
+
+// [START show]
+func Folded() {
+}
+
+func Unfolded1() {
+	fmt.Print("editable")// [START unfold1]
+	fmt.Print("readonly")// [START readonly1] [END unfold1] [END readonly1]
+}
+
+func Unfolded2() {
+	fmt.Print("editable")// [START unfold2]
+	fmt.Print("readonly")// [START readonly2] [END unfold2] [END readonly2]
+}
+// [END show]

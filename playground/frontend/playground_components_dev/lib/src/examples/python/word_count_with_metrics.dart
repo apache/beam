@@ -16,32 +16,17 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'common.dart';
+import '../example_descriptor.dart';
 
-void main() {
-  group('CatalogDefaultExampleLoadingDescriptor', () {
-    const descriptor = CatalogDefaultExampleLoadingDescriptor(
-      sdk: Sdk.go,
-      viewOptions: viewOptions,
-    );
+const pythonWordCountWithMetrics = ExampleDescriptor(
+  //
+  'WordCountWithMetrics',
+  contextLine1Based: 48,
+  dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCountWithMetrics',
+  path: '/sdks/python/apache_beam/examples/wordcount_with_metrics.py',
+  sdk: Sdk.python,
 
-    test('toJson -> tryParse', () {
-      final map = descriptor.toJson();
-      final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed, descriptor);
-    });
-
-    test('copyWithoutViewOptions', () {
-      expect(
-        descriptor.copyWithoutViewOptions(),
-        CatalogDefaultExampleLoadingDescriptor(
-          sdk: descriptor.sdk,
-        ),
-      );
-    });
-  });
-}
+  outputContains: ['average word length: 4'],
+);

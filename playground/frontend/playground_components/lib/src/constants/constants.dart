@@ -16,32 +16,4 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground_components/playground_components.dart';
-
-import 'common.dart';
-
-void main() {
-  group('CatalogDefaultExampleLoadingDescriptor', () {
-    const descriptor = CatalogDefaultExampleLoadingDescriptor(
-      sdk: Sdk.go,
-      viewOptions: viewOptions,
-    );
-
-    test('toJson -> tryParse', () {
-      final map = descriptor.toJson();
-      final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed, descriptor);
-    });
-
-    test('copyWithoutViewOptions', () {
-      expect(
-        descriptor.copyWithoutViewOptions(),
-        CatalogDefaultExampleLoadingDescriptor(
-          sdk: descriptor.sdk,
-        ),
-      );
-    });
-  });
-}
+const spaceCount = 2;

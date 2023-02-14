@@ -19,29 +19,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'common.dart';
+import 'common_finders.dart';
 
-void main() {
-  group('CatalogDefaultExampleLoadingDescriptor', () {
-    const descriptor = CatalogDefaultExampleLoadingDescriptor(
-      sdk: Sdk.go,
-      viewOptions: viewOptions,
-    );
+extension WidgetTesterExtension on WidgetTester {
+  Future<void> changeSdk(Sdk sdk) async {
+    await tap(find.sdkSelector());
+    await pumpAndSettle();
 
-    test('toJson -> tryParse', () {
-      final map = descriptor.toJson();
-      final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed, descriptor);
-    });
-
-    test('copyWithoutViewOptions', () {
-      expect(
-        descriptor.copyWithoutViewOptions(),
-        CatalogDefaultExampleLoadingDescriptor(
-          sdk: descriptor.sdk,
-        ),
-      );
-    });
-  });
+    await tap(find.sdkItemInDropdown(sdk));
+    await pumpAndSettle();
+  }
 }

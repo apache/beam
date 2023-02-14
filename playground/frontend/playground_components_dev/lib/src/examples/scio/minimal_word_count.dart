@@ -16,32 +16,19 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../example_descriptor.dart';
 import 'common.dart';
 
-void main() {
-  group('CatalogDefaultExampleLoadingDescriptor', () {
-    const descriptor = CatalogDefaultExampleLoadingDescriptor(
-      sdk: Sdk.go,
-      viewOptions: viewOptions,
-    );
+const scioMinimalWordCount = ExampleDescriptor(
+  //
+  'MinimalWordCount',
+  dbPath: 'SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+  path:
+      '/scio-examples/src/main/scala/com/spotify/scio/examples/MinimalWordCount.scala',
+  repositoryAndRef: 'spotify/scio/$spotifyScioRef',
+  sdk: Sdk.scio,
 
-    test('toJson -> tryParse', () {
-      final map = descriptor.toJson();
-      final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed, descriptor);
-    });
-
-    test('copyWithoutViewOptions', () {
-      expect(
-        descriptor.copyWithoutViewOptions(),
-        CatalogDefaultExampleLoadingDescriptor(
-          sdk: descriptor.sdk,
-        ),
-      );
-    });
-  });
-}
+  outputContains: ['Finalizing 5 file results'],
+);
