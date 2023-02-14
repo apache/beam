@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
+import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
@@ -119,7 +122,53 @@ public class ReadChangeStreamPartitionAction {
       DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator)
       throws IOException {
+    // Watermark being delayed beyond 5 minutes signals a possible problem.
+    boolean shouldDebug =
+        watermarkEstimator.getState().plus(Duration.standardMinutes(5)).isBeforeNow();
 
-    return ProcessContinuation.stop();
+    if (shouldDebug) {
+      LOG.info(
+          "RCSP: Partition: "
+              + partitionRecord
+              + "\n Watermark: "
+              + watermarkEstimator.getState()
+              + "\n RestrictionTracker: "
+              + tracker.currentRestriction());
+    }
+
+    // Update the metadata table with the watermark
+    metadataTableDao.updateWatermark(
+        partitionRecord.getPartition(),
+        watermarkEstimator.getState(),
+        tracker.currentRestriction().getCurrentToken());
+
+    // Start to stream the partition.
+    ServerStream<ChangeStreamRecord> stream = null;
+    try {
+      stream =
+          changeStreamDao.readChangeStreamPartition(
+              partitionRecord,
+              tracker.currentRestriction(),
+              partitionRecord.getEndTime(),
+              heartbeatDurationSeconds,
+              shouldDebug);
+      for (ChangeStreamRecord record : stream) {
+        Optional<ProcessContinuation> result =
+            changeStreamAction.run(
+                partitionRecord, record, tracker, receiver, watermarkEstimator, shouldDebug);
+        // changeStreamAction will usually return Optional.empty() except for when a checkpoint
+        // (either runner or pipeline initiated) is required.
+        if (result.isPresent()) {
+          return result.get();
+        }
+      }
+    } catch (Exception e) {
+      throw e;
+    } finally {
+      if (stream != null) {
+        stream.cancel();
+      }
+    }
+    return ProcessContinuation.resume();
   }
 }

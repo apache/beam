@@ -22,9 +22,13 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTabl
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.STREAM_PARTITION_PREFIX;
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.annotations.Internal;
+import javax.annotation.Nullable;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +84,56 @@ public class MetadataTableDao {
    */
   private ByteString getFullDetectNewPartition() {
     return changeStreamNamePrefix.concat(DETECT_NEW_PARTITION_SUFFIX);
+  }
+
+  /**
+   * Convert partition to a Stream Partition row key to query for metadata of partitions that are
+   * currently being streamed.
+   *
+   * @param partition convert to row key
+   * @return row key to insert to Cloud Bigtable.
+   */
+  public ByteString convertPartitionToStreamPartitionRowKey(Range.ByteStringRange partition) {
+    return getFullStreamPartitionPrefix().concat(Range.ByteStringRange.toByteString(partition));
+  }
+
+  /**
+   * Update the metadata for the rowKey. This helper adds necessary prefixes to the row key.
+   *
+   * @param rowKey row key of the row to update
+   * @param watermark watermark value to set for the cell
+   * @param currentToken continuation token to set for the cell
+   */
+  private void writeToMdTableWatermarkHelper(
+      ByteString rowKey, Instant watermark, @Nullable ChangeStreamContinuationToken currentToken) {
+    RowMutation rowMutation =
+        RowMutation.create(tableId, rowKey)
+            .setCell(
+                MetadataTableAdminDao.CF_WATERMARK,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                watermark.getMillis());
+    if (currentToken != null) {
+      rowMutation.setCell(
+          MetadataTableAdminDao.CF_CONTINUATION_TOKEN,
+          MetadataTableAdminDao.QUALIFIER_DEFAULT,
+          currentToken.getToken());
+    }
+    dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * Update the metadata for the row key represented by the partition.
+   *
+   * @param partition forms the row key of the row to update
+   * @param watermark watermark value to set for the cell
+   * @param currentToken continuation token to set for the cell
+   */
+  public void updateWatermark(
+      Range.ByteStringRange partition,
+      Instant watermark,
+      @Nullable ChangeStreamContinuationToken currentToken) {
+    writeToMdTableWatermarkHelper(
+        convertPartitionToStreamPartitionRowKey(partition), watermark, currentToken);
   }
 
   /**
