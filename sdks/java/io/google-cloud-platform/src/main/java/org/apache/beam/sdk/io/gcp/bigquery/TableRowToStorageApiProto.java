@@ -82,6 +82,17 @@ public class TableRowToStorageApiProto {
           .append(DateTimeFormatter.ISO_LOCAL_DATE)
           .appendLiteral(' ')
           .append(DateTimeFormatter.ISO_LOCAL_TIME)
+          .optionalStart()
+          .appendLiteral(" UTC")
+          .optionalEnd()
+          .toFormatter();
+
+  private static final DateTimeFormatter DATETIME_FORMATTER =
+      new DateTimeFormatterBuilder()
+          // 'yyyy-MM-ddTHH:mm:ss.SSSSSSSSS+01:00'
+          .appendOptional(DateTimeFormatter.ISO_DATE_TIME)
+          // 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS' 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS UTC'
+          .appendOptional(DATETIME_SPACE_FORMATTER)
           .toFormatter()
           .withZone(ZoneOffset.UTC);
 
@@ -738,18 +749,13 @@ public class TableRowToStorageApiProto {
         if (value instanceof String) {
           try {
             // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
+            // '2011-12-03 10:15:30 UTC' '2011-12-03T10:15:30'
             return ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
+                Instant.EPOCH, Instant.from(DATETIME_FORMATTER.parse((String) value)));
           } catch (DateTimeParseException e) {
-            try {
-              // "12345667"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
-            } catch (NumberFormatException e2) {
-              // "yyyy-MM-dd HH:mm:ss.SSSSSS"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
-            }
+            // "12345667"
+            return ChronoUnit.MICROS.between(
+                Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
           }
         } else if (value instanceof Instant) {
           return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
