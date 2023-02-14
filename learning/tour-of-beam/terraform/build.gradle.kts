@@ -18,8 +18,6 @@
 
 import com.pswidersk.gradle.terraform.TerraformTask
 import java.io.ByteArrayOutputStream
-import org.gradle.api.logging.LogLevel
-
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
@@ -172,6 +170,7 @@ tasks.register("indexcreate") {
 
 tasks.register("populateDatastore") {
     group = "backend-deploy"
+    val result = ByteArrayOutputStream()
     doLast {
         var projectId = "unknown"
         if (project.hasProperty("projectId")) {
@@ -179,13 +178,13 @@ tasks.register("populateDatastore") {
         }
         System.setProperty("DATASTORE_PROJECT_ID", projectId)
         System.setProperty("GOOGLE_PROJECT_ID", projectId)
-        System.setProperty("TOB_LEARNING_ROOT", "learning/tour-of-beam/learning-content/")
+        System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
 
-        val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "go ../backend/cmd/ci_cd/ci_cd.go"))
-        val output = process.inputStream.bufferedReader().use {
-            it.readText().trim()
+        exec {
+        commandLine("go", "../backend/cmd/ci_cd/ci_cd.go")
+        standardOutput = result
         }
-        logger.log(LogLevel.LIFECYCLE, "Output of go run cmd/ci_cd/ci_cd.go command:\n$output")
+        println("Output of go run cmd/ci_cd/ci_cd.go command: $result")
     }
 }
 
