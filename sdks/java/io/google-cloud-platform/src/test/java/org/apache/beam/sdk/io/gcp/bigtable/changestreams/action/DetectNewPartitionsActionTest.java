@@ -68,7 +68,6 @@ public class DetectNewPartitionsActionTest {
   private MetadataTableDao metadataTableDao;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
   private Timestamp startTime;
-  private Timestamp endTime;
   private static BigtableDataClient dataClient;
   private static BigtableTableAdminClient adminClient;
 
@@ -104,10 +103,8 @@ public class DetectNewPartitionsActionTest {
             metadataTableAdminDao.getChangeStreamNamePrefix());
 
     startTime = Timestamp.now();
-    endTime = Timestamp.ofTimeSecondsAndNanos(startTime.getSeconds() + 10, startTime.getNanos());
     action =
-        new DetectNewPartitionsAction(
-            metrics, metadataTableDao, endTime, generateInitialPartitionsAction);
+        new DetectNewPartitionsAction(metrics, metadataTableDao, generateInitialPartitionsAction);
     watermarkEstimator = new WatermarkEstimators.Manual(TimestampConverter.toInstant(startTime));
   }
 

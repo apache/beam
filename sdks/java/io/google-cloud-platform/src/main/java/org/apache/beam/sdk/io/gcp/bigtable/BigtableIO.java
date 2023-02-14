@@ -222,8 +222,7 @@ import org.slf4j.LoggerFactory;
  *            .withInstanceId(instanceId)
  *            .withTableId(tableId)
  *            .withAppProfileId(appProfileId)
- *            .withStartTime(startTime)
- *            .withEndTime(endTime));
+ *            .withStartTime(startTime));
  * }</pre>
  *
  * <h3>Permissions</h3>
@@ -281,7 +280,6 @@ public class BigtableIO {
    *
    * <ul>
    *   <li>{@link BigtableIO.ReadChangeStream#withStartTime} which defaults to now.
-   *   <li>{@link BigtableIO.ReadChangeStream#withEndTime} which defaults to empty.
    *   <li>{@link BigtableIO.ReadChangeStream#withHeartbeatDuration} with defaults to 1 seconds.
    *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableProjectId} which defaults to value
    *       from {@link BigtableIO.ReadChangeStream#withProjectId}
@@ -1544,8 +1542,6 @@ public class BigtableIO {
 
     abstract @Nullable Timestamp getStartTime();
 
-    abstract @Nullable Timestamp getEndTime();
-
     abstract @Nullable Duration getHeartbeatDuration();
 
     abstract @Nullable String getChangeStreamName();
@@ -1655,16 +1651,6 @@ public class BigtableIO {
      */
     public ReadChangeStream withStartTime(Timestamp startTime) {
       return toBuilder().setStartTime(startTime).build();
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will stop streaming at the specified
-     * end time.
-     *
-     * <p>Does not modify this object.
-     */
-    public ReadChangeStream withEndTime(Timestamp endTime) {
-      return toBuilder().setEndTime(endTime).build();
     }
 
     /**
@@ -1800,7 +1786,7 @@ public class BigtableIO {
       InitializeDoFn initializeDoFn =
           new InitializeDoFn(daoFactory, metadataTableConfig.getAppProfileId().get(), startTime);
       DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
+          new DetectNewPartitionsDoFn(actionFactory, daoFactory, metrics);
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
 
@@ -1820,8 +1806,6 @@ public class BigtableIO {
           BigtableConfig bigtableConfig);
 
       abstract ReadChangeStream.Builder setStartTime(Timestamp startTime);
-
-      abstract ReadChangeStream.Builder setEndTime(Timestamp endTime);
 
       abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
 

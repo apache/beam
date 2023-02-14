@@ -66,7 +66,6 @@ public class GenerateInitialPartitionsActionTest {
 
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
   private Timestamp startTime;
-  private Timestamp endTime;
   private static BigtableTableAdminClient adminClient;
 
   @Captor ArgumentCaptor<PartitionRecord> partitionRecordArgumentCaptor;
@@ -89,7 +88,6 @@ public class GenerateInitialPartitionsActionTest {
             adminClient, null, changeStreamId, MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME);
     metadataTableAdminDao.createMetadataTable();
     startTime = Timestamp.now();
-    endTime = Timestamp.ofTimeSecondsAndNanos(startTime.getSeconds() + 10, startTime.getNanos());
     watermarkEstimator = new WatermarkEstimators.Manual(TimestampConverter.toInstant(startTime));
   }
 
@@ -103,7 +101,7 @@ public class GenerateInitialPartitionsActionTest {
     when(changeStreamDao.generateInitialChangeStreamPartitions()).thenReturn(partitionRecordList);
 
     GenerateInitialPartitionsAction generateInitialPartitionsAction =
-        new GenerateInitialPartitionsAction(metrics, changeStreamDao, endTime);
+        new GenerateInitialPartitionsAction(metrics, changeStreamDao);
     assertEquals(
         ProcessContinuation.resume(),
         generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime));
