@@ -17,7 +17,7 @@
 ###############################################################################
 
 FROM debian:11 as build
-ARG FLUTTER_VERSION=3.3.2
+ARG FLUTTER_VERSION=3.7.3
 
 # ------------------------------------------------
 # Setting up.
@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y wget xz-utils git
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     tar -xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     mv flutter /opt/ &&\
+    git config --global --add safe.directory /opt/flutter &&\
     ln -s /opt/flutter/bin/flutter /usr/bin/flutter &&\
     ln -s /opt/flutter/bin/dart /usr/bin/dart &&\
     dart pub global activate protoc_plugin &&\
