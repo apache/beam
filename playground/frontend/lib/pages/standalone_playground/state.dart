@@ -80,7 +80,7 @@ class StandalonePlaygroundNotifier extends ChangeNotifier
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     playgroundController.codeRunner.cancelRun();
     playgroundController.dispose();
     windowCloseNotifier.removeListener(dispose);
