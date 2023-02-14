@@ -37,6 +37,17 @@ public class ChangeStreamMetrics implements Serializable {
           org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
           "list_partitions_count");
 
+  // -------------------
+  // Read change stream metrics
+
+  /**
+   * Counter for the total number of heartbeats identified during the execution of the Connector.
+   */
+  public static final Counter HEARTBEAT_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "heartbeat_count");
+
   /**
    * Increments the {@link
    * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#LIST_PARTITIONS_COUNT} by
@@ -44,6 +55,15 @@ public class ChangeStreamMetrics implements Serializable {
    */
   public void incListPartitionsCount() {
     inc(LIST_PARTITIONS_COUNT);
+  }
+
+  /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#HEARTBEAT_COUNT} by 1 if
+   * the metric is enabled.
+   */
+  public void incHeartbeatCount() {
+    inc(HEARTBEAT_COUNT);
   }
 
   private void inc(Counter counter) {
