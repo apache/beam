@@ -368,16 +368,14 @@ class SdkHarness(object):
     _LOGGER.debug(
         "Currently using %s threads." % len(self._worker_thread_pool._workers))
 
-  def _request_sample(self, request):
+  def _request_sample_data(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
 
     def get_samples(request):
       # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
       samples: Dict[str, List[bytes]] = {}
       if self.data_sampler:
-        samples = self.data_sampler.samples(
-            request.sample.process_bundle_descriptor_ids,
-            request.sample.pcollection_ids)
+        samples = self.data_sampler.samples(request.sample_data.pcollection_ids)
 
       sample_response = beam_fn_api_pb2.SampleDataResponse()
       for pcoll_id in samples:
@@ -386,7 +384,7 @@ class SdkHarness(object):
             for s in samples[pcoll_id])
 
       return beam_fn_api_pb2.InstructionResponse(
-          instruction_id=request.instruction_id, sample=sample_response)
+          instruction_id=request.instruction_id, sample_data=sample_response)
 
     self._execute(lambda: get_samples(request), request)
 

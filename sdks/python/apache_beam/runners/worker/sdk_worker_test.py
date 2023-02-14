@@ -285,19 +285,19 @@ class SdkWorkerTest(unittest.TestCase):
     # Sample from two fake PCollections to test that all sampled PCollections
     # are present in the response. Also adds an extra sample to test that
     # filtering is forwarded to the DataSampler.
-    data_sampler.sample_output('descriptor_id', 'pcoll_id_1',
+    data_sampler.sample_output('pcoll_id_1',
                                coder).sample('hello, world from pcoll_id_1!')
-    data_sampler.sample_output('descriptor_id', 'pcoll_id_2',
+    data_sampler.sample_output('pcoll_id_2',
                                coder).sample('hello, world from pcoll_id_2!')
-    data_sampler.sample_output('should not be present', 'bad_pcoll_id',
+    data_sampler.sample_output('bad_pcoll_id',
                                coder).sample('if present bug in filter')
 
     # Create and send the fake reponse. The SdkHarness should query the
     # DataSampler and fill out the sample response.
     sample_request = beam_fn_api_pb2.InstructionRequest(
         instruction_id='sample_request',
-        sample=beam_fn_api_pb2.SampleDataRequest(
-            process_bundle_descriptor_ids=['descriptor_id']))
+        sample_data=beam_fn_api_pb2.SampleDataRequest(
+            pcollection_ids=['pcoll_id_1', 'pcoll_id_2']))
     responses = self.get_responses([sample_request], data_sampler)
     self.assertEqual(len(responses), 1)
 
@@ -305,7 +305,7 @@ class SdkWorkerTest(unittest.TestCase):
     response = responses['sample_request']
     expected_response = beam_fn_api_pb2.InstructionResponse(
         instruction_id='sample_request',
-        sample=beam_fn_api_pb2.SampleDataResponse(
+        sample_data=beam_fn_api_pb2.SampleDataResponse(
             element_samples={
                 'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
                     elements=[

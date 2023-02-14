@@ -102,12 +102,11 @@ class DataSampler:
   multi-threaded sampling of a PCollection across the SdkHarness.
 
   Samples generated during execution can then be sampled with the `samples`
-  method. This can filter to samples from a descriptor id and pcollection id.
+  method. This filters samples from the given pcollection ids.
   """
   def __init__(
       self, max_samples: int = 10, sample_every_sec: float = 30) -> None:
-    # Key is a tuple of (ProcessBundleDescriptor id, PCollection id). Is guarded
-    # by the _samplers_lock.
+    # Key is PCollection id. Is guarded by the _samplers_lock.
     self._samplers: Dict[Tuple[str, str], OutputSampler] = {}
     # Bundles are processed in parallel, so new samplers may be added when the
     # runner queries for samples.
@@ -115,10 +114,9 @@ class DataSampler:
     self._max_samples = max_samples
     self._sample_every_sec = sample_every_sec
 
-  def sample_output(
-      self, descriptor_id: str, pcoll_id: str, coder: Coder) -> OutputSampler:
-    """Create or get an OutputSampler for a (descriptor_id, pcoll_id) pair."""
-    key = (descriptor_id, pcoll_id)
+  def sample_output(self, pcoll_id: str, coder: Coder) -> OutputSampler:
+    """Create or get an OutputSampler for a pcoll_id."""
+    key = pcoll_id
     with self._samplers_lock:
       if key in self._samplers:
         sampler = self._samplers[key]
@@ -130,35 +128,24 @@ class DataSampler:
 
   def samples(
       self,
-      descriptor_ids: Optional[Iterable[str]] = None,
       pcollection_ids: Optional[Iterable[str]] = None
   ) -> Dict[str, List[bytes]]:
-    """Returns samples filtered by ProcessBundleDescriptor and PCollection
-    ids.
+    """Returns samples filtered PCollection ids.
 
-    All samples from the given PCollections under eachgiven
-    ProcessBundleDescriptor id are returned. Empty lists are wildcards.
+    All samples from the given PCollections are returned. Empty lists are
+    wildcards.
     """
     ret: DefaultDict[str, List[bytes]] = collections.defaultdict(lambda: [])
 
     with self._samplers_lock:
       samplers = self._samplers.copy()
 
-    for sampler_id in samplers:
-      descriptor_id, pcoll_id = sampler_id
-      if descriptor_ids and descriptor_id not in descriptor_ids:
-        continue
-
+    for pcoll_id in samplers:
       if pcollection_ids and pcoll_id not in pcollection_ids:
         continue
 
-      samples = samplers[sampler_id].flush()
+      samples = samplers[pcoll_id].flush()
       if samples:
         ret[pcoll_id].extend(samples)
 
     return dict(ret)
-
-  def clear(self) -> None:
-    """Clears all samples."""
-    for sampler in self._samplers.values():
-      sampler.flush()

@@ -2001,7 +2001,6 @@ class DataSamplingOperation(operations.Operation):
       pcoll_id,  # type: str
       sample_coder,  # type: coders.Coder
       data_sampler,  # type: data_sampler.DataSampler
-      descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
   ):
     # type: (...) -> None
     super().__init__(name_context, None, counter_factory, state_sampler)
@@ -2009,7 +2008,7 @@ class DataSamplingOperation(operations.Operation):
     self._pcoll_id = pcoll_id  # type: str
 
     self._sampler: OutputSampler = data_sampler.sample_output(
-        descriptor.id, self._pcoll_id, sample_coder)
+        self._pcoll_id, sample_coder)
 
   def process(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -2037,5 +2036,4 @@ def create_data_sampling_op(
       pcoll_id,
       factory.get_coder(coder_id),
       data_sampler,
-      factory.descriptor,
   )

@@ -35,7 +35,7 @@ class DataSamplerTest(unittest.TestCase):
     data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
 
-    output_sampler = data_sampler.sample_output('a', '1', coder)
+    output_sampler = data_sampler.sample_output('1', coder)
     output_sampler.sample('a')
 
     self.assertEqual(data_sampler.samples(), {'1': [coder.encode_nested('a')]})
@@ -45,49 +45,21 @@ class DataSamplerTest(unittest.TestCase):
     data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
 
-    data_sampler.sample_output('a', '1', coder).sample('a')
-    data_sampler.sample_output('a', '2', coder).sample('a')
+    data_sampler.sample_output('1', coder).sample('a')
+    data_sampler.sample_output('2', coder).sample('a')
 
     self.assertEqual(
         data_sampler.samples(), {
             '1': [coder.encode_nested('a')], '2': [coder.encode_nested('a')]
         })
 
-  def test_multiple_descriptors(self):
-    """Tests that multiple PBDs sample into the same PCollection."""
-    data_sampler = DataSampler()
-    coder = FastPrimitivesCoder()
-
-    data_sampler.sample_output('a', '1', coder).sample('a')
-    data_sampler.sample_output('b', '1', coder).sample('b')
-
-    self.assertEqual(
-        data_sampler.samples(),
-        {'1': [coder.encode_nested('a'), coder.encode_nested('b')]})
-
   def gen_samples(self, data_sampler: DataSampler, coder: Coder):
-    data_sampler.clear()
-    data_sampler.sample_output('a', '1', coder).sample('a1')
-    data_sampler.sample_output('a', '2', coder).sample('a2')
-    data_sampler.sample_output('b', '1', coder).sample('b1')
-    data_sampler.sample_output('b', '2', coder).sample('b2')
-
-  def test_sample_filters_single_descriptor_ids(self):
-    """Tests the samples can be filtered based on a single descriptor id."""
-    data_sampler = DataSampler()
-    coder = FastPrimitivesCoder()
-
-    self.gen_samples(data_sampler, coder)
-    self.assertEqual(
-        data_sampler.samples(descriptor_ids=['a']), {
-            '1': [coder.encode_nested('a1')], '2': [coder.encode_nested('a2')]
-        })
-
-    self.gen_samples(data_sampler, coder)
-    self.assertEqual(
-        data_sampler.samples(descriptor_ids=['b']), {
-            '1': [coder.encode_nested('b1')], '2': [coder.encode_nested('b2')]
-        })
+    data_sampler.sample_output('a', coder).sample('1')
+    data_sampler.sample_output('a', coder).sample('2')
+    data_sampler.sample_output('b', coder).sample('3')
+    data_sampler.sample_output('b', coder).sample('4')
+    data_sampler.sample_output('c', coder).sample('5')
+    data_sampler.sample_output('c', coder).sample('6')
 
   def test_sample_filters_single_pcollection_ids(self):
     """Tests the samples can be filtered based on a single pcollection id."""
@@ -96,51 +68,24 @@ class DataSamplerTest(unittest.TestCase):
 
     self.gen_samples(data_sampler, coder)
     self.assertEqual(
-        data_sampler.samples(pcollection_ids=['1']),
-        {'1': [coder.encode_nested('a1'), coder.encode_nested('b1')]})
+        data_sampler.samples(pcollection_ids=['a']),
+        {'a': [coder.encode_nested('1'), coder.encode_nested('2')]})
 
-    self.gen_samples(data_sampler, coder)
     self.assertEqual(
-        data_sampler.samples(pcollection_ids=['2']),
-        {'2': [coder.encode_nested('a2'), coder.encode_nested('b2')]})
+        data_sampler.samples(pcollection_ids=['b']),
+        {'b': [coder.encode_nested('3'), coder.encode_nested('4')]})
 
-  def test_sample_filters_descriptor_and_pcollection_ids(self):
-    """Tests the samples can be filtered based on a both ids."""
+  def test_sample_filters_multiple_pcollection_ids(self):
+    """Tests the samples can be filtered based on a multiple pcollection ids."""
     data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
 
     self.gen_samples(data_sampler, coder)
     self.assertEqual(
-        data_sampler.samples(descriptor_ids=['a'], pcollection_ids=['1']),
-        {'1': [coder.encode_nested('a1')]})
-
-    self.gen_samples(data_sampler, coder)
-    self.assertEqual(
-        data_sampler.samples(descriptor_ids=['a'], pcollection_ids=['2']),
-        {'2': [coder.encode_nested('a2')]})
-
-    self.gen_samples(data_sampler, coder)
-    self.assertEqual(
-        data_sampler.samples(descriptor_ids=['b'], pcollection_ids=['1']),
-        {'1': [coder.encode_nested('b1')]})
-
-    self.gen_samples(data_sampler, coder)
-    self.assertEqual(
-        data_sampler.samples(descriptor_ids=['b'], pcollection_ids=['2']),
-        {'2': [coder.encode_nested('b2')]})
-
-  def test_sample_filters_multiple_descriptor_ids(self):
-    """Tests the samples are unioned based on descriptor ids."""
-    data_sampler = DataSampler()
-    coder = FastPrimitivesCoder()
-
-    self.gen_samples(data_sampler, coder)
-    self.assertEqual(
-        data_sampler.samples(descriptor_ids=['a', 'b']),
-        {
-            '1': [coder.encode_nested('a1'), coder.encode_nested('b1')],
-            '2': [coder.encode_nested('a2'), coder.encode_nested('b2')]
-        })
+        data_sampler.samples(pcollection_ids=['a', 'c']),
+        {'a': [coder.encode_nested('1'), coder.encode_nested('2')],
+         'c': [coder.encode_nested('5'), coder.encode_nested('6')]
+         })
 
 
 class OutputSamplerTest(unittest.TestCase):
@@ -157,7 +102,7 @@ class OutputSamplerTest(unittest.TestCase):
     """Tests that the first elements are always sampled."""
     data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
-    sampler = data_sampler.sample_output('a', '1', coder)
+    sampler = data_sampler.sample_output('1', coder)
 
     for i in range(15):
       sampler.sample(i)
@@ -170,7 +115,7 @@ class OutputSamplerTest(unittest.TestCase):
     """Tests that the buffer overwrites old samples."""
     data_sampler = DataSampler(max_samples=2)
     coder = FastPrimitivesCoder()
-    sampler = data_sampler.sample_output('a', '1', coder)
+    sampler = data_sampler.sample_output('1', coder)
 
     for i in range(10):
       sampler.sample(i)
@@ -183,7 +128,7 @@ class OutputSamplerTest(unittest.TestCase):
     """Tests that the buffer overwrites old samples."""
     data_sampler = DataSampler(max_samples=1, sample_every_sec=10)
     coder = FastPrimitivesCoder()
-    sampler = data_sampler.sample_output('a', '1', coder)
+    sampler = data_sampler.sample_output('1', coder)
 
     # Always samples the first ten.
     for i in range(10):
@@ -221,7 +166,7 @@ class OutputSamplerTest(unittest.TestCase):
     data_sampler = DataSampler()
     coder = WindowedValueCoder(FastPrimitivesCoder())
     value = WindowedValue('Hello, World!', 0, [GlobalWindow()])
-    data_sampler.sample_output('a', '1', coder).sample(value)
+    data_sampler.sample_output('1', coder).sample(value)
 
     self.assertEqual(
         data_sampler.samples(), {'1': [coder.encode_nested(value)]})
@@ -236,7 +181,7 @@ class OutputSamplerTest(unittest.TestCase):
     """
     data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
-    data_sampler.sample_output('a', '1', coder).sample(
+    data_sampler.sample_output('1', coder).sample(
         WindowedValue('Hello, World!', 0, [GlobalWindow()]))
 
     self.assertEqual(
