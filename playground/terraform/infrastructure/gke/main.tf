@@ -25,8 +25,16 @@ resource "google_container_cluster" "playground-gke" {
   network                    = var.network
   subnetwork                 = var.subnetwork
   remove_default_node_pool = true
+  network_policy {
+      enabled  = true
+      provider = "CALICO" // CALICO is currently the only supported provider
+  }
+  addons_config {
+   network_policy_config {
+    disabled = false
+  }
+ }
 }
-
 resource "google_container_node_pool" "playground-node-pool" {
   name       = "playground-node-pool"
   cluster    = google_container_cluster.playground-gke.name
@@ -51,31 +59,4 @@ resource "google_container_node_pool" "playground-node-pool" {
     }
     tags = ["beam-playground"]
    }
-}
-
-resource "kubernetes_network_policy" "playground" {
-  metadata {
-    name = "playground"
-  }
-
-  spec {
-    pod_selector {}
-    policy_types = ["Ingress", "Egress"]
-
-    ingress {
-      from {
-        ip_block {
-          cidr = "10.0.0.0/8"
-        }
-      }
-    }
-
-    egress {
-      to {
-        ip_block {
-          cidr = "10.0.0.0/8"
-        }
-      }
-    }
-  }
 }

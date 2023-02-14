@@ -54,9 +54,9 @@ spec:
        resources:
          requests:
            memory: "1000Mi"
-           cpu: "500m"
+           cpu: "250m"
          limits:
-           cpu: "1000"
+           cpu: "250m"
            memory: "1500Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:

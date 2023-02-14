@@ -51,7 +51,7 @@ spec:
            memory: "50Mi"
            cpu: "250m"
          limits:
-           cpu: "500"
+           cpu: "500m"
            memory: "500Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:
