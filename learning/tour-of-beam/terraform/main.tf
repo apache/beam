@@ -39,6 +39,7 @@ module "cloud_functions" {
   source = "./cloud_functions"
   region = var.region
   project_id = var.project_id
+  pg_router_host = var.pg_router_host
   # bucket_name = var.bucket_name
   service_account_id = module.setup.service-account-email
   source_archive_bucket = module.functions_buckets.functions-bucket-name
