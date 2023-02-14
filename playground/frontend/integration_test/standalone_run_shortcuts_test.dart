@@ -46,7 +46,7 @@ Future<void> _checkResetShortcut(
   PlaygroundController controller,
 ) async {
   final startSource = controller.source;
-  await wt.enterText(find.codeField(), 'print("Hello World!');
+  await wt.enterCodeFieldText('print("Hello World!');
 
   expect(controller.source, isNot(startSource));
 
