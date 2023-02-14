@@ -180,11 +180,13 @@ tasks.register("populateDatastore") {
         System.setProperty("GOOGLE_PROJECT_ID", projectId)
         System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
 
-        exec {
-        commandLine("bash", "-c", "go", "../backend/cmd/ci_cd/ci_cd.go")
-        standardOutput = result
+        val result: ExecResult = project.exec {
+            commandLine("go", "run", "../backend/cmd/ci_cd/ci_cd.go")
         }
-        println("Output of go run cmd/ci_cd/ci_cd.go command:\n${result.toString()}")
+        if (result.exitValue != 0) {
+            throw GradleException("Command execution failed with exit code ${result.exitValue}")
+        }
+        println("Output of script:\n${result.toString()}")
     }
 }
 
