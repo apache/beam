@@ -178,23 +178,13 @@ tasks.register("populateDatastore") {
         }
         System.setProperty("DATASTORE_PROJECT_ID", projectId)
         System.setProperty("GOOGLE_PROJECT_ID", projectId)
-        System.setProperty("TOB_LEARNING_ROOT", "../../../learning-content/")
+        System.setProperty("TOB_LEARNING_ROOT", "learning/tour-of-beam/learning-content/")
 
         val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "go ../backend/cmd/ci_cd/ci_cd.go"))
-
-        // Start a separate thread to read the output from the process's standard output
-        val outputThread = Thread {
-            process.inputStream.bufferedReader().useLines { lines ->
-                lines.forEach { line ->
-                    println(line)
-                }
-            }
+        val output = process.inputStream.bufferedReader().use {
+            it.readText().trim()
         }
-        outputThread.start()
-
-        // Wait for the process to complete and print the exit value
-        val exitValue = process.waitFor()
-        println("Process exited with value: $exitValue")
+        println("Output of go run cmd/ci_cd/ci_cd.go command: $output")
     }
 }
 
