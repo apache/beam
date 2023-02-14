@@ -194,12 +194,12 @@ tasks.register("populateDatastore") {
             doLast {
                 var dns_name = ""
                 var region = ""
-                var projectId = ""
+                var project_id = ""
                 if (project.hasProperty("region")) {
                     region = project.property("region") as String
                 }
-                if (project.hasProperty("projectId")) {
-                    projectId = project.property("projectId") as String
+                if (project.hasProperty("project_id")) {
+                    project_id = project.property("project_id") as String
                 }
                 if (project.hasProperty("dns-name")) {
                     dns_name = project.property("dns-name") as String
@@ -211,9 +211,9 @@ tasks.register("populateDatastore") {
                 file.writeText(
                         """
 const _cloudFunctionsProjectRegion = '$region';
-const _cloudFunctionsProjectId = '$projectId';
+const _cloudFunctionsProjectId = '$project_id';
 const cloudFunctionsBaseUrl = 'https://'
-    '$region-$projectId'
+    '$region-$project_id'
     '.cloudfunctions.net';
 
 
