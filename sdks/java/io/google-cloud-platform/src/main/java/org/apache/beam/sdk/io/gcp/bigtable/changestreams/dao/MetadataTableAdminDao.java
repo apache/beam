@@ -39,7 +39,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *
  * <p>Each Dataflow job will create its own metadata table.
  */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class MetadataTableAdminDao {
   public static final String DEFAULT_METADATA_TABLE_NAME = "__change_stream_md_table";
