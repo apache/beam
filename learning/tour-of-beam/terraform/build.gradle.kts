@@ -181,10 +181,10 @@ tasks.register("populateDatastore") {
         System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
 
         exec {
-        commandLine("go", "../backend/cmd/ci_cd/ci_cd.go")
+        commandLine("bash", "-c", "go", "../backend/cmd/ci_cd/ci_cd.go")
         standardOutput = result
         }
-        println("Output of go run cmd/ci_cd/ci_cd.go command: $result")
+        println("Output of go run cmd/ci_cd/ci_cd.go command:\n${result.toString()}")
     }
 }
 
