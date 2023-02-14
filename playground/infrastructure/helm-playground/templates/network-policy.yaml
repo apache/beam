@@ -45,3 +45,15 @@ spec:
       port: 6379
 	- protocol: TCP
 	  port: 8080
+  - to:
+    - ipBlock:
+        cidr: 169.254.169.252/32
+    ports:
+    - protocol: TCP
+      port: 988
+  - to:
+    - ipBlock:
+        cidr: 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 80
