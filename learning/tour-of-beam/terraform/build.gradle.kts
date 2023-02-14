@@ -152,19 +152,15 @@ tasks.register("getCredentials") {
 
 tasks.register("getRouterHost") {
     group = "backend-deploy"
-    var pg_router_host = ""
-    var stdout = ByteArrayOutputStream()
-    doLast{
-        exec {
-            executable("kubectl")
-            args("get", "svc", "-l", "app=backend-router-grpc", "-o", "jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'")
-            standardOutput = stdout
-        }
-        pg_router_host = stdout.toString().trim().replace("\"", "")
-        project.extensions.extraProperties.set("pg_router_host", pg_router_host)
-        stdout = ByteArrayOutputStream()
+    val result = ByteArrayOutputStream()
+    exec {
+        executable("kubectl")
+        args("get", "svc", "-l", "app=backend-router-grpc", "-o", "jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'")
+        standardOutput = result
     }
-}
+    val pg_router_host = result.toString().trim()
+    project.extensions.extraProperties["pg_router_host"] = pg_router_host
+    }
 
 tasks.register("indexcreate") {
     group = "backend-deploy"
