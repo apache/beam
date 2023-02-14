@@ -18,6 +18,7 @@
 
 import com.pswidersk.gradle.terraform.TerraformTask
 import java.io.ByteArrayOutputStream
+import kotlin.collections.toMap
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
@@ -153,7 +154,7 @@ tasks.register("getRouterHost") {
         commandLine("kubectl", "get", "svc", "-l", "app=backend-router-grpc", "-o", "jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'")
         standardOutput = result
     }
-    val pg_router_host = result.toString().trim()
+    val pg_router_host = result.toString().trim().replace("'", "")
     project.extensions.extraProperties["pg_router_host"] = pg_router_host
     }
 
@@ -171,7 +172,10 @@ tasks.register("indexcreate") {
 tasks.register("populateDatastore") {
     group = "backend-deploy"
     doLast {
-        val projectId = System.getProperty("projectId") ?: throw IllegalStateException("projectId must be set")
+        var projectId = "unknown"
+        if (project.hasProperty("projectId")) {
+            projectId = project.property("projectId") as String
+        }
         System.setProperty("DATASTORE_PROJECT_ID", projectId)
         System.setProperty("GOOGLE_PROJECT_ID", projectId)
         System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
@@ -181,8 +185,8 @@ tasks.register("populateDatastore") {
             it.readText().trim()
         }
         println("Output of go run cmd/ci_cd/ci_cd.go command: $output")
-            }
-        }
+    }
+}
 
         tasks.register("prepareConfig") {
             group = "frontend-deploy"
