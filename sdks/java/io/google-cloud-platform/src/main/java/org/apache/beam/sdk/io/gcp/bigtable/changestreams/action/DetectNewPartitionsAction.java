@@ -25,7 +25,8 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -93,11 +94,14 @@ public class DetectNewPartitionsAction {
   @VisibleForTesting
   public ProcessContinuation run(
       RestrictionTracker<OffsetRange, Long> tracker,
-      DoFn.OutputReceiver<PartitionRecord> receiver,
+      OutputReceiver<PartitionRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
-      DoFn.BundleFinalizer bundleFinalizer,
+      BundleFinalizer bundleFinalizer,
       Timestamp startTime)
       throws Exception {
+    if (tracker.currentRestriction().getFrom() == 0L) {
+      return generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime);
+    }
 
     // Terminate if endTime <= watermark that means all partitions have read up to or beyond
     // watermark. We no longer need to manage splits and merges, we can terminate.

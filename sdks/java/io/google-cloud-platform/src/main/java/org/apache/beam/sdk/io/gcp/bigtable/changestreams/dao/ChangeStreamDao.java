@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,5 +34,14 @@ public class ChangeStreamDao {
   public ChangeStreamDao(BigtableDataClient dataClient, String tableId) {
     this.dataClient = dataClient;
     this.tableId = tableId;
+  }
+
+  /**
+   * Returns the result from GenerateInitialChangeStreamPartitions API.
+   *
+   * @return list of StreamPartition
+   */
+  public List<ByteStringRange> generateInitialChangeStreamPartitions() {
+    return dataClient.generateInitialChangeStreamPartitionsCallable().all().call(tableId);
   }
 }
