@@ -68,11 +68,8 @@ tasks {
 
     register<TerraformTask>("terraformApplyBackend") {
         group = "backend-deploy"
-        var pg_router_host = ""
-        var environment = "unknown"
-        if (project.extensions.extraProperties.get("pg_router_host") != null) {
-            pg_router_host = project.extensions.extraProperties.get("pg_router_hots") as String
-        }
+        var environment = ""
+        val pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
@@ -154,8 +151,7 @@ tasks.register("getRouterHost") {
     group = "backend-deploy"
     val result = ByteArrayOutputStream()
     exec {
-        executable("kubectl")
-        args("get", "svc", "-l", "app=backend-router-grpc", "-o", "jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'")
+        commandLine("kubectl", "get", "svc", "-l", "app=backend-router-grpc", "-o", "jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'")
         standardOutput = result
     }
     val pg_router_host = result.toString().trim()
@@ -252,6 +248,7 @@ tasks.register("InitBackend") {
     dependsOn(getCreds)
     Thread.sleep(9000)
     dependsOn(getRouterHost)
+    Thread.sleep(9000)
     dependsOn(indexCreate)
     dependsOn(tfInit)
     dependsOn(tfApplyBackend)
