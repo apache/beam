@@ -40,8 +40,7 @@ public class DataSampler {
    * Creates a DataSampler to sample every 1000 elements while keeping a maximum of 10 in memory.
    */
   public DataSampler() {
-    this.maxSamples = 10;
-    this.sampleEveryN = 1000;
+    this(10, 1000);
   }
 
   /**
@@ -68,6 +67,8 @@ public class DataSampler {
    * ProcessBundleDescriptor. Uses the given coder encode samples as bytes when responding to a
    * SampleDataRequest.
    *
+   * <p>Invoked by multiple bundle processing threads in parallel when a new bundle processor is being instantiated.
+   *
    * @param pcollectionId The PCollection to take intermittent samples from.
    * @param coder The coder associated with the PCollection. Coder may be from a nested context.
    * @param <T> The type of element contained in the PCollection.
@@ -86,7 +87,7 @@ public class DataSampler {
    *     SampleDataRequest.
    * @return Returns all collected samples.
    */
-  public BeamFnApi.InstructionResponse.Builder handleDataSampleRequest(
+  public synchronized BeamFnApi.InstructionResponse.Builder handleDataSampleRequest(
       BeamFnApi.InstructionRequest request) {
     BeamFnApi.SampleDataRequest sampleDataRequest = request.getSampleData();
 

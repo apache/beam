@@ -254,11 +254,7 @@ public class FnHarness {
       FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
 
       // Create the sampler, if the experiment is enabled.
-      Optional<List<String>> experimentList =
-          Optional.ofNullable(options.as(ExperimentalOptions.class).getExperiments());
-      boolean shouldSample =
-          experimentList.isPresent()
-              && experimentList.get().contains(ENABLE_DATA_SAMPLING_EXPERIMENT);
+      boolean shouldSample = ExperimentalOptions.hasExperiment(options, ENABLE_DATA_SAMPLING_EXPERIMENT);
 
       // Retrieves the ProcessBundleDescriptor from cache. Requests the PBD from the Runner if it
       // doesn't exist. Additionally, runs any graph modifications.
