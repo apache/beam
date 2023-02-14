@@ -17,7 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
 
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.protobuf.Timestamp;
 import java.io.Serializable;
+import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Position for {@link ReadChangeStreamPartitionProgressTracker}. This represents contains
@@ -29,8 +34,53 @@ import java.io.Serializable;
  * can contain a close stream message which represents an end to the stream and the DoFn needs to
  * stop.
  */
+@Internal
 public class StreamProgress implements Serializable {
   private static final long serialVersionUID = -5384329262726188695L;
 
+  private @Nullable ChangeStreamContinuationToken currentToken;
+  private @Nullable Timestamp lowWatermark;
+
+  public @Nullable ChangeStreamContinuationToken getCurrentToken() {
+    return currentToken;
+  }
+
+  public @Nullable Timestamp getLowWatermark() {
+    return lowWatermark;
+  }
+
   public StreamProgress() {}
+
+  public StreamProgress(@Nullable ChangeStreamContinuationToken token, Timestamp lowWatermark) {
+    this.currentToken = token;
+    this.lowWatermark = lowWatermark;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof StreamProgress)) {
+      return false;
+    }
+    StreamProgress that = (StreamProgress) o;
+    return Objects.equals(getCurrentToken(), that.getCurrentToken())
+        && Objects.equals(getLowWatermark(), that.getLowWatermark());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getCurrentToken());
+  }
+
+  @Override
+  public String toString() {
+    return "StreamProgress{"
+        + "currentToken="
+        + currentToken
+        + ", lowWatermark="
+        + lowWatermark
+        + '}';
+  }
 }
