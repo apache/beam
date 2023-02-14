@@ -175,9 +175,11 @@ tasks.register("populateDatastore") {
         project_id = project.property("project_id") as String
     }
     doLast {
-        System.setProperty("DATASTORE_PROJECT_ID", project_id)
-        System.setProperty("GOOGLE_PROJECT_ID", project_id)
-        System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
+        exec {
+            commandLine("export", "DATASTORE_PROJECT_ID=$project_id")
+            commandLine("export", "GOOGLE_PROJECT_ID=$project_id")
+            commandLine("export", "TOB_LEARNING_ROOT=../learning-content/")
+        }
         val result: ExecResult = project.exec {
             commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
             workingDir("../backend")
