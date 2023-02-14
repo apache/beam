@@ -948,7 +948,7 @@ func sdfHasValidReturnNum(returns []funcx.ReturnParam, requiredNum int) bool {
 		return true
 	}
 
-	return len(returns) == requiredNum+1 && returns[1].Kind == funcx.RetError
+	return len(returns) == requiredNum+1 && returns[len(returns)-1].Kind == funcx.RetError
 }
 
 // validateSdfSigTypes validates the types of the parameters and return values
