@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// A real run is finished.
 class RunFinishedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const RunFinishedAnalyticsEvent({
     required this.duration,

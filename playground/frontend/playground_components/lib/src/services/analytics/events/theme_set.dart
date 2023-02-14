@@ -21,6 +21,7 @@ import 'dart:ui';
 import 'abstract.dart';
 import 'constants.dart';
 
+/// Dark or Light mode is turned on.
 class ThemeSetAnalyticsEvent extends AnalyticsEvent {
   const ThemeSetAnalyticsEvent({
     required this.brightness,
@@ -28,6 +29,7 @@ class ThemeSetAnalyticsEvent extends AnalyticsEvent {
           name: BeamAnalyticsEvents.themeSet,
         );
 
+  /// The new value of brightness.
   final Brightness brightness;
 
   @override

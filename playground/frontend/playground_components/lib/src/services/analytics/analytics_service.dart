@@ -30,18 +30,23 @@ abstract class AnalyticsService {
   AnalyticsEvent? get lastEvent => _lastEvent;
 
   final _defaultEventParameters = <String, dynamic>{};
+
+  /// The parameters sent with all events.
+  ///
+  /// Individual event parameters have higher priority on collisions.
   Map<String, dynamic> get defaultEventParameters =>
       UnmodifiableMapView(_defaultEventParameters);
+
+  set defaultEventParameters(Map<String, dynamic> newValue) {
+    _defaultEventParameters.clear();
+    _defaultEventParameters.addAll(newValue);
+  }
 
   static AnalyticsService get() {
     return GetIt.instance.get<AnalyticsService>();
   }
 
-  void setDefaultEventParameters(Map<String, dynamic> newValue) {
-    _defaultEventParameters.clear();
-    _defaultEventParameters.addAll(newValue);
-  }
-
+  /// Sends [event] asynchronously without returning a [Future].
   void sendUnawaited(AnalyticsEvent event) {
     unawaited(_send(event));
   }

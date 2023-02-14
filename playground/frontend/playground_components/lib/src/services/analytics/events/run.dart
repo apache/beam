@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// 'Run' button is pressed to show cached result or to run for real.
 class RunAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const RunAnalyticsEvent({
     required super.snippetContext,

@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// 'Reset Snippet' is clicked.
 class ResetSnippetAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const ResetSnippetAnalyticsEvent({
     required super.snippetContext,

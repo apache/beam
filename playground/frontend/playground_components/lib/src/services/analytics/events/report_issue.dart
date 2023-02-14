@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// Report issue is clicked.
 class ReportIssueAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const ReportIssueAnalyticsEvent({
     required super.snippetContext,

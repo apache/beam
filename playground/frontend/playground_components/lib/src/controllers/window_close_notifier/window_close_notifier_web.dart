@@ -18,7 +18,7 @@
 
 import 'dart:html'; // ignore: avoid_web_libraries_in_flutter
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 /// Notifies when the browser window is being closed.
 class WindowCloseNotifier extends ChangeNotifier {

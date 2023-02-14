@@ -20,6 +20,9 @@ import '../../../models/sdk.dart';
 import 'abstract.dart';
 import 'constants.dart';
 
+/// Snippet code is modified for the first time.
+///
+/// For multi-file snippets this fires up to one time on each modified file.
 class SnippetModifiedAnalyticsEvent extends AnalyticsEvent {
   const SnippetModifiedAnalyticsEvent({
     required this.file,

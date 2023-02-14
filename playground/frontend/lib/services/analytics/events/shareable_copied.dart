@@ -21,7 +21,7 @@ import 'package:playground_components/playground_components.dart';
 
 import 'constants.dart';
 
-/// Copied shareable link or embeddable code.
+/// Copied the shareable link or the embeddable code.
 class ShareableCopiedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const ShareableCopiedAnalyticsEvent({
     required this.shareFormat,

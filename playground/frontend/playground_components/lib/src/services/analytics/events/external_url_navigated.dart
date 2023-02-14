@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// Clicked any external link that does not have a dedicated event.
 class ExternalUrlNavigatedAnalyticsEvent extends AnalyticsEvent {
   const ExternalUrlNavigatedAnalyticsEvent({
     required this.url,

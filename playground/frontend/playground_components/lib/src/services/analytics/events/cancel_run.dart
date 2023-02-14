@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// A real or cached run is cancelled.
 class CancelRunAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const CancelRunAnalyticsEvent({
     required this.duration,

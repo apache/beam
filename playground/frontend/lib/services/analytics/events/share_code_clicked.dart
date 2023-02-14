@@ -20,6 +20,7 @@ import 'package:playground_components/playground_components.dart';
 
 import 'constants.dart';
 
+/// 'Share my Code' button is clicked.
 class ShareCodeClickedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const ShareCodeClickedAnalyticsEvent({
     required super.snippetContext,

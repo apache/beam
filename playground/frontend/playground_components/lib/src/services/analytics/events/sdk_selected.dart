@@ -20,6 +20,7 @@ import '../../../models/sdk.dart';
 import 'abstract.dart';
 import 'constants.dart';
 
+/// SDK is changed.
 class SdkSelectedAnalyticsEvent extends AnalyticsEvent {
   const SdkSelectedAnalyticsEvent({
     required this.sdk,

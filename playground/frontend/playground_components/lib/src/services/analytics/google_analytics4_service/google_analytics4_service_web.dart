@@ -28,6 +28,8 @@ import 'google_analytics4_service.dart';
 
 final _urlTemplate = Uri.parse('https://www.googletagmanager.com/gtag/js');
 const _eventNameParam = 'eventName';
+
+/// The global JS function to submit analytics data.
 const _function = 'gtag';
 
 @internal

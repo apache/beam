@@ -19,8 +19,6 @@
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-const kFeedbackKey = 'feedback';
-
 class FeedbackState with ChangeNotifier {
   FeedbackRating? feedbackRating;
 

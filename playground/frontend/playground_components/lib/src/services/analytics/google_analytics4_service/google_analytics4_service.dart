@@ -25,6 +25,8 @@ abstract class GoogleAnalytics4Service extends AnalyticsService {
   factory GoogleAnalytics4Service({
     required String propertyId,
   }) =>
+
+      /// Call the platform-specific factory function.
       createGoogleAnalytics4Service(propertyId: propertyId);
 
   /// Since we use the default constructor as the factory,

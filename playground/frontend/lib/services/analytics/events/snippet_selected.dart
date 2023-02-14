@@ -20,6 +20,7 @@ import 'package:playground_components/playground_components.dart';
 
 import 'constants.dart';
 
+/// [snippet] is selected in the example dropdown.
 class SnippetSelectedAnalyticsEvent extends AnalyticsEvent {
   const SnippetSelectedAnalyticsEvent({
     required this.sdk,

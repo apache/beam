@@ -20,6 +20,7 @@ import 'package:playground_components/playground_components.dart';
 
 import 'constants.dart';
 
+/// 'New Example' button is clicked in the app header.
 class NewExampleAnalyticsEvent extends AnalyticsEvent {
   const NewExampleAnalyticsEvent()
       : super(

@@ -20,6 +20,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../../models/event_snippet_context.dart';
 
+/// The root event class for analytics.
 abstract class AnalyticsEvent with EquatableMixin {
   const AnalyticsEvent({
     required this.name,
@@ -32,6 +33,7 @@ abstract class AnalyticsEvent with EquatableMixin {
         name,
       ];
 
+  /// Returns the event params to be sent.
   Map<String, dynamic> toJson() => const {};
 }
 

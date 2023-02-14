@@ -20,6 +20,7 @@ import 'package:playground_components/playground_components.dart';
 
 import 'constants.dart';
 
+/// 'Shortcuts' menu item is clicked.
 class ShortcutsClickedAnalyticsEvent extends AnalyticsEvent {
   const ShortcutsClickedAnalyticsEvent()
       : super(
