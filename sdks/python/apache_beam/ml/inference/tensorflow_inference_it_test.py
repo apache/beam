@@ -23,13 +23,13 @@ import uuid
 
 import pytest
 
-from apache_beam.examples.inference import tensorflow_imagenet_segmentation
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
+  from apache_beam.examples.inference import tensorflow_imagenet_segmentation
   from apache_beam.examples.inference import tensorflow_mnist_classification
 except ImportError as e:
   tf = None
