@@ -52,3 +52,30 @@ resource "google_container_node_pool" "playground-node-pool" {
     tags = ["beam-playground"]
    }
 }
+
+resource "kubernetes_network_policy" "playground" {
+  metadata {
+    name = "playground"
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+
+    ingress {
+      from {
+        ip_block {
+          cidr = "10.0.0.0/8"
+        }
+      }
+    }
+
+    egress {
+      to {
+        ip_block {
+          cidr = "10.0.0.0/8"
+        }
+      }
+    }
+  }
+}
