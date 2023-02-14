@@ -49,7 +49,7 @@ jobs:
         run: "cd sdks/go/pkg && rm -rf .coverage || :"
       - name: Run coverage
         run: cd sdks/go/pkg && go test -coverprofile=coverage.txt -covermode=atomic ./...
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v3
         with:
           flags: go 
           files: ./sdks/go/pkg/coverage.txt
