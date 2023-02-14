@@ -38,11 +38,6 @@ resource "google_cloudfunctions_function" "cloud_function" {
     PLAYGROUND_ROUTER_HOST=var.pg_router_host
   }
 
-  user_data = <<-EOF
-              #!/bin/bash
-              echo "The value of Playground Router host is: ${var.pg_router_host}"
-              EOF
-
 }
 
 # Create IAM entry so all users can invoke the function
