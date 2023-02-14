@@ -19,9 +19,34 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 
 /** Class to aggregate metrics related functionality. */
 @Internal
 public class ChangeStreamMetrics implements Serializable {
   private static final long serialVersionUID = 7298901109362981596L;
+  // ------------------------
+  // Partition record metrics
+
+  /**
+   * Counter for the total number of partitions identified during the execution of the Connector.
+   */
+  public static final Counter LIST_PARTITIONS_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "list_partitions_count");
+
+  /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#LIST_PARTITIONS_COUNT} by
+   * 1 if the metric is enabled.
+   */
+  public void incListPartitionsCount() {
+    inc(LIST_PARTITIONS_COUNT);
+  }
+
+  private void inc(Counter counter) {
+    counter.inc();
+  }
 }
