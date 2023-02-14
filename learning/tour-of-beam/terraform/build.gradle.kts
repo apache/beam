@@ -181,7 +181,8 @@ tasks.register("populateDatastore") {
         System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
 
         val result: ExecResult = project.exec {
-            commandLine("go", "run", "../backend/cmd/ci_cd/ci_cd.go")
+            commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
+            workingDir("../backend")
         }
         if (result.exitValue != 0) {
             throw GradleException("Command execution failed with exit code ${result.exitValue}")
