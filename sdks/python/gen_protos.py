@@ -37,6 +37,7 @@ import pkg_resources
 
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
 
 LICENSE_HEADER = """
 #
