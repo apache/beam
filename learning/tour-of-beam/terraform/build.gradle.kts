@@ -172,14 +172,10 @@ tasks.register("populateDatastore") {
     group = "backend-deploy"
     val result = ByteArrayOutputStream()
     doLast {
-        var projectId = "unknown"
-        if (project.hasProperty("projectId")) {
-            projectId = project.property("projectId") as String
-        }
+        val projectId = System.getProperty("projectId") ?: throw IllegalStateException("projectId must be set")
         System.setProperty("DATASTORE_PROJECT_ID", projectId)
         System.setProperty("GOOGLE_PROJECT_ID", projectId)
         System.setProperty("TOB_LEARNING_ROOT", "../learning-content/")
-
         val result: ExecResult = project.exec {
             commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
             workingDir("../backend")
