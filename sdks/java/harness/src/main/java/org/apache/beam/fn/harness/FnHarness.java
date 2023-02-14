@@ -94,7 +94,6 @@ public class FnHarness {
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
   private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
-  private static final DataSampler dataSampler = new DataSampler();
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor)
       throws TextFormat.ParseException {
@@ -226,6 +225,7 @@ public class FnHarness {
         options.as(ExecutorOptions.class).getScheduledExecutorService();
     ExecutionStateSampler executionStateSampler =
         new ExecutionStateSampler(options, System::currentTimeMillis);
+    final DataSampler dataSampler = new DataSampler();
 
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.

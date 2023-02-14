@@ -17,11 +17,12 @@
  */
 package org.apache.beam.fn.harness.debug;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,8 +98,8 @@ public class OutputSampler<T> {
    *
    * @return samples taken since last call.
    */
-  public List<byte[]> samples() {
-    List<byte[]> ret = new ArrayList<>();
+  public List<BeamFnApi.SampledElement> samples() {
+    List<BeamFnApi.SampledElement> ret = new ArrayList<>();
 
     // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
     // so as to not slow down the main processing hot path.
@@ -109,18 +110,19 @@ public class OutputSampler<T> {
       resampleIndex = 0;
     }
 
-    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    ByteStringOutputStream stream = new ByteStringOutputStream();
     for (T el : copiedBuffer) {
       try {
         // This is deprecated, but until this is fully removed, this specifically needs the nested
         // context. This is because the SDK will need to decode the sampled elements with the
         // ToStringFn.
         coder.encode(el, stream, Coder.Context.NESTED);
-        ret.add(stream.toByteArray());
+        ret.add(
+            BeamFnApi.SampledElement.newBuilder()
+                .setElement(stream.toByteStringAndReset())
+                .build());
       } catch (Exception exception) {
         LOG.warn("Could not encode element \"" + el + "\" to bytes: " + exception);
-      } finally {
-        stream.reset();
       }
     }
 

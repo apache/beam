@@ -17,16 +17,12 @@
  */
 package org.apache.beam.fn.harness.debug;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.SampleDataResponse.ElementList;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.SampledElement;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 
 /**
  * The DataSampler is a global (per SDK Harness) object that facilitates taking and returning
@@ -75,9 +71,8 @@ public class DataSampler {
    * @return the OutputSampler corresponding to the unique PBD and PCollection.
    */
   public <T> OutputSampler<T> sampleOutput(String pcollectionId, Coder<T> coder) {
-    outputSamplers.putIfAbsent(
-        pcollectionId, new OutputSampler<>(coder, this.maxSamples, this.sampleEveryN));
-    return (OutputSampler<T>) outputSamplers.get(pcollectionId);
+    return (OutputSampler<T>)outputSamplers.computeIfAbsent(
+        pcollectionId, k -> new OutputSampler<>(coder, this.maxSamples, this.sampleEveryN));
   }
 
   /**
@@ -91,46 +86,22 @@ public class DataSampler {
       BeamFnApi.InstructionRequest request) {
     BeamFnApi.SampleDataRequest sampleDataRequest = request.getSampleData();
 
-    Map<String, List<byte[]>> responseSamples =
-        samplesFor(sampleDataRequest.getPcollectionIdsList());
-
-    BeamFnApi.SampleDataResponse.Builder response = BeamFnApi.SampleDataResponse.newBuilder();
-    for (Map.Entry<String, List<byte[]>> entry : responseSamples.entrySet()) {
-      String pcollectionId = entry.getKey();
-      ElementList.Builder elementList = ElementList.newBuilder();
-      for (byte[] sample : entry.getValue()) {
-        elementList.addElements(
-            SampledElement.newBuilder().setElement(ByteString.copyFrom(sample)).build());
-      }
-      response.putElementSamples(pcollectionId, elementList.build());
-    }
-
-    return BeamFnApi.InstructionResponse.newBuilder().setSampleData(response);
-  }
-
-  /**
-   * Returns a map from PCollection to its samples. Samples are filtered on
-   * ProcessBundleDescriptorIds and PCollections. Thread-safe.
-   *
-   * @param pcollections Filters all PCollections on this set. If empty, allows all PCollections.
-   * @return a map from PCollection to its samples.
-   */
-  private Map<String, List<byte[]>> samplesFor(List<String> pcollections) {
-    Map<String, List<byte[]>> samples = new HashMap<>();
+    List<String> pcollections = sampleDataRequest.getPcollectionIdsList();
 
     // Safe to iterate as the ConcurrentHashMap will return each element at most once and will not
-    // throw
-    // ConcurrentModificationException.
+    // throw ConcurrentModificationException.
+    BeamFnApi.SampleDataResponse.Builder response = BeamFnApi.SampleDataResponse.newBuilder();
     outputSamplers.forEach(
         (pcollectionId, outputSampler) -> {
           if (!pcollections.isEmpty() && !pcollections.contains(pcollectionId)) {
             return;
           }
 
-          samples.putIfAbsent(pcollectionId, new ArrayList<>());
-          samples.get(pcollectionId).addAll(outputSampler.samples());
+          response.putElementSamples(
+              pcollectionId,
+              ElementList.newBuilder().addAllElements(outputSampler.samples()).build());
         });
 
-    return samples;
+    return BeamFnApi.InstructionResponse.newBuilder().setSampleData(response);
   }
 }

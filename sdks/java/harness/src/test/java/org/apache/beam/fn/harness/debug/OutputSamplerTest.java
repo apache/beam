@@ -24,18 +24,22 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class OutputSamplerTest {
-  public byte[] encodeInt(Integer i) throws IOException {
+  public BeamFnApi.SampledElement encodeInt(Integer i) throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     coder.encode(i, stream);
-    return stream.toByteArray();
+    return BeamFnApi.SampledElement.newBuilder()
+        .setElement(ByteString.copyFrom(stream.toByteArray()))
+        .build();
   }
 
   /**
@@ -54,12 +58,12 @@ public class OutputSamplerTest {
     }
 
     // The expected list is only 0..9 inclusive.
-    List<byte[]> expected = new ArrayList<>();
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
     for (int i = 0; i < 10; ++i) {
       expected.add(encodeInt(i));
     }
 
-    List<byte[]> samples = outputSampler.samples();
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
     assertThat(samples, containsInAnyOrder(expected.toArray()));
   }
 
@@ -80,14 +84,14 @@ public class OutputSamplerTest {
     // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
     // 4..9 inclusive. Then,
     // the 20th element is sampled (19) and every 20 after.
-    List<byte[]> expected = new ArrayList<>();
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
     expected.add(encodeInt(19));
     expected.add(encodeInt(39));
     expected.add(encodeInt(59));
     expected.add(encodeInt(79));
     expected.add(encodeInt(99));
 
-    List<byte[]> samples = outputSampler.samples();
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
     assertThat(samples, containsInAnyOrder(expected.toArray()));
   }
 }
