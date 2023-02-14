@@ -137,15 +137,11 @@ tasks.register("getCredentials") {
     dependsOn("getGKEClusterName", "getGKEClusterZone")
     mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName", ":learning:tour-of-beam:terraform:getGKEClusterZone")
     group = "backend-deploy"
-    var projectId = "unknown"
-    if (project.hasProperty("projectId")) {
-        projectId = project.property("projectId") as String
-    }
     val gkeClusterZone = project.extensions.extraProperties["gkeClusterZone"] as String
     val gkeClusterName = project.extensions.extraProperties["gkeClusterName"] as String
     doLast {
         exec {
-            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone, "--project $projectId")
+            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone)
         }
     }
 }
