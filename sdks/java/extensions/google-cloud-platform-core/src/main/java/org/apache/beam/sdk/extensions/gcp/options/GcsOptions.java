@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.api.client.http.HttpTransport;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -25,6 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -119,6 +121,21 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setPathValidator(PathValidator validator);
 
+  /**
+   * The HTTPTransport instance that should be used for google cloud storage client. If no transport
+   * has been set explicitly, the default is to use the global default transport instance from
+   * {@link Transport#getTransport()}.
+   */
+  @JsonIgnore
+  @Description(
+      "The HTTPTransport instance that should be used for google cloud storage client. "
+          + "If no transport has been set explicitly, the default is to use the global default "
+          + "global transport instance.")
+  @Default.InstanceFactory(HttpTransportFactory.class)
+  HttpTransport getGcsHttpTransport();
+
+  void setGcsHttpTransport(HttpTransport value);
+
   /** If true, reports metrics of certain operations, such as batch copies. */
   @Description("Experimental. Whether to report performance metrics of certain GCS operations.")
   @Default.Boolean(false)
@@ -151,6 +168,14 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
           .fromFactoryMethod("fromOptions")
           .withArg(PipelineOptions.class, options)
           .build();
+    }
+  }
+
+  /** Return the global default {@link HttpTransport} instance. */
+  class HttpTransportFactory implements DefaultValueFactory<HttpTransport> {
+    @Override
+    public HttpTransport create(PipelineOptions options) {
+      return Transport.getTransport();
     }
   }
 }

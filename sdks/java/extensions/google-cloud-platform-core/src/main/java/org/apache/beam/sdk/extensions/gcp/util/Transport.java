@@ -92,7 +92,7 @@ public class Transport {
     String servicePath = options.getGcsEndpoint();
     Storage.Builder storageBuilder =
         new Storage.Builder(
-                getTransport(),
+                options.getGcsHttpTransport(),
                 getJsonFactory(),
                 chainHttpRequestInitializer(
                     options.getGcpCredential(),
