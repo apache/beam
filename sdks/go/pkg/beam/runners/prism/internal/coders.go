@@ -180,78 +180,56 @@ func reconcileCoders(bundle, base map[string]*pipepb.Coder) {
 	}
 }
 
-func kvcoder(comps *pipepb.Components, tid string) *pipepb.Coder {
-	t := comps.GetTransforms()[tid]
-	var inputPColID string
-	for _, pcolID := range t.GetInputs() {
-		inputPColID = pcolID
-	}
-	pcol := comps.GetPcollections()[inputPColID]
-	return comps.GetCoders()[pcol.GetCoderId()]
-}
-
 // pullDecoder return a function that will extract the bytes
 // for the associated coder.
 func pullDecoder(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reader) []byte {
+	dec := pullDecoderNoAlloc(c, coders)
+	return func(r io.Reader) []byte {
+		var buf bytes.Buffer
+		tr := io.TeeReader(r, &buf)
+		dec(tr)
+		return buf.Bytes()
+	}
+}
+
+func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reader) {
 	urn := c.GetSpec().GetUrn()
 	switch urn {
 	// Anything length prefixed can be treated as opaque.
 	case urns.CoderBytes, urns.CoderStringUTF8, urns.CoderLengthPrefix:
-		return func(r io.Reader) []byte {
-			var buf bytes.Buffer
-			tr := io.TeeReader(r, &buf)
-			l, _ := coder.DecodeVarInt(tr)
-			ioutilx.ReadN(tr, int(l))
-			return buf.Bytes()
+		return func(r io.Reader) {
+			l, _ := coder.DecodeVarInt(r)
+			ioutilx.ReadN(r, int(l))
 		}
 	case urns.CoderVarInt:
-		return func(r io.Reader) []byte {
-			var buf bytes.Buffer
-			tr := io.TeeReader(r, &buf)
-			coder.DecodeVarInt(tr)
-			return buf.Bytes()
+		return func(r io.Reader) {
+			coder.DecodeVarInt(r)
 		}
 	case urns.CoderBool:
-		return func(r io.Reader) []byte {
-			if v, _ := coder.DecodeBool(r); v {
-				return []byte{1}
-			}
-			return []byte{0}
+		return func(r io.Reader) {
+			coder.DecodeBool(r)
 		}
 	case urns.CoderDouble:
-		return func(r io.Reader) []byte {
-			var buf bytes.Buffer
-			tr := io.TeeReader(r, &buf)
-			coder.DecodeDouble(tr)
-			return buf.Bytes()
+		return func(r io.Reader) {
+			coder.DecodeDouble(r)
 		}
 	case urns.CoderIterable:
 		ccids := c.GetComponentCoderIds()
-		ed := pullDecoder(coders[ccids[0]], coders)
-		// TODO-rejigger all of these to avoid all the wasteful byte copies.
-		// The utility of the io interfaces strike again!
-		return func(r io.Reader) []byte {
-			var buf bytes.Buffer
-			tr := io.TeeReader(r, &buf)
-			l, _ := coder.DecodeInt32(tr)
+		ed := pullDecoderNoAlloc(coders[ccids[0]], coders)
+		return func(r io.Reader) {
+			l, _ := coder.DecodeInt32(r)
 			for i := int32(0); i < l; i++ {
-				ed(tr)
+				ed(r)
 			}
-			return buf.Bytes()
 		}
 
 	case urns.CoderKV:
 		ccids := c.GetComponentCoderIds()
-		kd := pullDecoder(coders[ccids[0]], coders)
-		vd := pullDecoder(coders[ccids[1]], coders)
-		// TODO-rejigger all of these to avoid all the wasteful byte copies.
-		// The utility of the io interfaces strike again!
-		return func(r io.Reader) []byte {
-			var buf bytes.Buffer
-			tr := io.TeeReader(r, &buf)
-			kd(tr)
-			vd(tr)
-			return buf.Bytes()
+		kd := pullDecoderNoAlloc(coders[ccids[0]], coders)
+		vd := pullDecoderNoAlloc(coders[ccids[1]], coders)
+		return func(r io.Reader) {
+			kd(r)
+			vd(r)
 		}
 	case urns.CoderRow:
 		panic(fmt.Sprintf("Runner forgot to LP this Row Coder. %v", prototext.Format(c)))
