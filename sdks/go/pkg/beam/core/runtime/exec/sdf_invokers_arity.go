@@ -71,8 +71,7 @@ func (n *cirInvoker) initCallFn() error {
 
 	default:
 		if len(n.fn.Param) < 1 || len(n.fn.Param) > 3 {
-			return errors.Errorf("CreateInitialRestriction fn %v has unexpected number of parameters: %v",
-				n.fn.Fn.Name(), len(n.fn.Param))
+			return errors.Errorf("CreateInitialRestriction has unexpected number of parameters: %v", len(n.fn.Param))
 		}
 
 		n.call = func() (rest any, err error) {
@@ -85,8 +84,7 @@ func (n *cirInvoker) initCallFn() error {
 				return ret[0], asError(ret[1])
 			}
 
-			panic(fmt.Sprintf("CreateInitialRestriction fn %v has unexpected number of return values: %v",
-				n.fn.Fn.Name(), len(ret)))
+			panic(fmt.Sprintf("CreateInitialRestriction has unexpected number of return values: %v", len(ret)))
 		}
 	}
 
@@ -137,8 +135,7 @@ func (n *srInvoker) initCallFn() error {
 
 	default:
 		if len(n.fn.Param) < 2 || len(n.fn.Param) > 4 {
-			return errors.Errorf("SplitRestriction fn %v has unexpected number of parameters: %v",
-				n.fn.Fn.Name(), len(n.fn.Param))
+			return errors.Errorf("SplitRestriction has unexpected number of parameters: %v", len(n.fn.Param))
 		}
 
 		n.call = func() (splits any, err error) {
@@ -151,8 +148,7 @@ func (n *srInvoker) initCallFn() error {
 				return ret[0], asError(ret[1])
 			}
 
-			panic(fmt.Sprintf("SplitRestriction fn %v has unexpected number of return values: %v",
-				n.fn.Fn.Name(), len(ret)))
+			panic(fmt.Sprintf("SplitRestriction has unexpected number of return values: %v", len(ret)))
 		}
 	}
 
@@ -203,8 +199,7 @@ func (n *rsInvoker) initCallFn() error {
 
 	default:
 		if len(n.fn.Param) < 2 || len(n.fn.Param) > 4 {
-			return errors.Errorf("RestrictionSize fn %v has unexpected number of parameters: %v",
-				n.fn.Fn.Name(), len(n.fn.Param))
+			return errors.Errorf("RestrictionSize has unexpected number of parameters: %v", len(n.fn.Param))
 		}
 
 		n.call = func() (size float64, err error) {
@@ -217,8 +212,7 @@ func (n *rsInvoker) initCallFn() error {
 				return ret[0].(float64), asError(ret[1])
 			}
 
-			panic(fmt.Sprintf("RestrictionSize fn %v has unexpected number of return values: %v",
-				n.fn.Fn.Name(), len(ret)))
+			panic(fmt.Sprintf("RestrictionSize has unexpected number of return values: %v", len(ret)))
 		}
 	}
 
@@ -257,8 +251,7 @@ func (n *ctInvoker) initCallFn() error {
 
 	default:
 		if len(n.fn.Param) < 1 || len(n.fn.Param) > 2 {
-			return errors.Errorf("CreateTracker fn %v has unexpected number of parameters: %v",
-				n.fn.Fn.Name(), len(n.fn.Param))
+			return errors.Errorf("CreateTracker has unexpected number of parameters: %v", len(n.fn.Param))
 		}
 
 		n.call = func() (rt sdf.RTracker, err error) {
@@ -271,8 +264,7 @@ func (n *ctInvoker) initCallFn() error {
 				return ret[0].(sdf.RTracker), asError(ret[1])
 			}
 
-			panic(fmt.Sprintf("CreateTracker fn %v has unexpected number of return values: %v",
-				n.fn.Fn.Name(), len(ret)))
+			panic(fmt.Sprintf("CreateTracker has unexpected number of return values: %v", len(ret)))
 		}
 	}
 
@@ -323,8 +315,7 @@ func (n *trInvoker) initCallFn() error {
 
 	default:
 		if len(n.fn.Param) < 2 || len(n.fn.Param) > 4 {
-			return errors.Errorf("TruncateRestriction fn %v has unexpected number of parameters: %v",
-				n.fn.Fn.Name(), len(n.fn.Param))
+			return errors.Errorf("TruncateRestriction has unexpected number of parameters: %v", len(n.fn.Param))
 		}
 
 		n.call = func() (rest any, err error) {
@@ -337,8 +328,7 @@ func (n *trInvoker) initCallFn() error {
 				return ret[0], asError(ret[1])
 			}
 
-			panic(fmt.Sprintf("TruncateRestriction fn %v has unexpected number of return values: %v",
-				n.fn.Fn.Name(), len(ret)))
+			panic(fmt.Sprintf("TruncateRestriction has unexpected number of return values: %v", len(ret)))
 		}
 	}
 
