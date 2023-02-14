@@ -30,6 +30,7 @@ class ProgressDialog extends StatelessWidget {
     var shown = true;
     unawaited(
       showDialog(
+        barrierDismissible: false,
         context: navigatorKey.currentContext!,
         builder: (_) => const ProgressDialog(),
       ).whenComplete(() {
