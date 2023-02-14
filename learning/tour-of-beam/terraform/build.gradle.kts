@@ -265,3 +265,18 @@ tasks.register("InitBackend") {
     tfApplyBackend.mustRunAfter(tfInit)
     initDatastore.mustRunAfter(tfApplyBackend)
 }
+
+tasks.register("InitFrontend") {
+    group = "frontend-deploy"
+    description = "ToB Frontend Init"
+    val prepareConfig = tasks.getByName("prepareConfig")
+    val tfInit = tasks.getByName("terraformInit")
+    val terraformApplyFrontend = tasks.getByName("terraformApplyFrontend")
+    dependsOn(prepareConfig)
+    Thread.sleep(4000)
+    dependsOn(tfInit)
+    dependsOn(terraformApplyFrontend)
+    tfInit.mustRunAfter(prepareConfig)
+    terraformApplyFrontend.mustRunAfter(tfInit)
+
+}
