@@ -18,7 +18,8 @@
 
 import com.pswidersk.gradle.terraform.TerraformTask
 import java.io.ByteArrayOutputStream
-import kotlin.collections.toMap
+import org.gradle.api.logging.LogLevel
+
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
@@ -184,7 +185,7 @@ tasks.register("populateDatastore") {
         val output = process.inputStream.bufferedReader().use {
             it.readText().trim()
         }
-        println("Output of go run cmd/ci_cd/ci_cd.go command: $output")
+        logger.log(LogLevel.LIFECYCLE, "Output of go run cmd/ci_cd/ci_cd.go command:\n$output")
     }
 }
 
