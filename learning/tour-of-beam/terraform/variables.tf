@@ -31,14 +31,8 @@ variable "region" {
   description = "The region of the Google Cloud project within which resources are provisioned"
 }
 
-#variable "firebase_region" {
-#  description = <<EOF
-#The ID of the GCP resource location for the Firebase Project.
-#For Firebase region details see:
-#https://firebase.google.com/docs/projects/locations#location-r
-#  EOF
-#}
-
 variable "pg_router_host" {}
 
 variable "environment" {}
+
+variable "firebase_storage_bucket_name" {}

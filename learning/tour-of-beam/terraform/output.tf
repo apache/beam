@@ -31,18 +31,18 @@ output "function-bucket-object" {
   value = module.functions_buckets.function-bucket-object
 }
 
-#output "firebase_project_name" {
-#value = module.firebase.firebase_project_name
-#}
-#
-#output "firebase_web_app_name" {
-#value = module.firebase.firebase_web_app_name
-#}
-#
-#output "firebase_web_app_id" {
-#value = module.firebase.firebase_web_app_id
-#}
-#
-#output "firebase_hosting" {
-#value = module.firebase.firebase_hosting
-#}
+output "firebase_project_name" {
+value = module.firebase.firebase_project_name
+}
+
+output "firebase_web_app_name" {
+value = module.firebase.firebase_web_app_name
+}
+
+output "firebase_web_app_id" {
+value = module.firebase.firebase_web_app_id
+}
+
+output "firebase_hosting" {
+value = module.firebase.firebase_hosting_app_id
+}
