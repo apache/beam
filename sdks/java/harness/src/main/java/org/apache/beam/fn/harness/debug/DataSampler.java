@@ -94,9 +94,10 @@ public class DataSampler {
         samplesFor(sampleDataRequest.getPcollectionIdsList());
 
     BeamFnApi.SampleDataResponse.Builder response = BeamFnApi.SampleDataResponse.newBuilder();
-    for (String pcollectionId : responseSamples.keySet()) {
+    for (Map.Entry<String, List<byte[]>> entry : responseSamples.entrySet()) {
+      String pcollectionId = entry.getKey();
       ElementList.Builder elementList = ElementList.newBuilder();
-      for (byte[] sample : responseSamples.get(pcollectionId)) {
+      for (byte[] sample : entry.getValue()) {
         elementList.addElements(
             SampledElement.newBuilder().setElement(ByteString.copyFrom(sample)).build());
       }
