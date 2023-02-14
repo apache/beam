@@ -175,13 +175,11 @@ tasks.register("populateDatastore") {
         project_id = project.property("project_id") as String
     }
     doLast {
-        exec {
-            commandLine("export", "DATASTORE_PROJECT_ID=$project_id")
-            commandLine("export", "GOOGLE_PROJECT_ID=$project_id")
-            commandLine("export", "TOB_LEARNING_ROOT=../learning-content/")
-        }
         val result: ExecResult = project.exec {
             commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
+            environment("DATASTORE_PROJECT_ID", project_id)
+            environment("GOOGLE_PROJECT_ID", project_id)
+            environment("TOB_LEARNING_ROOT", "../learning-content/")
             workingDir("../backend")
         }
         if (result.exitValue != 0) {
