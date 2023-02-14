@@ -24,6 +24,7 @@ import 'package:provider/provider.dart';
 import '../../../../constants/sizes.dart';
 import '../../../../pages/standalone_playground/notifiers/example_selector_state.dart';
 import '../examples_components.dart';
+import '../web_scroll_converter.dart';
 
 class ExamplesFilter extends StatelessWidget {
   const ExamplesFilter({super.key});
@@ -37,8 +38,8 @@ class ExamplesFilter extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _Types(),
+        children: [
+          const _Types(),
           _Tags(),
         ],
       ),
@@ -77,19 +78,24 @@ class _Types extends StatelessWidget {
 }
 
 class _Tags extends StatelessWidget {
-  const _Tags();
+  final ScrollController scrollController = ScrollController();
+  _Tags();
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ExampleSelectorState>(
       builder: (context, state, child) => Padding(
         padding: const EdgeInsets.symmetric(vertical: kMdSpacing),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: state.tags
-                .map((tag) => TagBubble(name: tag))
-                .toList(growable: false),
+        child: WebScrollConverterWidget(
+          scrollController: scrollController,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: scrollController,
+            child: Wrap(
+              children: state.tags
+                  .map((tag) => TagBubble(name: tag))
+                  .toList(growable: false),
+            ),
           ),
         ),
       ),

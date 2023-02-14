@@ -19,10 +19,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 extension ConnectivityResultExtension on ConnectivityResult {
-  bool get isConnected => [
-        ConnectivityResult.ethernet,
-        ConnectivityResult.mobile,
-        ConnectivityResult.vpn,
-        ConnectivityResult.wifi,
-      ].contains(this);
+  bool get isConnected => this != ConnectivityResult.none;
 }

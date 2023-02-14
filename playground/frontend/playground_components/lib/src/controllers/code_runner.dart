@@ -19,6 +19,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../playground_components.dart';
@@ -83,9 +84,9 @@ class CodeRunner extends ChangeNotifier {
     final parsedPipelineOptions =
         parsePipelineOptions(snippetEditingController!.pipelineOptions);
     if (parsedPipelineOptions == null) {
-      _result = const RunCodeResult(
+      _result = RunCodeResult(
         status: RunCodeStatus.compileError,
-        errorMessage: kPipelineOptionsParseError,
+        errorMessage: 'errors.failedParseOptions'.tr(),
       );
       _runStopDate = DateTime.now();
       notifyListeners();
@@ -140,7 +141,7 @@ class CodeRunner extends ChangeNotifier {
         status: _result?.status ?? RunCodeStatus.unspecified,
         output: _result?.output,
         log: _result?.log ?? '',
-        errorMessage: kInternetConnectionUnavailable,
+        errorMessage: 'errors.internetUnavailable'.tr(),
         graph: _result?.graph,
       );
       notifyListeners();
@@ -158,7 +159,10 @@ class CodeRunner extends ChangeNotifier {
     _result = RunCodeResult(
       status: RunCodeStatus.finished,
       output: _result?.output,
-      log: (_result?.log ?? '') + kExecutionCancelledText,
+      // ignore: prefer_interpolation_to_compose_strings
+      log: (_result?.log ?? '') +
+          '\n' +
+          'widgets.output.messages.pipelineCancelled'.tr(),
       graph: _result?.graph,
     );
 
@@ -180,7 +184,8 @@ class CodeRunner extends ChangeNotifier {
     _result = RunCodeResult(
       status: RunCodeStatus.finished,
       output: selectedExample.outputs,
-      log: kCachedResultsLog + logs,
+      // ignore: prefer_interpolation_to_compose_strings
+      log: 'widgets.output.messages.cachedResult'.tr() + '\n$logs',
       graph: selectedExample.graph,
     );
 

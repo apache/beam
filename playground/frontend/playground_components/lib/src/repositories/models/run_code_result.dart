@@ -19,17 +19,17 @@
 import 'package:equatable/equatable.dart';
 
 enum RunCodeStatus {
-  compileError,
-  compiling,
-  executing,
-  finished,
+  unspecified,
   preparation,
   preparationError,
+  validationError,
+  compiling,
+  compileError,
+  executing,
   runError,
+  finished,
   timeout,
   unknownError,
-  unspecified,
-  validationError,
 }
 
 const kFinishedStatuses = [

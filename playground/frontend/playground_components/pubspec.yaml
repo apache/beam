@@ -41,7 +41,7 @@ dependencies:
   fluttertoast: ^8.1.1
   get_it: ^7.2.0
   google_fonts: ^3.0.1
-  grpc: ^3.0.2
+  grpc: 3.1.0
   highlight: ^0.7.0
   http: ^0.13.5
   json_annotation: ^4.7.0

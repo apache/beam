@@ -50,7 +50,7 @@ Future<void> main() async {
     });
 
     test('Initial value of examplesTitle should be equal to kTitle', () {
-      expect(controller.examplesTitle, kTitle);
+      expect(controller.examplesTitle, 'Catalog');
     });
 
     test('Initial value of isCodeRunning should be false', () {

@@ -19,6 +19,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -45,13 +46,6 @@ import 'snippet_editing_controller.dart';
 const kTitleLength = 25;
 const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
-const kTitle = 'Catalog';
-const kExecutionCancelledText = '\nPipeline cancelled';
-const kPipelineOptionsParseError =
-    'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\',. symbols are allowed';
-const kInternetConnectionUnavailable = 'Internet connection unavailable';
-const kCachedResultsLog =
-    'The results of this example are taken from the Apache Beam Playground cache.\n';
 
 /// The main state object for the code and its running.
 class PlaygroundController with ChangeNotifier {
@@ -102,7 +96,8 @@ class PlaygroundController with ChangeNotifier {
 
   // TODO(alexeyinkin): Return full, then shorten, https://github.com/apache/beam/issues/23250
   String get examplesTitle {
-    final name = snippetEditingController?.example?.name ?? kTitle;
+    final name =
+        snippetEditingController?.example?.name ?? 'examples.defaultTitle'.tr();
     return name.substring(0, min(kTitleLength, name.length));
   }
 
