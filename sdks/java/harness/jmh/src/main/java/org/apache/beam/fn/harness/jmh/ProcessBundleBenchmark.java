@@ -110,7 +110,7 @@ public class ProcessBundleBenchmark {
   @State(Scope.Benchmark)
   public static class SdkHarness {
     @Param({"true", "false"})
-    public String elementsEmbedding;
+    public String elementsEmbedding = "false";
 
     final GrpcFnServer<FnApiControlClientPoolService> controlServer;
     final GrpcFnServer<GrpcDataService> dataServer;
