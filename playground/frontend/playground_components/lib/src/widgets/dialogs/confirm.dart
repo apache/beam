@@ -62,6 +62,7 @@ class ConfirmDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                //
                 Text(
                   title,
                   style: Theme.of(context).textTheme.headlineMedium,
@@ -71,6 +72,7 @@ class ConfirmDialog extends StatelessWidget {
                     padding: const EdgeInsets.only(top: BeamSizes.size8),
                     child: Text(subtitle!),
                   ),
+
                 const SizedBox(height: BeamSizes.size8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,

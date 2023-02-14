@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 class ProgressDialog extends StatelessWidget {
   const ProgressDialog();
 
+  /// Shows a dialog with [CircularProgressIndicator] until [future] completes.
   static void show({
     required Future future,
     required GlobalKey<NavigatorState> navigatorKey,
