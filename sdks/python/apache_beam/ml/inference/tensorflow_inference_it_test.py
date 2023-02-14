@@ -64,7 +64,9 @@ class TensorflowInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = 'gs://clouddfe-riteshghorse/tf/mnist/output/testing_expected_outputs_test_sklearn_mnist_classification_actuals.txt'  # pylint: disable=line-too-long
+    expected_output_filepath = (
+        'gs://clouddfe-riteshghorse/tf/mnist/output/testing_expected_outputs_test_sklearn_mnist_classification_actuals.txt'  # pylint: disable=line-too-long
+    )
     expected_outputs = process_outputs(expected_output_filepath)
 
     predicted_outputs = process_outputs(output_file)
@@ -81,11 +83,15 @@ class TensorflowInference(unittest.TestCase):
 
   def test_tf_imagenet_image_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    input_file = 'gs://clouddfe-riteshghorse/tf/imagenet/input/input_labels.txt'  # pylint: disable=line-too-long
-    image_dir = 'https://storage.googleapis.com/download.tensorflow.org/example_images/'  # pylint: disable=line-too-long
+    input_file = (
+        'gs://clouddfe-riteshghorse/tf/imagenet/input/input_labels.txt')
+    image_dir = (
+        'https://storage.googleapis.com/download.tensorflow.org/example_images/'
+    )
     output_file_dir = 'gs://clouddfe-riteshghorse/tf/imagenet/output'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4'  # pylint: disable=line-too-long
+    model_path = (
+        'https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4')
     extra_opts = {
         'input': input_file,
         'output': output_file,
@@ -97,7 +103,8 @@ class TensorflowInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = 'gs://clouddfe-riteshghorse/tf/imagenet/output/actuals.txt'  # pylint: disable=line-too-long
+    expected_output_filepath = (
+        'gs://clouddfe-riteshghorse/tf/imagenet/output/actuals.txt')
     expected_outputs = process_outputs(expected_output_filepath)
 
     predicted_outputs = process_outputs(output_file)

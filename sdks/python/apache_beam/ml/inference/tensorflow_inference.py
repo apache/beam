@@ -112,7 +112,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
           during RunInference. Defaults to default_numpy_inference_fn.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
-    with Tensorflow 2.11.
+    with Tensorflow 2.9, 2.10, 2.11.
     """
     self._model_uri = model_uri
     self._model_type = model_type

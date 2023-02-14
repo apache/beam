@@ -21,6 +21,7 @@ from typing import Iterable
 from typing import Iterator
 
 import numpy
+from PIL import Image
 
 import apache_beam as beam
 import tensorflow as tf
@@ -37,7 +38,6 @@ class PostProcessor(beam.DoFn):
   Returns predicted label.
   """
   def process(self, element: PredictionResult) -> Iterable[str]:
-    print("prediction result---->: %", element)
     predicted_class = numpy.argmax(element.inference[0], axis=-1)
     labels_path = tf.keras.utils.get_file(
         'ImageNetLabels.txt',
@@ -77,7 +77,6 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 
 
 def read_image(image_name, image_dir):
-  from PIL import Image
   img = tf.keras.utils.get_file(image_name, image_dir + image_name)
   img = Image.open(img).resize((224, 224))
   img = numpy.array(img) / 255.0

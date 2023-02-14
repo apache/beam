@@ -481,7 +481,7 @@ Each line has data separated by a comma ",". The first item is the actual label 
 ---
 ## Image segmentation with Tensorflow and TensorflowHub
 
-[`tensorflow_image_segmentation.py`](./tensorflow_image_segmentation.py) contains an implementation for a RunInference pipeline that performs image segementation using the [`mobilenet_v2`]("https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4") architecture from the tensorflow hub.
+[`tensorflow_imagenet_segmentation.py`](./tensorflow_imagenet_segmentation.py) contains an implementation for a RunInference pipeline that performs image segementation using the [`mobilenet_v2`]("https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4") architecture from the tensorflow hub.
 
 The pipeline reads images, performs basic preprocessing, passes the images to the Tensorflow implementation of RunInference, and then writes predictions to a text file.
 
