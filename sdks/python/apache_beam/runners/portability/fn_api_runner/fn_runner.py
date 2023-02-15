@@ -61,6 +61,7 @@ from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.common import group_by_key_input_visitor
+from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
@@ -205,6 +206,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_via_runner_api(self, pipeline_proto, options):
     # type: (beam_runner_api_pb2.Pipeline, pipeline_options.PipelineOptions) -> RunnerResult
+    validate_pipeline_graph(pipeline_proto)
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
     direct_options = options.view_as(pipeline_options.DirectOptions)
