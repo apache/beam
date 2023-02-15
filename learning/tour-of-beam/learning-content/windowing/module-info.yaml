@@ -27,8 +27,8 @@ complexity: ADVANCED
 content:
 - windowing-concept
 - adding-timestamp
+- global-window
 - fixed-time-window
 - sliding-time-window
-- global-window
 - session-window
 

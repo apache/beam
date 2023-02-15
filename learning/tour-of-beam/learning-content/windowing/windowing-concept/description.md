@@ -18,17 +18,17 @@ Windowing subdivides a `PCollection` according to the timestamps of its individu
 Some Beam transforms, such as `GroupByKey` and `Combine`, group multiple elements by a common key. Ordinarily, that grouping operation groups all the elements that have the same key within the entire data set. With an unbounded data set, it is impossible to collect all the elements, since new elements are constantly being added and may be infinitely many (e.g. streaming data). If you are working with unbounded PCollections, windowing is especially useful.
 
 
-`Fixed time windows` are useful for performing time-based aggregations, such as counting the number of elements that arrived during each hour of the day. It allows you to group elements of a data set into fixed-length, non-overlapping time intervals, which can be useful for a variety of use cases.
+Fixed time windows are useful for performing time-based aggregations, such as counting the number of elements that arrived during each hour of the day. It allows you to group elements of a data set into fixed-length, non-overlapping time intervals, which can be useful for a variety of use cases.
 For example, imagine you have a stream of data that is recording the number of website visitors every second, and you want to know the total number of visitors for each hour of the day. Using fixed-time windows, you can group the data into hour-long windows and then perform a sum aggregation on each window to get the total number of visitors for each hour.
 
-Additionally, fixed time window can also be useful when dealing with data that arrives out-of-order, or when dealing with late data. By specifying a fixed window duration, you can ensure that all elements that belong to a particular window are processed together, regardless of when they arrived.
+Additionally, a fixed time window can also be helpful when dealing with data that arrive out-of-order or when dealing with late data. By specifying a fixed window duration, you can ensure that all elements that belong to a particular window are processed together, regardless of when they arrived.
 
-In summary, fixed time windows are useful for performing time-based aggregations and for handling out-of-order or late data.
+To summarize, fixed time windows help perform **time-based aggregations** or handle **out-of-order or late data**.
 
 
-`Sliding time windows` are similar to fixed time windows, but they have the added ability to move or slide over the data stream, allowing them to overlap with each other.
+`Sliding time windows` are similar to fixed time windows, but they have the added ability to move or slide over the data stream, allowing them to overlap.
 
-One of the main use cases for sliding time windows is to compute running aggregates. For example, if you want to compute a running average of the past 60 seconds’ worth of data updated every 30 seconds, you can use sliding time windows. This is done by defining a window duration of 60 seconds and a sliding interval of 30 seconds. With this configuration, you will have windows that slide every 30 seconds, each one covering a 60-second interval.
+One of the primary use cases for sliding time windows is to compute running aggregates. For example, if you want to calculate a running average of the past 60 seconds’ worth of data updated every 30 seconds, you can use sliding time windows. You can do this by defining a window duration of 60 seconds and a sliding interval of 30 seconds. With this configuration, you will have windows that slide every 30 seconds, each covering a 60-second interval.
 
 Another use case for sliding time windows is to perform anomaly detection. By computing the running aggregates over a sliding window, you can detect patterns that deviate significantly from the historical data.
 
