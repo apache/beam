@@ -44,8 +44,8 @@ public class DataSampler {
    * @param sampleEveryN Sets how often to sample.
    */
   public DataSampler(int maxSamples, int sampleEveryN) {
-    this.maxSamples = maxSamples;
-    this.sampleEveryN = sampleEveryN;
+    this.maxSamples = maxSamples <= 0 ? 10 : maxSamples;
+    this.sampleEveryN = sampleEveryN <= 0 ? 1000 : sampleEveryN;
   }
 
   // Maximum number of elements in buffer.
