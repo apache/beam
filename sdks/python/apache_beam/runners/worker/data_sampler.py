@@ -107,7 +107,7 @@ class DataSampler:
   def __init__(
       self, max_samples: int = 10, sample_every_sec: float = 30) -> None:
     # Key is PCollection id. Is guarded by the _samplers_lock.
-    self._samplers: Dict[Tuple[str, str], OutputSampler] = {}
+    self._samplers: Dict[str, OutputSampler] = {}
     # Bundles are processed in parallel, so new samplers may be added when the
     # runner queries for samples.
     self._samplers_lock: threading.Lock = threading.Lock()
@@ -116,14 +116,13 @@ class DataSampler:
 
   def sample_output(self, pcoll_id: str, coder: Coder) -> OutputSampler:
     """Create or get an OutputSampler for a pcoll_id."""
-    key = pcoll_id
     with self._samplers_lock:
-      if key in self._samplers:
-        sampler = self._samplers[key]
+      if pcoll_id in self._samplers:
+        sampler = self._samplers[pcoll_id]
       else:
         sampler = OutputSampler(
             coder, self._max_samples, self._sample_every_sec)
-        self._samplers[key] = sampler
+        self._samplers[pcoll_id] = sampler
       return sampler
 
   def samples(

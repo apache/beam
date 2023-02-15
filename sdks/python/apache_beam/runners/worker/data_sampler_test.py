@@ -83,9 +83,10 @@ class DataSamplerTest(unittest.TestCase):
     self.gen_samples(data_sampler, coder)
     self.assertEqual(
         data_sampler.samples(pcollection_ids=['a', 'c']),
-        {'a': [coder.encode_nested('1'), coder.encode_nested('2')],
-         'c': [coder.encode_nested('5'), coder.encode_nested('6')]
-         })
+        {
+            'a': [coder.encode_nested('1'), coder.encode_nested('2')],
+            'c': [coder.encode_nested('5'), coder.encode_nested('6')]
+        })
 
 
 class OutputSamplerTest(unittest.TestCase):
