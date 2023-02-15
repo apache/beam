@@ -48,12 +48,12 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // Create input PCollection
-        PCollection<String> words =
+        PCollection<String> input =
                 pipeline.apply(
                         Create.of("apple", "banana", "cherry", "durian", "guava", "melon"));
 
         // The [words] filtered with the applyTransform()
-        PCollection<KV<String, String>> output = applyTransform(words);
+        PCollection<KV<String, String>> output = applyTransform(input);
 
         output.apply("Log", ParDo.of(new LogOutput<KV<String,String>>("PCollection with-keys value")));
 

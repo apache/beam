@@ -12,11 +12,11 @@ limitations under the License.
 
 # WithKeys
 
-WithKeys takes a ```PCollection<V>``` and produces a ```PCollection<KV<K, V>>``` by associating each input element with a key.
+WithKeys takes a `PCollection<V>` and produces a `PCollection<KV<K, V>>` by associating each input element with a key.
 {{if (eq .Sdk "java")}}
 There are two versions of WithKeys, depending on how the key should be determined:
 
-```WithKeys.of(SerializableFunction<V, K> fn)``` takes a function to compute the key from each value.
+`WithKeys.of(SerializableFunction<V, K> fn)` takes a function to compute the key from each value.
 
 ```
 PCollection<String> words = pipeline.apply(Create.of("Hello", "World", "Apache", "Beam"));
@@ -38,7 +38,7 @@ KV{5, Hello}
 ```
 
 
-```WithKeys.of(K key)``` associates each value with the specified key.
+`WithKeys.of(K key)` associates each value with the specified key.
 
 ```
 PCollection<String> words = pipeline.apply(Create.of("Hello", "World", "Apache", "Beam"));

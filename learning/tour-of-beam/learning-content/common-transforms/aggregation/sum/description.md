@@ -25,7 +25,7 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-You can use ```SumPerKey()```to calculate the sum Integer associated with each unique key.
+You can use `SumPerKey()` to calculate the sum Integer associated with each unique key.
 
 ```
 import (
@@ -39,11 +39,11 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 ```
 {{end}}
 {{if (eq .Sdk "java")}}
-You can find the global sum value from the ```PCollection``` by using ```Sum.doublesGlobally()```
+You can find the global sum value from the `PCollection` by using `Sum.doublesGlobally()`
 
 ```
-PCollection<Integer> numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-PCollection<Double> sum = numbers.apply(Sum.doublesGlobally());
+PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+PCollection<Double> sum = input.apply(Sum.doublesGlobally());
 ```
 
 Output
@@ -52,7 +52,7 @@ Output
 55
 ```
 
-You can use ```Sum.integersPerKey()```to calculate the sum Integer associated with each unique key (which is of type String).
+You can use `Sum.integersPerKey()` to calculate the sum Integer associated with each unique key (which is of type String).
 
 ```
 PCollection<KV<String, Integer>> input = pipeline.apply(
@@ -76,14 +76,14 @@ KV{🥕, 5}
 {{if (eq .Sdk "python")}}
 ### Sum of the elements in a PCollection
 
-You can find the global sum value from the ```PCollection``` by using ```CombineGlobally(sum)```
+You can find the global sum value from the `PCollection` by using `CombineGlobally(sum)`
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   total = (
-      pipeline
+      p
       | 'Create numbers' >> beam.Create([3, 4, 1, 2])
       | 'Sum values' >> beam.CombineGlobally(sum)
       | beam.Map(print))
@@ -97,14 +97,14 @@ Output
 
 ### Sum of the elements for each key
 
-You can use ```Combine.PerKey()``` to get the sum of all the element values for each unique key in a ```PCollection``` of key-values.
+You can use `Combine.PerKey()` to get the sum of all the element values for each unique key in a `PCollection` of key-values.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   totals_per_key = (
-      pipeline
+      p
       | 'Create produce' >> beam.Create([
           ('🥕', 3),
           ('🥕', 2),
@@ -124,7 +124,7 @@ Output
 ('🍅', 12)
 ```
 {{end}}
-You can use ```Sum()``` to sum the elements of a ```PCollection```.
+You can use `Sum()` to sum the elements of a `PCollection`.
 
 ### Playground exercise
 
@@ -144,7 +144,7 @@ input:= beam.ParDo(s, func(_ []byte, emit func(int, int)){
 }, beam.Impulse(s))
 ```
 
-And replace `stats.Sum` on `stats.SumPerKey` it will output the sum by key.
+And replace `stats.Sum` with `stats.SumPerKey` it will output the sum by key.
 {{end}}
 {{if (eq .Sdk "java")}}
 `Sum.integersGlobally` returns the sum from the `PCollection`. If you replace the `integers input` with this `map input`:
@@ -159,7 +159,7 @@ PCollection<KV<Integer, Integer>> input = pipeline.apply(
     KV.of(4, 33)));
 ```
 
-And replace `Sum.integersGlobally` on `Sum.integersPerKey` it will output the sum by key. It is also necessary to replace the generic type:
+And replace `Sum.integersGlobally` with `Sum.integersPerKey` it will output the sum by key. It is also necessary to replace the generic type:
 
 ```
 PCollection<KV<Integer, Integer>> output = applyTransform(input);
@@ -172,7 +172,7 @@ static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, 
 ```
 {{end}}
 {{if (eq .Sdk "python")}}
-`beam.CombineGlobally(sum)` returns sum from `PCCollection`. If you replace the `integers input` with this `map input` and replace `beam.CombineGlobally(sum)` on `beam.CombinePerKey(sum)` it will output the sum by key :
+`beam.CombineGlobally(sum)` returns sum from `PCCollection`. If you replace the `integers input` with this `map input` and replace `beam.CombineGlobally(sum)` with `beam.CombinePerKey(sum)` it will output the sum by key :
 
 ```
 beam.Create([

@@ -14,7 +14,7 @@ limitations under the License.
 
 You can use Mean transforms to compute the arithmetic mean of the elements in a collection or the mean of the values associated with each key in a collection of key-value pairs.
 {{if (eq .Sdk "go")}}
-```Mean()``` returns a transformation that returns a collection whose content is the average of the elements of the input collection. If there are no elements in the input collection, 0 is returned.
+`Mean()` returns a transformation that returns a collection whose content is the average of the elements of the input collection. If there are no elements in the input collection, 0 is returned.
 
 ```
 import (
@@ -27,7 +27,7 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-You can use ```MeanPerKey()``` to calculate the mean of the elements associated with each unique key.
+You can use `MeanPerKey()` to calculate the mean of the elements associated with each unique key.
 
 ```
 import (
@@ -41,11 +41,11 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 ```
 {{end}}
 {{if (eq .Sdk "java")}}
-```Mean.globally()``` returns a transformation that returns a collection whose content is the average of the elements of the input collection. If there are no elements in the input collection, 0 is returned.
+`Mean.globally()` returns a transformation that returns a collection whose content is the average of the elements of the input collection. If there are no elements in the input collection, 0 is returned.
 
 ```
-PCollection<Integer> numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-PCollection<Double> mean = numbers.apply(Mean.globally());
+PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+PCollection<Double> mean = input.apply(Mean.globally());
 ```
 
 Output
@@ -55,7 +55,7 @@ Output
 ```
 
 
-```Mean.perKey()``` returns a transform that returns a collection containing an output element mapping each distinct key in the input collection to the mean of the values associated with that key in the input collection.
+`Mean.perKey()` returns a transform that returns a collection containing an output element mapping each distinct key in the input collection to the mean of the values associated with that key in the input collection.
 
 ```
 PCollection<KV<String, Integer>> input = pipeline.apply(
@@ -97,7 +97,7 @@ input:= beam.ParDo(s, func(_ []byte, emit func(int, int)){
 }, beam.Impulse(s))
 ```
 
-And replace `stats.Mean` on `stats.MeanPerKey` it will output the mean by key.
+And replace `stats.Mean` with `stats.MeanPerKey` it will output the mean by key.
 {{end}}
 {{if (eq .Sdk "java")}}
 `Mean.globally` returns the mean from the `PCollection`. If you replace the `integers input` with this `map input`:
@@ -112,7 +112,7 @@ PCollection<KV<Integer, Integer>> input = pipeline.apply(
     KV.of(4, 33)));
 ```
 
-And replace `Mean.globally` on `Mean.perKey` it will output the means by key. It is also necessary to replace the generic type:
+And replace `Mean.globally` with `Mean.perKey` it will output the means by key. It is also necessary to replace the generic type:
 
 ```
 PCollection<KV<Integer, Double>> output = applyTransform(input);

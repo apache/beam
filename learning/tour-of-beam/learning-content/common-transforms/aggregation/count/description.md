@@ -17,7 +17,7 @@ limitations under the License.
 {{if (eq .Sdk "go")}}
 Counts the number of elements within each aggregation. The Count transform has two varieties:
 
-You can count the number of elements in ```PCollection``` with ```CountElms()```, it will return one element.
+You can count the number of elements in a `PCollection` with `CountElms()`, it will return one element.
 
 ```
 import (
@@ -30,7 +30,7 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-You can use ```Count()``` to count how many elements are associated with a particular key, the result will be one output for each key.
+You can use `Count()` to count how many elements are associated with a particular key. The result will be one output for each key.
 
 ```
 import (
@@ -48,11 +48,11 @@ Counts the number of elements within each aggregation. The Count transform has t
 
 ### Counting all elements in a PCollection
 
-```Count.globally()``` counts the number of elements in the entire PCollection. The result is a collection with a single element.
+`Count.globally()` counts the number of elements in the entire `PCollection`. The result is a collection with a single element.
 
 ```
-PCollection<Integer> numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-PCollection<Long> output = numbers.apply(Count.globally());
+PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+PCollection<Long> output = input.apply(Count.globally());
 ```
 
 Output
@@ -62,7 +62,7 @@ Output
 
 ### Counting elements for each key
 
-```Count.perKey()``` counts how many elements are associated with each key. It ignores the values. The resulting collection has one output for every key in the input collection.
+`Count.perKey()` counts how many elements are associated with each key. It ignores the values. The resulting collection has one output for every key in the input collection.
 
 ```
 PCollection<KV<String, Integer>> input = pipeline.apply(
@@ -85,7 +85,7 @@ KV{🍆, 1}
 
 ### Counting all unique elements
 
-```Count.perElement()``` counts how many times each element appears in the input collection. The output collection is a key-value pair, containing each unique element and the number of times it appeared in the original collection.
+`Count.perElement()` counts how many times each element appears in the input collection. The output collection is a key-value pair, containing each unique element and the number of times it appeared in the original collection.
 
 ```
 PCollection<KV<String, Integer>> input = pipeline.apply(
@@ -111,14 +111,14 @@ KV{KV{🍅, 5}, 1}
 {{if (eq .Sdk "python")}}
 ### Counting all elements in a PCollection
 
-You can use ```Count.Globally()``` to count all elements in a PCollection, even if there are duplicate elements.
+You can use `Count.Globally()` to count all elements in a PCollection, even if there are duplicate elements.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   total_elements = (
-      pipeline
+      p
       | 'Create plants' >> beam.Create(
           ['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
       | 'Count all elements' >> beam.combiners.Count.Globally()
@@ -133,14 +133,14 @@ Output
 
 ### Counting elements for each key
 
-You can use ```Count.PerKey()``` to count the elements for each unique key in a PCollection of key-values.
+You can use `Count.PerKey()` to count the elements for each unique key in a PCollection of key-values.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   total_elements_per_keys = (
-      pipeline
+      p
       | 'Create plants' >> beam.Create([
           ('spring', '🍓'),
           ('spring', '🥕'),
@@ -168,14 +168,14 @@ Output
 
 ### Counting all unique elements
 
-You can use ```Count.PerElement()``` to count only the unique elements in a PCollection.
+You can use `Count.PerElement()` to count only the unique elements in a `PCollection`.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   total_unique_elements = (
-      pipeline
+      p
       | 'Create produce' >> beam.Create(
           ['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
       | 'Count unique elements' >> beam.combiners.Count.PerElement()
@@ -196,7 +196,7 @@ Output
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
 {{if (eq .Sdk "python")}}
-`Count.globally` returns the number of integers from the `PCollection`. If you replace the `integers input` with this `map input` and replace `beam.combiners.Count.Globally` on `beam.combiners.Count.PerKey` it will output the count numbers by key :
+`Count.globally` returns the number of integers from the `PCollection`. If you replace the `integers input` with this `map input` and replace `beam.combiners.Count.Globally` with `beam.combiners.Count.PerKey` it will output the count numbers by key :
 
 ```
 beam.Create([
@@ -208,7 +208,7 @@ beam.Create([
 ]) | beam.combiners.Count.PerKey()
 ```
 
-And Count transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
+`Count` transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
 
 Count how many words are repeated with `Count`:
 
@@ -247,10 +247,10 @@ PCollection<KV<Integer, Integer>> input = pipeline.apply(
     KV.of(4, 33)));
 ```
 
-And replace `Count.globally` on `Count.perKey` it will output the count numbers by key. It is also necessary to replace the generic type:
+And replace `Count.globally` with `Count.perKey` it will output the count numbers by key. It is also necessary to replace the generic type:
 
 ```
-PCollection<KV<Integer, Integer>> output = applyTransform(numbers);
+PCollection<KV<Integer, Integer>> output = applyTransform(input);
 ```
 
 ```
@@ -261,7 +261,7 @@ static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, 
 {{end}}
 
 {{if (eq .Sdk "go java")}}
-And Count transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
+And `Count` transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
 
 Don't forget to add import:
 {{end}}

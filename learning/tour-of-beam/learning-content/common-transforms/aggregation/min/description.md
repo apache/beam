@@ -14,7 +14,7 @@ limitations under the License.
 
 Min transforms find the minimum values globally or for each key in the input collection.
 {{if (eq .Sdk "go")}}
-You can find the global minimum value from the ```PCollection``` by using ```Min()```
+You can find the global minimum value from the `PCollection` by using `Min()`
 
 ```
 import (
@@ -27,7 +27,7 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-You can use ```MinPerKey()``` to calculate the minimum Integer associated with each unique key (which is of type String).
+You can use `MinPerKey()` to calculate the minimum Integer associated with each unique key (which is of type String).
 
 ```
 import (
@@ -41,10 +41,10 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 ```
 {{end}}
 {{if (eq .Sdk "java")}}
-You can find the global minimum value from the ```PCollection``` by using ```Min.doublesGlobally()```
+You can find the global minimum value from the `PCollection` by using `Min.doublesGlobally()`
 
 ```
-PCollection<Integer> numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 PCollection<Double> min = input.apply(Min.doublesGlobally());
 ```
 
@@ -54,7 +54,7 @@ Output
 1
 ```
 
-You can use ```Min.integersPerKey()``` to calculate the minimum Integer associated with each unique key (which is of type String).
+You can use `Min.integersPerKey()` to calculate the minimum Integer associated with each unique key (which is of type String).
 
 ```
 PCollection<KV<String, Integer>> input = pipeline.apply(
@@ -78,14 +78,14 @@ KV{🍅, 3}
 {{if (eq .Sdk "python")}}
 ### Minimum element in a PCollection
 
-You can use ```CombineGlobally(lambda elements: min(elements or [-1]))``` to get the minimum element from the entire ```PCollection```.
+You can use `CombineGlobally(lambda elements: min(elements or [-1]))` to get the minimum element from the entire `PCollection`.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   min_element = (
-      pipeline
+      p
       | 'Create numbers' >> beam.Create([3, 4, 1, 2])
       | 'Get min value' >>
       beam.CombineGlobally(lambda elements: min(elements or [-1]))
@@ -99,14 +99,14 @@ Output
 
 ### Minimum elements for each key
 
-You can use ```Combine.PerKey()``` to get the minimum element for each unique key in a ```PCollection``` of key-values.
+You can use `Combine.PerKey()` to get the minimum element for each unique key in a `PCollection` of key-values.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   elements_with_min_value_per_key = (
-      pipeline
+      p
       | 'Create produce' >> beam.Create([
           ('🥕', 3),
           ('🥕', 2),
@@ -146,7 +146,7 @@ input:= beam.ParDo(s, func(_ []byte, emit func(int, int)){
 }, beam.Impulse(s))
 ```
 
-And replace `stats.Min` on `stats.MinPerKey` it will output the minimum numbers by key.
+And replace `stats.Min` with `stats.MinPerKey` it will output the minimum numbers by key.
 {{end}}
 {{if (eq .Sdk "java")}}
 `Min.integersGlobally` returns the minimum number from the `PCollection`. If you replace the `integers input` with this `map input`:
@@ -161,7 +161,7 @@ PCollection<KV<Integer, Integer>> input = pipeline.apply(
     KV.of(4, 33)));
 ```
 
-And replace `Min.integersGlobally` on `Min.integersPerKey` it will output the minimum numbers by key. It is also necessary to replace the generic type:
+And replace `Min.integersGlobally` with `Min.integersPerKey` it will output the minimum numbers by key. It is also necessary to replace the generic type:
 
 ```
 PCollection<KV<Integer, Integer>> output = applyTransform(input);
@@ -174,7 +174,7 @@ static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, 
 ```
 {{end}}
 {{if (eq .Sdk "python")}}
-`Top.Smallest` returns smaller numbers from `PCollection` than specified in the function argument. If you replace the `integers input` with this `map input` and replace `beam.combiners.Top.Smallest(5)` on `beam.CombinePerKey(min)` it will output the minimum numbers by key :
+`Top.Smallest` returns smaller numbers from `PCollection` than specified in the function argument. If you replace the `integers input` with this `map input` and replace `beam.combiners.Top.Smallest(5)` with `beam.CombinePerKey(min)` it will output the minimum numbers by key :
 
 ```
 beam.Create([

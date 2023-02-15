@@ -12,10 +12,10 @@ limitations under the License.
 
 # Max
 
-Max provides a variety of different transforms for computing the maximum values in a collection, either globally or for each key.
+`Max` provides a variety of different transforms for computing the maximum values in a collection, either globally or for each key.
 
 {{if (eq .Sdk "go")}}
-You can find the global maximum value from the ```PCollection``` by using ```Max()```
+You can find the global maximum value from the `PCollection` by using `Max()`
 
 ```
 import (
@@ -28,7 +28,7 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-You can use ```MaxPerKey()``` to calculate the maximum Integer associated with each unique key (which is of type String).
+You can use `MaxPerKey()` to calculate the maximum Integer associated with each unique key (which is of type String).
 
 ```
 import (
@@ -42,10 +42,10 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 ```
 {{end}}
 {{if (eq .Sdk "java")}}
-You can find the global maximum value from the ```PCollection``` by using ```Max.doublesGlobally()```
+You can find the global maximum value from the `PCollection` by using `Max.doublesGlobally()`
 
 ```
-PCollection<Integer> numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 PCollection<Double> max = input.apply(Max.doublesGlobally());
 ```
 
@@ -55,7 +55,7 @@ Output
 10
 ```
 
-You can use ```Max.integersPerKey()``` to calculate the maximum Integer associated with each unique key (which is of type String).
+You can use `Max.integersPerKey()` to calculate the maximum Integer associated with each unique key (which is of type String).
 
 ```
 PCollection<KV<String, Integer>> input = pipeline.apply(
@@ -80,14 +80,14 @@ KV{🍆, 1}
 
 ### Maximum element in a PCollection
 
-You can use ```CombineGlobally(lambda elements: max(elements or [None]))``` to get the maximum element from the entire ```PCollection```.
+You can use `CombineGlobally(lambda elements: max(elements or [None]))` to get the maximum element from the entire `PCollection`.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   max_element = (
-      pipeline
+      p
       | 'Create numbers' >> beam.Create([3, 4, 1, 2])
       | 'Get max value' >>
       beam.CombineGlobally(lambda elements: max(elements or [None]))
@@ -102,14 +102,14 @@ Output
 
 ### Maximum elements for each key
 
-You can use ```Combine.PerKey()``` to get the maximum element for each unique key in a PCollection of key-values.
+You can use `Combine.PerKey()` to get the maximum element for each unique key in a PCollection of key-values.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   elements_with_max_value_per_key = (
-      pipeline
+      p
       | 'Create produce' >> beam.Create([
           ('🥕', 3),
           ('🥕', 2),
@@ -148,7 +148,7 @@ input:= beam.ParDo(s, func(_ []byte, emit func(int, int)){
 }, beam.Impulse(s))
 ```
 
-And replace `stats.Max` on `stats.MaxPerKey` it will output the maximum numbers by key.
+And replace `stats.Max` with `stats.MaxPerKey` it will output the maximum numbers by key.
 {{end}}
 {{if (eq .Sdk "java")}}
 `Max.doublesGlobally` returns the maximum element from the `PCollection`. If you replace the `integers input` with this `map input`:
@@ -163,10 +163,10 @@ PCollection<KV<Integer, Integer>> input = pipeline.apply(
     KV.of(4, 33)));
 ```
 
-And replace `Max.doublesGlobally` on `Max.integersPerKey` it will output the maximum numbers by key. It is also necessary to replace the generic type:
+And replace `Max.doublesGlobally` with `Max.integersPerKey` it will output the maximum numbers by key. It is also necessary to replace the generic type:
 
 ```
-PCollection<KV<Integer, Integer>> output = applyTransform(numbers);
+PCollection<KV<Integer, Integer>> output = applyTransform(input);
 ```
 
 ```
@@ -176,7 +176,7 @@ static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, 
 ```
 {{end}}
 {{if (eq .Sdk "python")}}
-`Top.Largest` returns larger numbers from `PCCollection` than specified in the function argument. If you replace the `integers input` with this `map input` and replace `beam.combiners.Top.Largest(5)` on `beam.CombinePerKey(max)` it will output the maximum numbers by key :
+`Top.Largest` returns larger numbers from `PCCollection` than specified in the function argument. If you replace the `integers input` with this `map input` and replace `beam.combiners.Top.Largest(5)` with `beam.CombinePerKey(max)` it will output the maximum numbers by key :
 
 ```
 beam.Create([

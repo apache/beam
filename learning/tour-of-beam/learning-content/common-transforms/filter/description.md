@@ -12,7 +12,7 @@ limitations under the License.
 
 ### Using Filter
 
-PCollection datasets can be filtered using the Filter transform. You can create a filter by supplying a predicate and, when applied, filtering out all the elements of PCollection that don’t satisfy the predicate.
+`PCollection` datasets can be filtered using the `Filter` transform. You can create a filter by supplying a predicate and, when applied, filtering out all the elements of `PCollection` that don’t satisfy the predicate.
 
 {{if (eq .Sdk "go")}}
 ```
@@ -30,10 +30,10 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 {{end}}
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> allStrings = pipeline
+PCollection<String> input = pipeline
         .apply(Create.of(List.of("Hello","world","Hi")));
 
-PCollection<String> filteredStrings = allStrings
+PCollection<String> filteredStrings = input
         .apply(Filter.by(new SerializableFunction<String, Boolean>() {
             @Override
             public Boolean apply(String input) {
@@ -51,7 +51,7 @@ world
 
 ### Built-in filters
 
-The Java SDK has several filter methods built-in, like Filter.greaterThan and Filter.lessThen.  With Filter.greaterThan, the input PCollection can be filtered so that only the elements whose values are greater than the specified amount remain. Similarly, you can use Filter.lessThen to filter out elements of the input PCollection whose values are greater than the specified amount.
+The Java SDK has several filter methods built-in, like `Filter.greaterThan` and `Filter.lessThen`  With `Filter.greaterThan`, the input `PCollection` can be filtered so that only the elements whose values are greater than the specified amount remain. Similarly, you can use `Filter.lessThen` to filter out elements of the input `PCollection` whose values are greater than the specified amount.
 
 Other built-in filters are:
 
@@ -66,26 +66,25 @@ Other built-in filters are:
 
 ```
 // List of integers
-PCollection<Integer> numbers = pipeline.apply(Create.of(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)));
+PCollection<Integer> input = pipeline.apply(Create.of(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)));
 
+PCollection<Integer> greaterThanEqNumbers = input.apply(Filter.greaterThanEq(3));
 // PCollection will contain [3, 4, 5, 6, 7, 8, 9, 10] at this point
-PCollection<Integer> greaterThanEqNumbers = pipeline.apply(Filter.greaterThanEq(3));
 
-
+PCollection<Integer> greaterThanNumbers = input.apply(Filter.greaterThan(4));
 // PCollection will contain [5, 6, 7, 8, 9, 10] at this point
-PCollection<Integer> greaterThanNumbers = pipeline.apply(Filter.greaterThan(4));
 
 
+PCollection<Integer> lessThanNumbers = input.apply(Filter.lessThan(10));
 // PCollection will contain [1, 2, 3, 4, 5, 6, 7, 8, 9] at this point
-PCollection<Integer> lessThanNumbers = pipeline.apply(Filter.lessThan(10));
 
 
+PCollection<Integer> lessThanEqNumbers = input.apply(Filter.lessThanEq(7));
 // PCollection will contain [1, 2, 3, 4 5, 6, 7] at this point
-PCollection<Integer> lessThanEqNumbers = pipeline.apply(Filter.lessThanEq(7));
 
 
+PCollection<Integer> equalNumbers = input.apply(Filter.equal(9));
 // PCollection will contain [9] at this point
-PCollection<Integer> equalNumbers = pipeline.apply(Filter.equal(9));
 ```
 {{end}}
 {{if (eq .Sdk "python")}}
@@ -111,9 +110,9 @@ import apache_beam as beam
 def is_perennial(plant):
   return plant['duration'] == 'perennial'
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   perennials = (
-      pipeline
+      p
       | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
@@ -150,9 +149,9 @@ You can also use lambda functions to simplify Example 1.
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   perennials = (
-      pipeline
+      p
       | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
@@ -185,9 +184,9 @@ Output
 
 ### Example 3: Filtering with multiple arguments
 
-You can pass functions with multiple arguments to ```Filter```. They are passed as additional positional arguments or keyword arguments to the function.
+You can pass functions with multiple arguments to `Filter`. They are passed as additional positional arguments or keyword arguments to the function.
 
-In this example, ```has_duration``` takes ```plant``` and ```duration``` as arguments.
+In this example, `has_duration` takes `plant` and `duration` as arguments.
 
 ```
 import apache_beam as beam
@@ -195,9 +194,9 @@ import apache_beam as beam
 def has_duration(plant, duration):
   return plant['duration'] == duration
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   perennials = (
-      pipeline
+      p
       | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
@@ -229,15 +228,15 @@ Output
 
 ### Example 4: Filtering with side inputs as singletons
 
-If the ```PCollection``` has a single value, such as the average from another computation, passing the ```PCollection``` as a singleton accesses that value.
+If the `PCollection` has a single value, such as the average from another computation, passing the `PCollection` as a singleton accesses that value.
 
-In this example, we pass a ```PCollection``` the value 'perennial' as a singleton. We then use that value to filter out perennials.
+In this example, we pass a `PCollection` the value **perennial** as a singleton. We then use that value to filter out perennials.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
-  perennial = pipeline | 'Perennial' >> beam.Create(['perennial'])
+with beam.Pipeline() as p:
+  perennial = p | 'Perennial' >> beam.Create(['perennial'])
 
   perennials = (
       pipeline
@@ -276,13 +275,13 @@ Output
 
 ### Example 5: Filtering with side inputs as iterators
 
-If the ```PCollection``` has multiple values, pass the PCollection as an iterator. This accesses elements lazily as they are needed, so it is possible to iterate over large PCollections that won’t fit into memory.
+If the `PCollection` has multiple values, pass the PCollection as an iterator. This accesses elements lazily as they are needed, so it is possible to iterate over large PCollections that won’t fit into memory.
 
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
-  valid_durations = pipeline | 'Valid durations' >> beam.Create([
+with beam.Pipeline() as p:
+  valid_durations = p | 'Valid durations' >> beam.Create([
       'annual',
       'biennial',
       'perennial',
@@ -331,8 +330,8 @@ If a ```PCollection``` is small enough to fit into memory, then that PCollection
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
-  keep_duration = pipeline | 'Duration filters' >> beam.Create([
+with beam.Pipeline() as p:
+  keep_duration = p | 'Duration filters' >> beam.Create([
       ('annual', False),
       ('biennial', False),
       ('perennial', True),
@@ -397,7 +396,7 @@ import (
 Create data for PCollection:
 
 ```
-str:= "To be, or not to be: that is the question: Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles, And by opposing end them. To die: to sleep"
+str := "To be, or not to be: that is the question: Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles, And by opposing end them. To die: to sleep"
 
 input := beam.CreateList(s,strings.Split(str, " "))
 ```
