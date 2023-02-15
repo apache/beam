@@ -53,27 +53,40 @@ resource "google_container_node_pool" "playground-node-pool" {
    }
 }
 
-resource "kubernetes_network_policy" "playground" {
+resource "kubernetes_deployment" "calico_network_policy_controller" {
   metadata {
-    name = "playground"
+    name = "calico-network-policy-controller"
+    namespace = "kube-system"
   }
 
   spec {
-    pod_selector {}
-    policy_types = ["Ingress", "Egress"]
-
-    ingress {
-      from {
-        ip_block {
-          cidr = "10.0.0.0/8"
-        }
+    selector {
+      match_labels = {
+        k8s-app = "calico-policy-controller"
       }
     }
 
-    egress {
-      to {
-        ip_block {
-          cidr = "10.0.0.0/8"
+    template {
+      metadata {
+        labels = {
+          k8s-app = "calico-policy-controller"
+        }
+      }
+
+      spec {
+        container {
+          name = "calico-policy-controller"
+          image = "quay.io/calico/kube-controllers:v3.17.1"
+          command = ["/usr/bin/calico-policy-controller"]
+          args = ["--enable-prometheus-metrics"]
+          env {
+            name = "DATASTORE_TYPE"
+            value = "kubernetes"
+          }
+          env {
+            name = "WAIT_FOR_DATASTORE"
+            value = "true"
+          }
         }
       }
     }
