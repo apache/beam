@@ -26,15 +26,6 @@ resource "google_container_cluster" "playground-gke" {
   subnetwork                 = var.subnetwork
   remove_default_node_pool = true
 
-  ip_allocation_policy {
-    use_ip_aliases = true
-  }
-
-  addons_config {
-    network_policy_config {
-      enabled = true
-    }
-  }
 }
 
 resource "google_container_node_pool" "playground-node-pool" {
@@ -53,6 +44,16 @@ resource "google_container_node_pool" "playground-node-pool" {
    }
   node_config {
     machine_type    = var.machine_type
+
+    network_policy {
+      enabled  = true
+      provider = "CALICO" // CALICO is currently the only supported provider
+    }
+    addons_config {
+     network_policy_config {
+      disabled = false
+    }
+  }
     service_account = var.service_account_email
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
@@ -62,31 +63,4 @@ resource "google_container_node_pool" "playground-node-pool" {
     }
     tags = ["beam-playground"]
    }
-}
-
-resource "kubernetes_network_policy" "example" {
-  metadata {
-    name = "example-network-policy"
-    namespace = "default"
-  }
-
-  spec {
-    pod_selector {
-      match_labels = {
-        app = "example"
-      }
-    }
-
-    policy_types = ["Ingress"]
-
-    ingress {
-      from {
-        pod_selector {
-          match_labels = {
-            role = "frontend"
-          }
-        }
-      }
-    }
-  }
 }
