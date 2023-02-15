@@ -38,7 +38,7 @@ You can find the full code of this example in the playground window, which you c
 You can use other types instead of `Integer`:
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> splitWords = wordsWithCounts.apply(
+PCollection<String> splitWords = input.apply(
     FlatMapElements.into(strings()).via((KV<String, Integer> wordWithCount) -> {
         List<String> words = new ArrayList<>();
         for (int i = 0; i < wordWithCount.getValue(); i++) {
@@ -51,7 +51,7 @@ PCollection<String> splitWords = wordsWithCounts.apply(
 
 {{if (eq .Sdk "python")}}
 ```
-words_with_counts = pipeline | 'Create words with counts' >> beam.Create([
+words_with_counts = p | 'Create words with counts' >> beam.Create([
     ('Hello', 1), ('World', 2), ('How', 3), ('are', 4), ('you', 5)])
 
 split_words = words_with_counts | 'Split words' >> beam.FlatMap(

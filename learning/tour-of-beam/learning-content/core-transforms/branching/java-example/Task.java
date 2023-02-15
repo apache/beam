@@ -43,14 +43,14 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // List of elements
-        PCollection<Integer> numbers =
+        PCollection<Integer> input =
                 pipeline.apply(Create.of(1, 2, 3, 4, 5));
 
-        // The applyMultiply5Transform() converts [numbers] to [mult5Results]
-        PCollection<Integer> mult5Results = applyMultiply5Transform(numbers);
+        // The applyMultiply5Transform() converts [input] to [mult5Results]
+        PCollection<Integer> mult5Results = applyMultiply5Transform(input);
 
-        // The applyMultiply10Transform() converts [numbers] to [mult10Results]
-        PCollection<Integer> mult10Results = applyMultiply10Transform(numbers);
+        // The applyMultiply10Transform() converts [input] to [mult10Results]
+        PCollection<Integer> mult10Results = applyMultiply10Transform(input);
 
         mult5Results.apply("Log multiplied by 5: ", ParDo.of(new LogOutput<Integer>("Multiplied by 5: ")));
         mult10Results.apply("Log multiplied by 10: ", ParDo.of(new LogOutput<Integer>("Multiplied by 10: ")));

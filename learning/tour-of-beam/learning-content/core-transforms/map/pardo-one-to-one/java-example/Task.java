@@ -42,11 +42,11 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // List of elements
-        PCollection<Integer> numbers =
+        PCollection<Integer> input =
                 pipeline.apply(Create.of(1, 2, 3, 4, 5));
 
-        // The applyTransform() converts [numbers] to [output]
-        PCollection<Integer> output = applyTransform(numbers);
+        // The applyTransform() converts [input] to [output]
+        PCollection<Integer> output = applyTransform(input);
 
         output.apply("Log", ParDo.of(new LogOutput<Integer>()));
 

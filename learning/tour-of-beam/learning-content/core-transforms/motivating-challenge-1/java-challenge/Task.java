@@ -52,13 +52,13 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<String> words = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
+        PCollection<String> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
                 .apply(FlatMapElements.into(TypeDescriptors.strings()).via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
                 .apply(Filter.by((String word) -> !word.isEmpty()));
 
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
 
-        PCollection<String> limitedPCollection = words.apply(sample).apply(Flatten.iterables());
+        PCollection<String> limitedPCollection = input.apply(sample).apply(Flatten.iterables());
 
         PCollectionList<String> pCollectionList = partitionPCollectionByCase(limitedPCollection);
 

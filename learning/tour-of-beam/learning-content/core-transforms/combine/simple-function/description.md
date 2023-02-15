@@ -46,13 +46,13 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-pc = [1, 10, 100, 1000]
+input = [1, 10, 100, 1000]
 
 def bounded_sum(values, bound=500):
   return min(sum(values), bound)
 
-small_sum = pc | beam.CombineGlobally(bounded_sum)  # [500]
-large_sum = pc | beam.CombineGlobally(bounded_sum, bound=5000)  # [1111]
+small_sum = input | beam.CombineGlobally(bounded_sum)  # [500]
+large_sum = input | beam.CombineGlobally(bounded_sum, bound=5000)  # [1111]
 ```
 {{end}}
 ### Playground exercise

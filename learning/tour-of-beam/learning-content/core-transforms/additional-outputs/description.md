@@ -144,7 +144,7 @@ While `ParDo` always produces a main output `PCollection` (as the return value f
 
 
 results = (
-    words
+    input
     | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x').with_outputs(
         'above_cutoff_lengths',
         'marked strings',
@@ -158,7 +158,7 @@ marked = results['marked strings']  # indexing works as well
 # the main tag (if specified) first.
 
 
-below, above, marked = (words
+below, above, marked = (input
                         | beam.ParDo(
                             ProcessWords(), cutoff_length=2, marker='x')
                         .with_outputs('above_cutoff_lengths',
@@ -197,7 +197,7 @@ def even_odd(x):
   if x % 10 == 0:
     yield x
 
-results = numbers | beam.FlatMap(even_odd).with_outputs()
+results = input | beam.FlatMap(even_odd).with_outputs()
 
 evens = results.even
 odds = results.odd

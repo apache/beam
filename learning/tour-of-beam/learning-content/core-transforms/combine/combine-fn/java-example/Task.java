@@ -50,9 +50,9 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<Integer> numbers = pipeline.apply(Create.of(10, 20, 50, 70, 90));
+        PCollection<Integer> input = pipeline.apply(Create.of(10, 20, 50, 70, 90));
 
-        PCollection<Double> output = applyTransform(numbers);
+        PCollection<Double> output = applyTransform(input);
 
         output.apply(ParDo.of(new LogOutput<>()));
 

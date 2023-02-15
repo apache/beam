@@ -45,13 +45,13 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // List of elements
-        PCollection<String> words =
+        PCollection<String> input =
                 pipeline.apply(
                         Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
                 );
 
         // The applyTransform() converts [words] to [output]
-        PCollection<KV<String, Iterable<String>>> output = applyTransform(words);
+        PCollection<KV<String, Iterable<String>>> output = applyTransform(input);
 
         output.apply("Log", ParDo.of(new LogOutput<KV<String, Iterable<String>>>()));
 

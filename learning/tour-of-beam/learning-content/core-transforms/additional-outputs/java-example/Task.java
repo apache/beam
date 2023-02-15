@@ -46,13 +46,13 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // List of elements
-        PCollection<Integer> numbers = pipeline.apply(Create.of(10, 50, 120, 20, 200, 0));
+        PCollection<Integer> input = pipeline.apply(Create.of(10, 50, 120, 20, 200, 0));
 
         TupleTag<Integer> numBelow100Tag = new TupleTag<Integer>() {};
         TupleTag<Integer> numAbove100Tag = new TupleTag<Integer>() {};
 
-        // The applyTransform() converts [numbers] to [outputTuple]
-        PCollectionTuple outputTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag);
+        // The applyTransform() converts [input] to [outputTuple]
+        PCollectionTuple outputTuple = applyTransform(input, numBelow100Tag, numAbove100Tag);
 
         outputTuple.get(numBelow100Tag).apply("Log Number <= 100: ", ParDo.of(new LogOutput<Integer>("Number <= 100: ")));
 
@@ -64,10 +64,10 @@ public class Task {
 
     // The function has multiple outputs, numbers above 100 and below
     static PCollectionTuple applyTransform(
-            PCollection<Integer> numbers, TupleTag<Integer> numBelow100Tag,
+            PCollection<Integer> input, TupleTag<Integer> numBelow100Tag,
             TupleTag<Integer> numAbove100Tag) {
 
-        return numbers.apply(ParDo.of(new DoFn<Integer, Integer>() {
+        return input.apply(ParDo.of(new DoFn<Integer, Integer>() {
 
             @ProcessElement
             public void processElement(@Element Integer number, MultiOutputReceiver out) {

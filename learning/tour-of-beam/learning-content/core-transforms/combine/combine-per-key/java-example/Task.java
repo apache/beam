@@ -53,14 +53,14 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<KV<String, Integer>> scores =
+        PCollection<KV<String, Integer>> input =
                 pipeline.apply(
                         Create.of(
                                 KV.of(PLAYER_1, 15), KV.of(PLAYER_2, 10), KV.of(PLAYER_1, 100),
                                 KV.of(PLAYER_3, 25), KV.of(PLAYER_2, 75)
                         ));
 
-        PCollection<KV<String, Integer>> output = applyTransform(scores);
+        PCollection<KV<String, Integer>> output = applyTransform(input);
 
         output.apply(ParDo.of(new LogOutput<>()));
 

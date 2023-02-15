@@ -266,13 +266,13 @@ from datetime import datetime
 
 pipeline = beam.Pipeline()
 
-persons = pipeline | 'CreatePersons' >> Create([
+persons = p | 'CreatePersons' >> Create([
     {'name': 'John', 'city': 'Beijing'},
     {'name': 'Mary', 'city': 'Singapore'},
     {'name': 'Bob', 'city': 'Sydney'}
 ])
 
-citiesToTimeKV = pipeline | 'CreateCitiesToTimeKV' >> Create([
+citiesToTimeKV = p | 'CreateCitiesToTimeKV' >> Create([
     ('Beijing', 8),
     ('London', 0),
     ('San Francisco', -8),

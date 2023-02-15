@@ -43,11 +43,11 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // List of elements
-        PCollection<String> sentences =
+        PCollection<String> input =
                 pipeline.apply(Create.of("Apache Beam", "Unified Batch and Streaming"));
 
         // The applyTransform() converts [sentences] to [output]
-        PCollection<String> output = applyTransform(sentences);
+        PCollection<String> output = applyTransform(input);
 
         output.apply("Log", ParDo.of(new LogOutput<String>()));
 

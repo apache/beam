@@ -103,7 +103,7 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-pc = ...
+input = ...
 
 class AverageFn(beam.CombineFn):
   def create_accumulator(self):
@@ -129,7 +129,7 @@ You can find the full code of this example in the playground window, which you c
 Collect words of the same length:
 {{if (eq .Sdk "go")}}
 ```
-collected := beam.CombinePerKey(s, funcx.CombineFn(
+result := beam.CombinePerKey(s, funcx.CombineFn(
 		func(key typex.Key, values func() funcx.Values) funcx.Values {
 			var result []wordLen
 			for v := range values() {
@@ -156,13 +156,13 @@ collected := beam.CombinePerKey(s, funcx.CombineFn(
 		}),
 		beam.ParDo(s, func(word string) wordLen {
 			return wordLen{len: len(word), word: word}
-		}, beam.Create(s, words)))
+		}, beam.Create(s, input)))
 ```
 {{end}}
 
 {{if (eq .Sdk "java")}}
 ```
-words
+input
                 .apply(ParDo.of(new DoFn<String, KV<Integer, String>>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) {

@@ -24,10 +24,10 @@ You can use two transforms applied to a single `PCollection`.
 The following example code applies two transforms to a single input collection.
 {{if (eq .Sdk "go")}}
 ```
-PCollection<String> dbRowCollection = ...;
+input = ...;
 
-outputA := applyTransformA(s, dbRowCollection)
-outputB := applyTransforB(s, dbRowCollection)
+outputA := applyTransformA(s, input)
+outputB := applyTransforB(s, input)
 
 func applyTransformA(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return beam.ParDo(s, startWithA, input)
@@ -53,9 +53,9 @@ func startWithA(element string) int {
 
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> dbRowCollection = ...;
+PCollection<String> input = ...;
 
-PCollection<String> aCollection = dbRowCollection.apply("aTrans", ParDo.of(new DoFn<String, String>(){
+PCollection<String> aCollection = input.apply("aTrans", ParDo.of(new DoFn<String, String>(){
   @ProcessElement
   public void processElement(ProcessContext c) {
     if(c.element().startsWith("A")){
@@ -64,7 +64,7 @@ PCollection<String> aCollection = dbRowCollection.apply("aTrans", ParDo.of(new D
   }
 }));
 
-PCollection<String> bCollection = dbRowCollection.apply("bTrans", ParDo.of(new DoFn<String, String>(){
+PCollection<String> bCollection = input.apply("bTrans", ParDo.of(new DoFn<String, String>(){
   @ProcessElement
   public void processElement(ProcessContext c) {
     if(c.element().startsWith("B")){
@@ -77,8 +77,8 @@ PCollection<String> bCollection = dbRowCollection.apply("bTrans", ParDo.of(new D
 
 {{if (eq .Sdk "python")}}
 ```
-starts_with_a = words | beam.Filter(lambda x: x.startswith('A'))
-starts_with_b = words | beam.Filter(lambda x: x.startswith('B'))
+starts_with_a = input | beam.Filter(lambda x: x.startswith('A'))
+starts_with_b = input | beam.Filter(lambda x: x.startswith('B'))
 ```
 {{end}}
 
@@ -118,7 +118,7 @@ PCollection<String> upperCollection = input.apply("aTrans", ParDo.of(new DoFn<St
 
 {{if (eq .Sdk "python")}}
 ```
-reversed = words | reverseString(...)
-toUpper = words | toUpperString(...)
+reversed = input | reverseString(...)
+toUpper = input | toUpperString(...)
 ```
 {{end}}

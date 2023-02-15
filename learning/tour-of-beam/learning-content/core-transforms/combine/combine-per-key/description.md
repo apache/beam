@@ -46,9 +46,9 @@ PCollection<KV<String, Integer>> output = input.apply(Combine.perKey(new SumInte
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
         input_data = [('a', 1), ('b', 2), ('a', 3), ('c', 4), ('b', 5)]
-        input_pcoll = pipeline | beam.Create(input_data)
+        input_pcoll = p | beam.Create(input_data)
         output_pcoll = input_pcoll | CombinePerKey(SumInts())
 ```
 {{end}}
@@ -127,6 +127,6 @@ input = (p
                  ('l', 'limes')
              ])
 )
-output = cities_to_time_kv | 'Combine Per Key' >> CombinePerKey(ConcatString())
+output = input | 'Combine Per Key' >> CombinePerKey(ConcatString())
 ```
 {{end}}

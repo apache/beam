@@ -35,10 +35,10 @@ fortiethPercentile := studentsByPercentile[4]
 // Provide an int value with the desired number of result partitions, and a PartitionFn that represents the
 // partitioning function. In this example, we define the PartitionFn in-line. Returns a PCollectionList
 // containing each of the resulting partitions as individual PCollection objects.
-PCollection<Student> students = ...;
+PCollection<Student> input = ...;
 // Split students up into 10 partitions, by percentile:
 PCollectionList<Student> studentsByPercentile =
-    students.apply(Partition.of(10, new PartitionFn<Student>() {
+    input.apply(Partition.of(10, new PartitionFn<Student>() {
         public int partitionFor(Student student, int numPartitions) {
             return student.getPercentile()  // 0..99
                  * numPartitions / 100;
@@ -53,12 +53,12 @@ PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 ```
 # Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).
 # Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.
-students = ...
+input = ...
 
 def partition_fn(student, num_partitions):
   return int(get_percentile(student) * num_partitions / 100)
 
-by_decile = students | beam.Partition(partition_fn, 10)
+by_decile = input | beam.Partition(partition_fn, 10)
 
 # You can extract each partition from the tuple of PCollection objects as follows:
 

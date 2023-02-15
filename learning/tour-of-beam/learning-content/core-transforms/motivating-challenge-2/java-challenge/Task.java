@@ -50,11 +50,11 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<String> words = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00000-of-00003"));
+        PCollection<String> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00000-of-00003"));
 
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
 
-        PCollection<String> limitedPCollection = words.apply(sample).apply(Flatten.iterables());
+        PCollection<String> limitedPCollection = input.apply(sample).apply(Flatten.iterables());
 
         PCollection<KV<String, Integer>> kvPCollection = getSplitLineAsMap(limitedPCollection);
 

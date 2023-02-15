@@ -73,10 +73,10 @@ func init() {
 }
 
 
-// words is an input PCollection of strings
-var words beam.PCollection = ...
+// [input] is an input PCollection of strings
+var input beam.PCollection = ...
 
-wordLengths := beam.ParDo(s, &ComputeWordLengthFn{}, words)
+wordLengths := beam.ParDo(s, &ComputeWordLengthFn{}, input)
 ```
 In the example, our input `PCollection` contains string values. We apply a `ParDo` transform that specifies a function (ComputeWordLengthFn) to compute the length of each string, and outputs the result to a new `PCollection` of int values that stores the length of each word.
 {{end}}
@@ -85,13 +85,13 @@ In the example, our input `PCollection` contains string values. We apply a `ParD
 
 ```
 // The input PCollection of Strings.
-PCollection<String> words = ...;
+PCollection<String> input = ...;
 
 // The DoFn to perform on each element in the input PCollection.
 static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 
-// Apply a ParDo to the PCollection "words" to compute lengths for each word.
-PCollection<Integer> wordLengths = words.apply(
+// Apply a ParDo to the PCollection "input" to compute lengths for each word.
+PCollection<Integer> wordLengths = input.apply(
     ParDo
     .of(new ComputeWordLengthFn()));        // The DoFn to perform on each element, which
                                             // we define above.
@@ -101,7 +101,7 @@ PCollection<Integer> wordLengths = words.apply(
 {{if (eq .Sdk "python")}}
 ```
 # The input PCollection of Strings.
-words = ...
+input = ...
 
 # The DoFn to perform on each element in the input PCollection.
 
@@ -111,8 +111,8 @@ class ComputeWordLengthFn(beam.DoFn):
 
 
 
-# Apply a ParDo to the PCollection "words" to compute lengths for each word.
-word_lengths = words | beam.ParDo(ComputeWordLengthFn())
+# Apply a ParDo to the PCollection [input] to compute lengths for each word.
+word_lengths = input | beam.ParDo(ComputeWordLengthFn())
 ```
 {{end}}
 ### Creating a DoFn
@@ -232,27 +232,27 @@ If your function is relatively straightforward, you can simplify your use of `Pa
 Here’s the previous example, `ParDo` with `ComputeLengthWordsFn`, with the DoFn specified as an anonymous function :
 
 ```
-// words is the input PCollection of strings
-var words beam.PCollection = ...
+// [input] is the input PCollection of strings
+var input beam.PCollection = ...
 
 lengths := beam.ParDo(s, func (word string, emit func(int)) {
       emit(len(word))
-}, words)
+}, input)
 ```
 
 If your ParDo performs a one-to-one mapping of input elements to output elements–that is, for each input element, it applies a function that produces exactly one output element, you can return that element directly.
 Here’s the previous example using a direct return:
 
 ```
-// words is the input PCollection of strings
-var words beam.PCollection = ...
+// [input] is the input PCollection of strings
+var input beam.PCollection = ...
 
 
-// Apply an anonymous function as a DoFn PCollection words.
+// Apply an anonymous function as a DoFn PCollection [input].
 // Save the result as the PCollection wordLengths.
 wordLengths := beam.ParDo(s, func(word string) int {
 	return len(word)
-}, words)
+}, input)
 ```
 
 > Note: You can use Java 8 lambda functions with several other Beam transforms, including Filter, FlatMapElements, and Partition.
@@ -409,8 +409,8 @@ You can work with any type of object.For example String:
 
 {{if (eq .Sdk "go")}}
 ```
-words := beam.Create(s, "Hello World! How are you?")
-output := ApplyTransform(s, words)
+input := beam.Create(s, "Hello World! How are you?")
+output := ApplyTransform(s, input)
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 	split := beam.ParDo(s, SplitFn, input)
@@ -442,7 +442,7 @@ def ApplyTransform(s, input_pcoll):
     split_pcoll = input_pcoll | beam.ParDo(SplitFn())
     return split_pcoll | stats.Count()
 
-words = beam.Create(s, ["Hello World! How are you?"])
-output = ApplyTransform(s, words)
+input = beam.Create(s, ["Hello World! How are you?"])
+output = ApplyTransform(s, input)
 ```
 {{end}}

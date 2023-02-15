@@ -54,9 +54,9 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    file := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+    input := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-    lines := getLines(s, file)
+    lines := getLines(s, input)
 
     fixedSizeLines := top.Largest(s,lines,100,less)
 

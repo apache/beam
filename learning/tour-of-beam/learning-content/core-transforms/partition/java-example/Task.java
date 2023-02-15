@@ -44,13 +44,13 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // List of elements
-        PCollection<Integer> numbers =
+        PCollection<Integer> input =
                 pipeline.apply(
                         Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250)
                 );
 
-        // The applyTransform() converts [numbers] to [partition]
-        PCollectionList<Integer> partition = applyTransform(numbers);
+        // The applyTransform() converts [input] to [partition]
+        PCollectionList<Integer> partition = applyTransform(input);
 
         partition.get(0).apply("Log", ParDo.of(new LogOutput<Integer>("Number > 100: ")));
         partition.get(1).apply("Log", ParDo.of(new LogOutput<Integer>("Number <= 100: ")));

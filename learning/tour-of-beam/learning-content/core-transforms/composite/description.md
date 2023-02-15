@@ -46,10 +46,10 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 The following code sample shows how to call the CountWords composite PTransform, adding it to your pipeline:
 
 ```
-lines := ... // a PCollection of strings.
+input := ... // a PCollection of strings.
 
 // A Composite PTransform function is called like any other function.
-wordCounts := CountWords(s, lines) // returns a PCollection<KV<string,int>>
+wordCounts := CountWords(s, input) // returns a PCollection<KV<string,int>>
 ```
 
 Your composite `PTransform`s can include as many transforms as you want. These transforms can include core transforms, other composite transforms, or the transforms included in the Beam SDK libraries. They can also consume and return as many `PCollection`s as are necessary.
@@ -78,9 +78,9 @@ The following code sample shows how to declare a `PTransform` that accepts a `PC
 {{if (eq .Sdk "python")}}
 ```
 class ComputeWordLengths(beam.PTransform):
-  def expand(self, pcoll):
+  def expand(self, input):
     # Transform logic goes here.
-    return pcoll | beam.Map(lambda x: len(x))
+    return input | beam.Map(lambda x: len(x))
 ```
 {{end}}
 
@@ -106,9 +106,9 @@ The following code sample shows how to override expand for the ComputeWordLength
 {{if (eq .Sdk "python")}}
 ```
 class ComputeWordLengths(beam.PTransform):
-  def expand(self, pcoll):
+  def expand(self, input):
     # Transform logic goes here.
-    return pcoll | beam.Map(lambda x: len(x))
+    return input | beam.Map(lambda x: len(x))
 ```
 {{end}}
 
@@ -157,9 +157,9 @@ It applies the Beam SDK library transform `Count` on the `PCollection` of words,
 ```
 # The CountWords Composite Transform inside the WordCount pipeline.
 @beam.ptransform_fn
-def CountWords(pcoll):
+def CountWords(input):
   return (
-      pcoll
+      input
       # Convert lines of text into individual words.
       | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
       # Count the number of times each word occurs.

@@ -20,7 +20,7 @@ The following example shows how to apply a `Flatten` transform to merge multiple
 // Flatten accepts any number of PCollections of the same element type.
 // Returns a single PCollection that contains all of the elements in input PCollections.
 
-merged := beam.Flatten(s, pcol1, pcol2, pcol3)
+merged := beam.Flatten(s, input1, input2, input3)
 ```
 {{end}}
 
@@ -28,10 +28,10 @@ merged := beam.Flatten(s, pcol1, pcol2, pcol3)
 ```
 // Flatten takes a PCollectionList of PCollection objects of a given type.
 // Returns a single PCollection that contains all of the elements in the PCollection objects in that list.
-PCollection<String> pc1 = ...;
-PCollection<String> pc2 = ...;
-PCollection<String> pc3 = ...;
-PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
+PCollection<String> input1 = ...;
+PCollection<String> input2 = ...;
+PCollection<String> input3 = ...;
+PCollectionList<String> collections = PCollectionList.of(input1).and(input2).and(input3);
 
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 ```
@@ -80,10 +80,10 @@ output := applyTransform(s, input1, input2)
 
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> count1 = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00000-of-00003"));
-PCollection<String> count2 = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00001-of-00003"));
+PCollection<String> input1 = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00000-of-00003"));
+PCollection<String> input2 = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00001-of-00003"));
 
-PCollectionList<String> collections = PCollectionList.of(count1).and(count2);
+PCollectionList<String> collections = PCollectionList.of(input1).and(input2);
 
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 ```
