@@ -535,7 +535,6 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 
 			// TODO Here's where we can split data for processing in multiple bundles.
 			InputData: inputData,
-			Resp:      make(chan *fnpb.ProcessBundleResponse, 1),
 
 			SinkToPCollection: s.SinkToPCollection,
 			OutputCount:       s.outputCount,

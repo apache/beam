@@ -58,8 +58,9 @@ type B struct {
 // Init initializes the
 func (b *B) Init() {
 	// We need to see final data signals that match the number of
-	// outputs the stage this bundle executes posesses.
+	// outputs the stage this bundle executes posesses
 	b.dataWait.Add(b.OutputCount)
+	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
 }
 
 func (b *B) LogValue() slog.Value {

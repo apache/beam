@@ -150,7 +150,7 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			return err
 		}
 		for _, l := range in.GetLogEntries() {
-			if l.Severity > minsev {
+			if l.Severity >= minsev {
 				slog.Log(toSlogSev(l.GetSeverity()), l.GetMessage(),
 					slog.String(slog.SourceKey, l.GetLogLocation()),
 					slog.Time(slog.TimeKey, l.GetTimestamp().AsTime()),
