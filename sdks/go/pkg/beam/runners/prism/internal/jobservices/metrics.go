@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash/maphash"
+	"math"
 	"sort"
 	"sync"
 
@@ -165,10 +166,13 @@ func buildUrnToOpsMap(mUrn2Spec map[string]*pipepb.MonitoringInfoSpec) map[strin
 	// able to extract back out to the protos.
 
 	typ2accumFac := map[string]accumFactory{
-		getMetTyp(pipepb.MonitoringInfoTypeUrns_SUM_INT64_TYPE):          func() metricAccumulator { return &sumInt64{} },
-		getMetTyp(pipepb.MonitoringInfoTypeUrns_SUM_DOUBLE_TYPE):         func() metricAccumulator { return &sumFloat64{} },
-		getMetTyp(pipepb.MonitoringInfoTypeUrns_DISTRIBUTION_INT64_TYPE): func() metricAccumulator { return &distributionInt64{} },
-		getMetTyp(pipepb.MonitoringInfoTypeUrns_PROGRESS_TYPE):           func() metricAccumulator { return &progress{} },
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_SUM_INT64_TYPE):  func() metricAccumulator { return &sumInt64{} },
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_SUM_DOUBLE_TYPE): func() metricAccumulator { return &sumFloat64{} },
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_DISTRIBUTION_INT64_TYPE): func() metricAccumulator {
+			// Defaults should be safe since the metric only exists if we get any values at all.
+			return &distributionInt64{dist: metrics.DistributionValue{Min: math.MaxInt64, Max: math.MinInt64}}
+		},
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_PROGRESS_TYPE): func() metricAccumulator { return &progress{} },
 	}
 
 	ret := make(map[string]urnOps)
@@ -272,7 +276,6 @@ func (m *progress) accumulate(pyld []byte) error {
 	return nil
 }
 
-// Probably unused TBH.
 func (m *progress) toProto(key metricKey) *pipepb.MonitoringInfo {
 	var buf bytes.Buffer
 	coder.EncodeInt32(int32(len(m.snap)), &buf)
@@ -322,11 +325,13 @@ func (m *distributionInt64) accumulate(pyld []byte) error {
 		return err
 	}
 	m.dist = metrics.DistributionValue{
-		Count: m.dist.Count + m.dist.Count,
-		Sum:   m.dist.Sum + m.dist.Sum,
-		Min:   ordMin(m.dist.Min, m.dist.Min),
-		Max:   ordMax(m.dist.Max, m.dist.Max),
+		Count: m.dist.Count + dist.Count,
+		Sum:   m.dist.Sum + dist.Sum,
+		Min:   ordMin(m.dist.Min, dist.Min),
+		Max:   ordMax(m.dist.Max, dist.Max),
 	}
+	fmt.Println("dist", dist)
+	fmt.Println("m.dist", dist)
 	return nil
 }
 
