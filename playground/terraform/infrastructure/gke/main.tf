@@ -27,7 +27,7 @@ resource "google_container_cluster" "playground-gke" {
   remove_default_node_pool = true
   network_policy {
       enabled  = true
-      provider = "CALICO" // CALICO is currently the only supported provider
+      provider = "CALICO"
   }
   addons_config {
    network_policy_config {
