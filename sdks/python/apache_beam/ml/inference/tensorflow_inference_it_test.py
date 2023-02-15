@@ -23,7 +23,6 @@ import uuid
 
 import pytest
 
-from apache_beam.examples.inference import tensorflow_mnist_with_weights
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -32,6 +31,7 @@ try:
   import tensorflow as tf
   from apache_beam.examples.inference import tensorflow_imagenet_segmentation
   from apache_beam.examples.inference import tensorflow_mnist_classification
+  from apache_beam.examples.inference import tensorflow_mnist_with_weights
 except ImportError as e:
   tf = None
 
@@ -114,7 +114,7 @@ class TensorflowInference(unittest.TestCase):
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
     output_file_dir = 'apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'gs://apache-beam-ml/models/tensorflow/mnist/saved_weights'
+    model_path = 'gs://apache-beam-ml/models/tensorflow/mnist/saved_weights/'
     extra_opts = {
         'input': input_file,
         'output': output_file,

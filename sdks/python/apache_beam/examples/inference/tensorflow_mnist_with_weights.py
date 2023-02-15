@@ -22,7 +22,8 @@ import tensorflow as tf
 from apache_beam.examples.inference.tensorflow_mnist_classification import PostProcessor
 from apache_beam.examples.inference.tensorflow_mnist_classification import parse_known_args
 from apache_beam.examples.inference.tensorflow_mnist_classification import process_input
-from apache_beam.ml.inference.base import KeyedModelHandler, RunInference
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.tensorflow_inference import ModelType
 from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy
 from apache_beam.options.pipeline_options import PipelineOptions
