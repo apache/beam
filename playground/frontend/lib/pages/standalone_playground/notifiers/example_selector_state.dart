@@ -47,12 +47,26 @@ class ExampleSelectorState with ChangeNotifier {
 
   void addSelectedTag(String tag) {
     selectedTags.add(tag);
+    _sortTagsBySelected();
     notifyListeners();
   }
 
   void removeSelectedTag(String tag) {
     selectedTags.remove(tag);
+    _sortTagsBySelected();
     notifyListeners();
+  }
+
+  void _sortTagsBySelected() {
+    tags.sort((a, b) {
+      if (selectedTags.contains(a) && !selectedTags.contains(b)) {
+        return -1;
+      } else if (!selectedTags.contains(a) && selectedTags.contains(b)) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
   }
 
   List<String> _getTagsSortedByExampleCount(
