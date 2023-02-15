@@ -94,7 +94,7 @@ do
           example_has_changed=True
       elif [ $checker_status -eq 11 ]
       then
-          echo "Checker has not found changed examples" >> ${log_location}
+          echo "Checker did not find any changed examples" >> ${log_location}
           example_has_changed=False
       else
           echo "Error: Checker is broken" >> ${log_location}
