@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Data access object to list and read stream partitions of a table. */
 @SuppressWarnings({"UnusedVariable", "UnusedMethod"})
+@Internal
 public class ChangeStreamDao {
   private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamDao.class);
 

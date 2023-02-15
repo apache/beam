@@ -29,6 +29,9 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -190,7 +193,7 @@ func makeName(t string) string {
 	t = strings.Replace(t, ".", "_", -1)
 	t = strings.Replace(t, "[", "_", -1)
 	t = strings.Replace(t, "]", "_", -1)
-	return strings.Title(t)
+	return cases.Title(language.Und, cases.NoLower).String(t)
 }
 
 // Useful template functions

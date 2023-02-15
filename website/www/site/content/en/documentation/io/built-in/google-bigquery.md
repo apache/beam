@@ -336,8 +336,8 @@ BigQuery. SDK versions before 2.25.0 support the BigQuery Storage API as an
 and use the pre-GA BigQuery Storage API surface. Callers should migrate
 pipelines which use the BigQuery Storage API to use SDK version 2.25.0 or later.
 
-The Beam SDK for Python does not support the BigQuery Storage API. See
-[Issue 20687](https://github.com/apache/beam/issues/20687)).
+The Beam SDK for Python supports the BigQuery Storage API. Enable it
+by passing `method=DIRECT_READ` as a parameter to `ReadFromBigQuery`.
 
 #### Updating your code
 

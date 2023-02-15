@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
 import com.google.cloud.Timestamp;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
@@ -31,6 +32,7 @@ import org.joda.time.Instant;
  * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn}.
  */
 @SuppressWarnings({"UnusedVariable", "UnusedMethod"})
+@Internal
 public class GenerateInitialPartitionsAction {
   private final ChangeStreamMetrics metrics;
   private final ChangeStreamDao changeStreamDao;

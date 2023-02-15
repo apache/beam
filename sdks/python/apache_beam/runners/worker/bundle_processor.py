@@ -67,6 +67,7 @@ from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
+from apache_beam.transforms import environments
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -823,6 +824,27 @@ def only_element(iterable):
   return element
 
 
+def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
+  # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
+
+  runtime_sdk = environments.sdk_base_version_capability()
+  for t in process_bundle_descriptor.transforms.values():
+    env = process_bundle_descriptor.environments[t.environment_id]
+    for c in env.capabilities:
+      if (c.startswith(environments.SDK_VERSION_CAPABILITY_PREFIX) and
+          c != runtime_sdk):
+        raise RuntimeError(
+            "Pipeline construction environment and pipeline runtime "
+            "environment are not compatible. If you use a custom "
+            "container image, check that the Python interpreter minor version "
+            "and the Apache Beam version in your image match the versions "
+            "used at pipeline construction time. "
+            f"Submission environment: {c}. "
+            f"Runtime environment: {runtime_sdk}.")
+
+  # TODO: Consider warning on mismatches in versions of installed packages.
+
+
 class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
@@ -846,6 +868,7 @@ class BundleProcessor(object):
     self.data_channel_factory = data_channel_factory
     self.current_instruction_id = None  # type: Optional[str]
 
+    _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
     # timer_api_service_descriptor when having timers. So this field cannot be
     # used as an indicator of timers.
