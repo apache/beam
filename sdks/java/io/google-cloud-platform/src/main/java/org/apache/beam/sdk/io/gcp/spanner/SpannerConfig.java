@@ -78,6 +78,8 @@ public abstract class SpannerConfig implements Serializable {
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
+  public abstract @Nullable ValueProvider<Boolean> getDataboostEnabled();
+
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
@@ -148,6 +150,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
 
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
+
+    abstract Builder setDataboostEnabled(ValueProvider<Boolean> databoostEnabled);
 
     public abstract SpannerConfig build();
   }
@@ -264,5 +268,10 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the Cloud Spanner database role. */
   public SpannerConfig withDatabaseRole(ValueProvider<String> databaseRole) {
     return toBuilder().setDatabaseRole(databaseRole).build();
+  }
+
+  /** Specifies if the pipeline has to be run on the independent compute resource. */
+  public SpannerConfig withDataboostEnabled(ValueProvider<Boolean> databoostEnabled) {
+    return toBuilder().setDataboostEnabled(databoostEnabled);
   }
 }
