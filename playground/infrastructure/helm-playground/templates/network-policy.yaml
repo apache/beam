@@ -43,8 +43,8 @@ spec:
     ports:
     - protocol: TCP
       port: 6379
-	- protocol: TCP
-	  port: 8080
+  	- protocol: TCP
+	    port: 8080
   - to:
     - ipBlock:
         cidr: 169.254.169.252/32
