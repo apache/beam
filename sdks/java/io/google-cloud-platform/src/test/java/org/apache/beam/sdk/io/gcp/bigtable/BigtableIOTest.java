@@ -40,7 +40,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -52,7 +51,6 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
-import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
@@ -79,7 +77,6 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -173,10 +170,19 @@ public class BigtableIOTest {
           .setProjectId("options_project")
           .setInstanceId("options_instance")
           .build();
+
+  private static final BigtableServiceFactory.ConfigId configId =
+      BigtableServiceFactory.FACTORY_INSTANCE.newId();
   private static BigtableIO.Read defaultRead =
-      BigtableIO.read().withInstanceId("instance").withProjectId("project");
+      BigtableIO.read()
+          .withInstanceId("instance")
+          .withProjectId("project")
+          .withConfigId(configId.id());
   private static BigtableIO.Write defaultWrite =
-      BigtableIO.write().withInstanceId("instance").withProjectId("project");
+      BigtableIO.write()
+          .withInstanceId("instance")
+          .withProjectId("project")
+          .withConfigId(configId.id());
   private Coder<KV<ByteString, Iterable<Mutation>>> bigtableCoder;
   private static final TypeDescriptor<KV<ByteString, Iterable<Mutation>>> BIGTABLE_WRITE_TYPE =
       new TypeDescriptor<KV<ByteString, Iterable<Mutation>>>() {};
@@ -190,11 +196,13 @@ public class BigtableIOTest {
   @Before
   public void setup() throws Exception {
     service = new FakeBigtableService();
-    defaultRead = defaultRead.withBigtableService(service);
-    defaultWrite = defaultWrite.withBigtableService(service);
+
+    BigtableServiceFactory.FACTORY_INSTANCE.addFakeReadService(configId, service);
+    BigtableServiceFactory.FACTORY_INSTANCE.addFakeWriteService(configId, service);
+
     bigtableCoder = p.getCoderRegistry().getCoder(BIGTABLE_WRITE_TYPE);
 
-    config = BigtableConfig.builder().setValidate(true).setBigtableService(service).build();
+    config = BigtableConfig.builder().setValidate(true).build();
   }
 
   private static ByteKey makeByteKey(ByteString key) {
@@ -301,13 +309,18 @@ public class BigtableIOTest {
   public void testReadWithReaderStartFailed() throws IOException {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtStart(true).build());
-    BigtableConfig failureConfig =
-        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+
+    BigtableServiceFactory.ConfigId newId = BigtableServiceFactory.FACTORY_INSTANCE.newId();
+
+    BigtableServiceFactory.FACTORY_INSTANCE.addFakeReadService(newId, failureService);
+
+    BigtableConfig failureConfig = BigtableConfig.builder().setValidate(true).build();
     final String table = "TEST-TABLE";
     final int numRows = 100;
     makeTableData(failureService, table, numRows);
     BigtableSource source =
         new BigtableSource(
+            newId,
             failureConfig,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -326,13 +339,18 @@ public class BigtableIOTest {
   public void testReadWithReaderAdvanceFailed() throws IOException {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtAdvance(true).build());
-    BigtableConfig failureConfig =
-        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+
+    BigtableServiceFactory.ConfigId newId = BigtableServiceFactory.FACTORY_INSTANCE.newId();
+
+    BigtableServiceFactory.FACTORY_INSTANCE.addFakeReadService(newId, failureService);
+
+    BigtableConfig failureConfig = BigtableConfig.builder().setValidate(true).build();
     final String table = "TEST-TABLE";
     final int numRows = 100;
     makeTableData(failureService, table, numRows);
     BigtableSource source =
         new BigtableSource(
+            newId,
             failureConfig,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -430,74 +448,23 @@ public class BigtableIOTest {
     return KV.of(ByteString.copyFromUtf8(key), mutations);
   }
 
-  /** Tests that credentials are used from PipelineOptions if not supplied by BigtableOptions. */
-  @Test
-  public void testUsePipelineOptionsCredentialsIfNotSpecifiedInBigtableOptions() {
-    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
-    Credentials credentials = new TestCredential();
-    pipelineOptions.setGcpCredential(credentials);
-    BigtableService readService =
-        BigtableIO.read()
-            .withProjectId("project")
-            .withInstanceId("instance")
-            .withTableId("TEST-TABLE")
-            .getBigtableConfig()
-            .getBigtableService(pipelineOptions);
-    BigtableService writeService =
-        BigtableIO.write()
-            .withProjectId("project")
-            .withInstanceId("instance")
-            .withProjectId("TEST-PROJECT")
-            .withInstanceId("TEST-INSTANCE")
-            .withTableId("TEST-TABLE")
-            .getBigtableConfig()
-            .getBigtableService(pipelineOptions);
-    assertEquals(credentials, readService.getCredentials());
-    assertEquals(credentials, writeService.getCredentials());
-  }
-
-  /** Tests that credentials are not used from PipelineOptions if supplied by BigtableOptions. */
-  @Test
-  public void testDontUsePipelineOptionsCredentialsIfSpecifiedInBigtableOptions() throws Exception {
-    BigtableOptions options =
-        BIGTABLE_OPTIONS
-            .toBuilder()
-            .setCredentialOptions(CredentialOptions.nullCredential())
-            .build();
-    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
-    BigtableService readService =
-        BigtableIO.read()
-            .withBigtableOptions(options)
-            .withTableId("TEST-TABLE")
-            .getBigtableConfig()
-            .getBigtableService(pipelineOptions);
-    BigtableService writeService =
-        BigtableIO.write()
-            .withBigtableOptions(options)
-            .withTableId("TEST-TABLE")
-            .getBigtableConfig()
-            .getBigtableService(pipelineOptions);
-    assertEquals(null, readService.getCredentials());
-    assertEquals(null, writeService.getCredentials());
-  }
-
   /** Tests that when reading from a non-existent table, the read fails. */
   @Test
   public void testReadingFailsTableDoesNotExist() throws Exception {
     final String table = "TEST-TABLE";
 
+    BigtableServiceFactory.ConfigId newId = BigtableServiceFactory.FACTORY_INSTANCE.newId();
+
+    BigtableServiceFactory.FACTORY_INSTANCE.addFakeReadService(newId, service);
+
     BigtableIO.Read read =
-        BigtableIO.read()
-            .withBigtableOptions(BIGTABLE_OPTIONS)
-            .withTableId(table)
-            .withBigtableService(service);
+        BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS).withTableId(table);
 
     // Exception will be thrown by read.validate() when read is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
 
-    p.apply(read);
+    p.apply(read.withConfigId(newId.id()));
     p.run();
   }
 
@@ -661,7 +628,7 @@ public class BigtableIOTest {
 
   /** Tests reading all rows using a filter. */
   @Test
-  public void testReadingWithFilter() throws Exception {
+  public void testReadingWithFilter() {
     final String table = "TEST-FILTER-TABLE";
     final int numRows = 1001;
     List<Row> testRows = makeTableData(table, numRows);
@@ -721,6 +688,7 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -743,6 +711,7 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -780,6 +749,7 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -798,8 +768,12 @@ public class BigtableIOTest {
   public void testReadingWithSplitFailed() throws Exception {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtSplit(true).build());
-    BigtableConfig failureConfig =
-        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+
+    BigtableServiceFactory.ConfigId newId = BigtableServiceFactory.FACTORY_INSTANCE.newId();
+
+    BigtableServiceFactory.FACTORY_INSTANCE.addFakeReadService(newId, failureService);
+
+    BigtableConfig failureConfig = BigtableConfig.builder().setValidate(true).build();
 
     final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
     final int numRows = 1500;
@@ -813,6 +787,7 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
+            newId,
             failureConfig,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -882,6 +857,7 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -935,6 +911,7 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -979,6 +956,7 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1053,6 +1031,7 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1061,6 +1040,7 @@ public class BigtableIOTest {
             null /*size*/);
     BigtableSource referenceSource =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1092,6 +1072,7 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1137,6 +1118,7 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1145,6 +1127,7 @@ public class BigtableIOTest {
             null /*size*/);
     BigtableSource referenceSource =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1177,6 +1160,7 @@ public class BigtableIOTest {
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1260,7 +1244,6 @@ public class BigtableIOTest {
         BigtableIO.read()
             .withBigtableOptions(BIGTABLE_OPTIONS)
             .withTableId(table)
-            .withBigtableService(service)
             .withoutValidation();
 
     // validate() will throw if withoutValidation() isn't working
@@ -1274,7 +1257,6 @@ public class BigtableIOTest {
         BigtableIO.write()
             .withBigtableOptions(BIGTABLE_OPTIONS)
             .withTableId(table)
-            .withBigtableService(service)
             .withoutValidation();
 
     // validate() will throw if withoutValidation() isn't working
@@ -1305,7 +1287,7 @@ public class BigtableIOTest {
 
   /** Tests that at least one result is emitted per element written in the global window. */
   @Test
-  public void testWritingEmitsResultsWhenDoneInGlobalWindow() throws Exception {
+  public void testWritingEmitsResultsWhenDoneInGlobalWindow() {
     final String table = "table";
     final String key = "key";
     final String value = "value";
@@ -1327,7 +1309,7 @@ public class BigtableIOTest {
    * Wait.on transform as the trigger.
    */
   @Test
-  public void testWritingAndWaitingOnResults() throws Exception {
+  public void testWritingAndWaitingOnResults() {
     final String table = "table";
     final String key = "key";
     final String value = "value";
@@ -1454,11 +1436,16 @@ public class BigtableIOTest {
   public void testWritingFailsAtWriteRecord() throws IOException {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtWriteRecord(true).build());
+
+    BigtableServiceFactory.ConfigId newId = BigtableServiceFactory.FACTORY_INSTANCE.newId();
+
+    BigtableServiceFactory.FACTORY_INSTANCE.addFakeWriteService(newId, failureService);
+
     BigtableIO.Write failureWrite =
         BigtableIO.write()
             .withInstanceId("instance")
             .withProjectId("project")
-            .withBigtableService(failureService);
+            .withConfigId(newId.id());
 
     final String table = "table";
     final String key = "key";
@@ -1519,6 +1506,7 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
+            configId,
             config,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1660,13 +1648,15 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FakeBigtableReader createReader(BigtableSource source, int id) {
+    public FakeBigtableReader createReader(
+        BigtableSource source,
+        org.threeten.bp.Duration attemptTimeout,
+        org.threeten.bp.Duration operationTimeout) {
       return new FakeBigtableReader(source);
     }
 
     @Override
-    public FakeBigtableWriter openForWriting(
-        String tableId, BigtableWriteOptions writeOptions, int id) {
+    public FakeBigtableWriter openForWriting(String tableId) {
       return new FakeBigtableWriter(tableId);
     }
 
@@ -1684,16 +1674,6 @@ public class BigtableIOTest {
 
     @Override
     public String getInstanceId() {
-      return null;
-    }
-
-    @Override
-    public Credentials getCredentials() {
-      return null;
-    }
-
-    @Override
-    public String getEmulatorHost() {
       return null;
     }
 
@@ -1731,13 +1711,15 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FakeBigtableReader createReader(BigtableSource source, int id) {
+    public FakeBigtableReader createReader(
+        BigtableSource source,
+        org.threeten.bp.Duration attemptTimeout,
+        org.threeten.bp.Duration operationTimeout) {
       return new FailureBigtableReader(source, this, failureOptions);
     }
 
     @Override
-    public FailureBigtableWriter openForWriting(
-        String tableId, BigtableWriteOptions writeOptions, int id) {
+    public FailureBigtableWriter openForWriting(String tableId) {
       return new FailureBigtableWriter(tableId, this, failureOptions);
     }
 
@@ -1830,12 +1812,6 @@ public class BigtableIOTest {
         throw new NoSuchElementException();
       }
       return currentRow;
-    }
-
-    @Override
-    public void close() {
-      rows = null;
-      currentRow = null;
     }
   }
 

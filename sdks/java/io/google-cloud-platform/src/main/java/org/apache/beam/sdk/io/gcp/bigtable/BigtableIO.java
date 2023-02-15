@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.BigtableServiceEntry;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.FACTORY_INSTANCE;
 import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.auth.Credentials;
+import com.google.api.gax.core.CredentialsProvider;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
@@ -41,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -290,6 +291,8 @@ public class BigtableIO {
 
     abstract BigtableReadOptions getBigtableReadOptions();
 
+    private BigtableServiceFactory.ConfigId configId;
+
     /** Returns the table being read from. */
     public @Nullable String getTableId() {
       ValueProvider<String> tableId = getBigtableReadOptions().getTableId();
@@ -404,9 +407,11 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public Read withCredentials(Credentials credentials) {
+    public Read withCredentialsProvider(CredentialsProvider credentialsProvider) {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withCredentails(credentials)).build();
+      return toBuilder()
+          .setBigtableConfig(config.withCredentialsProvider(credentialsProvider))
+          .build();
     }
 
     /**
@@ -556,20 +561,6 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will read using the given Cloud Bigtable service
-     * implementation.
-     *
-     * <p>This is used for testing.
-     *
-     * <p>Does not modify this object.
-     */
-    @VisibleForTesting
-    Read withBigtableService(BigtableService bigtableService) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
-    }
-
-    /**
      * Returns a new {@link BigtableIO.Read} that will use an official Bigtable emulator.
      *
      * <p>This is used for testing.
@@ -634,37 +625,27 @@ public class BigtableIO {
           .build();
     }
 
-    /** Helper method to translate BigtableOptions to BigtableReadOptions. */
-    private void translateBigtableOptions(BigtableOptions options) {
-      BigtableReadOptions.Builder readOptions = getBigtableReadOptions().toBuilder();
-      if (options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().isPresent()) {
-        readOptions.setAttemptTimeout(
-            options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().get());
-      }
-      readOptions.setOperationTimeout(options.getCallOptionsConfig().getReadStreamRpcTimeoutMs());
-      readOptions.setRetryInitialDelay(options.getRetryOptions().getInitialBackoffMillis());
-      readOptions.setRetryDelayMultiplier(options.getRetryOptions().getBackoffMultiplier());
-
-      toBuilder().setBigtableReadOptions(readOptions.build()).build();
+    /** Set the configId for testing. */
+    @VisibleForTesting
+    Read withConfigId(int id) {
+      return toBuilder().setBigtableConfig(getBigtableConfig().withConfigId(id)).build();
     }
 
     @Override
     public PCollection<Row> expand(PBegin input) {
       BigtableConfig config = this.getBigtableConfig();
-      // If BigtableOptions present, convert BigtableOptions into BigtableReadOptions
-      if (config.getBigtableOptions() != null) {
-        translateBigtableOptions(config.getBigtableOptions());
-      } else if (config.getBigtableOptionsConfigurator() != null) {
-        BigtableOptions.Builder options = BigtableOptions.builder();
-        options = config.getBigtableOptionsConfigurator().apply(options);
-        translateBigtableOptions(options.build());
-      }
-
       getBigtableConfig().validate();
       getBigtableReadOptions().validate();
 
+      // Generate a new configId when the configuration is fixed
+      if (config.getConfigId() != null) {
+        this.configId = BigtableServiceFactory.ConfigId.create(config.getConfigId());
+      } else {
+        this.configId = FACTORY_INSTANCE.newId();
+      }
+
       BigtableSource source =
-          new BigtableSource(getBigtableConfig(), getBigtableReadOptions(), null);
+          new BigtableSource(configId, getBigtableConfig(), getBigtableReadOptions(), null);
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -685,6 +666,21 @@ public class BigtableIO {
       ToStringHelper helper =
           MoreObjects.toStringHelper(Read.class).add("config", getBigtableConfig());
       return helper.add("readOptions", getBigtableReadOptions()).toString();
+    }
+
+    private void validateTableExists(
+        BigtableConfig config, BigtableReadOptions readOptions, PipelineOptions options) {
+      if (config.getValidate() && config.isDataAccessible() && readOptions.isDataAccessible()) {
+        String tableId = checkNotNull(readOptions.getTableId().get());
+        try {
+          BigtableServiceEntry entry =
+              FACTORY_INSTANCE.getServiceForReading(configId, config, readOptions, options);
+          checkArgument(
+              entry.getService().tableExists(tableId), "Table %s does not exist", tableId);
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+        }
+      }
     }
   }
 
@@ -822,9 +818,11 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public Write withCredentials(Credentials credentials) {
+    public Write withCredentialsProvider(CredentialsProvider credentialsProvider) {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withCredentails(credentials)).build();
+      return toBuilder()
+          .setBigtableConfig(config.withCredentialsProvider(credentialsProvider))
+          .build();
     }
     /**
      * WARNING: Should be used only to specify additional parameters for connection to the Cloud
@@ -892,19 +890,6 @@ public class BigtableIO {
     public Write withoutValidation() {
       BigtableConfig config = getBigtableConfig();
       return toBuilder().setBigtableConfig(config.withValidate(false)).build();
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.Write} that will write using the given Cloud Bigtable service
-     * implementation.
-     *
-     * <p>This is used for testing.
-     *
-     * <p>Does not modify this object.
-     */
-    Write withBigtableService(BigtableService bigtableService) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
     }
 
     /**
@@ -1009,26 +994,6 @@ public class BigtableIO {
           .build();
     }
 
-    /** Helper method to translate Bigtable Options to BigtableWriteOptions. */
-    private void translateBigtableOptions(BigtableOptions options) {
-      BigtableWriteOptions.Builder writeOptions = getBigtableWriteOptions().toBuilder();
-      // configure timeouts
-      if (options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().isPresent()) {
-        writeOptions.setAttemptTimeout(
-            options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().get());
-      }
-      writeOptions.setOperationTimeout(options.getCallOptionsConfig().getMutateRpcTimeoutMs());
-      // configure retry backoffs
-      writeOptions.setRetryInitialDelay(options.getRetryOptions().getInitialBackoffMillis());
-      writeOptions.setRetryDelayMultiplier(options.getRetryOptions().getBackoffMultiplier());
-      // configure batch size
-      writeOptions.setBatchElements(options.getBulkOptions().getBulkMaxRowKeyCount());
-      writeOptions.setBatchBytes(options.getBulkOptions().getBulkMaxRequestSize());
-      writeOptions.setMaxRequests(options.getBulkOptions().getMaxInflightRpcs());
-
-      toBuilder().setBigtableWriteOptions(writeOptions.build()).build();
-    }
-
     /**
      * Returns a {@link BigtableIO.WriteWithResults} that will emit a {@link BigtableWriteResult}
      * for each batch of rows written.
@@ -1037,17 +1002,14 @@ public class BigtableIO {
       return new WriteWithResults(getBigtableConfig(), getBigtableWriteOptions());
     }
 
+    /** Set the configId for testing. */
+    @VisibleForTesting
+    Write withConfigId(int id) {
+      return toBuilder().setBigtableConfig(getBigtableConfig().withConfigId(id)).build();
+    }
+
     @Override
     public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
-      BigtableConfig config = this.getBigtableConfig();
-      if (config.getBigtableOptions() != null) {
-        translateBigtableOptions(config.getBigtableOptions());
-      } else if (config.getBigtableOptionsConfigurator() != null) {
-        BigtableOptions.Builder options = BigtableOptions.builder();
-        options = config.getBigtableOptionsConfigurator().apply(options);
-        translateBigtableOptions(options.build());
-      }
-
       input.apply(withWriteResults());
       return PDone.in(input.getPipeline());
     }
@@ -1082,9 +1044,16 @@ public class BigtableIO {
     private final BigtableConfig bigtableConfig;
     private final BigtableWriteOptions bigtableWriteOptions;
 
+    private final BigtableServiceFactory.ConfigId configId;
+
     WriteWithResults(BigtableConfig bigtableConfig, BigtableWriteOptions bigtableWriteOptions) {
       this.bigtableConfig = bigtableConfig;
       this.bigtableWriteOptions = bigtableWriteOptions;
+      if (bigtableConfig.getConfigId() != null) {
+        this.configId = BigtableServiceFactory.ConfigId.create(bigtableConfig.getConfigId());
+      } else {
+        this.configId = FACTORY_INSTANCE.newId();
+      }
     }
 
     @Override
@@ -1093,7 +1062,8 @@ public class BigtableIO {
       bigtableConfig.validate();
       bigtableWriteOptions.validate();
 
-      return input.apply(ParDo.of(new BigtableWriterFn(bigtableConfig, bigtableWriteOptions)));
+      return input.apply(
+          ParDo.of(new BigtableWriterFn(configId, bigtableConfig, bigtableWriteOptions)));
     }
 
     @Override
@@ -1115,6 +1085,21 @@ public class BigtableIO {
           .add("writeOptions", bigtableWriteOptions)
           .toString();
     }
+
+    private void validateTableExists(
+        BigtableConfig config, BigtableWriteOptions writeOptions, PipelineOptions options) {
+      if (config.getValidate() && config.isDataAccessible() && writeOptions.isDataAccessible()) {
+        String tableId = checkNotNull(writeOptions.getTableId().get());
+        try {
+          BigtableServiceEntry entry =
+              FACTORY_INSTANCE.getServiceForWriting(configId, config, writeOptions, options);
+          checkArgument(
+              entry.getService().tableExists(tableId), "Table %s does not exist", tableId);
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+        }
+      }
+    }
   }
 
   private static class BigtableWriterFn
@@ -1122,28 +1107,30 @@ public class BigtableIO {
 
     // uuid of each DoFn family
     // current id
-    private int id;
+    private BigtableServiceFactory.ConfigId id;
+    private BigtableServiceEntry serviceEntry;
 
-    private static AtomicInteger uuid = new AtomicInteger(0);
-
-    BigtableWriterFn(BigtableConfig bigtableConfig, BigtableWriteOptions writeOptions) {
+    BigtableWriterFn(
+        BigtableServiceFactory.ConfigId configId,
+        BigtableConfig bigtableConfig,
+        BigtableWriteOptions writeOptions) {
       this.config = bigtableConfig;
       this.writeOptions = writeOptions;
       this.failures = new ConcurrentLinkedQueue<>();
-      this.id = BigtableWriterFn.uuid.getAndIncrement();
+      this.id = configId;
     }
 
     @StartBundle
     public void startBundle(StartBundleContext c) throws IOException {
-      // Check if the family id if theres a client, increment reference count
-      if (bigtableWriter == null) {
-        bigtableWriter =
-            config
-                .getBigtableService(c.getPipelineOptions())
-                .openForWriting(writeOptions.getTableId().get(), writeOptions, id);
-      }
       recordsWritten = 0;
       this.seenWindows = Maps.newHashMapWithExpectedSize(1);
+
+      // Check if the family id if theres a client, increment reference count
+      if (bigtableWriter == null) {
+        serviceEntry =
+            FACTORY_INSTANCE.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
+        bigtableWriter = serviceEntry.getService().openForWriting(writeOptions.getTableId().get());
+      }
     }
 
     @ProcessElement
@@ -1180,6 +1167,7 @@ public class BigtableIO {
       if (bigtableWriter != null) {
         bigtableWriter.close();
         bigtableWriter = null;
+        FACTORY_INSTANCE.releaseWriteService(serviceEntry);
       }
     }
 
@@ -1238,10 +1226,14 @@ public class BigtableIO {
 
   static class BigtableSource extends BoundedSource<Row> {
     public BigtableSource(
-        BigtableConfig config, BigtableReadOptions readOptions, @Nullable Long estimatedSizeBytes) {
+        BigtableServiceFactory.ConfigId configId,
+        BigtableConfig config,
+        BigtableReadOptions readOptions,
+        @Nullable Long estimatedSizeBytes) {
       this.config = config;
       this.readOptions = readOptions;
       this.estimatedSizeBytes = estimatedSizeBytes;
+      this.configId = configId;
     }
 
     @Override
@@ -1258,15 +1250,18 @@ public class BigtableIO {
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
 
+    private final BigtableServiceFactory.ConfigId configId;
+
     /** Creates a new {@link BigtableSource} with just one {@link ByteKeyRange}. */
     protected BigtableSource withSingleRange(ByteKeyRange range) {
       checkArgument(range != null, "range can not be null");
-      return new BigtableSource(config, readOptions.withKeyRange(range), estimatedSizeBytes);
+      return new BigtableSource(
+          configId, config, readOptions.withKeyRange(range), estimatedSizeBytes);
     }
 
     protected BigtableSource withEstimatedSizeBytes(Long estimatedSizeBytes) {
       checkArgument(estimatedSizeBytes != null, "estimatedSizeBytes can not be null");
-      return new BigtableSource(config, readOptions, estimatedSizeBytes);
+      return new BigtableSource(configId, config, readOptions, estimatedSizeBytes);
     }
 
     /**
@@ -1275,7 +1270,11 @@ public class BigtableIO {
      * different tablets, and possibly generate sub-splits within tablets.
      */
     private List<KeyOffset> getSampleRowKeys(PipelineOptions pipelineOptions) throws IOException {
-      return config.getBigtableService(pipelineOptions).getSampleRowKeys(this);
+      BigtableServiceFactory.BigtableServiceEntry serviceEntry =
+          FACTORY_INSTANCE.getServiceForReading(configId, config, readOptions, pipelineOptions);
+      List<KeyOffset> keyOffsets = serviceEntry.getService().getSampleRowKeys(this);
+      FACTORY_INSTANCE.releaseReadService(serviceEntry);
+      return keyOffsets;
     }
 
     private static final long MAX_SPLIT_COUNT = 15_360L;
@@ -1319,7 +1318,8 @@ public class BigtableIO {
         if (counter == numberToCombine
             || !checkRangeAdjacency(previousSourceRanges, source.getRanges())) {
           reducedSplits.add(
-              new BigtableSource(config, readOptions.withKeyRanges(previousSourceRanges), size));
+              new BigtableSource(
+                  configId, config, readOptions.withKeyRanges(previousSourceRanges), size));
           counter = 0;
           size = 0;
           previousSourceRanges = new ArrayList<>();
@@ -1331,7 +1331,8 @@ public class BigtableIO {
       }
       if (size > 0) {
         reducedSplits.add(
-            new BigtableSource(config, readOptions.withKeyRanges(previousSourceRanges), size));
+            new BigtableSource(
+                configId, config, readOptions.withKeyRanges(previousSourceRanges), size));
       }
       return reducedSplits;
     }
@@ -1527,7 +1528,8 @@ public class BigtableIO {
 
     @Override
     public BoundedReader<Row> createReader(PipelineOptions options) throws IOException {
-      return new BigtableReader(this, config.getBigtableService(options));
+      return new BigtableReader(
+          this, FACTORY_INSTANCE.getServiceForReading(configId, config, readOptions, options));
     }
 
     @Override
@@ -1621,27 +1623,27 @@ public class BigtableIO {
     // Thread-safety: source is protected via synchronization and is only accessed or modified
     // inside a synchronized block (or constructor, which is the same).
     private BigtableSource source;
-    private BigtableService service;
+    private final BigtableServiceEntry serviceEntry;
     private BigtableService.Reader reader;
     private final ByteKeyRangeTracker rangeTracker;
     private long recordsReturned;
 
-    private static AtomicInteger uuid = new AtomicInteger(0);
-
-    private int id;
-
-    public BigtableReader(BigtableSource source, BigtableService service) {
+    public BigtableReader(BigtableSource source, BigtableServiceEntry service) {
       checkArgument(source.getRanges().size() == 1, "source must have exactly one key range");
       this.source = source;
-      this.service = service;
+      this.serviceEntry = service;
       rangeTracker = ByteKeyRangeTracker.of(source.getRanges().get(0));
-
-      this.id = BigtableReader.uuid.getAndIncrement();
     }
 
     @Override
     public boolean start() throws IOException {
-      reader = service.createReader(getCurrentSource(), id);
+      reader =
+          serviceEntry
+              .getService()
+              .createReader(
+                  getCurrentSource(),
+                  serviceEntry.getAttemptTimeout(),
+                  serviceEntry.getOperationTimeout());
       boolean hasRecord =
           (reader.start()
                   && rangeTracker.tryReturnRecordAt(
@@ -1680,7 +1682,7 @@ public class BigtableIO {
     public void close() throws IOException {
       LOG.info("Closing reader after reading {} records.", recordsReturned);
       if (reader != null) {
-        reader.close();
+        FACTORY_INSTANCE.releaseReadService(serviceEntry);
         reader = null;
       }
     }
@@ -1736,36 +1738,6 @@ public class BigtableIO {
               "Error mutating row %s with mutations %s",
               record.getKey().toStringUtf8(), record.getValue()),
           cause);
-    }
-  }
-
-  static void validateTableExists(
-      BigtableConfig config, BigtableWriteOptions writeOptions, PipelineOptions options) {
-    if (config.getValidate() && config.isDataAccessible() && writeOptions.isDataAccessible()) {
-      String tableId = checkNotNull(writeOptions.getTableId().get());
-      try {
-        checkArgument(
-            config.getBigtableService(options).tableExists(tableId),
-            "Table %s does not exist",
-            tableId);
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
-      }
-    }
-  }
-
-  static void validateTableExists(
-      BigtableConfig config, BigtableReadOptions readOptions, PipelineOptions options) {
-    if (config.getValidate() && config.isDataAccessible() && readOptions.isDataAccessible()) {
-      String tableId = checkNotNull(readOptions.getTableId().get());
-      try {
-        checkArgument(
-            config.getBigtableService(options).tableExists(tableId),
-            "Table %s does not exist",
-            tableId);
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
-      }
     }
   }
 

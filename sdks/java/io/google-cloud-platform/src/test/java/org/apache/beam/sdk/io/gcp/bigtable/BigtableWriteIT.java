@@ -25,6 +25,7 @@ import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.admin.v2.models.Table;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.ByteString;
@@ -61,7 +62,7 @@ public class BigtableWriteIT implements Serializable {
   private static final String COLUMN_FAMILY_NAME = "cf";
 
   private static BigtableTestOptions options;
-  private static BigtableConfigToVeneerSettings veneerSettings;
+  private static BigtableDataSettings veneerSettings;
   private BigtableConfig bigtableConfig;
   private static BigtableDataClient client;
   private static BigtableTableAdminClient tableAdminClient;
@@ -82,10 +83,13 @@ public class BigtableWriteIT implements Serializable {
             .setUserAgent("apache-beam-test")
             .build();
 
-    veneerSettings = BigtableConfigToVeneerSettings.create(bigtableConfig);
+    veneerSettings =
+        BigtableConfigTranslator.translateWriteToVeneerSettings(
+            bigtableConfig,
+            BigtableWriteOptions.builder().build(),
+            PipelineOptionsFactory.create());
 
-    client = BigtableDataClient.create(veneerSettings.getDataSettings());
-    tableAdminClient = BigtableTableAdminClient.create(veneerSettings.getTableAdminSettings());
+    client = BigtableDataClient.create(veneerSettings);
   }
 
   @Test

@@ -19,22 +19,11 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.gax.core.NoCredentialsProvider;
-import com.google.auth.Credentials;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.auth.oauth2.ServiceAccountJwtAccessCredentials;
+import com.google.api.gax.core.CredentialsProvider;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.CredentialOptions;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.Serializable;
-import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.PrivateKey;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -49,14 +38,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 @Internal
 public abstract class BigtableConfig implements Serializable {
-
-  enum CredentialType {
-    DEFAULT,
-    P12,
-    SUPPLIED,
-    JSON,
-    NONE
-  }
 
   /** Returns the project id being written to. */
   public abstract @Nullable ValueProvider<String> getProjectId();
@@ -82,9 +63,6 @@ public abstract class BigtableConfig implements Serializable {
   /** Weather validate that table exists before writing. */
   abstract boolean getValidate();
 
-  /** {@link BigtableService} used only for testing. */
-  abstract @Nullable BigtableService getBigtableService();
-
   /** Bigtable emulator. Used only for testing. */
   abstract @Nullable String getEmulatorHost();
 
@@ -92,7 +70,9 @@ public abstract class BigtableConfig implements Serializable {
   abstract @Nullable String getUserAgent();
 
   /** Credentials for running the job. */
-  abstract @Nullable Credentials getCredentials();
+  abstract @Nullable CredentialsProvider getCredentialsProvider();
+
+  abstract @Nullable Integer getConfigId();
 
   abstract Builder toBuilder();
 
@@ -109,22 +89,29 @@ public abstract class BigtableConfig implements Serializable {
 
     abstract Builder setAppProfileId(ValueProvider<String> appProfileId);
 
-    /** @deprecated will be replaced by bigtable options configurator. */
+    /** @deprecated please set the options directly in BigtableIO. */
     @Deprecated
     abstract Builder setBigtableOptions(BigtableOptions options);
 
     abstract Builder setValidate(boolean validate);
 
+    /** @deprecated please set the options directly in BigtableIO. */
+    @Deprecated
     abstract Builder setBigtableOptionsConfigurator(
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> optionsConfigurator);
-
-    abstract Builder setBigtableService(BigtableService bigtableService);
 
     abstract Builder setEmulatorHost(String emulatorHost);
 
     abstract Builder setUserAgent(String userAgent);
 
-    abstract Builder setCredentials(Credentials credentials);
+    // TODO pass in CredentialProvider
+    // - defulat credentials
+    // - user overriding default credentials
+    // - no credentials (maybe ok)
+    abstract Builder setCredentialsProvider(CredentialsProvider credentialsProvider);
+
+    @VisibleForTesting
+    abstract Builder setConfigId(Integer id);
 
     abstract BigtableConfig build();
   }
@@ -144,7 +131,7 @@ public abstract class BigtableConfig implements Serializable {
     return toBuilder().setAppProfileId(appProfileId).build();
   }
 
-  /** @deprecated please set the options directly in BigtableIO */
+  /** @deprecated please set the options directly in BigtableIO. */
   @Deprecated
   public BigtableConfig withBigtableOptions(BigtableOptions options) {
     checkArgument(options != null, "Bigtable options can not be null");
@@ -164,19 +151,18 @@ public abstract class BigtableConfig implements Serializable {
   }
 
   @VisibleForTesting
-  public BigtableConfig withBigtableService(BigtableService bigtableService) {
-    checkArgument(bigtableService != null, "bigtableService can not be null");
-    return toBuilder().setBigtableService(bigtableService).build();
-  }
-
-  @VisibleForTesting
   public BigtableConfig withEmulator(String emulatorHost) {
     checkArgument(emulatorHost != null, "emulatorHost can not be null");
     return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
-  BigtableConfig withCredentails(Credentials credentials) {
-    return toBuilder().setCredentials(credentials).build();
+  BigtableConfig withCredentialsProvider(CredentialsProvider provider) {
+    return toBuilder().setCredentialsProvider(provider).build();
+  }
+
+  @VisibleForTesting
+  BigtableConfig withConfigId(int id) {
+    return toBuilder().setConfigId(id).build();
   }
 
   void validate() {
@@ -214,127 +200,9 @@ public abstract class BigtableConfig implements Serializable {
     }
   }
 
-  /**
-   * Helper function that either returns the mock Bigtable service supplied by {@link
-   * #withBigtableService} or creates and returns an implementation that talks to {@code Cloud
-   * Bigtable}.
-   *
-   * <p>Also populate the credentials option from {@link GcpOptions#getGcpCredential()} if the
-   * default credentials are being used on {@link BigtableOptions}.
-   */
-  @VisibleForTesting
-  BigtableService getBigtableService(PipelineOptions pipelineOptions) {
-    if (getBigtableService() != null) {
-      return getBigtableService();
-    }
-
-    BigtableConfig.Builder config = toBuilder();
-
-    if (pipelineOptions instanceof GcpOptions) {
-      config.setCredentials(((GcpOptions) pipelineOptions).getGcpCredential());
-    }
-
-    try {
-      translateBigtableOptions(config);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    config.setUserAgent(pipelineOptions.getUserAgent());
-
-    return new BigtableServiceImpl(config.build());
-  }
-
   boolean isDataAccessible() {
     return (getProjectId() == null || getProjectId().isAccessible())
         && (getInstanceId() == null || getInstanceId().isAccessible());
-  }
-
-  private void translateBigtableOptions(BigtableConfig.Builder builder) throws IOException {
-    BigtableOptions.Builder effectiveOptionsBuilder = null;
-
-    if (getBigtableOptions() != null) {
-      effectiveOptionsBuilder = getBigtableOptions().toBuilder();
-    }
-
-    if (getBigtableOptionsConfigurator() != null) {
-      effectiveOptionsBuilder = getBigtableOptionsConfigurator().apply(BigtableOptions.builder());
-    }
-
-    if (effectiveOptionsBuilder == null) {
-      return;
-    }
-
-    BigtableOptions effectiveOptions = effectiveOptionsBuilder.build();
-
-    // Todo decided if we should implement cached channel pool
-
-    if (effectiveOptions.getInstanceId() != null && getInstanceId() == null) {
-      builder.setInstanceId(ValueProvider.StaticValueProvider.of(effectiveOptions.getInstanceId()));
-    }
-
-    if (effectiveOptions.getProjectId() != null && getProjectId() == null) {
-      builder.setProjectId(ValueProvider.StaticValueProvider.of(effectiveOptions.getProjectId()));
-    }
-
-    if (!effectiveOptions.getDataHost().equals("bigtable.googleapis.com")
-        && getEmulatorHost() == null) {
-      builder.setEmulatorHost(
-          String.format("%s:%s", effectiveOptions.getDataHost(), effectiveOptions.getPort()));
-    }
-
-    if (effectiveOptions.getCredentialOptions() != null) {
-      CredentialOptions credOptions = effectiveOptions.getCredentialOptions();
-      switch (credOptions.getCredentialType()) {
-        case DefaultCredentials:
-          GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-          builder.setCredentials(credentials);
-          break;
-        case P12:
-          String keyFile = ((CredentialOptions.P12CredentialOptions) credOptions).getKeyFile();
-          String serviceAccount =
-              ((CredentialOptions.P12CredentialOptions) credOptions).getServiceAccount();
-          try {
-            KeyStore keyStore = KeyStore.getInstance("PKCS12");
-
-            try (FileInputStream fin = new FileInputStream(keyFile)) {
-              keyStore.load(fin, "notasecret".toCharArray());
-            }
-            PrivateKey privateKey =
-                (PrivateKey) keyStore.getKey("privatekey", "notasecret".toCharArray());
-
-            if (privateKey == null) {
-              throw new IllegalStateException("private key cannot be null");
-            }
-            builder.setCredentials(
-                ServiceAccountJwtAccessCredentials.newBuilder()
-                    .setClientEmail(serviceAccount)
-                    .setPrivateKey(privateKey)
-                    .build());
-          } catch (GeneralSecurityException exception) {
-            throw new RuntimeException("exception while retrieving credentials", exception);
-          }
-          break;
-        case SuppliedCredentials:
-          builder.setCredentials(
-              ((CredentialOptions.UserSuppliedCredentialOptions) credOptions).getCredential());
-          break;
-        case SuppliedJson:
-          CredentialOptions.JsonCredentialsOptions jsonCredentialsOptions =
-              (CredentialOptions.JsonCredentialsOptions) credOptions;
-          synchronized (jsonCredentialsOptions) {
-            if (jsonCredentialsOptions.getCachedCredentials() == null) {
-              jsonCredentialsOptions.setCachedCredentails(
-                  GoogleCredentials.fromStream(jsonCredentialsOptions.getInputStream()));
-            }
-            builder.setCredentials(jsonCredentialsOptions.getCachedCredentials());
-          }
-          break;
-        case None:
-          builder.setCredentials(NoCredentialsProvider.create().getCredentials());
-          break;
-      }
-    }
   }
 
   @Override

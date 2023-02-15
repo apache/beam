@@ -82,6 +82,7 @@ public class GcpApiSurfaceTest {
             Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
             Matchers.equalTo(com.google.api.gax.paging.Page.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.core.CredentialsProvider.class),
             Matchers.<Class<?>>equalTo(com.google.common.base.Function.class),
             Matchers.<Class<?>>equalTo(com.google.common.base.Optional.class),
             Matchers.<Class<?>>equalTo(com.google.common.base.Supplier.class),

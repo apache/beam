@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import com.google.auth.Credentials;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
@@ -30,6 +29,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
+import org.threeten.bp.Duration;
 
 /** An interface for real or fake implementations of Cloud Bigtable. */
 interface BigtableService extends Serializable {
@@ -72,13 +72,6 @@ interface BigtableService extends Serializable {
     boolean advance() throws IOException;
 
     /**
-     * Closes the reader.
-     *
-     * @throws IOException if there is an error.
-     */
-    void close() throws IOException;
-
-    /**
      * Returns the last row read by a successful start() or advance(), or throws if there is no
      * current row because the last such call was unsuccessful.
      */
@@ -89,11 +82,11 @@ interface BigtableService extends Serializable {
   boolean tableExists(String tableId) throws IOException;
 
   /** Returns a {@link Reader} that will read from the specified source. */
-  Reader createReader(BigtableSource source, int id) throws IOException;
+  Reader createReader(BigtableSource source, Duration attemptTimeout, Duration operationTimeout)
+      throws IOException;
 
   /** Returns a {@link Writer} that will write to the specified table. */
-  Writer openForWriting(String tableId, BigtableWriteOptions writeOptions, int id)
-      throws IOException;
+  Writer openForWriting(String tableId) throws IOException;
 
   /**
    * Returns a set of row keys sampled from the underlying table. These contain information about
@@ -104,8 +97,4 @@ interface BigtableService extends Serializable {
   String getProjectId();
 
   String getInstanceId();
-
-  Credentials getCredentials();
-
-  String getEmulatorHost();
 }

@@ -20,12 +20,9 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 import com.google.api.gax.batching.Batcher;
-import com.google.api.gax.batching.BatchingSettings;
 import com.google.api.gax.grpc.GrpcCallContext;
-import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.StreamController;
-import com.google.auth.Credentials;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
@@ -36,9 +33,6 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
-import com.google.cloud.Tuple;
-import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
-import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.internal.ByteStringComparator;
@@ -48,7 +42,6 @@ import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowAdapter;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
-import com.google.cloud.bigtable.data.v2.stub.BigtableBatchingCallSettings;
 import com.google.protobuf.ByteString;
 import io.grpc.CallOptions;
 import io.grpc.Deadline;
@@ -68,11 +61,9 @@ import java.util.Queue;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -106,58 +97,32 @@ class BigtableServiceImpl implements BigtableService {
   // Percentage of max number of rows allowed in the buffer
   private static final double WATERMARK_PERCENTAGE = .1;
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
-  private static ConcurrentHashMap<Integer, Tuple<AtomicInteger, BigtableDataClient>> writeClients =
-      new ConcurrentHashMap<>();
 
-  private static ConcurrentHashMap<Integer, Tuple<AtomicInteger, BigtableDataClient>> readClients =
-      new ConcurrentHashMap<>();
-
-  public BigtableServiceImpl(BigtableConfig config) {
-    try {
-      this.config = config;
-      BigtableConfigToVeneerSettings veneeringSettings =
-          BigtableConfigToVeneerSettings.create(this.config);
-      this.dataSettings = veneeringSettings.getDataSettings();
-      this.tableAdminSettings = veneeringSettings.getTableAdminSettings();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+  public BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
+    this.client = BigtableDataClient.create(settings);
+    this.projectId = settings.getProjectId();
+    this.instanceId = settings.getInstanceId();
   }
 
-  private final BigtableConfig config;
-
-  private BigtableDataSettings dataSettings;
-
-  private BigtableTableAdminSettings tableAdminSettings;
+  private final BigtableDataClient client;
+  private final String projectId;
+  private final String instanceId;
 
   @Override
-  public BigtableWriterImpl openForWriting(String tableId, BigtableWriteOptions options, int id)
-      throws IOException {
-    dataSettings = configureWriteSettings(dataSettings.toBuilder(), options);
-    LOG.info("Opening for writing with settings " + dataSettings);
-    Tuple<AtomicInteger, BigtableDataClient> clientTuple = writeClients.get(id);
-    if (clientTuple == null) {
-      clientTuple = Tuple.of(new AtomicInteger(0), BigtableDataClient.create(dataSettings));
-      writeClients.put(id, clientTuple);
-    }
-    clientTuple.x().getAndIncrement();
-    return new BigtableWriterImpl(
-        clientTuple.y(), dataSettings.getProjectId(), dataSettings.getInstanceId(), tableId, id);
+  public BigtableWriterImpl openForWriting(String tableId) {
+    return new BigtableWriterImpl(client, projectId, instanceId, tableId);
   }
 
   @Override
   public boolean tableExists(String tableId) throws IOException {
-    try (BigtableTableAdminClient adminClient =
-        BigtableTableAdminClient.create(tableAdminSettings)) {
-      adminClient.getTable(tableId);
+    try {
+      client.readRow(tableId, "non-exist-row");
       return true;
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Code.NOT_FOUND) {
         return false;
       }
-      String message =
-          String.format(
-              "Error checking whether table %s (BigtableOptions %s) exists", tableId, config);
+      String message = String.format("Error checking whether table %s exists", tableId);
       LOG.error(message, e);
       throw new IOException(message, e);
     }
@@ -165,7 +130,7 @@ class BigtableServiceImpl implements BigtableService {
 
   @VisibleForTesting
   static class BigtableReaderImpl implements Reader {
-    private BigtableDataClient client;
+    private final BigtableDataClient client;
 
     private final String projectId;
     private final String instanceId;
@@ -175,12 +140,10 @@ class BigtableServiceImpl implements BigtableService {
     private final RowFilter rowFilter;
     private Iterator<Row> results;
 
-    private final Duration operationTimeout;
     private final Duration attemptTimeout;
+    private final Duration operationTimeout;
 
     private Row currentRow;
-
-    private int id;
 
     @VisibleForTesting
     BigtableReaderImpl(
@@ -190,9 +153,8 @@ class BigtableServiceImpl implements BigtableService {
         String tableId,
         List<ByteKeyRange> ranges,
         @Nullable RowFilter rowFilter,
-        Duration operationTimeout,
         Duration attemptTimeout,
-        int id) {
+        Duration operationTimeout) {
       this.client = client;
       this.projectId = projectId;
       this.instanceId = instanceId;
@@ -200,10 +162,8 @@ class BigtableServiceImpl implements BigtableService {
       this.ranges = ranges;
       this.rowFilter = rowFilter;
 
-      this.operationTimeout = operationTimeout;
       this.attemptTimeout = attemptTimeout;
-
-      this.id = id;
+      this.operationTimeout = operationTimeout;
     }
 
     @Override
@@ -244,22 +204,6 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public void close() throws IOException {
-      // Goal: by the end of this function, both results and client are null and closed,
-      // independent of what errors they throw or prior state.
-
-      if (client == null) {
-        // Only possible when previously closed, so we know that results is also null.
-        return;
-      }
-
-      if (readClients.get(id) != null && readClients.get(id).x().decrementAndGet() == 0) {
-        readClients.get(id).y().close();
-        readClients.remove(id);
-      }
-    }
-
-    @Override
     public Row getCurrentRow() throws NoSuchElementException {
       if (currentRow == null) {
         throw new NoSuchElementException();
@@ -270,7 +214,7 @@ class BigtableServiceImpl implements BigtableService {
 
   @VisibleForTesting
   static class BigtableSegmentReaderImpl implements Reader {
-    private BigtableDataClient client;
+    private final BigtableDataClient client;
 
     private @Nullable ReadRowsRequest nextRequest;
     private @Nullable Row currentRow;
@@ -281,8 +225,6 @@ class BigtableServiceImpl implements BigtableService {
     private ServiceCallMetric serviceCallMetric;
     private final Duration attemptTimeout;
     private final Duration operationTimeout;
-
-    private final int id;
 
     private static class UpstreamResults {
       private final List<Row> rows;
@@ -303,8 +245,7 @@ class BigtableServiceImpl implements BigtableService {
         @Nullable RowFilter rowFilter,
         int maxBufferedElementCount,
         Duration attemptTimeout,
-        Duration operationTimeout,
-        int id) {
+        Duration operationTimeout) {
 
       RowSet.Builder rowSetBuilder = RowSet.newBuilder();
       if (ranges.isEmpty()) {
@@ -338,8 +279,7 @@ class BigtableServiceImpl implements BigtableService {
           maxSegmentByteSize,
           attemptTimeout,
           operationTimeout,
-          createCallMetric(projectId, instanceId, tableId),
-          id);
+          createCallMetric(projectId, instanceId, tableId));
     }
 
     @VisibleForTesting
@@ -354,8 +294,7 @@ class BigtableServiceImpl implements BigtableService {
         long maxSegmentByteSize,
         Duration attemptTimeout,
         Duration operationTimeout,
-        ServiceCallMetric serviceCallMetric,
-        int id) {
+        ServiceCallMetric serviceCallMetric) {
       if (rowSet.equals(rowSet.getDefaultInstanceForType())) {
         rowSet = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
       }
@@ -376,7 +315,6 @@ class BigtableServiceImpl implements BigtableService {
       this.refillSegmentWaterMark = (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE);
       this.attemptTimeout = attemptTimeout;
       this.operationTimeout = operationTimeout;
-      this.id = id;
     }
 
     @Override
@@ -500,14 +438,6 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public void close() throws IOException {
-      if (readClients.get(id) != null && readClients.get(id).x().decrementAndGet() == 0) {
-        readClients.get(id).y().close();
-        readClients.remove(id);
-      }
-    }
-
-    @Override
     public Row getCurrentRow() throws NoSuchElementException {
       if (currentRow == null) {
         throw new NoSuchElementException();
@@ -523,15 +453,12 @@ class BigtableServiceImpl implements BigtableService {
     private String instanceId;
     private String tableId;
 
-    private int id;
-
     BigtableWriterImpl(
-        BigtableDataClient client, String projectId, String instanceId, String tableId, int id) {
+        BigtableDataClient client, String projectId, String instanceId, String tableId) {
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
       this.bulkMutation = client.newBulkMutationBatcher(tableId);
-      this.id = id;
     }
 
     @Override
@@ -549,23 +476,16 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void close() throws IOException {
-      try {
-        if (bulkMutation != null) {
-          try {
-            bulkMutation.flush();
-            bulkMutation.close();
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            // We fail since flush() operation was interrupted.
-            throw new IOException(e);
-          }
-          bulkMutation = null;
+      if (bulkMutation != null) {
+        try {
+          bulkMutation.flush();
+          bulkMutation.close();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          // We fail since flush() operation was interrupted.
+          throw new IOException(e);
         }
-      } finally {
-        if (writeClients.get(id) != null && writeClients.get(id).x().decrementAndGet() == 0) {
-          writeClients.get(id).y().close();
-          writeClients.remove(id);
-        }
+        bulkMutation = null;
       }
     }
 
@@ -622,81 +542,31 @@ class BigtableServiceImpl implements BigtableService {
   }
 
   @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(BigtableServiceImpl.class).add("options", config).toString();
-  }
-
-  @Override
-  public Reader createReader(BigtableSource source, int id) throws IOException {
-    dataSettings = configureReadSettings(dataSettings.toBuilder(), source.getReadOptions());
-
-    RetrySettings retrySettings =
-        dataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
-    LOG.info("Creating a Reader for Bigtable with settings: " + dataSettings);
-    Tuple<AtomicInteger, BigtableDataClient> client = readClients.get(id);
-    if (client == null) {
-      client = Tuple.of(new AtomicInteger(0), BigtableDataClient.create(dataSettings));
-      readClients.put(id, client);
-    }
-    client.x().getAndIncrement();
+  public Reader createReader(
+      BigtableSource source, Duration attemptTimeout, Duration operationTimeout)
+      throws IOException {
     if (source.getMaxBufferElementCount() != null) {
       return BigtableSegmentReaderImpl.create(
-          client.y(),
-          dataSettings.getProjectId(),
-          dataSettings.getInstanceId(),
+          client,
+          projectId,
+          instanceId,
           source.getTableId().get(),
           source.getRanges(),
           source.getRowFilter(),
           source.getMaxBufferElementCount(),
-          retrySettings.getInitialRpcTimeout(),
-          retrySettings.getTotalTimeout(),
-          id);
+          attemptTimeout,
+          operationTimeout);
     } else {
       return new BigtableReaderImpl(
-          client.y(),
-          dataSettings.getProjectId(),
-          dataSettings.getInstanceId(),
+          client,
+          projectId,
+          instanceId,
           source.getTableId().get(),
           source.getRanges(),
           source.getRowFilter(),
-          retrySettings.getInitialRpcTimeout(),
-          retrySettings.getTotalTimeout(),
-          id);
+          attemptTimeout,
+          operationTimeout);
     }
-  }
-
-  private BigtableDataSettings configureReadSettings(
-      BigtableDataSettings.Builder settings, BigtableReadOptions readOptions) {
-
-    RetrySettings.Builder retrySettings =
-        settings.stubSettings().bulkReadRowsSettings().getRetrySettings().toBuilder();
-
-    if (readOptions.getAttemptTimeout() != null) {
-      retrySettings.setInitialRpcTimeout(Duration.ofMillis(readOptions.getAttemptTimeout()));
-
-      if (readOptions.getOperationTimeout() == null) {
-        retrySettings.setTotalTimeout(
-            Duration.ofMillis(
-                Math.max(
-                    retrySettings.getTotalTimeout().toMillis(), readOptions.getAttemptTimeout())));
-      }
-    }
-
-    if (readOptions.getOperationTimeout() != null) {
-      retrySettings.setTotalTimeout(Duration.ofMillis(readOptions.getOperationTimeout()));
-    }
-
-    if (readOptions.getRetryDelayMultiplier() != null) {
-      retrySettings.setRetryDelayMultiplier(readOptions.getRetryDelayMultiplier());
-    }
-
-    if (readOptions.getRetryInitialDelay() != null) {
-      retrySettings.setInitialRetryDelay(Duration.ofMillis(readOptions.getRetryInitialDelay()));
-    }
-
-    settings.stubSettings().bulkReadRowsSettings().setRetrySettings(retrySettings.build());
-
-    return settings.build();
   }
 
   // Support 2 bigtable-hbase features not directly available in veneer:
@@ -718,30 +588,18 @@ class BigtableServiceImpl implements BigtableService {
   }
 
   @Override
-  public List<KeyOffset> getSampleRowKeys(BigtableSource source) throws IOException {
-    try (BigtableDataClient client = BigtableDataClient.create(dataSettings)) {
-      return client.sampleRowKeys(source.getTableId().get());
-    }
+  public List<KeyOffset> getSampleRowKeys(BigtableSource source) {
+    return client.sampleRowKeys(source.getTableId().get());
   }
 
   @Override
   public String getProjectId() {
-    return config.getProjectId().get();
+    return projectId;
   }
 
   @Override
   public String getInstanceId() {
-    return config.getInstanceId().get();
-  }
-
-  @Override
-  public Credentials getCredentials() {
-    return config.getCredentials();
-  }
-
-  @Override
-  public String getEmulatorHost() {
-    return config.getEmulatorHost();
+    return instanceId;
   }
 
   @VisibleForTesting
@@ -801,64 +659,6 @@ class BigtableServiceImpl implements BigtableService {
           .compareTrueFirst(isClosed, o.isClosed)
           .result();
     }
-  }
-
-  private BigtableDataSettings configureWriteSettings(
-      BigtableDataSettings.Builder settings, BigtableWriteOptions writeOptions) {
-    BigtableBatchingCallSettings.Builder callSettings =
-        settings.stubSettings().bulkMutateRowsSettings();
-    RetrySettings.Builder retrySettings = callSettings.getRetrySettings().toBuilder();
-    BatchingSettings.Builder batchingSettings = callSettings.getBatchingSettings().toBuilder();
-    if (writeOptions.getAttemptTimeout() != null) {
-      retrySettings.setInitialRpcTimeout(Duration.ofMillis(writeOptions.getAttemptTimeout()));
-
-      if (writeOptions.getOperationTimeout() == null) {
-        retrySettings.setTotalTimeout(
-            Duration.ofMillis(
-                Math.max(
-                    retrySettings.getTotalTimeout().toMillis(), writeOptions.getAttemptTimeout())));
-      }
-    }
-
-    if (writeOptions.getOperationTimeout() != null) {
-      retrySettings.setTotalTimeout(Duration.ofMillis(writeOptions.getOperationTimeout()));
-    }
-
-    if (writeOptions.getRetryInitialDelay() != null) {
-      retrySettings.setInitialRetryDelay(Duration.ofMillis(writeOptions.getRetryInitialDelay()));
-    }
-
-    if (writeOptions.getRetryDelayMultiplier() != null) {
-      retrySettings.setRetryDelayMultiplier(writeOptions.getRetryDelayMultiplier());
-    }
-
-    if (writeOptions.getBatchElements() != null) {
-      batchingSettings.setElementCountThreshold(writeOptions.getBatchElements());
-    }
-
-    if (writeOptions.getBatchBytes() != null) {
-      batchingSettings.setRequestByteThreshold(writeOptions.getBatchBytes());
-    }
-
-    if (writeOptions.getMaxRequests() != null) {
-      BatchingSettings tmpSettings = batchingSettings.build();
-      batchingSettings.setFlowControlSettings(
-          callSettings
-              .getBatchingSettings()
-              .getFlowControlSettings()
-              .toBuilder()
-              .setMaxOutstandingRequestBytes(
-                  tmpSettings.getElementCountThreshold() * writeOptions.getMaxRequests())
-              .setMaxOutstandingRequestBytes(
-                  tmpSettings.getRequestByteThreshold() * writeOptions.getMaxRequests())
-              .build());
-    }
-
-    callSettings
-        .setBatchingSettings(batchingSettings.build())
-        .setRetrySettings(retrySettings.build());
-
-    return settings.build();
   }
 
   /** Helper class to ease comparison of RowRange endpoints. */

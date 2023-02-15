@@ -27,13 +27,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.auth.Credentials;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.BulkOptions;
-import com.google.cloud.bigtable.config.CredentialOptions;
-import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -114,14 +108,6 @@ public class BigtableConfigTest {
   }
 
   @Test
-  public void testWithBigtableService() {
-    assertEquals(SERVICE, config.withBigtableService(SERVICE).getBigtableService());
-
-    thrown.expect(IllegalArgumentException.class);
-    config.withBigtableService(null);
-  }
-
-  @Test
   public void testValidate() {
     config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).validate();
   }
@@ -172,30 +158,6 @@ public class BigtableConfigTest {
   }
 
   @Test
-  public void testGetBigtableServiceWithDefaultService() {
-    assertEquals(SERVICE, config.withBigtableService(SERVICE).getBigtableService());
-  }
-
-  @Test
-  public void testGetBigtableServiceWithConfigurator() {
-    SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator =
-        (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>)
-            input ->
-                input
-                    .setInstanceId(INSTANCE_ID.get())
-                    .setProjectId(PROJECT_ID.get())
-                    .setBulkOptions(new BulkOptions.Builder().setUseBulkApi(true).build());
-
-    BigtableService service =
-        config
-            .withBigtableOptionsConfigurator(configurator)
-            .getBigtableService(PipelineOptionsFactory.as(GcpOptions.class));
-
-    assertEquals(PROJECT_ID.get(), service.getProjectId());
-    assertEquals(INSTANCE_ID.get(), service.getInstanceId());
-  }
-
-  @Test
   public void testIsDataAccessible() {
     assertTrue(config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).isDataAccessible());
     assertTrue(
@@ -221,26 +183,5 @@ public class BigtableConfigTest {
         config.withProjectId(NOT_ACCESSIBLE_VALUE).withInstanceId(INSTANCE_ID).isDataAccessible());
     assertFalse(
         config.withProjectId(PROJECT_ID).withInstanceId(NOT_ACCESSIBLE_VALUE).isDataAccessible());
-  }
-
-  @Test
-  public void testBigtableOptionsAreTranslated() {
-    BigtableOptions.Builder optionsToTest = BigtableOptions.builder();
-
-    Credentials credentials = new TestCredential();
-    optionsToTest
-        .enableEmulator("localhost", 1234)
-        .setCredentialOptions(CredentialOptions.credential(credentials));
-
-    BigtableService service =
-        config
-            .withProjectId(PROJECT_ID)
-            .withInstanceId(INSTANCE_ID)
-            .withBigtableOptions(optionsToTest.build())
-            .withValidate(true)
-            .getBigtableService(PipelineOptionsFactory.as(GcpOptions.class));
-
-    assertEquals(credentials, service.getCredentials());
-    assertEquals("localhost:1234", service.getEmulatorHost());
   }
 }
