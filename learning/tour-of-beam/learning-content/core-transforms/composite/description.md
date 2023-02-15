@@ -197,7 +197,7 @@ func extractWords(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-You can use other transformations you can replace `Count` with a `Filter` to output words starting with **p**:
+You can use other transformations you can replace `Count` with `Filter` to output words starting with **p**:
 
 ```
 func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
@@ -226,7 +226,7 @@ PCollection<String> words = input
     }));
 ```
 
-You can use other transformations you can replace `Count` with a `Filter` to output words starting with **p**:
+You can use other transformations you can replace `Count` with `Filter` to output words starting with **p**:
 
 ```
 PCollection<String> filtered = input
@@ -254,7 +254,7 @@ PCollection<String> filtered = input
 words = input | 'ExtractWords' >> beam.FlatMap(lambda line: [word for word in line.split() if word])
 ```
 
-You can use other transformations you can replace `Count` with a `Filter` to output words starting with **p**:
+You can use other transformations you can replace `Count` with `Filter` to output words starting with **p**:
 
 ```
 filtered = (input
