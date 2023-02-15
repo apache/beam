@@ -85,17 +85,6 @@ class _Tags extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ExampleSelectorState>(
       builder: (context, state, child) {
-        state.tags.sort((a, b) {
-          if (state.selectedTags.contains(a) &&
-              !state.selectedTags.contains(b)) {
-            return -1;
-          } else if (!state.selectedTags.contains(a) &&
-              state.selectedTags.contains(b)) {
-            return 1;
-          } else {
-            return 0;
-          }
-        });
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: kMdSpacing),
           child: WebScrollConverterWidget(
