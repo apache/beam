@@ -39,7 +39,6 @@ resource "google_container_node_pool" "playground-node-pool" {
   name       = "playground-node-pool"
   cluster    = google_container_cluster.playground-gke.name
   location   = google_container_cluster.playground-gke.location
-  
   autoscaling {
     min_node_count = var.min_count
     max_node_count = var.max_count
@@ -51,7 +50,6 @@ resource "google_container_node_pool" "playground-node-pool" {
    }
   node_config {
     machine_type    = var.machine_type
-   }
     service_account = var.service_account_email
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
