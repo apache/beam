@@ -25,11 +25,14 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
@@ -43,14 +46,21 @@ public class DataSamplerTest {
   byte[] encodeInt(Integer i) throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    coder.encode(i, stream);
+    coder.encode(i, stream, Coder.Context.NESTED);
     return stream.toByteArray();
   }
 
   byte[] encodeString(String s) throws IOException {
     StringUtf8Coder coder = StringUtf8Coder.of();
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    coder.encode(s, stream);
+    coder.encode(s, stream, Coder.Context.NESTED);
+    return stream.toByteArray();
+  }
+
+  byte[] encodeByteArray(byte[] b) throws IOException {
+    ByteArrayCoder coder = ByteArrayCoder.of();
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    coder.encode(b, stream, Coder.Context.NESTED);
     return stream.toByteArray();
   }
 
@@ -115,6 +125,24 @@ public class DataSamplerTest {
 
     BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
     assertHasSamples(samples, "pcollection-id", Collections.singleton(encodeInt(1)));
+  }
+
+  /**
+   * Smoke test that a samples show in the output map.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testNestedContext() throws Exception {
+    DataSampler sampler = new DataSampler();
+
+    String rawString = "hello";
+    byte[] byteArray = rawString.getBytes(Charset.forName("ASCII"));
+    ByteArrayCoder coder = ByteArrayCoder.of();
+    sampler.sampleOutput("pcollection-id", coder).sample(byteArray);
+
+    BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
+    assertHasSamples(samples, "pcollection-id", Collections.singleton(encodeByteArray(byteArray)));
   }
 
   /**

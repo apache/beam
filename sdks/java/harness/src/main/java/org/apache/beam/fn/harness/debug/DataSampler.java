@@ -63,7 +63,8 @@ public class DataSampler {
    * ProcessBundleDescriptor. Uses the given coder encode samples as bytes when responding to a
    * SampleDataRequest.
    *
-   * <p>Invoked by multiple bundle processing threads in parallel when a new bundle processor is being instantiated.
+   * <p>Invoked by multiple bundle processing threads in parallel when a new bundle processor is
+   * being instantiated.
    *
    * @param pcollectionId The PCollection to take intermittent samples from.
    * @param coder The coder associated with the PCollection. Coder may be from a nested context.
@@ -71,8 +72,9 @@ public class DataSampler {
    * @return the OutputSampler corresponding to the unique PBD and PCollection.
    */
   public <T> OutputSampler<T> sampleOutput(String pcollectionId, Coder<T> coder) {
-    return (OutputSampler<T>)outputSamplers.computeIfAbsent(
-        pcollectionId, k -> new OutputSampler<>(coder, this.maxSamples, this.sampleEveryN));
+    return (OutputSampler<T>)
+        outputSamplers.computeIfAbsent(
+            pcollectionId, k -> new OutputSampler<>(coder, this.maxSamples, this.sampleEveryN));
   }
 
   /**

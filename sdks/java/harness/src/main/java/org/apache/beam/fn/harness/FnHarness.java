@@ -19,8 +19,6 @@ package org.apache.beam.fn.harness;
 
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -254,7 +252,8 @@ public class FnHarness {
       FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
 
       // Create the sampler, if the experiment is enabled.
-      boolean shouldSample = ExperimentalOptions.hasExperiment(options, ENABLE_DATA_SAMPLING_EXPERIMENT);
+      boolean shouldSample =
+          ExperimentalOptions.hasExperiment(options, ENABLE_DATA_SAMPLING_EXPERIMENT);
 
       // Retrieves the ProcessBundleDescriptor from cache. Requests the PBD from the Runner if it
       // doesn't exist. Additionally, runs any graph modifications.

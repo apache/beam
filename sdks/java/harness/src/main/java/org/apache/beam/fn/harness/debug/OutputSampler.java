@@ -61,9 +61,11 @@ public class OutputSampler<T> {
   }
 
   /**
-   * Samples every {@code sampleEveryN}th element or if it is part of the first 10 in the (local) PCollection.
+   * Samples every {@code sampleEveryN}th element or if it is part of the first 10 in the (local)
+   * PCollection.
    *
-   * <p>This method is invoked in parallel by multiple bundle processing threads and in parallel to any {@link #samples} being returned to a thread handling a sample request.
+   * <p>This method is invoked in parallel by multiple bundle processing threads and in parallel to
+   * any {@link #samples} being returned to a thread handling a sample request.
    *
    * @param element the element to sample.
    */
@@ -94,7 +96,8 @@ public class OutputSampler<T> {
   /**
    * Clears samples at end of call. This is to help mitigate memory use.
    *
-   * <p>This method is invoked by a thread handling a data sampling request in parallel to any calls to {@link #sample}.
+   * <p>This method is invoked by a thread handling a data sampling request in parallel to any calls
+   * to {@link #sample}.
    *
    * @return samples taken since last call.
    */
