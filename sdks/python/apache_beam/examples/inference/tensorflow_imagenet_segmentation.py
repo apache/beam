@@ -21,7 +21,6 @@ from typing import Iterable
 from typing import Iterator
 
 import numpy
-from PIL import Image
 
 import apache_beam as beam
 import tensorflow as tf
@@ -31,6 +30,7 @@ from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
+from PIL import Image
 
 
 class PostProcessor(beam.DoFn):
