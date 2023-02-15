@@ -94,6 +94,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
     assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED.name()));
+    assertThat(options.getUseDataStreamForBatch(), is(false));
     assertThat(options.getSavepointPath(), is(nullValue()));
     assertThat(options.getAllowNonRestoredState(), is(false));
     assertThat(options.getDisableMetrics(), is(false));
