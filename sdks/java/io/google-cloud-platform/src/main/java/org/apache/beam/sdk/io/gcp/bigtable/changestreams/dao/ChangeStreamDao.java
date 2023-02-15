@@ -32,7 +32,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,8 +63,7 @@ public class ChangeStreamDao {
    * Streams a partition.
    *
    * @param partition the partition to stream
-   * @param streamProgress may contain a continuation token for the stream request
-   * @param endTime time to end the stream, may be null
+   * @param streamProgress may contain a continuation token for the stream request\
    * @param heartbeatDurationSeconds period between heartbeat messages
    * @return stream of ReadChangeStreamResponse
    * @throws IOException if the stream could not be started
@@ -73,7 +71,6 @@ public class ChangeStreamDao {
   public ServerStream<ChangeStreamRecord> readChangeStreamPartition(
       PartitionRecord partition,
       StreamProgress streamProgress,
-      @Nullable Timestamp endTime,
       Duration heartbeatDurationSeconds,
       boolean shouldDebug)
       throws IOException {
@@ -93,9 +90,6 @@ public class ChangeStreamDao {
       query.continuationTokens(changeStreamContinuationTokenList);
     } else {
       throw new IOException("Something went wrong");
-    }
-    if (endTime != null) {
-      query.endTime(endTime.toProto());
     }
     query.heartbeatDuration(heartbeatDurationSeconds.getStandardSeconds());
     if (shouldDebug) {
