@@ -180,7 +180,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self,
       model_uri: str,
       model_type: ModelType = ModelType.SAVED_MODEL,
-      create_model_fn: Callable = None,
+      create_model_fn: Optional[Callable] = None,
       *,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn):
     """Implementation of the ModelHandler interface for Tensorflow.
