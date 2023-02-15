@@ -84,21 +84,34 @@ class _Tags extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<ExampleSelectorState>(
-      builder: (context, state, child) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: kMdSpacing),
-        child: WebScrollConverterWidget(
-          scrollController: scrollController,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            controller: scrollController,
-            child: Wrap(
-              children: state.tags
-                  .map((tag) => TagBubble(name: tag))
-                  .toList(growable: false),
+      builder: (context, state, child) {
+        state.tags.sort((a, b) {
+          if (state.selectedTags.contains(a) &&
+              !state.selectedTags.contains(b)) {
+            return -1;
+          } else if (!state.selectedTags.contains(a) &&
+              state.selectedTags.contains(b)) {
+            return 1;
+          } else {
+            return 0;
+          }
+        });
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: kMdSpacing),
+          child: WebScrollConverterWidget(
+            scrollController: scrollController,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              controller: scrollController,
+              child: Wrap(
+                children: state.tags
+                    .map((tag) => TagBubble(name: tag))
+                    .toList(growable: false),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
