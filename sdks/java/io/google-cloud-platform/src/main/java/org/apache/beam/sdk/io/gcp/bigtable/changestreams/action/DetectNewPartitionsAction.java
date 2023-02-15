@@ -19,10 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
 import com.google.cloud.Timestamp;
 import com.google.protobuf.InvalidProtocolBufferException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -57,17 +55,14 @@ public class DetectNewPartitionsAction {
 
   private final ChangeStreamMetrics metrics;
   private final MetadataTableDao metadataTableDao;
-  @Nullable private final com.google.cloud.Timestamp endTime;
   private final GenerateInitialPartitionsAction generateInitialPartitionsAction;
 
   public DetectNewPartitionsAction(
       ChangeStreamMetrics metrics,
       MetadataTableDao metadataTableDao,
-      @Nullable Timestamp endTime,
       GenerateInitialPartitionsAction generateInitialPartitionsAction) {
     this.metrics = metrics;
     this.metadataTableDao = metadataTableDao;
-    this.endTime = endTime;
     this.generateInitialPartitionsAction = generateInitialPartitionsAction;
   }
 
@@ -79,7 +74,6 @@ public class DetectNewPartitionsAction {
    *   <li>Look up the initial list of partitions to stream if it's the very first run.
    *   <li>On rest of the runs, try advancing watermark if needed.
    *   <li>Update the metadata table with info about this DoFn.
-   *   <li>Check if this pipeline has reached the end time. Terminate if it has.
    *   <li>Process new partitions and output them.
    *   <li>Register callback to clean up processed partitions after bundle has been finalized.
    * </ol>
@@ -103,16 +97,6 @@ public class DetectNewPartitionsAction {
       throws Exception {
     if (tracker.currentRestriction().getFrom() == 0L) {
       return generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime);
-    }
-
-    // Terminate if endTime <= watermark that means all partitions have read up to or beyond
-    // watermark. We no longer need to manage splits and merges, we can terminate.
-    if (endTime != null
-        && endTime.compareTo(
-                TimestampConverter.toCloudTimestamp(watermarkEstimator.currentWatermark()))
-            <= 0) {
-      tracker.tryClaim(tracker.currentRestriction().getTo());
-      return ProcessContinuation.stop();
     }
 
     if (!tracker.tryClaim(tracker.currentRestriction().getFrom())) {
