@@ -347,9 +347,16 @@ class PipelineOptions(HasDisplayData):
           else:
             parser.add_argument(split[0], type=str)
           i += 1
-        else:
+        elif unknown_args[i].startswith('--'):
           parser.add_argument(unknown_args[i], type=str)
           i += 2
+        else:
+          # skip all binary flags used with '-' and not '--'.
+          # ex: using -f instead of --f (or --flexrs_goal) will prevent
+          # argument validation before job submission and can be incorrectly
+          # submitted to job.
+          i += 2
+          continue
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
       if unknown_args:
