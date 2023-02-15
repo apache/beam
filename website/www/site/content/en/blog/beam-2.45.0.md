@@ -35,7 +35,6 @@ For more information on changes in 2.45.0, check out the [detailed release notes
 ## New Features / Improvements
 
 * RunInference Wrapper with Sklearn Model Handler support added in Go SDK ([#24497](https://github.com/apache/beam/issues/23382)).
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Adding override of allowed TLS algorithms (Java), now maintaining the disabled/legacy algorithms
   present in 2.43.0 (up to 1.8.0_342, 11.0.16, 17.0.2 for respective Java versions). This is accompanied
   by an explicit re-enabling of TLSv1 and TLSv1.1 for Java 8 and Java 11.
