@@ -100,10 +100,9 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
     Args:
         model_uri (str): path to the trained model.
-        model_type (ModelType): type of model to be loaded.
-          Defaults to SAVED_MODEL.
-        inference_fn (TensorInferenceFn, Optional): inference function to use
-          during RunInference. Defaults to default_numpy_inference_fn.
+        model_type: type of model to be loaded. Defaults to SAVED_MODEL.
+        inference_fn: inference function to use during RunInference.
+          Defaults to default_numpy_inference_fn.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.9, 2.10, 2.11.
@@ -182,10 +181,10 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
 
     Args:
         model_uri (str): path to the trained model.
-        model_type (ModelType): type of model to be loaded.
+        model_type: type of model to be loaded.
           Defaults to SAVED_MODEL.
-        inference_fn (TensorInferenceFn, Optional): inference function to use
-          during RunInference. Defaults to default_numpy_inference_fn.
+        inference_fn: inference function to use during RunInference.
+          Defaults to default_numpy_inference_fn.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.11.
