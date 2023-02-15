@@ -104,7 +104,7 @@ parameterized==0.8.1
 pbr==5.11.1
 pluggy==1.0.0
 proto-plus==1.22.2
-protobuf==3.19.4
+protobuf==3.19.5
 psycopg2-binary==2.9.5
 py==1.11.0
 pyarrow==9.0.0
