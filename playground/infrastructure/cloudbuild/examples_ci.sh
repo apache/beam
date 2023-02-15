@@ -111,7 +111,7 @@ do
             then
                 DOCKERTAG=${commit_sha}
             else
-                echo "Error: DOCKERTAG is empty. Exiting..." >> ${log_location}
+                echo "Error: DOCKERTAG variable is empty. Exiting..." >> ${log_location}
                 exit 1
             fi
 
