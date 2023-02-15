@@ -93,7 +93,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.45.0] - Unreleased
+# [2.45.0] - 2023-02-15
 
 ## Highlights
 
@@ -111,6 +111,7 @@
 * Adding override of allowed TLS algorithms (Java), now maintaining the disabled/legacy algorithms
   present in 2.43.0 (up to 1.8.0_342, 11.0.16, 17.0.2 for respective Java versions). This is accompanied
   by an explicit re-enabling of TLSv1 and TLSv1.1 for Java 8 and Java 11.
+* Add UDF metrics support for Samza portable mode.
 
 ## Breaking Changes
 
@@ -121,19 +122,11 @@
   non-portable Java jobs and non-portable Python batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515)).
 * Beam now requires `pyarrow>=3` and `pandas>=1.4.3` since older versions are not compatible with `numpy==1.24.0`.
 
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-
 ## Bugfixes
 
 * Avoids Cassandra syntax error when user-defined query has no where clause in it (Java) ([#24829](https://github.com/apache/beam/issues/24829)).
 * Fixed JDBC connection failures (Java) during handshake due to deprecated TLSv1(.1) protocol for the JDK. ([#24623](https://github.com/apache/beam/issues/24623))
 * Fixed Python BigQuery Batch Load write may truncate valid data when deposition sets to WRITE_TRUNCATE and incoming data is large (Python) ([#24623](https://github.com/apache/beam/issues/24535)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.44.0] - 2023-01-12
 
