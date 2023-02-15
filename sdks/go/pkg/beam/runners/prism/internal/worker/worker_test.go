@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -135,7 +137,7 @@ func TestWorker_Control_HappyPath(t *testing.T) {
 	ctrlCli := fnpb.NewBeamFnControlClient(clientConn)
 	ctrlStream, err := ctrlCli.Control(ctx)
 	if err != nil {
-		t.Fatal("couldn't create log client:", err)
+		t.Fatal("couldn't create control client:", err)
 	}
 
 	instID := wk.NextInst()
@@ -170,7 +172,7 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 	dataCli := fnpb.NewBeamFnDataClient(clientConn)
 	dataStream, err := dataCli.Data(ctx)
 	if err != nil {
-		t.Fatal("couldn't create log client:", err)
+		t.Fatal("couldn't create data client:", err)
 	}
 
 	instID := wk.NextInst()
@@ -220,4 +222,60 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 
 	wg.Wait()
 	t.Log("ProcessOn successfully exited")
+}
+
+func TestWorker_State_Iterable(t *testing.T) {
+	ctx, wk, clientConn := serveTestWorker(t)
+
+	stateCli := fnpb.NewBeamFnStateClient(clientConn)
+	stateStream, err := stateCli.State(ctx)
+	if err != nil {
+		t.Fatal("couldn't create state client:", err)
+	}
+
+	instID := wk.NextInst()
+	wk.bundles[instID] = &B{
+		IterableSideInputData: map[string]map[string]map[typex.Window][][]byte{
+			"transformID": {
+				"i1": {
+					window.GlobalWindow{}: [][]byte{
+						{42},
+					},
+				},
+			},
+		},
+	}
+
+	stateStream.Send(&fnpb.StateRequest{
+		Id:            "first",
+		InstructionId: instID,
+		Request: &fnpb.StateRequest_Get{
+			Get: &fnpb.StateGetRequest{},
+		},
+		StateKey: &fnpb.StateKey{Type: &fnpb.StateKey_IterableSideInput_{
+			IterableSideInput: &fnpb.StateKey_IterableSideInput{
+				TransformId: "transformID",
+				SideInputId: "i1",
+				Window:      []byte{}, // Global Windows
+			},
+		}},
+	})
+
+	resp, err := stateStream.Recv()
+	if err != nil {
+		t.Fatal("couldn't receive state response:", err)
+	}
+
+	if got, want := resp.GetId(), "first"; got != want {
+		t.Fatalf("didn't receive expected state response: got %v, want %v", got, want)
+	}
+
+	if got, want := resp.GetGet().GetData(), []byte{42}; !bytes.Equal(got, want) {
+		t.Fatalf("didn't receive expected state response data: got %v, want %v", got, want)
+	}
+	resp.GetId()
+
+	if err := stateStream.CloseSend(); err != nil {
+		t.Errorf("stateStream.CloseSend() = %v", err)
+	}
 }

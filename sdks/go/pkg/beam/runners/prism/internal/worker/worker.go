@@ -139,6 +139,8 @@ func (wk *W) NextStage() string {
 // TODO set logging level.
 var minsev = fnpb.LogEntry_Severity_DEBUG
 
+// Logging relates SDK worker messages back to the job that spawned them.
+// Messages are received from the SDK,
 func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 	for {
 		in, err := stream.Recv()
@@ -146,11 +148,13 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			return nil
 		}
 		if err != nil {
-			slog.Error("stream.Recv", err, "worker", wk)
+			slog.Error("logging.Recv", err, "worker", wk)
 			return err
 		}
 		for _, l := range in.GetLogEntries() {
 			if l.Severity >= minsev {
+				// TODO: Connect to the associated Job for this worker instead of
+				// logging locally for SDK side logging.
 				slog.Log(toSlogSev(l.GetSeverity()), l.GetMessage(),
 					slog.String(slog.SourceKey, l.GetLogLocation()),
 					slog.Time(slog.TimeKey, l.GetTimestamp().AsTime()),
@@ -189,6 +193,9 @@ func (wk *W) GetProcessBundleDescriptor(ctx context.Context, req *fnpb.GetProces
 	return desc, nil
 }
 
+// Control relays instructions to SDKs and back again, coordinated via unique instructionIDs.
+//
+// Requests come from the runner, and are sent to the client in the SDK.
 func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 	done := make(chan bool)
 	go func() {
@@ -211,6 +218,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 				}
 			}
 
+			// TODO: Do more than assume these are ProcessBundleResponses.
 			wk.mu.Lock()
 			if b, ok := wk.bundles[resp.GetInstructionId()]; ok {
 				// TODO. Better pipeline error handling.
@@ -235,6 +243,10 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 	return nil
 }
 
+// Data relays elements and timer bytes to SDKs and back again, coordinated via
+// ProcessBundle instructionIDs, and receiving input transforms.
+//
+// Data is multiplexed on a single stream for all active bundles on a worker.
 func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 	go func() {
 		for {
@@ -282,6 +294,10 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 	return nil
 }
 
+// State relays elements and timer bytes to SDKs and back again, coordinated via
+// ProcessBundle instructionIDs, and receiving input transforms.
+//
+// State requests come from SDKs, and the runner responds.
 func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 	responses := make(chan *fnpb.StateResponse)
 	go func() {
