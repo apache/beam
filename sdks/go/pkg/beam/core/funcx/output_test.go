@@ -37,6 +37,7 @@ func TestIsEmit(t *testing.T) {
 		{func(typex.EventTime, string) {}, true},
 		{func(typex.EventTime, typex.T, typex.X) {}, true},
 		{func(typex.EventTime, typex.T, typex.X, int) {}, false}, // too many values
+		{func(any) {}, false},                                    // any is not allowed as a param
 	}
 
 	for _, test := range tests {
