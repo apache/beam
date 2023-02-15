@@ -90,11 +90,11 @@ do
       cd -
       if [ $checker_status -eq 0 ]
       then
-          echo "Checker has found changed examples for ${sdk^^}" >> ${log_location}
+          echo "Checker has found changed examples" >> ${log_location}
           example_has_changed=True
       elif [ $checker_status -eq 11 ]
       then
-          echo "Checker has not found changed examples for ${sdk^^}" >> ${log_location}
+          echo "Checker has not found changed examples" >> ${log_location}
           example_has_changed=False
       else
           echo "Error: Checker is broken" >> ${log_location}
@@ -111,7 +111,7 @@ do
             then
                 DOCKERTAG=${commit_sha}
             else
-                echo "Error: DOCKERTAG is empty"
+                echo "Error: DOCKERTAG is empty. Exiting..." >> ${log_location}
                 exit 1
             fi
 
