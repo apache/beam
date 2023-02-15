@@ -268,9 +268,11 @@ func launchSDKProcess() error {
 					// DoFns throwing exceptions.
 					errorCount += 1
 					if errorCount < 4 {
-						log.Printf("Python (worker %v) exited: %v", workerId, err)
+						log.Printf("Python (worker %v) exited %v times: %v\nrestarting SDK process",
+							workerId, errorCount, err)
 					} else {
-						log.Fatalf("Python (worker %v) exited: %v", workerId, err)
+						log.Fatalf("Python (worker %v) exited %v times: %v\nout of retries, failing container",
+							workerId, errorCount, err)
 					}
 				} else {
 					log.Printf("Python (worker %v) exited.", workerId)
