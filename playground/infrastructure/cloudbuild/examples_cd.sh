@@ -46,7 +46,7 @@ do
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
   --origin ${ORIGIN} \
-  --subdirs ${SUBDIRS} >> ${log_location} 2>&1
+  --subdirs ${SUBDIRS} >> ${log_location}
 done
 
 # Note: ${dns.name} taken from cloud build subs
