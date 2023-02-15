@@ -25,7 +25,14 @@ resource "google_container_cluster" "playground-gke" {
   network                    = var.network
   subnetwork                 = var.subnetwork
   remove_default_node_pool = true
-
+  network_policy {
+      enabled  = true
+      provider = "CALICO" // CALICO is currently the only supported provider
+  }
+  addons_config {
+   network_policy_config {
+    disabled = false
+  }
 }
 
 resource "google_container_node_pool" "playground-node-pool" {
@@ -44,16 +51,7 @@ resource "google_container_node_pool" "playground-node-pool" {
    }
   node_config {
     machine_type    = var.machine_type
-
-    network_policy {
-      enabled  = true
-      provider = "CALICO" // CALICO is currently the only supported provider
-    }
-    addons_config {
-     network_policy_config {
-      disabled = false
-    }
-  }
+   }
     service_account = var.service_account_email
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
