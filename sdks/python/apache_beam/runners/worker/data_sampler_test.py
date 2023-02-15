@@ -18,13 +18,12 @@
 # pytype: skip-file
 
 import unittest
-from unittest import mock
 
 from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders.coders import Coder
-from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker.data_sampler import DataSampler
+from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -89,78 +88,78 @@ class DataSamplerTest(unittest.TestCase):
         })
 
 
+class FakeClock:
+  def __init__(self):
+    self.clock = 0
+
+  def time(self):
+    return self.clock
+
+
 class OutputSamplerTest(unittest.TestCase):
   def setUp(self):
-    self._time = 0
-    self._mock_time = mock.patch.object(
-        data_sampler.time, 'time', return_value=self._time).start()
+    self.fake_clock = FakeClock()
 
   def control_time(self, new_time):
-    self._time = new_time
-    self._mock_time.return_value = self._time
+    self.fake_clock.clock = new_time
 
   def test_samples_first_n(self):
     """Tests that the first elements are always sampled."""
-    data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
-    sampler = data_sampler.sample_output('1', coder)
+    sampler = OutputSampler(coder)
 
     for i in range(15):
       sampler.sample(i)
 
     self.assertEqual(
-        data_sampler.samples(),
-        {'1': [coder.encode_nested(i) for i in range(10)]})
+        sampler.flush(), [coder.encode_nested(i) for i in range(10)])
 
   def test_acts_like_circular_buffer(self):
     """Tests that the buffer overwrites old samples."""
-    data_sampler = DataSampler(max_samples=2)
     coder = FastPrimitivesCoder()
-    sampler = data_sampler.sample_output('1', coder)
+    sampler = OutputSampler(coder, max_samples=2)
 
     for i in range(10):
       sampler.sample(i)
 
-    self.assertEqual(
-        data_sampler.samples(), {'1': [coder.encode_nested(i) for i in (8, 9)]})
+    self.assertEqual(sampler.flush(), [coder.encode_nested(i) for i in (8, 9)])
 
-  @mock.patch('data_sampler.time')
-  def test_samples_every_n_secs(self, time):
+  def test_samples_every_n_secs(self):
     """Tests that the buffer overwrites old samples."""
-    data_sampler = DataSampler(max_samples=1, sample_every_sec=10)
     coder = FastPrimitivesCoder()
-    sampler = data_sampler.sample_output('1', coder)
+    sampler = OutputSampler(
+        coder, max_samples=1, sample_every_sec=10, clock=self.fake_clock)
 
     # Always samples the first ten.
     for i in range(10):
       sampler.sample(i)
-    self.assertEqual(data_sampler.samples(), {'1': [coder.encode_nested(9)]})
+    self.assertEqual(sampler.flush(), [coder.encode_nested(9)])
 
     # Start at t=0
     sampler.sample(10)
-    self.assertEqual(len(data_sampler.samples()), 0)
+    self.assertEqual(len(sampler.flush()), 0)
 
     # Still not over threshold yet.
     self.control_time(9)
     for i in range(100):
       sampler.sample(i)
-    self.assertEqual(len(data_sampler.samples()), 0)
+    self.assertEqual(len(sampler.flush()), 0)
 
     # First sample after 10s.
     self.control_time(10)
     sampler.sample(10)
-    self.assertEqual(data_sampler.samples(), {'1': [coder.encode_nested(10)]})
+    self.assertEqual(sampler.flush(), [coder.encode_nested(10)])
 
     # No samples between tresholds.
     self.control_time(15)
     for i in range(100):
       sampler.sample(i)
-    self.assertEqual(len(data_sampler.samples()), 0)
+    self.assertEqual(len(sampler.flush()), 0)
 
     # Second sample after 20s.
     self.control_time(20)
     sampler.sample(11)
-    self.assertEqual(data_sampler.samples(), {'1': [coder.encode_nested(11)]})
+    self.assertEqual(sampler.flush(), [coder.encode_nested(11)])
 
   def test_can_sample_windowed_value(self):
     """Tests that values with WindowedValueCoders are sampled wholesale."""

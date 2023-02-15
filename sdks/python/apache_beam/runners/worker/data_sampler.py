@@ -49,12 +49,14 @@ class OutputSampler:
       self,
       coder: Coder,
       max_samples: int = 10,
-      sample_every_sec: float = 30) -> None:
+      sample_every_sec: float = 30,
+      clock=None) -> None:
     self._samples: Deque[Any] = collections.deque(maxlen=max_samples)
     self._coder_impl: CoderImpl = coder.get_impl()
     self._sample_count: int = 0
     self._sample_every_sec: float = sample_every_sec
-    self._last_sample_sec: float = time.time()
+    self._clock = clock
+    self._last_sample_sec: float = self.time()
 
   def remove_windowed_value(self, el: Union[WindowedValue, Any]) -> Any:
     """Retrieves the value from the WindowedValue.
@@ -65,6 +67,10 @@ class OutputSampler:
     if isinstance(el, WindowedValue):
       return self.remove_windowed_value(el.value)
     return el
+
+  def time(self) -> float:
+    """Returns the current time. Used for mocking out the clock for testing."""
+    return self._clock.time() if self._clock else time.time()
 
   def flush(self) -> List[bytes]:
     """Returns all samples and clears buffer."""
@@ -85,7 +91,7 @@ class OutputSampler:
     `self._sample_every_sec` second after.
     """
     self._sample_count += 1
-    now = time.time()
+    now = self.time()
     sample_diff = now - self._last_sample_sec
 
     if self._sample_count <= 10 or sample_diff >= self._sample_every_sec:
