@@ -33,8 +33,8 @@ resource "google_container_cluster" "playground-gke" {
    network_policy_config {
     disabled = false
   }
+ }
 }
-
 resource "google_container_node_pool" "playground-node-pool" {
   name       = "playground-node-pool"
   cluster    = google_container_cluster.playground-gke.name
