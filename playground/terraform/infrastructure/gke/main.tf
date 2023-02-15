@@ -63,3 +63,30 @@ resource "google_container_node_pool" "playground-node-pool" {
     tags = ["beam-playground"]
    }
 }
+
+resource "kubernetes_network_policy" "example" {
+  metadata {
+    name = "example-network-policy"
+    namespace = "default"
+  }
+
+  spec {
+    pod_selector {
+      match_labels = {
+        app = "example"
+      }
+    }
+
+    policy_types = ["Ingress"]
+
+    ingress {
+      from {
+        pod_selector {
+          match_labels = {
+            role = "frontend"
+          }
+        }
+      }
+    }
+  }
+}
