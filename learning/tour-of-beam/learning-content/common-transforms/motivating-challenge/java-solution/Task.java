@@ -53,10 +53,10 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         // Create input PCollection
-        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv"));
+        PCollection<String> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv"));
 
         // Extract cost from PCollection
-        PCollection<Double> rideTotalAmounts = rides.apply(ParDo.of(new ExtractTaxiRideCostFn()));
+        PCollection<Double> rideTotalAmounts = input.apply(ParDo.of(new ExtractTaxiRideCostFn()));
 
         // Filtering with fixed cost
         PCollection<Double> aboveCosts = getAboveCost(rideTotalAmounts);

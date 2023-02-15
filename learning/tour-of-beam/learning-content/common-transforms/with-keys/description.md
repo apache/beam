@@ -19,8 +19,8 @@ There are two versions of WithKeys, depending on how the key should be determine
 `WithKeys.of(SerializableFunction<V, K> fn)` takes a function to compute the key from each value.
 
 ```
-PCollection<String> words = pipeline.apply(Create.of("Hello", "World", "Apache", "Beam"));
-PCollection<KV<Integer, String>> lengthAndWord = words.apply(WithKeys.of(new SerializableFunction<String, Integer>() {
+PCollection<String> input = pipeline.apply(Create.of("Hello", "World", "Apache", "Beam"));
+PCollection<KV<Integer, String>> lengthAndWord = input.apply(WithKeys.of(new SerializableFunction<String, Integer>() {
     @Override
     public Integer apply(String word) {
         return word.length();
@@ -41,8 +41,8 @@ KV{5, Hello}
 `WithKeys.of(K key)` associates each value with the specified key.
 
 ```
-PCollection<String> words = pipeline.apply(Create.of("Hello", "World", "Apache", "Beam"));
-PCollection<KV<String, String>> specifiedKeyAndWord = words.apply(WithKeys.of("SpecifiedKey"));
+PCollection<String> input = pipeline.apply(Create.of("Hello", "World", "Apache", "Beam"));
+PCollection<KV<String, String>> specifiedKeyAndWord = input.apply(WithKeys.of("SpecifiedKey"));
 ```
 
 Output

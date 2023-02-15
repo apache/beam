@@ -325,7 +325,7 @@ Output
 
 ### Example 6: Filtering with side inputs as dictionaries
 
-If a ```PCollection``` is small enough to fit into memory, then that PCollection can be passed as a dictionary. Each element must be a ```(key, value)``` pair. Note that all the elements of the ```PCollection``` must fit into memory for this. If the ```PCollection``` won’t fit into memory, use ```beam.pvalue.AsIter(pcollection)``` instead.
+If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a dictionary. Each element must be a `(key, value)` pair. Note that all the elements of the `PCollection` must fit into memory for this. If the `PCollection` won’t fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 ```
 import apache_beam as beam

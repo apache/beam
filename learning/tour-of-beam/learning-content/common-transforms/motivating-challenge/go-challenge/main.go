@@ -45,16 +45,16 @@ func main() {
 
     p, s := beam.NewPipelineWithRoot()
 
-    file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
+    input := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
     // Extract cost from PCollection
-    input := ExtractCostFromFile(s, file)
+    cost := ExtractCostFromFile(s, input)
 
     // Filtering with fixed cost
-    aboveCosts := getAboveCosts(s, input)
+    aboveCosts := getAboveCosts(s, cost)
 
     // Filtering with fixed cost
-    belowCosts := getBelowCosts(s, input)
+    belowCosts := getBelowCosts(s, cost)
 
     // Summing up the price above the fixed price
     aboveCostsSum := getSum(s, aboveCosts)

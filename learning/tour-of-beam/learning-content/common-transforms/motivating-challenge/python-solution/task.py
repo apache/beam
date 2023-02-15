@@ -64,16 +64,16 @@ def tryParseTaxiRideCost(line,index):
 
 with beam.Pipeline() as p:
 
-  lines = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv')
+  input = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv')
    | beam.ParDo(ExtractTaxiRideCostFn()))
 
-  (lines
+  (input
   | 'Filter above cost' >> beam.Filter(lambda cost: cost >= 15.0)
   | 'Sum above cost' >> beam.CombineGlobally(sum)
   | 'WithKeys above' >> beam.WithKeys(lambda cost: 'above')
   | 'Log above cost' >> Output())
 
-  (lines
+  (input
   | 'Filter below cost' >> beam.Filter(lambda cost: cost < 15.0)
   | 'Sum below cost' >> beam.CombineGlobally(sum)
   | 'WithKeys below cost' >> beam.WithKeys(lambda cost: 'below')
