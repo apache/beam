@@ -52,6 +52,7 @@ TensorInferenceFn = Callable[[
 class ModelType(enum.Enum):
   """Defines how a model file should be loaded."""
   SAVED_MODEL = 1
+  SAVED_WEIGHTS = 2
 
 
 def _load_model(model_uri, model_type):
@@ -59,6 +60,12 @@ def _load_model(model_uri, model_type):
     return tf.keras.models.load_model(hub.resolve(model_uri))
   else:
     raise AssertionError('Unsupported model type for loading.')
+
+
+def _load_model_from_weights(create_model_fn, weights_path):
+  model = create_model_fn()
+  model.load_weights(weights_path)
+  return model
 
 
 def default_numpy_inference_fn(
@@ -88,6 +95,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       model_uri: str,
       model_type: ModelType = ModelType.SAVED_MODEL,
+      create_model_fn: Callable = None,
       *,
       inference_fn: TensorInferenceFn = default_numpy_inference_fn):
     """Implementation of the ModelHandler interface for Tensorflow.
@@ -110,9 +118,12 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._model_uri = model_uri
     self._model_type = model_type
     self._inference_fn = inference_fn
+    self._create_model_fn = create_model_fn
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
+    if self._model_type == ModelType.SAVED_WEIGHTS:
+      return _load_model_from_weights(self._create_model_fn, self._model_uri)
     return _load_model(self._model_uri, self._model_type)
 
   def update_model_path(self, model_path: Optional[str] = None):
@@ -169,6 +180,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self,
       model_uri: str,
       model_type: ModelType = ModelType.SAVED_MODEL,
+      create_model_fn: Callable = None,
       *,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn):
     """Implementation of the ModelHandler interface for Tensorflow.
@@ -192,9 +204,12 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     self._model_uri = model_uri
     self._model_type = model_type
     self._inference_fn = inference_fn
+    self._create_model_fn = create_model_fn
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
+    if self._model_type == ModelType.SAVED_WEIGHTS:
+      return _load_model_from_weights(self._create_model_fn, self._model_uri)
     return _load_model(self._model_uri, self._model_type)
 
   def update_model_path(self, model_path: Optional[str] = None):
