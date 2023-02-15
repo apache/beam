@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -39,6 +41,8 @@ import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
+import org.apache.beam.fn.harness.debug.DataSampler;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -56,6 +60,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
@@ -505,6 +510,61 @@ public class PCollectionConsumerRegistryTest {
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
 
     assertThat(result, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Test that element samples are taken when a DataSampler is present.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void dataSampling() throws Exception {
+    final String pTransformIdA = "pTransformIdA";
+
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    DataSampler dataSampler = new DataSampler();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR, dataSampler);
+    FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
+
+    consumers.register(P_COLLECTION_A, pTransformIdA, pTransformIdA + "Name", consumerA1);
+
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    String elementValue = "elem";
+    WindowedValue<String> element = valueInGlobalWindow(elementValue);
+    int numElements = 10;
+    for (int i = 0; i < numElements; i++) {
+      wrapperConsumer.accept(element);
+    }
+
+    BeamFnApi.InstructionRequest request =
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setSampleData(BeamFnApi.SampleDataRequest.newBuilder())
+            .build();
+    BeamFnApi.InstructionResponse response = dataSampler.handleDataSampleRequest(request).build();
+
+    Map<String, BeamFnApi.SampleDataResponse.ElementList> elementSamplesMap =
+        response.getSampleData().getElementSamplesMap();
+
+    assertFalse(elementSamplesMap.isEmpty());
+
+    BeamFnApi.SampleDataResponse.ElementList elementList = elementSamplesMap.get(P_COLLECTION_A);
+    assertNotNull(elementList);
+
+    List<BeamFnApi.SampledElement> expectedSamples = new ArrayList<>();
+    StringUtf8Coder coder = StringUtf8Coder.of();
+    for (int i = 0; i < numElements; i++) {
+      ByteStringOutputStream stream = new ByteStringOutputStream();
+      coder.encode(elementValue, stream);
+      expectedSamples.add(
+          BeamFnApi.SampledElement.newBuilder().setElement(stream.toByteStringAndReset()).build());
+    }
+
+    assertTrue(elementList.getElementsList().containsAll(expectedSamples));
   }
 
   private static class TestElementByteSizeObservableIterable<T>

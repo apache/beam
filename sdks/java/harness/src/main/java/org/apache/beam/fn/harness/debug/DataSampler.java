@@ -17,12 +17,15 @@
  */
 package org.apache.beam.fn.harness.debug;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.SampleDataResponse.ElementList;
 import org.apache.beam.sdk.coders.Coder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The DataSampler is a global (per SDK Harness) object that facilitates taking and returning
@@ -31,6 +34,7 @@ import org.apache.beam.sdk.coders.Coder;
  * simultaneously, even if computing the same logical PCollection.
  */
 public class DataSampler {
+  private static final Logger LOG = LoggerFactory.getLogger(DataSampler.class);
 
   /**
    * Creates a DataSampler to sample every 1000 elements while keeping a maximum of 10 in memory.
@@ -99,9 +103,13 @@ public class DataSampler {
             return;
           }
 
-          response.putElementSamples(
-              pcollectionId,
-              ElementList.newBuilder().addAllElements(outputSampler.samples()).build());
+          try {
+            response.putElementSamples(
+                pcollectionId,
+                ElementList.newBuilder().addAllElements(outputSampler.samples()).build());
+          } catch (IOException e) {
+            LOG.warn("Could not encode elements from \"" + pcollectionId + "\" to bytes: " + e);
+          }
         });
 
     return BeamFnApi.InstructionResponse.newBuilder().setSampleData(response);

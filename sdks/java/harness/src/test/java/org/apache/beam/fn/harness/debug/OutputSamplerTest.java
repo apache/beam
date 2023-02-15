@@ -94,4 +94,40 @@ public class OutputSamplerTest {
     List<BeamFnApi.SampledElement> samples = outputSampler.samples();
     assertThat(samples, containsInAnyOrder(expected.toArray()));
   }
+
+  /**
+   * Test that sampling a PCollection while retrieving samples from multiple threads is ok.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testConcurrentSamples() throws Exception {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 100000, 1);
+
+    // Iteration count was empirically chosen to have a high probability of failure without the
+    // test going for too long.
+    Thread sampleThreadA =
+        new Thread(
+            () -> {
+              for (int i = 0; i < 10000000; i++) {
+                outputSampler.sample(i);
+              }
+            });
+
+    Thread sampleThreadB =
+        new Thread(
+            () -> {
+              for (int i = 0; i < 10000000; i++) {
+                outputSampler.sample(i);
+              }
+            });
+
+    sampleThreadA.start();
+    sampleThreadB.start();
+
+    for (int i = 0; i < 10000; i++) {
+      outputSampler.samples();
+    }
+  }
 }

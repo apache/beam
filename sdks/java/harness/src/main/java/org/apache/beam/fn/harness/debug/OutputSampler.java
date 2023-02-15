@@ -17,14 +17,13 @@
  */
 package org.apache.beam.fn.harness.debug;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class holds samples for a single PCollection until queried by the parent DataSampler. This
@@ -34,7 +33,6 @@ import org.slf4j.LoggerFactory;
  * @param <T> the element type of the PCollection.
  */
 public class OutputSampler<T> {
-  private static final Logger LOG = LoggerFactory.getLogger(OutputSampler.class);
 
   // Temporarily holds elements until the SDK receives a sample data request.
   private final List<T> buffer;
@@ -101,7 +99,7 @@ public class OutputSampler<T> {
    *
    * @return samples taken since last call.
    */
-  public List<BeamFnApi.SampledElement> samples() {
+  public List<BeamFnApi.SampledElement> samples() throws IOException {
     List<BeamFnApi.SampledElement> ret = new ArrayList<>();
 
     // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
@@ -115,18 +113,12 @@ public class OutputSampler<T> {
 
     ByteStringOutputStream stream = new ByteStringOutputStream();
     for (T el : copiedBuffer) {
-      try {
-        // This is deprecated, but until this is fully removed, this specifically needs the nested
-        // context. This is because the SDK will need to decode the sampled elements with the
-        // ToStringFn.
-        coder.encode(el, stream, Coder.Context.NESTED);
-        ret.add(
-            BeamFnApi.SampledElement.newBuilder()
-                .setElement(stream.toByteStringAndReset())
-                .build());
-      } catch (Exception exception) {
-        LOG.warn("Could not encode element \"" + el + "\" to bytes: " + exception);
-      }
+      // This is deprecated, but until this is fully removed, this specifically needs the nested
+      // context. This is because the SDK will need to decode the sampled elements with the
+      // ToStringFn.
+      coder.encode(el, stream, Coder.Context.NESTED);
+      ret.add(
+          BeamFnApi.SampledElement.newBuilder().setElement(stream.toByteStringAndReset()).build());
     }
 
     return ret;
