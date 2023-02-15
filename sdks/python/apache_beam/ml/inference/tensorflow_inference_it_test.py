@@ -50,10 +50,10 @@ def process_outputs(filepath):
 class TensorflowInference(unittest.TestCase):
   def test_tf_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    input_file = 'gs://clouddfe-riteshghorse/tf/mnist/dataset/testing_inputs_it_mnist_data.csv'  # pylint: disable=line-too-long
-    output_file_dir = 'gs://clouddfe-riteshghorse/tf/mnist/output/'
+    input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
+    output_file_dir = 'apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'gs://clouddfe-riteshghorse/tf/mnist/model/'
+    model_path = 'apache-beam-ml/models/tensorflow/mnist/'
     extra_opts = {
         'input': input_file,
         'output': output_file,
@@ -64,11 +64,8 @@ class TensorflowInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = (
-        'gs://clouddfe-riteshghorse/tf/mnist/output/testing_expected_outputs_test_sklearn_mnist_classification_actuals.txt'  # pylint: disable=line-too-long
-    )
+    expected_output_filepath = 'gs://apache-beam-ml/testing/expected_outputs/test_sklearn_mnist_classification_actuals.txt'  # pylint: disable=line-too-long
     expected_outputs = process_outputs(expected_output_filepath)
-
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
 
@@ -81,14 +78,14 @@ class TensorflowInference(unittest.TestCase):
       true_label, expected_prediction = expected_outputs[i].split(',')
       self.assertEqual(predictions_dict[true_label], expected_prediction)
 
-  def test_tf_imagenet_image_classification(self):
+  def test_tf_imagenet_image_segmentation(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_file = (
-        'gs://clouddfe-riteshghorse/tf/imagenet/input/input_labels.txt')
+        'gs://apache-beam-ml/testing/inputs/it_imagenet_input_labels.txt')
     image_dir = (
         'https://storage.googleapis.com/download.tensorflow.org/example_images/'
     )
-    output_file_dir = 'gs://clouddfe-riteshghorse/tf/imagenet/output'
+    output_file_dir = 'apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
     model_path = (
         'https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4')
@@ -103,10 +100,8 @@ class TensorflowInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = (
-        'gs://clouddfe-riteshghorse/tf/imagenet/output/actuals.txt')
+    expected_output_filepath = 'gs://apache-beam-ml/testing/expected_outputs/test_tf_imagenet_image_segmentation.txt'  # pylint: disable=line-too-long
     expected_outputs = process_outputs(expected_output_filepath)
-
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
 
