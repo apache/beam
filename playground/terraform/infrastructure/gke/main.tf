@@ -25,13 +25,7 @@ resource "google_container_cluster" "playground-gke" {
   network                    = var.network
   subnetwork                 = var.subnetwork
   remove_default_node_pool = true
-}
 
-resource "google_container_node_pool" "playground-node-pool" {
-  name       = "playground-node-pool"
-  cluster    = google_container_cluster.playground-gke.name
-  location   = google_container_cluster.playground-gke.location
-  
   ip_allocation_policy {
     use_ip_aliases = true
   }
@@ -41,6 +35,12 @@ resource "google_container_node_pool" "playground-node-pool" {
       enabled = true
     }
   }
+}
+
+resource "google_container_node_pool" "playground-node-pool" {
+  name       = "playground-node-pool"
+  cluster    = google_container_cluster.playground-gke.name
+  location   = google_container_cluster.playground-gke.location
   
   autoscaling {
     min_node_count = var.min_count
