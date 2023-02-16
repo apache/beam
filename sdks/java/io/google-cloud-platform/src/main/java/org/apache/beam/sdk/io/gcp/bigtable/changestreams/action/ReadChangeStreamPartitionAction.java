@@ -188,11 +188,7 @@ public class ReadChangeStreamPartitionAction {
     try {
       stream =
           changeStreamDao.readChangeStreamPartition(
-              partitionRecord,
-              tracker.currentRestriction(),
-              partitionRecord.getEndTime(),
-              heartbeatDurationSeconds,
-              shouldDebug);
+              partitionRecord, tracker.currentRestriction(), heartbeatDurationSeconds, shouldDebug);
       for (ChangeStreamRecord record : stream) {
         Optional<ProcessContinuation> result =
             changeStreamAction.run(
