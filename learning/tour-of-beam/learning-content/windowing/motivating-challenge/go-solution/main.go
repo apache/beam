@@ -45,12 +45,12 @@ func main() {
 
     p, s := beam.NewPipelineWithRoot()
 
-    file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
+    input := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
     // Extract cost from PCollection
-    input := ExtractCostFromFile(s, file)
+    cost := ExtractCostFromFile(s, input)
 
-    slidingWindowedItems := beam.WindowInto(s, window.NewSlidingWindows(5*time.Second, 10*time.Second), input)
+    slidingWindowedItems := beam.WindowInto(s, window.NewSlidingWindows(5*time.Second, 10*time.Second), cost)
 
     max := getMax(s, slidingWindowedItems)
 

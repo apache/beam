@@ -45,13 +45,12 @@ func main() {
 
     p, s := beam.NewPipelineWithRoot()
 
-    file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
+    input := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
     // Extract cost from PCollection
-    input := ExtractCostFromFile(s, file)
+    cost := ExtractCostFromFile(s, input)
 
-
-    debug.Printf(s, "Above pCollection output", input)
+    debug.Printf(s, "Above pCollection output", cost)
 
     err := beamx.Run(ctx, p)
 

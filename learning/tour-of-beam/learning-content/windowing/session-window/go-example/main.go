@@ -39,9 +39,9 @@ import (
 func main() {
   p, s := beam.NewPipelineWithRoot()
 
-  words := beam.Create(s, "Hello", "world", "it`s", "Windowing")
+  input := beam.Create(s, "Hello", "world", "it`s", "Windowing")
 
-  sessionWindowedItems := beam.WindowInto(s, window.NewSessions(600*time.Second), words)
+  sessionWindowedItems := beam.WindowInto(s, window.NewSessions(600*time.Second), input)
 
   output(s, sessionWindowedItems)
 

@@ -39,9 +39,9 @@ import (
 func main() {
   p, s := beam.NewPipelineWithRoot()
 
-  words := beam.Create(s, "Hello", "world", "it`s", "Windowing")
+  input := beam.Create(s, "Hello", "world", "it`s", "Windowing")
 
-  fixedWindow := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),words)
+  fixedWindow := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),input)
 
   output(s, fixedWindow)
 

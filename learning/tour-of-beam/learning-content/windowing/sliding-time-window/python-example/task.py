@@ -45,7 +45,7 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
-with beam.Pipeline() as p1:
-  (p1 | beam.Create(['Hello Beam','It`s windowing'])
+with beam.Pipeline() as p:
+  (p | beam.Create(['Hello Beam','It`s windowing'])
      | 'window' >>  beam.WindowInto(window.SlidingWindows(30, 5))
      | 'Log words' >> Output())

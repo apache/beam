@@ -28,8 +28,8 @@ fixedWindowedItems := beam.WindowInto(s,
 
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> items = ...;
-    PCollection<String> fixedWindowedItems = items.apply(
+PCollection<String> input = ...;
+    PCollection<String> fixedWindowedItems = input.apply(
         Window.<String>into(FixedWindows.of(Duration.standardSeconds(30))));
 ```
 {{end}}
@@ -37,8 +37,9 @@ PCollection<String> items = ...;
 {{if (eq .Sdk "python")}}
 ```
 from apache_beam import window
+
 fixed_windowed_items = (
-    items | 'window' >> beam.WindowInto(window.FixedWindows(30)))
+    input | 'window' >> beam.WindowInto(window.FixedWindows(30)))
 ```
 {{end}}
 
@@ -53,7 +54,7 @@ You can write your logic inside `MyCombineFn`:
 
 {{if (eq .Sdk "java")}}
 ```
-p.apply(...)
+input.apply(...)
  .apply(Window.<Type>into(FixedWindows.of(Duration.standardMinutes(10))
     .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
 ```
@@ -62,7 +63,8 @@ p.apply(...)
 {{if (eq .Sdk "python")}}
 ```
 from apache_beam import window
+
 fixed_windowed_items = (
-    items | 'window' >> beam.WindowInto(window.FixedWindows(30),timestamp_combiner=TimestampCombiner.OUTPUT_AT_END)))
+    input | 'window' >> beam.WindowInto(window.FixedWindows(30),timestamp_combiner=TimestampCombiner.OUTPUT_AT_END)))
 ```
 {{end}}

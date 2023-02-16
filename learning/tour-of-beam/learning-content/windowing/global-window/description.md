@@ -26,15 +26,15 @@ The first argument that we specify is the `scope` and from the library of `windo
 ```
 globalWindowedItems := beam.WindowInto(s,
 	window.NewGlobalWindows(),
-	items)
+	input)
 ```
 {{end}}
 
 {{if (eq .Sdk "java")}}
 The first step is to apply the `Window` transformation. And we write what type of `PCollection` has by calling the `into` method.  The argument will be an object of the desired **window-class**.
 ```
-PCollection<String> items = ...;
-PCollection<String> batchItems = items.apply(
+PCollection<String> input = ...;
+PCollection<String> batchItems = input.apply(
   Window.<String>into(new GlobalWindows()));
 ```
 {{end}}
@@ -43,8 +43,9 @@ PCollection<String> batchItems = items.apply(
 The first step is to apply the `WindowInto` conversion, and from the `window` library we choose which one we need, in this case we need `GlobalWindows`.
 ```
 from apache_beam import window
+
 global_windowed_items = (
-    items | 'window' >> beam.WindowInto(window.GlobalWindows()))
+    input | 'window' >> beam.WindowInto(window.GlobalWindows()))
 ```
 {{end}}
 
@@ -77,7 +78,7 @@ Import dependency:
 
 Modify code:
 ```
-filtered := applyTransform(s, globalWindowedItems)
+filtered := applyTransform(s, input)
 
 counted := stats.CountElms(s, filtered)
 ```
@@ -103,7 +104,7 @@ batchItems.apply(Filter.by(element -> element.toLowerCase().startsWith("w"))).ap
 
 Modify code:
 ```
-(p1 | beam.Create(['Hello Beam','It`s windowing'])
+(p | beam.Create(['Hello Beam','It`s windowing'])
      | 'window' >>  beam.WindowInto(window.GlobalWindows())
      | 'filter' >> beam.Filter(lambda element: element.lower().startswith("h"))
      | 'count' >> beam.combiners.Count.Globally()

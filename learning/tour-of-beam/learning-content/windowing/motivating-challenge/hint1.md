@@ -20,7 +20,7 @@ To solve this challenge, you may build a pipeline that consists of the following
 {{end}}
 
 {{if (eq .Sdk "java")}}
-1. Add windowing `rideTotalAmounts.apply(
+1. Add sliding windowing `rideTotalAmounts.apply(
    Window.<Double>into(SlidingWindows.of(Duration.standardSeconds(10)).every(Duration.standardSeconds(5))))`
 2. Write SerializableFunction which define max value: `.apply(Combine.globally((SerializableFunction<Iterable<Double>, Double>) input -> {
    Iterator<Double> iterator = input.iterator();

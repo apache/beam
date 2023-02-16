@@ -10,16 +10,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-### Common Transforms motivating challenge
+### Windowing Transforms motivating exercise
 
-You are provided with a `PCollection` from the array of the taxi order price in a csv file. Your task is to launch a new window every 5 seconds that covers data in 10 seconds. And derive the maximum price from them.
-
-Here is a small list of fields and an example record from this dataset:
+For this exercise, you can use NYC taxi trips csv containing a list of trips and their prices. Following is a small list of fields and an example record from this dataset:
 
 | cost | passenger_count | ... |
 |------|-----------------|-----|
 | 5.8  | 1               | ... |
 | 4.6  | 2               | ... |
 | 24   | 1               | ... |
+
+Your task is to write a pipeline that returns the maximum price of taxi trips for the past 10 min. Calculations need to be updated every minute.
 
 Overview [file](https://storage.googleapis.com/apache-beam-samples/nyc_taxi/misc/sample1000.csv)

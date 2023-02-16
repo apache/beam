@@ -14,7 +14,7 @@ limitations under the License.
 
 ### Session windows
 
-A session window function defines windows that contain elements that are within a certain gap duration of another element. Session windowing applies on a per-key basis and is useful for data that is irregularly distributed with respect to time. For example, a data stream representing user mouse activity may have long periods of idle time interspersed with high concentrations of clicks. If data arrives after the minimum specified gap duration time, this initiates the start of a new window. It is useful when you want to group elements that are related to each other based on the time that passed between them, rather than based on a fixed interval of time.
+A session window function defines windows containing elements within a specific gap duration of another element. Session windowing applies on a per-key basis and helps process irregularly distributed data with respect to time. For example, a data stream representing user mouse activity may have long periods of idle time interspersed with high concentrations of clicks. If data arrives after the minimum specified gap duration time, this initiates the start of a new window. In addition, it is useful when you want to group related elements based on the time that passed between them rather than on a fixed interval of time.
 
 The following example code shows how to apply `Window` to divide a `PCollection` into session windows, where each session must be separated by a time gap of at least 10 minutes (600 seconds):
 
@@ -22,14 +22,14 @@ The following example code shows how to apply `Window` to divide a `PCollection`
 ```
 sessionWindowedItems := beam.WindowInto(s,
 	window.NewSessions(600*time.Second),
-	items)
+	input)
 ```
 {{end}}
 
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> items = ...;
-    PCollection<String> sessionWindowedItems = items.apply(
+PCollection<String> input = ...;
+    PCollection<String> sessionWindowedItems = input.apply(
         Window.<String>into(Sessions.withGapDuration(Duration.standardSeconds(600))));
 ```
 {{end}}
@@ -37,8 +37,9 @@ PCollection<String> items = ...;
 {{if (eq .Sdk "python")}}
 ```
 from apache_beam import window
+
 session_windowed_items = (
-    items | 'window' >> beam.WindowInto(window.Sessions(10 * 60)))
+    input | 'window' >> beam.WindowInto(window.Sessions(10 * 60)))
 ```
 {{end}}
 
@@ -55,13 +56,13 @@ sessionWindowed := beam.ParDo(s, func(elm type.T, emit func(type.T)) {
     window := beam.NewWindow(s, beam.SessionsWindowFn(sessionDuration))
     windowed := beam.AddFixedWindows(s, elm, window)
     emit(windowed)
-}, pcol)
+}, input)
 ```
 {{end}}
 
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> sessionWindowed = pcol.apply(
+PCollection<String> sessionWindowed = input.apply(
                 Window.<String>into(Sessions.withGapDuration(sessionDuration))
                 .triggering(sessionTrigger)
                 .withAllowedLateness(Duration.ZERO)
@@ -75,6 +76,6 @@ session_duration = 30 # minutes
 session_window = Window.into(Sessions(session_duration))
 session_trigger = AfterWatermark()
 
-session_windowed = pcol | 'Session Window' >> WindowInto(session_window, triggers=session_trigger)
+session_windowed = input | 'Session Window' >> WindowInto(session_window, triggers=session_trigger)
 ```
 {{end}}

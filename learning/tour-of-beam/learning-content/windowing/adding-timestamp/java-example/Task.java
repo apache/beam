@@ -48,7 +48,7 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<Event> events =
+        PCollection<Event> input =
                 pipeline.apply(
                         Create.of(
                                 new Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
@@ -59,7 +59,7 @@ public class Task {
                         )
                 );
 
-        PCollection<Event> output = applyTransform(events);
+        PCollection<Event> output = applyTransform(input);
 
         output.apply("Log", ParDo.of(new LogOutput()));
 

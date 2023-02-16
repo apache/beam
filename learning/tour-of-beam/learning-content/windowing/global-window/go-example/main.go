@@ -38,9 +38,9 @@ import (
 func main() {
   p, s := beam.NewPipelineWithRoot()
 
-  words := beam.Create(s, "Hello", "world", "it`s", "Windowing")
+  input := beam.Create(s, "Hello", "world", "it`s", "Windowing")
 
-  globalWindowedItems := beam.WindowInto(s, window.NewGlobalWindows(), words)
+  globalWindowedItems := beam.WindowInto(s, window.NewGlobalWindows(), input)
 
   output(s, globalWindowedItems)
 

@@ -54,13 +54,13 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<String> words =
+        PCollection<String> input =
                 pipeline.apply(
                         Create.of("To", "be", "or", "not", "to", "be","that", "is", "the", "question")
                 );
 
 
-        PCollection<String> sessionWindowedItems = words.apply(
+        PCollection<String> sessionWindowedItems = input.apply(
                 Window.<String>into(Sessions.withGapDuration(Duration.standardSeconds(600))));
 
         sessionWindowedItems.apply("Log words", ParDo.of(new LogStrings()));

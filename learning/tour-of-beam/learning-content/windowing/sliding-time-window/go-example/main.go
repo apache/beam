@@ -39,9 +39,9 @@ import (
 func main() {
   p, s := beam.NewPipelineWithRoot()
 
-  words := beam.Create(s, "Hello", "world", "it`s", "Windowing")
+  input := beam.Create(s, "Hello", "world", "it`s", "Windowing")
 
-  slidingWindowedItems := beam.WindowInto(s, window.NewSlidingWindows(5*time.Second, 30*time.Second), words)
+  slidingWindowedItems := beam.WindowInto(s, window.NewSlidingWindows(5*time.Second, 30*time.Second), input)
 
   output(s, slidingWindowedItems)
 
