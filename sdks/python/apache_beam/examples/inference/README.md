@@ -528,9 +528,9 @@ Each line has a list of predicted label.
 ## MNIST digit classification with Tensorflow using Saved Model Weights
 [`tensorflow_mnist_with_weights.py`](./tensorflow_mnist_with_weights.py) contains an implementation for a RunInference pipeline that performs image classification on handwritten digits from the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
 
-The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file. 
+The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file.
 
-The model is loaded from the saved model weights. This can be done by passing a function which creates the model and setting the model type as 
+The model is loaded from the saved model weights. This can be done by passing a function which creates the model and setting the model type as
 `ModelType.SAVED_WEIGHTS` to the `TFModelHandler`. The path to saved weights saved using `model.save_weights(path)` should be passed to the `model_path` argument.
 
 ### Dataset and model for language modeling
