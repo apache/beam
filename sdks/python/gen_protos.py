@@ -33,6 +33,7 @@ import time
 from collections import defaultdict
 from importlib import import_module
 
+from google.protobuf.internal import containers
 import pkg_resources
 
 LOG = logging.getLogger()
@@ -124,7 +125,6 @@ def generate_urn_files(out_dir, api_path):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
-  from google._upb import _message as pyext_message
   from google.protobuf import message
 
   class Context(object):
@@ -180,8 +180,9 @@ def generate_urn_files(out_dir, api_path):
           obj,
           (
               list,
-              pyext_message.RepeatedCompositeContainer,  # pylint: disable=c-extension-no-member
-              pyext_message.RepeatedScalarContainer)):  # pylint: disable=c-extension-no-member
+              containers.RepeatedScalarFieldContainer,
+              containers.RepeatedCompositeFieldContainer
+          )):  # pylint: disable=c-extension-no-member
         return '[%s]' % ', '.join(self.python_repr(x) for x in obj)
       else:
         return repr(obj)
@@ -233,6 +234,8 @@ def generate_urn_files(out_dir, api_path):
 
       with ctx.indent():
         for obj_name, obj in inspect.getmembers(message):
+          if 'MonitoringInfoSpecs' in str(message):
+            pass
           if self.is_message_type(obj):
             ctx.lines += self.write_message(obj_name, obj, ctx._indent)
           elif self.is_enum_type(obj):
@@ -253,6 +256,8 @@ def generate_urn_files(out_dir, api_path):
 
     for pb2_file in pb2_files:
       modname = os.path.splitext(pb2_file)[0]
+      if 'metric' in modname:
+        pass
       out_file = modname + '_urns.py'
       api_start_idx = modname.index(os.path.sep + 'api' + os.path.sep)
       import_path = modname[api_start_idx + 1:].replace(os.path.sep, '.')
