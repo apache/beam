@@ -49,7 +49,7 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
-with beam.Pipeline() as p1:
-  (p1 | beam.Create(['Hello Beam','It`s trigger'])
+with beam.Pipeline() as p:
+  (p | beam.Create(['Hello Beam','It`s trigger'])
      | 'window' >> beam.WindowInto(FixedWindows(2),trigger=trigger.AfterCount(2),accumulation_mode=trigger.AccumulationMode.DISCARDING) \
      | 'Log words' >> Output())

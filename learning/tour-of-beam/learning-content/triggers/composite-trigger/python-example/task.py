@@ -49,7 +49,7 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
-with beam.Pipeline() as p1:
+with beam.Pipeline() as p:
   processing_time_trigger = trigger.AfterProcessingTime(60)
 # Define an event time trigger
   event_time_trigger = trigger.AfterWatermark(early=trigger.AfterCount(100),
@@ -58,7 +58,7 @@ with beam.Pipeline() as p1:
 # Combine the processing time and event time triggers using the Or method
   composite_trigger = trigger.AfterAll(processing_time_trigger,event_time_trigger)
 
-  (p1 | beam.Create(['Hello Beam','It`s trigger'])
+  (p | beam.Create(['Hello Beam','It`s trigger'])
      | 'window' >>  beam.WindowInto(FixedWindows(2),
                                                 trigger=composite_trigger ,
                                                 accumulation_mode=trigger.AccumulationMode.DISCARDING) \

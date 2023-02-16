@@ -23,3 +23,30 @@ The following accumulation modes are available with processing time triggers:
 `Discarding`: any late data is discarded and only the data that arrives before the trigger fires is processed.
 
 `Accumulating`: late data is included and the trigger fires whenever the trigger conditions are met.
+
+{{if (eq .Sdk "go")}}
+```
+trigger := beam.Trigger(trigger.AfterProcessingTime().PlusDelay(5 * time.Millisecond))
+
+fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),input,trigger,
+                        beam.AllowedLateness(30*time.Minute),
+                        beam.PanesDiscard(),
+  )
+```
+{{end}}
+{{if (eq .Sdk "java")}}
+```
+Trigger trigger = AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1));
+
+PCollection<String> windowed = input.apply(window.triggering(trigger).withAllowedLateness(Duration.ZERO).discardingFiredPanes());
+```
+{{end}}
+{{if (eq .Sdk "python")}}
+```
+(p | beam.Create(['Hello Beam','It`s trigger'])
+     | 'window' >>  beam.WindowInto(FixedWindows(2),
+                                                trigger=trigger.AfterProcessingTime(1),
+                                                accumulation_mode=trigger.AccumulationMode.DISCARDING) \
+     | ...)
+```
+{{end}}

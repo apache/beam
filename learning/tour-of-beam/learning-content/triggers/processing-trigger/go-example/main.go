@@ -43,11 +43,11 @@ import (
 func main() {
   p, s := beam.NewPipelineWithRoot()
 
-  words := beam.Create(s, "Hello", "world", "it`s", "triggering")
+  input := beam.Create(s, "Hello", "world", "it`s", "triggering")
 
   trigger := beam.Trigger(trigger.AfterProcessingTime().PlusDelay(5 * time.Millisecond))
 
-  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),words,trigger,
+  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),input,trigger,
                         beam.AllowedLateness(30*time.Minute),
                         beam.PanesDiscard(),
   )

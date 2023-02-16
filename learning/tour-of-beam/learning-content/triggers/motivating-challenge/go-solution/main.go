@@ -46,10 +46,10 @@ import (
 func main() {
   p, s := beam.NewPipelineWithRoot()
 
-   file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
+   input := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
    // Extract cost from PCollection
-   input := ExtractCostFromFile(s, file)
+   cost := ExtractCostFromFile(s, input)
 
 
    trigger := trigger.AfterAll([]trigger.Trigger{trigger.AfterCount(10),trigger.AfterEndOfWindow().
@@ -58,7 +58,7 @@ func main() {
 	LateFiring(trigger.Repeat(trigger.AfterCount(1)))})
 
 
-  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),input,beam.Trigger(trigger), beam.PanesDiscard())
+  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),cost,beam.Trigger(trigger), beam.PanesDiscard())
 
   output(s, fixedWindowedItems)
 

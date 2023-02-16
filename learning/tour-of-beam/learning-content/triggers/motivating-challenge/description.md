@@ -14,8 +14,6 @@ limitations under the License.
 
 You are provided with a "PCollection" from the array of the taxi order price in a csv file. Your task is to set the `trigger` to 10 elements. And another `trigger` for every minute.
 
-Here is a small list of fields and an example record from this dataset:
-
 | cost | passenger_count | ... |
 |------|-----------------|-----|
 | 5.8  | 1               | ... |

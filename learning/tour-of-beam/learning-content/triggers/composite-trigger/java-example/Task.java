@@ -51,14 +51,14 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<String> words = pipeline.apply(Create.of("first", "second"));
+        PCollection<String> input = pipeline.apply(Create.of("first", "second"));
 
         Window<String> window = Window.into(FixedWindows.of(Duration.standardMinutes(5)));
 
         Trigger processingTimeTrigger = AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1));
         Trigger dataDrivenTrigger = AfterPane.elementCountAtLeast(2);
 
-        PCollection<String> windowed = words.apply(window.triggering(AfterAll.of(Arrays.asList(processingTimeTrigger,dataDrivenTrigger))).withAllowedLateness(Duration.ZERO).accumulatingFiredPanes());
+        PCollection<String> windowed = input.apply(window.triggering(AfterAll.of(Arrays.asList(processingTimeTrigger,dataDrivenTrigger))).withAllowedLateness(Duration.ZERO).accumulatingFiredPanes());
 
         windowed.apply("Event time trigger", ParDo.of(new LogOutput<>("Result")));
 

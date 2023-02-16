@@ -31,8 +31,8 @@ You set the allowed lateness by using `.withAllowedLateness()` when you set your
 
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> pc = ...;
-pc.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
+PCollection<String> input = ...;
+input.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
                               .triggering(AfterProcessingTime.pastFirstElementInPane()
                                                              .plusDelayOf(Duration.standardMinutes(1)))
                               .withAllowedLateness(Duration.standardMinutes(30));
@@ -50,8 +50,8 @@ allowedToBeLateItems := beam.WindowInto(s,
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-pc = [Initial PCollection]
-pc | beam.WindowInto(
+input = [Initial PCollection]
+input | beam.WindowInto(
             FixedWindows(60),
             trigger=AfterProcessingTime(60),
             allowed_lateness=1800) # 30 minutes
@@ -107,7 +107,7 @@ PCollection<String> windowed = words.apply(window.triggering(trigger).withAllowe
 
 {{if (eq .Sdk "python")}}
 ```
-pcollection | WindowInto(
+input | WindowInto(
     FixedWindows(1 * 60),
     trigger=AfterProcessingTime(1 * 60),
     accumulation_mode=AccumulationMode.ACCUMULATING)
@@ -127,19 +127,19 @@ Third trigger firing:                         [9, 13, 10]
 
 {{if (eq .Sdk "go")}}
 ```
-fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),words,trigger, beam.PanesDiscard())
+fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),input,trigger, beam.PanesDiscard())
 ```
 {{end}}
 
 {{if (eq .Sdk "java")}}
 ```
-PCollection<String> windowed = words.apply(window.triggering(trigger).withAllowedLateness(Duration.ZERO).discardingFiredPanes());
+PCollection<String> windowed = input.apply(window.triggering(trigger).withAllowedLateness(Duration.ZERO).discardingFiredPanes());
 ```
 {{end}}
 
 {{if (eq .Sdk "python")}}
 ```
-pcollection | WindowInto(
+input | WindowInto(
     FixedWindows(1 * 60),
     trigger=AfterProcessingTime(1 * 60),
     accumulation_mode=AccumulationMode.DISCARDING)
