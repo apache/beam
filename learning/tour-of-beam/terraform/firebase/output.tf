@@ -15,18 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-output "firebase_project_name" {
-value = google_firebase_project.tourofbeam_firebase_project.display_name
-}
-
-output "firebase_web_app_name" {
-value = google_firebase_web_app.tob_firebase_webapp.name
-}
-
-output "firebase_web_app_id" {
-value = google_firebase_web_app.tob_firebase_webapp.app_id
-}
-
-output "firebase_hosting_app_id" {
-value = google_firebase_hosting_site.tob_firebase_hostingsite.app_id
-}
+#output "firebase_project_name" {
+#value = google_firebase_project.tourofbeam_firebase_project.display_name
+#}
+#
+#output "firebase_web_app_name" {
+#value = google_firebase_web_app.tob_firebase_webapp.name
+#}
+#
+#output "firebase_web_app_id" {
+#value = google_firebase_web_app.tob_firebase_webapp.app_id
+#}
+#
+#output "firebase_hosting_app_id" {
+#value = google_firebase_hosting_site.tob_firebase_hostingsite.app_id
+#}

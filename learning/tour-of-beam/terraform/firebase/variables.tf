@@ -1,8 +1,8 @@
-variable "project_id" {
-  type  = string
-}
+#variable "project_id" {
+#  type  = string
+#}
+#
+#variable "region" {
+#}
 
-variable "region" {
-}
-
-variable "firebase_storage_bucket_name" {}
+#variable "firebase_storage_bucket_name" {}

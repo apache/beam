@@ -36,4 +36,4 @@ variable "pg_router_host" {
 
 variable "environment" {}
 
-variable "firebase_storage_bucket_name" {}
+#variable "firebase_storage_bucket_name" {}

@@ -16,33 +16,33 @@
 # under the License.
 
 # Create firebase project
-resource "google_firebase_project" "tourofbeam_firebase_project" {
-  provider = google-beta
-  project = var.project_id
-}
-
-resource "google_firebase_web_app" "tob_firebase_webapp" {
-  provider     = google-beta
-  project = var.project_id
-  display_name = "${var.project_id} Firebase Web App"
-}
-
-resource "google_firebase_hosting_site" "tob_firebase_hostingsite" {
-  provider = google-beta
-  project  = var.project_id
-  site_id = "${var.project_id}-tourofbeam-web"
-  app_id = google_firebase_web_app.tob_firebase_webapp.app_id
-  depends_on = [google_firebase_web_app.tob_firebase_webapp]
-}
-
-resource "google_storage_bucket" "firebase_storage" {
-  name          = var.firebase_storage_bucket_name
-  location      = var.region
-  storage_class = "STANDARD"
-}
-
-resource "google_firebase_storage_bucket" "default" {
-  provider  = google-beta
-  project   = var.project_id
-  bucket_id = google_storage_bucket.firebase_storage.id
-}
+#resource "google_firebase_project" "tourofbeam_firebase_project" {
+#  provider = google-beta
+#  project = var.project_id
+#}
+#
+#resource "google_firebase_web_app" "tob_firebase_webapp" {
+#  provider     = google-beta
+#  project = var.project_id
+#  display_name = "${var.project_id} Firebase Web App"
+#}
+#
+#resource "google_firebase_hosting_site" "tob_firebase_hostingsite" {
+#  provider = google-beta
+#  project  = var.project_id
+#  site_id = "${var.project_id}-tourofbeam-web"
+#  app_id = google_firebase_web_app.tob_firebase_webapp.app_id
+#  depends_on = [google_firebase_web_app.tob_firebase_webapp]
+#}
+#
+#resource "google_storage_bucket" "firebase_storage" {
+#  name          = var.firebase_storage_bucket_name
+#  location      = var.region
+#  storage_class = "STANDARD"
+#}
+#
+#resource "google_firebase_storage_bucket" "default" {
+#  provider  = google-beta
+#  project   = var.project_id
+#  bucket_id = google_storage_bucket.firebase_storage.id
+#}
