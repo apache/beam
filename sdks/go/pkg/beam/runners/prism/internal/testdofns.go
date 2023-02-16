@@ -36,7 +36,7 @@ import (
 // Once there's enough confidence in the runner, we can move these into a dedicated testing
 // package along with the pipelines that use them.
 
-// Registerations should happen in the test files, so the compiler can prune these 
+// Registerations should happen in the test files, so the compiler can prune these
 // when they are not in use.
 
 func dofn1(imp []byte, emit func(int64)) {
@@ -117,6 +117,9 @@ func dofn3x1(sum int64, iter1, iter2 func(*int64) bool, emit func(int64)) {
 
 // int64Check validates that within a single bundle,
 // we received the expected int64 values & sends them downstream.
+//
+// Invalid pattern for general testing, as it will fail
+// on other valid execution patterns, like single element bundles.
 type int64Check struct {
 	Name string
 	Want []int
@@ -139,6 +142,7 @@ func (fn *int64Check) FinishBundle(_ func(int64)) error {
 // stringCheck validates that within a single bundle,
 // we received the expected string values.
 // Re-emits them downstream.
+//
 // Invalid pattern for general testing, as it will fail
 // on other valid execution patterns, like single element bundles.
 type stringCheck struct {
