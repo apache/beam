@@ -711,10 +711,10 @@ limitations under the License.
 &lt;li>&lt;a href="#merge-website-pull-requests">Merge Website pull requests&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#git-tag">Git tag&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#publish-release-to-github">Publish release to Github&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#mark-the-version-as-released-in-github">Mark the version as released in GitHub&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#pmc-only-finalization">PMC-Only Finalization&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#mark-the-version-as-released-in-github">Mark the version as released in GitHub&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#recordkeeping-with-asf">Recordkeeping with ASF&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
@@ -1824,6 +1824,8 @@ git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
 &lt;pre>&lt;code>./beam/release/src/main/scripts/publish_github_release_notes.sh
 &lt;/code>&lt;/pre>&lt;p>Note this script reads the release notes from the blog post, so you should make sure to run this from master &lt;em>after&lt;/em> merging the blog post PR.&lt;/p>
 &lt;p>After running the script, the release notes should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/releases">Releases&lt;/a> page.&lt;/p>
+&lt;h3 id="mark-the-version-as-released-in-github">Mark the version as released in GitHub&lt;/h3>
+&lt;p>In GitHub, in the &lt;a href="https://github.com/apache/beam/milestones">milestone page&lt;/a>, click close on the current release.&lt;/p>
 &lt;h3 id="pmc-only-finalization">PMC-Only Finalization&lt;/h3>
 &lt;p>There are a few release finalization tasks that only PMC members have permissions to do.
 Ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assistance if you need it.&lt;/p>
@@ -1831,8 +1833,6 @@ Ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assistance if you n
 &lt;p>Copy the source release from the &lt;code>dev&lt;/code> repository to the &lt;code>release&lt;/code> repository at &lt;code>dist.apache.org&lt;/code> using Subversion.&lt;/p>
 &lt;p>Make sure the last release&amp;rsquo;s artifacts have been copied from &lt;code>dist.apache.org&lt;/code> to &lt;code>archive.apache.org&lt;/code>.
 This should happen automatically: &lt;a href="https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E">dev@ thread&lt;/a> with context.&lt;/p>
-&lt;h4 id="mark-the-version-as-released-in-github">Mark the version as released in GitHub&lt;/h4>
-&lt;p>In GitHub, in the &lt;a href="https://github.com/apache/beam/milestones">milestone page&lt;/a>, click close on the current release.&lt;/p>
 &lt;h4 id="recordkeeping-with-asf">Recordkeeping with ASF&lt;/h4>
 &lt;p>Use &lt;a href="https://reporter.apache.org/addrelease.html?beam">reporter.apache.org&lt;/a> to seed the information about the release into future project reports.&lt;/p>
 &lt;h3 id="checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step&lt;/h3>
