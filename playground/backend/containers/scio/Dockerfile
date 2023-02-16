@@ -56,8 +56,6 @@ echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.l
 curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | apt-key add
 RUN apt-get update && apt-get install -y sbt
 
-RUN mkdir /usr/local/share/ca-certificates/extra
-
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 

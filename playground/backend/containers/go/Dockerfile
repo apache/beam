@@ -58,8 +58,6 @@ ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
 ## Copy build result
 COPY src/configs /opt/playground/backend/configs/
 
-RUN mkdir /usr/local/share/ca-certificates/extra
-
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 
