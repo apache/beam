@@ -52,9 +52,9 @@ class TensorflowInference(unittest.TestCase):
   def test_tf_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
-    output_file_dir = 'apache-beam-ml/testing/outputs'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'apache-beam-ml/models/tensorflow/mnist/'
+    model_path = 'gs://apache-beam-ml/models/tensorflow/mnist/'
     extra_opts = {
         'input': input_file,
         'output': output_file,
@@ -86,7 +86,7 @@ class TensorflowInference(unittest.TestCase):
     image_dir = (
         'https://storage.googleapis.com/download.tensorflow.org/example_images/'
     )
-    output_file_dir = 'apache-beam-ml/testing/outputs'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
     model_path = (
         'https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4')
@@ -112,9 +112,9 @@ class TensorflowInference(unittest.TestCase):
   def test_tf_mnist_with_weights_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
-    output_file_dir = 'apache-beam-ml/testing/outputs'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'gs://apache-beam-ml/models/tensorflow/mnist/saved_weights/'
+    model_path = 'gs://apache-beam-ml/models/tensorflow/mnist'
     extra_opts = {
         'input': input_file,
         'output': output_file,
