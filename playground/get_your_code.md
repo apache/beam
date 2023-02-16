@@ -16,36 +16,36 @@ They can be combined, e.g.
 
 # Table of Contents
 - [Step 1. Prepare Your Code](#step-1-prepare-your-code)
-    * [Named Sections](#named-sections)
-- [Step 2. Place Your Code](#step-2-place-your-code)
-    * [Playground Visible Catalog](#playground-visible-catalog)
-        + [1. Put the file to the directory](#1-put-the-file-to-the-directory)
-        + [2. Add metadata](#2-add-metadata)
-        + [3. Make a PR](#3-make-a-pr)
-        + [4. Save the snippet path](#4-save-the-snippet-path)
-    * [Playground Unlisted Database](#playground-unlisted-database)
-    * [Tour of Beam unit](#tour-of-beam-unit)
-    * [User-shared Code](#user-shared-code)
-    * [HTTPS](#https)
+  * [Named Sections](#named-sections)
+- [Step 2. Place your code somewhere the Playground can load it from](#step-2-place-your-code-somewhere-the-playground-can-load-it-from)
+  * [Playground Visible Catalog](#playground-visible-catalog)
+    + [1. Put the file to the directory](#1-put-the-file-to-the-directory)
+    + [2. Add metadata](#2-add-metadata)
+    + [3. Make a PR](#3-make-a-pr)
+    + [4. Save the snippet path](#4-save-the-snippet-path)
+  * [Playground Unlisted Database](#playground-unlisted-database)
+  * [Tour of Beam unit](#tour-of-beam-unit)
+  * [User-shared Code](#user-shared-code)
+  * [HTTPS](#https)
 - [Step 3. Create a link or embed](#step-3-create-a-link-or-embed)
-    * [Direct Link to the Standalone Playground Web App](#direct-link-to-the-standalone-playground-web-app)
-        + [1. Playground Visible Catalog](#1-playground-visible-catalog)
-        + [2. Playground Unlisted Database](#2-playground-unlisted-database)
-        + [3. Tour of Beam Unit](#3-tour-of-beam-unit)
-        + [4. User-shared Code](#4-user-shared-code)
-        + [5. HTTPS](#5-https)
-        + [6. Empty Editor](#6-empty-editor)
-        + [Passing View Options](#passing-view-options)
-            - [Read-only sections](#read-only-sections)
-            - [Folding everything except sections](#folding-everything-except-sections)
-            - [Hiding everything except a section](#hiding-everything-except-a-section)
-        + [Linking to multiple examples](#linking-to-multiple-examples)
-        + [Embedded vs Standalone Playground URLs](#embedded-vs-standalone-playground-urls)
-    * [Embed into HTML](#embed-into-html)
-        + [1. Playground Visible Catalog](#1-playground-visible-catalog-1)
-        + [2. User-shared Code](#2-user-shared-code)
-        + [3. All Other Code Sources](#3-all-other-code-sources)
-    * [Embedding into the Beam documentation](#embedding-into-the-beam-documentation)
+  * [Direct Link to the Standalone Playground Web App](#direct-link-to-the-standalone-playground-web-app)
+    + [1. Link for a snippet from Playground Visible Catalog](#1-link-for-a-snippet-from-playground-visible-catalog)
+    + [2. Link for a snippet from Playground Unlisted Database](#2-link-for-a-snippet-from-playground-unlisted-database)
+    + [3. Link for a Tour of Beam Unit](#3-link-for-a-tour-of-beam-unit)
+    + [4. Link for User-shared Code](#4-link-for-user-shared-code)
+    + [5. Link for an HTTPS-served snippet](#5-link-for-an-https-served-snippet)
+    + [6. Link to an empty editor](#6-link-to-an-empty-editor)
+    + [Passing View Options](#passing-view-options)
+      - [Read-only sections](#read-only-sections)
+      - [Folding everything except sections](#folding-everything-except-sections)
+      - [Hiding everything except a section](#hiding-everything-except-a-section)
+    + [Linking to multiple examples](#linking-to-multiple-examples)
+    + [Embedded vs Standalone Playground URLs](#embedded-vs-standalone-playground-urls)
+  * [Embed into HTML](#embed-into-html)
+    + [1. Embed a snippet from Playground Visible Catalog](#1-embed-a-snippet-from-playground-visible-catalog)
+    + [2. Embed User-shared Code](#2-embed-user-shared-code)
+    + [3. Embed a snippet from any other source](#3-embed-a-snippet-from-any-other-source)
+  * [Embedding into the Beam documentation](#embedding-into-the-beam-documentation)
 
 
 ## Step 1. Prepare Your Code
@@ -82,7 +82,7 @@ that Playground uses.
 
 Create a named section for each part of your code that you want that features for.
 
-## Step 2. Place Your Code
+## Step 2. Place your code somewhere the Playground can load it from
 
 ### Playground Visible Catalog
 
@@ -137,7 +137,7 @@ The following optional attributes are supported:
 |-|-|-|
 | `categories` | Titles of categories to list this snippet in. Non-existent categories will be created. | Array of strings |
 | `complexity` | How hard is the snippet to understand. | `BASIC`, `MEDIUM`, `ADVANCED` |
-| `context_line` | The line number to scroll to when the snippet is loaded. This applies after the metadata block is removed from the file. | Integer, 1-based |
+| `context_line` | The line number to scroll to when the snippet is loaded. This applies after the metadata block is removed from the file, so discount for those lines. | Integer, 1-based |
 | `default_example` | Whether this is the default example in its SDK. If multiple snippets set this to `true` the behavior is undefined. | `false` (default), `true` |
 | `tags` | Tags by which this snippet can be found in the dropdown. | Array of strings |
 
@@ -245,7 +245,7 @@ Drawbacks:
 - No cached output and graph.
 
 For Playground to be able to load the snippet over HTTPS,
-your server need to allow the access by sending the following header:
+your server needs to allow the access by sending the following header:
 
 ```
 Access-Control-Allow-Origin: *
@@ -257,8 +257,8 @@ at least when requested with `*.beam.apache.org` as
 To understand the reasons, read about
 [CORS (Cross-Origin Resource Sharing)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS).
 
-The most convenient hosting for snippets is your GitHub repository.
-GitHub is known to allow such access on direct links to raw file content.
+Many people prefer to host their snippets in their GitHub repositories.
+GitHub is known to allow cross-origin access on direct links to raw file content.
 
 ## Step 3. Create a link or embed
 
@@ -270,7 +270,7 @@ Choose any of the following ways.
 You can link to the Playground app so that it opens your code. The link depends on
 where you placed the code.
 
-#### 1. Playground Visible Catalog
+#### 1. Link for a snippet from Playground Visible Catalog
 
 1. Open your snippet in the dropdown menu.
 2. Without changing it, click "Share my code".
@@ -290,17 +290,17 @@ A special case is the default snippet for an SDK. It can be loaded by the follow
 This way if another snippet is ever made default, the links you shared will lead
 to the new snippet.
 
-#### 2. Playground Unlisted Database
+#### 2. Link for a snippet from Playground Unlisted Database
 
 The code can be accessed with the same link as with Playground Visible Catalog.
 Since the snippet is unlisted, you cannot select it in the dropdown and so you should
 manually edit the link. Use the example above and replace the `path` and `sdk` with yours.
 
-#### 3. Tour of Beam Unit
+#### 3. Link for a Tour of Beam Unit
 
 **TODO**
 
-#### 4. User-shared Code
+#### 4. Link for User-shared Code
 
 You get the link when you click "Share my code" button. It is in the following format:
 
@@ -308,7 +308,7 @@ You get the link when you click "Share my code" button. It is in the following f
 https://play.beam.apache.org/?sdk=java&shared=SNIPPET_ID
 ```
 
-#### 5. HTTPS
+#### 5. Link for an HTTPS-served snippet
 
 Add the URL to the `url` parameter, for example:
 
@@ -316,7 +316,7 @@ Add the URL to the `url` parameter, for example:
 https://play.beam.apache.org/?sdk=go&url=https://raw.githubusercontent.com/golang/go/master/src/fmt/format.go
 ```
 
-#### 6. Empty Editor
+#### 6. Link to an empty editor
 
 You can link to an empty editor to make uses start their snippets from scratch:
 
@@ -407,21 +407,21 @@ Additionally the Embedded playground supports the following parameters:
 
 ### Embed into HTML
 
-#### 1. Playground Visible Catalog
+#### 1. Embed a snippet from Playground Visible Catalog
 
 1. Open your snippet in the dropdown menu.
 2. Without changing it, click "Share my code".
 3. Go to "Embed" tab.
 4. Copy the HTML code.
 
-#### 2. User-shared Code
+#### 2. Embed User-shared Code
 
 1. Open your code by the link that you got when you shared it.
 2. Again click "Share my code".
 3. Go to "Embed" tab.
 4. Copy the HTML code.
 
-#### 3. All Other Code Sources
+#### 3. Embed a snippet from any other source
 
 1. Follow the instructions to get a link to your code.
 2. Optionally make the link to the Embedded Playground by replacing `beam.apache.org/?...`
