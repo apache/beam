@@ -109,6 +109,9 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Args:
         model_uri (str): path to the trained model.
         model_type: type of model to be loaded. Defaults to SAVED_MODEL.
+        create_model_fn: a function that creates and returns a new
+          tensorflow model to load the saved weights.
+          It should be used with ModelType.SAVED_WEIGHTS.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
 
@@ -123,6 +126,10 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
     if self._model_type == ModelType.SAVED_WEIGHTS:
+      if not self._create_model_fn:
+        raise ValueError(
+            "Callable create_model_fn must be passed"
+            "with ModelType.SAVED_WEIGHTS")
       return _load_model_from_weights(self._create_model_fn, self._model_uri)
     return _load_model(self._model_uri, self._model_type)
 
@@ -195,6 +202,9 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
         model_uri (str): path to the trained model.
         model_type: type of model to be loaded.
           Defaults to SAVED_MODEL.
+        create_model_fn: a function that creates and returns a new
+          tensorflow model to load the saved weights.
+          It should be used with ModelType.SAVED_WEIGHTS.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
 
@@ -209,6 +219,10 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
     if self._model_type == ModelType.SAVED_WEIGHTS:
+      if not self._create_model_fn:
+        raise ValueError(
+            "Callable create_model_fn must be passed"
+            "with ModelType.SAVED_WEIGHTS")
       return _load_model_from_weights(self._create_model_fn, self._model_uri)
     return _load_model(self._model_uri, self._model_type)
 
