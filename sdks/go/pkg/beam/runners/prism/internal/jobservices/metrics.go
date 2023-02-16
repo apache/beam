@@ -60,7 +60,7 @@ func init() {
 }
 
 // Should probably just construct a slice or map to get the urns out
-// since we'll ultimately be using them alot.
+// since we'll ultimately be using them a lot.
 var metTyps = (pipepb.MonitoringInfoTypeUrns_Enum)(0).Descriptor().Values()
 
 func getMetTyp(t pipepb.MonitoringInfoTypeUrns_Enum) string {
