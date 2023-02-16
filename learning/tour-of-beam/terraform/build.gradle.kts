@@ -90,61 +90,44 @@ tasks {
                 }
         )
     }
-
-    register<TerraformTask>("terraformApplyFrontend") {
-        var environment = "unknown"
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
-        }
-        args(
-                "apply",
-                "-auto-approve",
-                "-lock=false",
-                "-var=environment=$environment",
-                "-target=module.firebase",
-                if (file("./environment/$environment/terraform.tfvars").exists()) {
-                    "-var-file=./environment/$environment/terraform.tfvars"
-                } else {
-                    "-no-color"
-                }
-        )
-    }
 }
 
-tasks.register("getGKEClusterName") {
-    group = "backend-deploy"
-    val result = ByteArrayOutputStream()
-    exec {
-        commandLine("gcloud", "container", "clusters", "list", "--format=value(name)")
-        standardOutput = result
-    }
-    val gkeClusterName = result.toString().trim()
-    project.extensions.extraProperties["gkeClusterName"] = gkeClusterName
-}
+//tasks.register("getGKEClusterName") {
+//    group = "backend-deploy"
+//    val result = ByteArrayOutputStream()
+//    exec {
+//        commandLine("gcloud", "container", "clusters", "list", "--format=value(name)")
+//        standardOutput = result
+//    }
+//    val gkeClusterName = result.toString().trim()
+//    project.extensions.extraProperties["gkeClusterName"] = gkeClusterName
+//}
+//
+//tasks.register("getGKEClusterZone") {
+//    group = "backend-deploy"
+//    val result = ByteArrayOutputStream()
+//    exec {
+//        commandLine("gcloud", "container", "clusters", "list", "--format=value(zone)")
+//        standardOutput = result
+//    }
+//    val gkeClusterZone = result.toString().trim()
+//    project.extensions.extraProperties["gkeClusterZone"] = gkeClusterZone
+//}
 
-tasks.register("getGKEClusterZone") {
-    group = "backend-deploy"
-    val result = ByteArrayOutputStream()
-    exec {
-        commandLine("gcloud", "container", "clusters", "list", "--format=value(zone)")
-        standardOutput = result
-    }
-    val gkeClusterZone = result.toString().trim()
-    project.extensions.extraProperties["gkeClusterZone"] = gkeClusterZone
-}
+//Add as terminal command in README
 
-tasks.register("getCredentials") {
-    dependsOn("getGKEClusterName", "getGKEClusterZone")
-    mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName", ":learning:tour-of-beam:terraform:getGKEClusterZone")
-    group = "backend-deploy"
-    val gkeClusterZone = project.extensions.extraProperties["gkeClusterZone"] as String
-    val gkeClusterName = project.extensions.extraProperties["gkeClusterName"] as String
-    doLast {
-        exec {
-            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone)
-        }
-    }
-}
+//tasks.register("getCredentials") {
+//    var gkeClusterName = ""
+//    var gkeClusterZone = ""
+//    dependsOn("getGKEClusterName", "getGKEClusterZone")
+//    mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName", ":learning:tour-of-beam:terraform:getGKEClusterZone")
+//    group = "backend-deploy"
+//    doLast {
+//        exec {
+//            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone)
+//        }
+//    }
+//}
 
 tasks.register("getRouterHost") {
     group = "backend-deploy"
@@ -168,26 +151,58 @@ tasks.register("indexcreate") {
     }
 }
 
-tasks.register("populateDatastore") {
-    group = "backend-deploy"
-    var project_id = "unknown"
-    if (project.hasProperty("project_id")) {
-        project_id = project.property("project_id") as String
-    }
-    doLast {
-        val result: ExecResult = project.exec {
-            commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
-            environment("DATASTORE_PROJECT_ID", project_id)
-            environment("GOOGLE_PROJECT_ID", project_id)
-            environment("TOB_LEARNING_ROOT", "../learning-content/")
-            workingDir("../backend")
+// Should be as CI CD process
+
+//tasks.register("populateDatastore") {
+//    group = "backend-deploy"
+//    var project_id = "unknown"
+//    if (project.hasProperty("project_id")) {
+//        project_id = project.property("project_id") as String
+//    }
+//    doLast {
+//        val result: ExecResult = project.exec {
+//            commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
+//            environment("DATASTORE_PROJECT_ID", project_id)
+//            environment("GOOGLE_PROJECT_ID", project_id)
+//            environment("TOB_LEARNING_ROOT", "../learning-content/")
+//            workingDir("../backend")
+//        }
+//        if (result.exitValue != 0) {
+//            throw GradleException("Command execution failed with exit code ${result.exitValue}")
+//        }
+//        println("Output of script:\n${result.toString()}")
+//    }
+//}
+
+        tasks.register("flutterPubGetPG") {
+            exec {
+            commandLine("flutter", "pub", "get")
+            workingDir("../../../playground/frontend/playground_components")
+            }
         }
-        if (result.exitValue != 0) {
-            throw GradleException("Command execution failed with exit code ${result.exitValue}")
+
+        tasks.register("flutterPubRunPG") {
+            exec {
+                commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+                workingDir("../../../playground/frontend/playground_components")
+            }
         }
-        println("Output of script:\n${result.toString()}")
-    }
-}
+
+        tasks.register("flutterPubGetTob") {
+            exec {
+                commandLine("flutter", "pub", "get")
+                workingDir("../frontend")
+            }
+        }
+
+        tasks.register("flutterPubGetTob") {
+            exec {
+                commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+                workingDir("../frontend")
+            }
+        }
+
+
 
         tasks.register("prepareConfig") {
             group = "frontend-deploy"
@@ -237,46 +252,25 @@ const String kApiScioClientURL =
 tasks.register("InitBackend") {
     group = "backend-deploy"
     description = "ToB Backend Init"
-    val getGkeName = tasks.getByName("getGKEClusterName")
-    val getGkeZone = tasks.getByName("getGKEClusterZone")
-    val getCreds = tasks.getByName("getCredentials")
     val getRouterHost = tasks.getByName("getRouterHost")
     val indexCreate = tasks.getByName("indexcreate")
     val tfInit = tasks.getByName("terraformInit")
     val tfApplyBackend = tasks.getByName("terraformApplyBackend")
-    val initDatastore = tasks.getByName("populateDatastore")
-    dependsOn(getGkeName)
-    Thread.sleep(9000)
-    dependsOn(getGkeZone)
-    Thread.sleep(9000)
-    dependsOn(getCreds)
-    Thread.sleep(9000)
     dependsOn(getRouterHost)
-    Thread.sleep(9000)
+    Thread.sleep(3000)
     dependsOn(indexCreate)
     dependsOn(tfInit)
     dependsOn(tfApplyBackend)
-    dependsOn(initDatastore)
-    getGkeZone.mustRunAfter(getGkeName)
-    getCreds.mustRunAfter(getGkeZone)
-    getRouterHost.mustRunAfter(getCreds)
     indexCreate.mustRunAfter(getRouterHost)
     tfInit.mustRunAfter(indexCreate)
     tfApplyBackend.mustRunAfter(tfInit)
-    initDatastore.mustRunAfter(tfApplyBackend)
 }
 
 tasks.register("InitFrontend") {
     group = "frontend-deploy"
     description = "ToB Frontend Init"
     val prepareConfig = tasks.getByName("prepareConfig")
-    val tfInit = tasks.getByName("terraformInit")
-    val terraformApplyFrontend = tasks.getByName("terraformApplyFrontend")
     dependsOn(prepareConfig)
     Thread.sleep(4000)
-    dependsOn(tfInit)
-    dependsOn(terraformApplyFrontend)
-    tfInit.mustRunAfter(prepareConfig)
-    terraformApplyFrontend.mustRunAfter(tfInit)
 
 }
