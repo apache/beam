@@ -35,9 +35,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -209,19 +212,20 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     return timestamp;
   }
 
-  private static final Cache<Map<String, String>, SourceTask> CONNECTOR_CACHE =
+  private static final Cache<Map<String, String>, BlockingQueue<SourceTask>> CONNECTOR_CACHE =
       CacheBuilder.newBuilder()
           .expireAfterAccess(java.time.Duration.ofSeconds(60))
           .removalListener(
-              new RemovalListener<Map<String, String>, SourceTask>() {
+              new RemovalListener<Map<String, String>, BlockingQueue<SourceTask>>() {
                 @Override
                 public void onRemoval(
-                    RemovalNotification<Map<String, String>, SourceTask> removalNotification) {
+                    RemovalNotification<Map<String, String>, BlockingQueue<SourceTask>>
+                        removalNotification) {
                   LOG.debug(
                       "Task for key [[{}]] is being removed. Cause: {}",
                       removalNotification.getKey(),
                       removalNotification.getCause());
-                  removalNotification.getValue().stop();
+                  removalNotification.getValue().peek().stop();
                 }
               })
           .maximumSize(10)
@@ -231,36 +235,41 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       Map<String, String> element, RestrictionTracker<OffsetHolder, Map<String, Object>> tracker) {
     final KafkaSourceConsumerFn<T> dofnInstance = this;
     try {
-      return CONNECTOR_CACHE.get(
-          element,
-          new Callable<SourceTask>() {
-            @Override
-            public SourceTask call() throws Exception {
-              SourceConnector connector = null;
-              SourceTask innerTask;
-              Map<String, String> configuration = new HashMap<>(element);
-              configuration.put(BEAM_INSTANCE_PROPERTY, dofnInstance.getHashCode());
-              try {
-                connector = connectorClass.getDeclaredConstructor().newInstance();
-                connector.start(configuration);
-                innerTask =
-                    (SourceTask) connector.taskClass().getDeclaredConstructor().newInstance();
-              } catch (InstantiationException
-                  | IllegalAccessException
-                  | InvocationTargetException
-                  | NoSuchMethodException e) {
-                throw new RuntimeException(
-                    "Unable to initialize connector instance for Debezium", e);
-              }
-              Map<String, ?> consumerOffset = tracker.currentRestriction().offset;
-              LOG.debug("--------- Created new Debezium task with offset: {}", consumerOffset);
+      return CONNECTOR_CACHE
+          .get(
+              element,
+              new Callable<BlockingQueue<SourceTask>>() {
+                @Override
+                public BlockingQueue<SourceTask> call() throws Exception {
+                  SourceConnector connector = null;
+                  SourceTask innerTask;
+                  Map<String, String> configuration = new HashMap<>(element);
+                  configuration.put(BEAM_INSTANCE_PROPERTY, dofnInstance.getHashCode());
+                  try {
+                    connector = connectorClass.getDeclaredConstructor().newInstance();
+                    connector.start(configuration);
+                    innerTask =
+                        (SourceTask) connector.taskClass().getDeclaredConstructor().newInstance();
+                  } catch (InstantiationException
+                      | IllegalAccessException
+                      | InvocationTargetException
+                      | NoSuchMethodException e) {
+                    throw new RuntimeException(
+                        "Unable to initialize connector instance for Debezium", e);
+                  }
+                  Map<String, ?> consumerOffset = tracker.currentRestriction().offset;
+                  LOG.debug("--------- Created new Debezium task with offset: {}", consumerOffset);
 
-              innerTask.initialize(new BeamSourceTaskContext(tracker.currentRestriction().offset));
-              innerTask.start(connector.taskConfigs(1).get(0));
-              return innerTask;
-            }
-          });
-    } catch (ExecutionException e) {
+                  innerTask.initialize(
+                      new BeamSourceTaskContext(tracker.currentRestriction().offset));
+                  innerTask.start(connector.taskConfigs(1).get(0));
+                  BlockingQueue<SourceTask> taskQueue = new LinkedBlockingQueue<>(1);
+                  taskQueue.add(innerTask);
+                  return taskQueue;
+                }
+              })
+          .poll(2, TimeUnit.MINUTES);
+    } catch (ExecutionException | InterruptedException e) {
       throw new RuntimeException(
           String.format("Unable to compute the debezium SourceTask for element %s", element), e);
     }
@@ -281,7 +290,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   public ProcessContinuation process(
       @Element Map<String, String> element,
       RestrictionTracker<OffsetHolder, Map<String, Object>> tracker,
-      OutputReceiver<T> receiver) {
+      OutputReceiver<T> receiver)
+      throws InterruptedException {
     // Adding the current restriction to the class object to be found by the database history
     register(tracker);
 
@@ -331,6 +341,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       CONNECTOR_CACHE.invalidate(element);
       return ProcessContinuation.stop();
     } else {
+      CONNECTOR_CACHE.getIfPresent(element).put(task);
       return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
     }
   }
