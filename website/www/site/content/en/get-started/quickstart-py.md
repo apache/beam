@@ -1,5 +1,5 @@
 ---
-title: "Beam Quickstart for Python"
+title: "WordCount Quickstart for Python"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 
 {{< toc >}}
 
-The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last release with support for Python 2.7 and 3.5.
+The Python SDK supports Python 3.7, 3.8, 3.9 and 3.10. Beam 2.38.0 was the last release with support for Python 3.6.
 
 ## Set up your environment
 

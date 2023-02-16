@@ -32,6 +32,7 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.Schema;
@@ -39,6 +40,8 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -273,15 +276,48 @@ public class CsvIO {
 
   /** {@link PTransform} for writing CSV files. */
   @AutoValue
-  public abstract static class Write<T>
-      extends PTransform<PCollection<T>, WriteFilesResult<String>> {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, WriteFilesResult<String>>
+      implements HasDisplayData {
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      CSVFormat csvFormat = getCSVFormat();
+      builder.add(DisplayData.item("delimiter", String.valueOf(csvFormat.getDelimiter())));
+      if (csvFormat.getQuoteCharacter() != null) {
+        builder.add(
+            DisplayData.item("quoteCharacter", String.valueOf(csvFormat.getQuoteCharacter())));
+      }
+      if (csvFormat.getQuoteMode() != null) {
+        builder.add(DisplayData.item("quoteMode", csvFormat.getQuoteMode().toString()));
+      }
+      if (csvFormat.getCommentMarker() != null) {
+        builder.add(DisplayData.item("commentMarker", csvFormat.getCommentMarker().toString()));
+      }
+      if (csvFormat.getEscapeCharacter() != null) {
+        builder.add(DisplayData.item("escapeCharacter", csvFormat.getEscapeCharacter().toString()));
+      }
+      builder.addIfNotNull(DisplayData.item("recordSeparator", csvFormat.getRecordSeparator()));
+      builder.addIfNotNull(DisplayData.item("nullString", csvFormat.getNullString()));
+      if (csvFormat.getHeaderComments() != null) {
+        builder.add(
+            DisplayData.item("headerComments", String.join("\n", csvFormat.getHeaderComments())));
+      }
+      if (csvFormat.getHeader() != null) {
+        builder.add(DisplayData.item("header", String.join(",", csvFormat.getHeader())));
+      }
+      builder.addIfNotNull(DisplayData.item("trailingDelimiter", csvFormat.getTrailingDelimiter()));
+      builder.addIfNotNull(DisplayData.item("trim", csvFormat.getTrim()));
+      builder.addIfNotNull(
+          DisplayData.item("allowDuplicateHeaderNames", csvFormat.getAllowDuplicateHeaderNames()));
+    }
 
     /** Specifies the {@link Compression} of all generated shard files. */
     public Write<T> withCompression(Compression compression) {
       return toBuilder().setTextIOWrite(getTextIOWrite().withCompression(compression)).build();
     }
 
-    /** Specifies all data written without spilling, simplifying the pipeline. */
+    /** Whether to skip the spilling of data. See {@link WriteFiles#withNoSpilling}. */
     public Write<T> withNoSpilling() {
       return toBuilder().setTextIOWrite(getTextIOWrite().withNoSpilling()).build();
     }
@@ -439,10 +475,14 @@ public class CsvIO {
         }
       }
 
-      CSVFormat withoutHeaderComments = csvFormat.withHeaderComments();
+      // We remove header comments since we've already processed them above.
+      // CSV commons library was designed with a single file write in mind
+      // which is why we need to manipulate CSVFormat in this way to be compatible
+      // in a TextIO.Write context.
+      CSVFormat withHeaderCommentsRemoved = csvFormat.withHeaderComments();
 
       result.add(
-          withoutHeaderComments
+          withHeaderCommentsRemoved
               // The withSkipHeaderRecord parameter prevents CSVFormat from outputting two copies of
               // the header.
               .withSkipHeaderRecord()

@@ -131,7 +131,7 @@ python tensorrt_text_classification.py \
 --region us-central1 \
 --temp_location gs://{GCP_PROJECT}/tmp/ \
 --job_name tensorrt-text-classification \
---sdk_container_image="us.gcr.io/{GCP_PROJECT}/{MY_DIR}/tensor_rt tensor_rt"
+--sdk_container_image="us.gcr.io/{GCP_PROJECT}/{MY_DIR}/tensor_rt"
 ```
 
 
