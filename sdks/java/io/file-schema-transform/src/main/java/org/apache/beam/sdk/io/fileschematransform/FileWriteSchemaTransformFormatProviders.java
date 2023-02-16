@@ -118,14 +118,14 @@ public final class FileWriteSchemaTransformFormatProviders {
     return write;
   }
 
-  private static Compression getCompression(FileWriteSchemaTransformConfiguration configuration) {
+  static Compression getCompression(FileWriteSchemaTransformConfiguration configuration) {
     // resolves Checker Framework incompatible argument for valueOf parameter
     Optional<String> compression = Optional.ofNullable(configuration.getCompression());
     checkState(compression.isPresent());
     return Compression.valueOf(compression.get());
   }
 
-  private static String getFilenameSuffix(FileWriteSchemaTransformConfiguration configuration) {
+  static String getFilenameSuffix(FileWriteSchemaTransformConfiguration configuration) {
     // resolves Checker Framework incompatible argument for parameter suffix of withSuffix
     Optional<String> suffix = Optional.ofNullable(configuration.getFilenameSuffix());
     checkState(suffix.isPresent());

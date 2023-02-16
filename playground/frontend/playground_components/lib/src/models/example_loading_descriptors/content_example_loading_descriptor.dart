@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:convert';
+
 import '../../enums/complexity.dart';
 import '../example_view_options.dart';
 import '../sdk.dart';
@@ -42,8 +44,8 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   });
 
   static ContentExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {
-    final files = map['files'];
-    if (files is! List) {
+    final files = _getFilesFromMap(map);
+    if (files == null) {
       return null;
     }
 
@@ -53,7 +55,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     }
 
     return ContentExampleLoadingDescriptor(
-      files: (map['files'] as List<dynamic>)
+      files: files
           .map((file) => SnippetFile.fromJson(file as Map<String, dynamic>))
           .toList(growable: false),
       name: map['name']?.toString(),
@@ -63,13 +65,40 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     );
   }
 
+  static List? _getFilesFromMap(Map<String, dynamic> map) {
+    final files = map['files'];
+
+    if (files is List) {
+      return files;
+    }
+
+    if (files is String) {
+      final list = jsonDecode(files);
+      if (list is List) {
+        return list;
+      }
+    }
+
+    return null;
+  }
+
   @override
   List<Object?> get props => [
         complexity,
         files,
         name,
         sdk.id,
+        viewOptions,
       ];
+
+  @override
+  ContentExampleLoadingDescriptor copyWithoutViewOptions() =>
+      ContentExampleLoadingDescriptor(
+        complexity: complexity,
+        files: files,
+        name: name,
+        sdk: sdk,
+      );
 
   @override
   Map<String, dynamic> toJson() => {
@@ -77,5 +106,6 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         'files': files.map((e) => e.toJson()).toList(growable: false),
         'name': name,
         'sdk': sdk.id,
+        ...viewOptions.toShortMap(),
       };
 }

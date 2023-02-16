@@ -32,12 +32,22 @@ class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   });
 
   @override
-  List<Object> get props => [sdk.id];
+  List<Object> get props => [
+        sdk.id,
+        viewOptions,
+      ];
+
+  @override
+  CatalogDefaultExampleLoadingDescriptor copyWithoutViewOptions() =>
+      CatalogDefaultExampleLoadingDescriptor(
+        sdk: sdk,
+      );
 
   @override
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         _key: true,
+        ...viewOptions.toShortMap(),
       };
 
   static CatalogDefaultExampleLoadingDescriptor? tryParse(
