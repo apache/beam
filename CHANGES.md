@@ -54,6 +54,10 @@
 
 ## Highlights
 
+* Java SDK containers migrated to [Eclipse Temurin](https://hub.docker.com/_/eclipse-temurin)
+  as a base. This change migrates away from the deprecated [OpenJDK](https://hub.docker.com/_/openjdk)
+  container. Eclipse Temurin is currently based upon Ubuntu 22.04 while the OpenJDK
+  container was based upon Debian 11.
 * RunInference PTransform will accept model paths as SideInputs in Python SDK. ([#24042](https://github.com/apache/beam/issues/24042))
 * RunInference supports ONNX runtime in Python SDK ([#22972](https://github.com/apache/beam/issues/22972))
 
