@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 
 /** Class to aggregate metrics related functionality. */
@@ -49,6 +50,30 @@ public class ChangeStreamMetrics implements Serializable {
           "heartbeat_count");
 
   /**
+   * Counter for the total number of ChangeStreamMutations that are initiated by users (not garbage
+   * collection) identified during the execution of the Connector.
+   */
+  public static final Counter CHANGE_STREAM_MUTATION_USER_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "change_stream_mutation_user_count");
+
+  /**
+   * Counter for the total number of ChangeStreamMutations that are initiated by garbage collection
+   * (not user initiated) identified during the execution of the Connector.
+   */
+  public static final Counter CHANGE_STREAM_MUTATION_GC_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "change_stream_mutation_gc_count");
+
+  /** Distribution for measuring processing delay from commit timestamp. */
+  public static final Distribution PROCESSING_DELAY_FROM_COMMIT_TIMESTAMP =
+      Metrics.distribution(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "processing_delay_from_commit_timestamp");
+
+  /**
    * Increments the {@link
    * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#LIST_PARTITIONS_COUNT} by
    * 1 if the metric is enabled.
@@ -66,7 +91,37 @@ public class ChangeStreamMetrics implements Serializable {
     inc(HEARTBEAT_COUNT);
   }
 
+  /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#CHANGE_STREAM_MUTATION_USER_COUNT}
+   * by 1 if the metric is enabled.
+   */
+  public void incChangeStreamMutationUserCounter() {
+    inc(CHANGE_STREAM_MUTATION_USER_COUNT);
+  }
+
+  /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#CHANGE_STREAM_MUTATION_GC_COUNT}
+   * by 1 if the metric is enabled.
+   */
+  public void incChangeStreamMutationGcCounter() {
+    inc(CHANGE_STREAM_MUTATION_GC_COUNT);
+  }
+
+  /**
+   * Adds measurement of an instance for the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#PROCESSING_DELAY_FROM_COMMIT_TIMESTAMP}.
+   */
+  public void updateProcessingDelayFromCommitTimestamp(long durationInMilli) {
+    update(PROCESSING_DELAY_FROM_COMMIT_TIMESTAMP, durationInMilli);
+  }
+
   private void inc(Counter counter) {
     counter.inc();
+  }
+
+  private void update(Distribution distribution, long value) {
+    distribution.update(value);
   }
 }
