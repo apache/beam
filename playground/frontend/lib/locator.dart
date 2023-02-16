@@ -27,7 +27,7 @@ import 'router/route_information_parser.dart';
 
 Future<void> initializeServiceLocator() async {
   _initializeRepositories();
-  _initializeState();
+  _initializeRouter();
 }
 
 void _initializeRepositories() {
@@ -48,7 +48,7 @@ void _initializeRepositories() {
   ));
 }
 
-void _initializeState() {
+void _initializeRouter() {
   GetIt.instance.registerSingleton(
     PageStack(
       bottomPage: LoadingPage(),
@@ -56,4 +56,9 @@ void _initializeState() {
       routeInformationParser: PlaygroundRouteInformationParser(),
     ),
   );
+
+  GetIt.instance.registerSingleton<PageStackRouteInformationParser>(
+    PlaygroundRouteInformationParser(),
+  );
+  print('Initialized PageStackRouteInformationParser');
 }

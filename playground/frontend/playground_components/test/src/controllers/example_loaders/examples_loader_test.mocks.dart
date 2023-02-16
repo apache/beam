@@ -27,10 +27,12 @@ import 'package:playground_components/src/models/example_loading_descriptors/exa
     as _i9;
 import 'package:playground_components/src/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart'
     as _i8;
+import 'package:playground_components/src/models/example_view_options.dart'
+    as _i19;
 import 'package:playground_components/src/models/loading_status.dart' as _i18;
 import 'package:playground_components/src/models/sdk.dart' as _i13;
 import 'package:playground_components/src/models/shortcut.dart' as _i6;
-import 'package:playground_components/src/models/snippet_file.dart' as _i19;
+import 'package:playground_components/src/models/snippet_file.dart' as _i20;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -231,23 +233,6 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i6.BeamShortcut get showSuggestionsShortcut => (super.noSuchMethod(
-        Invocation.getter(#showSuggestionsShortcut),
-        returnValue: _FakeBeamShortcut_4(
-          this,
-          Invocation.getter(#showSuggestionsShortcut),
-        ),
-      ) as _i6.BeamShortcut);
-  @override
-  set showSuggestionsShortcut(_i6.BeamShortcut? _showSuggestionsShortcut) =>
-      super.noSuchMethod(
-        Invocation.setter(
-          #showSuggestionsShortcut,
-          _showSuggestionsShortcut,
-        ),
-        returnValueForMissingStub: null,
-      );
-  @override
   String get examplesTitle => (super.noSuchMethod(
         Invocation.getter(#examplesTitle),
         returnValue: '',
@@ -352,14 +337,6 @@ class MockPlaygroundController extends _i1.Mock
         returnValue: _i14.Future<void>.value(),
         returnValueForMissingStub: _i14.Future<void>.value(),
       ) as _i14.Future<void>);
-  @override
-  void showSuggestions() => super.noSuchMethod(
-        Invocation.method(
-          #showSuggestions,
-          [],
-        ),
-        returnValueForMissingStub: null,
-      );
   @override
   void resetErrorMessageText() => super.noSuchMethod(
         Invocation.method(
@@ -530,23 +507,28 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         )),
       ) as _i14.Future<_i10.ExampleBase>);
   @override
-  _i14.Future<_i11.Example> loadSharedExample(String? id) =>
+  _i14.Future<_i11.Example> loadSharedExample(
+    String? id, {
+    required _i19.ExampleViewOptions? viewOptions,
+  }) =>
       (super.noSuchMethod(
         Invocation.method(
           #loadSharedExample,
           [id],
+          {#viewOptions: viewOptions},
         ),
         returnValue: _i14.Future<_i11.Example>.value(_FakeExample_9(
           this,
           Invocation.method(
             #loadSharedExample,
             [id],
+            {#viewOptions: viewOptions},
           ),
         )),
       ) as _i14.Future<_i11.Example>);
   @override
   _i14.Future<String> saveSnippet({
-    required List<_i19.SnippetFile>? files,
+    required List<_i20.SnippetFile>? files,
     required _i13.Sdk? sdk,
     required String? pipelineOptions,
   }) =>

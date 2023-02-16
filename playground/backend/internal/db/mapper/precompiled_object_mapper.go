@@ -226,5 +226,5 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 
 // getCloudPath returns the cloud path by example entity
 func getCloudPath(example *entity.ExampleEntity) string {
-	return fmt.Sprintf("%s/%s/%s", example.Sdk.Name, example.Type, example.Name)
+	return fmt.Sprintf("%s_%s", example.Sdk.Name, example.Name)
 }
