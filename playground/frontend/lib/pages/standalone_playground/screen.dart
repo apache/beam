@@ -37,6 +37,7 @@ import 'widgets/playground_page_footer.dart';
 import 'widgets/playground_page_providers.dart';
 
 class StandalonePlaygroundScreen extends StatelessWidget {
+  static const kAppBarButtonsWidth = 1105;
   final StandalonePlaygroundNotifier notifier;
 
   const StandalonePlaygroundScreen(this.notifier);
@@ -56,6 +57,10 @@ class StandalonePlaygroundScreen extends StatelessWidget {
 
               return Scaffold(
                 appBar: AppBar(
+                  toolbarHeight:
+                      MediaQuery.of(context).size.width > kAppBarButtonsWidth
+                          ? kToolbarHeight
+                          : 2 * kToolbarHeight,
                   automaticallyImplyLeading: false,
                   title: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,

@@ -78,7 +78,7 @@ class _Types extends StatelessWidget {
 }
 
 class _Tags extends StatelessWidget {
-  final ScrollController scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
   _Tags();
 
   @override
@@ -88,10 +88,10 @@ class _Tags extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: kMdSpacing),
           child: WebScrollConverterWidget(
-            scrollController: scrollController,
+            scrollController: _scrollController,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              controller: scrollController,
+              controller: _scrollController,
               child: Wrap(
                 children: state.tags
                     .map((tag) => TagBubble(name: tag))

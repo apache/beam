@@ -149,6 +149,8 @@ class CodeRunner extends ChangeNotifier {
     }
 
     snippetEditingController = null;
+    // Awaited cancelling subscription here blocks futrher method execution. 
+    // TODO: Figure out the reason: https://github.com/apache/beam/issues/25509
     unawaited(_runSubscription?.cancel());
     final pipelineUuid = _result?.pipelineUuid ?? '';
 

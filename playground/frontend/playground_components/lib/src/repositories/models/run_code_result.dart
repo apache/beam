@@ -33,13 +33,13 @@ enum RunCodeStatus {
 }
 
 const kFinishedStatuses = [
-  RunCodeStatus.compileError,
-  RunCodeStatus.finished,
-  RunCodeStatus.preparationError,
-  RunCodeStatus.runError,
-  RunCodeStatus.timeout,
   RunCodeStatus.unknownError,
+  RunCodeStatus.timeout,
+  RunCodeStatus.compileError,
+  RunCodeStatus.runError,
   RunCodeStatus.validationError,
+  RunCodeStatus.preparationError,
+  RunCodeStatus.finished,
 ];
 
 class RunCodeResult with EquatableMixin {

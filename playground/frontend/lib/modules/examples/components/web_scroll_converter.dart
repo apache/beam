@@ -24,15 +24,13 @@ import 'package:flutter/widgets.dart';
 ///
 /// Use this to scroll horizontal lists that would otherwise not scroll
 /// because mouse wheel only scrolls vertically.
-///
-/// This widget appears to has no effect on swipe scrolling on mobile platforms.
 class WebScrollConverterWidget extends StatelessWidget {
-  final ScrollController scrollController;
   final Widget child;
+  final ScrollController scrollController;
 
   const WebScrollConverterWidget({
-    required this.scrollController,
     required this.child,
+    required this.scrollController,
   });
 
   @override
@@ -41,12 +39,11 @@ class WebScrollConverterWidget extends StatelessWidget {
       onPointerSignal: (pointerSignal) {
         if (pointerSignal is PointerScrollEvent) {
           final delta = pointerSignal.scrollDelta.dy;
-          final overscroll = scrollController.position.animateTo(
+          scrollController.position.animateTo(
             scrollController.position.pixels + delta,
             duration: const Duration(milliseconds: 100),
             curve: Curves.linear,
           );
-          print(overscroll);
         }
       },
       child: child,

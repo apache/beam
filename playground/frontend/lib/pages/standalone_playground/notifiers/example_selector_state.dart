@@ -25,6 +25,7 @@ class ExampleSelectorState with ChangeNotifier {
   String _searchText;
   List<CategoryWithExamples> categories;
   List<String> tags = [];
+  late final Map<String, int> tagsFrequencyMap;
   List<String> selectedTags = [];
 
   ExampleSelectorState(
@@ -34,6 +35,7 @@ class ExampleSelectorState with ChangeNotifier {
     this._searchText = '',
   ]) {
     tags = _getTagsSortedByExampleCount(categories);
+    tagsFrequencyMap = _buildTagsFrequencyMap(_getAllCategories().toList());
   }
 
   ExampleType get selectedFilterType => _selectedFilterType;
@@ -64,7 +66,15 @@ class ExampleSelectorState with ChangeNotifier {
       } else if (!selectedTags.contains(a) && selectedTags.contains(b)) {
         return 1;
       } else {
-        return 0;
+        final aFreq = tagsFrequencyMap[a] ?? -1;
+        final bFreq = tagsFrequencyMap[b] ?? -1;
+        if (aFreq > bFreq) {
+          return -1;
+        } else if (aFreq < bFreq) {
+          return 1;
+        } else {
+          return a.compareTo(b);
+        }
       }
     });
   }
@@ -72,17 +82,28 @@ class ExampleSelectorState with ChangeNotifier {
   List<String> _getTagsSortedByExampleCount(
     List<CategoryWithExamples> categories,
   ) {
-    Map<String, int> exampleCountByTag = {};
+    Map<String, int> tagsFrequencyMap = _buildTagsFrequencyMap(categories);
+    final tagEntries = tagsFrequencyMap.entries.toList()
+      ..sort(
+        (entry1, entry2) => entry2.value.compareTo(entry1.value) != 0
+            ? entry2.value.compareTo(entry1.value)
+            : entry2.key.compareTo(entry1.key),
+      );
+    return tagEntries.map((entry) => entry.key).toList();
+  }
+
+  Map<String, int> _buildTagsFrequencyMap(
+    List<CategoryWithExamples> categories,
+  ) {
+    Map<String, int> result = {};
     for (final category in categories) {
       for (final example in category.examples) {
         for (final tag in example.tags) {
-          exampleCountByTag[tag] = (exampleCountByTag[tag] ?? 0) + 1;
+          result[tag] = (result[tag] ?? 0) + 1;
         }
       }
     }
-    final tagEntries = exampleCountByTag.entries.toList()
-      ..sort((entry1, entry2) => entry2.value.compareTo(entry1.value));
-    return tagEntries.map((entry) => entry.key).toList();
+    return result;
   }
 
   void setSearchText(String text) {
@@ -96,16 +117,22 @@ class ExampleSelectorState with ChangeNotifier {
   }
 
   void filterCategoriesWithExamples() {
-    final categories = _playgroundController.exampleCache.getCategories(
-      _playgroundController.sdk,
-    );
-    final filteredCategories = categories
-        .map((category) => CategoryWithExamples(
-            title: category.title,
-            examples: _filterExamples(category.examples)))
+    final filteredCategories = _getAllCategories()
         .where((category) => category.examples.isNotEmpty)
         .toList();
     setCategories(filteredCategories);
+  }
+
+  Iterable<CategoryWithExamples> _getAllCategories() {
+    final categories = _playgroundController.exampleCache.getCategories(
+      _playgroundController.sdk,
+    );
+    return categories.map(
+      (category) => CategoryWithExamples(
+        title: category.title,
+        examples: _filterExamples(category.examples),
+      ),
+    );
   }
 
   List<ExampleBase> _filterExamples(List<ExampleBase> examples) {

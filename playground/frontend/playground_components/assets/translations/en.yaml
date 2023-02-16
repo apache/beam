@@ -23,7 +23,7 @@ errors:
   loadingCatalog: 'Cannot load the example catalog.'
   loadingExample: 'Cannot load the example.'
   savingSnippet: 'Cannot create a shareable link.'
-  unknownError: 'Unknown error. Potential internet connection problem or CORS issue'
+  unknownError: 'Unknown error. Possibly internet connection problem or CORS issue'
 
 examples:
   defaultTitle: 'Catalog'
