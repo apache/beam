@@ -18,15 +18,15 @@ They can be combined, e.g.
 - [Step 1. Prepare Your Code](#step-1-prepare-your-code)
   * [Named Sections](#named-sections)
 - [Step 2. Place your code somewhere the Playground can load it from](#step-2-place-your-code-somewhere-the-playground-can-load-it-from)
-  * [Playground Visible Catalog](#playground-visible-catalog)
+  * [Source 1. Playground Visible Catalog](#source-1-playground-visible-catalog)
     + [1. Put the file to the directory](#1-put-the-file-to-the-directory)
     + [2. Add metadata](#2-add-metadata)
     + [3. Make a PR](#3-make-a-pr)
     + [4. Save the snippet path](#4-save-the-snippet-path)
-  * [Playground Unlisted Database](#playground-unlisted-database)
-  * [Tour of Beam unit](#tour-of-beam-unit)
-  * [User-shared Code](#user-shared-code)
-  * [HTTPS](#https)
+  * [Source 2. Playground Unlisted Database](#source-2-playground-unlisted-database)
+  * [Source 3. Tour of Beam unit](#source-3-tour-of-beam-unit)
+  * [Source 4. User-shared Code](#source-4-user-shared-code)
+  * [Source 5. HTTPS](#source-5-https)
 - [Step 3. Create a link or embed](#step-3-create-a-link-or-embed)
   * [Direct Link to the Standalone Playground Web App](#direct-link-to-the-standalone-playground-web-app)
     + [1. Link for a snippet from Playground Visible Catalog](#1-link-for-a-snippet-from-playground-visible-catalog)
@@ -62,7 +62,7 @@ Additionally it can apply the following view options:
 - Completely hide all code except certain parts.
 - Make certain parts read-only.
 
-If you do not need any of those view options, skip to the next step.
+If you do not need any of those view options, skip to the [next step](#step-2-place-your-code-somewhere-the-playground-can-load-it-from).
 
 ### Named Sections
 
@@ -84,12 +84,12 @@ Create a named section for each part of your code that you want that features fo
 
 ## Step 2. Place your code somewhere the Playground can load it from
 
-### Playground Visible Catalog
+### Source 1. Playground Visible Catalog
 
 If you think your snippet is beneficial to many users, it's a good idea to add it to
 the Playground Catalog.
 
-Benefits:
+Advantages:
 
 - Anyone can find your snippet in the dropdown when they open Playground.
 - The CI of the Beam repository guarantees your snippet builds and runs correctly.
@@ -112,13 +112,14 @@ Place the file anywhere under the given directory.
 
 **TODO: NAMING, DIRECTORY STRUCTURE?**
 
-Snippets in Scala are not yet supported for by the workflows.
+Snippets in Scala are not yet supported for by that workflow.
 All existing Scala examples are added manually by the team.
 Please use other options to place your Scala snippets.
 
 #### 2. Add metadata
 
-Playground needs metadata to put a snippet to the database. These are stored as comments.
+Playground needs metadata to put a snippet to the database. These are stored as a comment block
+anywhere in the snippet.
 See [this](https://github.com/apache/beam/blob/3e080ff212d8ed7208c8486b515bb73c5d294475/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java#L20-L36) for an example.
 This comment block is cut from the text before putting it to the database and so is not visible
 to end users. The block is in the format of a YAML map.
@@ -173,13 +174,13 @@ SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount
 
 You will need it to embed the Playground code.
 
-### Playground Unlisted Database
+### Source 2. Playground Unlisted Database
 
 If your snippet is less useful to public for learning but still beneficial to some group
 of people, you can put it into the same database as the Playground Visible Catalog
 but make it unlisted.
 
-Benefits:
+Advantages:
 
 - The CI of the Beam repository guarantees your snippet builds and runs correctly.
 - Output and graph are cached so the viewers of your snippet will not wait when they run it.
@@ -192,12 +193,12 @@ Proceed the same way as with Playground Visible Catalog, but do not use these at
 
 **TODO: How to get the path of the example?**
 
-### Tour of Beam unit
+### Source 3. Tour of Beam unit
 
 If your snippet fills a gap in the Tour of Beam tutorial, you can add it there
 as a learning unit. This also requires a textual learning material that your snippet will accompany.
 
-Benefits:
+Advantages:
 
 - Anyone can find your snippet in the Tour of Beam tutorial.
 - The CI of the Beam repository guarantees your snippet builds and runs correctly.
@@ -205,13 +206,13 @@ Benefits:
 
 **TODO: HOWTO**
 
-### User-shared Code
+### Source 4. User-shared Code
 
 Code can be uploaded directly to the database with "Share my code" button in Playground:
 
 ![Workflow](doc/get_your_code/images/share-my-code.png)
 
-Benefits:
+Advantages:
 
 - No approval required.
 - Fast.
@@ -228,12 +229,12 @@ After clicking the button you will get a shareable link or embeddable HTML code.
 Note the `shared` parameter in the link query string.
 It contains the ID of your snippet that you can later use with other sharing methods.
 
-### HTTPS
+### Source 5. HTTPS
 
 You can upload a snippet file to any HTTPS-server you have access to.
 Then you refer to it by a URL to load into Playground.
 
-Benefits:
+Advantages:
 
 - No approval required.
 - Fast.
@@ -371,15 +372,15 @@ are allowed for loading single examples, for instance:
 
 ```json
 [
-   {
-      "sdk": "java",
-      "path": "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"
-   },
-   {
-      "sdk": "go",
-      "url": "https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go",
-      "readonly": "iam_get_role"
-   }
+  {
+    "sdk": "java",
+    "path": "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"
+  },
+  {
+    "sdk": "go",
+    "url": "https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go",
+    "readonly": "iam_get_role"
+  }
 ]
 ```
 
@@ -423,7 +424,7 @@ Additionally the Embedded playground supports the following parameters:
 
 #### 3. Embed a snippet from any other source
 
-1. Follow the instructions to get a link to your code.
+1. Follow the instructions to [get a link](#direct-link-to-the-standalone-playground-web-app) to your code.
 2. Optionally make the link to the Embedded Playground by replacing `beam.apache.org/?...`
    with `beam.apache.org/embedded?...` because the embedded interface is simpler.
 3. Insert this link into an `<iframe>` HTML element like this:
@@ -446,4 +447,3 @@ Use the custom shortcodes to embed Playground into the documentation:
 - `playground_snippet` shortcode, see [a comment in it](https://github.com/apache/beam/blob/master/website/www/site/layouts/shortcodes/playground_snippet.html) for all supported options.
 
 These shortcodes generate an `iframe` with the URLs described above.
-
