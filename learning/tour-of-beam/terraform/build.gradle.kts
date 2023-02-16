@@ -204,7 +204,7 @@ tasks.register("populateDatastore") {
                 if (project.hasProperty("dns-name")) {
                     dns_name = project.property("dns-name") as String
                 }
-                val configFileName = "config.g.dart"
+                val configFileName = "config.dart"
                 val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
                 var file = File("$modulePath/lib/$configFileName")
 

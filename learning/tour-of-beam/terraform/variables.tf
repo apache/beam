@@ -32,7 +32,6 @@ variable "region" {
 }
 
 variable "pg_router_host" {
-  default = ""
 }
 
 variable "environment" {}
