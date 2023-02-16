@@ -33,5 +33,9 @@ void main() {
     test('token == null', () {
       expect(descriptor.token, null);
     });
+
+    test('copyWithoutViewOptions', () {
+      expect(descriptor.copyWithoutViewOptions(), descriptor);
+    });
   });
 }

@@ -47,9 +47,17 @@ class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor
       ];
 
   @override
+  StandardExampleLoadingDescriptor copyWithoutViewOptions() =>
+      StandardExampleLoadingDescriptor(
+        path: path,
+        sdk: sdk,
+      );
+
+  @override
   Map<String, dynamic> toJson() => {
         'path': path,
         'sdk': sdk.id,
+        ...viewOptions.toShortMap(),
       };
 
   static StandardExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {

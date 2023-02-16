@@ -34,5 +34,7 @@ abstract class ExampleLoadingDescriptor with EquatableMixin {
   /// snippets in most cases but not as a strictly unique identifier.
   String? get token => null;
 
+  ExampleLoadingDescriptor copyWithoutViewOptions();
+
   Map<String, dynamic> toJson();
 }

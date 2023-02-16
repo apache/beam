@@ -32,6 +32,15 @@ because the `apache_beam.examples.inference` module was added in that release.
 pip install apache-beam==2.40.0
 ```
 
+### Tensorflow dependencies
+
+The following installation requirement is for the Tensorflow model handler examples.
+
+The RunInference API supports the Tensorflow framework. To use Tensorflow locally, first install `tensorflow`.
+```
+pip install tensorflow==2.11.0
+```
+
 ### PyTorch dependencies
 
 The following installation requirements are for the files used in these examples.
@@ -418,3 +427,99 @@ This writes the output to the output file path with contents like:
 ```
 A comedy-drama of nearly epic proportions rooted in a sincere performance by the title character undergoing midlife crisis .;1
 ```
+
+---
+## MNIST digit classification with Tensorflow
+[`tensorflow_mnist_classification.py`](./tensorflow_mnist_classification.py) contains an implementation for a RunInference pipeline that performs image classification on handwritten digits from the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
+
+The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for language modeling
+
+To use this transform, you need a dataset and model for language modeling.
+
+1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
+```
+1,0,0,0...
+0,0,0,0...
+1,0,0,0...
+4,0,0,0...
+...
+```
+2. Save the trained tensorflow model to a directory `MODEL_DIR` .
+
+
+### Running `tensorflow_mnist_classification.py`
+
+To run the MNIST classification pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.tensorflow_mnist_classification.py \
+  --input INPUT \
+  --output OUTPUT \
+  --model_path MODEL_DIR
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.tensorflow_mnist_classification.py \
+  --input INPUT.csv \
+  --output predictions.txt \
+  --model_path MODEL_DIR
+```
+
+This writes the output to the `predictions.txt` with contents like:
+```
+1,1
+4,4
+0,0
+7,7
+3,3
+5,5
+...
+```
+Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
+
+---
+## Image segmentation with Tensorflow and TensorflowHub
+
+[`tensorflow_imagenet_segmentation.py`](./tensorflow_imagenet_segmentation.py) contains an implementation for a RunInference pipeline that performs image segementation using the [`mobilenet_v2`]("https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4") architecture from the tensorflow hub.
+
+The pipeline reads images, performs basic preprocessing, passes the images to the Tensorflow implementation of RunInference, and then writes predictions to a text file.
+
+### Dataset and model for image segmentation
+
+To use this transform, you need a dataset and model for image segmentation.
+
+1. Create a directory named `IMAGE_DIR`. Create or download images and put them in this directory. We
+will use the [example image]("https://storage.googleapis.com/download.tensorflow.org/example_images/") on tensorflow.
+2. Create a file named `IMAGE_FILE_NAMES.txt` that names of each of the images in `IMAGE_DIR` that you want to use to run image segmentation. For example:
+```
+grace_hopper.jpg
+```
+3. A tensorflow `MODEL_PATH`, we will use the [mobilenet]("https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4") model.
+4. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
+
+### Running `tensorflow_image_segmentation.py`
+
+To run the image segmentation pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.tensorflow_image_segmentation \
+  --input IMAGE_FILE_NAMES \
+  --image_dir IMAGES_DIR \
+  --output OUTPUT \
+  --model_path MODEL_PATH
+```
+
+For example, if you've followed the naming conventions recommended above:
+```sh
+python -m apache_beam.examples.inference.tensorflow_image_segmentation \
+  --input IMAGE_FILE_NAMES.txt \
+  --image_dir "https://storage.googleapis.com/download.tensorflow.org/example_images/"
+  --output predictions.txt \
+  --model_path "https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4"
+```
+This writes the output to the `predictions.txt` with contents like:
+```
+background
+...
+```
+Each line has a list of predicted label.

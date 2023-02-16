@@ -28,6 +28,7 @@ void main() {
     final descriptor = HttpExampleLoadingDescriptor(
       sdk: Sdk.go,
       uri: Uri.parse(urlString),
+      viewOptions: viewOptions,
     );
 
     test('toJson -> tryParse', () {
@@ -37,11 +38,14 @@ void main() {
       expect(parsed, descriptor);
     });
 
-    test('parses viewOptions', () {
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = HttpExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed?.viewOptions, viewOptions);
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        HttpExampleLoadingDescriptor(
+          sdk: descriptor.sdk,
+          uri: descriptor.uri,
+        ),
+      );
     });
 
     test('token', () {

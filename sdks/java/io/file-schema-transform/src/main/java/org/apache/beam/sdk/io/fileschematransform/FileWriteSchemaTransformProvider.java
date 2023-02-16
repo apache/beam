@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -44,6 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
  * A {@link TypedSchemaTransformProvider} implementation for writing a {@link Row} {@link
  * PCollection} to file systems, driven by a {@link FileWriteSchemaTransformConfiguration}.
  */
+@AutoService(SchemaTransformProvider.class)
 public class FileWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<FileWriteSchemaTransformConfiguration> {
 
