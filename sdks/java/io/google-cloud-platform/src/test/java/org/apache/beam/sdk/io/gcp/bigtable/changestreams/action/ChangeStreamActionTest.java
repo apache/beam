@@ -21,6 +21,7 @@ import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,5 +86,64 @@ public class ChangeStreamActionTest {
     verify(watermarkEstimator).setWatermark(eq(TimestampConverter.toInstant(lowWatermark)));
     StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
     verify(tracker).tryClaim(eq(streamProgress));
+  }
+
+  @Test
+  public void testChangeStreamMutationUser() {
+    ByteStringRange partition = ByteStringRange.create("", "");
+    when(partitionRecord.getPartition()).thenReturn(partition);
+    final Timestamp commitTimestamp = Timestamp.newBuilder().setSeconds(1000).build();
+    final Timestamp lowWatermark = Timestamp.newBuilder().setSeconds(500).build();
+    ChangeStreamContinuationToken changeStreamContinuationToken =
+        new ChangeStreamContinuationToken(ByteStringRange.create("", ""), "1234");
+    ChangeStreamMutation changeStreamMutation = Mockito.mock(ChangeStreamMutation.class);
+    Mockito.when(changeStreamMutation.getCommitTimestamp()).thenReturn(commitTimestamp);
+    Mockito.when(changeStreamMutation.getToken()).thenReturn("1234");
+    Mockito.when(changeStreamMutation.getLowWatermark()).thenReturn(lowWatermark);
+    Mockito.when(changeStreamMutation.getType()).thenReturn(ChangeStreamMutation.MutationType.USER);
+    KV<ByteString, ChangeStreamMutation> record =
+        KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
+
+    final Optional<DoFn.ProcessContinuation> result =
+        action.run(
+            partitionRecord, changeStreamMutation, tracker, receiver, watermarkEstimator, false);
+
+    assertFalse(result.isPresent());
+    verify(metrics).incChangeStreamMutationUserCounter();
+    verify(metrics, never()).incChangeStreamMutationGcCounter();
+    StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
+    verify(tracker).tryClaim(eq(streamProgress));
+    verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
+    verify(watermarkEstimator).setWatermark(eq(TimestampConverter.toInstant(lowWatermark)));
+  }
+
+  @Test
+  public void testChangeStreamMutationGc() {
+    ByteStringRange partition = ByteStringRange.create("", "");
+    when(partitionRecord.getPartition()).thenReturn(partition);
+    final Timestamp commitTimestamp = Timestamp.newBuilder().setSeconds(1000).build();
+    final Timestamp lowWatermark = Timestamp.newBuilder().setSeconds(500).build();
+    ChangeStreamContinuationToken changeStreamContinuationToken =
+        new ChangeStreamContinuationToken(ByteStringRange.create("", ""), "1234");
+    ChangeStreamMutation changeStreamMutation = Mockito.mock(ChangeStreamMutation.class);
+    Mockito.when(changeStreamMutation.getCommitTimestamp()).thenReturn(commitTimestamp);
+    Mockito.when(changeStreamMutation.getToken()).thenReturn("1234");
+    Mockito.when(changeStreamMutation.getLowWatermark()).thenReturn(lowWatermark);
+    Mockito.when(changeStreamMutation.getType())
+        .thenReturn(ChangeStreamMutation.MutationType.GARBAGE_COLLECTION);
+    KV<ByteString, ChangeStreamMutation> record =
+        KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
+
+    final Optional<DoFn.ProcessContinuation> result =
+        action.run(
+            partitionRecord, changeStreamMutation, tracker, receiver, watermarkEstimator, false);
+
+    assertFalse(result.isPresent());
+    verify(metrics).incChangeStreamMutationGcCounter();
+    verify(metrics, never()).incChangeStreamMutationUserCounter();
+    StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
+    verify(tracker).tryClaim(eq(streamProgress));
+    verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
+    verify(watermarkEstimator).setWatermark(eq(TimestampConverter.toInstant(lowWatermark)));
   }
 }
