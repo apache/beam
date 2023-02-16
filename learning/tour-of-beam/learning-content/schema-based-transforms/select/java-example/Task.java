@@ -127,14 +127,14 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> fullStatistics = getProgressPCollection(pipeline);
+        PCollection<User> input = getProgressPCollection(pipeline);
 
         // Select [userId] and [userName]
-        PCollection<Row> shortInfo = fullStatistics.apply(Select.fieldNames("userId", "userName"));
+        PCollection<Row> shortInfo = input.apply(Select.fieldNames("userId", "userName"));
         shortInfo.apply("User short info", ParDo.of(new LogOutput<>("Short Info")));
 
         // Select user [game]
-        PCollection<Row> game = fullStatistics.apply(Select.fieldNames("game.*"));
+        PCollection<Row> game = input.apply(Select.fieldNames("game.*"));
         game.apply("User game", ParDo.of(new LogOutput<>("Game")));
 
         // Flattened row, select all fields

@@ -21,13 +21,13 @@ This transform allows joins between two input `PCollections` simply by specifyin
 For example, the following demonstrates joining two `PCollections` using a natural join on the "**user**" and "**country**" fields, where both the left-hand and the right-hand `PCollections` have fields with these names.
 
 ```
-PCollection<Row> joined = pCollection1.apply(Join.innerJoin(pCollection2).using("user", "country"));
+PCollection<Row> joined = input1.apply(Join.innerJoin(input2).using("user", "country"));
 ```
 
 If the right-hand `PCollection` contains fields with different names to join against, you can specify them as follows:
 
 ```
-PCollection<Row> joined = pCollection1.apply(Join.innerJoin(pCollection2)
+PCollection<Row> joined = input1.apply(Join.innerJoin(input2)
        .on(FieldsEqual.left("user", "country").right("otherUser", "otherCountry")));
 ```
 

@@ -32,9 +32,9 @@ The following example demonstrates how to register a coder for a type using `Cod
 
 ```
 PipelineOptions options = PipelineOptionsFactory.create();
-Pipeline p = Pipeline.create(options);
+Pipeline pipeline = Pipeline.create(options);
 
-CoderRegistry cr = p.getCoderRegistry();
+CoderRegistry cr = pipeline.getCoderRegistry();
 cr.registerCoder(Integer.class, BigEndianIntegerCoder.class);
 ```
 

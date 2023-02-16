@@ -53,8 +53,8 @@ class UserAccount {
 Let's say you'd like to process only users who's total spend is over $100. You could write:
 
 ```
-PCollection<UserAccount> users = readUsers();
-users.apply(Filter
+PCollection<UserAccount> input = readUsers();
+input.apply(Filter
     .whereFieldNames(Lists.newArrayList("spendOnBooks", "spendOnMovies"),
         row -> return row.getDouble("spendOnBooks") + row.getDouble("spendOnMovies") > 100.00));
 ```

@@ -134,7 +134,7 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> fullStatistics = getProgressPCollection(pipeline);
+        PCollection<User> input = getProgressPCollection(pipeline);
 
         Schema type = Schema.builder()
                 .addStringField("userId")
@@ -144,7 +144,7 @@ public class Task {
                 .addStringField("date")
                 .build();
 
-        PCollection<Row> pCollection = fullStatistics
+        PCollection<Row> pCollection = input
                 .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
                 .setSchema(type,
                         TypeDescriptor.of(Object.class), input ->

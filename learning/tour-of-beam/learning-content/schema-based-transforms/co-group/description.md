@@ -22,9 +22,8 @@ For example, the following demonstrates joining three PCollections on the "user"
 
 
 ```
-PCollection<Row> joined =
-PCollectionTuple.of("input1", input1, "input2", input2, "input3", input3)
-.apply(CoGroup.join(By.fieldNames("user", "country")));
+PCollection<Row> input = PCollectionTuple.of("input1", input1, "input2", input2, "input3", input3)
+    .apply(CoGroup.join(By.fieldNames("user", "country")));
 ```
 
 ### JOIN DIFFERENT FIELDS
@@ -34,7 +33,7 @@ It's also possible to join between different fields in two inputs, as long as th
 For example, consider the SQL join: `SELECT * FROM input1Tag JOIN input2Tag ON input1Tag.referringUser = input2Tag.user`
 
 ```
-PCollection joined = PCollectionTuple.of("input1Tag", input1, "input2Tag", input2)
+PCollection input = PCollectionTuple.of("input1Tag", input1, "input2Tag", input2)
    .apply(CoGroup
      .join("input1Tag", By.fieldNames("referringUser")))
      .join("input2Tag", By.fieldNames("user")));
@@ -46,7 +45,7 @@ PCollection joined = PCollectionTuple.of("input1Tag", input1, "input2Tag", input
 For example, consider the SQL join: `SELECT * FROM input1 INNER JOIN input2 ON input1.user = input2.user`
 
 ```
-PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
+PCollection input = PCollectionTuple.of("input1", input1, "input2", input2)
    .apply(CoGroup.join(By.fieldNames("user")).crossProductJoin();
 ```
 
@@ -55,7 +54,7 @@ PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
 For example, consider the SQL join: `SELECT * FROM input1 LEFT OUTER JOIN input2 ON input1.user = input2.user`
 
 ```
-PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
+PCollection input = PCollectionTuple.of("input1", input1, "input2", input2)
    .apply(CoGroup.join("input1", By.fieldNames("user").withOptionalParticipation())
                  .join("input2", By.fieldNames("user"))
                  .crossProductJoin();
@@ -66,7 +65,7 @@ PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
 For example, consider the SQL join: `SELECT * FROM input1 RIGHT OUTER JOIN input2 ON input1.user = input2.user`
 
 ```
-PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
+PCollection input = PCollectionTuple.of("input1", input1, "input2", input2)
    .apply(CoGroup.join("input1", By.fieldNames("user"))
                  .join("input2", By.fieldNames("user").withOptionalParticipation())
                  .crossProductJoin();
@@ -77,7 +76,7 @@ PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
 For example, consider the SQL join: `SELECT * FROM input1 FULL OUTER JOIN input2 ON input1.user = input2.user`
 
 ```
-PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
+PCollection input = PCollectionTuple.of("input1", input1, "input2", input2)
    .apply(CoGroup.join("input1", By.fieldNames("user").withOptionalParticipation())
                  .join("input2", By.fieldNames("user").withOptionalParticipation())
                  .crossProductJoin();

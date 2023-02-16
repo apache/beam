@@ -23,7 +23,7 @@ The output of this transform is of type Row, which you can convert into any othe
 To select a field at the top level of a schema, you need to specify their names. For example, using the following code, you can choose just user ids from a `PCollection` of purchases:
 
 ```
-PCollection<Row> rows = purchases.apply(Select.fieldNames("userId", "shippingAddress.postCode"));
+PCollection<Row> rows = input.apply(Select.fieldNames("userId", "shippingAddress.postCode"));
 ```
 
 Will result in the following schema:
@@ -57,7 +57,7 @@ The `*` operator can be specified at any nesting level to represent all fields a
 The same is true for wildcard selections. The following:
 
 ```
-PCollection<Row> rows = purchases.apply(Select.fieldNames("shippingAddress.*"));
+PCollection<Row> rows = input.apply(Select.fieldNames("shippingAddress.*"));
 ```
 
 Will result in the following schema:
@@ -77,7 +77,7 @@ postCode           STRING
 When selecting fields nested inside of an array, the same rule applies that each selected field appears separately as a top-level field in the resulting row. This means that if multiple fields are selected from the same nested row, each selected field will appear as its own array field.
 
 ```
-PCollection<Row> rows = purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
+PCollection<Row> rows = input.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 ```
 
 Will result in the following schema:
@@ -93,7 +93,7 @@ purchaseAmount    ARRAY[DOUBLE]
 Another use of the `Select` transform is to flatten a nested schema into a single flat schema.
 
 ```
-PCollection<Row> rows = purchases.apply(Select.flattenedSchema());
+PCollection<Row> rows = input.apply(Select.flattenedSchema());
 ```
 
 Will result in the following schema:
@@ -120,6 +120,6 @@ In the playground window you can find examples of using `Select`.
 You can output a field of the first level. And nested at the same time
 
 ```
-PCollection<Row> game = fullStatistics.apply(Select.fieldNames("userName","game.*"));
+PCollection<Row> game = input.apply(Select.fieldNames("userName","game.*"));
 game.apply("User game", ParDo.of(new LogOutput<>("Game")));
 ```

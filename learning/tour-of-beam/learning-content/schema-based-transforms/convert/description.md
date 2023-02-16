@@ -16,10 +16,10 @@ limitations under the License.
 As mentioned, Beam can automatically convert between different Java types, as long as those types have equivalent schemas. One way to do this is by using the ```Convert``` transform, as follows.
 
 ```
-PCollection<Object> userPCollection = pipeline.apply(Create.of(user1));
+PCollection<Object> input = pipeline.apply(Create.of(user1));
 
 // Object convert to Row
-PCollection<Row> convertedToRow = userPCollection.apply(Convert.toRows());
+PCollection<Row> convertedToRow = input.apply(Convert.toRows());
 ```
 
 ### Playground exercise
@@ -28,7 +28,7 @@ In the playground window you can find examples of using the `Convert`. By runnin
 You can add schema with one function:
 
 ```
-PCollection<Row> pCollection = fullStatistics
+PCollection<Row> userRow = fullStatistics
                 .apply(Convert.toRows())
                 .setRowSchema(type)
                 .apply("User", ParDo.of(new LogOutput<>("ToRows")));

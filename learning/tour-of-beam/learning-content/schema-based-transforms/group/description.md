@@ -35,7 +35,7 @@ public class UserPurchase {
 You can group all purchases by user and country as follows:
 
 ```
-PCollection<Row> byUser = purchases.apply(Group.byFieldNames("userId', "country"));
+PCollection<Row> byUser = input.apply(Group.byFieldNames("userId', "country"));
 ```
 
 ### Group with aggregation
@@ -43,7 +43,7 @@ PCollection<Row> byUser = purchases.apply(Group.byFieldNames("userId', "country"
 You will likely be using grouping to aggregate input data. The builder methods inside the `Group` class allow the creation of separate aggregations for every field (or set of fields) on the input schema and generate an output schema based on these aggregations. For example:
 
 ```
-PCollection<Row> aggregated = purchases
+PCollection<Row> aggregated = input
      .apply(Group.byFieldNames("userId', "country")
           .aggregateField("cost", Sum.ofLongs(), "total_cost")
           .aggregateField("cost", Top.<Long>largestLongsFn(10), "top_purchases")

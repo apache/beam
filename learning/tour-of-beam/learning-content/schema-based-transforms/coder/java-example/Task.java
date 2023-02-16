@@ -140,9 +140,9 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> fullStatistics = getProgressPCollection(pipeline);
+        PCollection<User> input = getProgressPCollection(pipeline);
 
-        fullStatistics
+        input
                 .setCoder(CustomCoder.of())
                 .apply("User", ParDo.of(new LogOutput<>("User row")));
 

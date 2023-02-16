@@ -134,11 +134,11 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> fullStatistics = getProgressPCollection(pipeline);
+        PCollection<User> input = getProgressPCollection(pipeline);
 
 
 
-        PCollection<Row> pCollection = fullStatistics
+        PCollection<Row> pCollection = input
                 .apply(Convert.toRows());
 
         pCollection
