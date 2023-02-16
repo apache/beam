@@ -45,6 +45,7 @@ task("dockerComposeLocalUp") {
     dependsOn(":playground:backend:containers:java:docker")
     dependsOn(":playground:backend:containers:python:docker")
     dependsOn(":playground:backend:containers:scio:docker")
+    dependsOn(":playground:backend:containers:mitmproxy:docker")
     dependsOn(":playground:frontend:docker")
 
     group = "build"

@@ -15,18 +15,4 @@ usermod -o \
     -g $(stat -c "%g" "$f") \
     mitmproxy
 
-if [[ "$1" = "reverseproxy" ]]; then
-  shift
-  while [[ "$1" != "" ]]; do
-    option=$1
-    IFS=':' read -ra options <<< "$option"
-    external=${options[0]}
-    host=${options[1]}
-    port=${options[2]}
-    gosu mitmproxy mitmdump -p "$external" --mode reverse:http://"$host":$port &
-    shift
-  done
-fi
-export http_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
-export https_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
-gosu mitmproxy mitmdump -s /home/mitmproxy/allow_list_proxy.py -p 8080 --ignore-hosts "storage.googleapis.com"
+gosu mitmproxy mitmdump

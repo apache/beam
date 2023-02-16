@@ -1,0 +1,5 @@
+listen_port: 8080
+ignore_hosts:
+  - ".*"
+scripts:
+  - /home/mitmproxy/allow_list_proxy.py
