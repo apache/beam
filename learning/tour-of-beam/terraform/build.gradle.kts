@@ -174,33 +174,33 @@ tasks.register("indexcreate") {
 //    }
 //}
 
-        tasks.register("flutterPubGetPG") {
-            exec {
-            commandLine("flutter", "pub", "get")
-            workingDir("../../../playground/frontend/playground_components")
-            }
-        }
-
-        tasks.register("flutterPubRunPG") {
-            exec {
-                commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
-                workingDir("../../../playground/frontend/playground_components")
-            }
-        }
-
-        tasks.register("flutterPubGetTob") {
-            exec {
-                commandLine("flutter", "pub", "get")
-                workingDir("../frontend")
-            }
-        }
-
-        tasks.register("flutterPubGetTob") {
-            exec {
-                commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
-                workingDir("../frontend")
-            }
-        }
+//        tasks.register("flutterPubGetPG") {
+//            exec {
+//            commandLine("flutter", "pub", "get")
+//            workingDir("../../../playground/frontend/playground_components")
+//            }
+//        }
+//
+//        tasks.register("flutterPubRunPG") {
+//            exec {
+//                commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+//                workingDir("../../../playground/frontend/playground_components")
+//            }
+//        }
+//
+//        tasks.register("flutterPubGetTob") {
+//            exec {
+//                commandLine("flutter", "pub", "get")
+//                workingDir("../frontend")
+//            }
+//        }
+//
+//        tasks.register("flutterPubGetTob") {
+//            exec {
+//                commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+//                workingDir("../frontend")
+//            }
+//        }
 
 
 
@@ -249,7 +249,7 @@ const String kApiScioClientURL =
         }
 
 /* Tour of Beam backend init */
-tasks.register("InitBackend") {
+    tasks.register("InitBackend") {
     group = "backend-deploy"
     description = "ToB Backend Init"
     val getRouterHost = tasks.getByName("getRouterHost")
