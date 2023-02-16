@@ -2234,6 +2234,29 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void output(OutputT output) {
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(
+          mainOutputConsumer,
+          WindowedValue.of(
+              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output) {
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(
+          consumer,
+          WindowedValue.of(
+              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+    }
+
+    @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
       outputTo(
@@ -2350,6 +2373,24 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   /** Provides arguments for a {@link DoFnInvoker} for a non-window observing method. */
   private class NonWindowObservingProcessBundleContext extends ProcessBundleContextBase {
+
+    @Override
+    public void output(OutputT output) {
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(mainOutputConsumer, currentElement.withValue(output));
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output) {
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(consumer, currentElement.withValue(output));
+    }
+
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       checkTimestamp(timestamp);
@@ -2489,8 +2530,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public void output(Row output) {
-                ProcessBundleContextBase.this.outputWithTimestamp(
-                    fromRowFunction.apply(output), currentElement.getTimestamp());
+                ProcessBundleContextBase.this.output(fromRowFunction.apply(output));
               }
 
               @Override
@@ -2523,8 +2563,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             return new OutputReceiver<T>() {
               @Override
               public void output(T output) {
-                ProcessBundleContextBase.this.outputWithTimestamp(
-                    tag, output, currentElement.getTimestamp());
+                ProcessBundleContextBase.this.output(tag, output);
               }
 
               @Override
@@ -2555,8 +2594,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public void output(Row output) {
-                ProcessBundleContextBase.this.outputWithTimestamp(
-                    tag, fromRowFunction.apply(output), currentElement.getTimestamp());
+                ProcessBundleContextBase.this.output(tag, fromRowFunction.apply(output));
               }
 
               @Override
@@ -2613,16 +2651,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public PipelineOptions pipelineOptions() {
       return pipelineOptions;
-    }
-
-    @Override
-    public void output(OutputT output) {
-      outputWithTimestamp(output, currentElement.getTimestamp());
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output) {
-      outputWithTimestamp(tag, output, currentElement.getTimestamp());
     }
 
     @Override
@@ -2777,8 +2805,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public void output(Row output) {
-                context.outputWithTimestamp(
-                    fromRowFunction.apply(output), currentElement.getTimestamp());
+                context.output(fromRowFunction.apply(output));
               }
 
               @Override
@@ -2810,7 +2837,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             return new OutputReceiver<T>() {
               @Override
               public void output(T output) {
-                context.outputWithTimestamp(tag, output, currentElement.getTimestamp());
+                context.output(tag, output);
               }
 
               @Override
@@ -2841,8 +2868,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public void output(Row output) {
-                context.outputWithTimestamp(
-                    tag, fromRowFunction.apply(output), currentElement.getTimestamp());
+                context.output(tag, fromRowFunction.apply(output));
               }
 
               @Override
@@ -3071,7 +3097,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             return new OutputReceiver<T>() {
               @Override
               public void output(T output) {
-                context.outputWithTimestamp(tag, output, currentElement.getTimestamp());
+                context.output(tag, output);
               }
 
               @Override
@@ -3102,8 +3128,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public void output(Row output) {
-                context.outputWithTimestamp(
-                    tag, fromRowFunction.apply(output), currentElement.getTimestamp());
+                context.output(tag, fromRowFunction.apply(output));
               }
 
               @Override
