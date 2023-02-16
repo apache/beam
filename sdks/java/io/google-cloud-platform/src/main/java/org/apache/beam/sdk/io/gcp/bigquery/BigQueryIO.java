@@ -1656,7 +1656,7 @@ public class BigQueryIO {
                               streamBundle = Lists.newArrayList();
                             }
                           }
-                          if(streamIndex % streamsPerBundle != 0) {
+                          if (streamIndex % streamsPerBundle != 0) {
                             c.output(streamBundle);
                           }
                           c.output(readSessionTag, readSession);
