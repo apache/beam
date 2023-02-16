@@ -1,4 +1,128 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Tue, 17 Jan 2023 09:00:00 -0700</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.44.0</title><link>/blog/beam-2.44.0/</link><pubDate>Tue, 17 Jan 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.44.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 15 Feb 2023 09:00:00 -0700</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.45.0</title><link>/blog/beam-2.45.0/</link><pubDate>Wed, 15 Feb 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.45.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.45.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2430-2023-01-13">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.45.0, check out the &lt;a href="https://github.com/apache/beam/milestone/8?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>MongoDB IO connector added (Go) (&lt;a href="https://github.com/apache/beam/issues/24575">#24575&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>RunInference Wrapper with Sklearn Model Handler support added in Go SDK (&lt;a href="https://github.com/apache/beam/issues/23382">#24497&lt;/a>).&lt;/li>
+&lt;li>Adding override of allowed TLS algorithms (Java), now maintaining the disabled/legacy algorithms
+present in 2.43.0 (up to 1.8.0_342, 11.0.16, 17.0.2 for respective Java versions). This is accompanied
+by an explicit re-enabling of TLSv1 and TLSv1.1 for Java 8 and Java 11.&lt;/li>
+&lt;li>Add UDF metrics support for Samza portable mode.&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Portable Java pipelines, Go pipelines, Python streaming pipelines, and portable Python batch
+pipelines on Dataflow are required to use Runner V2. The &lt;code>disable_runner_v2&lt;/code>,
+&lt;code>disable_runner_v2_until_2023&lt;/code>, &lt;code>disable_prime_runner_v2&lt;/code> experiments will raise an error during
+pipeline construction. You can no longer specify the Dataflow worker jar override. Note that
+non-portable Java jobs and non-portable Python batch jobs are not impacted. (&lt;a href="https://github.com/apache/beam/issues/24515">#24515&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Avoids Cassandra syntax error when user-defined query has no where clause in it (Java) (&lt;a href="https://github.com/apache/beam/issues/24829">#24829&lt;/a>).&lt;/li>
+&lt;li>Fixed JDBC connection failures (Java) during handshake due to deprecated TLSv1(.1) protocol for the JDK. (&lt;a href="https://github.com/apache/beam/issues/24623">#24623&lt;/a>)&lt;/li>
+&lt;li>Fixed Python BigQuery Batch Load write may truncate valid data when deposition sets to WRITE_TRUNCATE and incoming data is large (Python) (&lt;a href="https://github.com/apache/beam/issues/24535">#24623&lt;/a>).&lt;/li>
+&lt;li>Fixed Kafka watermark issue with sparse data on many partitions (&lt;a href="https://github.com/apache/beam/pull/24205">#24205&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.45.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>AdalbertMemSQL&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Anand Inguva&lt;/p>
+&lt;p>Andrea Nardelli&lt;/p>
+&lt;p>Andrei Gurau&lt;/p>
+&lt;p>Andrew Pilloud&lt;/p>
+&lt;p>Benjamin Gonzalez&lt;/p>
+&lt;p>BjornPrime&lt;/p>
+&lt;p>Brian Hulette&lt;/p>
+&lt;p>Bulat&lt;/p>
+&lt;p>Byron Ellis&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Charles Rothrock&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Daniela Martín&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Darkhan Nausharipov&lt;/p>
+&lt;p>Dejan Spasic&lt;/p>
+&lt;p>Diego Gomez&lt;/p>
+&lt;p>Dmitry Repin&lt;/p>
+&lt;p>Doug Judd&lt;/p>
+&lt;p>Elias Segundo Antonio&lt;/p>
+&lt;p>Evan Galpin&lt;/p>
+&lt;p>Evgeny Antyshev&lt;/p>
+&lt;p>Fernando Morales&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Johanna Öjeling&lt;/p>
+&lt;p>John Casey&lt;/p>
+&lt;p>Junhao Liu&lt;/p>
+&lt;p>Kanishk Karanawat&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Kiley Sok&lt;/p>
+&lt;p>Liam Miller-Cushon&lt;/p>
+&lt;p>Lucas Marques&lt;/p>
+&lt;p>Luke Cwik&lt;/p>
+&lt;p>MakarkinSAkvelon&lt;/p>
+&lt;p>Marco Robles&lt;/p>
+&lt;p>Mark Zitnik&lt;/p>
+&lt;p>Melanie&lt;/p>
+&lt;p>Moritz Mack&lt;/p>
+&lt;p>Ning Kang&lt;/p>
+&lt;p>Oleh Borysevych&lt;/p>
+&lt;p>Pablo Estrada&lt;/p>
+&lt;p>Philippe Moussalli&lt;/p>
+&lt;p>Piyush Sagar&lt;/p>
+&lt;p>Rebecca Szper&lt;/p>
+&lt;p>Reuven Lax&lt;/p>
+&lt;p>Rick Viscomi&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Sergei Lilichenko&lt;/p>
+&lt;p>Seung Jin An&lt;/p>
+&lt;p>Shane Hansen&lt;/p>
+&lt;p>Sho Nakatani&lt;/p>
+&lt;p>Shunya Ueta&lt;/p>
+&lt;p>Siddharth Agrawal&lt;/p>
+&lt;p>Timur Sultanov&lt;/p>
+&lt;p>Veronica Wasson&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Xinbin Huang&lt;/p>
+&lt;p>Xinyu Liu&lt;/p>
+&lt;p>Xinyue Zhang&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>ZhengLin Li&lt;/p>
+&lt;p>alexeyinkin&lt;/p>
+&lt;p>andoni-guzman&lt;/p>
+&lt;p>andthezhang&lt;/p>
+&lt;p>bullet03&lt;/p>
+&lt;p>camphillips22&lt;/p>
+&lt;p>gabihodoroaga&lt;/p>
+&lt;p>harrisonlimh&lt;/p>
+&lt;p>pablo rodriguez defino&lt;/p>
+&lt;p>ruslan-ikhsan&lt;/p>
+&lt;p>tvalentyn&lt;/p>
+&lt;p>yyy1000&lt;/p>
+&lt;p>zhengbuqian&lt;/p></description></item><item><title>Blog: Apache Beam 2.44.0</title><link>/blog/beam-2.44.0/</link><pubDate>Tue, 17 Jan 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.44.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
