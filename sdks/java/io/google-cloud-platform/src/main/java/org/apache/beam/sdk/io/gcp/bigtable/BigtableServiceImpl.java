@@ -569,10 +569,6 @@ class BigtableServiceImpl implements BigtableService {
     }
   }
 
-  // Support 2 bigtable-hbase features not directly available in veneer:
-  // - disabling timeouts - when timeouts are disabled, bigtable-hbase ignores user configured
-  //   timeouts and forces 6 minute deadlines per attempt for all RPCs except scans. This is
-  //   implemented by an interceptor. However the interceptor must be informed that this is a scan
   // - per attempt deadlines - veneer doesn't implement deadlines for attempts. To workaround this,
   //   the timeouts are set per call in the ApiCallContext. However this creates a separate issue of
   //   over running the operation deadline, so gRPC deadline is also set.

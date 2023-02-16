@@ -637,7 +637,6 @@ public class BigtableIO {
       getBigtableConfig().validate();
       getBigtableReadOptions().validate();
 
-      // Generate a new configId when the configuration is fixed
       if (config.getConfigId() != null) {
         this.configId = BigtableServiceFactory.ConfigId.create(config.getConfigId());
       } else {
@@ -677,6 +676,7 @@ public class BigtableIO {
               FACTORY_INSTANCE.getServiceForReading(configId, config, readOptions, options);
           checkArgument(
               entry.getService().tableExists(tableId), "Table %s does not exist", tableId);
+          FACTORY_INSTANCE.releaseReadService(entry);
         } catch (IOException e) {
           LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
         }
@@ -1095,6 +1095,7 @@ public class BigtableIO {
               FACTORY_INSTANCE.getServiceForWriting(configId, config, writeOptions, options);
           checkArgument(
               entry.getService().tableExists(tableId), "Table %s does not exist", tableId);
+          FACTORY_INSTANCE.releaseWriteService(entry);
         } catch (IOException e) {
           LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
         }
@@ -1105,8 +1106,6 @@ public class BigtableIO {
   private static class BigtableWriterFn
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
-    // uuid of each DoFn family
-    // current id
     private BigtableServiceFactory.ConfigId id;
     private BigtableServiceEntry serviceEntry;
 
@@ -1125,7 +1124,6 @@ public class BigtableIO {
       recordsWritten = 0;
       this.seenWindows = Maps.newHashMapWithExpectedSize(1);
 
-      // Check if the family id if theres a client, increment reference count
       if (bigtableWriter == null) {
         serviceEntry =
             FACTORY_INSTANCE.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());

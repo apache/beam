@@ -189,7 +189,7 @@ class BigtableConfigTranslator {
       BigtableDataSettings.Builder settings, BigtableReadOptions readOptions) {
 
     RetrySettings.Builder retrySettings =
-        settings.stubSettings().bulkReadRowsSettings().getRetrySettings().toBuilder();
+        settings.stubSettings().readRowsSettings().getRetrySettings().toBuilder();
 
     if (readOptions.getAttemptTimeout() != null) {
       retrySettings.setInitialRpcTimeout(Duration.ofMillis(readOptions.getAttemptTimeout()));
@@ -214,7 +214,7 @@ class BigtableConfigTranslator {
       retrySettings.setInitialRetryDelay(Duration.ofMillis(readOptions.getRetryInitialDelay()));
     }
 
-    settings.stubSettings().bulkReadRowsSettings().setRetrySettings(retrySettings.build());
+    settings.stubSettings().readRowsSettings().setRetrySettings(retrySettings.build());
 
     return settings.build();
   }

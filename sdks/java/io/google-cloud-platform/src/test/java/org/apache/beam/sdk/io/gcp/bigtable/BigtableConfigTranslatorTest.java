@@ -175,15 +175,15 @@ public class BigtableConfigTranslatorTest {
     assertEquals(config.getAppProfileId().get(), stubSettings.getAppProfileId());
     assertEquals(
         Duration.ofMillis(101),
-        stubSettings.bulkReadRowsSettings().getRetrySettings().getInitialRpcTimeout());
+        stubSettings.readRowsSettings().getRetrySettings().getInitialRpcTimeout());
     assertEquals(
         Duration.ofMillis(1001),
-        stubSettings.bulkReadRowsSettings().getRetrySettings().getTotalTimeout());
+        stubSettings.readRowsSettings().getRetrySettings().getTotalTimeout());
     assertEquals(
         Duration.ofMillis(5),
-        stubSettings.bulkReadRowsSettings().getRetrySettings().getInitialRetryDelay());
+        stubSettings.readRowsSettings().getRetrySettings().getInitialRetryDelay());
     assertEquals(
-        1.5, stubSettings.bulkReadRowsSettings().getRetrySettings().getRetryDelayMultiplier(), 0);
+        1.5, stubSettings.readRowsSettings().getRetrySettings().getRetryDelayMultiplier(), 0);
   }
 
   @Test

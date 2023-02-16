@@ -63,7 +63,7 @@ public abstract class BigtableConfig implements Serializable {
   /** Weather validate that table exists before writing. */
   abstract boolean getValidate();
 
-  /** Bigtable emulator. Used only for testing. */
+  /** Bigtable emulator. */
   abstract @Nullable String getEmulatorHost();
 
   /** User agent for this job. */
@@ -72,6 +72,8 @@ public abstract class BigtableConfig implements Serializable {
   /** Credentials for running the job. */
   abstract @Nullable CredentialsProvider getCredentialsProvider();
 
+  /** Get the config id for the current config. Used only for testing. */
+  @VisibleForTesting
   abstract @Nullable Integer getConfigId();
 
   abstract Builder toBuilder();
@@ -104,10 +106,6 @@ public abstract class BigtableConfig implements Serializable {
 
     abstract Builder setUserAgent(String userAgent);
 
-    // TODO pass in CredentialProvider
-    // - defulat credentials
-    // - user overriding default credentials
-    // - no credentials (maybe ok)
     abstract Builder setCredentialsProvider(CredentialsProvider credentialsProvider);
 
     @VisibleForTesting
