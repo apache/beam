@@ -176,19 +176,19 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     int streamsPerBundle = 0;
     double bytesPerStream = 0;
     LOG.info(
-        "readSession.getEstimatedTotalBytesScanned(): '{}'",
+        "Estimated bytes this ReadSession will scan when all Streams are consumed: '{}'",
         readSession.getEstimatedTotalBytesScanned());
     if (bqOptions.getEnableBundling()) {
       if (desiredBundleSizeBytes > 0) {
         bytesPerStream =
             (double) readSession.getEstimatedTotalBytesScanned() / readSession.getStreamsCount();
-        LOG.info("bytesPerStream: '{}'", bytesPerStream);
+        LOG.info("Estimated bytes each Stream will consume: '{}'", bytesPerStream);
         streamsPerBundle = (int) Math.ceil(desiredBundleSizeBytes / bytesPerStream);
       } else {
         streamsPerBundle = (int) Math.ceil((double) streamCount / 10);
       }
       streamsPerBundle = Math.min(streamCount, streamsPerBundle);
-      LOG.info("streamsPerBundle: '{}'", streamsPerBundle);
+      LOG.info("Distributing '{}' Streams per StreamBundle.", streamsPerBundle);
     }
 
     Schema sessionSchema;
@@ -230,6 +230,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
                 readSession, streamBundle, trimmedSchema, parseFn, outputCoder, bqServices, 1L));
         streamBundle = Lists.newArrayList();
       }
+    }
+    if (streamIndex % streamsPerBundle != 0) {
+      sources.add(
+          BigQueryStorageStreamBundleSource.create(
+              readSession, streamBundle, trimmedSchema, parseFn, outputCoder, bqServices, 1L));
     }
     return ImmutableList.copyOf(sources);
   }

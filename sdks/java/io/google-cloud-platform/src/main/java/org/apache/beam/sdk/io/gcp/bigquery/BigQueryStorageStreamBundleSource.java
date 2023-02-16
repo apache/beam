@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.slf4j.Logger;
@@ -160,8 +161,9 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
   @Override
   public List<? extends OffsetBasedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) {
-    // A stream source can't be split without reading from it due to server-side liquid sharding.
-    // TODO: Implement dynamic work rebalancing.
+    // This method is only called for initial splits. Since this class will always be a child source
+    // of BigQueryStorageSourceBase, all splits here will be handled by `splitAtFraction()`. As a
+    // result, this is a no-op.
     return ImmutableList.of(this);
   }
 
