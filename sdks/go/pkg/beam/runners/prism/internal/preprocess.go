@@ -31,6 +31,18 @@ type preprocessor struct {
 	transformPreparers map[string]transformPreparer
 }
 
+func newPreprocessor(preps []transformPreparer) *preprocessor {
+	preparers := map[string]transformPreparer{}
+	for _, prep := range preps {
+		for _, urn := range prep.PrepareUrns() {
+			preparers[urn] = prep
+		}
+	}
+	return &preprocessor{
+		transformPreparers: preparers,
+	}
+}
+
 type transformPreparer interface {
 	// PrepareUrns returns the Beam URNs that this handler deals with for preprocessing.
 	PrepareUrns() []string

@@ -54,19 +54,14 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 		}),
 	}
 
-	prepro := &preprocessor{
-		transformPreparers: map[string]transformPreparer{},
-	}
-
 	proc := processor{
 		transformExecuters: map[string]transformExecuter{},
 	}
 
+	var preppers []transformPreparer
 	for _, h := range handlers {
 		if th, ok := h.(transformPreparer); ok {
-			for _, urn := range th.PrepareUrns() {
-				prepro.transformPreparers[urn] = th
-			}
+			preppers = append(preppers, th)
 		}
 		if th, ok := h.(transformExecuter); ok {
 			for _, urn := range th.ExecuteUrns() {
@@ -74,6 +69,8 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 			}
 		}
 	}
+
+	prepro := newPreprocessor(preppers)
 
 	topo := prepro.preProcessGraph(comps)
 	ts := comps.GetTransforms()
