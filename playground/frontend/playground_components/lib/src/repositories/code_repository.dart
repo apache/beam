@@ -47,10 +47,11 @@ class CodeRepository {
     try {
       final log = request.pipelineOptions.isEmpty
           ? kProcessingStartedText
+          // ignore: prefer_interpolation_to_compose_strings
           : kProcessingStartedOptionsText +
               request.pipelineOptions.entries
                   .map((e) => '--${e.key} ${e.value}')
-                  .join(' ');
+                  .join(' ') + '\n';
       final initResult = RunCodeResult(
         status: RunCodeStatus.preparation,
         log: log,
