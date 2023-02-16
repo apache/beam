@@ -27,7 +27,7 @@ no setup.
 
 ## Getting Started
 
-See [playground/README.md](../README.md) for details on requirements and setup.
+See [playground/README.md](../README.md) for details on installing development dependencies.
 
 This section describes what is needed to run the backend application.
 
@@ -35,8 +35,25 @@ This section describes what is needed to run the backend application.
 - Set up environment variables to run the backend locally
 - Running the backend via Docker
 
-### Go commands to run/test application locally
+## Go commands to run/test application locally
 
+### Prerequisite
+
+> **Google Cloud Shell note:** `start_datastore_emulator.sh` script makes use of `nc` and `lsof` commands which are not installed on Google Cloud Shell machines. You can install them using `sudo apt install netcat lsof`.
+
+> **Google Cloud Shell note:** run `unset GOOGLE_CLOUD_PROJECT` before running tests so they would use locally running datastore emulator.
+
+Start datastore emulator
+```shell
+$ bash start_datastore_emulator.sh
+```
+
+After you have finished running tests
+```shell
+$ bash stop_datastore_emulator.sh
+```
+
+### Run/build
 Go to the backend directory:
 
 ```shell
@@ -46,7 +63,12 @@ $ cd backend
 The following command is used to build and serve the backend locally:
 
 ```shell
-$ go run ./cmd/server/server.go
+DATASTORE_EMULATOR_HOST=127.0.0.1:8888 \
+DATASTORE_PROJECT_ID=test \
+SDK_CONFIG=../sdks-emulator.yaml \
+BEAM_SDK="SDK_UNSPECIFIED" \ 
+APP_WORK_DIR=<path_to_workdir> \
+go run ./cmd/server
 ```
 
 Run the following command to generate a release build file:
@@ -55,15 +77,16 @@ Run the following command to generate a release build file:
 $ go build ./cmd/server/server.go
 ```
 
+### Test
 Playground tests may be run using this command:
 
 ```shell
-$ go test ... -v
+$ go test ./... -v
 ```
 
 The full list of commands can be found [here](https://pkg.go.dev/cmd/go).
 
-### Set up environment variables to run the backend locally
+## Set up environment variables to run the backend locally
 
 These environment variables should be set to run the backend locally:
 
@@ -96,7 +119,7 @@ default value and there is no need to set them up to launch locally:
 - `PROPERTY_PATH` - is the application properties path (default value = `.`)
 - `CACHE_REQUEST_TIMEOUT` - is the timeout to request data from cache (default value = `5 sec`)
 
-### Application properties
+## Application properties
 
 These properties are stored in `backend/properties.yaml` file:
 
@@ -106,7 +129,7 @@ These properties are stored in `backend/properties.yaml` file:
 - `removing_unused_snippets_cron` - is the cron expression for the scheduled task to remove unused snippets.
 - `removing_unused_snippets_days` - is the number of days after which a snippet becomes unused.
 
-### Running the server app via Docker
+## Running the server app via Docker
 
 To run the server using Docker images there are `Docker` files in the `containers` folder for Java, Python and Go
 languages. Each of them processes the corresponding SDK, so the backend with Go SDK will work with Go
