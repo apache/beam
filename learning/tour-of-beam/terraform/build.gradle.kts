@@ -153,26 +153,26 @@ tasks.register("indexcreate") {
 
 // Should be as CI CD process
 
-//tasks.register("populateDatastore") {
-//    group = "backend-deploy"
-//    var project_id = "unknown"
-//    if (project.hasProperty("project_id")) {
-//        project_id = project.property("project_id") as String
-//    }
-//    doLast {
-//        val result: ExecResult = project.exec {
-//            commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
-//            environment("DATASTORE_PROJECT_ID", project_id)
-//            environment("GOOGLE_PROJECT_ID", project_id)
-//            environment("TOB_LEARNING_ROOT", "../learning-content/")
-//            workingDir("../backend")
-//        }
-//        if (result.exitValue != 0) {
-//            throw GradleException("Command execution failed with exit code ${result.exitValue}")
-//        }
-//        println("Output of script:\n${result.toString()}")
-//    }
-//}
+tasks.register("populateDatastore") {
+    group = "backend-deploy"
+    var project_id = "unknown"
+    if (project.hasProperty("project_id")) {
+        project_id = project.property("project_id") as String
+    }
+    doLast {
+        val result: ExecResult = project.exec {
+            commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
+            environment("DATASTORE_PROJECT_ID", project_id)
+            environment("GOOGLE_PROJECT_ID", project_id)
+            environment("TOB_LEARNING_ROOT", "../learning-content/")
+            workingDir("../backend")
+        }
+        if (result.exitValue != 0) {
+            throw GradleException("Command execution failed with exit code ${result.exitValue}")
+        }
+        println("Output of script:\n${result.toString()}")
+    }
+}
 
 //        tasks.register("flutterPubGetPG") {
 //            exec {
