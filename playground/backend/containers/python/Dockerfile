@@ -69,4 +69,4 @@ RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
 
 USER appuser
 
-ENTRYPOINT ["/opt/playground/backend/server_python_backend"]
+ENTRYPOINT ["/entrypoint.sh"]

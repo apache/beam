@@ -16,4 +16,4 @@
 
 export http_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
 export https_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
-su appuser -c /opt/playground/backend/server_go_backend
+/opt/playground/backend/server_go_backend

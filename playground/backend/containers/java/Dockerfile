@@ -112,4 +112,4 @@ RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod
 
 USER appuser
 
-ENTRYPOINT ["/opt/playground/backend/server_java_backend"]
+ENTRYPOINT ["/entrypoint.sh"]
