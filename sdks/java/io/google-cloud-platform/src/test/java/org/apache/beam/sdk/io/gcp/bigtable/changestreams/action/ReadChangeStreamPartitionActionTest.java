@@ -101,7 +101,7 @@ public class ReadChangeStreamPartitionActionTest {
     uuid = "123456";
     Timestamp startTime = Timestamp.now();
     Timestamp parentLowWatermark = Timestamp.now();
-    partitionRecord = new PartitionRecord(partition, startTime, uuid, parentLowWatermark, null);
+    partitionRecord = new PartitionRecord(partition, startTime, uuid, parentLowWatermark);
     when(tracker.currentRestriction()).thenReturn(restriction);
     when(restriction.getCurrentToken()).thenReturn(null);
     when(restriction.getCloseStream()).thenReturn(null);
@@ -122,7 +122,7 @@ public class ReadChangeStreamPartitionActionTest {
     Heartbeat mockHeartBeat = Mockito.mock(Heartbeat.class);
     when(responseIterator.next()).thenReturn(mockHeartBeat);
     when(responseIterator.hasNext()).thenReturn(true);
-    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any(), anyBoolean()))
+    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), anyBoolean()))
         .thenReturn(responses);
 
     when(changeStreamAction.run(any(), any(), any(), any(), any(), anyBoolean()))
