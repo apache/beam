@@ -84,9 +84,6 @@ interface BigtableService extends Serializable {
     Duration getOperationTimeout();
   }
 
-  /** Returns {@code true} if the table with the give name exists. */
-  boolean tableExists(String tableId) throws IOException;
-
   /** Returns a {@link Reader} that will read from the specified source. */
   Reader createReader(BigtableSource source) throws IOException;
 
@@ -98,10 +95,6 @@ interface BigtableService extends Serializable {
    * the distribution of keys within the table.
    */
   List<KeyOffset> getSampleRowKeys(BigtableSource source) throws IOException;
-
-  String getProjectId();
-
-  String getInstanceId();
 
   void close();
 }

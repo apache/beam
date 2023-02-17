@@ -1643,7 +1643,6 @@ public class BigtableIOTest {
       tables.put(tableId, new TreeMap<>(new ByteStringComparator()));
     }
 
-    @Override
     public boolean tableExists(String tableId) {
       return tables.containsKey(tableId);
     }
@@ -1667,16 +1666,6 @@ public class BigtableIOTest {
       List<KeyOffset> samples = sampleRowKeys.get(source.getTableId().get());
       checkNotNull(samples, "No samples found for table %s", source.getTableId().get());
       return samples;
-    }
-
-    @Override
-    public String getProjectId() {
-      return null;
-    }
-
-    @Override
-    public String getInstanceId() {
-      return null;
     }
 
     @Override

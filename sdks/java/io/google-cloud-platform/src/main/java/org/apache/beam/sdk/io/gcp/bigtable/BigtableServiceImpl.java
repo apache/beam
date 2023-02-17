@@ -46,7 +46,6 @@ import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
 import com.google.protobuf.ByteString;
 import io.grpc.CallOptions;
 import io.grpc.Deadline;
-import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -77,8 +76,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
 /**
@@ -89,7 +86,6 @@ import org.threeten.bp.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BigtableServiceImpl implements BigtableService {
-  private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
   // Default byte limit is a percentage of the JVM's available memory
   private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .1;
   // Percentage of max number of rows allowed in the buffer
@@ -116,21 +112,6 @@ class BigtableServiceImpl implements BigtableService {
   @Override
   public BigtableWriterImpl openForWriting(String tableId) {
     return new BigtableWriterImpl(client, projectId, instanceId, tableId);
-  }
-
-  @Override
-  public boolean tableExists(String tableId) throws IOException {
-    try {
-      client.readRow(tableId, "non-exist-row");
-      return true;
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Code.NOT_FOUND) {
-        return false;
-      }
-      String message = String.format("Error checking whether table %s exists", tableId);
-      LOG.error(message, e);
-      throw new IOException(message, e);
-    }
   }
 
   @VisibleForTesting
@@ -611,17 +592,6 @@ class BigtableServiceImpl implements BigtableService {
     return client.sampleRowKeys(source.getTableId().get());
   }
 
-  @Override
-  public String getProjectId() {
-    return projectId;
-  }
-
-  @Override
-  public String getInstanceId() {
-    return instanceId;
-  }
-
-  @VisibleForTesting
   public static ServiceCallMetric createCallMetric(
       String projectId, String instanceId, String tableId) {
     HashMap<String, String> baseLabels = new HashMap<>();

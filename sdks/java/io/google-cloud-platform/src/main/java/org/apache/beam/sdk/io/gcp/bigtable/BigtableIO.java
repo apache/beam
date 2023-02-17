@@ -411,7 +411,7 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public Read withCredentialsProvider(CredentialFactory credentialFactory) {
+    public Read withCredentialFactory(CredentialFactory credentialFactory) {
       BigtableConfig config = getBigtableConfig();
       return toBuilder().setBigtableConfig(config.withCredentialFactory(credentialFactory)).build();
     }
@@ -995,6 +995,11 @@ public class BigtableIO {
           .build();
     }
 
+    @VisibleForTesting
+    Write withServiceFactory(BigtableServiceFactory factory) {
+      return toBuilder().setServiceFactory(factory).build();
+    }
+
     /**
      * Returns a {@link BigtableIO.WriteWithResults} that will emit a {@link BigtableWriteResult}
      * for each batch of rows written.
@@ -1002,11 +1007,6 @@ public class BigtableIO {
     public WriteWithResults withWriteResults() {
       return new WriteWithResults(
           getBigtableConfig(), getBigtableWriteOptions(), getServiceFactory());
-    }
-
-    @VisibleForTesting
-    Write withServiceFactory(BigtableServiceFactory factory) {
-      return toBuilder().setServiceFactory(factory).build();
     }
 
     @Override

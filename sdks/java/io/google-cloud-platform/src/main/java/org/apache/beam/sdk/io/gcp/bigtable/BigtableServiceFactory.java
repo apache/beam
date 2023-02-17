@@ -46,7 +46,7 @@ class BigtableServiceFactory implements Serializable {
 
   static final BigtableServiceFactory FACTORY_INSTANCE = new BigtableServiceFactory();
 
-  private transient int nextId;
+  private transient int nextId = 0;
 
   private transient Map<ConfigId, BigtableServiceEntry> entries = new HashMap<>();
 
