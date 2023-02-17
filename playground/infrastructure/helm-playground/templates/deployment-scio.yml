@@ -56,8 +56,8 @@ spec:
            memory: "2000Mi"
            cpu: "1000m"
          limits:
-           cpu: "1500m"
-           memory: "2500Mi"
+           cpu: "8000m"
+           memory: "16000Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:

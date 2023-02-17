@@ -55,10 +55,10 @@ spec:
        resources:
          requests:
            memory: "1000Mi"
-           cpu: "500m"
-         limits:
            cpu: "1000m"
-           memory: "1000Mi"
+         limits:
+           cpu: "4000m"
+           memory: "16000Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:
