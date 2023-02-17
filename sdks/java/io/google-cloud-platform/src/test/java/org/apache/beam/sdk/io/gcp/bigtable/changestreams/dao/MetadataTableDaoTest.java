@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
@@ -27,6 +29,8 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
@@ -92,5 +96,63 @@ public class MetadataTableDaoTest {
             metadataTableDao.convertPartitionToStreamPartitionRowKey(partition));
     assertEquals(token.getToken(), MetadataTableEncoder.getTokenFromRow(row));
     assertEquals(watermark, MetadataTableEncoder.parseWatermarkFromRow(row));
+  }
+
+  @Test
+  public void testNewPartitionRowKeyConversion() throws InvalidProtocolBufferException {
+    ByteStringRange rowRange = ByteStringRange.create("a", "b");
+    ByteString rowKey = metadataTableDao.convertPartitionToNewPartitionRowKey(rowRange);
+    assertEquals(rowRange, metadataTableDao.convertNewPartitionRowKeyToPartition(rowKey));
+  }
+
+  @Test
+  public void testNewPartitionConversionWithWithIllegalUtf8()
+      throws InvalidProtocolBufferException {
+    // Test that the conversion is able to handle non-utf8 values.
+    byte[] nonUtf8Bytes = {(byte) 0b10001100};
+    ByteString nonUtf8BytesString = ByteString.copyFrom(nonUtf8Bytes);
+    ByteStringRange rowRange = ByteStringRange.create(nonUtf8BytesString, nonUtf8BytesString);
+    ByteString rowKey = metadataTableDao.convertPartitionToNewPartitionRowKey(rowRange);
+    assertEquals(rowRange, metadataTableDao.convertNewPartitionRowKeyToPartition(rowKey));
+  }
+
+  @Test
+  public void testNewPartitionsWriteRead() throws InvalidProtocolBufferException {
+    // This test a split of ["", "") to ["", "a") and ["a", "")
+    ByteStringRange parentPartition = ByteStringRange.create("", "");
+    ByteStringRange partition1 = ByteStringRange.create("", "a");
+    ChangeStreamContinuationToken changeStreamContinuationToken1 =
+        ChangeStreamContinuationToken.create(partition1, "tk1");
+    ByteStringRange partition2 = ByteStringRange.create("a", "");
+    ChangeStreamContinuationToken changeStreamContinuationToken2 =
+        ChangeStreamContinuationToken.create(partition2, "tk2");
+
+    Instant lowWatermark = Instant.now();
+    metadataTableDao.writeNewPartition(
+        changeStreamContinuationToken1, parentPartition, lowWatermark);
+    metadataTableDao.writeNewPartition(
+        changeStreamContinuationToken2, parentPartition, lowWatermark);
+
+    ServerStream<Row> rows = metadataTableDao.readNewPartitions();
+    int rowsCount = 0;
+    boolean matchedPartition1 = false;
+    boolean matchedPartition2 = false;
+    for (Row row : rows) {
+      rowsCount++;
+      ByteString newPartitionPrefix =
+          metadataTableDao
+              .getChangeStreamNamePrefix()
+              .concat(MetadataTableAdminDao.NEW_PARTITION_PREFIX);
+      ByteStringRange partition =
+          ByteStringRange.toByteStringRange(row.getKey().substring(newPartitionPrefix.size()));
+      if (partition.equals(partition1)) {
+        matchedPartition1 = true;
+      } else if (partition.equals(partition2)) {
+        matchedPartition2 = true;
+      }
+    }
+    assertTrue(matchedPartition1);
+    assertTrue(matchedPartition2);
+    assertEquals(2, rowsCount);
   }
 }
