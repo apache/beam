@@ -216,18 +216,12 @@ tasks.register("getSdkConfigWebApp") {
 
 tasks.register("prepareFirebaseOptionsDart") {
     group = "frontend-deploy"
-    val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
-    val file = file("../frontend/lib/firebase_options.dart")
-    val fileText = file.readText()
-    val pattern = Pattern.compile("static const FirebaseOptions web = FirebaseOptions\\((.|\\n)*?\\);", Pattern.DOTALL)
-    val matcher = pattern.matcher(fileText)
-    if (matcher.find()) {
-        val existingData = matcher.group()
-        val newData = "static const FirebaseOptions web = FirebaseOptions($firebaseConfigData);"
-        val updatedFileText = fileText.replace(existingData, newData)
-        file.writeText(updatedFileText)
-    } else {
-        throw Exception("Unable to find FirebaseOptions file or replace failed.")
+    doLast {
+        val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
+        val file = project.file("../frontend/lib/firebase_options.dart")
+        val content = file.readText()
+        val updatedContent = content.replace(Regex("""FirebaseOptions\((.*)\)"""), "FirebaseOptions(${firebaseConfigData})")
+        file.writeText(updatedContent)
     }
 }
 
