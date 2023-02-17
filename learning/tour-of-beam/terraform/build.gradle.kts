@@ -154,7 +154,7 @@ tasks.register("indexcreate") {
 
 tasks.register("firebaseProjectCreate") {
     group = "frontend-deploy"
-    var project_id = "unknown"
+    var project_id = ""
     if (project.hasProperty("project_id")) {
         project_id = project.property("project_id") as String
     }
@@ -168,7 +168,7 @@ tasks.register("firebaseProjectCreate") {
 
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
-    var project_id = "unknown"
+    var project_id = ""
     if (project.hasProperty("project_id")) {
         project_id = project.property("project_id") as String
     }
@@ -178,7 +178,6 @@ tasks.register("firebaseWebAppCreate") {
             args("apps:create", "WEB", "Tour-of-Beam-Web-App", "--project", project_id)
             standardOutput = result
         }
-
     println(result)
     val firebaseAppId = result.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
     project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
@@ -189,7 +188,7 @@ tasks.register("firebaseWebAppCreate") {
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
-    var project_id = "unknown"
+    var project_id = ""
     if (project.hasProperty("project_id")) {
         project_id = project.property("project_id") as String
     }
