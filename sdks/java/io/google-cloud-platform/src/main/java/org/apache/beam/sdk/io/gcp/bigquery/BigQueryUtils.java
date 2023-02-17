@@ -512,7 +512,7 @@ public class BigQueryUtils {
     return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
   }
 
-  /** Convert a BigQuery TableRow to a Beam Row. */
+  /** Convert a Beam Row to a BigQuery TableRow. */
   public static TableRow toTableRow(Row row) {
     TableRow output = new TableRow();
     for (int i = 0; i < row.getFieldCount(); i++) {
@@ -688,7 +688,14 @@ public class BigQueryUtils {
       } else if (fieldType.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
         return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
       } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
-        return LocalDate.parse(jsonBQString);
+        try {
+          // Handle if datetime value is in micros ie. 123456789
+          Long value = Long.parseLong(jsonBQString);
+          return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(value);
+        } catch (NumberFormatException e) {
+          // Handle as a String, ie. "2023-02-16 12:00:00"
+          return LocalDate.parse(jsonBQString);
+        }
       } else if (fieldType.isLogicalType(SqlTypes.TIME.getIdentifier())) {
         return LocalTime.parse(jsonBQString);
       }
