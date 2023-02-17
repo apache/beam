@@ -76,7 +76,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.threeten.bp.Duration;
+import org.joda.time.Duration;
 
 /**
  * An implementation of {@link BigtableService} that actually communicates with the Cloud Bigtable
@@ -97,8 +97,8 @@ class BigtableServiceImpl implements BigtableService {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
     RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
-    this.readAttemptTimeout = retry.getInitialRpcTimeout();
-    this.readOperationTimeout = retry.getTotalTimeout();
+    this.readAttemptTimeout = Duration.millis(retry.getInitialRpcTimeout().toMillis());
+    this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
   }
 
   private final BigtableDataClient client;
@@ -582,8 +582,8 @@ class BigtableServiceImpl implements BigtableService {
 
     ctx.withCallOptions(
         CallOptions.DEFAULT.withDeadline(
-            Deadline.after(operationTimeout.toMillis(), TimeUnit.MILLISECONDS)));
-    ctx.withTimeout(attemptTimeout);
+            Deadline.after(operationTimeout.getMillis(), TimeUnit.MILLISECONDS)));
+    ctx.withTimeout(org.threeten.bp.Duration.ofMillis(attemptTimeout.getMillis()));
     return ctx;
   }
 

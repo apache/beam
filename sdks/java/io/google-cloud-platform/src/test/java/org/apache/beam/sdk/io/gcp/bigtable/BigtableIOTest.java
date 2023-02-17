@@ -1809,13 +1809,13 @@ public class BigtableIOTest {
     }
 
     @Override
-    public org.threeten.bp.Duration getAttemptTimeout() {
-      return org.threeten.bp.Duration.ofMillis(1000);
+    public Duration getAttemptTimeout() {
+      return Duration.millis(100);
     }
 
     @Override
-    public org.threeten.bp.Duration getOperationTimeout() {
-      return org.threeten.bp.Duration.ofMillis(1000);
+    public Duration getOperationTimeout() {
+      return Duration.millis(1000);
     }
   }
 

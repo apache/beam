@@ -24,6 +24,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /** Configuration for write to Bigtable. */
 @AutoValue
@@ -36,16 +37,10 @@ abstract class BigtableWriteOptions implements Serializable {
   abstract @Nullable ValueProvider<String> getTableId();
 
   /** Returns the attempt timeout for writes. */
-  abstract @Nullable Long getAttemptTimeout();
+  abstract @Nullable Duration getAttemptTimeout();
 
   /** Returns the operation timeout for writes. */
-  abstract @Nullable Long getOperationTimeout();
-
-  /** Returns the retry delay. */
-  abstract @Nullable Long getRetryInitialDelay();
-
-  /** Returns the retry delay multiplier. */
-  abstract @Nullable Double getRetryDelayMultiplier();
+  abstract @Nullable Duration getOperationTimeout();
 
   /** Returns the number of elements of a batch. */
   abstract @Nullable Long getBatchElements();
@@ -67,13 +62,9 @@ abstract class BigtableWriteOptions implements Serializable {
 
     abstract Builder setTableId(ValueProvider<String> tableId);
 
-    abstract Builder setAttemptTimeout(long timeout);
+    abstract Builder setAttemptTimeout(Duration timeout);
 
-    abstract Builder setOperationTimeout(long timeout);
-
-    abstract Builder setRetryInitialDelay(long delay);
-
-    abstract Builder setRetryDelayMultiplier(double multiplier);
+    abstract Builder setOperationTimeout(Duration timeout);
 
     abstract Builder setBatchElements(long size);
 
@@ -98,13 +89,7 @@ abstract class BigtableWriteOptions implements Serializable {
             DisplayData.item("operationTimeout", getOperationTimeout())
                 .withLabel("Write Operation Timeout"))
         .addIfNotNull(
-            DisplayData.item("retryInitialDelay", getRetryInitialDelay())
-                .withLabel("Write retry initial delay"))
-        .addIfNotNull(
-            DisplayData.item("retryDelayMultiplier", getRetryDelayMultiplier())
-                .withLabel("Write retry delay multiplier"))
-        .addIfNotNull(
-            DisplayData.item("batchELements", getBatchElements())
+            DisplayData.item("batchElements", getBatchElements())
                 .withLabel("Write batch element count"))
         .addIfNotNull(
             DisplayData.item("batchBytes", getBatchBytes()).withLabel("Write batch byte size"))
@@ -120,8 +105,8 @@ abstract class BigtableWriteOptions implements Serializable {
 
     if (getAttemptTimeout() != null && getOperationTimeout() != null) {
       checkArgument(
-          getAttemptTimeout() <= getOperationTimeout(),
-          "attempt timeout can't be greater than operation timeout");
+          getAttemptTimeout().isShorterThan(getOperationTimeout()),
+          "attempt timeout can't be longer than operation timeout");
     }
   }
 }

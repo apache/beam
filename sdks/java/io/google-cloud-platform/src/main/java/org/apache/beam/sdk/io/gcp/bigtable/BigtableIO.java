@@ -47,6 +47,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -136,15 +137,19 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table")
  *         .withRowFilter(filter));
  *
- * // Configure timeouts for reads
+ * // Configure timeouts for reads.
+ * // Let each attempt run for 1 second, retry if the attempt failed.
+ * // Give up after the request is retried for 60 seconds.
+ * Duration attemptTimeout = Duration.millis(1000);
+ * Duration operationTimeout = Duration.millis(60 * 1000);
  * p.apply("read",
  *     BigtableIO.read()
  *         .withProjectId(projectId)
  *         .withInstanceId(instanceId)
  *         .withTableId("table")
  *         .withKeyRange(keyRange)
- *         .withAttemptTimeout(100) // 100 milliseconds
- *         .withOperationTimeout(60 * 1000)); // 1 minute
+ *         .withAttemptTimeout(attemptTimeout)
+ *         .withOperationTimeout(attemptTimeout);
  * }</pre>
  *
  * <h3>Writing to Cloud Bigtable</h3>
@@ -407,7 +412,8 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} with provided credentials.
+     * Returns a new {@link BigtableIO.Read} with provided credentials. If it's not set, it'll use
+     * the default credentials in {@link GcpOptions}.
      *
      * <p>Does not modify this object.
      */
@@ -574,56 +580,31 @@ public class BigtableIO {
     }
 
     /**
-     * Configures the attempt timeout in milliseconds of the reads.
+     * Returns a new {@link BigtableIO.Read} with the attempt timeout. Attempt timeout controls the
+     * timeout for each remote call.
      *
      * <p>Does not modify this object.
      */
-    public Read withAttemptTimeout(long timeoutMs) {
-      checkArgument(timeoutMs > 0, "attempt timeout must be positive");
+    public Read withAttemptTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "attempt timeout must be positive");
       BigtableReadOptions readOptions = getBigtableReadOptions();
       return toBuilder()
-          .setBigtableReadOptions(readOptions.toBuilder().setAttemptTimeout(timeoutMs).build())
+          .setBigtableReadOptions(readOptions.toBuilder().setAttemptTimeout(timeout).build())
           .build();
     }
 
     /**
-     * Configures the operation timeout in milliseconds of the reads.
+     * Returns a new {@link BigtableIO.Read} with the operation timeout. Operation timeout has
+     * ultimate control over how long the logic should keep trying the remote call until it gives up
+     * completely.
      *
      * <p>Does not modify this object.
      */
-    public Read withOperationTimeout(long timeoutMs) {
-      checkArgument(timeoutMs > 0, "operation timeout must be positive");
+    public Read withOperationTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "operation timeout must be positive");
       BigtableReadOptions readOptions = getBigtableReadOptions();
       return toBuilder()
-          .setBigtableReadOptions(readOptions.toBuilder().setOperationTimeout(timeoutMs).build())
-          .build();
-    }
-
-    /**
-     * Configures the initial retry delay in milliseconds.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withRetryInitialDelay(long initialDelayMs) {
-      checkArgument(initialDelayMs > 0, "initial delay must be positive");
-      BigtableReadOptions readOptions = getBigtableReadOptions();
-      return toBuilder()
-          .setBigtableReadOptions(
-              readOptions.toBuilder().setRetryInitialDelay(initialDelayMs).build())
-          .build();
-    }
-
-    /**
-     * Configures the delay multiplier.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withRetryDelayMultiplier(double multiplier) {
-      checkArgument(multiplier > 0, "delay multiplier must be positive");
-      BigtableReadOptions readOptions = getBigtableReadOptions();
-      return toBuilder()
-          .setBigtableReadOptions(
-              readOptions.toBuilder().setRetryDelayMultiplier(multiplier).build())
+          .setBigtableReadOptions(readOptions.toBuilder().setOperationTimeout(timeout).build())
           .build();
     }
 
@@ -817,7 +798,8 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with the provided credentials.
+     * Returns a new {@link BigtableIO.Write} with the provided credentials. If it's not set, it'll
+     * use the default credentials in {@link GcpOptions}.
      *
      * <p>Does not modify this object.
      */
@@ -905,59 +887,37 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with the attempt timeout in milliseconds for writes.
+     * Returns a new {@link BigtableIO.Write} with the attempt timeout. Attempt timeout controls the
+     * timeout for each remote call.
      *
      * <p>Does not modify this object.
      */
-    public Write withAttemptTimeout(long timeoutMs) {
-      checkArgument(timeoutMs > 0, "attempt timeout must be positive");
+    public Write withAttemptTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "attempt timeout must be positive");
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setAttemptTimeout(timeoutMs).build())
+          .setBigtableWriteOptions(options.toBuilder().setAttemptTimeout(timeout).build())
           .build();
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with the operation timeout in milliseconds for writes.
+     * Returns a new {@link BigtableIO.Write} with the operation timeout. Operation timeout has
+     * ultimate control over how long the logic should keep trying the remote call until it gives up
+     * completely.
      *
      * <p>Does not modify this object.
      */
-    public Write withOperationTimeout(long timeoutMs) {
-      checkArgument(timeoutMs > 0, "operation timeout must be positive");
+    public Write withOperationTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "operation timeout must be positive");
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setOperationTimeout(timeoutMs).build())
+          .setBigtableWriteOptions(options.toBuilder().setOperationTimeout(timeout).build())
           .build();
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with the retry delay in milliseconds.
-     *
-     * <p>Does not modify this object.
-     */
-    public Write withRetryInitialDelay(long delayMs) {
-      checkArgument(delayMs > 0, "delay must be positive");
-      BigtableWriteOptions options = getBigtableWriteOptions();
-      return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setRetryInitialDelay(delayMs).build())
-          .build();
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.Write} with retry multiplier.
-     *
-     * <p>Does not modify this object.
-     */
-    public Write withRetryDelayMultiplier(double multiplier) {
-      checkArgument(multiplier > 0, "multiplier must be positive");
-      BigtableWriteOptions options = getBigtableWriteOptions();
-      return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setRetryDelayMultiplier(multiplier).build())
-          .build();
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.Write} with the number of elements in a batch.
+     * Returns a new {@link BigtableIO.Write} with batch element size. After this many elements are
+     * accumulated, they will be wrapped up in a batch and sent to Bigtable.
      *
      * <p>Does not modify this object.
      */
@@ -970,7 +930,8 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with the number of bytes in a batch.
+     * Returns a new {@link BigtableIO.Write} with batch bytes size. After this many bytes are
+     * accumulated, the elements will be wrapped up in a batch and sent to Bigtable.
      *
      * <p>Does not modify this object.
      */
@@ -1105,9 +1066,11 @@ public class BigtableIO {
   private static class BigtableWriterFn
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
-    private BigtableServiceFactory factory;
-    private BigtableServiceFactory.ConfigId id;
-    private BigtableServiceEntry serviceEntry;
+    private final BigtableServiceFactory factory;
+    private final BigtableServiceFactory.ConfigId id;
+
+    // Assign serviceEntry in startBundle and clear it in tearDown.
+    @Nullable private BigtableServiceEntry serviceEntry;
 
     BigtableWriterFn(
         BigtableServiceFactory factory,
@@ -1634,7 +1597,9 @@ public class BigtableIO {
     private BigtableSource source;
 
     private final BigtableServiceFactory factory;
-    private BigtableServiceEntry serviceEntry;
+
+    // Assign serviceEntry at construction time and clear it in close().
+    @Nullable private BigtableServiceEntry serviceEntry;
     private BigtableService.Reader reader;
     private final ByteKeyRangeTracker rangeTracker;
     private long recordsReturned;

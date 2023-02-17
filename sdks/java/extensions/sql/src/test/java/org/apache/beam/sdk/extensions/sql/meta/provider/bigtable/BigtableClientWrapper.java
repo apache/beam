@@ -37,7 +37,7 @@ class BigtableClientWrapper implements Serializable {
   private final BigtableTableAdminClient tableAdminClient;
   private final BigtableDataClient dataClient;
 
-  public BigtableClientWrapper(
+  BigtableClientWrapper(
       String project,
       String instanceId,
       @Nullable Integer emulatorPort,

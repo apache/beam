@@ -76,6 +76,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -180,8 +181,8 @@ public class BigtableServiceImplTest {
             mockBigtableSource.getTableId().get(),
             mockBigtableSource.getRanges(),
             null,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout());
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()));
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
@@ -241,8 +242,8 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout(),
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     underTest.start();
@@ -298,8 +299,8 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout(),
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -368,8 +369,8 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout(),
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -439,8 +440,8 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout(),
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -495,8 +496,8 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout(),
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -566,8 +567,8 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout(),
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -655,8 +656,8 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             segmentByteLimit,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout(),
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -721,8 +722,8 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            retrySettings.getInitialRpcTimeout(),
-            retrySettings.getTotalTimeout(),
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     IOException returnedError = null;

@@ -24,6 +24,7 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -69,7 +70,10 @@ public abstract class BigtableConfig implements Serializable {
   /** User agent for this job. */
   abstract @Nullable String getUserAgent();
 
-  /** Credentials for running the job. */
+  /**
+   * Credentials for running the job. Use the default credentials in {@link GcpOptions} if it's not
+   * set.
+   */
   abstract @Nullable CredentialFactory getCredentialFactory();
 
   abstract Builder toBuilder();
@@ -188,7 +192,8 @@ public abstract class BigtableConfig implements Serializable {
 
   boolean isDataAccessible() {
     return (getProjectId() == null || getProjectId().isAccessible())
-        && (getInstanceId() == null || getInstanceId().isAccessible());
+        && (getInstanceId() == null || getInstanceId().isAccessible())
+        && (getAppProfileId() == null || getAppProfileId().isAccessible());
   }
 
   @Override

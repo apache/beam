@@ -28,6 +28,7 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /** Configuration for read from Bigtable. */
 @AutoValue
@@ -49,16 +50,10 @@ abstract class BigtableReadOptions implements Serializable {
   abstract @Nullable Integer getMaxBufferElementCount();
 
   /** Returns the attempt timeout of the reads. */
-  abstract @Nullable Long getAttemptTimeout();
+  abstract @Nullable Duration getAttemptTimeout();
 
   /** Returns the operation timeout of the reads. */
-  abstract @Nullable Long getOperationTimeout();
-
-  /** Returns the retry delay. */
-  abstract @Nullable Long getRetryInitialDelay();
-
-  /** Returns the retry delay multiplier. */
-  abstract @Nullable Double getRetryDelayMultiplier();
+  abstract @Nullable Duration getOperationTimeout();
 
   abstract Builder toBuilder();
 
@@ -77,13 +72,9 @@ abstract class BigtableReadOptions implements Serializable {
 
     abstract Builder setKeyRanges(ValueProvider<List<ByteKeyRange>> keyRanges);
 
-    abstract Builder setAttemptTimeout(long timeout);
+    abstract Builder setAttemptTimeout(Duration timeout);
 
-    abstract Builder setOperationTimeout(long timeout);
-
-    abstract Builder setRetryInitialDelay(long delay);
-
-    abstract Builder setRetryDelayMultiplier(double multiplier);
+    abstract Builder setOperationTimeout(Duration timeout);
 
     abstract BigtableReadOptions build();
   }
@@ -118,13 +109,7 @@ abstract class BigtableReadOptions implements Serializable {
                 .withLabel("Read Attempt Timeout"))
         .addIfNotNull(
             DisplayData.item("operationTimeout", getOperationTimeout())
-                .withLabel("Read Operation Timeout"))
-        .addIfNotNull(
-            DisplayData.item("retryInitialDelay", getRetryInitialDelay())
-                .withLabel("Read retry initial delay"))
-        .addIfNotNull(
-            DisplayData.item("retryDelayMultiplier", getRetryDelayMultiplier())
-                .withLabel("Read retry delay multiplier"));
+                .withLabel("Read Operation Timeout"));
   }
 
   void validate() {
@@ -146,6 +131,12 @@ abstract class BigtableReadOptions implements Serializable {
       for (ByteKeyRange range : getKeyRanges().get()) {
         checkArgument(range != null, "keyRanges cannot hold null range");
       }
+    }
+
+    if (getAttemptTimeout() != null && getOperationTimeout() != null) {
+      checkArgument(
+          getAttemptTimeout().isShorterThan(getOperationTimeout()),
+          "attempt timeout can't be longer than operation timeout");
     }
   }
 }

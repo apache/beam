@@ -96,13 +96,9 @@ public class BigtableConfigTranslatorTest {
 
     assertNotNull(readOptions.getAttemptTimeout());
     assertNotNull(readOptions.getOperationTimeout());
-    assertNotNull(readOptions.getRetryInitialDelay());
-    assertNotNull(readOptions.getRetryDelayMultiplier());
 
-    assertEquals(100, (long) readOptions.getAttemptTimeout());
-    assertEquals(1000, (long) readOptions.getOperationTimeout());
-    assertEquals(5, (long) readOptions.getRetryInitialDelay());
-    assertEquals(1.5, (double) readOptions.getRetryDelayMultiplier(), 0);
+    assertEquals(org.joda.time.Duration.millis(100), readOptions.getAttemptTimeout());
+    assertEquals(org.joda.time.Duration.millis(1000), readOptions.getOperationTimeout());
   }
 
   @Test
@@ -136,16 +132,12 @@ public class BigtableConfigTranslatorTest {
 
     assertNotNull(writeOptions.getAttemptTimeout());
     assertNotNull(writeOptions.getOperationTimeout());
-    assertNotNull(writeOptions.getRetryInitialDelay());
-    assertNotNull(writeOptions.getRetryDelayMultiplier());
     assertNotNull(writeOptions.getBatchBytes());
     assertNotNull(writeOptions.getBatchElements());
     assertNotNull(writeOptions.getMaxRequests());
 
-    assertEquals(200, (long) writeOptions.getAttemptTimeout());
-    assertEquals(2000, (long) writeOptions.getOperationTimeout());
-    assertEquals(15, (long) writeOptions.getRetryInitialDelay());
-    assertEquals(2.5, writeOptions.getRetryDelayMultiplier(), 0);
+    assertEquals(org.joda.time.Duration.millis(200), writeOptions.getAttemptTimeout());
+    assertEquals(org.joda.time.Duration.millis(2000), writeOptions.getOperationTimeout());
     assertEquals(20, (long) writeOptions.getBatchBytes());
     assertEquals(100, (long) writeOptions.getBatchElements());
     assertEquals(5, (long) writeOptions.getMaxRequests());
@@ -163,10 +155,8 @@ public class BigtableConfigTranslatorTest {
     BigtableReadOptions readOptions =
         BigtableReadOptions.builder()
             .setTableId(ValueProvider.StaticValueProvider.of("table"))
-            .setAttemptTimeout(101)
-            .setOperationTimeout(1001)
-            .setRetryInitialDelay(5)
-            .setRetryDelayMultiplier(1.5)
+            .setAttemptTimeout(org.joda.time.Duration.millis(101))
+            .setOperationTimeout(org.joda.time.Duration.millis(1001))
             .build();
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
 
@@ -185,11 +175,6 @@ public class BigtableConfigTranslatorTest {
     assertEquals(
         Duration.ofMillis(1001),
         stubSettings.readRowsSettings().getRetrySettings().getTotalTimeout());
-    assertEquals(
-        Duration.ofMillis(5),
-        stubSettings.readRowsSettings().getRetrySettings().getInitialRetryDelay());
-    assertEquals(
-        1.5, stubSettings.readRowsSettings().getRetrySettings().getRetryDelayMultiplier(), 0);
   }
 
   @Test
@@ -204,10 +189,8 @@ public class BigtableConfigTranslatorTest {
     BigtableWriteOptions writeOptions =
         BigtableWriteOptions.builder()
             .setTableId(ValueProvider.StaticValueProvider.of("table"))
-            .setAttemptTimeout(101)
-            .setOperationTimeout(1001)
-            .setRetryInitialDelay(5)
-            .setRetryDelayMultiplier(1.5)
+            .setAttemptTimeout(org.joda.time.Duration.millis(101))
+            .setOperationTimeout(org.joda.time.Duration.millis(1001))
             .setMaxRequests(11)
             .setBatchElements(105)
             .setBatchBytes(102)
@@ -229,11 +212,6 @@ public class BigtableConfigTranslatorTest {
     assertEquals(
         Duration.ofMillis(1001),
         stubSettings.bulkMutateRowsSettings().getRetrySettings().getTotalTimeout());
-    assertEquals(
-        Duration.ofMillis(5),
-        stubSettings.bulkMutateRowsSettings().getRetrySettings().getInitialRetryDelay());
-    assertEquals(
-        1.5, stubSettings.bulkMutateRowsSettings().getRetrySettings().getRetryDelayMultiplier(), 0);
     assertEquals(
         105,
         (long)

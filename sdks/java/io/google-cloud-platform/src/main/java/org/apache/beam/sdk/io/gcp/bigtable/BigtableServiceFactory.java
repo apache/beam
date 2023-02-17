@@ -35,7 +35,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Factory class that caches {@link BigtableService} to share between workers with the same {@link
- * BigtableConfig} and read / write options.
+ * BigtableConfig} and read / write options. A new {@link ConfigId} is created at graph construction
+ * time, and each {@link BigtableService} is mapped to one {@link ConfigId}.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

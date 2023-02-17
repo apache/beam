@@ -46,7 +46,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.threeten.bp.Duration;
 
-/** Helper class to translate {@link BigtableOptions} to Bigtable Veneer settings. */
+/**
+ * Helper class to translate {@link BigtableConfig}, {@link BigtableReadOptions}, {@link
+ * BigtableWriteOptions} and {@link PipelineOptions} to Bigtable Veneer settings.
+ *
+ * <p>Also translate {@link BigtableOptions} to {@link BigtableConfig} for backward compatibility.
+ * If the values are set on {@link BigtableConfig} directly, ignore the settings in {@link
+ * BigtableOptions}.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -121,10 +128,11 @@ class BigtableConfigTranslator {
   private static void configureHeaderProvider(
       StubSettings.Builder<?, ?> stubSettings, PipelineOptions pipelineOptions) {
 
-    ImmutableMap.Builder<String, String> headersBuilder = ImmutableMap.<String, String>builder();
-    headersBuilder.putAll(stubSettings.getHeaderProvider().getHeaders());
-    headersBuilder.put(
-        GrpcUtil.USER_AGENT_KEY.name(), Objects.requireNonNull(pipelineOptions.getUserAgent()));
+    ImmutableMap.Builder<String, String> headersBuilder =
+        ImmutableMap.<String, String>builder()
+            .put(
+                GrpcUtil.USER_AGENT_KEY.name(),
+                Objects.requireNonNull(pipelineOptions.getUserAgent()));
 
     stubSettings.setHeaderProvider(FixedHeaderProvider.create(headersBuilder.build()));
   }
@@ -136,26 +144,19 @@ class BigtableConfigTranslator {
     RetrySettings.Builder retrySettings = callSettings.getRetrySettings().toBuilder();
     BatchingSettings.Builder batchingSettings = callSettings.getBatchingSettings().toBuilder();
     if (writeOptions.getAttemptTimeout() != null) {
-      retrySettings.setInitialRpcTimeout(Duration.ofMillis(writeOptions.getAttemptTimeout()));
-
-      if (writeOptions.getOperationTimeout() == null) {
-        retrySettings.setTotalTimeout(
-            Duration.ofMillis(
-                Math.max(
-                    retrySettings.getTotalTimeout().toMillis(), writeOptions.getAttemptTimeout())));
-      }
+      // Set the user specified attempt timeout and expand the operation timeout if it's shorter
+      retrySettings.setInitialRpcTimeout(
+          Duration.ofMillis(writeOptions.getAttemptTimeout().getMillis()));
+      retrySettings.setTotalTimeout(
+          Duration.ofMillis(
+              Math.max(
+                  retrySettings.getTotalTimeout().toMillis(),
+                  writeOptions.getAttemptTimeout().getMillis())));
     }
 
     if (writeOptions.getOperationTimeout() != null) {
-      retrySettings.setTotalTimeout(Duration.ofMillis(writeOptions.getOperationTimeout()));
-    }
-
-    if (writeOptions.getRetryInitialDelay() != null) {
-      retrySettings.setInitialRetryDelay(Duration.ofMillis(writeOptions.getRetryInitialDelay()));
-    }
-
-    if (writeOptions.getRetryDelayMultiplier() != null) {
-      retrySettings.setRetryDelayMultiplier(writeOptions.getRetryDelayMultiplier());
+      retrySettings.setTotalTimeout(
+          Duration.ofMillis(writeOptions.getOperationTimeout().getMillis()));
     }
 
     if (writeOptions.getBatchElements() != null) {
@@ -197,26 +198,19 @@ class BigtableConfigTranslator {
         settings.stubSettings().readRowsSettings().getRetrySettings().toBuilder();
 
     if (readOptions.getAttemptTimeout() != null) {
-      retrySettings.setInitialRpcTimeout(Duration.ofMillis(readOptions.getAttemptTimeout()));
-
-      if (readOptions.getOperationTimeout() == null) {
-        retrySettings.setTotalTimeout(
-            Duration.ofMillis(
-                Math.max(
-                    retrySettings.getTotalTimeout().toMillis(), readOptions.getAttemptTimeout())));
-      }
+      // Set the user specified attempt timeout and expand the operation timeout if it's shorter
+      retrySettings.setInitialRpcTimeout(
+          Duration.ofMillis(readOptions.getAttemptTimeout().getMillis()));
+      retrySettings.setTotalTimeout(
+          Duration.ofMillis(
+              Math.max(
+                  retrySettings.getTotalTimeout().toMillis(),
+                  readOptions.getAttemptTimeout().getMillis())));
     }
 
     if (readOptions.getOperationTimeout() != null) {
-      retrySettings.setTotalTimeout(Duration.ofMillis(readOptions.getOperationTimeout()));
-    }
-
-    if (readOptions.getRetryDelayMultiplier() != null) {
-      retrySettings.setRetryDelayMultiplier(readOptions.getRetryDelayMultiplier());
-    }
-
-    if (readOptions.getRetryInitialDelay() != null) {
-      retrySettings.setInitialRetryDelay(Duration.ofMillis(readOptions.getRetryInitialDelay()));
+      retrySettings.setTotalTimeout(
+          Duration.ofMillis(readOptions.getOperationTimeout().getMillis()));
     }
 
     settings.stubSettings().readRowsSettings().setRetrySettings(retrySettings.build());
@@ -224,7 +218,10 @@ class BigtableConfigTranslator {
     return settings.build();
   }
 
-  /** Translate BigtableOptions to BigtableConfig. */
+  /**
+   * Translate BigtableOptions to BigtableConfig for backward compatibility. If the values are set on
+   * BigtableConfig, ignore the settings in BigtableOptions.
+   */
   static BigtableConfig translateToBigtableConfig(
       BigtableConfig config, BigtableOptions options, PipelineOptions pipelineOptions) {
     BigtableConfig.Builder builder = config.toBuilder();
@@ -313,11 +310,11 @@ class BigtableConfigTranslator {
     BigtableReadOptions.Builder builder = readOptions.toBuilder();
     if (options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().isPresent()) {
       builder.setAttemptTimeout(
-          options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().get());
+          org.joda.time.Duration.millis(
+              options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().get()));
     }
-    builder.setOperationTimeout(options.getCallOptionsConfig().getReadStreamRpcTimeoutMs());
-    builder.setRetryInitialDelay(options.getRetryOptions().getInitialBackoffMillis());
-    builder.setRetryDelayMultiplier(options.getRetryOptions().getBackoffMultiplier());
+    builder.setOperationTimeout(
+        org.joda.time.Duration.millis(options.getCallOptionsConfig().getReadStreamRpcTimeoutMs()));
     return builder.build();
   }
 
@@ -329,12 +326,11 @@ class BigtableConfigTranslator {
     // configure timeouts
     if (options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().isPresent()) {
       builder.setAttemptTimeout(
-          options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().get());
+          org.joda.time.Duration.millis(
+              options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().get()));
     }
-    builder.setOperationTimeout(options.getCallOptionsConfig().getMutateRpcTimeoutMs());
-    // configure retry backoffs
-    builder.setRetryInitialDelay(options.getRetryOptions().getInitialBackoffMillis());
-    builder.setRetryDelayMultiplier(options.getRetryOptions().getBackoffMultiplier());
+    builder.setOperationTimeout(
+        org.joda.time.Duration.millis(options.getCallOptionsConfig().getMutateRpcTimeoutMs()));
     // configure batch size
     builder.setBatchElements(options.getBulkOptions().getBulkMaxRowKeyCount());
     builder.setBatchBytes(options.getBulkOptions().getBulkMaxRequestSize());
