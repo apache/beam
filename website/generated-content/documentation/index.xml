@@ -14718,7 +14718,7 @@ limitations under the License.
 &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;readFromZendeskPlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>To learn more please check out &lt;a href="https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap">complete examples&lt;/a>.&lt;/p>
+&lt;p>To learn more please check out &lt;a href="https://github.com/apache/beam/tree/master/examples/java/cdap">complete examples&lt;/a>.&lt;/p>
 &lt;h2 id="batch-writing-using-cdapio">Batch writing using CdapIO&lt;/h2>
 &lt;p>In order to write to CDAP plugin you will need to pass:&lt;/p>
 &lt;ul>
