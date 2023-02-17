@@ -179,8 +179,7 @@ tasks.register("firebaseWebAppCreate") {
             standardOutput = result
         }
 
-    val appId = result.toString().trim().lines()
-    val firebaseAppId = appId.find { it.startsWith("App ID:") }?.split(":")?.get(1)?.trim()
+    val firebaseAppId = result.toString().lines().find { it.startsWith("App ID:") }?.split(":")?.get(1)?.trim()
     project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
     println("Firebase app ID: $firebaseAppId")
 
