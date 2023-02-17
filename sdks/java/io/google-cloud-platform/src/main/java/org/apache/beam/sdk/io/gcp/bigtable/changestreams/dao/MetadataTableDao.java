@@ -26,8 +26,8 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
-import org.apache.beam.sdk.annotations.Internal;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,7 +94,8 @@ public class MetadataTableDao {
    * @return row key to insert to Cloud Bigtable.
    */
   public ByteString convertPartitionToStreamPartitionRowKey(Range.ByteStringRange partition) {
-    return getFullStreamPartitionPrefix().concat(Range.ByteStringRange.toByteString(partition));
+    return getFullStreamPartitionPrefix()
+        .concat(Range.ByteStringRange.serializeToByteString(partition));
   }
 
   /**

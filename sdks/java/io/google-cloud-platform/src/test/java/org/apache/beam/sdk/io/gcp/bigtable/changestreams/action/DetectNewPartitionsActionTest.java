@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
@@ -28,7 +27,6 @@ import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import java.io.IOException;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
@@ -67,7 +65,7 @@ public class DetectNewPartitionsActionTest {
 
   private MetadataTableDao metadataTableDao;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
-  private Timestamp startTime;
+  private Instant startTime;
   private static BigtableDataClient dataClient;
   private static BigtableTableAdminClient adminClient;
 
@@ -102,17 +100,17 @@ public class DetectNewPartitionsActionTest {
             metadataTableAdminDao.getTableId(),
             metadataTableAdminDao.getChangeStreamNamePrefix());
 
-    startTime = Timestamp.now();
+    startTime = Instant.now();
     action =
         new DetectNewPartitionsAction(metrics, metadataTableDao, generateInitialPartitionsAction);
-    watermarkEstimator = new WatermarkEstimators.Manual(TimestampConverter.toInstant(startTime));
+    watermarkEstimator = new WatermarkEstimators.Manual(startTime);
   }
 
   @Test
   public void testInitialPartitions() throws Exception {
     OffsetRange offsetRange = new OffsetRange(0, Long.MAX_VALUE);
     when(tracker.currentRestriction()).thenReturn(offsetRange);
-    assertEquals(TimestampConverter.toInstant(startTime), watermarkEstimator.currentWatermark());
+    assertEquals(startTime, watermarkEstimator.currentWatermark());
 
     when(generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime))
         .thenReturn(ProcessContinuation.resume());

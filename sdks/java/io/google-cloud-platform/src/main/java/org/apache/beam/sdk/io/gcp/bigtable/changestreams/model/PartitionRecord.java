@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.model;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import java.io.Serializable;
@@ -27,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.joda.time.Instant;
 
 /**
  * Output result of {@link
@@ -38,13 +38,13 @@ public class PartitionRecord implements Serializable {
   private static final long serialVersionUID = -7613861834142734474L;
 
   private ByteStringRange partition;
-  @Nullable private Timestamp startTime;
+  @Nullable private Instant startTime;
   @Nullable private List<ChangeStreamContinuationToken> changeStreamContinuationTokens;
   private String uuid;
-  private Timestamp parentLowWatermark;
+  private Instant parentLowWatermark;
 
   public PartitionRecord(
-      ByteStringRange partition, Timestamp startTime, String uuid, Timestamp parentLowWatermark) {
+      ByteStringRange partition, Instant startTime, String uuid, Instant parentLowWatermark) {
     this.partition = partition;
     this.startTime = startTime;
     this.uuid = uuid;
@@ -55,7 +55,7 @@ public class PartitionRecord implements Serializable {
       ByteStringRange partition,
       List<ChangeStreamContinuationToken> changeStreamContinuationTokens,
       String uuid,
-      Timestamp parentLowWatermark) {
+      Instant parentLowWatermark) {
     this.partition = partition;
     this.changeStreamContinuationTokens = changeStreamContinuationTokens;
     this.uuid = uuid;
@@ -63,11 +63,11 @@ public class PartitionRecord implements Serializable {
   }
 
   @Nullable
-  public Timestamp getStartTime() {
+  public Instant getStartTime() {
     return startTime;
   }
 
-  public void setStartTime(@Nullable Timestamp startTime) {
+  public void setStartTime(@Nullable Instant startTime) {
     this.startTime = startTime;
   }
 
@@ -79,11 +79,11 @@ public class PartitionRecord implements Serializable {
     this.uuid = uuid;
   }
 
-  public Timestamp getParentLowWatermark() {
+  public Instant getParentLowWatermark() {
     return parentLowWatermark;
   }
 
-  public void setParentLowWatermark(Timestamp parentLowWatermark) {
+  public void setParentLowWatermark(Instant parentLowWatermark) {
     this.parentLowWatermark = parentLowWatermark;
   }
 

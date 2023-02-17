@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.instantToNanos;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.nanosToInstant;
 import static org.junit.Assert.assertEquals;
 
 import org.joda.time.Instant;
@@ -40,5 +42,17 @@ public class TimestampConverterTest {
         com.google.protobuf.Timestamp.newBuilder().setSeconds(1000).setNanos(nanos).build();
     Instant instant = TimestampConverter.toInstant(timestamp);
     assertEquals(1000123, instant.getMillis());
+  }
+
+  @Test
+  public void testNanosToInstant() {
+    long nanos = 500_000_000_000_000L;
+    assertEquals(Instant.ofEpochMilli(500_000_000L), nanosToInstant(nanos));
+  }
+
+  @Test
+  public void testInstantToNanos() {
+    Instant instant = Instant.ofEpochMilli(1_000_000L);
+    assertEquals(1_000_000L * 1_000_000L, instantToNanos(instant));
   }
 }

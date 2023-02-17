@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
-import com.google.cloud.Timestamp;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
@@ -93,7 +92,7 @@ public class DetectNewPartitionsAction {
       OutputReceiver<PartitionRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer,
-      Timestamp startTime)
+      Instant startTime)
       throws Exception {
     if (tracker.currentRestriction().getFrom() == 0L) {
       return generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime);
