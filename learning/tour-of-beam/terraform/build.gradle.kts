@@ -196,6 +196,7 @@ tasks.register("getSdkConfigWebApp") {
             args("apps:sdkconfig", "WEB", firebaseAppId)
             standardOutput = result
         }
+        println(result)
         val output = result.toString().trim()
         val pattern = Pattern.compile("\\{.*\\}", Pattern.DOTALL)
         val matcher = pattern.matcher(output)
@@ -223,50 +224,6 @@ tasks.register("prepareFirebaseOptionsDart") {
         file.writeText(updatedFileText)
     } else {
         throw Exception("Unable to find FirebaseOptions file or replace failed.")
-    }
-}
-
-tasks.register("prepareConfigDart") {
-    group = "frontend-deploy"
-    doLast {
-        var dns_name = ""
-        var region = ""
-        var project_id = ""
-        if (project.hasProperty("region")) {
-            region = project.property("region") as String
-        }
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
-        if (project.hasProperty("dns-name")) {
-            dns_name = project.property("dns-name") as String
-        }
-        val configFileName = "config.dart"
-        val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
-        var file = File("$modulePath/lib/$configFileName")
-
-        file.writeText(
-                """
-const _cloudFunctionsProjectRegion = '$region';
-const _cloudFunctionsProjectId = '$project_id';
-const cloudFunctionsBaseUrl = 'https://'
-    '$region-$project_id'
-    '.cloudfunctions.net';
-
-
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-'https://router.${dns_name}';
-const String kApiJavaClientURL =
-'https://java.${dns_name}';
-const String kApiGoClientURL =
-'https://go.${dns_name}';
-const String kApiPythonClientURL =
-'https://python.${dns_name}';
-const String kApiScioClientURL =
-'https://scio.${dns_name}';
-"""
-        )
     }
 }
 
