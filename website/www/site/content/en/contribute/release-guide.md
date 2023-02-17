@@ -1192,6 +1192,10 @@ Note this script reads the release notes from the blog post, so you should make 
 
 After running the script, the release notes should be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
+### Mark the version as released in GitHub
+
+In GitHub, in the [milestone page](https://github.com/apache/beam/milestones), click close on the current release.
+
 ### PMC-Only Finalization
 There are a few release finalization tasks that only PMC members have permissions to do.
 Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
@@ -1202,10 +1206,6 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
-
-#### Mark the version as released in GitHub
-
-In GitHub, in the [milestone page](https://github.com/apache/beam/milestones), click close on the current release.
 
 #### Recordkeeping with ASF
 
