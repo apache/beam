@@ -1522,7 +1522,7 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
 
-        project.tasks.register("jmh", JavaExec)  {
+        project.tasks.register("jmh", JavaExec) {
           dependsOn project.classes
           // Note: this will wrap the default JMH runner publishing results to InfluxDB
           mainClass = "org.apache.beam.sdk.testutils.jmh.Main"
@@ -1558,6 +1558,17 @@ class BeamModulePlugin implements Plugin<Project> {
             // that ends up on the runtime classpath.
             args 'org.apache.beam'
           }
+
+          // Benchmark parameters. Parameters should be separated by |.
+          // Parameter name and parameter values should be separated with equals
+          // sign. Parameter values should be separated with commas.
+          //
+          // For example:
+          //   -PbenchmarkParams=paramA=value1,value2|paramB=value3,value4
+          if (project.hasProperty("benchmarkParams")) {
+            project.getProperty("benchmarkParams").split("[|]").each { param -> args '-p='+ param }
+          }
+
           // Reduce forks to 3
           args '-f=3'
           args '-foe=true'
