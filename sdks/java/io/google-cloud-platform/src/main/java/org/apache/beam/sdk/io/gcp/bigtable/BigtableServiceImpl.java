@@ -49,17 +49,14 @@ import io.grpc.Deadline;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -750,90 +747,70 @@ class BigtableServiceImpl implements BigtableService {
       private com.google.bigtable.v2.Row.Builder protoBuilder =
           com.google.bigtable.v2.Row.newBuilder();
 
-      private TreeMap<String, TreeMap<ByteString, ImmutableList.Builder<Cell>>>
-          cellsByFamilyColumn = new TreeMap<>();
-      private TreeMap<ByteString, ImmutableList.Builder<Cell>> cellsByColumn =
-          new TreeMap<>(Comparator.comparing(o -> o.toString(StandardCharsets.UTF_8)));
-      private ImmutableList.Builder<Cell> currentColumnCells;
+      private ByteString currentValue;
+      private Family.Builder lastFamily;
+      private String lastFamilyName;
+      private Column.Builder lastColumn;
+      private ByteString lastColumnName;
 
-      private ByteString qualifier;
-      private ByteString previousQualifier;
-      private String family;
-      private String previousFamily;
-
-      private ByteString value;
-      private List<String> labels;
-      private long timestamp;
+      private Cell.Builder lastCell;
 
       @Override
       public void startRow(ByteString key) {
         protoBuilder.setKey(key);
+
+        lastFamilyName = null;
+        lastFamily = null;
+        lastColumnName = null;
+        lastColumn = null;
       }
 
       @Override
       public void startCell(
           String family, ByteString qualifier, long timestamp, List<String> labels, long size) {
-        this.family = family;
-        this.qualifier = qualifier;
-        this.timestamp = timestamp;
-        this.labels = labels;
-        this.value = ByteString.EMPTY;
+        boolean familyChanged = false;
+
+        if (!family.equals(lastFamilyName)) {
+          familyChanged = true;
+          lastFamily = protoBuilder.addFamiliesBuilder().setName(family);
+          lastFamilyName = family;
+        }
+        if (!qualifier.equals(lastColumnName) || familyChanged) {
+          lastColumn = lastFamily.addColumnsBuilder().setQualifier(qualifier);
+          lastColumnName = qualifier;
+        }
+        lastCell = lastColumn.addCellsBuilder().setTimestampMicros(timestamp).addAllLabels(labels);
+        currentValue = null;
       }
 
       @Override
       public void cellValue(ByteString value) {
-        this.value = this.value.concat(value);
+        if (currentValue == null) {
+          currentValue = value;
+        } else {
+          currentValue = currentValue.concat(value);
+        }
       }
 
       @Override
       public void finishCell() {
-        if (!qualifier.equals(previousQualifier)) {
-          previousQualifier = qualifier;
-          currentColumnCells = ImmutableList.builder();
-          cellsByColumn.put(qualifier, currentColumnCells);
-        }
-        if (!family.equals(previousFamily)) {
-          previousFamily = family;
-          this.cellsByFamilyColumn.put(family, cellsByColumn);
-        }
-
-        Cell cell =
-            Cell.newBuilder()
-                .setValue(value)
-                .addAllLabels(labels)
-                .setTimestampMicros(timestamp)
-                .build();
-        currentColumnCells.add(cell);
+        lastCell.setValue(currentValue);
       }
 
       @Override
       public com.google.bigtable.v2.Row finishRow() {
-        for (String family : cellsByFamilyColumn.keySet()) {
-          Family.Builder f = Family.newBuilder().setName(family);
-          for (ByteString column : cellsByFamilyColumn.get(family).keySet()) {
-            Column c =
-                Column.newBuilder()
-                    .setQualifier(column)
-                    .addAllCells(cellsByFamilyColumn.get(family).get(column).build())
-                    .build();
-            f.addColumns(c);
-          }
-          protoBuilder.addFamilies(f);
-        }
         return protoBuilder.build();
       }
 
       @Override
       public void reset() {
-        this.qualifier = null;
-        this.previousQualifier = null;
-        this.family = null;
-        this.previousFamily = null;
+        lastFamilyName = null;
+        lastFamily = null;
+        lastColumnName = null;
+        lastColumn = null;
+        currentValue = null;
 
         protoBuilder = com.google.bigtable.v2.Row.newBuilder();
-
-        this.cellsByColumn.clear();
-        this.cellsByFamilyColumn.clear();
       }
 
       @Override
