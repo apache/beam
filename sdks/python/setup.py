@@ -180,18 +180,6 @@ if __name__ == '__main__':
   generate_protos_first()
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
-  # if sys.platform == 'darwin' and (
-  #         sys.version_info.major == 3 and sys.version_info.minor == 10):
-  #   # TODO (https://github.com/apache/beam/issues/23585): Protobuf wheels
-  #   # for version 3.19.5, 3.19.6 and 3.20.x on Python 3.10 and MacOS are
-  #   # rolled back due to some errors on MacOS. So, for Python 3.10 on MacOS
-  #   # restrict the protobuf with tight upper bound(3.19.4)
-  #   protobuf_dependency = ['protobuf>3.12.2,<3.19.5']
-  # else:
-  #   protobuf_dependency = ['protobuf>3.12.2,<4']
-  
-  protobuf_dependency = ['protobuf>=4.21.1,<=4.21.11']
-
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
@@ -229,7 +217,7 @@ if __name__ == '__main__':
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
       ]),
-      install_requires= protobuf_dependency + [
+      install_requires = [
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
@@ -254,6 +242,7 @@ if __name__ == '__main__':
         'objsize>=0.6.1,<0.7.0',
         'pymongo>=3.8.0,<4.0.0',
         'proto-plus>=1.7.1,<2',
+        'protobuf>=4.00,<=5',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
