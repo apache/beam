@@ -45,19 +45,19 @@ This section describes what is needed to run the backend application.
 
 Start datastore emulator
 ```shell
-$ bash start_datastore_emulator.sh
+bash start_datastore_emulator.sh
 ```
 
 After you have finished running tests
 ```shell
-$ bash stop_datastore_emulator.sh
+bash stop_datastore_emulator.sh
 ```
 
 ### Run/build
 Go to the backend directory:
 
 ```shell
-$ cd backend
+cd backend
 ```
 
 To run backend server on development machine without using docker you'll need first to prepare a working directory anywhere outside of Beam source tree:
@@ -92,14 +92,14 @@ where `<port>` should be the value of port on which you want to have the backend
 Run the following command to generate a release build file:
 
 ```shell
-$ go build ./cmd/server/server.go
+go build ./cmd/server/server.go
 ```
 
 ### Test
 Playground tests may be run using this command:
 
 ```shell
-$ go test ./... -v
+go test ./... -v
 ```
 
 The full list of commands can be found [here](https://pkg.go.dev/cmd/go).
