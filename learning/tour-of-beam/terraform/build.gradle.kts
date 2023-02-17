@@ -225,6 +225,48 @@ tasks.register("prepareFirebaseOptionsDart") {
     }
 }
 
+tasks.register("flutterPubGetPG") {
+    exec {
+    commandLine("flutter", "pub", "get")
+    workingDir("../../../playground/frontend/playground_components")
+    }
+}
+
+tasks.register("flutterPubRunPG") {
+    exec {
+        commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+        workingDir("../../../playground/frontend/playground_components")
+    }
+}
+
+tasks.register("flutterPubGetTob") {
+    exec {
+        commandLine("flutter", "pub", "get")
+        workingDir("../frontend")
+    }
+}
+
+tasks.register("flutterPubRunTob") {
+    exec {
+        commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+        workingDir("../frontend")
+    }
+}
+
+tasks.register("flutterBuildWeb") {
+    exec {
+        commandLine("flutter", "build", "web")
+        workingDir("../frontend")
+    }
+}
+
+tasks.register("firebaseDeploy") {
+    exec {
+        commandLine("firebase", "deploy")
+        workingDir("../frontend")
+    }
+}
+
 tasks.register("prepareConfig") {
     group = "frontend-deploy"
     doLast {
@@ -349,13 +391,32 @@ tasks.register("InitFrontend") {
     val firebaseWebAppCreate = tasks.getByName("firebaseWebAppCreate")
     val getSdkConfigWebApp = tasks.getByName("getSdkConfigWebApp")
     val prepareFirebaseOptionsDart = tasks.getByName("prepareFirebaseOptionsDart")
+    val flutterPubGetPG = tasks.getByName("prepareflutterPubGetPGConfig")
+    val flutterPubRunPG = tasks.getByName("flutterPubRunPG")
+    val flutterPubGetTob = tasks.getByName("flutterPubGetTob")
+    val flutterPubRunTob = tasks.getByName("flutterPubRunTob")
+    val flutterBuildWeb = tasks.getByName("flutterBuildWeb")
+    val firebaseDeploy = tasks.getByName("firebaseDeploy")
     dependsOn(prepareConfig)
 //    dependsOn(firebaseProjectCreate)
     dependsOn(firebaseWebAppCreate)
     dependsOn(getSdkConfigWebApp)
     dependsOn(prepareFirebaseOptionsDart)
+    dependsOn(flutterPubGetPG)
+    dependsOn(flutterPubRunPG)
+    dependsOn(flutterPubGetTob)
+    dependsOn(flutterPubRunTob)
+    dependsOn(flutterBuildWeb)
+    dependsOn(firebaseDeploy)
 //    firebaseProjectCreate.mustRunAfter(prepareConfig)
     firebaseWebAppCreate.mustRunAfter(prepareConfig)
     getSdkConfigWebApp.mustRunAfter(firebaseWebAppCreate)
     prepareFirebaseOptionsDart.mustRunAfter(getSdkConfigWebApp)
+    flutterPubGetPG.mustRunAfter(prepareFirebaseOptionsDart)
+    flutterPubRunPG.mustRunAfter(flutterPubGetPG)
+    flutterPubGetTob.mustRunAfter(flutterPubRunPG)
+    flutterPubRunTob.mustRunAfter(flutterPubGetTob)
+    flutterBuildWeb.mustRunAfter(flutterPubRunTob)
+    firebaseDeploy.mustRunAfter(flutterBuildWeb)
+
 }
