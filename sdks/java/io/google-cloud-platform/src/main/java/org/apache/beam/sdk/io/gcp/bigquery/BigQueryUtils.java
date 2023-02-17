@@ -686,16 +686,16 @@ public class BigQueryUtils {
       if (JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
         return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply(jsonBQString);
       } else if (fieldType.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
-        return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
-      } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
         try {
           // Handle if datetime value is in micros ie. 123456789
           Long value = Long.parseLong(jsonBQString);
           return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(value);
         } catch (NumberFormatException e) {
           // Handle as a String, ie. "2023-02-16 12:00:00"
-          return LocalDate.parse(jsonBQString);
+          return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
         }
+      } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
+        return LocalDate.parse(jsonBQString);
       } else if (fieldType.isLogicalType(SqlTypes.TIME.getIdentifier())) {
         return LocalTime.parse(jsonBQString);
       }
