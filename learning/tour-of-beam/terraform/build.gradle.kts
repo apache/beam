@@ -234,7 +234,8 @@ tasks.register("flutterPubGetPG") {
 
 tasks.register("flutterPubRunPG") {
     exec {
-        commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+        executable("flutter")
+        args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
         workingDir("../../../playground/frontend/playground_components")
     }
 }
