@@ -315,7 +315,7 @@ class XGBoostRunInferenceTest(unittest.TestCase):
   def test_bad_model_file_raises(self):
     model_state = self.tmpdir + os.sep + 'bad_file_name.json'
 
-    with self.assertRaises(xgboost.core.XGBoostError):
+    with self.assertRaises(RuntimeError):
       with TestPipeline() as pipeline:
         examples = [
             datatable.Frame([[1, 1], [2, 2]]),

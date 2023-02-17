@@ -53,10 +53,10 @@ class XGBoostInference(unittest.TestCase):
         [output_file_dir, str(uuid.uuid4()), 'numpy_single_batch.txt'])
     model_state_path = '/tmp/model.json'
     extra_opts = {
-        'input-type': input_type,
+        'input_type': input_type,
         'output': output_file,
-        'model-state': model_state_path,
-        'split': False
+        'model_state': model_state_path,
+        'no_split': True
     }
 
     xgboost_iris_classification.run(
@@ -87,10 +87,10 @@ class XGBoostInference(unittest.TestCase):
         [output_file_dir, str(uuid.uuid4()), 'pandas_single_batch.txt'])
     model_state_path = '/tmp/model.json'
     extra_opts = {
-        'input-type': input_type,
+        'input_type': input_type,
         'output': output_file,
-        'model-state': model_state_path,
-        'split': False
+        'model_state': model_state_path,
+        'no_split': True
     }
 
     xgboost_iris_classification.run(
@@ -121,10 +121,10 @@ class XGBoostInference(unittest.TestCase):
         [output_file_dir, str(uuid.uuid4()), 'scipy_single_batch.txt'])
     model_state_path = '/tmp/model.json'
     extra_opts = {
-        'input-type': input_type,
+        'input_type': input_type,
         'output': output_file,
-        'model-state': model_state_path,
-        'split': False
+        'model_state': model_state_path,
+        'no_split': True
     }
 
     xgboost_iris_classification.run(
@@ -155,10 +155,10 @@ class XGBoostInference(unittest.TestCase):
         [output_file_dir, str(uuid.uuid4()), 'datatable_single_batch.txt'])
     model_state_path = '/tmp/model.json'
     extra_opts = {
-        'input-type': input_type,
+        'input_type': input_type,
         'output': output_file,
-        'model-state': model_state_path,
-        'split': False
+        'model_state': model_state_path,
+        'no_split': True
     }
 
     xgboost_iris_classification.run(
@@ -189,9 +189,9 @@ class XGBoostInference(unittest.TestCase):
         [output_file_dir, str(uuid.uuid4()), 'numpy_multi_batch.txt'])
     model_state_path = '/tmp/model.json'
     extra_opts = {
-        'input-type': input_type,
+        'input_type': input_type,
         'output': output_file,
-        'model-state': model_state_path,
+        'model_state': model_state_path,
         'split': True
     }
 
@@ -223,9 +223,9 @@ class XGBoostInference(unittest.TestCase):
         [output_file_dir, str(uuid.uuid4()), 'pandas_multi_batch.txt'])
     model_state_path = '/tmp/model.json'
     extra_opts = {
-        'input-type': input_type,
+        'input_type': input_type,
         'output': output_file,
-        'model-state': model_state_path,
+        'model_state': model_state_path,
         'split': True
     }
 
@@ -257,9 +257,9 @@ class XGBoostInference(unittest.TestCase):
         [output_file_dir, str(uuid.uuid4()), 'scipy_multi_batch.txt'])
     model_state_path = '/tmp/model.json'
     extra_opts = {
-        'input-type': input_type,
+        'input_type': input_type,
         'output': output_file,
-        'model-state': model_state_path,
+        'model_state': model_state_path,
         'split': True
     }
 
@@ -291,9 +291,9 @@ class XGBoostInference(unittest.TestCase):
         [output_file_dir, str(uuid.uuid4()), 'datatable_multi_batch.txt'])
     model_state_path = '/tmp/model.json'
     extra_opts = {
-        'input-type': input_type,
+        'input_type': input_type,
         'output': output_file,
-        'model-state': model_state_path,
+        'model_state': model_state_path,
         'split': True
     }
 
