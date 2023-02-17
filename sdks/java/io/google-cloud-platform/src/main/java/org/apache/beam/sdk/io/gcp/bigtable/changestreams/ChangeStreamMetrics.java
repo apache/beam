@@ -38,6 +38,12 @@ public class ChangeStreamMetrics implements Serializable {
           org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
           "list_partitions_count");
 
+  /** Counter for the total number of active partitions being streamed. */
+  public static final Counter PARTITION_STREAM_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "partition_stream_count");
+
   // -------------------
   // Read change stream metrics
 
@@ -72,6 +78,15 @@ public class ChangeStreamMetrics implements Serializable {
       Metrics.distribution(
           org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
           "processing_delay_from_commit_timestamp");
+
+  /**
+   * Decrements the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#PARTITION_STREAM_COUNT}
+   * by 1.
+   */
+  public void decPartitionStreamCount() {
+    dec(PARTITION_STREAM_COUNT);
+  }
 
   /**
    * Increments the {@link
@@ -119,6 +134,10 @@ public class ChangeStreamMetrics implements Serializable {
 
   private void inc(Counter counter) {
     counter.inc();
+  }
+
+  private void dec(Counter counter) {
+    counter.dec();
   }
 
   private void update(Distribution distribution, long value) {

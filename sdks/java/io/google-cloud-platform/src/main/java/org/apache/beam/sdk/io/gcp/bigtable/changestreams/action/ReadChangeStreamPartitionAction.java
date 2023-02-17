@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
+
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
@@ -117,6 +119,20 @@ public class ReadChangeStreamPartitionAction {
     // Watermark being delayed beyond 5 minutes signals a possible problem.
     boolean shouldDebug =
         watermarkEstimator.getState().plus(Duration.standardMinutes(5)).isBeforeNow();
+    // Lock the partition
+    if (!metadataTableDao.lockPartition(
+        partitionRecord.getPartition(), partitionRecord.getUuid())) {
+      LOG.info(
+          "RCSP: Could not acquire lock for partition: {}, with uid: {}, because this is a "
+              + "duplicate and another worker is working on this partition already.",
+          formatByteStringRange(partitionRecord.getPartition()),
+          partitionRecord.getUuid());
+      StreamProgress streamProgress = new StreamProgress();
+      streamProgress.setFailToLock(true);
+      metrics.decPartitionStreamCount();
+      tracker.tryClaim(streamProgress);
+      return ProcessContinuation.stop();
+    }
 
     if (shouldDebug) {
       LOG.info(

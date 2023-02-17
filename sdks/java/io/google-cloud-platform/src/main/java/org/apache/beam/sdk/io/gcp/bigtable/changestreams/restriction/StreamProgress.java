@@ -40,6 +40,7 @@ public class StreamProgress implements Serializable {
 
   private @Nullable ChangeStreamContinuationToken currentToken;
   private @Nullable Instant estimatedLowWatermark;
+  private boolean failToLock;
 
   public @Nullable ChangeStreamContinuationToken getCurrentToken() {
     return currentToken;
@@ -57,6 +58,14 @@ public class StreamProgress implements Serializable {
     this.estimatedLowWatermark = estimatedLowWatermark;
   }
 
+  public boolean isFailToLock() {
+    return failToLock;
+  }
+
+  public void setFailToLock(boolean failToLock) {
+    this.failToLock = failToLock;
+  }
+
   @Override
   public boolean equals(@Nullable Object o) {
     if (this == o) {
@@ -67,7 +76,8 @@ public class StreamProgress implements Serializable {
     }
     StreamProgress that = (StreamProgress) o;
     return Objects.equals(getCurrentToken(), that.getCurrentToken())
-        && Objects.equals(getEstimatedLowWatermark(), that.getEstimatedLowWatermark());
+        && Objects.equals(getEstimatedLowWatermark(), that.getEstimatedLowWatermark())
+        && (isFailToLock() == that.isFailToLock());
   }
 
   @Override
@@ -82,6 +92,8 @@ public class StreamProgress implements Serializable {
         + currentToken
         + ", estimatedLowWatermark="
         + estimatedLowWatermark
+        + ", failToLock="
+        + failToLock
         + '}';
   }
 }
