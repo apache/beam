@@ -192,6 +192,7 @@ tasks.register("getSdkConfigWebApp") {
     val result = ByteArrayOutputStream()
     doLast{
         exec {
+            println(firebaseAppId)
             executable("firebase")
             args("apps:sdkconfig", "WEB", firebaseAppId)
             standardOutput = result
