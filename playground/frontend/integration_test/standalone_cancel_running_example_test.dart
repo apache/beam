@@ -18,10 +18,11 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
+
+const kExecutionCancelledText = 'Pipeline cancelled';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
