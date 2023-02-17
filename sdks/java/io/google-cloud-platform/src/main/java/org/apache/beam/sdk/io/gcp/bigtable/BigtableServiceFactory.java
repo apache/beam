@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import com.google.api.gax.grpc.GrpcStatusCode;
+import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -166,8 +166,8 @@ class BigtableServiceFactory implements Serializable {
       try (BigtableDataClient client = BigtableDataClient.create(settings)) {
         try {
           client.readRow(tableId, "non-exist-row");
-        } catch (StatusRuntimeException e) {
-          if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+        } catch (ApiException e) {
+          if (e.getStatusCode().getCode() == GrpcStatusCode.Code.NOT_FOUND) {
             return false;
           }
           String message = String.format("Error checking whether table %s exists", tableId);

@@ -1166,7 +1166,10 @@ public class BigtableIO {
       if (bigtableWriter != null) {
         bigtableWriter.close();
         bigtableWriter = null;
+      }
+      if (serviceEntry != null) {
         factory.releaseService(serviceEntry);
+        serviceEntry = null;
       }
     }
 
@@ -1631,7 +1634,7 @@ public class BigtableIO {
     private BigtableSource source;
 
     private final BigtableServiceFactory factory;
-    private final BigtableServiceEntry serviceEntry;
+    private BigtableServiceEntry serviceEntry;
     private BigtableService.Reader reader;
     private final ByteKeyRangeTracker rangeTracker;
     private long recordsReturned;
@@ -1686,8 +1689,11 @@ public class BigtableIO {
     public void close() throws IOException {
       LOG.info("Closing reader after reading {} records.", recordsReturned);
       if (reader != null) {
-        factory.releaseService(serviceEntry);
         reader = null;
+      }
+      if (serviceEntry != null) {
+        factory.releaseService(serviceEntry);
+        serviceEntry = null;
       }
     }
 
