@@ -126,7 +126,6 @@ Config = typing.NamedTuple(
         ('output_parallelization', typing.Optional[bool]),
         ('autosharding', typing.Optional[bool]),
         ('partitionColumn', typing.Optional[str]),
-        ('tableName', typing.Optional[str]),
         ('partitions', typing.Optional[bool])
     ],
 )

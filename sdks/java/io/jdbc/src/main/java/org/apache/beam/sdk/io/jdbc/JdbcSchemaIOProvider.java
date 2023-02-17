@@ -117,7 +117,11 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         public PCollection<Row> expand(PBegin input) {
 
           // If we define a partition column we need to go a different route
-          @Nullable String partitionColumn = config.getString("partitionColumn");
+          @Nullable
+          String partitionColumn =
+              config.getSchema().hasField("partitionColumn")
+                  ? config.getString("partitionColumn")
+                  : null;
           if (partitionColumn != null) {
             JdbcIO.ReadWithPartitions<?, ?> readRows =
                 JdbcIO.readWithPartitions()
