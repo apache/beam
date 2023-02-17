@@ -17,15 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
+import static com.google.cloud.bigtable.data.v2.models.Filters.FILTERS;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.DETECT_NEW_PARTITION_SUFFIX;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.NEW_PARTITION_PREFIX;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.STREAM_PARTITION_PREFIX;
 
+import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Range;
+import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Instant;
@@ -84,6 +89,21 @@ public class MetadataTableDao {
    */
   private ByteString getFullDetectNewPartition() {
     return changeStreamNamePrefix.concat(DETECT_NEW_PARTITION_SUFFIX);
+  }
+
+  /**
+   * Convert stream partition row key to partition to process metadata read from Bigtable.
+   *
+   * <p>RowKey should be directly from Cloud Bigtable and not altered in any way.
+   *
+   * @param rowKey row key from Cloud Bigtable
+   * @return partition extracted from rowKey
+   * @throws InvalidProtocolBufferException if conversion from rowKey to partition fails
+   */
+  public Range.ByteStringRange convertStreamPartitionRowKeyToPartition(ByteString rowKey)
+      throws InvalidProtocolBufferException {
+    int prefixLength = changeStreamNamePrefix.size() + STREAM_PARTITION_PREFIX.size();
+    return Range.ByteStringRange.toByteStringRange(rowKey.substring(prefixLength));
   }
 
   /**
@@ -149,5 +169,24 @@ public class MetadataTableDao {
                 MetadataTableAdminDao.QUALIFIER_DEFAULT,
                 MetadataTableAdminDao.CURRENT_METADATA_TABLE_VERSION);
     dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * @return stream of partitions currently being streamed by the beam job that have set a
+   *     watermark.
+   */
+  public ServerStream<Row> readFromMdTableStreamPartitionsWithWatermark() {
+    // We limit to the latest value per column.
+    Query query =
+        Query.create(tableId)
+            .prefix(getFullStreamPartitionPrefix())
+            .filter(
+                FILTERS
+                    .chain()
+                    .filter(FILTERS.limit().cellsPerColumn(1))
+                    .filter(FILTERS.family().exactMatch(MetadataTableAdminDao.CF_WATERMARK))
+                    .filter(
+                        FILTERS.qualifier().exactMatch(MetadataTableAdminDao.QUALIFIER_DEFAULT)));
+    return dataClient.readRows(query);
   }
 }
