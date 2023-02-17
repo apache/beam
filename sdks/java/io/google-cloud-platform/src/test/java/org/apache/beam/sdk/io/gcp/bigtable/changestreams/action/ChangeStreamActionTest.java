@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.instantToNanos;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -30,7 +31,6 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.Heartbeat;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
@@ -70,11 +70,12 @@ public class ChangeStreamActionTest {
 
   @Test
   public void testHeartBeat() {
-    final Timestamp lowWatermark = Timestamp.newBuilder().setSeconds(1000).build();
+    final Instant lowWatermark = Instant.ofEpochSecond(1000);
     ChangeStreamContinuationToken changeStreamContinuationToken =
-        new ChangeStreamContinuationToken(ByteStringRange.create("a", "b"), "1234");
+        ChangeStreamContinuationToken.create(ByteStringRange.create("a", "b"), "1234");
     Heartbeat mockHeartBeat = Mockito.mock(Heartbeat.class);
-    Mockito.when(mockHeartBeat.getLowWatermark()).thenReturn(lowWatermark);
+    Mockito.when(mockHeartBeat.getEstimatedLowWatermark())
+        .thenReturn(TimestampConverter.toProtoTimestamp(lowWatermark));
     Mockito.when(mockHeartBeat.getChangeStreamContinuationToken())
         .thenReturn(changeStreamContinuationToken);
 
@@ -83,7 +84,7 @@ public class ChangeStreamActionTest {
 
     assertFalse(result.isPresent());
     verify(metrics).incHeartbeatCount();
-    verify(watermarkEstimator).setWatermark(eq(TimestampConverter.toInstant(lowWatermark)));
+    verify(watermarkEstimator).setWatermark(eq(lowWatermark));
     StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
     verify(tracker).tryClaim(eq(streamProgress));
   }
@@ -92,14 +93,16 @@ public class ChangeStreamActionTest {
   public void testChangeStreamMutationUser() {
     ByteStringRange partition = ByteStringRange.create("", "");
     when(partitionRecord.getPartition()).thenReturn(partition);
-    final Timestamp commitTimestamp = Timestamp.newBuilder().setSeconds(1000).build();
-    final Timestamp lowWatermark = Timestamp.newBuilder().setSeconds(500).build();
+    final Instant commitTimestamp = Instant.ofEpochSecond(1000);
+    final Instant lowWatermark = Instant.ofEpochSecond(500);
     ChangeStreamContinuationToken changeStreamContinuationToken =
-        new ChangeStreamContinuationToken(ByteStringRange.create("", ""), "1234");
+        ChangeStreamContinuationToken.create(ByteStringRange.create("", ""), "1234");
     ChangeStreamMutation changeStreamMutation = Mockito.mock(ChangeStreamMutation.class);
-    Mockito.when(changeStreamMutation.getCommitTimestamp()).thenReturn(commitTimestamp);
+    Mockito.when(changeStreamMutation.getCommitTimestamp())
+        .thenReturn(instantToNanos(commitTimestamp));
     Mockito.when(changeStreamMutation.getToken()).thenReturn("1234");
-    Mockito.when(changeStreamMutation.getLowWatermark()).thenReturn(lowWatermark);
+    Mockito.when(changeStreamMutation.getEstimatedLowWatermark())
+        .thenReturn(instantToNanos(lowWatermark));
     Mockito.when(changeStreamMutation.getType()).thenReturn(ChangeStreamMutation.MutationType.USER);
     KV<ByteString, ChangeStreamMutation> record =
         KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
@@ -114,21 +117,23 @@ public class ChangeStreamActionTest {
     StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
     verify(tracker).tryClaim(eq(streamProgress));
     verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
-    verify(watermarkEstimator).setWatermark(eq(TimestampConverter.toInstant(lowWatermark)));
+    verify(watermarkEstimator).setWatermark(eq(lowWatermark));
   }
 
   @Test
   public void testChangeStreamMutationGc() {
     ByteStringRange partition = ByteStringRange.create("", "");
     when(partitionRecord.getPartition()).thenReturn(partition);
-    final Timestamp commitTimestamp = Timestamp.newBuilder().setSeconds(1000).build();
-    final Timestamp lowWatermark = Timestamp.newBuilder().setSeconds(500).build();
+    final Instant commitTimestamp = Instant.ofEpochSecond(1000);
+    final Instant lowWatermark = Instant.ofEpochSecond(500);
     ChangeStreamContinuationToken changeStreamContinuationToken =
-        new ChangeStreamContinuationToken(ByteStringRange.create("", ""), "1234");
+        ChangeStreamContinuationToken.create(ByteStringRange.create("", ""), "1234");
     ChangeStreamMutation changeStreamMutation = Mockito.mock(ChangeStreamMutation.class);
-    Mockito.when(changeStreamMutation.getCommitTimestamp()).thenReturn(commitTimestamp);
+    Mockito.when(changeStreamMutation.getCommitTimestamp())
+        .thenReturn(instantToNanos(commitTimestamp));
     Mockito.when(changeStreamMutation.getToken()).thenReturn("1234");
-    Mockito.when(changeStreamMutation.getLowWatermark()).thenReturn(lowWatermark);
+    Mockito.when(changeStreamMutation.getEstimatedLowWatermark())
+        .thenReturn(instantToNanos(lowWatermark));
     Mockito.when(changeStreamMutation.getType())
         .thenReturn(ChangeStreamMutation.MutationType.GARBAGE_COLLECTION);
     KV<ByteString, ChangeStreamMutation> record =
@@ -144,6 +149,6 @@ public class ChangeStreamActionTest {
     StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
     verify(tracker).tryClaim(eq(streamProgress));
     verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
-    verify(watermarkEstimator).setWatermark(eq(TimestampConverter.toInstant(lowWatermark)));
+    verify(watermarkEstimator).setWatermark(eq(lowWatermark));
   }
 }

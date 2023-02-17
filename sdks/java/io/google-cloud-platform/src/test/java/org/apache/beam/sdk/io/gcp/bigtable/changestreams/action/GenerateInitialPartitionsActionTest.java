@@ -23,7 +23,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
@@ -32,7 +31,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
@@ -65,7 +63,7 @@ public class GenerateInitialPartitionsActionTest {
   @Mock private OutputReceiver<PartitionRecord> receiver;
 
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
-  private Timestamp startTime;
+  private Instant startTime;
   private static BigtableTableAdminClient adminClient;
 
   @Captor ArgumentCaptor<PartitionRecord> partitionRecordArgumentCaptor;
@@ -87,8 +85,8 @@ public class GenerateInitialPartitionsActionTest {
         new MetadataTableAdminDao(
             adminClient, null, changeStreamId, MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME);
     metadataTableAdminDao.createMetadataTable();
-    startTime = Timestamp.now();
-    watermarkEstimator = new WatermarkEstimators.Manual(TimestampConverter.toInstant(startTime));
+    startTime = Instant.now();
+    watermarkEstimator = new WatermarkEstimators.Manual(startTime);
   }
 
   @Test

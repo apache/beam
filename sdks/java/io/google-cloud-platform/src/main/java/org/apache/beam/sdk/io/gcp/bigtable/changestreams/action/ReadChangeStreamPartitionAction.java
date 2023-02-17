@@ -22,8 +22,8 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import org.apache.beam.sdk.annotations.Internal;
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
@@ -53,19 +53,19 @@ public class ReadChangeStreamPartitionAction {
   private final ChangeStreamDao changeStreamDao;
   private final ChangeStreamMetrics metrics;
   private final ChangeStreamAction changeStreamAction;
-  private final Duration heartbeatDurationSeconds;
+  private final Duration heartbeatDuration;
 
   public ReadChangeStreamPartitionAction(
       MetadataTableDao metadataTableDao,
       ChangeStreamDao changeStreamDao,
       ChangeStreamMetrics metrics,
       ChangeStreamAction changeStreamAction,
-      Duration heartbeatDurationSeconds) {
+      Duration heartbeatDuration) {
     this.metadataTableDao = metadataTableDao;
     this.changeStreamDao = changeStreamDao;
     this.metrics = metrics;
     this.changeStreamAction = changeStreamAction;
-    this.heartbeatDurationSeconds = heartbeatDurationSeconds;
+    this.heartbeatDuration = heartbeatDuration;
   }
 
   /**
@@ -139,7 +139,7 @@ public class ReadChangeStreamPartitionAction {
     try {
       stream =
           changeStreamDao.readChangeStreamPartition(
-              partitionRecord, tracker.currentRestriction(), heartbeatDurationSeconds, shouldDebug);
+              partitionRecord, tracker.currentRestriction(), heartbeatDuration, shouldDebug);
       for (ChangeStreamRecord record : stream) {
         Optional<ProcessContinuation> result =
             changeStreamAction.run(

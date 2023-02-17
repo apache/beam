@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
+import com.google.protobuf.util.Timestamps;
 import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Instant;
 
@@ -33,7 +34,15 @@ public class TimestampConverter {
     return Instant.ofEpochMilli(epochMilli);
   }
 
-  public static com.google.cloud.Timestamp toCloudTimestamp(Instant instant) {
-    return com.google.cloud.Timestamp.of(instant.toDate());
+  public static com.google.protobuf.Timestamp toProtoTimestamp(Instant instant) {
+    return Timestamps.fromDate(instant.toDate());
+  }
+
+  public static Instant nanosToInstant(long nanos) {
+    return Instant.ofEpochMilli(nanos / 1_000_000);
+  }
+
+  public static long instantToNanos(Instant instant) {
+    return instant.getMillis() * 1_000_000;
   }
 }

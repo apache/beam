@@ -104,15 +104,11 @@ public class ActionFactory implements Serializable {
       ChangeStreamDao changeStreamDao,
       ChangeStreamMetrics metrics,
       ChangeStreamAction changeStreamAction,
-      Duration heartbeatDurationSeconds) {
+      Duration heartbeatDuration) {
     if (readChangeStreamPartitionAction == null) {
       readChangeStreamPartitionAction =
           new ReadChangeStreamPartitionAction(
-              metadataTableDao,
-              changeStreamDao,
-              metrics,
-              changeStreamAction,
-              heartbeatDurationSeconds);
+              metadataTableDao, changeStreamDao, metrics, changeStreamAction, heartbeatDuration);
     }
     return readChangeStreamPartitionAction;
   }

@@ -27,7 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminD
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -56,7 +56,7 @@ public class InitializeDoFnTest {
   @Mock private DaoFactory daoFactory;
   @Mock private transient MetadataTableAdminDao metadataTableAdminDao;
   private transient MetadataTableDao metadataTableDao;
-  @Mock private DoFn.OutputReceiver<Timestamp> outputReceiver;
+  @Mock private DoFn.OutputReceiver<Instant> outputReceiver;
   private final String tableId = "table";
 
   private static BigtableDataClient dataClient;
@@ -94,7 +94,7 @@ public class InitializeDoFnTest {
 
   @Test
   public void testInitializeDefault() throws IOException {
-    Timestamp startTime = Timestamp.now();
+    Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn = new InitializeDoFn(daoFactory, "app-profile", startTime);
     initializeDoFn.processElement(outputReceiver);
     verify(outputReceiver, times(1)).output(startTime);

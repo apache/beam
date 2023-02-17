@@ -84,7 +84,7 @@ public class MetadataTableDaoTest {
   public void testUpdateWatermark() {
     ByteStringRange partition = ByteStringRange.create("a", "b");
     Instant watermark = Instant.now();
-    ChangeStreamContinuationToken token = new ChangeStreamContinuationToken(partition, "1234");
+    ChangeStreamContinuationToken token = ChangeStreamContinuationToken.create(partition, "1234");
     metadataTableDao.updateWatermark(partition, watermark, token);
     Row row =
         dataClient.readRow(

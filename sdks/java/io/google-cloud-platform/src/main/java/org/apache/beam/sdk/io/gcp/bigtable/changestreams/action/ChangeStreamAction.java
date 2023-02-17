@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.nanosToInstant;
 
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
@@ -110,10 +111,9 @@ public class ChangeStreamAction {
       boolean shouldDebug) {
     if (record instanceof Heartbeat) {
       Heartbeat heartbeat = (Heartbeat) record;
+      final Instant watermark = TimestampConverter.toInstant(heartbeat.getEstimatedLowWatermark());
       StreamProgress streamProgress =
-          new StreamProgress(
-              heartbeat.getChangeStreamContinuationToken(), heartbeat.getLowWatermark());
-      final Instant watermark = TimestampConverter.toInstant(heartbeat.getLowWatermark());
+          new StreamProgress(heartbeat.getChangeStreamContinuationToken(), watermark);
       watermarkEstimator.setWatermark(watermark);
 
       if (shouldDebug) {
@@ -122,7 +122,7 @@ public class ChangeStreamAction {
             formatByteStringRange(partitionRecord.getPartition()),
             formatByteStringRange(heartbeat.getChangeStreamContinuationToken().getPartition()),
             heartbeat.getChangeStreamContinuationToken().getToken(),
-            heartbeat.getLowWatermark());
+            heartbeat.getEstimatedLowWatermark());
       }
       // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
       // a checkpoint. See {@link
@@ -139,18 +139,16 @@ public class ChangeStreamAction {
       metrics.incHeartbeatCount();
     } else if (record instanceof ChangeStreamMutation) {
       ChangeStreamMutation changeStreamMutation = (ChangeStreamMutation) record;
-      final Instant watermark =
-          TimestampConverter.toInstant(changeStreamMutation.getLowWatermark());
+      final Instant watermark = nanosToInstant(changeStreamMutation.getEstimatedLowWatermark());
       watermarkEstimator.setWatermark(watermark);
       // Build a new StreamProgress with the continuation token to be claimed.
       ChangeStreamContinuationToken changeStreamContinuationToken =
-          new ChangeStreamContinuationToken(
+          ChangeStreamContinuationToken.create(
               Range.ByteStringRange.create(
                   partitionRecord.getPartition().getStart(),
                   partitionRecord.getPartition().getEnd()),
               changeStreamMutation.getToken());
-      StreamProgress streamProgress =
-          new StreamProgress(changeStreamContinuationToken, changeStreamMutation.getLowWatermark());
+      StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, watermark);
       // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
       // a checkpoint. See ReadChangeStreamPartitionProgressTracker for more information regarding
       // runner initiated checkpoints.
@@ -167,7 +165,7 @@ public class ChangeStreamAction {
       } else if (changeStreamMutation.getType() == ChangeStreamMutation.MutationType.USER) {
         metrics.incChangeStreamMutationUserCounter();
       }
-      Instant delay = TimestampConverter.toInstant(changeStreamMutation.getCommitTimestamp());
+      Instant delay = nanosToInstant(changeStreamMutation.getCommitTimestamp());
       metrics.updateProcessingDelayFromCommitTimestamp(
           Instant.now().getMillis() - delay.getMillis());
 

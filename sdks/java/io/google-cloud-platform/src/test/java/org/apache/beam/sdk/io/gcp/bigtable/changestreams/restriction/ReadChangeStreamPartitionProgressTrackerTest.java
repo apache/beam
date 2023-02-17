@@ -22,10 +22,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 public class ReadChangeStreamPartitionProgressTrackerTest {
@@ -37,16 +37,20 @@ public class ReadChangeStreamPartitionProgressTrackerTest {
     assertEquals(streamProgress, tracker.currentRestriction());
 
     ChangeStreamContinuationToken changeStreamContinuationToken =
-        new ChangeStreamContinuationToken(Range.ByteStringRange.create("a", "b"), "1234");
+        ChangeStreamContinuationToken.create(Range.ByteStringRange.create("a", "b"), "1234");
     final StreamProgress streamProgress2 =
-        new StreamProgress(changeStreamContinuationToken, Timestamp.now().toProto());
+        new StreamProgress(changeStreamContinuationToken, Instant.now());
     assertTrue(tracker.tryClaim(streamProgress2));
     assertEquals(streamProgress2, tracker.currentRestriction());
-    assertEquals(streamProgress2.getLowWatermark(), tracker.currentRestriction().getLowWatermark());
+    assertEquals(
+        streamProgress2.getEstimatedLowWatermark(),
+        tracker.currentRestriction().getEstimatedLowWatermark());
 
     assertNull(tracker.trySplit(0.5));
     assertEquals(streamProgress2, tracker.currentRestriction());
-    assertEquals(streamProgress2.getLowWatermark(), tracker.currentRestriction().getLowWatermark());
+    assertEquals(
+        streamProgress2.getEstimatedLowWatermark(),
+        tracker.currentRestriction().getEstimatedLowWatermark());
     try {
       tracker.checkDone();
       assertFalse("Should not reach here because checkDone should have thrown an exception", false);

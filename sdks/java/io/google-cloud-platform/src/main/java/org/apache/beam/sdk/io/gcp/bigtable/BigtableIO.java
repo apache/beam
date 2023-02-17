@@ -27,15 +27,12 @@ import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.SampleRowKeysResponse;
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +77,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1540,7 +1538,7 @@ public class BigtableIO {
 
     abstract BigtableConfig getBigtableConfig();
 
-    abstract @Nullable Timestamp getStartTime();
+    abstract @Nullable Instant getStartTime();
 
     abstract @Nullable Duration getHeartbeatDuration();
 
@@ -1612,7 +1610,7 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public ReadChangeStream withStartTime(Timestamp startTime) {
+    public ReadChangeStream withStartTime(Instant startTime) {
       return toBuilder().setStartTime(startTime).build();
     }
 
@@ -1729,9 +1727,9 @@ public class BigtableIO {
             metadataTableConfig.withAppProfileId(getBigtableConfig().getAppProfileId());
       }
 
-      Timestamp startTime = getStartTime();
+      Instant startTime = getStartTime();
       if (startTime == null) {
-        startTime = Timestamp.of(Date.from(Instant.now()));
+        startTime = Instant.now();
       }
       Duration heartbeatDuration = getHeartbeatDuration();
       if (heartbeatDuration == null) {
@@ -1768,7 +1766,7 @@ public class BigtableIO {
       abstract ReadChangeStream.Builder setMetadataTableBigtableConfig(
           BigtableConfig bigtableConfig);
 
-      abstract ReadChangeStream.Builder setStartTime(Timestamp startTime);
+      abstract ReadChangeStream.Builder setStartTime(Instant startTime);
 
       abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
 

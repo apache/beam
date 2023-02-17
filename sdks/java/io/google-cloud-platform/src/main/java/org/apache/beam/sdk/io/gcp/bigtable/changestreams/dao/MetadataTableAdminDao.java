@@ -27,8 +27,8 @@ import com.google.cloud.bigtable.admin.v2.models.GCRules;
 import com.google.cloud.bigtable.admin.v2.models.ModifyColumnFamiliesRequest;
 import com.google.cloud.bigtable.admin.v2.models.Table;
 import com.google.protobuf.ByteString;
-import org.apache.beam.sdk.annotations.Internal;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
