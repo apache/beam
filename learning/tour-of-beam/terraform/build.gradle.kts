@@ -205,7 +205,7 @@ tasks.register("getSdkConfigWebApp") {
         val matcher = pattern.matcher(output)
         println(matcher)
         if (matcher.find()) {
-            val firebaseConfigData = matcher.group()
+            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "")
             project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
             println("Firebase config data: $firebaseConfigData")
         } else {
@@ -216,7 +216,7 @@ tasks.register("getSdkConfigWebApp") {
 
 tasks.register("prepareFirebaseOptionsDart") {
     group = "frontend-deploy"
-    val firebaseConfigData = ""
+    val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
     val file = file("../frontend/lib/firebase_options.dart")
     val fileText = file.readText()
     val pattern = Pattern.compile("static const FirebaseOptions web = FirebaseOptions\\((.|\\n)*?\\);", Pattern.DOTALL)
