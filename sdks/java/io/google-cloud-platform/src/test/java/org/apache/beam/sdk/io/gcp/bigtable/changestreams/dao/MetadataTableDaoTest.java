@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.gax.rpc.ServerStream;
@@ -153,6 +154,20 @@ public class MetadataTableDaoTest {
     assertEquals(2, rowsCount);
     assertTrue(matchedPartition1);
     assertTrue(matchedPartition2);
+  }
+
+  @Test
+  public void testUpdateDetectNewPartitionWatermark() {
+    Instant watermark = Instant.now();
+    metadataTableDao.updateDetectNewPartitionWatermark(watermark);
+    Row row =
+        dataClient.readRow(
+            metadataTableAdminDao.getTableId(),
+            metadataTableDao
+                .getChangeStreamNamePrefix()
+                .concat(MetadataTableAdminDao.DETECT_NEW_PARTITION_SUFFIX));
+    assertNull(MetadataTableEncoder.getTokenFromRow(row));
+    assertEquals(watermark, MetadataTableEncoder.parseWatermarkFromRow(row));
   }
 
   @Test

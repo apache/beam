@@ -143,6 +143,15 @@ public class MetadataTableDao {
   }
 
   /**
+   * Update the watermark cell for Detect New Partition step.
+   *
+   * @param watermark watermark value to set for the cell
+   */
+  public void updateDetectNewPartitionWatermark(Instant watermark) {
+    writeToMdTableWatermarkHelper(getFullDetectNewPartition(), watermark, null);
+  }
+
+  /**
    * Update the metadata for the row key represented by the partition.
    *
    * @param partition forms the row key of the row to update

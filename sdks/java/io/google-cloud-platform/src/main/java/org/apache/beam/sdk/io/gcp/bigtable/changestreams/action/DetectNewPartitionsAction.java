@@ -187,11 +187,13 @@ public class DetectNewPartitionsAction {
       return generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime);
     }
 
+    advanceWatermark(tracker, watermarkEstimator);
+
+    metadataTableDao.updateDetectNewPartitionWatermark(watermarkEstimator.getState());
+
     if (!tracker.tryClaim(tracker.currentRestriction().getFrom())) {
       return ProcessContinuation.stop();
     }
-
-    advanceWatermark(tracker, watermarkEstimator);
 
     return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
   }
