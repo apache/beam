@@ -18,6 +18,7 @@
 
 import com.pswidersk.gradle.terraform.TerraformTask
 import java.io.ByteArrayOutputStream
+import java.util.regex.Pattern
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
@@ -151,6 +152,174 @@ tasks.register("indexcreate") {
     }
 }
 
+tasks.register("firebaseProjectCreate") {
+    group = "frontend-deploy"
+    var project_id = "unknown"
+    if (project.hasProperty("project_id")) {
+        project_id = project.property("project_id") as String
+    }
+    doLast{
+        exec {
+            executable("firebase")
+            args("projects:addfirebase", project_id)
+        }
+    }
+}
+
+tasks.register("firebaseWebAppCreate") {
+    group = "frontend-deploy"
+    var project_id = "unknown"
+    if (project.hasProperty("project_id")) {
+        project_id = project.property("project_id") as String
+    }
+    val result = ByteArrayOutputStream()
+        exec {
+            executable("firebase")
+            args("apps:create", "WEB", "Tour-of-Beam-Web-App", "--project", project_id)
+            standardOutput = result
+        }
+
+    val appId = result.toString().trim().lines()
+    val firebaseAppId = appId.find { it.startsWith("App ID:") }?.split(":")?.get(1)?.trim()
+    project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+    println("Firebase app ID: $firebaseAppId")
+
+}
+
+// firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
+tasks.register("getSdkConfigWebApp") {
+    group = "frontend-deploy"
+    var project_id = "unknown"
+    if (project.hasProperty("project_id")) {
+        project_id = project.property("project_id") as String
+    }
+    var firebaseAppId = ""
+    val result = ByteArrayOutputStream()
+    doLast{
+        exec {
+            executable("firebase")
+            args("apps:sdkconfig", "WEB", firebaseAppId)
+            standardOutput = result
+        }
+        val output = result.toString().trim()
+        val pattern = Pattern.compile("\\{.*\\}", Pattern.DOTALL)
+        val matcher = pattern.matcher(output)
+        if (matcher.find()) {
+            val firebaseConfigData = matcher.group()
+            project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
+            println("Firebase config data: $firebaseConfigData")
+        } else {
+            throw Exception("Unable to extract Firebase config data from output.")
+        }
+    }
+}
+
+tasks.register("prepareFirebaseOptionsDart") {
+    group = "frontend-deploy"
+    val firebaseConfigData = ""
+    val file = file("../frontend/lib/firebase_options.dart")
+    val fileText = file.readText()
+    val pattern = Pattern.compile("static const FirebaseOptions web = FirebaseOptions\\((.|\\n)*?\\);", Pattern.DOTALL)
+    val matcher = pattern.matcher(fileText)
+    if (matcher.find()) {
+        val existingData = matcher.group()
+        val newData = "static const FirebaseOptions web = FirebaseOptions($firebaseConfigData);"
+        val updatedFileText = fileText.replace(existingData, newData)
+        file.writeText(updatedFileText)
+    } else {
+        throw Exception("Unable to find FirebaseOptions file or replace failed.")
+    }
+}
+
+tasks.register("prepareConfigDart") {
+    group = "frontend-deploy"
+    doLast {
+        var dns_name = ""
+        var region = ""
+        var project_id = ""
+        if (project.hasProperty("region")) {
+            region = project.property("region") as String
+        }
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("dns-name")) {
+            dns_name = project.property("dns-name") as String
+        }
+        val configFileName = "config.dart"
+        val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
+        var file = File("$modulePath/lib/$configFileName")
+
+        file.writeText(
+                """
+const _cloudFunctionsProjectRegion = '$region';
+const _cloudFunctionsProjectId = '$project_id';
+const cloudFunctionsBaseUrl = 'https://'
+    '$region-$project_id'
+    '.cloudfunctions.net';
+
+
+const String kAnalyticsUA = 'UA-73650088-2';
+const String kApiClientURL =
+'https://router.${dns_name}';
+const String kApiJavaClientURL =
+'https://java.${dns_name}';
+const String kApiGoClientURL =
+'https://go.${dns_name}';
+const String kApiPythonClientURL =
+'https://python.${dns_name}';
+const String kApiScioClientURL =
+'https://scio.${dns_name}';
+"""
+        )
+    }
+}
+
+tasks.register("prepareConfig") {
+    group = "frontend-deploy"
+    doLast {
+        var dns_name = ""
+        var region = ""
+        var project_id = ""
+        if (project.hasProperty("region")) {
+            region = project.property("region") as String
+        }
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("dns-name")) {
+            dns_name = project.property("dns-name") as String
+        }
+        val configFileName = "config.dart"
+        val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
+        var file = File("$modulePath/lib/$configFileName")
+
+        file.writeText(
+                """
+const _cloudFunctionsProjectRegion = '$region';
+const _cloudFunctionsProjectId = '$project_id';
+const cloudFunctionsBaseUrl = 'https://'
+    '$region-$project_id'
+    '.cloudfunctions.net';
+
+
+const String kAnalyticsUA = 'UA-73650088-2';
+const String kApiClientURL =
+'https://router.${dns_name}';
+const String kApiJavaClientURL =
+'https://java.${dns_name}';
+const String kApiGoClientURL =
+'https://go.${dns_name}';
+const String kApiPythonClientURL =
+'https://python.${dns_name}';
+const String kApiScioClientURL =
+'https://scio.${dns_name}';
+"""
+        )
+    }
+}
+
+
 // Should be as CI CD process
 
 tasks.register("populateDatastore") {
@@ -204,50 +373,6 @@ tasks.register("populateDatastore") {
 
 
 
-        tasks.register("prepareConfig") {
-            group = "frontend-deploy"
-            doLast {
-                var dns_name = ""
-                var region = ""
-                var project_id = ""
-                if (project.hasProperty("region")) {
-                    region = project.property("region") as String
-                }
-                if (project.hasProperty("project_id")) {
-                    project_id = project.property("project_id") as String
-                }
-                if (project.hasProperty("dns-name")) {
-                    dns_name = project.property("dns-name") as String
-                }
-                val configFileName = "config.dart"
-                val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
-                var file = File("$modulePath/lib/$configFileName")
-
-                file.writeText(
-                        """
-const _cloudFunctionsProjectRegion = '$region';
-const _cloudFunctionsProjectId = '$project_id';
-const cloudFunctionsBaseUrl = 'https://'
-    '$region-$project_id'
-    '.cloudfunctions.net';
-
-
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-'https://router.${dns_name}';
-const String kApiJavaClientURL =
-'https://java.${dns_name}';
-const String kApiGoClientURL =
-'https://go.${dns_name}';
-const String kApiPythonClientURL =
-'https://python.${dns_name}';
-const String kApiScioClientURL =
-'https://scio.${dns_name}';
-"""
-                )
-            }
-        }
-
 /* Tour of Beam backend init */
     tasks.register("InitBackend") {
     group = "backend-deploy"
@@ -270,7 +395,17 @@ tasks.register("InitFrontend") {
     group = "frontend-deploy"
     description = "ToB Frontend Init"
     val prepareConfig = tasks.getByName("prepareConfig")
+    val firebaseProjectCreate = tasks.getByName("firebaseProjectCreate")
+    val firebaseWebAppCreate = tasks.getByName("firebaseWebAppCreate")
+    val getSdkConfigWebApp = tasks.getByName("getSdkConfigWebApp")
+    val prepareFirebaseOptionsDart = tasks.getByName("prepareFirebaseOptionsDart")
     dependsOn(prepareConfig)
-    Thread.sleep(4000)
-
+    dependsOn(firebaseProjectCreate)
+    dependsOn(firebaseWebAppCreate)
+    dependsOn(getSdkConfigWebApp)
+    dependsOn(prepareFirebaseOptionsDart)
+    firebaseProjectCreate.mustRunAfter(prepareConfig)
+    firebaseWebAppCreate.mustRunAfter(firebaseProjectCreate)
+    getSdkConfigWebApp.mustRunAfter(firebaseWebAppCreate)
+    prepareFirebaseOptionsDart.mustRunAfter(getSdkConfigWebApp)
 }

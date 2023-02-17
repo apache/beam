@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "bucket_name" {
+variable "cloudfunctions_bucket" {
   description = "The bucket name that will store functions' source code"
 }
 

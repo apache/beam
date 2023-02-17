@@ -16,7 +16,7 @@
 # under the License.
 
 resource "google_storage_bucket" "cloud_functions_bucket" {
-  name          = var.bucket_name
+  name          = var.cloudfunctions_bucket
   location      = var.region
   storage_class = "STANDARD"
 }

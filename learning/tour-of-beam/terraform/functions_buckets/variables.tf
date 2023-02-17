@@ -16,7 +16,7 @@
 # under the License.
 
 #Generates archive of source code
-variable "bucket_name" {
+variable "cloudfunctions_bucket" {
   description = "The name of the bucket to store cloud functions' source code"
 }
 
