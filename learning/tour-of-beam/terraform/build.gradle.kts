@@ -391,7 +391,7 @@ tasks.register("InitFrontend") {
     val firebaseWebAppCreate = tasks.getByName("firebaseWebAppCreate")
     val getSdkConfigWebApp = tasks.getByName("getSdkConfigWebApp")
     val prepareFirebaseOptionsDart = tasks.getByName("prepareFirebaseOptionsDart")
-    val flutterPubGetPG = tasks.getByName("prepareflutterPubGetPGConfig")
+    val flutterPubGetPG = tasks.getByName("flutterPubGetPG")
     val flutterPubRunPG = tasks.getByName("flutterPubRunPG")
     val flutterPubGetTob = tasks.getByName("flutterPubGetTob")
     val flutterPubRunTob = tasks.getByName("flutterPubRunTob")
