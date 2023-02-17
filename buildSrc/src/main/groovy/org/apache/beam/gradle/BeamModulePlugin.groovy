@@ -356,8 +356,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String semiPersistDir = "/tmp"
     // classpath for running tests.
     FileCollection classpath
-    // additional expansion services to start up
-    List<String> additionalExpansionServices = []
+    // Expansion service to start up
+    String expansionJar
   }
 
   def isRelease(Project project) {
@@ -2378,12 +2378,11 @@ class BeamModulePlugin implements Plugin<Project> {
       def pythonDir = project.project(":sdks:python").projectDir
       def javaPort = getRandomPort()
       def pythonPort = getRandomPort()
-      def expansionJars = [project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath]
-      expansionJars.addAll(config.additionalExpansionServices)
+      def expansionJar = config.expansionJar ?: project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
       def javaClassLookupAllowlistFile = project.project(":sdks:java:testing:expansion-service").projectDir.getPath() + "/src/test/resources/test_expansion_service_allowlist.yaml"
       def expansionServiceOpts = [
         "group_id": project.name,
-        "java_expansion_service_jars": expansionJars.join(';'),
+        "java_expansion_service_jars": expansionJar,
         "java_port": javaPort,
         "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
         "python_expansion_service_allowlist_glob": "\\*",
