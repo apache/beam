@@ -198,8 +198,11 @@ tasks.register("getSdkConfigWebApp") {
         }
         println(result)
         val output = result.toString().trim()
+        println(output)
         val pattern = Pattern.compile("\\{.*\\}", Pattern.DOTALL)
+        println(pattern)
         val matcher = pattern.matcher(output)
+        println(matcher)
         if (matcher.find()) {
             val firebaseConfigData = matcher.group()
             project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
