@@ -141,8 +141,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
       if (!expectedRow.getValue("name").equals(actualRow.get("name"))
           || !expectedRow
-          .getValue("number")
-          .equals(Long.parseLong(actualRow.get("number").toString()))) {
+              .getValue("number")
+              .equals(Long.parseLong(actualRow.get("number").toString()))) {
         return false;
       }
     }
@@ -159,7 +159,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     p.run().waitUntilFinish();
 
     assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
-    assertTrue(rowsEquals(ROWS, fakeDatasetService.getAllRows("project", "dataset", "simple_write")));
+    assertTrue(
+        rowsEquals(ROWS, fakeDatasetService.getAllRows("project", "dataset", "simple_write")));
   }
 
   @Test

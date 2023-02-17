@@ -367,6 +367,36 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
             inputs=proto_config.input_pcollection_names,
             outputs=proto_config.output_pcollection_names)
 
+  @staticmethod
+  def discover_config(expansion_service, name):
+    """Discover one SchemaTransform by name in the given expansion service.
+
+    :return: one SchemaTransformConfig that represents the discovered
+        SchemaTransform
+
+    :raises:
+      ValueError: if more than one SchemaTransform is discovered, or if none
+      are discovered
+    """
+
+    schematransforms = SchemaAwareExternalTransform.discover(expansion_service)
+    matched = []
+
+    for st in schematransforms:
+      if name in st.identifier:
+        matched.append(st)
+
+    if not matched:
+      raise ValueError(
+          "Did not discover any SchemaTransforms resembling the name '%s'" %
+          name)
+    elif len(matched) > 1:
+      raise ValueError(
+          "Found multiple SchemaTransforms with the name '%s':\n%s\n" %
+          (name, [st.identifier for st in matched]))
+
+    return matched[0]
+
 
 class JavaExternalTransform(ptransform.PTransform):
   """A proxy for Java-implemented external transforms.

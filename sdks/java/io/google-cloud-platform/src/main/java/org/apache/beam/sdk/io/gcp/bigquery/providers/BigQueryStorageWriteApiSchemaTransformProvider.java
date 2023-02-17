@@ -52,7 +52,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -258,7 +257,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       PCollection<Row> failedRows =
           result
               .getFailedStorageApiInserts()
-              .apply("Construct failed rows",
+              .apply(
+                  "Construct failed rows",
                   MapElements.into(TypeDescriptors.rows())
                       .via(
                           (storageError) ->
@@ -276,7 +276,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                           (storageError) ->
                               Row.withSchema(errorSchema)
                                   .withFieldValue("error_message", storageError.getErrorMessage())
-                                  .withFieldValue("failed_row", BigQueryUtils.toBeamRow(rowSchema, storageError.getRow()))
+                                  .withFieldValue(
+                                      "failed_row",
+                                      BigQueryUtils.toBeamRow(rowSchema, storageError.getRow()))
                                   .build()))
               .setRowSchema(errorSchema);
 
