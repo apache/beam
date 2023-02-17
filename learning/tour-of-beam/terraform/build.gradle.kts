@@ -188,10 +188,6 @@ tasks.register("firebaseWebAppCreate") {
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
-    var project_id = ""
-    if (project.hasProperty("project_id")) {
-        project_id = project.property("project_id") as String
-    }
     var firebaseAppId = ""
     val result = ByteArrayOutputStream()
     doLast{
@@ -399,12 +395,12 @@ tasks.register("InitFrontend") {
     val getSdkConfigWebApp = tasks.getByName("getSdkConfigWebApp")
     val prepareFirebaseOptionsDart = tasks.getByName("prepareFirebaseOptionsDart")
     dependsOn(prepareConfig)
-    dependsOn(firebaseProjectCreate)
+//    dependsOn(firebaseProjectCreate)
     dependsOn(firebaseWebAppCreate)
     dependsOn(getSdkConfigWebApp)
     dependsOn(prepareFirebaseOptionsDart)
-    firebaseProjectCreate.mustRunAfter(prepareConfig)
-    firebaseWebAppCreate.mustRunAfter(firebaseProjectCreate)
+//    firebaseProjectCreate.mustRunAfter(prepareConfig)
+    firebaseWebAppCreate.mustRunAfter(prepareConfig)
     getSdkConfigWebApp.mustRunAfter(firebaseWebAppCreate)
     prepareFirebaseOptionsDart.mustRunAfter(getSdkConfigWebApp)
 }
