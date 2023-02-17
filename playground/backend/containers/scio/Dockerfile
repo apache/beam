@@ -36,7 +36,6 @@ RUN go mod download &&\
     go build -o /go/bin/server_scio_backend
 
 FROM $BASE_IMAGE
-ARG GOOGLE_API_CLIENT_VERSION=1.34.1
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
