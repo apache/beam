@@ -94,8 +94,6 @@ RUN cd /go/src/katas &&\
     ./gradlew jar &&\
     mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
 
-RUN mkdir /usr/local/share/ca-certificates/extra
-
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 

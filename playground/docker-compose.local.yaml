@@ -56,8 +56,8 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8084
-      http_proxy: http://mitmproxy:8080
-      https_proxy: http://mitmproxy:8080
+      PLAYGROUND_MITM_SERVICE_HOST: mitmproxy
+      PLAYGROUND_MITM_SERVICE_PORT: 8080
     ports:
       - "8084:8084"
     depends_on:
@@ -71,9 +71,8 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8086
-      http_proxy: http://mitmproxy:8080
-      https_proxy: http://mitmproxy:8080
-      JAVA_TOOL_OPTIONS: "-Dhttp.proxyHost=mitmproxy -Dhttp.proxyPort:8080 -Dhttps.proxyHost=mitmproxy -Dhttps.proxyPort=8080"
+      PLAYGROUND_MITM_SERVICE_HOST: mitmproxy
+      PLAYGROUND_MITM_SERVICE_PORT: 8080
     ports:
       - "8086:8086"
     depends_on:
@@ -87,8 +86,8 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8088
-      http_proxy: http://mitmproxy:8080
-      https_proxy: http://mitmproxy:8080
+      PLAYGROUND_MITM_SERVICE_HOST: mitmproxy
+      PLAYGROUND_MITM_SERVICE_PORT: 8080
     ports:
       - "8088:8088"
     depends_on:
@@ -102,10 +101,8 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8090
-      http_proxy: http://mitmproxy:8080
-      https_proxy: http://mitmproxy:8080
-      JAVA_TOOL_OPTIONS: "-Dhttp.proxyHost=mitmproxy -Dhttp.proxyPort=8080 -Dhttps.proxyHost=mitmproxy -Dhttps.proxyPort=8080"
-      SBT_OPTS: "-Dhttp.proxyHost=mitmproxy -Dhttp.proxyPort=8080 -Dhttps.proxyHost=mitmproxy -Dhttps.proxyPort=8080"
+      PLAYGROUND_MITM_SERVICE_HOST: mitmproxy
+      PLAYGROUND_MITM_SERVICE_PORT: 8080
     ports:
       - "8090:8090"
     depends_on:

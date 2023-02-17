@@ -16,6 +16,3 @@
 # limitations under the License.
 
 yes | sbt new spotify/scio-template.g8
-
-mkdir y/lib
-cp /opt/google-api-client.jar y/lib/

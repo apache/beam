@@ -27,6 +27,7 @@ ALLOWED_LIST = [
     "github.com",
     "packages.confluent.io",
     "bigquery.googleapis.com",
+# Allow access to GKE metadata server for service account authentication
     "metadata.google.internal",
     "169.254.169.254",
 ]

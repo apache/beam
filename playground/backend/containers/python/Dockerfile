@@ -52,8 +52,6 @@ COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/con
 # Install Python Katas Utils
 ENV PYTHONPATH="$PYTHONPATH:/go/src/katas"
 
-RUN mkdir /usr/local/share/ca-certificates/extra
-
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 
