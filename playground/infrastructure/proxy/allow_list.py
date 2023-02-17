@@ -16,8 +16,6 @@
 # ALLOWED_LIST contains all hosts that are allowed to make requests
 # from Beam Playground
 ALLOWED_LIST = [
-    "localhost",
-    "127.0.0.1",
     "logging.googleapis.com",
     "datastore.googleapis.com",
     "oauth2.googleapis.com",
