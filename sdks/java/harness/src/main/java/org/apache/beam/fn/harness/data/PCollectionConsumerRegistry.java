@@ -349,7 +349,8 @@ public class PCollectionConsumerRegistry {
 
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
-      // metrics container.
+      // metrics container. We specifically don't use a for-each loop since it creates an iterator
+      // on a hot path.
       for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         ExecutionState state = consumerAndMetadata.getExecutionState();
