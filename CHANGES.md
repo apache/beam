@@ -92,7 +92,9 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Avro related classes are deprecated in module `beam-sdks-java-core` and will be eventually removed. Please, migrate to a new module `beam-sdks-java-extensions-avro` instead by importing the classes from `org.apache.beam.sdk.extensions.avro` package.
+  For the sake of migration simplicity, the relative package path and the whole class hierarchy of Avro related classes in new module is preserved the same as it was before.
+  For example, import `org.apache.beam.sdk.extensions.avro.coders.AvroCoder` class instead of`org.apache.beam.sdk.coders.AvroCoder`. ([#24749](https://github.com/apache/beam/issues/24749)).
 
 ## Bugfixes
 
