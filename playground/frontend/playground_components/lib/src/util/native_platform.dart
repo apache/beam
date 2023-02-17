@@ -16,25 +16,10 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
+import 'package:os_detect/os_detect.dart' as platform;
 
-class BeamIntent extends Intent {
-  final String slug;
-
-  const BeamIntent({
-    required this.slug,
-  });
-}
-
-class ResetIntent extends BeamIntent {
-  const ResetIntent() : super(slug: 'intents.playground.reset');
-}
-
-class RunIntent extends BeamIntent {
-  const RunIntent() : super(slug: 'intents.playground.run');
-}
-
-class ShowSuggestionsIntent extends BeamIntent {
-  const ShowSuggestionsIntent()
-      : super(slug: 'intents.playground.showSuggestions');
+class NativePlatform {
+  static bool get isMacOs =>
+      platform.operatingSystemVersion.contains('Mac OS') ||
+      platform.operatingSystemVersion.contains('Macintosh');
 }

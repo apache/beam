@@ -25,7 +25,7 @@ import 'common/common.dart';
 import 'common/common_finders.dart';
 import 'common/widget_tester.dart';
 
-const _outputPrefix = 'The processing has started\n';
+const _outputPrefix = 'The processing has been started\n';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

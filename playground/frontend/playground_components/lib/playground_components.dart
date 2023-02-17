@@ -54,6 +54,7 @@ export 'src/router/router_delegate.dart';
 export 'src/services/symbols/loaders/yaml.dart';
 export 'src/theme/switch_notifier.dart';
 export 'src/theme/theme.dart';
+export 'src/util/logical_keyboard_key.dart';
 export 'src/util/pipeline_options.dart';
 export 'src/util/string.dart';
 

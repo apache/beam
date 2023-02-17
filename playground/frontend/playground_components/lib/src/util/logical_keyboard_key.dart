@@ -16,25 +16,12 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 
-class BeamIntent extends Intent {
-  final String slug;
+import 'native_platform.dart';
 
-  const BeamIntent({
-    required this.slug,
-  });
-}
-
-class ResetIntent extends BeamIntent {
-  const ResetIntent() : super(slug: 'intents.playground.reset');
-}
-
-class RunIntent extends BeamIntent {
-  const RunIntent() : super(slug: 'intents.playground.run');
-}
-
-class ShowSuggestionsIntent extends BeamIntent {
-  const ShowSuggestionsIntent()
-      : super(slug: 'intents.playground.showSuggestions');
+class LogicalKeyboardKeyExtension {
+  static LogicalKeyboardKey get metaOrControl => NativePlatform.isMacOs
+      ? LogicalKeyboardKey.meta
+      : LogicalKeyboardKey.control;
 }

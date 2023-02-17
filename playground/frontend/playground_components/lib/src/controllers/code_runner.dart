@@ -182,6 +182,10 @@ class CodeRunner extends ChangeNotifier {
     // add a little delay to improve user experience
     await Future.delayed(kPrecompiledDelay);
 
+    if (_result?.status != RunCodeStatus.preparation) {
+      return;
+    }
+
     final String logs = selectedExample.logs ?? '';
     _result = RunCodeResult(
       status: RunCodeStatus.finished,

@@ -31,6 +31,13 @@ const String _kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache';
 
 extension WidgetTesterExtension on WidgetTester {
+  //workaround for https://github.com/flutter/flutter/issues/120060
+  Future<void> enterCodeFieldText(String text) async {
+    final codeField = widget(find.codeField());
+    (codeField as CodeField).controller.fullText = text;
+    codeField.focusNode?.requestFocus();
+  }
+
   CodeController findOneCodeController() {
     final codeField = find.codeField();
     expect(codeField, findsOneWidget);
@@ -55,6 +62,40 @@ extension WidgetTesterExtension on WidgetTester {
   PlaygroundController findPlaygroundController() {
     final context = element(find.codeField());
     return context.read<PlaygroundController>();
+  }
+
+  Future<void> runShortcut(LogicalKeySet shortcut) async {
+    final list = shortcut.keys.toList();
+    for (final key in list) {
+      await sendKeyDownEvent(key);
+    }
+    for (final key in list.reversed) {
+      await sendKeyUpEvent(key);
+    }
+  }
+
+  Future<void> tapAndSettle(Finder finder) async {
+    await tap(finder);
+    await pumpAndSettle();
+  }
+
+  Future<int> pumpAndSettleNoException({
+    Duration duration = const Duration(milliseconds: 100),
+    EnginePhase phase = EnginePhase.sendSemanticsUpdate,
+    Duration timeout = const Duration(minutes: 10),
+  }) async {
+    return TestAsyncUtils.guard<int>(() async {
+      final DateTime endTime = binding.clock.fromNowBy(timeout);
+      int count = 0;
+      do {
+        if (binding.clock.now().isAfter(endTime)) {
+          return count;
+        }
+        await binding.pump(duration, phase);
+        count += 1;
+      } while (binding.hasScheduledFrame);
+      return count;
+    });
   }
 
   /// Runs and expects that the execution is as fast as it should be for cache.

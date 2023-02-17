@@ -26,7 +26,7 @@ environment:
 
 dependencies:
   aligned_dialog: ^0.0.6
-  app_state: ^0.9.0
+  app_state: ^0.9.2
   collection: ^1.16.0
   connectivity_plus: ^2.3.9
   easy_localization: ^3.0.1
@@ -47,6 +47,7 @@ dependencies:
   json_annotation: ^4.7.0
   keyed_collection_widgets: ^0.4.3
   meta: ^1.7.0
+  os_detect: ^2.0.1
   protobuf: ^2.1.0
   provider: ^6.0.3
   rxdart: ^0.27.7

@@ -37,10 +37,10 @@ packages:
     dependency: "direct main"
     description:
       name: app_state
-      sha256: "1024c48f723b02e726976143361020bf44b4a351bc2180c77764ac7aa191356c"
+      sha256: "8f363b17492dccf720cc70e896a367726171bee8dad047acd8f69f2cc2cf7e9c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.1"
+    version: "0.9.3"
   archive:
     dependency: transitive
     description:
@@ -740,6 +740,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.0"
+  os_detect:
+    dependency: transitive
+    description:
+      name: os_detect
+      sha256: faf3bcf39515e64da8ff76b2f2805b20a6ff47ae515393e535f8579ff91d6b7f
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.1"
   package_config:
     dependency: transitive
     description:
