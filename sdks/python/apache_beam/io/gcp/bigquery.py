@@ -397,6 +397,8 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
@@ -432,6 +434,7 @@ __all__ = [
     'BigQueryQueryPriority',
     'WriteToBigQuery',
     'WriteResult',
+    'StorageWriteToBigQuery',
     'ReadFromBigQuery',
     'ReadFromBigQueryRequest',
     'ReadAllFromBigQuery',
@@ -2298,6 +2301,99 @@ class WriteResult:
           'result. Please see __documentation__ for available attributes.')
 
     return self.attributes[key].__get__(self, WriteResult)
+
+
+def _default_io_expansion_service(append_args=None):
+  return BeamJarExpansionService(
+      'sdks:java:io:google-cloud-platform:expansion-service:build',
+      append_args=append_args)
+
+
+class StorageWriteToBigQuery(PTransform):
+  """Writes data to BigQuery using Storage API.
+  Receives a PCollection of beam.Row() elements and writes the elements
+  to BigQuery. Returns a dead-letter queue of errors and failed rows
+  represented as a dictionary of PCollections.
+  Example::
+    with beam.Pipeline() as p:
+      items = []
+      for i in range(10):
+        items.append(beam.Row(id=i))
+      result = (p
+            | 'Create items' >> beam.Create(items)
+            | 'Write data' >> StorageWriteToBigQuery(
+                                table="project:dataset.table"))
+      _ = (result['failed_rows_with_errors']
+           | 'Format errors' >> beam.Map(
+                                lambda e: "failed row id: %s, error: %s" %
+                                (e.failed_row.id, e.error_message))
+           | 'Write errors' >> beam.io.WriteToText('./output')))
+  """
+  URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v1"
+
+  def __init__(
+      self,
+      table,
+      create_disposition="",
+      write_disposition="",
+      triggering_frequency=0,
+      use_at_least_once=False,
+      expansion_service=None):
+    """Initialize a StorageWriteToBigQuery transform.
+      :param table: a fully-qualified table ID specified as
+        ``'PROJECT:DATASET.TABLE'``
+      :param create_disposition: a string specifying the strategy to
+        take when the table doesn't exist. Possible values are:
+        * ``'CREATE_IF_NEEDED'``: create if does not exist.
+        * ``'CREATE_NEVER'``: fail the write if does not exist.
+      :param write_disposition: a string specifying the strategy to take
+        when the table already contains data. Possible values are:
+        * ``'WRITE_TRUNCATE'``: delete existing rows.
+        * ``'WRITE_APPEND'``: add to existing rows.
+        * ``'WRITE_EMPTY'``: fail the write if table not empty.
+      :param triggering_frequency: the time in seconds between write
+        commits. Should only be specified for streaming pipelines. Defaults
+        to 5 seconds.
+      :param use_at_least_once: use at-least-once semantics. Is cheaper
+        and provides lower latency, but will potentially duplicate records.
+      :param expansion_service: the address (host:port) of the expansion service
+    """
+    super().__init__()
+    self._table = table
+    self._create_disposition = create_disposition
+    self._write_disposition = write_disposition
+    self._triggering_frequency = triggering_frequency
+    self._use_at_least_once = use_at_least_once
+    self._expansion_service = (
+        expansion_service or _default_io_expansion_service())
+    self.schematransform_config = SchemaAwareExternalTransform.discover_config(
+        self._expansion_service, self.URN)
+
+  def expand(self, input):
+    opts = input.pipeline.options.view_as(StandardOptions)
+    # TODO(https://github.com/apache/beam/issues/21307): Add support for
+    # OnWindowExpiration to more runners. Storage Write API requires
+    # `beam:requirement:pardo:on_window_expiration:v1` when unbounded
+    available_runners = ['DataflowRunner', 'TestDataflowRunner']
+    if not input.is_bounded and opts.runner not in available_runners:
+      raise NotImplementedError(
+          "Storage API Streaming Writes via xlang is not yet available for %s."
+          " Available runners are %s",
+          opts.runner,
+          available_runners)
+
+    external_storage_write = SchemaAwareExternalTransform(
+        self.schematransform_config.identifier,
+        expansion_service=self._expansion_service,
+        table=self._table,
+        createDisposition=self._create_disposition,
+        writeDisposition=self._write_disposition,
+        triggeringFrequencySeconds=self._triggering_frequency,
+        useAtLeastOnceSemantics=self._use_at_least_once)
+
+    input_tag = self.schematransform_config.inputs[0]
+
+    return {input_tag: input} | external_storage_write
 
 
 class ReadFromBigQuery(PTransform):
