@@ -29,7 +29,7 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.threeten.bp.Duration;
@@ -44,28 +44,23 @@ import org.threeten.bp.Duration;
  * for each table/app profile. This ensures we're not creating many/excessive connections with the
  * backend and the jobs on the same machine shares the same sets of connections.
  */
-public class BigtableChangeStreamAccessor implements AutoCloseable {
+@Internal
+class BigtableChangeStreamAccessor {
   // Create one bigtable data/admin client per bigtable config (project/instance/table/app profile)
   private static final ConcurrentHashMap<BigtableConfig, BigtableChangeStreamAccessor>
       bigtableAccessors = new ConcurrentHashMap<>();
 
-  private static final ConcurrentHashMap<BigtableConfig, AtomicInteger> refcounts =
-      new ConcurrentHashMap<>();
-
   private final BigtableDataClient dataClient;
   private final BigtableTableAdminClient tableAdminClient;
   private final BigtableInstanceAdminClient instanceAdminClient;
-  private final BigtableConfig bigtableConfig;
 
   private BigtableChangeStreamAccessor(
       BigtableDataClient dataClient,
       BigtableTableAdminClient tableAdminClient,
-      BigtableInstanceAdminClient instanceAdminClient,
-      BigtableConfig bigtableConfig) {
+      BigtableInstanceAdminClient instanceAdminClient) {
     this.dataClient = dataClient;
     this.tableAdminClient = tableAdminClient;
     this.instanceAdminClient = instanceAdminClient;
-    this.bigtableConfig = bigtableConfig;
   }
 
   /**
@@ -83,9 +78,7 @@ public class BigtableChangeStreamAccessor implements AutoCloseable {
       BigtableChangeStreamAccessor bigtableAccessor =
           BigtableChangeStreamAccessor.createAccessor(bigtableConfig);
       bigtableAccessors.put(bigtableConfig, bigtableAccessor);
-      refcounts.putIfAbsent(bigtableConfig, new AtomicInteger(0));
     }
-    checkStateNotNull(refcounts.get(bigtableConfig)).incrementAndGet();
     return checkStateNotNull(bigtableAccessors.get(bigtableConfig));
   }
 
@@ -184,8 +177,7 @@ public class BigtableChangeStreamAccessor implements AutoCloseable {
         BigtableTableAdminClient.create(tableAdminSettingsBuilder.build());
     BigtableInstanceAdminClient instanceAdminClient =
         BigtableInstanceAdminClient.create(instanceAdminSettingsBuilder.build());
-    return new BigtableChangeStreamAccessor(
-        dataClient, tableAdminClient, instanceAdminClient, bigtableConfig);
+    return new BigtableChangeStreamAccessor(dataClient, tableAdminClient, instanceAdminClient);
   }
 
   public BigtableDataClient getDataClient() {
@@ -198,23 +190,5 @@ public class BigtableChangeStreamAccessor implements AutoCloseable {
 
   public BigtableInstanceAdminClient getInstanceAdminClient() {
     return instanceAdminClient;
-  }
-
-  @Override
-  public void close() throws Exception {
-    int refcount = refcounts.getOrDefault(bigtableConfig, new AtomicInteger(0)).decrementAndGet();
-
-    if (refcount == 0) {
-      synchronized (bigtableAccessors) {
-        // Re-check refcount in case it has increased outside the lock.
-        if (checkStateNotNull(refcounts.get(bigtableConfig)).get() <= 0) {
-          bigtableAccessors.remove(bigtableConfig);
-          refcounts.remove(bigtableConfig);
-          dataClient.close();
-          tableAdminClient.close();
-          instanceAdminClient.close();
-        }
-      }
-    }
   }
 }
