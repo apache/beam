@@ -60,16 +60,34 @@ Go to the backend directory:
 $ cd backend
 ```
 
-The following command is used to build and serve the backend locally:
+To run backend server on development machine without using docker you'll need first to prepare a working directory anywhere outside of Beam source tree:
+```shell
+mkdir ~/path/to/workdir
+```
+and then copy `datasets/` and `configs/` and `logging.properties` from [`playground/backend/`](/playground/backend/) directory:
+```shell
+cp -r {logging.properties,datasets/,configs/} ~/path/to/workdir
+```
+
+In case if you want to start backend for Go SDK you additionally will also need to create a prepared mod dir and export an additional environment variable:
+```shell
+export PREPARED_MOD_DIR=~/path/to/workdir/prepared_folder
+SDK_TAG=2.44.0 bash ./containers/go/setup_sdk.sh $PREPARED_MOD_DIR
+```
+
+The following command will build and serve the backend locally:
 
 ```shell
+SERVER_PORT=<port> \
+BEAM_SDK=<beam_sdk_type> \ 
+APP_WORK_DIR=<path_to_workdir> \
 DATASTORE_EMULATOR_HOST=127.0.0.1:8888 \
 DATASTORE_PROJECT_ID=test \
 SDK_CONFIG=../sdks-emulator.yaml \
-BEAM_SDK="SDK_UNSPECIFIED" \ 
-APP_WORK_DIR=<path_to_workdir> \
 go run ./cmd/server
 ```
+
+where `<port>` should be the value of port on which you want to have the backend server availalbe; `<beam_sdk_type>` is a value of desired Beam SDK, possible values are `SDK_UNSPECIFIED`, `SDK_JAVA`, `SDK_PYTHON`, `SDK_GO`, `SDK_SCIO`; `<path_to_workdir>` should be set to path to yoru work dir, e.g. `~/path/to/workdir`.
 
 Run the following command to generate a release build file:
 
