@@ -17,7 +17,8 @@
 
 errors:
   error: 'Error'
-  failedParseOptions: 'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and \",*,/,-,:,;,'',. symbols are allowed'
+  failedParseOptions: >
+    Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,',. symbols are allowed
   internetUnavailable: 'Internet connection is unavailable'
   loading: 'Error while loading.'
   loadingCatalog: 'Cannot load the example catalog.'
