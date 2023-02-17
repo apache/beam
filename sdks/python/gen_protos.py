@@ -234,8 +234,6 @@ def generate_urn_files(out_dir, api_path):
 
       with ctx.indent():
         for obj_name, obj in inspect.getmembers(message):
-          if 'MonitoringInfoSpecs' in str(message):
-            pass
           if self.is_message_type(obj):
             ctx.lines += self.write_message(obj_name, obj, ctx._indent)
           elif self.is_enum_type(obj):
@@ -256,8 +254,6 @@ def generate_urn_files(out_dir, api_path):
 
     for pb2_file in pb2_files:
       modname = os.path.splitext(pb2_file)[0]
-      if 'metric' in modname:
-        pass
       out_file = modname + '_urns.py'
       api_start_idx = modname.index(os.path.sep + 'api' + os.path.sep)
       import_path = modname[api_start_idx + 1:].replace(os.path.sep, '.')
