@@ -21,6 +21,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
+import 'common.dart';
+
 void main() {
   group('ExamplesLoadingDescriptor', () {
     test('Empty map -> null', () {
@@ -120,6 +122,40 @@ void main() {
             Sdk.go: const [_d2], //           Added.
           },
         ),
+      );
+    });
+
+    test('copyWithoutViewOptions', () {
+      final descriptorWithOptions = ExamplesLoadingDescriptor(
+        descriptors: const [
+          CatalogDefaultExampleLoadingDescriptor(
+            sdk: Sdk.go,
+            viewOptions: viewOptions,
+          ),
+        ],
+        initialSdk: Sdk.python,
+        lazyLoadDescriptors: {
+          Sdk.scio: const [
+            StandardExampleLoadingDescriptor(
+              sdk: Sdk.scio,
+              path: 'path',
+              viewOptions: viewOptions,
+            ),
+          ],
+        },
+      );
+
+      final expected = ExamplesLoadingDescriptor(
+        descriptors: const [_d1],
+        initialSdk: Sdk.python,
+        lazyLoadDescriptors: {
+          Sdk.scio: const [_d2],
+        },
+      );
+
+      expect(
+        descriptorWithOptions.copyWithoutViewOptions(),
+        expected,
       );
     });
   });

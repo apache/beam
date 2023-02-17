@@ -27,6 +27,7 @@ import '../exceptions/snippet_saving_exception.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
+import '../models/example_view_options.dart';
 import '../models/loading_status.dart';
 import '../models/sdk.dart';
 import '../models/snippet_file.dart';
@@ -118,7 +119,10 @@ class ExampleCache extends ChangeNotifier {
     );
   }
 
-  Future<Example> loadSharedExample(String id) async {
+  Future<Example> loadSharedExample(
+    String id, {
+    required ExampleViewOptions viewOptions,
+  }) async {
     final result = await _exampleRepository.getSnippet(
       GetSnippetRequest(id: id),
     );
@@ -131,6 +135,7 @@ class ExampleCache extends ChangeNotifier {
       sdk: result.sdk,
       pipelineOptions: result.pipelineOptions,
       type: ExampleType.example,
+      viewOptions: viewOptions,
     );
   }
 

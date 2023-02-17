@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 
 import java.io.IOException;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
  * pipeline.
  */
 @SuppressWarnings("UnusedVariable")
+@Internal
 public class InitializeDoFn extends DoFn<byte[], com.google.cloud.Timestamp>
     implements Serializable {
   private static final long serialVersionUID = 1868189906451252363L;
