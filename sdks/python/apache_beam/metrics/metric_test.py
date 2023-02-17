@@ -17,18 +17,6 @@
 
 # pytype: skip-file
 
-# beam-playground:
-#   name: MetricTest
-#   description: Unit-test for the Metric example.
-#   multifile: false
-#   context_line: 52
-#   categories:
-#   - Metrics
-#   complexity: MEDIUM
-#   tags:
-#     - metrics
-#     - test
-
 import unittest
 
 import hamcrest as hc

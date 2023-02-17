@@ -19,16 +19,14 @@ package org.apache.beam.examples;
 
 // beam-playground:
 //   name: KafkaWordCountAvro
-//   description: Test example with Apache Kafka
+//   description: Read CountWords dataset (CountWords.avro) from Kafka to count words
 //   multifile: false
 //   context_line: 55
 //   categories:
-//     - Filtering
-//     - Options
-//     - Quickstart
+//     - Emulated Data Source
+//     - IO
 //   complexity: MEDIUM
 //   tags:
-//     - filter
 //     - strings
 //     - emulator
 //   emulators:

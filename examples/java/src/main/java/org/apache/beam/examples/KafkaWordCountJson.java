@@ -19,16 +19,15 @@ package org.apache.beam.examples;
 
 // beam-playground:
 //   name: KafkaWordCountJson
-//   description: Test example with Apache Kafka
+//   description: Read CountWords dataset (CountWords.json) from Kafka to count words
 //   multifile: false
 //   context_line: 55
 //   categories:
-//     - Filtering
-//     - Options
+//     - Emulated Data Source
+//     - IO
 //     - Quickstart
 //   complexity: MEDIUM
 //   tags:
-//     - filter
 //     - strings
 //     - emulator
 //   emulators:

@@ -17,19 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-// beam-playground:
-//   name: CombineFnsTest
-//   description: Unit-test for the CombineFn example.
-//   multifile: false
-//   context_line: 71
-//   categories:
-//     - Combiners
-//     - Core Transforms
-//   complexity: ADVANCED
-//   tags:
-//     - combine
-//     - test
-
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.MatcherAssert.assertThat;
