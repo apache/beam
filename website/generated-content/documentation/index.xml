@@ -19039,6 +19039,8 @@ in the following example:&lt;/p>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;max_temperature&amp;#39;&lt;/span>&lt;span class="p">]))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-java">&lt;h4 id="query-execution-project">Query execution project&lt;/h4>
+&lt;p>By default the pipeline executes the query in the Google Cloud project associated with the pipeline (in case of the Dataflow runner it&amp;rsquo;s the project where the pipeline runs). There are cases where the query execution project should be different from the pipeline project. If you use Java SDK, you can define the query execution project by setting the pipeline option &amp;ldquo;&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html#getBigQueryProject--">bigQueryProject&lt;/a>&amp;rdquo; to the desired Google Cloud project id.&lt;/p>
 &lt;h3 id="storage-api">Using the Storage Read API&lt;/h3>
 &lt;p>The &lt;a href="https://cloud.google.com/bigquery/docs/reference/storage/">BigQuery Storage API&lt;/a>
 allows you to directly access tables in BigQuery storage, and supports features
