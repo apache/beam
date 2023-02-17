@@ -538,7 +538,7 @@ def generate_proto_files(force=False):
                                ('_pb2.py', '_pb2_grpc.py', '_pb2.pyi')):
     proto_packages.add(os.path.dirname(file_path))
     lines = []
-    with open(file_path) as f:
+    with open(file_path, encoding='utf-8') as f:
       for line in f:
         match_obj = compiled_import_re.match(line)
         if match_obj and \
