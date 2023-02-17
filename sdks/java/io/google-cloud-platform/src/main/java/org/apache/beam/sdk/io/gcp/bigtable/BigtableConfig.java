@@ -72,10 +72,6 @@ public abstract class BigtableConfig implements Serializable {
   /** Credentials for running the job. */
   abstract @Nullable CredentialsProvider getCredentialsProvider();
 
-  /** Get the config id for the current config. Used only for testing. */
-  @VisibleForTesting
-  abstract @Nullable Integer getConfigId();
-
   abstract Builder toBuilder();
 
   static BigtableConfig.Builder builder() {
@@ -107,9 +103,6 @@ public abstract class BigtableConfig implements Serializable {
     abstract Builder setUserAgent(String userAgent);
 
     abstract Builder setCredentialsProvider(CredentialsProvider credentialsProvider);
-
-    @VisibleForTesting
-    abstract Builder setConfigId(Integer id);
 
     abstract BigtableConfig build();
   }
@@ -156,11 +149,6 @@ public abstract class BigtableConfig implements Serializable {
 
   BigtableConfig withCredentialsProvider(CredentialsProvider provider) {
     return toBuilder().setCredentialsProvider(provider).build();
-  }
-
-  @VisibleForTesting
-  BigtableConfig withConfigId(int id) {
-    return toBuilder().setConfigId(id).build();
   }
 
   void validate() {

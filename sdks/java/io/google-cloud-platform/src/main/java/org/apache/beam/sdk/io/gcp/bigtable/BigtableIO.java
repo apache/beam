@@ -291,7 +291,8 @@ public class BigtableIO {
 
     abstract BigtableReadOptions getBigtableReadOptions();
 
-    private BigtableServiceFactory.ConfigId configId;
+    @VisibleForTesting
+    abstract BigtableServiceFactory getServiceFactory();
 
     /** Returns the table being read from. */
     public @Nullable String getTableId() {
@@ -322,6 +323,7 @@ public class BigtableIO {
                   .setKeyRanges(
                       StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS)))
                   .build())
+          .setServiceFactory(FACTORY_INSTANCE)
           .build();
     }
 
@@ -331,6 +333,8 @@ public class BigtableIO {
       abstract Builder setBigtableConfig(BigtableConfig bigtableConfig);
 
       abstract Builder setBigtableReadOptions(BigtableReadOptions bigtableReadOptions);
+
+      abstract Builder setServiceFactory(BigtableServiceFactory factory);
 
       abstract Read build();
     }
@@ -625,26 +629,22 @@ public class BigtableIO {
           .build();
     }
 
-    /** Set the configId for testing. */
-    @VisibleForTesting
-    Read withConfigId(int id) {
-      return toBuilder().setBigtableConfig(getBigtableConfig().withConfigId(id)).build();
+    Read withServiceFactory(BigtableServiceFactory factory) {
+      return toBuilder().setServiceFactory(factory).build();
     }
 
     @Override
     public PCollection<Row> expand(PBegin input) {
-      BigtableConfig config = this.getBigtableConfig();
       getBigtableConfig().validate();
       getBigtableReadOptions().validate();
 
-      if (config.getConfigId() != null) {
-        this.configId = BigtableServiceFactory.ConfigId.create(config.getConfigId());
-      } else {
-        this.configId = FACTORY_INSTANCE.newId();
-      }
-
       BigtableSource source =
-          new BigtableSource(configId, getBigtableConfig(), getBigtableReadOptions(), null);
+          new BigtableSource(
+              getServiceFactory(),
+              getServiceFactory().newId(),
+              getBigtableConfig(),
+              getBigtableReadOptions(),
+              null);
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -672,11 +672,10 @@ public class BigtableIO {
       if (config.getValidate() && config.isDataAccessible() && readOptions.isDataAccessible()) {
         String tableId = checkNotNull(readOptions.getTableId().get());
         try {
-          BigtableServiceEntry entry =
-              FACTORY_INSTANCE.getServiceForReading(configId, config, readOptions, options);
           checkArgument(
-              entry.getService().tableExists(tableId), "Table %s does not exist", tableId);
-          FACTORY_INSTANCE.releaseReadService(entry);
+              getServiceFactory().checkTableExists(config, options, tableId),
+              "Table %s does not exist",
+              tableId);
         } catch (IOException e) {
           LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
         }
@@ -712,6 +711,9 @@ public class BigtableIO {
 
     abstract BigtableWriteOptions getBigtableWriteOptions();
 
+    @VisibleForTesting
+    abstract BigtableServiceFactory getServiceFactory();
+
     /**
      * Returns the Google Cloud Bigtable instance being written to, and other parameters.
      *
@@ -733,6 +735,7 @@ public class BigtableIO {
       return new AutoValue_BigtableIO_Write.Builder()
           .setBigtableConfig(config)
           .setBigtableWriteOptions(writeOptions)
+          .setServiceFactory(FACTORY_INSTANCE)
           .build();
     }
 
@@ -742,6 +745,8 @@ public class BigtableIO {
       abstract Builder setBigtableConfig(BigtableConfig bigtableConfig);
 
       abstract Builder setBigtableWriteOptions(BigtableWriteOptions writeOptions);
+
+      abstract Builder setServiceFactory(BigtableServiceFactory factory);
 
       abstract Write build();
     }
@@ -999,13 +1004,13 @@ public class BigtableIO {
      * for each batch of rows written.
      */
     public WriteWithResults withWriteResults() {
-      return new WriteWithResults(getBigtableConfig(), getBigtableWriteOptions());
+      return new WriteWithResults(
+          getBigtableConfig(), getBigtableWriteOptions(), getServiceFactory());
     }
 
-    /** Set the configId for testing. */
     @VisibleForTesting
-    Write withConfigId(int id) {
-      return toBuilder().setBigtableConfig(getBigtableConfig().withConfigId(id)).build();
+    Write withServiceFactory(BigtableServiceFactory factory) {
+      return toBuilder().setServiceFactory(factory).build();
     }
 
     @Override
@@ -1044,16 +1049,15 @@ public class BigtableIO {
     private final BigtableConfig bigtableConfig;
     private final BigtableWriteOptions bigtableWriteOptions;
 
-    private final BigtableServiceFactory.ConfigId configId;
+    private final BigtableServiceFactory factory;
 
-    WriteWithResults(BigtableConfig bigtableConfig, BigtableWriteOptions bigtableWriteOptions) {
+    WriteWithResults(
+        BigtableConfig bigtableConfig,
+        BigtableWriteOptions bigtableWriteOptions,
+        BigtableServiceFactory factory) {
       this.bigtableConfig = bigtableConfig;
       this.bigtableWriteOptions = bigtableWriteOptions;
-      if (bigtableConfig.getConfigId() != null) {
-        this.configId = BigtableServiceFactory.ConfigId.create(bigtableConfig.getConfigId());
-      } else {
-        this.configId = FACTORY_INSTANCE.newId();
-      }
+      this.factory = factory;
     }
 
     @Override
@@ -1063,7 +1067,7 @@ public class BigtableIO {
       bigtableWriteOptions.validate();
 
       return input.apply(
-          ParDo.of(new BigtableWriterFn(configId, bigtableConfig, bigtableWriteOptions)));
+          ParDo.of(new BigtableWriterFn(factory, bigtableConfig, bigtableWriteOptions)));
     }
 
     @Override
@@ -1091,11 +1095,10 @@ public class BigtableIO {
       if (config.getValidate() && config.isDataAccessible() && writeOptions.isDataAccessible()) {
         String tableId = checkNotNull(writeOptions.getTableId().get());
         try {
-          BigtableServiceEntry entry =
-              FACTORY_INSTANCE.getServiceForWriting(configId, config, writeOptions, options);
           checkArgument(
-              entry.getService().tableExists(tableId), "Table %s does not exist", tableId);
-          FACTORY_INSTANCE.releaseWriteService(entry);
+              factory.checkTableExists(config, options, writeOptions.getTableId().get()),
+              "Table %s does not exist",
+              tableId);
         } catch (IOException e) {
           LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
         }
@@ -1106,17 +1109,19 @@ public class BigtableIO {
   private static class BigtableWriterFn
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
+    private BigtableServiceFactory factory;
     private BigtableServiceFactory.ConfigId id;
     private BigtableServiceEntry serviceEntry;
 
     BigtableWriterFn(
-        BigtableServiceFactory.ConfigId configId,
+        BigtableServiceFactory factory,
         BigtableConfig bigtableConfig,
         BigtableWriteOptions writeOptions) {
+      this.factory = factory;
       this.config = bigtableConfig;
       this.writeOptions = writeOptions;
       this.failures = new ConcurrentLinkedQueue<>();
-      this.id = configId;
+      this.id = factory.newId();
     }
 
     @StartBundle
@@ -1126,7 +1131,7 @@ public class BigtableIO {
 
       if (bigtableWriter == null) {
         serviceEntry =
-            FACTORY_INSTANCE.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
+            factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions.getTableId().get());
       }
     }
@@ -1165,7 +1170,7 @@ public class BigtableIO {
       if (bigtableWriter != null) {
         bigtableWriter.close();
         bigtableWriter = null;
-        FACTORY_INSTANCE.releaseWriteService(serviceEntry);
+        factory.releaseWriteService(serviceEntry);
       }
     }
 
@@ -1224,10 +1229,12 @@ public class BigtableIO {
 
   static class BigtableSource extends BoundedSource<Row> {
     public BigtableSource(
+        BigtableServiceFactory factory,
         BigtableServiceFactory.ConfigId configId,
         BigtableConfig config,
         BigtableReadOptions readOptions,
         @Nullable Long estimatedSizeBytes) {
+      this.factory = factory;
       this.config = config;
       this.readOptions = readOptions;
       this.estimatedSizeBytes = estimatedSizeBytes;
@@ -1250,16 +1257,18 @@ public class BigtableIO {
 
     private final BigtableServiceFactory.ConfigId configId;
 
+    private final BigtableServiceFactory factory;
+
     /** Creates a new {@link BigtableSource} with just one {@link ByteKeyRange}. */
     protected BigtableSource withSingleRange(ByteKeyRange range) {
       checkArgument(range != null, "range can not be null");
       return new BigtableSource(
-          configId, config, readOptions.withKeyRange(range), estimatedSizeBytes);
+          factory, configId, config, readOptions.withKeyRange(range), estimatedSizeBytes);
     }
 
     protected BigtableSource withEstimatedSizeBytes(Long estimatedSizeBytes) {
       checkArgument(estimatedSizeBytes != null, "estimatedSizeBytes can not be null");
-      return new BigtableSource(configId, config, readOptions, estimatedSizeBytes);
+      return new BigtableSource(factory, configId, config, readOptions, estimatedSizeBytes);
     }
 
     /**
@@ -1268,11 +1277,10 @@ public class BigtableIO {
      * different tablets, and possibly generate sub-splits within tablets.
      */
     private List<KeyOffset> getSampleRowKeys(PipelineOptions pipelineOptions) throws IOException {
-      BigtableServiceFactory.BigtableServiceEntry serviceEntry =
-          FACTORY_INSTANCE.getServiceForReading(configId, config, readOptions, pipelineOptions);
-      List<KeyOffset> keyOffsets = serviceEntry.getService().getSampleRowKeys(this);
-      FACTORY_INSTANCE.releaseReadService(serviceEntry);
-      return keyOffsets;
+      try (BigtableServiceFactory.BigtableServiceEntry serviceEntry =
+          factory.getServiceForReading(configId, config, readOptions, pipelineOptions)) {
+        return serviceEntry.getService().getSampleRowKeys(this);
+      }
     }
 
     private static final long MAX_SPLIT_COUNT = 15_360L;
@@ -1317,7 +1325,11 @@ public class BigtableIO {
             || !checkRangeAdjacency(previousSourceRanges, source.getRanges())) {
           reducedSplits.add(
               new BigtableSource(
-                  configId, config, readOptions.withKeyRanges(previousSourceRanges), size));
+                  factory,
+                  configId,
+                  config,
+                  readOptions.withKeyRanges(previousSourceRanges),
+                  size));
           counter = 0;
           size = 0;
           previousSourceRanges = new ArrayList<>();
@@ -1330,7 +1342,7 @@ public class BigtableIO {
       if (size > 0) {
         reducedSplits.add(
             new BigtableSource(
-                configId, config, readOptions.withKeyRanges(previousSourceRanges), size));
+                factory, configId, config, readOptions.withKeyRanges(previousSourceRanges), size));
       }
       return reducedSplits;
     }
@@ -1527,7 +1539,7 @@ public class BigtableIO {
     @Override
     public BoundedReader<Row> createReader(PipelineOptions options) throws IOException {
       return new BigtableReader(
-          this, FACTORY_INSTANCE.getServiceForReading(configId, config, readOptions, options));
+          this, factory.getServiceForReading(configId, config, readOptions, options));
     }
 
     @Override
@@ -1635,13 +1647,7 @@ public class BigtableIO {
 
     @Override
     public boolean start() throws IOException {
-      reader =
-          serviceEntry
-              .getService()
-              .createReader(
-                  getCurrentSource(),
-                  serviceEntry.getAttemptTimeout(),
-                  serviceEntry.getOperationTimeout());
+      reader = serviceEntry.getService().createReader(getCurrentSource());
       boolean hasRecord =
           (reader.start()
                   && rangeTracker.tryReturnRecordAt(

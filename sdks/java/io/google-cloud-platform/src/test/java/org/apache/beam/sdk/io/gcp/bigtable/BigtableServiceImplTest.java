@@ -166,7 +166,7 @@ public class BigtableServiceImplTest {
         .thenReturn(mockRows);
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
@@ -224,7 +224,7 @@ public class BigtableServiceImplTest {
             any(ApiCallContext.class));
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
@@ -282,7 +282,7 @@ public class BigtableServiceImplTest {
 
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
@@ -351,7 +351,7 @@ public class BigtableServiceImplTest {
 
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
 
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
@@ -423,7 +423,7 @@ public class BigtableServiceImplTest {
         .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
@@ -479,7 +479,7 @@ public class BigtableServiceImplTest {
         .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
@@ -550,7 +550,7 @@ public class BigtableServiceImplTest {
         .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
@@ -639,7 +639,7 @@ public class BigtableServiceImplTest {
         .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
@@ -706,7 +706,7 @@ public class BigtableServiceImplTest {
         .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-        mockStub.createReadRowsCallable(new BigtableServiceImpl.BeamRowAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
     RetrySettings retrySettings =

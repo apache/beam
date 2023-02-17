@@ -70,6 +70,13 @@ class BigtableConfigTranslator {
     return configureWriteSettings(settings, options);
   }
 
+  /** Translate BigtableConfig and BigtableWriteOptions to Veneer settings. */
+  static BigtableDataSettings translateToVeneerSettings(
+      @Nonnull BigtableConfig config, @Nonnull PipelineOptions pipelineOptions) {
+
+    return buildBigtableDataSettings(config, pipelineOptions).build();
+  }
+
   private static BigtableDataSettings.Builder buildBigtableDataSettings(
       BigtableConfig config, PipelineOptions pipelineOptions) {
     BigtableDataSettings.Builder dataBuilder;
@@ -92,7 +99,8 @@ class BigtableConfigTranslator {
     dataBuilder
         .setProjectId(Objects.requireNonNull(config.getProjectId().get()))
         .setInstanceId(Objects.requireNonNull(config.getInstanceId().get()));
-    if (config.getAppProfileId() != null) {
+    if (config.getAppProfileId() != null
+        && !Strings.isNullOrEmpty(config.getAppProfileId().get())) {
       dataBuilder.setAppProfileId(Objects.requireNonNull(config.getAppProfileId().get()));
     }
 
@@ -235,12 +243,10 @@ class BigtableConfigTranslator {
       builder.setAppProfileId(ValueProvider.StaticValueProvider.of(options.getAppProfileId()));
     }
 
-    if (!options.getDataHost().equals("bigtable.googleapis.com")
+    if (options.getCredentialOptions().getCredentialType() == CredentialOptions.CredentialType.None
         && config.getEmulatorHost() == null) {
       builder.setEmulatorHost(String.format("%s:%s", options.getDataHost(), options.getPort()));
     }
-    // - instance of credentials, P12, SUPPLIED, suppliedjson - credentails
-    // - default credentials , needs to be called on the worker GoogleCredentialProvider
 
     if (options.getCredentialOptions() != null) {
       try {
@@ -283,14 +289,9 @@ class BigtableConfigTranslator {
           case SuppliedJson:
             CredentialOptions.JsonCredentialsOptions jsonCredentialsOptions =
                 (CredentialOptions.JsonCredentialsOptions) credOptions;
-            synchronized (jsonCredentialsOptions) {
-              if (jsonCredentialsOptions.getCachedCredentials() == null) {
-                jsonCredentialsOptions.setCachedCredentails(
-                    GoogleCredentials.fromStream(jsonCredentialsOptions.getInputStream()));
-              }
-              builder.setCredentialsProvider(
-                  FixedCredentialsProvider.create(jsonCredentialsOptions.getCachedCredentials()));
-            }
+            builder.setCredentialsProvider(
+                FixedCredentialsProvider.create(
+                    GoogleCredentials.fromStream(jsonCredentialsOptions.getInputStream())));
             break;
           case None:
             builder.setCredentialsProvider(NoCredentialsProvider.create());

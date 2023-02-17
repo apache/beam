@@ -76,14 +76,19 @@ interface BigtableService extends Serializable {
      * current row because the last such call was unsuccessful.
      */
     Row getCurrentRow() throws NoSuchElementException;
+
+    // Workaround for ReadRows requests which requires to pass the timeouts in
+    // ApiContext. Can be removed later once it's fixed in Veneer.
+    Duration getAttemptTimeout();
+
+    Duration getOperationTimeout();
   }
 
   /** Returns {@code true} if the table with the give name exists. */
   boolean tableExists(String tableId) throws IOException;
 
   /** Returns a {@link Reader} that will read from the specified source. */
-  Reader createReader(BigtableSource source, Duration attemptTimeout, Duration operationTimeout)
-      throws IOException;
+  Reader createReader(BigtableSource source) throws IOException;
 
   /** Returns a {@link Writer} that will write to the specified table. */
   Writer openForWriting(String tableId) throws IOException;
@@ -97,4 +102,6 @@ interface BigtableService extends Serializable {
   String getProjectId();
 
   String getInstanceId();
+
+  void close();
 }

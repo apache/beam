@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.conc
 
 import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.grpc.GrpcCallContext;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.StreamController;
 import com.google.bigtable.v2.Cell;
@@ -102,11 +103,18 @@ class BigtableServiceImpl implements BigtableService {
     this.client = BigtableDataClient.create(settings);
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
+    RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
+    this.readAttemptTimeout = retry.getInitialRpcTimeout();
+    this.readOperationTimeout = retry.getTotalTimeout();
   }
 
   private final BigtableDataClient client;
   private final String projectId;
   private final String instanceId;
+
+  private final Duration readAttemptTimeout;
+
+  private final Duration readOperationTimeout;
 
   @Override
   public BigtableWriterImpl openForWriting(String tableId) {
@@ -183,7 +191,7 @@ class BigtableServiceImpl implements BigtableService {
       try {
         results =
             client
-                .readRowsCallable(new BeamRowAdapter())
+                .readRowsCallable(new BigtableRowProtoAdapter())
                 .call(query, createScanCallContext(attemptTimeout, operationTimeout))
                 .iterator();
         serviceCallMetric.call("ok");
@@ -209,6 +217,16 @@ class BigtableServiceImpl implements BigtableService {
         throw new NoSuchElementException();
       }
       return currentRow;
+    }
+
+    @Override
+    public Duration getAttemptTimeout() {
+      return attemptTimeout;
+    }
+
+    @Override
+    public Duration getOperationTimeout() {
+      return operationTimeout;
     }
   }
 
@@ -344,7 +362,7 @@ class BigtableServiceImpl implements BigtableService {
       }
 
       client
-          .readRowsCallable(new BeamRowAdapter())
+          .readRowsCallable(new BigtableRowProtoAdapter())
           .call(
               Query.fromProto(nextRequest),
               new ResponseObserver<Row>() {
@@ -444,6 +462,16 @@ class BigtableServiceImpl implements BigtableService {
       }
       return currentRow;
     }
+
+    @Override
+    public Duration getAttemptTimeout() {
+      return attemptTimeout;
+    }
+
+    @Override
+    public Duration getOperationTimeout() {
+      return operationTimeout;
+    }
   }
 
   @VisibleForTesting
@@ -542,9 +570,7 @@ class BigtableServiceImpl implements BigtableService {
   }
 
   @Override
-  public Reader createReader(
-      BigtableSource source, Duration attemptTimeout, Duration operationTimeout)
-      throws IOException {
+  public Reader createReader(BigtableSource source) throws IOException {
     if (source.getMaxBufferElementCount() != null) {
       return BigtableSegmentReaderImpl.create(
           client,
@@ -554,8 +580,8 @@ class BigtableServiceImpl implements BigtableService {
           source.getRanges(),
           source.getRowFilter(),
           source.getMaxBufferElementCount(),
-          attemptTimeout,
-          operationTimeout);
+          readAttemptTimeout,
+          readOperationTimeout);
     } else {
       return new BigtableReaderImpl(
           client,
@@ -564,8 +590,8 @@ class BigtableServiceImpl implements BigtableService {
           source.getTableId().get(),
           source.getRanges(),
           source.getRowFilter(),
-          attemptTimeout,
-          operationTimeout);
+          readAttemptTimeout,
+          readOperationTimeout);
     }
   }
 
@@ -614,6 +640,11 @@ class BigtableServiceImpl implements BigtableService {
         MonitoringInfoConstants.Labels.TABLE_ID,
         GcpResourceIdentifiers.bigtableTableID(projectId, instanceId, tableId));
     return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+  }
+
+  @Override
+  public void close() {
+    client.close();
   }
 
   /** Helper class to ease comparison of RowRange start points. */
@@ -698,7 +729,7 @@ class BigtableServiceImpl implements BigtableService {
     }
   }
 
-  static class BeamRowAdapter implements RowAdapter<com.google.bigtable.v2.Row> {
+  static class BigtableRowProtoAdapter implements RowAdapter<com.google.bigtable.v2.Row> {
     @Override
     public RowBuilder<com.google.bigtable.v2.Row> createRowBuilder() {
       return new DefaultRowBuilder();
