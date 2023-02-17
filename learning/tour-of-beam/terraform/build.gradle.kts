@@ -256,7 +256,7 @@ tasks.register("flutterPubRunTob") {
 
 tasks.register("flutterBuildWeb") {
     exec {
-        commandLine("flutter", "build", "web")
+        commandLine("flutter", "build", "web", "--profile", "--dart-define=Dart2jsOptimization=O0")
         workingDir("../frontend")
     }
 }
