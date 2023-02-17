@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -28,12 +29,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiPCollectionRowTupleTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -112,6 +119,11 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   }
 
   public PCollectionRowTuple runWithConfig(
+      BigQueryStorageWriteApiSchemaTransformConfiguration config) {
+    return runWithConfig(config, ROWS);
+  }
+
+  public PCollectionRowTuple runWithConfig(
       BigQueryStorageWriteApiSchemaTransformConfiguration config, List<Row> inputRows) {
     BigQueryStorageWriteApiSchemaTransformProvider provider =
         new BigQueryStorageWriteApiSchemaTransformProvider();
@@ -136,6 +148,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
       return false;
     }
     for (int i = 0; i < expectedRows.size(); i++) {
+      // Actual rows may come back disordered. For each TableRow, find its "number" column value
+      // and match it to the index of the expected row.
       TableRow actualRow = actualRows.get(i);
       Row expectedRow = expectedRows.get(Integer.parseInt(actualRow.get("number").toString()) - 1);
 
@@ -161,6 +175,36 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
     assertTrue(
         rowsEquals(ROWS, fakeDatasetService.getAllRows("project", "dataset", "simple_write")));
+  }
+
+  @Test
+  public void testInputElementCount() throws Exception {
+    String tableSpec = "project:dataset.input_count";
+    BigQueryStorageWriteApiSchemaTransformConfiguration config =
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
+
+    runWithConfig(config);
+    PipelineResult result = p.run();
+
+    MetricResults metrics = result.metrics();
+    MetricQueryResults metricResults =
+        metrics.queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(
+                        BigQueryStorageWriteApiPCollectionRowTupleTransform.class,
+                        "element-counter"))
+                .build());
+
+    Iterable<MetricResult<Long>> counters = metricResults.getCounters();
+    if (!counters.iterator().hasNext()) {
+      throw new RuntimeException("no counters available for the input element count");
+    }
+
+    Long expectedCount = 3L;
+    for (MetricResult<Long> count : counters) {
+      assertEquals(expectedCount, count.getAttempted());
+    }
   }
 
   @Test
@@ -200,5 +244,38 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
         rowsEquals(
             expectedSuccessfulRows,
             fakeDatasetService.getAllRows("project", "dataset", "write_with_fail")));
+  }
+
+  @Test
+  public void testErrorCount() throws Exception {
+    String tableSpec = "project:dataset.error_count";
+    BigQueryStorageWriteApiSchemaTransformConfiguration config =
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
+
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable) tr -> tr.get("name").equals("a");
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
+    runWithConfig(config);
+    PipelineResult result = p.run();
+
+    MetricResults metrics = result.metrics();
+    MetricQueryResults metricResults =
+        metrics.queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(
+                        BigQueryStorageWriteApiPCollectionRowTupleTransform.class, "error-counter"))
+                .build());
+
+    Iterable<MetricResult<Long>> counters = metricResults.getCounters();
+    if (!counters.iterator().hasNext()) {
+      throw new RuntimeException("no counters available ");
+    }
+
+    Long expectedCount = 1L;
+    for (MetricResult<Long> count : counters) {
+      assertEquals(expectedCount, count.getAttempted());
+    }
   }
 }

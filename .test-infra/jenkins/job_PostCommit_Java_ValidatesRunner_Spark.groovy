@@ -37,7 +37,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Spark',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:spark:2:validatesRunner')
           tasks(':runners:spark:3:validatesRunner')
           commonJobProperties.setGradleSwitches(delegate)
         }

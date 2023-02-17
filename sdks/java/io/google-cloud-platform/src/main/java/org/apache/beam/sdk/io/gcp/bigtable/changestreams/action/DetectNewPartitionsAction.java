@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 import com.google.cloud.Timestamp;
 import com.google.protobuf.InvalidProtocolBufferException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
@@ -47,6 +48,7 @@ import org.slf4j.LoggerFactory;
   "UnusedVariable",
   "UnusedMethod"
 })
+@Internal
 public class DetectNewPartitionsAction {
   private static final Logger LOG = LoggerFactory.getLogger(DetectNewPartitionsAction.class);
 

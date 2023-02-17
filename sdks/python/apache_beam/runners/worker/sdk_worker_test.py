@@ -28,6 +28,7 @@ import grpc
 import hamcrest as hc
 import mock
 
+from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import VarIntCoder
 from apache_beam.internal.metrics.metric import Metrics as InternalMetrics
 from apache_beam.metrics import monitoring_infos
@@ -38,6 +39,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
+from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.sdk_worker import BundleProcessorCache
 from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
 from apache_beam.runners.worker.sdk_worker import SdkWorker
@@ -194,7 +196,7 @@ class SdkWorkerTest(unittest.TestCase):
             instruction_id='split_instruction_id',
             process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitResponse()))
 
-  def get_responses(self, instruction_requests):
+  def get_responses(self, instruction_requests, data_sampler=None):
     """Evaluates and returns {id: InstructionResponse} for the requests."""
     test_controller = BeamFnControlServicer(instruction_requests)
 
@@ -205,7 +207,9 @@ class SdkWorkerTest(unittest.TestCase):
     server.start()
 
     harness = sdk_worker.SdkHarness(
-        "localhost:%s" % test_port, state_cache_size=100)
+        "localhost:%s" % test_port,
+        state_cache_size=100,
+        data_sampler=data_sampler)
     harness.run()
     return test_controller.responses
 
@@ -271,6 +275,53 @@ class SdkWorkerTest(unittest.TestCase):
         worker.do_instruction(split_request).error,
         hc.contains_string(
             'Bundle processing associated with instruction_id has failed'))
+
+  def test_data_sampling_response(self):
+    # Create a data sampler with some fake sampled data. This data will be seen
+    # in the sample response.
+    data_sampler = DataSampler()
+    coder = FastPrimitivesCoder()
+
+    # Sample from two fake PCollections to test that all sampled PCollections
+    # are present in the response. Also adds an extra sample to test that
+    # filtering is forwarded to the DataSampler.
+    data_sampler.sample_output('pcoll_id_1',
+                               coder).sample('hello, world from pcoll_id_1!')
+    data_sampler.sample_output('pcoll_id_2',
+                               coder).sample('hello, world from pcoll_id_2!')
+    data_sampler.sample_output('bad_pcoll_id',
+                               coder).sample('if present bug in filter')
+
+    # Create and send the fake reponse. The SdkHarness should query the
+    # DataSampler and fill out the sample response.
+    sample_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='sample_request',
+        sample_data=beam_fn_api_pb2.SampleDataRequest(
+            pcollection_ids=['pcoll_id_1', 'pcoll_id_2']))
+    responses = self.get_responses([sample_request], data_sampler)
+    self.assertEqual(len(responses), 1)
+
+    # Get and assert the correct response.
+    response = responses['sample_request']
+    expected_response = beam_fn_api_pb2.InstructionResponse(
+        instruction_id='sample_request',
+        sample_data=beam_fn_api_pb2.SampleDataResponse(
+            element_samples={
+                'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested(
+                                'hello, world from pcoll_id_1!'))
+                    ]),
+                'pcoll_id_2': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested(
+                                'hello, world from pcoll_id_2!'))
+                    ])
+            }))
+
+    self.assertEqual(response, expected_response)
 
 
 class CachingStateHandlerTest(unittest.TestCase):

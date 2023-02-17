@@ -17,10 +17,21 @@
  */
 
 export 'src/common_finders.dart';
-export 'src/example_names.dart';
-export 'src/example_outputs.dart';
-export 'src/example_paths.dart';
-export 'src/examples.dart';
+
+export 'src/examples/example_descriptor.dart';
+
+export 'src/examples/go/example.dart';
+export 'src/examples/go/minimal_word_count.dart';
+export 'src/examples/go/word_count.dart';
+
+export 'src/examples/java/aggregation_max.dart';
+export 'src/examples/java/minimal_word_count.dart';
+
+export 'src/examples/python/aggregation_mean.dart';
+export 'src/examples/python/word_count_with_metrics.dart';
+
+export 'src/examples/scio/minimal_word_count.dart';
+
 export 'src/expect.dart';
 export 'src/finder.dart';
 export 'src/string.dart';

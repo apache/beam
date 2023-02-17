@@ -25,7 +25,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
@@ -38,7 +40,7 @@ public class HL7v2IOTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void test_HL7v2IO_failedReads() {
+  public void testHL7v2IOFailedReads() {
     List<String> badMessageIDs =
         Arrays.asList(
             "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/foo",
@@ -60,7 +62,31 @@ public class HL7v2IOTest {
   }
 
   @Test
-  public void test_HL7v2IO_failedWrites() {
+  public void testHL7v2IOFailedReadsByParameter() {
+    List<HL7v2ReadParameter> badReadParameters =
+        Arrays.asList(
+            HL7v2ReadParameter.of(
+                "metadata-foo", "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/foo"),
+            HL7v2ReadParameter.of(
+                "metadata-bar", "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/bar"));
+
+    PCollection<HL7v2ReadParameter> parameters = pipeline.apply(Create.of(badReadParameters));
+    HL7v2IO.HL7v2Read.Result readResult = parameters.apply(HL7v2IO.readAllRequests());
+
+    PCollection<HealthcareIOError<HL7v2ReadParameter>> failed = readResult.getFailedReads();
+
+    PCollection<HL7v2ReadResponse> messages = readResult.getMessages();
+
+    PCollection<HL7v2ReadParameter> failedParameters =
+        failed.apply("Map to parameters", ParDo.of(new MapHealthCareIOErrorToReadParameter()));
+
+    PAssert.that(failedParameters).containsInAnyOrder(badReadParameters);
+    PAssert.that(messages).empty();
+    pipeline.run();
+  }
+
+  @Test
+  public void testHL7v2IOFailedWrites() {
     Message msg = new Message().setData("");
     List<HL7v2Message> emptyMessages = Collections.singletonList(HL7v2Message.fromModel(msg));
 
@@ -80,5 +106,16 @@ public class HL7v2IOTest {
     PAssert.thatSingleton(failedMsgs).isEqualTo(1L);
 
     pipeline.run();
+  }
+
+  private static class MapHealthCareIOErrorToReadParameter
+      extends DoFn<HealthcareIOError<HL7v2ReadParameter>, HL7v2ReadParameter> {
+
+    @ProcessElement
+    public void processElement(
+        @Element HealthcareIOError<HL7v2ReadParameter> error,
+        OutputReceiver<HL7v2ReadParameter> receiver) {
+      receiver.output(error.getDataResource());
+    }
   }
 }

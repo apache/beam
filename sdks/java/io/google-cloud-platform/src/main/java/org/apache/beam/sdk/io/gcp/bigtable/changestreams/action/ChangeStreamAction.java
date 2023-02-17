@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
 import com.google.protobuf.ByteString;
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 /** This class is responsible for processing individual ChangeStreamRecord. */
 @SuppressWarnings({"UnusedVariable", "UnusedMethod"})
+@Internal
 public class ChangeStreamAction {
   private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamAction.class);
 

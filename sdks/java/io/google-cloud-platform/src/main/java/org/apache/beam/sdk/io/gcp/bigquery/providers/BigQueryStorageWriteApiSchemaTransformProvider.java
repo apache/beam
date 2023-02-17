@@ -38,6 +38,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -46,8 +48,10 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -226,6 +230,30 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       this.testBigQueryServices = testBigQueryServices;
     }
 
+    // A generic counter for PCollection of Row. Will be initialized with the given
+    // name argument. Performs element-wise counter of the input PCollection.
+    private static class ElementCounterFn extends DoFn<Row, Row> {
+      private Counter bqGenericElementCounter;
+      private Long elementsInBundle = 0L;
+
+      ElementCounterFn(String name) {
+        this.bqGenericElementCounter =
+            Metrics.counter(BigQueryStorageWriteApiPCollectionRowTupleTransform.class, name);
+      }
+
+      @ProcessElement
+      public void process(ProcessContext c) {
+        this.elementsInBundle += 1;
+        c.output(c.element());
+      }
+
+      @FinishBundle
+      public void finish(FinishBundleContext c) {
+        this.bqGenericElementCounter.inc(this.elementsInBundle);
+        this.elementsInBundle = 0L;
+      }
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // Check that the input exists
@@ -245,7 +273,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                         : Duration.standardSeconds(triggeringFrequency));
       }
 
-      WriteResult result = inputRows.apply(write);
+      Schema inputSchema = inputRows.getSchema();
+      WriteResult result =
+          inputRows
+              .apply("element-count", ParDo.of(new ElementCounterFn("element-counter")))
+              .setRowSchema(inputSchema)
+              .apply(write);
 
       Schema rowSchema = inputRows.getSchema();
       Schema errorSchema =
@@ -282,7 +315,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                                   .build()))
               .setRowSchema(errorSchema);
 
-      return PCollectionRowTuple.of(FAILED_ROWS_TAG, failedRows)
+      PCollection<Row> failedRowsOutput =
+          failedRows
+              .apply("error-count", ParDo.of(new ElementCounterFn("error-counter")))
+              .setRowSchema(errorSchema);
+
+      return PCollectionRowTuple.of(FAILED_ROWS_TAG, failedRowsOutput)
           .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors);
     }
 
