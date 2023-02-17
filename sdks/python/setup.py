@@ -291,21 +291,21 @@ if __name__ == '__main__':
             # https://github.com/googleapis/google-cloud-python/issues/10566
             'google-auth>=1.18.0,<3',
             'google-auth-httplib2>=0.1.0,<0.2.0',
-            'google-cloud-datastore>=1.8.0,<2',
+            'google-cloud-datastore>=1.8.0,<3',
             'google-cloud-pubsub>=2.1.0,<3',
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
             'google-cloud-bigquery>=1.6.0,<4',
-            'google-cloud-bigquery-storage>=2.6.3,<2.17',
+            'google-cloud-bigquery-storage>=2.6.3,<2.19',
             'google-cloud-core>=0.28.1,<3',
-            'google-cloud-bigtable>=0.31.1,<2',
+            'google-cloud-bigtable>=0.31.1,<3',
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
-            'google-cloud-dlp>=3.0.0,<4',
-            'google-cloud-language>=1.3.0,<2',
-            'google-cloud-videointelligence>=1.8.0,<2',
+            'google-cloud-dlp>=3.0.0,<4.0',
+            'google-cloud-language>=1.3.0,<3.0',
+            'google-cloud-videointelligence>=1.8.0,<3.0',
             'google-cloud-vision>=2,<4',
-            'google-cloud-recommendations-ai>=0.1.0,<0.8.0'
+            'google-cloud-recommendations-ai>=0.1.0,<1.0'
           ],
           'interactive': [
             'facets-overview>=1.0.0,<2',
