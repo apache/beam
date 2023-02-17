@@ -37,6 +37,10 @@ import 'widgets/playground_page_footer.dart';
 import 'widgets/playground_page_providers.dart';
 
 class StandalonePlaygroundScreen extends StatelessWidget {
+  // TODO: calculate sum of widths of all app bar buttons at the first frame.
+  // https://github.com/apache/beam/issues/25524
+  // To get value manually print window width and check when app bar buttons
+  // will span 2 lines
   static const kAppBarButtonsWidth = 1105;
   final StandalonePlaygroundNotifier notifier;
 

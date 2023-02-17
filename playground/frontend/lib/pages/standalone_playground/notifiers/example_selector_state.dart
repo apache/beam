@@ -34,8 +34,8 @@ class ExampleSelectorState with ChangeNotifier {
     this._selectedFilterType = ExampleType.all,
     this._searchText = '',
   ]) {
+    tagsFrequencyMap = _buildTagsFrequencyMap(categories);
     tags = _getTagsSortedByExampleCount(categories);
-    tagsFrequencyMap = _buildTagsFrequencyMap(_getAllCategories().toList());
   }
 
   ExampleType get selectedFilterType => _selectedFilterType;
@@ -49,53 +49,47 @@ class ExampleSelectorState with ChangeNotifier {
 
   void addSelectedTag(String tag) {
     selectedTags.add(tag);
-    _sortTagsBySelected();
+    tags.sort(_compareTags);
     notifyListeners();
   }
 
   void removeSelectedTag(String tag) {
     selectedTags.remove(tag);
-    _sortTagsBySelected();
+    tags.sort(_compareTags);
     notifyListeners();
   }
 
-  void _sortTagsBySelected() {
-    tags.sort((a, b) {
-      if (selectedTags.contains(a) && !selectedTags.contains(b)) {
+  /// First selected, then most frequent, alphabetically for equal frequency.
+  int _compareTags(String a, String b) {
+    if (selectedTags.contains(a) && !selectedTags.contains(b)) {
+      return -1;
+    } else if (!selectedTags.contains(a) && selectedTags.contains(b)) {
+      return 1;
+    } else {
+      final aFreq = tagsFrequencyMap[a] ?? -1;
+      final bFreq = tagsFrequencyMap[b] ?? -1;
+      if (aFreq > bFreq) {
         return -1;
-      } else if (!selectedTags.contains(a) && selectedTags.contains(b)) {
+      } else if (aFreq < bFreq) {
         return 1;
       } else {
-        final aFreq = tagsFrequencyMap[a] ?? -1;
-        final bFreq = tagsFrequencyMap[b] ?? -1;
-        if (aFreq > bFreq) {
-          return -1;
-        } else if (aFreq < bFreq) {
-          return 1;
-        } else {
-          return a.compareTo(b);
-        }
+        return a.compareTo(b);
       }
-    });
+    }
   }
 
   List<String> _getTagsSortedByExampleCount(
     List<CategoryWithExamples> categories,
   ) {
-    Map<String, int> tagsFrequencyMap = _buildTagsFrequencyMap(categories);
     final tagEntries = tagsFrequencyMap.entries.toList()
-      ..sort(
-        (entry1, entry2) => entry2.value.compareTo(entry1.value) != 0
-            ? entry2.value.compareTo(entry1.value)
-            : entry2.key.compareTo(entry1.key),
-      );
+      ..sort((entry1, entry2) => _compareTags(entry1.key, entry2.key));
     return tagEntries.map((entry) => entry.key).toList();
   }
 
   Map<String, int> _buildTagsFrequencyMap(
     List<CategoryWithExamples> categories,
   ) {
-    Map<String, int> result = {};
+    final result = <String, int>{};
     for (final category in categories) {
       for (final example in category.examples) {
         for (final tag in example.tags) {

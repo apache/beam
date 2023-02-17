@@ -196,6 +196,8 @@ class GrpcCodeClient implements CodeClient {
     try {
       return await invoke();
     } on GrpcError catch (error) {
+      // Internet unavailable issue also returns unknown code error, 
+      // so message was overwritten.
       if (error.code == StatusCode.unknown) {
         throw RunCodeError(message: 'errors.unknownError'.tr());
       }
