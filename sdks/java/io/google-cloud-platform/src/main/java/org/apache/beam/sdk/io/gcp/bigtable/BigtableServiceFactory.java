@@ -24,6 +24,7 @@ import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,10 +46,9 @@ class BigtableServiceFactory implements Serializable {
 
   static final BigtableServiceFactory FACTORY_INSTANCE = new BigtableServiceFactory();
 
-  private transient int nextId = 0;
+  private transient int nextId;
 
-  private final transient Map<ConfigId, BigtableServiceEntry> readEntries = new HashMap<>();
-  private final transient Map<ConfigId, BigtableServiceEntry> writeEntries = new HashMap<>();
+  private transient Map<ConfigId, BigtableServiceEntry> entries = new HashMap<>();
 
   @AutoValue
   abstract static class ConfigId implements Serializable {
@@ -71,25 +71,18 @@ class BigtableServiceFactory implements Serializable {
 
     abstract AtomicInteger getRefCount();
 
-    abstract String getServiceType();
-
     static BigtableServiceEntry create(
         BigtableServiceFactory factory,
         ConfigId configId,
         BigtableService service,
-        AtomicInteger refCount,
-        String serviceType) {
+        AtomicInteger refCount) {
       return new AutoValue_BigtableServiceFactory_BigtableServiceEntry(
-          factory, configId, service, refCount, serviceType);
+          factory, configId, service, refCount);
     }
 
     @Override
     public void close() {
-      if (getServiceType().equals("read")) {
-        getServiceFactory().releaseReadService(this);
-      } else if (getServiceType().equals("write")) {
-        getServiceFactory().releaseWriteService(this);
-      }
+      getServiceFactory().releaseService(this);
     }
   }
 
@@ -99,7 +92,7 @@ class BigtableServiceFactory implements Serializable {
       BigtableReadOptions opts,
       PipelineOptions pipelineOptions)
       throws IOException {
-    BigtableServiceEntry entry = readEntries.get(configId);
+    BigtableServiceEntry entry = entries.get(configId);
     if (entry != null) {
       entry.getRefCount().incrementAndGet();
       return entry;
@@ -108,14 +101,16 @@ class BigtableServiceFactory implements Serializable {
     BigtableOptions effectiveOptions = getEffectiveOptions(config);
     if (effectiveOptions != null) {
       // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
-      config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
+      config =
+          BigtableConfigTranslator.translateToBigtableConfig(
+              config, effectiveOptions, pipelineOptions);
       opts = BigtableConfigTranslator.translateToBigtableReadOptions(opts, effectiveOptions);
     }
     BigtableDataSettings settings =
         BigtableConfigTranslator.translateReadToVeneerSettings(config, opts, pipelineOptions);
     BigtableService service = new BigtableServiceImpl(settings);
-    entry = BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1), "read");
-    readEntries.put(configId, entry);
+    entry = BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1));
+    entries.put(configId, entry);
     return entry;
   }
 
@@ -125,7 +120,7 @@ class BigtableServiceFactory implements Serializable {
       BigtableWriteOptions opts,
       PipelineOptions pipelineOptions)
       throws IOException {
-    BigtableServiceEntry entry = writeEntries.get(configId);
+    BigtableServiceEntry entry = entries.get(configId);
     if (entry != null) {
       entry.getRefCount().incrementAndGet();
       return entry;
@@ -134,29 +129,24 @@ class BigtableServiceFactory implements Serializable {
     BigtableOptions effectiveOptions = getEffectiveOptions(config);
     if (effectiveOptions != null) {
       // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
-      config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
+      config =
+          BigtableConfigTranslator.translateToBigtableConfig(
+              config, effectiveOptions, pipelineOptions);
       opts = BigtableConfigTranslator.translateToBigtableWriteOptions(opts, effectiveOptions);
     }
 
     BigtableDataSettings settings =
         BigtableConfigTranslator.translateWriteToVeneerSettings(config, opts, pipelineOptions);
     BigtableService service = new BigtableServiceImpl(settings);
-    entry = BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1), "write");
-    writeEntries.put(configId, entry);
+    entry = BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1));
+    entries.put(configId, entry);
     return entry;
   }
 
-  synchronized void releaseReadService(BigtableServiceEntry entry) {
+  synchronized void releaseService(BigtableServiceEntry entry) {
     if (entry.getRefCount().decrementAndGet() == 0) {
       entry.getService().close();
-      readEntries.remove(entry.getConfigId());
-    }
-  }
-
-  synchronized void releaseWriteService(BigtableServiceEntry entry) {
-    if (entry.getRefCount().decrementAndGet() == 0) {
-      entry.getService().close();
-      writeEntries.remove(entry.getConfigId());
+      entries.remove(entry.getConfigId());
     }
   }
 
@@ -164,7 +154,9 @@ class BigtableServiceFactory implements Serializable {
       throws IOException {
     BigtableOptions effectiveOptions = getEffectiveOptions(config);
     if (effectiveOptions != null) {
-      config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
+      config =
+          BigtableConfigTranslator.translateToBigtableConfig(
+              config, effectiveOptions, pipelineOptions);
     }
 
     if (config.isDataAccessible()) {
@@ -198,5 +190,11 @@ class BigtableServiceFactory implements Serializable {
           config.getBigtableOptionsConfigurator().apply(BigtableOptions.builder()).build();
     }
     return effectiveOptions;
+  }
+
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    entries = new HashMap<>();
+    nextId = 0;
   }
 }

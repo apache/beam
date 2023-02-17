@@ -1982,9 +1982,8 @@ public class BigtableIOTest {
         ConfigId configId,
         BigtableConfig config,
         BigtableReadOptions opts,
-        PipelineOptions pipelineOptions)
-        throws IOException {
-      return BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1), "read");
+        PipelineOptions pipelineOptions) {
+      return BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1));
     }
 
     @Override
@@ -1992,16 +1991,12 @@ public class BigtableIOTest {
         ConfigId configId,
         BigtableConfig config,
         BigtableWriteOptions opts,
-        PipelineOptions pipelineOptions)
-        throws IOException {
-      return BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1), "write");
+        PipelineOptions pipelineOptions) {
+      return BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1));
     }
 
     @Override
-    synchronized void releaseReadService(BigtableServiceEntry entry) {}
-
-    @Override
-    synchronized void releaseWriteService(BigtableServiceEntry entry) {}
+    synchronized void releaseService(BigtableServiceEntry entry) {}
 
     @Override
     boolean checkTableExists(BigtableConfig config, PipelineOptions pipelineOptions, String tableId)

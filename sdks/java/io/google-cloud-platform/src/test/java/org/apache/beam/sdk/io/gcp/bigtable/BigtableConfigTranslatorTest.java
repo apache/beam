@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
@@ -28,6 +27,8 @@ import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
+import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -53,19 +54,24 @@ public class BigtableConfigTranslatorTest {
             .build();
 
     BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
-    config = BigtableConfigTranslator.translateToBigtableConfig(config, options);
+    config =
+        BigtableConfigTranslator.translateToBigtableConfig(
+            config, options, PipelineOptionsFactory.as(GcpOptions.class));
 
     assertNotNull(config.getProjectId());
     assertNotNull(config.getInstanceId());
     assertNotNull(config.getAppProfileId());
     assertNotNull(config.getEmulatorHost());
-    assertNotNull(config.getCredentialsProvider());
+    assertNotNull(config.getCredentialFactory());
 
+    NoopCredentialFactory noopCredentialFactory =
+        NoopCredentialFactory.fromOptions(PipelineOptionsFactory.as(GcpOptions.class));
     assertEquals(options.getProjectId(), config.getProjectId().get());
     assertEquals(options.getInstanceId(), config.getInstanceId().get());
     assertEquals(options.getAppProfileId(), config.getAppProfileId().get());
     assertEquals("localhost:1234", config.getEmulatorHost());
-    assertNull(config.getCredentialsProvider().getCredentials());
+    assertEquals(
+        noopCredentialFactory.getCredential(), config.getCredentialFactory().getCredential());
   }
 
   @Test

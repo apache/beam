@@ -24,7 +24,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.api.gax.core.CredentialsProvider;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -411,11 +411,9 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public Read withCredentialsProvider(CredentialsProvider credentialsProvider) {
+    public Read withCredentialsProvider(CredentialFactory credentialFactory) {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder()
-          .setBigtableConfig(config.withCredentialsProvider(credentialsProvider))
-          .build();
+      return toBuilder().setBigtableConfig(config.withCredentialFactory(credentialFactory)).build();
     }
 
     /**
@@ -823,11 +821,9 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public Write withCredentialsProvider(CredentialsProvider credentialsProvider) {
+    public Write withCredentialFactory(CredentialFactory credentialFactory) {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder()
-          .setBigtableConfig(config.withCredentialsProvider(credentialsProvider))
-          .build();
+      return toBuilder().setBigtableConfig(config.withCredentialFactory(credentialFactory)).build();
     }
     /**
      * WARNING: Should be used only to specify additional parameters for connection to the Cloud
@@ -1170,7 +1166,7 @@ public class BigtableIO {
       if (bigtableWriter != null) {
         bigtableWriter.close();
         bigtableWriter = null;
-        factory.releaseWriteService(serviceEntry);
+        factory.releaseService(serviceEntry);
       }
     }
 
@@ -1539,7 +1535,7 @@ public class BigtableIO {
     @Override
     public BoundedReader<Row> createReader(PipelineOptions options) throws IOException {
       return new BigtableReader(
-          this, factory.getServiceForReading(configId, config, readOptions, options));
+          factory, this, factory.getServiceForReading(configId, config, readOptions, options));
     }
 
     @Override
@@ -1633,13 +1629,17 @@ public class BigtableIO {
     // Thread-safety: source is protected via synchronization and is only accessed or modified
     // inside a synchronized block (or constructor, which is the same).
     private BigtableSource source;
+
+    private final BigtableServiceFactory factory;
     private final BigtableServiceEntry serviceEntry;
     private BigtableService.Reader reader;
     private final ByteKeyRangeTracker rangeTracker;
     private long recordsReturned;
 
-    public BigtableReader(BigtableSource source, BigtableServiceEntry service) {
+    public BigtableReader(
+        BigtableServiceFactory factory, BigtableSource source, BigtableServiceEntry service) {
       checkArgument(source.getRanges().size() == 1, "source must have exactly one key range");
+      this.factory = factory;
       this.source = source;
       this.serviceEntry = service;
       rangeTracker = ByteKeyRangeTracker.of(source.getRanges().get(0));
@@ -1686,7 +1686,7 @@ public class BigtableIO {
     public void close() throws IOException {
       LOG.info("Closing reader after reading {} records.", recordsReturned);
       if (reader != null) {
-        FACTORY_INSTANCE.releaseReadService(serviceEntry);
+        factory.releaseService(serviceEntry);
         reader = null;
       }
     }

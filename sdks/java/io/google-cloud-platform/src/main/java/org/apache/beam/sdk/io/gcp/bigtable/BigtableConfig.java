@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.gax.core.CredentialsProvider;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -70,7 +70,7 @@ public abstract class BigtableConfig implements Serializable {
   abstract @Nullable String getUserAgent();
 
   /** Credentials for running the job. */
-  abstract @Nullable CredentialsProvider getCredentialsProvider();
+  abstract @Nullable CredentialFactory getCredentialFactory();
 
   abstract Builder toBuilder();
 
@@ -102,7 +102,7 @@ public abstract class BigtableConfig implements Serializable {
 
     abstract Builder setUserAgent(String userAgent);
 
-    abstract Builder setCredentialsProvider(CredentialsProvider credentialsProvider);
+    abstract Builder setCredentialFactory(CredentialFactory credentialFactory);
 
     abstract BigtableConfig build();
   }
@@ -147,8 +147,8 @@ public abstract class BigtableConfig implements Serializable {
     return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
-  BigtableConfig withCredentialsProvider(CredentialsProvider provider) {
-    return toBuilder().setCredentialsProvider(provider).build();
+  BigtableConfig withCredentialFactory(CredentialFactory factory) {
+    return toBuilder().setCredentialFactory(factory).build();
   }
 
   void validate() {
