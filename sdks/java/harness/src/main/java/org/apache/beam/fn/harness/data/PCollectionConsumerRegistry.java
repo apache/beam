@@ -394,7 +394,7 @@ public class PCollectionConsumerRegistry {
     }
   }
 
-  public static class SampleByteSizeDistribution<T> extends ElementByteSizeObserver {
+  private static class SampleByteSizeDistribution<T> extends ElementByteSizeObserver {
     /** Basic implementation of {@link ElementByteSizeObserver} for use in size estimation. */
     @Override
     protected void reportElementSize(long elementSize) {
