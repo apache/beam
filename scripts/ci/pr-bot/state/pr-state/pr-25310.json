@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "AnandInguva",
-    "java": "kennknowles",
-    "go": "riteshghorse",
-    "io": "Abacn"
+    "python": "damccorm",
+    "java": "lukecwik",
+    "go": "jrmccluskey",
+    "io": "johnjcasey"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
