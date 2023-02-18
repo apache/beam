@@ -219,8 +219,8 @@ class BigtableConfigTranslator {
   }
 
   /**
-   * Translate BigtableOptions to BigtableConfig for backward compatibility. If the values are set on
-   * BigtableConfig, ignore the settings in BigtableOptions.
+   * Translate BigtableOptions to BigtableConfig for backward compatibility. If the values are set
+   * on BigtableConfig, ignore the settings in BigtableOptions.
    */
   static BigtableConfig translateToBigtableConfig(
       BigtableConfig config, BigtableOptions options, PipelineOptions pipelineOptions) {

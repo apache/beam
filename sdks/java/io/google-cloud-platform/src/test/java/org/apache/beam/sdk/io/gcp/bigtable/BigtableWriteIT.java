@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.bigtable.v2.Mutation;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.admin.v2.models.Table;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
@@ -81,6 +82,7 @@ public class BigtableWriteIT implements Serializable {
             .setProjectId(ValueProvider.StaticValueProvider.of(project))
             .setInstanceId(ValueProvider.StaticValueProvider.of(options.getInstanceId()))
             .setUserAgent("apache-beam-test")
+            .setValidate(true)
             .build();
 
     veneerSettings =
@@ -89,7 +91,14 @@ public class BigtableWriteIT implements Serializable {
             BigtableWriteOptions.builder().build(),
             PipelineOptionsFactory.create());
 
+    BigtableTableAdminSettings adminSettings =
+        BigtableTableAdminSettings.newBuilder()
+            .setProjectId(project)
+            .setInstanceId(options.getInstanceId())
+            .build();
+
     client = BigtableDataClient.create(veneerSettings);
+    tableAdminClient = BigtableTableAdminClient.create(adminSettings);
   }
 
   @Test
@@ -119,7 +128,11 @@ public class BigtableWriteIT implements Serializable {
                     c.output(KV.of(testData.get(index).getKey(), mutations));
                   }
                 }))
-        .apply(BigtableIO.write().withTableId(tableId));
+        .apply(
+            BigtableIO.write()
+                .withProjectId(project)
+                .withInstanceId(options.getInstanceId())
+                .withTableId(tableId));
     p.run();
 
     // Test number of column families and column family name equality

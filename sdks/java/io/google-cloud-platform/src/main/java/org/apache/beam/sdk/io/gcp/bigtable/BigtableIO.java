@@ -432,7 +432,8 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated please set the configurations directly.
+     * @deprecated please set the configurations directly:
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
      */
     @Deprecated
     public Read withBigtableOptions(BigtableOptions options) {
@@ -453,7 +454,8 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated please set the configurations directly.
+     * @deprecated please set the configurations directly:
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
      */
     @Deprecated
     public Read withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
@@ -472,7 +474,8 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated please set the configurations directly.
+     * @deprecated please set the configurations directly:
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
      */
     @Deprecated
     public Read withBigtableOptionsConfigurator(
@@ -817,7 +820,8 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated please configure the write options directly.
+     * @deprecated please configure the write options directly:
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
      */
     @Deprecated
     public Write withBigtableOptions(BigtableOptions options) {
@@ -838,7 +842,8 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated please configure the write options directly.
+     * @deprecated please configure the write options directly:
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
      */
     @Deprecated
     public Write withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
@@ -857,7 +862,8 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated please configure the write options directly.
+     * @deprecated please configure the write options directly:
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
      */
     @Deprecated
     public Write withBigtableOptionsConfigurator(
