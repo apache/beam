@@ -308,7 +308,7 @@ if __name__ == '__main__':
             'google-cloud-recommendations-ai>=0.1.0,<1.0'
           ],
           'interactive': [
-            'facets-overview>=1.0.0,<2',
+            'facets-overview>=1.1.0,<2',
             'google-cloud-dataproc>=3.0.0,<3.2.0',
             # IPython>=8 is not compatible with Python<=3.7
             'ipython>=7,<8;python_version<="3.7"',
