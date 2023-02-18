@@ -49,7 +49,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.grpc.v1p48p1.io.netty.util.internal.ThreadLocalRandom;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
@@ -210,8 +209,7 @@ public class PCollectionConsumerRegistry {
             come up in the existing SDF expansion, but might be useful to support fused SDF nodes.
             This would require dedicated delivery of the split results to each of the consumers
             separately. */
-            return new MultiplexingMetricTrackingFnDataReceiver(
-                pcId, coder, ImmutableList.copyOf(consumerAndMetadatas));
+            return new MultiplexingMetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadatas);
           }
         });
   }
@@ -352,8 +350,10 @@ public class PCollectionConsumerRegistry {
 
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
-      // metrics container.
-      for (ConsumerAndMetadata consumerAndMetadata : consumerAndMetadatas) {
+      // metrics container. We specifically don't use a for-each loop since it creates an iterator
+      // on a hot path.
+      for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
+        ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         ExecutionState state = consumerAndMetadata.getExecutionState();
         state.activate();
         try {
