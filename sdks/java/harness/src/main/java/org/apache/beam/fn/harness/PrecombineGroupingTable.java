@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.util.internal.ThreadLocalRandom;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
@@ -524,7 +525,12 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
 
     private SamplingSizeEstimator(
         SizeEstimator underlying, double minSampleRate, double maxSampleRate) {
-      this(underlying, minSampleRate, maxSampleRate, DEFAULT_MIN_SAMPLED, new Random());
+      this(
+          underlying,
+          minSampleRate,
+          maxSampleRate,
+          DEFAULT_MIN_SAMPLED,
+          ThreadLocalRandom.current());
     }
 
     @VisibleForTesting
