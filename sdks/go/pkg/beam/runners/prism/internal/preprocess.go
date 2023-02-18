@@ -43,6 +43,9 @@ func newPreprocessor(preps []transformPreparer) *preprocessor {
 	}
 }
 
+// transformPreparer is an interface for handling different urns in the prepropcessor
+// largely for exchanging transforms for others, to be added to the complete set of
+// components in the pipeline.
 type transformPreparer interface {
 	// PrepareUrns returns the Beam URNs that this handler deals with for preprocessing.
 	PrepareUrns() []string
