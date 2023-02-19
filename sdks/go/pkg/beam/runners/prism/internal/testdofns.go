@@ -136,6 +136,8 @@ func (fn *int64Check) FinishBundle(_ func(int64)) error {
 	if d := cmp.Diff(fn.Want, fn.got); d != "" {
 		return fmt.Errorf("int64Check[%v] (-want, +got): %v", fn.Name, d)
 	}
+	// Clear for subsequent calls.
+	fn.got = nil
 	return nil
 }
 

@@ -108,6 +108,10 @@ func (em *ElementManager) AddStage(ID string, inputIDs, sides, outputIDs []strin
 	}
 }
 
+func (em *ElementManager) StageAggregates(ID string) {
+	em.stages[ID].aggregate = true
+}
+
 type element struct {
 	window    typex.Window
 	timestamp mtime.Time
@@ -277,7 +281,7 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 //
 // PersistBundle takes in the stage ID, ID of the bundle associated with the pending
 // input elements, and the committed output elements.
-func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals [][]byte) {
+func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals [][]byte, minOWM map[string]mtime.Time) {
 	stage := em.stages[rb.StageID]
 	for output, data := range d.Raw {
 		info := col2Coders[output]
@@ -358,6 +362,13 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	completed := stage.inprogress[rb.BundleID]
 	em.pendingElements.Add(-len(completed.es))
 	delete(stage.inprogress, rb.BundleID)
+	if len(minOWM) > 0 {
+		estimate := mtime.MaxTimestamp
+		for _, t := range minOWM {
+			estimate = mtime.Min(estimate, t)
+		}
+		stage.estimatedOutput = estimate
+	}
 	stage.mu.Unlock()
 
 	// TODO support state/timer watermark holds.
@@ -431,10 +442,14 @@ type stageState struct {
 	sides     []string // PCollection IDs of side inputs that can block execution.
 	strat     winStrat
 
+	// Special handling bits
+	aggregate bool // whether this state needs to block for aggregation.
+
 	mu                 sync.Mutex
 	upstreamWatermarks sync.Map   // watermark set from inputPCollection's parent.
 	input              mtime.Time // input watermark for the parallel input.
 	output             mtime.Time // Output watermark for the whole stage
+	estimatedOutput    mtime.Time // Estimated watermark output from DoFns
 
 	pending    elementHeap         // pending input elements for this stage that are to be processesd
 	inprogress map[string]elements // inprogress elements by active bundles, keyed by bundle
@@ -448,8 +463,9 @@ func makeStageState(ID string, inputIDs, sides, outputIDs []string) *stageState 
 		sides:     sides,
 		strat:     defaultStrat{},
 
-		input:  mtime.MinTimestamp,
-		output: mtime.MinTimestamp,
+		input:           mtime.MinTimestamp,
+		output:          mtime.MinTimestamp,
+		estimatedOutput: mtime.MinTimestamp,
 	}
 
 	// Initialize the upstream watermarks to minTime.
@@ -484,7 +500,8 @@ func (ss *stageState) UpstreamWatermark() (string, mtime.Time) {
 	upstream := mtime.MaxTimestamp
 	var name string
 	ss.upstreamWatermarks.Range(func(key, val any) bool {
-		if val.(mtime.Time) < upstream {
+		// Use <= to ensure if available we get a name.
+		if val.(mtime.Time) <= upstream {
 			upstream = val.(mtime.Time)
 			name = key.(string)
 		}
@@ -518,7 +535,7 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 
 	var toProcess, notYet []element
 	for _, e := range ss.pending {
-		if e.window.MaxTimestamp() <= watermark {
+		if !ss.aggregate || ss.aggregate && e.window.MaxTimestamp() <= watermark {
 			toProcess = append(toProcess, e)
 		} else {
 			notYet = append(notYet, e)
@@ -562,7 +579,7 @@ func (ss *stageState) minPendingTimestamp() mtime.Time {
 
 func (ss *stageState) String() string {
 	pcol, up := ss.UpstreamWatermark()
-	return fmt.Sprintf("[%v] IN: %v OUT: %v UP: %q %v", ss.ID, ss.input, ss.output, pcol, up)
+	return fmt.Sprintf("[%v] IN: %v OUT: %v UP: %q %v, aggregation: %v", ss.ID, ss.input, ss.output, pcol, up, ss.aggregate)
 }
 
 // updateWatermarks performs the following operations:
@@ -589,6 +606,13 @@ func (ss *stageState) updateWatermarks(minPending, minStateHold mtime.Time, em *
 	}
 	// The output starts with the new input as the basis.
 	newOut := ss.input
+
+	// If we're given an estimate, and it's further ahead, we use that instead.
+	if ss.estimatedOutput > ss.output {
+		newOut = ss.estimatedOutput
+	}
+
+	// We adjust based on the minimum state hold.
 	if minStateHold < newOut {
 		newOut = minStateHold
 	}

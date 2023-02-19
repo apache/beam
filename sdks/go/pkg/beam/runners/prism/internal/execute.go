@@ -149,6 +149,7 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 						EDec:     ed,
 					}
 				}
+				em.StageAggregates(stage.ID)
 			case urns.TransformImpulse:
 				impulses = append(impulses, stage.ID)
 				em.AddStage(stage.ID, nil, nil, []string{getOnlyValue(t.GetOutputs())})
@@ -562,6 +563,7 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 	// TODO handle side input data properly.
 	wk.D.Commit(b.OutputData)
 	var residualData [][]byte
+	var minOutputWatermark map[string]mtime.Time
 	for _, rr := range resp.GetResidualRoots() {
 		ba := rr.GetApplication()
 		residualData = append(residualData, ba.GetElement())
@@ -569,11 +571,21 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 			slog.Log(slog.LevelError, "returned empty residual application", "bundle", rb)
 			panic("sdk returned empty residual application")
 		}
+		for col, wm := range ba.GetOutputWatermarks() {
+			if minOutputWatermark == nil {
+				minOutputWatermark = map[string]mtime.Time{}
+			}
+			cur, ok := minOutputWatermark[col]
+			if !ok {
+				cur = mtime.MaxTimestamp
+			}
+			minOutputWatermark[col] = mtime.Min(mtime.FromTime(wm.AsTime()), cur)
+		}
 	}
 	if l := len(residualData); l > 0 {
 		slog.Debug("returned empty residual application", "bundle", rb, slog.Int("numResiduals", l), slog.String("pcollection", s.mainInputPCol))
 	}
-	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residualData)
+	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residualData, minOutputWatermark)
 	b.OutputData = engine.TentativeData{} // Clear the data.
 }
 

@@ -26,11 +26,14 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"golang.org/x/exp/slog"
 )
 
@@ -110,6 +113,27 @@ func TestSeparation(t *testing.T) {
 				passert.Count(s, out, "global stepped num ints", count)
 				sum := beam.ParDo(s, dofn2x1, imp, beam.SideInput{Input: out})
 				beam.ParDo(s, &int64Check{Name: "stepped", Want: []int{45}}, sum)
+			},
+		}, {
+			name: "ProcessContinuations_stepped_combine_fixedWindow",
+			pipeline: func(s beam.Scope) {
+				elms, mod := 1000, 10
+				count := int(elms / mod)
+				imp := beam.Impulse(s)
+				out := beam.ParDo(s, &eventtimeSDFStream{
+					Sleep:    time.Second,
+					RestSize: int64(elms),
+					Mod:      int64(mod),
+					Fixed:    1,
+				}, imp)
+				windowed := beam.WindowInto(s, window.NewFixedWindows(time.Second*10), out)
+				sum := stats.Sum(s, windowed)
+				// We expect each window to be processed ASAP, and produced one
+				// at a time, with the same results.
+				beam.ParDo(s, &int64Check{Name: "single", Want: []int{55}}, sum)
+				// But we need to receive the expected number of identical results
+				gsum := beam.WindowInto(s, window.NewGlobalWindows(), sum)
+				passert.Count(s, gsum, "total sums", count)
 			},
 		},
 	}
@@ -405,6 +429,8 @@ func init() {
 	register.Emitter1[beam.T]()
 	register.DoFn3x1[*sdf.LockRTracker, beam.T, func(int64), sdf.ProcessContinuation]((*singleStepSdfStream)(nil))
 	register.Emitter1[int64]()
+	register.DoFn4x1[*CWE, *sdf.LockRTracker, beam.T, func(beam.EventTime, int64), sdf.ProcessContinuation]((*eventtimeSDFStream)(nil))
+	register.Emitter2[beam.EventTime, int64]()
 }
 
 type sepHarnessSdfStream struct {
@@ -492,4 +518,76 @@ func (fn *singleStepSdfStream) ProcessElement(rt *sdf.LockRTracker, v beam.T, em
 		emit(i)
 	}
 	return sdf.ResumeProcessingIn(fn.Sleep)
+}
+
+type eventtimeSDFStream struct {
+	RestSize, Mod, Fixed int64
+	Sleep                time.Duration
+}
+
+func (fn *eventtimeSDFStream) Setup() error {
+	return nil
+}
+
+func (fn *eventtimeSDFStream) CreateInitialRestriction(v beam.T) offsetrange.Restriction {
+	return offsetrange.Restriction{Start: 0, End: fn.RestSize}
+}
+
+func (fn *eventtimeSDFStream) SplitRestriction(v beam.T, r offsetrange.Restriction) []offsetrange.Restriction {
+	// No split
+	return []offsetrange.Restriction{r}
+}
+
+func (fn *eventtimeSDFStream) RestrictionSize(v beam.T, r offsetrange.Restriction) float64 {
+	return r.Size()
+}
+
+func (fn *eventtimeSDFStream) CreateTracker(r offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(r))
+}
+
+func (fn *eventtimeSDFStream) ProcessElement(_ *CWE, rt *sdf.LockRTracker, v beam.T, emit func(beam.EventTime, int64)) sdf.ProcessContinuation {
+	r := rt.GetRestriction().(offsetrange.Restriction)
+	i := r.Start
+	if r.Size() < 1 {
+		slog.Debug("size 0 restriction, stoping to process sentinel", slog.Any("value", v))
+		return sdf.StopProcessing()
+	}
+	slog.Debug("emitting element to restriction", slog.Any("value", v), slog.Group("restriction",
+		slog.Any("value", v),
+		slog.Float64("size", r.Size()),
+		slog.Int64("pos", i),
+	))
+	if rt.TryClaim(i) {
+		timestamp := mtime.FromMilliseconds(int64((i + 1) * 1000)).Subtract(10 * time.Millisecond)
+		v := (i % fn.Mod) + fn.Fixed
+		emit(timestamp, v)
+	}
+	return sdf.ResumeProcessingIn(fn.Sleep)
+}
+
+func (fn *eventtimeSDFStream) InitialWatermarkEstimatorState(_ beam.EventTime, _ offsetrange.Restriction, _ beam.T) int64 {
+	return int64(mtime.MinTimestamp)
+}
+
+func (fn *eventtimeSDFStream) CreateWatermarkEstimator(initialState int64) *CWE {
+	return &CWE{Watermark: initialState}
+}
+
+func (fn *eventtimeSDFStream) WatermarkEstimatorState(e *CWE) int64 {
+	return e.Watermark
+}
+
+type CWE struct {
+	Watermark int64 // uses int64, since the SDK prevent mtime.Time from serialization.
+}
+
+func (e *CWE) CurrentWatermark() time.Time {
+	return mtime.Time(e.Watermark).ToTime()
+}
+
+func (e *CWE) ObserveTimestamp(ts time.Time) {
+	// We add 10 milliseconds to allow window boundaries to
+	// progress after emitting
+	e.Watermark = int64(mtime.FromTime(ts.Add(-90 * time.Millisecond)))
 }
