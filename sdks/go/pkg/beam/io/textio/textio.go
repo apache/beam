@@ -106,9 +106,8 @@ func expandFn(ctx context.Context, glob string, emit func(string)) error {
 	return nil
 }
 
-// readFn reads individual lines from a text file, given a filename and a
-// size in bytes for that file. Implemented as an SDF to allow splitting
-// within a file.
+// readFn reads individual lines from a text file. Implemented as an SDF
+// to allow splitting within a file.
 type readFn struct {
 }
 
