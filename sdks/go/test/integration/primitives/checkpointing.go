@@ -43,7 +43,7 @@ func (fn *selfCheckpointingDoFn) CreateInitialRestriction(_ []byte) offsetrange.
 	}
 }
 
-// CreateTracker wraps the fiven restriction into a LockRTracker type.
+// CreateTracker wraps the given restriction into a LockRTracker type.
 func (fn *selfCheckpointingDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
 	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
