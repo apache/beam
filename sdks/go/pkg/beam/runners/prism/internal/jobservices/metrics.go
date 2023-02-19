@@ -330,8 +330,6 @@ func (m *distributionInt64) accumulate(pyld []byte) error {
 		Min:   ordMin(m.dist.Min, dist.Min),
 		Max:   ordMax(m.dist.Max, dist.Max),
 	}
-	fmt.Println("dist", dist)
-	fmt.Println("m.dist", dist)
 	return nil
 }
 
