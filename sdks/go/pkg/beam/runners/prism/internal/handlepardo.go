@@ -62,7 +62,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 
 	// ParDos are a pain in the butt.
 	// Combines, by comparison, are dramatically simpler.
-	// This is because for ParDos, how they are handled, and what kinds of transforms are in 
+	// This is because for ParDos, how they are handled, and what kinds of transforms are in
 	// and around the ParDo, the actual shape of the graph will change.
 	// At their simplest, it's something a DoFn will handle on their own.
 	// At their most complex, they require intimate interaction with the subgraph
@@ -82,10 +82,12 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		!pdo.RequestsFinalization &&
 		!pdo.RequiresStableInput &&
 		!pdo.RequiresTimeSortedInput &&
-		//	len(pdo.SideInputs) == 0 &&
 		len(pdo.StateSpecs) == 0 &&
 		len(pdo.TimerFamilySpecs) == 0 &&
 		pdo.RestrictionCoderId == "" {
+		// Which inputs are Side inputs don't change the graph further,
+		// so they're not included here. Any nearly any ParDo can have them.
+
 		// At their simplest, we don't need to do anything special at pre-processing time, and simply pass through as normal.
 		return &pipepb.Components{
 			Transforms: map[string]*pipepb.PTransform{
@@ -95,7 +97,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	}
 
 	// Side inputs add to topology and make fusion harder to deal with
-	// (side input producers can't be in the same subgraph as their consumers)
+	// (side input producers can't be in the same stage as their consumers)
 	// But we don't have fusion yet, so no worries.
 
 	// State, Timers, Stable Input, Time Sorted Input, and some parts of SDF

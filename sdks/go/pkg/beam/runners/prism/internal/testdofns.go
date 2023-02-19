@@ -36,7 +36,7 @@ import (
 // Once there's enough confidence in the runner, we can move these into a dedicated testing
 // package along with the pipelines that use them.
 
-// Registerations should happen in the test files, so the compiler can prune these
+// Registrations should happen in the test files, so the compiler can prune these
 // when they are not in use.
 
 func dofn1(imp []byte, emit func(int64)) {
@@ -302,7 +302,7 @@ func (fn *selfCheckpointingDoFn) CreateInitialRestriction(_ []byte) offsetrange.
 	}
 }
 
-// CreateTracker wraps the fiven restriction into a LockRTracker type.
+// CreateTracker wraps the given restriction into a LockRTracker type.
 func (fn *selfCheckpointingDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
 	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
@@ -335,7 +335,6 @@ func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, 
 			// Successful claim, emit the value and move on.
 			emit(position)
 			position++
-			continue
 		} else if rt.GetError() != nil || rt.IsDone() {
 			// Stop processing on error or completion
 			if err := rt.GetError(); err != nil {

@@ -79,7 +79,7 @@ func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJ
 	}, nil
 }
 
-// Subscribe to a stream of state changes and messages from the job
+// GetMessageStream subscribes to a stream of state changes and messages from the job
 func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.JobService_GetMessageStreamServer) error {
 	s.mu.Lock()
 	job := s.jobs[req.GetJobId()]
