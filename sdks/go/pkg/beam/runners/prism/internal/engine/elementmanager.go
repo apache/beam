@@ -32,6 +32,60 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+type element struct {
+	window    typex.Window
+	timestamp mtime.Time
+	pane      typex.PaneInfo
+
+	elmBytes []byte
+}
+
+type elements struct {
+	es           []element
+	minTimestamp mtime.Time
+}
+
+type PColInfo struct {
+	GlobalID string
+	WDec     exec.WindowDecoder
+	WEnc     exec.WindowEncoder
+	EDec     func(io.Reader) []byte
+}
+
+// ToData recodes the elements with their approprate windowed value header.
+func (es elements) ToData(info PColInfo) [][]byte {
+	var ret [][]byte
+	for _, e := range es.es {
+		var buf bytes.Buffer
+		exec.EncodeWindowedValueHeader(info.WEnc, []typex.Window{e.window}, e.timestamp, e.pane, &buf)
+		buf.Write(e.elmBytes)
+		ret = append(ret, buf.Bytes())
+	}
+	return ret
+}
+
+// elementHeap orders elements based on their timestamps
+// so we can always find the minimum timestamp of pending elements.
+type elementHeap []element
+
+func (h elementHeap) Len() int           { return len(h) }
+func (h elementHeap) Less(i, j int) bool { return h[i].timestamp < h[j].timestamp }
+func (h elementHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *elementHeap) Push(x any) {
+	// Push and Pop use pointer receivers because they modify the slice's length,
+	// not just its contents.
+	*h = append(*h, x.(element))
+}
+
+func (h *elementHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
+}
+
 type Config struct {
 	// MaxBundleSize caps the number of elements permitted in a bundle.
 	// 0 or less means this is ignored.
@@ -108,64 +162,14 @@ func (em *ElementManager) AddStage(ID string, inputIDs, sides, outputIDs []strin
 	}
 }
 
+// StageAggregates marks the given stage as an aggregation, which
+// means elements will only be processed based on windowing strategies.
 func (em *ElementManager) StageAggregates(ID string) {
 	em.stages[ID].aggregate = true
 }
 
-type element struct {
-	window    typex.Window
-	timestamp mtime.Time
-	pane      typex.PaneInfo
-
-	elmBytes []byte
-}
-
-type elements struct {
-	es           []element
-	minTimestamp mtime.Time
-}
-
-type PColInfo struct {
-	GlobalID string
-	WDec     exec.WindowDecoder
-	WEnc     exec.WindowEncoder
-	EDec     func(io.Reader) []byte
-}
-
-// ToData recodes the elements with their approprate windowed value header.
-func (es elements) ToData(info PColInfo) [][]byte {
-	var ret [][]byte
-	for _, e := range es.es {
-		var buf bytes.Buffer
-		exec.EncodeWindowedValueHeader(info.WEnc, []typex.Window{e.window}, e.timestamp, e.pane, &buf)
-		buf.Write(e.elmBytes)
-		ret = append(ret, buf.Bytes())
-	}
-	return ret
-}
-
-// elementHeap orders elements based on their timestamps
-// so we can always find the minimum timestamp of pending elements.
-type elementHeap []element
-
-func (h elementHeap) Len() int           { return len(h) }
-func (h elementHeap) Less(i, j int) bool { return h[i].timestamp < h[j].timestamp }
-func (h elementHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-
-func (h *elementHeap) Push(x any) {
-	// Push and Pop use pointer receivers because they modify the slice's length,
-	// not just its contents.
-	*h = append(*h, x.(element))
-}
-
-func (h *elementHeap) Pop() any {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
-}
-
+// Impulse marks and initializes the given stage as an impulse which
+// is a root transform that starts processing.
 func (em *ElementManager) Impulse(stageID string) {
 	stage := em.stages[stageID]
 	newPending := []element{{
@@ -281,7 +285,7 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 //
 // PersistBundle takes in the stage ID, ID of the bundle associated with the pending
 // input elements, and the committed output elements.
-func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals [][]byte, minOWM map[string]mtime.Time) {
+func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals [][]byte, estimatedOWM map[string]mtime.Time) {
 	stage := em.stages[rb.StageID]
 	for output, data := range d.Raw {
 		info := col2Coders[output]
@@ -338,8 +342,6 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			panic("error decoding residual header")
 		}
 
-		// TODO use a default output watermark estimator, since we should have watermark estimates
-		// coming in most times.
 		for _, w := range ws {
 			unprocessedElements = append(unprocessedElements,
 				element{
@@ -362,9 +364,11 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	completed := stage.inprogress[rb.BundleID]
 	em.pendingElements.Add(-len(completed.es))
 	delete(stage.inprogress, rb.BundleID)
-	if len(minOWM) > 0 {
+	// If there are estimated output watermarks, set the estimated
+	// output watermark for the stage.
+	if len(estimatedOWM) > 0 {
 		estimate := mtime.MaxTimestamp
-		for _, t := range minOWM {
+		for _, t := range estimatedOWM {
 			estimate = mtime.Min(estimate, t)
 		}
 		stage.estimatedOutput = estimate
@@ -435,15 +439,16 @@ func (s set[K]) merge(o set[K]) {
 	}
 }
 
+// stageState is the internal watermark and input tracking for a stage.
 type stageState struct {
 	ID        string
 	inputID   string   // PCollection ID of the parallel input
 	outputIDs []string // PCollection IDs of outputs to update consumers.
 	sides     []string // PCollection IDs of side inputs that can block execution.
-	strat     winStrat
 
 	// Special handling bits
-	aggregate bool // whether this state needs to block for aggregation.
+	aggregate bool     // whether this state needs to block for aggregation.
+	strat     winStrat // Windowing Strategy for aggregation fireings.
 
 	mu                 sync.Mutex
 	upstreamWatermarks sync.Map   // watermark set from inputPCollection's parent.
@@ -455,7 +460,7 @@ type stageState struct {
 	inprogress map[string]elements // inprogress elements by active bundles, keyed by bundle
 }
 
-// makeStageState produces an initialized stage stage.
+// makeStageState produces an initialized stageState.
 func makeStageState(ID string, inputIDs, sides, outputIDs []string) *stageState {
 	ss := &stageState{
 		ID:        ID,
@@ -478,6 +483,7 @@ func makeStageState(ID string, inputIDs, sides, outputIDs []string) *stageState 
 	return ss
 }
 
+// AddPending adds elements to the pending heap.
 func (ss *stageState) AddPending(newPending []element) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
@@ -495,7 +501,7 @@ func (ss *stageState) updateUpstreamWatermark(pcol string, upstream mtime.Time) 
 	ss.upstreamWatermarks.Store(pcol, upstream)
 }
 
-// UpstreamWatermark get's the minimum value of all upstream watermarks.
+// UpstreamWatermark gets the minimum value of all upstream watermarks.
 func (ss *stageState) UpstreamWatermark() (string, mtime.Time) {
 	upstream := mtime.MaxTimestamp
 	var name string
@@ -524,6 +530,9 @@ func (ss *stageState) OutputWatermark() mtime.Time {
 	return ss.output
 }
 
+// startBundle initializes a bundle with elements if possible.
+// A bundle only starts if there are elements at all, and if it's
+// an aggregation stage, if the windowing stratgy allows it.
 func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string) (string, bool) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -535,7 +544,7 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 
 	var toProcess, notYet []element
 	for _, e := range ss.pending {
-		if !ss.aggregate || ss.aggregate && e.window.MaxTimestamp() <= watermark {
+		if !ss.aggregate || ss.aggregate && ss.strat.EarliestCompletion(e.window) <= watermark {
 			toProcess = append(toProcess, e)
 		} else {
 			notYet = append(notYet, e)
