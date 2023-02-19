@@ -55,7 +55,8 @@ type B struct {
 	// TODO: Metrics for this bundle, can be handled after the fact.
 }
 
-// Init initializes the
+// Init initializes the bundle's internal state for waiting on all
+// data and for relaying a response back.
 func (b *B) Init() {
 	// We need to see final data signals that match the number of
 	// outputs the stage this bundle executes posesses
@@ -69,10 +70,11 @@ func (b *B) LogValue() slog.Value {
 		slog.String("stage", b.PBDID))
 }
 
-// ProcessOn executes the given bundle on the given worker.
+// ProcessOn executes the given bundle on the given W, blocking
+// until all data is complete.
 //
-// Assumes the bundle is initialized (all maps are non-nil, and data waitgroup is set.)
-// Assumes the bundle descriptor is already registered.
+// Assumes the bundle is initialized (all maps are non-nil, and data waitgroup is set, response channel initialized)
+// Assumes the bundle descriptor is already registered with the W.
 //
 // While this method mostly manipulates a W, putting it on a B avoids mixing the workers
 // public GRPC APIs up with local calls.

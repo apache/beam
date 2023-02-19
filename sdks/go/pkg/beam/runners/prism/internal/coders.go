@@ -154,7 +154,7 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
 	return cID
 }
 
-// reconcileCoders ensures coders is primed with initial coders from
+// reconcileCoders ensures that the bundle coders are primed with initial coders from
 // the base pipeline components.
 func reconcileCoders(bundle, base map[string]*pipepb.Coder) {
 	for {
