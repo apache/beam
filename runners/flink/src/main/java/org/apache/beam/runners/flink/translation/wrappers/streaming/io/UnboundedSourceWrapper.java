@@ -391,6 +391,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
         return;
       }
 
+      ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
+              new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
+
       stateForCheckpoint.clear();
 
       long checkpointId = functionSnapshotContext.getCheckpointId();
@@ -405,7 +408,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
         UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
 
         @SuppressWarnings("unchecked")
-        CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
+        CheckpointMarkT mark = (CheckpointMarkT) readerInvoker.invokeCheckpointMark(reader);
         checkpointMarks.add(mark);
         KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv = KV.of(source, mark);
         stateForCheckpoint.add(kv);
