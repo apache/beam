@@ -302,8 +302,8 @@ if __name__ == '__main__':
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4.0',
-            'google-cloud-language>=1.3.0,<3.0',
-            'google-cloud-videointelligence>=1.8.0,<3.0',
+            'google-cloud-language>=2.0,<3.0',
+            'google-cloud-videointelligence>=2.0,<3.0',
             'google-cloud-vision>=2,<4',
             'google-cloud-recommendations-ai>=0.1.0,<1.0'
           ],
