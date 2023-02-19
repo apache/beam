@@ -81,7 +81,7 @@ func (h *runner) ExecuteWith(t *pipepb.PTransform) string {
 	return t.GetEnvironmentId()
 }
 
-// ExecTransform handles special processing with respect to runner specific transforms
+// ExecuteTransform handles special processing with respect to runner specific transforms
 func (h *runner) ExecuteTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, inputData [][]byte) *worker.B {
 	urn := t.GetSpec().GetUrn()
 	var data [][]byte
