@@ -24,6 +24,17 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+// transformPreparer is an interface for handling different urns in the preprocessor
+// largely for exchanging transforms for others, to be added to the complete set of
+// components in the pipeline.
+type transformPreparer interface {
+	// PrepareUrns returns the Beam URNs that this handler deals with for preprocessing.
+	PrepareUrns() []string
+	// PrepareTransform takes a PTransform proto and returns a set of new Components, and a list of
+	// transformIDs leaves to remove and ignore from graph processing.
+	PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) (*pipepb.Components, []string)
+}
+
 // preprocessor retains configuration for preprocessing the
 // graph, such as special handling for lifted combiners or
 // other configuration.
@@ -43,16 +54,8 @@ func newPreprocessor(preps []transformPreparer) *preprocessor {
 	}
 }
 
-type transformPreparer interface {
-	// PrepareUrns returns the Beam URNs that this handler deals with for preprocessing.
-	PrepareUrns() []string
-	// PrepareTransform takes a PTransform proto and returns a set of new Components, and a list of
-	// transformIDs leaves to remove and ignore from graph processing.
-	PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) (*pipepb.Components, []string)
-}
-
 // preProcessGraph takes the graph and preprocesses for consumption in bundles.
-// The outputs the topological sort of the transform ids.
+// The output is the topological sort of the transform ids.
 //
 // These are how transforms are related in graph form, but not the specific bundles themselves, which will come later.
 //
