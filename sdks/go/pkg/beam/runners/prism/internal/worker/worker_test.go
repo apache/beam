@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -49,7 +50,7 @@ func TestWorker_NextInst(t *testing.T) {
 	}
 }
 
-func TestWorker_NextBund(t *testing.T) {
+func TestWorker_NextStage(t *testing.T) {
 	w := New("test")
 
 	stageIDs := map[string]struct{}{}
@@ -57,7 +58,7 @@ func TestWorker_NextBund(t *testing.T) {
 		stageIDs[w.NextStage()] = struct{}{}
 	}
 	if got, want := len(stageIDs), 100; got != want {
-		t.Errorf("calling w.NextInst() got %v unique ids, want %v", got, want)
+		t.Errorf("calling w.NextStage() got %v unique ids, want %v", got, want)
 	}
 }
 
@@ -83,7 +84,7 @@ func TestWorker_GetProcessBundleDescriptor(t *testing.T) {
 		ProcessBundleDescriptorId: "unknown",
 	})
 	if err == nil {
-		t.Errorf(" GetProcessBundleDescriptor(%q) = %v, want error", "unknown", pbd)
+		t.Errorf("got GetProcessBundleDescriptor(%q) = %v, want error", "unknown", pbd)
 	}
 }
 
@@ -100,7 +101,7 @@ func serveTestWorker(t *testing.T) (context.Context, *W, *grpc.ClientConn) {
 
 	clientConn, err := grpc.DialContext(ctx, "", grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 		return lis.DialContext(ctx)
-	}), grpc.WithInsecure(), grpc.WithBlock())
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		t.Fatal("couldn't create bufconn grpc connection:", err)
 	}
@@ -124,7 +125,7 @@ func TestWorker_Logging(t *testing.T) {
 	})
 
 	// TODO: Connect to the job management service.
-	// At this point job messages are just logged to whereever the prism runner executes
+	// At this point job messages are just logged to wherever the prism runner executes
 	// But this should pivot to anyone connecting to the Job Management service for the
 	// job.
 	// In the meantime, sleep to validate execution via coverage.
@@ -273,7 +274,6 @@ func TestWorker_State_Iterable(t *testing.T) {
 	if got, want := resp.GetGet().GetData(), []byte{42}; !bytes.Equal(got, want) {
 		t.Fatalf("didn't receive expected state response data: got %v, want %v", got, want)
 	}
-	resp.GetId()
 
 	if err := stateStream.CloseSend(); err != nil {
 		t.Errorf("stateStream.CloseSend() = %v", err)
