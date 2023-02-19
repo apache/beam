@@ -70,7 +70,7 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 				case *jobpb.ArtifactResponseWrapper_GetArtifactResponse:
 					count += len(req.GetArtifactResponse.GetData())
 				case *jobpb.ArtifactResponseWrapper_ResolveArtifactResponse:
-					err := fmt.Errorf("Unexpected ResolveArtifactResponse to GetArtifact: %v", in.GetResponse())
+					err := fmt.Errorf("unexpected ResolveArtifactResponse to GetArtifact: %v", in.GetResponse())
 					slog.Error("GetArtifact failure", err)
 					return err
 				}
