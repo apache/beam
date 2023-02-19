@@ -75,6 +75,10 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<String> getDatabaseRole();
 
+  public abstract @Nullable ValueProvider<Duration> getPartitionQueryTimeout();
+
+  public abstract @Nullable ValueProvider<Duration> getPartitionReadTimeout();
+
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
@@ -148,6 +152,10 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
 
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
+
+    abstract Builder setPartitionQueryTimeout(ValueProvider<Duration> partitionQueryTimeout);
+
+    abstract Builder setPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout);
 
     public abstract SpannerConfig build();
   }
@@ -264,5 +272,25 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the Cloud Spanner database role. */
   public SpannerConfig withDatabaseRole(ValueProvider<String> databaseRole) {
     return toBuilder().setDatabaseRole(databaseRole).build();
+  }
+
+  /** Specifies the PartitionQuery timeout. */
+  public SpannerConfig withPartitionQueryTimeout(Duration partitionQueryTimeout) {
+    return withPartitionQueryTimeout(ValueProvider.StaticValueProvider.of(partitionQueryTimeout));
+  }
+
+  /** Specifies the PartitionQuery timeout. */
+  public SpannerConfig withPartitionQueryTimeout(ValueProvider<Duration> partitionQueryTimeout) {
+    return toBuilder().setPartitionQueryTimeout(partitionQueryTimeout).build();
+  }
+
+  /** Specifies the PartitionRead timeout. */
+  public SpannerConfig withPartitionReadTimeout(Duration partitionReadTimeout) {
+    return withPartitionReadTimeout(ValueProvider.StaticValueProvider.of(partitionReadTimeout));
+  }
+
+  /** Specifies the PartitionRead timeout. */
+  public SpannerConfig withPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout) {
+    return toBuilder().setPartitionReadTimeout(partitionReadTimeout).build();
   }
 }
