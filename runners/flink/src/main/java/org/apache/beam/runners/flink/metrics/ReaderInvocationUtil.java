@@ -71,8 +71,8 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
     }
   }
 
-  public UnboundedSource.CheckpointMark invokeCheckpointMark(UnboundedSource.UnboundedReader<OutputT> reader)
-          throws IOException {
+  public UnboundedSource.CheckpointMark invokeCheckpointMark(
+      UnboundedSource.UnboundedReader<OutputT> reader) throws IOException {
     if (enableMetrics) {
       try (Closeable ignored =
           MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {

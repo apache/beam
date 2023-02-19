@@ -392,7 +392,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       }
 
       ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
-              new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
+          new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 
       stateForCheckpoint.clear();
 
