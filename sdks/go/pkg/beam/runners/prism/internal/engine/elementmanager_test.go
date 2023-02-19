@@ -187,11 +187,11 @@ func TestStageState_minPendingTimestamp(t *testing.T) {
 	})
 }
 
-func TestStageState_getUpstreamWatermark(t *testing.T) {
+func TestStageState_UpstreamWatermark(t *testing.T) {
 	impulse := makeStageState("impulse", nil, nil, []string{"output"})
 	_, up := impulse.UpstreamWatermark()
 	if got, want := up, mtime.MaxTimestamp; got != want {
-		t.Errorf("impulse.getUpstreamWatermark() = %v, want %v", got, want)
+		t.Errorf("impulse.UpstreamWatermark() = %v, want %v", got, want)
 	}
 
 	dofn := makeStageState("dofn", []string{"input"}, nil, []string{"output"})
@@ -199,7 +199,7 @@ func TestStageState_getUpstreamWatermark(t *testing.T) {
 
 	_, up = dofn.UpstreamWatermark()
 	if got, want := up, mtime.Time(42); got != want {
-		t.Errorf("dofn.getUpstreamWatermark() = %v, want %v", got, want)
+		t.Errorf("dofn.UpstreamWatermark() = %v, want %v", got, want)
 	}
 
 	flatten := makeStageState("flatten", []string{"a", "b", "c"}, nil, []string{"output"})
@@ -208,7 +208,7 @@ func TestStageState_getUpstreamWatermark(t *testing.T) {
 	flatten.updateUpstreamWatermark("c", 101)
 	_, up = flatten.UpstreamWatermark()
 	if got, want := up, mtime.Time(42); got != want {
-		t.Errorf("flatten.getUpstreamWatermark() = %v, want %v", got, want)
+		t.Errorf("flatten.UpstreamWatermark() = %v, want %v", got, want)
 	}
 }
 
