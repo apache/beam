@@ -21,11 +21,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
-
-	"io"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -57,8 +56,6 @@ type W struct {
 
 	// These are the ID sources
 	inst, bund uint64
-
-	// descs map[string]*fnpb.ProcessBundleDescriptor
 
 	InstReqs chan *fnpb.InstructionRequest
 	DataReqs chan *fnpb.Elements
@@ -168,7 +165,7 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 func toSlogSev(sev fnpb.LogEntry_Severity_Enum) slog.Level {
 	switch sev {
 	case fnpb.LogEntry_Severity_TRACE:
-		return slog.Level(-8) //
+		return slog.Level(-8)
 	case fnpb.LogEntry_Severity_DEBUG:
 		return slog.LevelDebug // -4
 	case fnpb.LogEntry_Severity_INFO:
@@ -418,7 +415,7 @@ func (d *DataService) Commit(tent engine.TentativeData) {
 	}
 }
 
-// Hack for Side Inputs until watermarks are sorted out.
+// GetAllData is a hack for Side Inputs until watermarks are sorted out.
 func (d *DataService) GetAllData(colID string) [][]byte {
 	return d.raw[colID]
 }
