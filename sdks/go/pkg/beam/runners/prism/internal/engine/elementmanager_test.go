@@ -305,7 +305,7 @@ func TestStageState_updateWatermarks(t *testing.T) {
 			}
 			_, up := outStage.UpstreamWatermark()
 			if got, want := up, test.wantDownstream; got != want {
-				t.Errorf("outStage.getUpstreamWatermark() = %v, want %v", got, want)
+				t.Errorf("outStage.UpstreamWatermark() = %v, want %v", got, want)
 			}
 		})
 	}
