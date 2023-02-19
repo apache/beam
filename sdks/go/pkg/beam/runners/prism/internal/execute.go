@@ -32,7 +32,3 @@ type transformExecuter interface {
 	ExecuteWith(t *pipepb.PTransform) string
 	ExecuteTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, data [][]byte) *worker.B
 }
-
-type processor struct {
-	transformExecuters map[string]transformExecuter
-}
