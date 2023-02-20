@@ -357,35 +357,6 @@ tasks.register("populateDatastore") {
     }
 }
 
-//        tasks.register("flutterPubGetPG") {
-//            exec {
-//            commandLine("flutter", "pub", "get")
-//            workingDir("../../../playground/frontend/playground_components")
-//            }
-//        }
-//
-//        tasks.register("flutterPubRunPG") {
-//            exec {
-//                commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
-//                workingDir("../../../playground/frontend/playground_components")
-//            }
-//        }
-//
-//        tasks.register("flutterPubGetTob") {
-//            exec {
-//                commandLine("flutter", "pub", "get")
-//                workingDir("../frontend")
-//            }
-//        }
-//
-//        tasks.register("flutterPubGetTob") {
-//            exec {
-//                commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
-//                workingDir("../frontend")
-//            }
-//        }
-
-
 
 /* Tour of Beam backend init */
     tasks.register("InitBackend") {
