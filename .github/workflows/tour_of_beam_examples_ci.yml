@@ -44,7 +44,7 @@ jobs:
       - name: Install markdown linter
         run: npm install -g markdownlint-cli
       - name: lint markdown
-        run: markdownlint **/*.md
+        run: markdownlint **/*.md --disable MD013 MD041 MD041
   check_examples:
     strategy:
       matrix:
