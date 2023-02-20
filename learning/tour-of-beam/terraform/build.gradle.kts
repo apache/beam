@@ -68,11 +68,7 @@ tasks {
     }
 
     register<TerraformTask>("terraformDestroy") {
-        var project_id = "unknown"
         var environment = "unknown"
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
