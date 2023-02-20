@@ -67,6 +67,28 @@ tasks {
         )
     }
 
+    register<TerraformTask>("terraformDestroy") {
+        var project_id = "unknown"
+        var environment = "unknown"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+            environment = project.property("project_environment") as String
+        }
+        args(
+                "destroy",
+                "-auto-approve",
+                "-lock=false",
+                "-var=environment=$environment",
+                if (file("./environment/$environment/terraform.tfvars").exists()) {
+                    "-var-file=./environment/$environment/terraform.tfvars"
+                } else {
+                    "-no-color"
+                }
+        )
+    }
+
     register<TerraformTask>("terraformApplyBackend") {
         group = "backend-deploy"
         var environment = ""
