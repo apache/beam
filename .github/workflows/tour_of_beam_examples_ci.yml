@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Tour Of Beam Examples CI
+name: Tour Of Beam Learning materials and Examples CI
 
 on:
   pull_request:
@@ -28,6 +28,20 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
 jobs:
+  check_markdown:
+    runs-on: ubuntu-latest
+    defaults:
+        working-directory: ./learning/tour-of-beam/learning-content
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: install npm
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+      - name: Install markdown linter
+        run: npm install -g markdownlint-cli
+      - name: lint markdown
+        run: markdownlint **/*.md
   check_examples:
     strategy:
       matrix:
