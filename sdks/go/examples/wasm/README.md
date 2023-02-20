@@ -33,7 +33,7 @@ BEAM_HOME=$(pwd)/beam
 cd $BEAM_HOME/sdks
 ```
 
-## Direct Runner execution
+## Local Runner execution
 
 To execute this example on the local runner:
 
