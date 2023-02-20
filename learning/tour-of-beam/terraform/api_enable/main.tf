@@ -21,7 +21,8 @@ resource "google_project_service" "required_services" {
     "cloudresourcemanager",
     "iam",
     "cloudbuild",
-    "cloudfunctions"
+    "cloudfunctions",
+    "firebase"
   ])
   service   = "${each.key}.googleapis.com"
   disable_on_destroy = false

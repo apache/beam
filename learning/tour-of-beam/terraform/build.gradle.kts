@@ -153,37 +153,27 @@ tasks.register("indexcreate") {
 
 tasks.register("firebaseProjectCreate") {
     group = "frontend-deploy"
-    var project_id = ""
-    if (project.hasProperty("project_id")) {
-        project_id = project.property("project_id") as String
-    }
+    val project_id = project.property("project_id") as String
     description = "Adds Firebase to a project if it doesn't already have Firebase."
 
     doLast {
         val result = ByteArrayOutputStream()
-        val error = ByteArrayOutputStream()
 
         exec {
             executable("firebase")
             args("projects:list")
             standardOutput = result
-            errorOutput = error
         }
 
-        println(result)
         val output = result.toString().trim()
         if (output.contains(project_id)) {
-            println("Firebase is already added to the project $project_id.")
+            println("Firebase is already added to project $project_id.")
         } else {
-            try {
-                exec {
-                    executable("firebase")
-                    args("projects:addfirebase", project_id)
-                }.assertNormalExitValue()
-                println("Firebase has been added to project $project_id.")
-            } catch (e: Exception) {
-                println("Failed to add Firebase to project $project_id: ${e.message}")
-            }
+            exec {
+                executable("firebase")
+                args("projects:addfirebase", project_id)
+            }.assertNormalExitValue()
+            println("Firebase has been added to project $project_id.")
         }
     }
 }
