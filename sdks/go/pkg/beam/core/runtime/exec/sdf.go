@@ -90,7 +90,11 @@ func (n *PairWithRestriction) StartBundle(ctx context.Context, id string, data D
 //	  Timestamps
 //	}
 func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	rest := n.inv.Invoke(elm)
+	rest, err := n.inv.Invoke(ctx, elm)
+	if err != nil {
+		return err
+	}
+
 	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: n.iwesInv.Invoke(rest, elm)}, Timestamp: elm.Timestamp, Windows: elm.Windows}
 
 	return n.Out.ProcessElement(ctx, &output, values...)
@@ -195,10 +199,17 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 	// the element may not be wrapped in a *FullValue
 	mainElm := convertIfNeeded(elm.Elm, &FullValue{})
 
-	splitRests := n.splitInv.Invoke(mainElm, rest)
+	splitRests, err := n.splitInv.Invoke(ctx, mainElm, rest)
+	if err != nil {
+		return err
+	}
 
 	for _, splitRest := range splitRests {
-		size := n.sizeInv.Invoke(mainElm, splitRest)
+		size, err := n.sizeInv.Invoke(ctx, mainElm, splitRest)
+		if err != nil {
+			return err
+		}
+
 		if size < 0 {
 			err := errors.Errorf("size returned expected to be non-negative but received %v.", size)
 			return errors.WithContextf(err, "%v", n)
@@ -325,13 +336,25 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 		inp = e
 	}
 	rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
-	rt := n.ctInv.Invoke(rest)
-	newRest := n.truncateInv.Invoke(rt, mainElm)
+
+	rt, err := n.ctInv.Invoke(ctx, rest)
+	if err != nil {
+		return err
+	}
+
+	newRest, err := n.truncateInv.Invoke(ctx, rt, mainElm)
+	if err != nil {
+		return err
+	}
 	if newRest == nil {
 		// do not propagate discarded restrictions.
 		return nil
 	}
-	size := n.sizeInv.Invoke(mainElm, newRest)
+
+	size, err := n.sizeInv.Invoke(ctx, mainElm, newRest)
+	if err != nil {
+		return err
+	}
 
 	output := &FullValue{}
 	output.Timestamp = elm.Timestamp
@@ -476,7 +499,7 @@ func (n *ProcessSizedElementsAndRestrictions) StartBundle(ctx context.Context, i
 // and processes each element using the underlying ParDo and adding the
 // restriction tracker to the normal invocation. Sizing information is present
 // but currently ignored. Output is forwarded to the underlying ParDo's outputs.
-func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, elm *FullValue, values ...ReStream) error {
+func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	if n.PDo.status != Active {
 		err := errors.Errorf("invalid status %v, want Active", n.PDo.status)
 		return errors.WithContextf(err, "%v", n)
@@ -520,7 +543,12 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		// If windows don't need to be exploded (i.e. aren't observed), treat
 		// all windows as one as an optimization.
 		rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
-		rt := n.ctInv.Invoke(rest)
+
+		rt, err := n.ctInv.Invoke(ctx, rest)
+		if err != nil {
+			return err
+		}
+
 		mainIn.RTracker = rt
 
 		n.numW = 1 // Even if there's more than one window, treat them as one.
@@ -542,7 +570,12 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 
 		for i := 0; i < n.numW; i++ {
 			rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
-			rt := n.ctInv.Invoke(rest)
+
+			rt, err := n.ctInv.Invoke(ctx, rest)
+			if err != nil {
+				return err
+			}
+
 			key := &mainIn.Key
 			w := elm.Windows[i]
 			wElm := FullValue{Elm: key.Elm, Elm2: key.Elm2, Timestamp: key.Timestamp, Windows: []typex.Window{w}}
@@ -552,7 +585,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 			n.elm = elm
 			n.SU <- n
 			// TODO(BEAM-11104): Remove placeholder for ProcessContinuation return.
-			_, err := n.PDo.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: rt})
+			_, err = n.PDo.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: rt})
 			if err != nil {
 				<-n.SU
 				return n.PDo.fail(err)
@@ -596,13 +629,13 @@ type SplittableUnit interface {
 	//
 	// More than one primary/residual can happen if the split result cannot be
 	// fully represented in just one.
-	Split(fraction float64) (primaries, residuals []*FullValue, err error)
+	Split(ctx context.Context, fraction float64) (primaries, residuals []*FullValue, err error)
 
 	// Checkpoint performs a split at fraction 0.0 of an element that has stopped
 	// processing and has work that needs to be resumed later. This function will
 	// check that the produced primary restriction from the split represents
 	// completed work to avoid data loss and will error if work remains.
-	Checkpoint() (residuals []*FullValue, err error)
+	Checkpoint(ctx context.Context) (residuals []*FullValue, err error)
 
 	// GetProgress returns the fraction of progress the current element has
 	// made in processing. (ex. 0.0 means no progress, and 1.0 means fully
@@ -631,7 +664,7 @@ type SplittableUnit interface {
 // windows need to be taken into account. For implementation details on when
 // each case occurs and the implementation details, see the documentation for
 // the singleWindowSplit and multiWindowSplit methods.
-func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) Split(ctx context.Context, f float64) ([]*FullValue, []*FullValue, error) {
 	// Get the watermark state immediately so that we don't overestimate our current watermark.
 	var pWeState any
 	var rWeState any
@@ -658,7 +691,7 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 	// Split behavior differs depending on whether this is a window-observing
 	// DoFn or not.
 	if len(n.elm.Windows) > 1 {
-		p, r, err := n.multiWindowSplit(f, pWeState, rWeState)
+		p, r, err := n.multiWindowSplit(ctx, f, pWeState, rWeState)
 		if err != nil {
 			return nil, nil, addContext(err)
 		}
@@ -666,7 +699,7 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 	}
 
 	// Not window-observing, or window-observing but only one window.
-	p, r, err := n.singleWindowSplit(f, pWeState, rWeState)
+	p, r, err := n.singleWindowSplit(ctx, f, pWeState, rWeState)
 	if err != nil {
 		return nil, nil, addContext(err)
 	}
@@ -677,11 +710,11 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 // later by the runner. This is done iff the underlying Splittable DoFn returns a resuming
 // ProcessContinuation. If the split occurs and the primary restriction is marked as done
 // my the RTracker, the Checkpoint fails as this is a potential data-loss case.
-func (n *ProcessSizedElementsAndRestrictions) Checkpoint() ([]*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) Checkpoint(ctx context.Context) ([]*FullValue, error) {
 	addContext := func(err error) error {
 		return errors.WithContext(err, "Attempting checkpoint in ProcessSizedElementsAndRestrictions")
 	}
-	_, r, err := n.Split(0.0)
+	_, r, err := n.Split(ctx, 0.0)
 
 	if err != nil {
 		return nil, addContext(err)
@@ -699,7 +732,7 @@ func (n *ProcessSizedElementsAndRestrictions) Checkpoint() ([]*FullValue, error)
 // behavior is identical). A single restriction split will occur and all windows
 // present in the unsplit element will be present in both the resulting primary
 // and residual.
-func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, pWeState, rWeState any) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(ctx context.Context, f float64, pWeState, rWeState any) ([]*FullValue, []*FullValue, error) {
 	if n.rt.IsDone() { // Not an error, but not splittable.
 		return []*FullValue{}, []*FullValue{}, nil
 	}
@@ -714,14 +747,14 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, pWeSt
 
 	var primaryResult []*FullValue
 	if p != nil {
-		pfv, err := n.newSplitResult(p, n.elm.Windows, pWeState)
+		pfv, err := n.newSplitResult(ctx, p, n.elm.Windows, pWeState)
 		if err != nil {
 			return nil, nil, err
 		}
 		primaryResult = append(primaryResult, pfv)
 	}
 
-	rfv, err := n.newSplitResult(r, n.elm.Windows, rWeState)
+	rfv, err := n.newSplitResult(ctx, r, n.elm.Windows, rWeState)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -752,7 +785,7 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, pWeSt
 //
 // This method also updates the current number of windows (n.numW) so that
 // windows in the residual will no longer be processed.
-func (n *ProcessSizedElementsAndRestrictions) multiWindowSplit(f float64, pWeState any, rWeState any) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) multiWindowSplit(ctx context.Context, f float64, pWeState any, rWeState any) ([]*FullValue, []*FullValue, error) {
 	// Get the split point in window range, to see what window it falls in.
 	done, rem := n.rt.GetProgress()
 	cwp := done / (done + rem)                      // Progress in current window.
@@ -765,25 +798,25 @@ func (n *ProcessSizedElementsAndRestrictions) multiWindowSplit(f float64, pWeSta
 		if n.rt.IsDone() {
 			// Current RTracker is done so we can't split within the window, so
 			// split at window boundary instead.
-			return n.windowBoundarySplit(n.currW+1, pWeState, rWeState)
+			return n.windowBoundarySplit(ctx, n.currW+1, pWeState, rWeState)
 		}
 
 		// Get the fraction of remaining work in the current window to split at.
 		cwsp := wsp - float64(n.currW) // Split point in current window.
 		rf := (cwsp - cwp) / (1 - cwp) // Fraction of work in RTracker to split at.
 
-		return n.currentWindowSplit(rf, pWeState, rWeState)
+		return n.currentWindowSplit(ctx, rf, pWeState, rWeState)
 	} else {
 		// Split at nearest window boundary to split point.
 		wb := math.Round(wsp)
-		return n.windowBoundarySplit(int(wb), pWeState, rWeState)
+		return n.windowBoundarySplit(ctx, int(wb), pWeState, rWeState)
 	}
 }
 
 // currentWindowSplit performs an appropriate split at the given fraction of
 // remaining work in the current window. Also updates numW to stop after the
 // current window.
-func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, pWeState any, rWeState any) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(ctx context.Context, f float64, pWeState any, rWeState any) ([]*FullValue, []*FullValue, error) {
 	p, r, err := n.rt.TrySplit(f)
 	if err != nil {
 		return nil, nil, err
@@ -791,18 +824,18 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, pWeS
 	if r == nil {
 		// If r is nil then the split failed/returned an empty residual, but
 		// we can still split at a window boundary.
-		return n.windowBoundarySplit(n.currW+1, pWeState, rWeState)
+		return n.windowBoundarySplit(ctx, n.currW+1, pWeState, rWeState)
 	}
 
 	// Split of currently processing restriction in a single window.
 	ps := make([]*FullValue, 1)
-	newP, err := n.newSplitResult(p, n.elm.Windows[n.currW:n.currW+1], pWeState)
+	newP, err := n.newSplitResult(ctx, p, n.elm.Windows[n.currW:n.currW+1], pWeState)
 	if err != nil {
 		return nil, nil, err
 	}
 	ps[0] = newP
 	rs := make([]*FullValue, 1)
-	newR, err := n.newSplitResult(r, n.elm.Windows[n.currW:n.currW+1], rWeState)
+	newR, err := n.newSplitResult(ctx, r, n.elm.Windows[n.currW:n.currW+1], rWeState)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -810,14 +843,14 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, pWeS
 	// Window boundary split surrounding the split restriction above.
 	full := n.elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
 	if 0 < n.currW {
-		newP, err := n.newSplitResult(full, n.elm.Windows[0:n.currW], pWeState)
+		newP, err := n.newSplitResult(ctx, full, n.elm.Windows[0:n.currW], pWeState)
 		if err != nil {
 			return nil, nil, err
 		}
 		ps = append(ps, newP)
 	}
 	if n.currW+1 < n.numW {
-		newR, err := n.newSplitResult(full, n.elm.Windows[n.currW+1:n.numW], rWeState)
+		newR, err := n.newSplitResult(ctx, full, n.elm.Windows[n.currW+1:n.numW], rWeState)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -830,17 +863,17 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, pWeS
 // windowBoundarySplit performs an appropriate split at a window boundary. The
 // split point taken should be the index of the first window in the residual.
 // Also updates numW to stop at the split point.
-func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(splitPt int, pWeState any, rWeState any) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(ctx context.Context, splitPt int, pWeState any, rWeState any) ([]*FullValue, []*FullValue, error) {
 	// If this is at the boundary of the last window, split is a no-op.
 	if splitPt == n.numW {
 		return []*FullValue{}, []*FullValue{}, nil
 	}
 	full := n.elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
-	pFv, err := n.newSplitResult(full, n.elm.Windows[0:splitPt], pWeState)
+	pFv, err := n.newSplitResult(ctx, full, n.elm.Windows[0:splitPt], pWeState)
 	if err != nil {
 		return nil, nil, err
 	}
-	rFv, err := n.newSplitResult(full, n.elm.Windows[splitPt:n.numW], rWeState)
+	rFv, err := n.newSplitResult(ctx, full, n.elm.Windows[splitPt:n.numW], rWeState)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -852,18 +885,27 @@ func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(splitPt int, p
 // element restriction pair based on the currently processing element, but with
 // a modified restriction and windows. Intended for creating primaries and
 // residuals to return as split results.
-func (n *ProcessSizedElementsAndRestrictions) newSplitResult(rest any, w []typex.Window, weState any) (*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) newSplitResult(ctx context.Context, rest any, w []typex.Window, weState any) (*FullValue, error) {
 	var size float64
+	var err error
 	elm := n.elm.Elm.(*FullValue).Elm
 	if fv, ok := elm.(*FullValue); ok {
-		size = n.sizeInv.Invoke(fv, rest)
+		size, err = n.sizeInv.Invoke(ctx, fv, rest)
+		if err != nil {
+			return nil, err
+		}
+
 		if size < 0 {
 			err := errors.Errorf("size returned expected to be non-negative but received %v.", size)
 			return nil, errors.WithContextf(err, "%v", n)
 		}
 	} else {
 		fv := &FullValue{Elm: elm}
-		size = n.sizeInv.Invoke(fv, rest)
+		size, err = n.sizeInv.Invoke(ctx, fv, rest)
+		if err != nil {
+			return nil, err
+		}
+
 		if size < 0 {
 			err := errors.Errorf("size returned expected to be non-negative but received %v.", size)
 			return nil, errors.WithContextf(err, "%v", n)
@@ -973,21 +1015,33 @@ func (n *SdfFallback) StartBundle(ctx context.Context, id string, data DataConte
 // restrictions, and then creating restriction trackers and processing each
 // restriction with the underlying ParDo. This executor skips the sizing step
 // because sizing information is unnecessary for unexpanded SDFs.
-func (n *SdfFallback) ProcessElement(_ context.Context, elm *FullValue, values ...ReStream) error {
+func (n *SdfFallback) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	if n.PDo.status != Active {
 		err := errors.Errorf("invalid status %v, want Active", n.PDo.status)
 		return errors.WithContextf(err, "%v", n)
 	}
 
-	rest := n.initRestInv.Invoke(elm)
-	splitRests := n.splitInv.Invoke(elm, rest)
+	rest, err := n.initRestInv.Invoke(ctx, elm)
+	if err != nil {
+		return err
+	}
+
+	splitRests, err := n.splitInv.Invoke(ctx, elm, rest)
+	if err != nil {
+		return err
+	}
+
 	if len(splitRests) == 0 {
 		err := errors.Errorf("initial splitting returned 0 restrictions.")
 		return errors.WithContextf(err, "%v", n)
 	}
 
 	for _, splitRest := range splitRests {
-		rt := n.trackerInv.Invoke(splitRest)
+		rt, err := n.trackerInv.Invoke(ctx, splitRest)
+		if err != nil {
+			return err
+		}
+
 		mainIn := &MainInput{
 			Key:      *elm,
 			Values:   values,
