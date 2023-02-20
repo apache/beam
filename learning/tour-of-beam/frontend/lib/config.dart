@@ -37,4 +37,3 @@ const String kApiPythonClientURL =
     'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
 const String kApiScioClientURL =
     'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';
-
