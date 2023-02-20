@@ -17,7 +17,9 @@ Use the pipeline options to configure different aspects of your pipeline, such a
 {{if (eq .Sdk "java")}}
 When you run the pipeline on a runner of your choice, a copy of the PipelineOptions will be available to your code. For example, if you add a PipelineOptions parameter to a DoFn’s `@ProcessElement` method, it will be populated by the system.
 {{end}}
+
 ### Setting PipelineOptions from command-line arguments
+
 {{if (eq .Sdk "go")}}
 Use Go flags to parse command line arguments to configure your pipeline. Flags must be parsed before `beam.Init()` is called.
 
@@ -32,6 +34,7 @@ This interprets command-line arguments this follow the format:
 ```
 --<option>=<value>
 ```
+
 {{end}}
 {{if (eq .Sdk "python")}}
 While you can configure your pipeline by creating a `PipelineOptions` object and setting the fields directly, the Beam SDKs include a command-line parser that you can also use to set fields in `PipelineOptions` using command-line arguments.
@@ -49,6 +52,7 @@ This interprets command-line arguments that follow this format:
 ```
 --<option>=<value>
 ```
+
 {{end}}
 {{if (eq .Sdk "java")}}
 While you can configure your pipeline by creating a PipelineOptions object and setting the fields directly, the Beam SDKs include a command-line parser that you can use to set fields in PipelineOptions using command-line arguments.
@@ -68,12 +72,14 @@ This interprets command-line arguments that follow the format:
 
 > Appending the method .withValidation will check for required command-line arguments and validate argument values.
 {{end}}
+
 ### Creating custom options
 
 You can add your own custom options in addition to the standard `PipelineOptions`.
 
 The following example shows how to add `input` and `output` custom options:
 {{if (eq .Sdk "go")}}
+
 ```
 // Use standard Go flags to define pipeline options.
 var (
@@ -81,9 +87,11 @@ var (
   output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
 )
 ```
+
 {{end}}
 {{if (eq .Sdk "java")}}
 To add your own options, define an interface with getter and setter methods for each option.
+
 ```
 public interface MyOptions extends PipelineOptions {
     String getInput();
@@ -120,8 +128,10 @@ MyOptions options = PipelineOptionsFactory.fromArgs(args)
                                                 .withValidation()
                                                 .as(MyOptions.class);
 ```
+
 {{end}}
 {{if (eq .Sdk "python")}}
+
 ```
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -150,12 +160,14 @@ class MyOptions(PipelineOptions):
 
 For Python, you can also simply parse your custom options with argparse; there is no need to create a separate PipelineOptions subclass.
 {{end}}
+
 ### Playground exercise
 
 You can find the full code of the above example in the playground window, which you can run and experiment with.
 
 You can transfer files of other extensions. For example, a csv file with taxi order data. And after making some transformations, you can write to a new csv file:
 {{if (eq .Sdk "go")}}
+
 ```
 var (
   input = flag.String("input", "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv", "File(s) to read.")
@@ -163,11 +175,14 @@ var (
   output = flag.String("output", "output.csv", "Output file (required).")
 )
 ```
+
 {{end}}
 {{if (eq .Sdk "java python")}}
+
 ```
 --input=gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv --output=output.csv
 ```
+
 {{end}}
 Here is a small list of fields and an example record from this dataset:
 

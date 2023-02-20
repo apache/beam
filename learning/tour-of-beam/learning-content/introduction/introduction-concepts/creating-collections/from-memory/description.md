@@ -31,6 +31,7 @@ You can use the Beam-provided Create transform to create a `PCollection` from an
 
 The following example code shows how to do this:
 {{if (eq .Sdk "go")}}
+
 ```
 func main() {
     ctx := context.Background()
@@ -46,8 +47,10 @@ func main() {
 
 }
 ```
+
 {{end}}
 {{if (eq .Sdk "java")}}
+
 ```
 public static void main(String[] args) {
     // First create the pipeline
@@ -67,8 +70,10 @@ public static void main(String[] args) {
         );
 }
 ```
+
 {{end}}
 {{if (eq .Sdk "python")}}
+
 ```
 # First create pipeline
 with beam.Pipeline() as p:
@@ -80,6 +85,7 @@ with beam.Pipeline() as p:
     (p | beam.Create(['To', 'be', 'or', 'not', 'to', 'be', 'that', 'is', 'the', 'question']))
 
 ```
+
 {{end}}
 
 ### Playground exercise

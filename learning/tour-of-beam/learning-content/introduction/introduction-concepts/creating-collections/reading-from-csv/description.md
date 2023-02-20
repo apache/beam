@@ -17,6 +17,7 @@ limitations under the License.
 Data processing pipelines often work with tabular data. In many examples and challenges throughout the course, you’ll be working with one of the datasets stored as csv files in either beam-examples, dataflow-samples buckets.
 
 Loading data from csv file requires some processing and consists of two main part:
+
 * Loading text lines using `TextIO.Read` transform
 * Parsing lines of text into tabular format
 

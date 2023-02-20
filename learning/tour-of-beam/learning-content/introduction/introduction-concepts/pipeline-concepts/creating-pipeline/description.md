@@ -17,6 +17,7 @@ The `Pipeline` abstraction encapsulates all the data and steps in your data proc
 
 To use Beam, your driver program must first create an instance of the Beam SDK class Pipeline (typically in the main() function). When you create your `Pipeline`, you’ll also need to set some configuration options. You can set your pipeline’s configuration options programmatically, but it’s often easier to set the options ahead of time (or read them from the command line) and pass them to the Pipeline object when you create the object.
 {{if (eq .Sdk "go")}}
+
 ```
 // beam.Init() is an initialization hook that must be called
 // near the beginning of main(), before creating a pipeline.
@@ -25,8 +26,10 @@ beam.Init()
 // Create the Pipeline object and root scope.
 pipeline, scope := beam.NewPipelineWithRoot()
 ```
+
 {{end}}
 {{if (eq .Sdk "java")}}
+
 ```
 // Start by defining the options for the pipeline.
 PipelineOptions options = PipelineOptionsFactory.create();
@@ -34,15 +37,19 @@ PipelineOptions options = PipelineOptionsFactory.create();
 // Then create the pipeline.
 Pipeline p = Pipeline.create(options);
 ```
+
 {{end}}
 {{if (eq .Sdk "python")}}
+
 ```
 import apache_beam as beam
 
 with beam.Pipeline() as pipeline:
   pass  # build your pipeline here
 ```
+
 {{end}}
+
 ### Playground exercise
 
 You can find the full code of the above example in the playground window, which you can run and experiment with.
@@ -54,6 +61,7 @@ And you can create a `pipeline`, `scope` separately, it is an alternative to `be
 pipeline := beam.NewPipeline()
 scope := p.Root()
 ```
+
 {{end}}
 {{if (eq .Sdk "java")}}
 When creating pipelines when writing arguments (String args[]), you can explicitly specify runner:
@@ -61,6 +69,7 @@ When creating pipelines when writing arguments (String args[]), you can explicit
 ```
 --runner=DirectRunner
 ```
+
 {{end}}
 {{if (eq .Sdk "python")}}
 When creating pipelines, you can give an argument with explicitly specified parameters:
@@ -79,4 +88,5 @@ Creation based on option:
 ```
 pipeline = beam.Pipeline(options=beam_options)
 ```
+
 {{end}}

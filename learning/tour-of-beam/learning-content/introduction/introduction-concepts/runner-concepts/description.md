@@ -16,6 +16,7 @@ limitations under the License.
 Apache Beam provides a portable API layer for building sophisticated data-parallel processing `pipelines` that may be executed across a diversity of execution engines, or `runners`. The core concepts of this layer are based upon the Beam Model (formerly referred to as the Dataflow Model), and implemented to varying degrees in each Beam `runner`.
 
 ### Direct runner
+
 The Direct Runner executes pipelines on your machine and is designed to validate that pipelines adhere to the Apache Beam model as closely as possible. Instead of focusing on efficient pipeline execution, the Direct Runner performs additional checks to ensure that users do not rely on semantics that are not guaranteed by the model. Some of these checks include:
 
 * enforcing immutability of elements
@@ -33,11 +34,13 @@ Additionally, you can read more about the Direct Runner [here](https://beam.apac
 #### Run example
 
 ```
-$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
-$ wordcount --input <PATH_TO_INPUT_FILE> --output counts
+go install github.com/apache/beam/sdks/v2/go/examples/wordcount
+wordcount --input <PATH_TO_INPUT_FILE> --output counts
 ```
+
 {{end}}
 {{if (eq .Sdk "java")}}
+
 #### Specify your dependency
 
 When using Java, you must specify your dependency on the Direct Runner in your pom.xml.
@@ -58,6 +61,7 @@ In java, you need to set runner to `args` when you start the program.
 ```
 --runner=DirectRunner
 ```
+
 {{end}}
 
 {{if (eq .Sdk "python")}}
@@ -70,11 +74,13 @@ Additionally, you can read more about the Direct Runner [here](https://beam.apac
 ```
 python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts
 ```
+
 {{end}}
 
 ### Google Cloud Dataflow runner
 
 The Google Cloud Dataflow uses the Cloud Dataflow managed service. When you run your pipeline with the Cloud Dataflow service, the runner uploads your executable code and dependencies to a Google Cloud Storage bucket and creates a Cloud Dataflow job, which executes your pipeline on managed resources in Google Cloud Platform. The Cloud Dataflow Runner and service are suitable for large scale, continuous jobs, and provide:
+
 * a fully managed service
 * autoscaling of the number of workers throughout the lifetime of the job
 * dynamic work rebalancing
@@ -82,7 +88,9 @@ The Google Cloud Dataflow uses the Cloud Dataflow managed service. When you run 
 Additionally, you can read more about the Dataflow Runner [here](https://beam.apache.org/documentation/runners/dataflow/)
 
 #### Run example
+
 {{if (eq .Sdk "go")}}
+
 ```
 $ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
@@ -96,6 +104,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --staging_location gs://<your-gcs-bucket>/binaries/ \
 --worker_harness_container_image=apache/beam_go_sdk:latest
 ```
+
 {{end}}
 {{if (eq .Sdk "java")}}
 When using Java, you must specify your dependency on the Cloud Dataflow Runner in your `pom.xml`.
@@ -129,6 +138,7 @@ Then, add the mainClass name in the Maven JAR plugin.
 ```
 
 Console:
+
 ```
 java -jar target/beam-examples-bundled-1.0.0.jar \
   --runner=DataflowRunner \
@@ -136,8 +146,10 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
   --region=<GCP_REGION> \
   --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
 ```
+
 {{end}}
 {{if (eq .Sdk "python")}}
+
 ```
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
@@ -148,12 +160,15 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --region YOUR_GCP_REGION \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
 ```
+
 {{end}}
 
 {{if (eq .Sdk "java" "python")}}
+
 ### Apache Flink runner
 
 The Apache Flink Runner can be used to execute Beam pipelines using Apache Flink. For execution, you can choose between a cluster execution mode (e.g. Yarn/Kubernetes/Mesos) or a local embedded execution mode which is useful for testing pipelines. The Flink Runner and Flink are suitable for large scale, continuous jobs, and provide:
+
 * A streaming-first runtime that supports both batch processing and data streaming programs
 * A runtime that supports very high throughput and low event latency at the same time
 * Fault-tolerance with exactly-once processing guarantees
@@ -164,11 +179,13 @@ The Apache Flink Runner can be used to execute Beam pipelines using Apache Flink
 Additionally, you can read more about the Apache Flink Runner [here](https://beam.apache.org/documentation/runners/flink/)
 
 #### Run example
+
 {{end}}
 
 {{if (eq .Sdk "java")}}
 
 ##### Portable
+
 1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.10`, `Flink 1.11`, `Flink 1.12`, `Flink 1.13`, `Flink 1.14`.
 2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
 3. Submit the pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService). Optionally set environment_type set to LOOPBACK. For example:
@@ -199,6 +216,7 @@ When using Java, you must specify your dependency on the Cloud Dataflow Runner i
 ```
 
 Console:
+
 ```
 mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Pflink-runner \
@@ -208,9 +226,11 @@ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --flinkMaster=<flink master url> \
       --filesToStage=target/word-count-beam-bundled-0.1.jar"
 ```
+
 {{end}}
 
 {{if (eq .Sdk "python")}}
+
 1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.10`, `Flink 1.11`, `Flink 1.12`, `Flink 1.13`, `Flink 1.14`.
 2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
 3. Submit the pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService). Optionally set environment_type set to LOOPBACK. For example:
@@ -227,9 +247,11 @@ options = PipelineOptions([
 with beam.Pipeline(options) as p:
     ...
 ```
+
 {{end}}
 
 {{if (eq .Sdk "java" "python")}}
+
 ### Apache Spark runner
 
 The Apache Spark Runner can be used to execute Beam pipelines using Apache Spark. The Spark Runner can execute Spark pipelines just like a native Spark application; deploying a self-contained application for local mode, running on Spark’s Standalone RM, or using YARN or Mesos.
@@ -251,12 +273,14 @@ Additionally, you can read more about the Apache Spark Runner [here](https://bea
 {{if (eq .Sdk "java")}}
 
 ##### Non portable
+
 1. Start the JobService endpoint:
     * with Docker (preferred): docker run --net=host apache/beam_spark_job_server:latest
     * or from Beam source code: ./gradlew :runners:spark:3:job-server:runShadow
 2. Submit the Python pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService), and environment_type set to LOOPBACK. For example:
 
 Console:
+
 ```
 mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
@@ -312,8 +336,8 @@ And shading the application jar using the maven shade plugin:
 </plugin>
 ```
 
-
 Console:
+
 ```
 mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
@@ -322,10 +346,12 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 {{end}}
 
 {{if (eq .Sdk "python")}}
+
 1. Start the JobService endpoint:
    * with Docker (preferred): docker run --net=host apache/beam_spark_job_server:latest
    * or from Beam source code: ./gradlew :runners:spark:3:job-server:runShadow
 2. Submit the Python pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService), and environment_type set to LOOPBACK. For example:
+
 ```
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -340,14 +366,17 @@ with beam.Pipeline(options) as p:
 ```
 
 Console:
+
 ```
 python -m apache_beam.examples.wordcount --input /path/to/inputfile \
                                          --output /path/to/write/counts \
                                          --runner SparkRunner
 ```
+
 {{end}}
 
 {{if (eq .Sdk "java")}}
+
 ### Samza runner
 
 The Apache Samza Runner can be used to execute Beam pipelines using Apache Samza. The Samza Runner executes Beam pipeline in a Samza application and can run locally. The application can further be built into a .tgz file, and deployed to a YARN cluster or Samza standalone cluster with Zookeeper.
@@ -410,6 +439,7 @@ You can specify your dependency on the Samza Runner by adding the following to y
 ```
 
 Console:
+
 ```
 $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Psamza-runner \
@@ -497,6 +527,7 @@ A self-contained application might be easier to manage and allows you to fully u
 ```
 
 Console:
+
 ```
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
@@ -526,4 +557,5 @@ Additionally, you can read more about the Hazelcast Jet Runner [here](https://be
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
 ```
+
 {{end}}

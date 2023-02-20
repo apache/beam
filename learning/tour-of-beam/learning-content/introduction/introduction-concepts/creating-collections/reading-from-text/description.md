@@ -19,6 +19,7 @@ Each data source adapter has a Read transform; to read, you must apply that tran
 
 `TextIO.Read` , for example, reads from an external text file and returns a `PCollection` whose elements are of type String. Each String represents one line from the text file. Here’s how you would apply `TextIO.Read` to your Pipeline to create a `PCollection`:
 {{if (eq .Sdk "go")}}
+
 ```
 func main() {
     ctx := context.Background()
@@ -31,8 +32,10 @@ func main() {
 
 }
 ```
+
 {{end}}
 {{if (eq .Sdk "java")}}
+
 ```
 public static void main(String[] args) {
     // First create the pipeline
@@ -46,8 +49,10 @@ public static void main(String[] args) {
 
 }
 ```
+
 {{end}}
 {{if (eq .Sdk "python")}}
+
 ```
 # First create pipline
 with beam.Pipeline() as p:
@@ -56,7 +61,9 @@ with beam.Pipeline() as p:
     (p | beam.io.ReadFromText('gs://some/inputData.txt'))
 
 ```
+
 {{end}}
+
 ### Playground exercise
 
 In the playground window, you can find an example that reads a king lear poem from the text file stored in the Google Storage bucket and fills PCollection with individual lines and then with individual words. Try it out and see what the output is.
