@@ -170,18 +170,24 @@ tasks.register("firebaseProjectCreate") {
             errorOutput = error
         }
 
+        println(result)
         val output = result.toString().trim()
         if (output.contains(project_id)) {
             println("Firebase is already added to the project $project_id.")
         } else {
-            exec {
-                executable("firebase")
-                args("projects:addfirebase", project_id)
-            }.assertNormalExitValue()
-            println("Firebase added to project $project_id.")
+            try {
+                exec {
+                    executable("firebase")
+                    args("projects:addfirebase", project_id)
+                }.assertNormalExitValue()
+                println("Firebase has been added to project $project_id.")
+            } catch (e: Exception) {
+                println("Failed to add Firebase to project $project_id: ${e.message}")
+            }
         }
     }
 }
+
 
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
