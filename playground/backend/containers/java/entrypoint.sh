@@ -14,7 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export http_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
-export https_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
-export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dhttp.proxyHost=$PLAYGROUND_MITM_SERVICE_HOST -Dhttp.proxyPort:$PLAYGROUND_MITM_SERVICE_PORT -Dhttps.proxyHost=$PLAYGROUND_MITM_SERVICE_HOST -Dhttps.proxyPort=$PLAYGROUND_MITM_SERVICE_PORT"
+if [[ -n "$PLAYGROUND_MITM_SERVICE_HOST" ]] && [[ -n "$PLAYGROUND_MITM_SERVICE_PORT" ]]
+then
+    export http_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
+    export https_proxy=http://$PLAYGROUND_MITM_SERVICE_HOST:$PLAYGROUND_MITM_SERVICE_PORT
+    export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dhttp.proxyHost=$PLAYGROUND_MITM_SERVICE_HOST -Dhttp.proxyPort=$PLAYGROUND_MITM_SERVICE_PORT -Dhttps.proxyHost=$PLAYGROUND_MITM_SERVICE_HOST -Dhttps.proxyPort=$PLAYGROUND_MITM_SERVICE_PORT"
+fi
 /opt/playground/backend/server_java_backend
