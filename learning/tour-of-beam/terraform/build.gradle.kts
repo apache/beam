@@ -186,17 +186,30 @@ tasks.register("firebaseWebAppCreate") {
     if (project.hasProperty("project_id")) {
         project_id = project.property("project_id") as String
     }
-    val result = ByteArrayOutputStream()
+    doLast {
+        val result = ByteArrayOutputStream()
+
         exec {
             executable("firebase")
-            args("apps:create", "WEB", "Tour-of-Beam-Web-App", "--project", project_id)
+            args("apps:list", "--project", project_id)
             standardOutput = result
         }
-    println(result)
-    val firebaseAppId = result.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
-    project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-    println("Firebase app ID: $firebaseAppId")
 
+        val output = result.toString().trim()
+        if (output.contains(project_id)) {
+            println("Firebase Web App is already added to project $project_id.")
+        } else {
+            exec {
+                executable("firebase")
+                args("apps:create", "WEB", "Tour-of-Beam-Web-App", "--project", project_id)
+                standardOutput = result
+            }.assertNormalExitValue()
+            println("Firebase Web App has been added to project $project_id.")
+            val firebaseAppId = result.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
+            project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+            println("Firebase app ID: $firebaseAppId")
+        }
+    }
 }
 
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
