@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Instant;
 
 /** Convert between different Timestamp and Instant classes. */
+@Internal
 public class TimestampConverter {
   public static Instant toInstant(com.google.cloud.Timestamp time) {
     return Instant.ofEpochMilli(time.toDate().toInstant().toEpochMilli());

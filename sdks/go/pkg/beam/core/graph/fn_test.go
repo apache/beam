@@ -190,6 +190,9 @@ func TestNewDoFnSdf(t *testing.T) {
 		}{
 			{dfn: &GoodSdf{}, main: MainSingle},
 			{dfn: &GoodSdfKv{}, main: MainKv},
+			{dfn: &GoodSdfWContext{}, main: MainSingle},
+			{dfn: &GoodSdfKvWContext{}, main: MainKv},
+			{dfn: &GoodSdfWErr{}, main: MainSingle},
 			{dfn: &GoodIgnoreOtherExportedMethods{}, main: MainSingle},
 		}
 
@@ -985,6 +988,90 @@ func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) (int, sdf.ProcessConti
 
 func (fn *GoodSdfKv) TruncateRestriction(*RTrackerT, int, int) RestT {
 	return RestT{}
+}
+
+type GoodSdfWContext struct {
+	*GoodDoFn
+}
+
+func (fn *GoodSdfWContext) CreateInitialRestriction(context.Context, int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodSdfWContext) SplitRestriction(context.Context, int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodSdfWContext) RestrictionSize(context.Context, int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodSdfWContext) CreateTracker(context.Context, RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdfWContext) ProcessElement(context.Context, *RTrackerT, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdfWContext) TruncateRestriction(context.Context, *RTrackerT, int) RestT {
+	return RestT{}
+}
+
+type GoodSdfKvWContext struct {
+	*GoodDoFnKv
+}
+
+func (fn *GoodSdfKvWContext) CreateInitialRestriction(context.Context, int, int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodSdfKvWContext) SplitRestriction(context.Context, int, int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodSdfKvWContext) RestrictionSize(context.Context, int, int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodSdfKvWContext) CreateTracker(context.Context, RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdfKvWContext) ProcessElement(context.Context, *RTrackerT, int, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdfKvWContext) TruncateRestriction(context.Context, *RTrackerT, int, int) RestT {
+	return RestT{}
+}
+
+type GoodSdfWErr struct {
+	*GoodDoFn
+}
+
+func (fn *GoodSdfWErr) CreateInitialRestriction(int) (RestT, error) {
+	return RestT{}, nil
+}
+
+func (fn *GoodSdfWErr) SplitRestriction(int, RestT) ([]RestT, error) {
+	return []RestT{}, nil
+}
+
+func (fn *GoodSdfWErr) RestrictionSize(int, RestT) (float64, error) {
+	return 0, nil
+}
+
+func (fn *GoodSdfWErr) CreateTracker(RestT) (*RTrackerT, error) {
+	return &RTrackerT{}, nil
+}
+
+func (fn *GoodSdfWErr) ProcessElement(*RTrackerT, int) (int, sdf.ProcessContinuation, error) {
+	return 0, sdf.StopProcessing(), nil
+}
+
+func (fn *GoodSdfWErr) TruncateRestriction(*RTrackerT, int) (RestT, error) {
+	return RestT{}, nil
 }
 
 type GoodIgnoreOtherExportedMethods struct {

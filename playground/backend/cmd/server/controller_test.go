@@ -5,7 +5,7 @@
 // (the "License"); you may not use this file except in compliance with
 // the License.  You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1121,14 +1121,14 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 			name: "Getting an example in the usual case",
 			args: args{
 				ctx:  ctx,
-				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA_MOCK_DEFAULT_EXAMPLE"},
 			},
 			wantErr: false,
 			check: func(response *pb.GetPrecompiledObjectResponse) {
 				expected := &pb.PrecompiledObject{
 					Sdk:             pb.Sdk_SDK_JAVA,
 					Multifile:       false,
-					CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE",
+					CloudPath:       "SDK_JAVA_MOCK_DEFAULT_EXAMPLE",
 					Name:            "MOCK_DEFAULT_EXAMPLE",
 					Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
 					ContextLine:     10,
@@ -1148,14 +1148,14 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 			name: "Getting an example with a dataset",
 			args: args{
 				ctx:  ctx,
-				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME_DATASET"},
+				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA_MOCK_NAME_DATASET"},
 			},
 			wantErr: false,
 			check: func(response *pb.GetPrecompiledObjectResponse) {
 				expected := &pb.PrecompiledObject{
 					Sdk:             pb.Sdk_SDK_JAVA,
 					Multifile:       false,
-					CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME_DATASET",
+					CloudPath:       "SDK_JAVA_MOCK_NAME_DATASET",
 					Name:            "MOCK_NAME_DATASET",
 					Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
 					ContextLine:     10,
@@ -1210,7 +1210,7 @@ func TestPlaygroundController_GetPrecompiledObjectCode(t *testing.T) {
 			name: "Getting the code of single-file example",
 			args: args{
 				ctx:  ctx,
-				info: &pb.GetPrecompiledObjectCodeRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+				info: &pb.GetPrecompiledObjectCodeRequest{CloudPath: "SDK_JAVA_MOCK_DEFAULT_EXAMPLE"},
 			},
 			wantErr: false,
 			wantResponse: &pb.GetPrecompiledObjectCodeResponse{
@@ -1224,7 +1224,7 @@ func TestPlaygroundController_GetPrecompiledObjectCode(t *testing.T) {
 			name: "Getting the code of multifile example",
 			args: args{
 				ctx:  ctx,
-				info: &pb.GetPrecompiledObjectCodeRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_MULTIFILE"},
+				info: &pb.GetPrecompiledObjectCodeRequest{CloudPath: "SDK_JAVA_MOCK_MULTIFILE"},
 			},
 			wantErr: false,
 			wantResponse: &pb.GetPrecompiledObjectCodeResponse{
@@ -1269,7 +1269,7 @@ func TestPlaygroundController_GetPrecompiledObjectOutput(t *testing.T) {
 			name: "Getting the output of the compiled and run example in the usual case",
 			args: args{
 				ctx:  ctx,
-				info: &pb.GetPrecompiledObjectOutputRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+				info: &pb.GetPrecompiledObjectOutputRequest{CloudPath: "SDK_JAVA_MOCK_DEFAULT_EXAMPLE"},
 			},
 			wantErr:      false,
 			wantResponse: "MOCK_CONTENT_" + constants.PCOutputType,
@@ -1309,7 +1309,7 @@ func TestPlaygroundController_GetPrecompiledObjectLogs(t *testing.T) {
 			name: "Getting the logs of the compiled and run example in the usual case",
 			args: args{
 				ctx:  ctx,
-				info: &pb.GetPrecompiledObjectLogsRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+				info: &pb.GetPrecompiledObjectLogsRequest{CloudPath: "SDK_JAVA_MOCK_DEFAULT_EXAMPLE"},
 			},
 			wantErr:      false,
 			wantResponse: "MOCK_CONTENT_" + constants.PCLogType,
@@ -1349,7 +1349,7 @@ func TestPlaygroundController_GetPrecompiledObjectGraph(t *testing.T) {
 			name: "Getting the logs of the compiled and run example in the usual case",
 			args: args{
 				ctx:  ctx,
-				info: &pb.GetPrecompiledObjectGraphRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
+				info: &pb.GetPrecompiledObjectGraphRequest{CloudPath: "SDK_JAVA_MOCK_DEFAULT_EXAMPLE"},
 			},
 			wantErr:      false,
 			wantResponse: "MOCK_CONTENT_" + constants.PCGraphType,
@@ -1402,7 +1402,7 @@ func TestPlaygroundController_GetDefaultPrecompiledObject(t *testing.T) {
 				return
 			}
 			if got.PrecompiledObject.Multifile != false ||
-				got.PrecompiledObject.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE" ||
+				got.PrecompiledObject.CloudPath != "SDK_JAVA_MOCK_DEFAULT_EXAMPLE" ||
 				got.PrecompiledObject.Name != "MOCK_DEFAULT_EXAMPLE" ||
 				got.PrecompiledObject.Type != pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE ||
 				got.PrecompiledObject.ContextLine != 10 ||

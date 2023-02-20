@@ -1683,7 +1683,9 @@ public class DataflowRunnerTest implements Serializable {
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(defaultSdkContainerImage);
-    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow.toBuilder().build());
+    RunnerApi.Environment.Builder envBuilder =
+        defaultEnvironmentForDataflow.toBuilder().addCapabilities("my_dummy_capability");
+    sdkComponents.registerEnvironment(envBuilder.build());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
 
@@ -1729,6 +1731,7 @@ public class DataflowRunnerTest implements Serializable {
                 Collectors.toMap(
                     SdkHarnessContainerImage::getEnvironmentId,
                     SdkHarnessContainerImage::getContainerImage)));
+    assertTrue(sdks.get(0).getCapabilities().contains("my_dummy_capability"));
   }
 
   @Test

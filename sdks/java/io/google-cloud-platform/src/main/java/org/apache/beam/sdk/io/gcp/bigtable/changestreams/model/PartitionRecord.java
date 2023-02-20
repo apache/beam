@@ -24,12 +24,14 @@ import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import java.io.Serializable;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Output result of {@link
  * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn} containing
  * information required to stream a partition.
  */
+@Internal
 public class PartitionRecord implements Serializable {
   private static final long serialVersionUID = -7613861834142734474L;
 

@@ -33,9 +33,9 @@ BEAM_HOME=$(pwd)/beam
 cd $BEAM_HOME/sdks
 ```
 
-## Direct Runner execution
+## Local Runner execution
 
-To execute this example on the direct runner:
+To execute this example on the local runner:
 
 ```shell
 go run ./go/examples/wasm --output=$OUTPUT
