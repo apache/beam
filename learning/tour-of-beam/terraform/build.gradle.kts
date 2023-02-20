@@ -68,6 +68,8 @@ tasks {
     }
 
     register<TerraformTask>("terraformDestroy") {
+        dependsOn("getRouterHost")
+        val pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
         var environment = "unknown"
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
@@ -77,6 +79,7 @@ tasks {
                 "-auto-approve",
                 "-lock=false",
                 "-var=environment=$environment",
+                "-var=pg_router_host=$pg_router_host",
                 if (file("./environment/$environment/terraform.tfvars").exists()) {
                     "-var-file=./environment/$environment/terraform.tfvars"
                 } else {
