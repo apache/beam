@@ -25,15 +25,13 @@ variable "project_id" {
 
 variable "service_account_id" {
   description = "The ID of the service account responsible for running Google Cloud functions"
+  default = "tourofbeam-cloudfunction-sa"
 }
 
 variable "region" {
   description = "The region of the Google Cloud project within which resources are provisioned"
 }
 
-variable "pg_router_host" {
-}
+variable "pg_router_host" {}
 
 variable "environment" {}
-
-#variable "firebase_storage_bucket_name" {}
