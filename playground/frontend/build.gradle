@@ -60,7 +60,6 @@ tasks.register("analyze") {
 
   doLast {
     exec {
-      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
       args("analyze", "lib", "test")
     }
@@ -69,7 +68,7 @@ tasks.register("analyze") {
 
 tasks.register("pubGet") {
   group = "build"
-  description = "Get packages for the playground frontend project"
+  description = "Get packages for the frontend project"
   doLast {
     exec {
       executable("flutter")
@@ -83,7 +82,6 @@ tasks.register("format") {
   description = "Idiomatically format Dart source code"
   doLast {
     exec {
-      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
       args("format", "lib", "test")
     }
@@ -183,13 +181,27 @@ ext.deleteFilesByRegExp = { re ->
 }
 
 tasks.register("integrationTest") {
+  dependsOn("integrationTest_initial_urls")
   dependsOn("integrationTest_standalone_change_example_sdk_run")
+  dependsOn("integrationTest_standalone_default_examples")
   dependsOn("integrationTest_standalone_miscellaneous_ui")
+}
+
+tasks.register("integrationTest_initial_urls") {
+  doLast {
+    runIntegrationTest("initial_urls", "/")
+  }
 }
 
 tasks.register("integrationTest_standalone_change_example_sdk_run") {
   doLast {
     runIntegrationTest("standalone_change_example_sdk_run", "/")
+  }
+}
+
+tasks.register("integrationTest_standalone_default_examples") {
+  doLast {
+    runIntegrationTest("standalone_default_examples", "/")
   }
 }
 
@@ -200,6 +212,9 @@ tasks.register("integrationTest_standalone_miscellaneous_ui") {
 }
 
 void runIntegrationTest(String path, String url) {
+  // Run with -PdeviceId=web-server for headless tests.
+  String deviceId = project.hasProperty("deviceId") ? project.deviceId : "chrome"
+
   exec {
     executable("flutter")
     args(
@@ -207,7 +222,7 @@ void runIntegrationTest(String path, String url) {
       "--driver=test_driver/integration_test.dart",
       "--target=integration_test/${path}_test.dart",
       "--web-launch-url='$url'",
-      "--device-id=chrome",
+      "--device-id=$deviceId",
     )
   }
 }
@@ -229,7 +244,7 @@ task copyDockerfileDependencies(type: Copy) {
 
 docker {
   group = "build"
-  description = "Build container for playground frontend application"
+  description = "Build container for frontend application"
   name = containerImageName(
     name: project.docker_image_default_repo_prefix + "playground-frontend",
     root: project.rootProject.hasProperty(["docker-repository-root"])

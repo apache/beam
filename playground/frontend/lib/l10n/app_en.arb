@@ -183,10 +183,6 @@
   "@pipelineOptionsError": {
     "description": "Pipeline options parse error"
   },
-  "viewOnGithub": "View on GitHub",
-  "@viewOnGithub": {
-    "description": "View on Github button"
-  },
   "addExample": "Add your own example",
   "@addExample": {
     "description": "Add example link text"

@@ -466,15 +466,15 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.8.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.20.1"
+    def gax_version = "2.23.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.34.1"
+    def google_cloud_spanner_version = "6.36.0"
     def google_code_gson_version = "2.9.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.51.0"
+    def grpc_version = "1.52.1"
     def guava_version = "31.1-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -492,7 +492,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
-    def protobuf_version = "3.21.10"
+    def protobuf_version = "3.21.12"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
@@ -505,7 +505,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def jmh_version = "1.34"
 
     // Export Spark versions, so they are defined in a single place only
-    project.ext.spark2_version = spark2_version
     project.ext.spark3_version = spark3_version
 
     // A map of maps containing common libraries used per language. To use:
@@ -609,10 +608,10 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
-        // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/26.3.0/artifact_details.html
+        // The release notes shows the versions set by the BOM:
+        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.8.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.3.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.8.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -730,8 +729,6 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.8.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
-        spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark2_version",
-        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
         spark3_core                                 : "org.apache.spark:spark-core_2.12:$spark3_version",
         spark3_network_common                       : "org.apache.spark:spark-network-common_2.12:$spark3_version",
@@ -1553,7 +1550,7 @@ class BeamModulePlugin implements Plugin<Project> {
             if (project.file("/opt/cprof/profiler_java_agent.so").exists()) {
               def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
               def userName = System.getProperty("user.name").toLowerCase().replaceAll(" ", "_")
-              jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + System.currentTimeMillis() + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
+              jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + String.format('%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS_%1$tL', System.currentTimeMillis()) + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
             }
           } else {
             // We filter for only Apache Beam benchmarks to ensure that we aren't
@@ -1917,9 +1914,9 @@ class BeamModulePlugin implements Plugin<Project> {
                 "--region=${dataflowRegion}"
               ])
             } else {
-              project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+              project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
               def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+                  project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
               allOptionsList.addAll([
                 // Keep as legacy flag to ensure via test this flag works for
                 // legacy pipeline.
@@ -1967,7 +1964,7 @@ class BeamModulePlugin implements Plugin<Project> {
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
           testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntimeMigration")
-          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
+          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
@@ -2018,7 +2015,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.19.3"
+      project.ext.goVersion = "go1.19.6"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2392,7 +2389,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "python_port": pythonPort
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
-      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
+      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
       def javaContainerSuffix
       if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
         javaContainerSuffix = 'java8'
@@ -2534,9 +2531,13 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn setupTask
         dependsOn config.startJobServer
       }
-      mainTask.configure{dependsOn goTask}
-      cleanupTask.configure{mustRunAfter goTask}
-      config.cleanupJobServer.configure{mustRunAfter goTask}
+      // CrossLanguageValidatesRunnerTask is setup under python sdk but also runs tasks not involving
+      // python versions. set 'skipNonPythonTask' property to avoid duplicated run of these tasks.
+      if (!(project.hasProperty('skipNonPythonTask') && project.skipNonPythonTask == 'true')) {
+        mainTask.configure { dependsOn goTask }
+      }
+      cleanupTask.configure { mustRunAfter goTask }
+      config.cleanupJobServer.configure { mustRunAfter goTask }
     }
 
     /** ***********************************************************************************************/
@@ -2795,7 +2796,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.getVersionSuffix = { String version ->
-        return version == '2.7' ? '2' : version.replace('.', '')
+        return version.replace('.', '')
       }
 
       project.ext.getVersionsAsList = { String propertyName ->
