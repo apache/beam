@@ -19,7 +19,7 @@ on:
   pull_request:
     paths:
      - .github/workflows/playground_examples_ci_reusable.yml
-     - .github/workflows/tour_of_beam_examples_ci.yml
+     - .github/workflows/tour_of_beam_content_ci.yml
      - playground/backend/**
      - playground/infrastructure/**
      - learning/tour-of-beam/learning-content/**
@@ -59,6 +59,6 @@ jobs:
       subdirs: "./learning/tour-of-beam/learning-content"
       allowlist: |
         .github/workflows/playground_examples_ci_reusable.yml \
-        .github/workflows/tour_of_beam_examples_ci.yml \
+        .github/workflows/tour_of_beam_content_ci.yml \
         playground/backend \
         playground/infrastructure \
