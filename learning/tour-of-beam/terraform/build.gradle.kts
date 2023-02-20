@@ -158,10 +158,28 @@ tasks.register("firebaseProjectCreate") {
     if (project.hasProperty("project_id")) {
         project_id = project.property("project_id") as String
     }
-    doLast{
+    description = "Adds Firebase to a project if it doesn't already have Firebase."
+
+    doLast {
+        val result = ByteArrayOutputStream()
+        val error = ByteArrayOutputStream()
+
         exec {
             executable("firebase")
-            args("projects:addfirebase", project_id)
+            args("projects:list")
+            standardOutput = result
+            errorOutput = error
+        }
+
+        val output = result.toString().trim()
+        if (output.contains(project_id)) {
+            println("Firebase is already added to the project $project_id.")
+        } else {
+            exec {
+                executable("firebase")
+                args("projects:addfirebase", project_id)
+            }.assertNormalExitValue()
+            println("Firebase added to project $project_id.")
         }
     }
 }
