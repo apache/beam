@@ -26,7 +26,7 @@ module "functions_buckets" {
   source = "./functions_buckets"
   # project_id = var.project_id
   region      = var.region
-  bucket_name = var.bucket_name
+  bucket_name = var.cloudfunctions_bucket
   depends_on = [module.setup, module.api_enable]
 }
 

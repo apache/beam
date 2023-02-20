@@ -93,28 +93,6 @@ tasks {
     }
 }
 
-//tasks.register("getGKEClusterName") {
-//    group = "backend-deploy"
-//    val result = ByteArrayOutputStream()
-//    exec {
-//        commandLine("gcloud", "container", "clusters", "list", "--format=value(name)")
-//        standardOutput = result
-//    }
-//    val gkeClusterName = result.toString().trim()
-//    project.extensions.extraProperties["gkeClusterName"] = gkeClusterName
-//}
-//
-//tasks.register("getGKEClusterZone") {
-//    group = "backend-deploy"
-//    val result = ByteArrayOutputStream()
-//    exec {
-//        commandLine("gcloud", "container", "clusters", "list", "--format=value(zone)")
-//        standardOutput = result
-//    }
-//    val gkeClusterZone = result.toString().trim()
-//    project.extensions.extraProperties["gkeClusterZone"] = gkeClusterZone
-//}
-
 //Add as terminal command in README
 
 //tasks.register("getCredentials") {
