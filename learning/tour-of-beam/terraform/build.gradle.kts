@@ -405,6 +405,17 @@ tasks.register("populateDatastore") {
     tfApplyBackend.mustRunAfter(tfInit)
 }
 
+tasks.register("destroyBackend") {
+    group = "backend-destroy"
+    description = "ToB Backend Destroy"
+    val getRouterHost = tasks.getByName("getRouterHost")
+    val terraformDestroy = tasks.getByName("terraformDestroy")
+    dependsOn(getRouterHost)
+    Thread.sleep(3000)
+    dependsOn(terraformDestroy)
+    terraformDestroy.mustRunAfter(getRouterHost)
+}
+
 tasks.register("InitFrontend") {
     group = "frontend-deploy"
     description = "ToB Frontend Init"
