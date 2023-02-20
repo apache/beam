@@ -96,6 +96,12 @@ cd beam
 ./gradlew playground:dockerComposeLocalDown
 ```
 
+This way of running may not work in all environments because it is not maintained.
+It is used occasionally by the Frontend team to test complex tasks against
+a not-yet-deployed backend.
+The full start may take ~30 minutes and is demanding, so you should likely enable
+only one backend runner for the SDK you need.
+
 If you do not need particular runners, comment out:
 1. Dependencies on them in `/playground/build.gradle.kts` in `dockerComposeLocalUp` task.
 2. Their Docker image configurations in `/playground/docker-compose.local.yaml`.

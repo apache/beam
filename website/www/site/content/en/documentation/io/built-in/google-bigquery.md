@@ -323,6 +323,11 @@ in the following example:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query_std_sql >}}
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
+#### Query execution project
+By default the pipeline executes the query in the Google Cloud project associated with the pipeline (in case of the Dataflow runner it's the project where the pipeline runs). There are cases where the query execution project should be different from the pipeline project. If you use Java SDK, you can define the query execution project by setting the pipeline option "[bigQueryProject](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html#getBigQueryProject--)" to the desired Google Cloud project id.
+{{< /paragraph >}}
+
 ### Using the Storage Read API {#storage-api}
 
 The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)

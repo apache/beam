@@ -48,7 +48,6 @@ const (
 	errorTitleGetDefaultExample = "Error during getting default example"
 	errorTitleRunCode           = "Error during run code"
 
-	userBadCloudPathErrMsg     = "Invalid cloud path parameter"
 	userCloudConnectionErrMsg  = "Cloud connection error"
 	resourceNotFoundErrMsg     = "Resource is not found"
 	resourceInconsistentErrMsg = "Resource is not consistent"
@@ -331,10 +330,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 
 // GetPrecompiledObject returns precompiled object from the Datastore or the cache
 func (controller *playgroundController) GetPrecompiledObject(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExample, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	sdks, err := controller.cacheComponent.GetSdkCatalogFromCacheOrDatastore(ctx, controller.env.ApplicationEnvs.CacheRequestTimeout())
 	if err != nil {
 		return nil, cerrors.InternalError(errorTitleGetExample, userCloudConnectionErrMsg)
@@ -353,10 +349,7 @@ func (controller *playgroundController) GetPrecompiledObject(ctx context.Context
 
 // GetPrecompiledObjectCode returns the code of the specific example
 func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleCode, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	files, err := controller.db.GetExampleCode(ctx, exampleId)
 	if err != nil {
 		switch err {
@@ -388,10 +381,7 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 
 // GetPrecompiledObjectOutput returns the output of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectOutputRequest) (*pb.GetPrecompiledObjectOutputResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleOutput, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	output, err := controller.db.GetExampleOutput(ctx, exampleId)
 	if err != nil {
 		switch err {
@@ -407,10 +397,7 @@ func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.C
 
 // GetPrecompiledObjectLogs returns the logs of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Context, info *pb.GetPrecompiledObjectLogsRequest) (*pb.GetPrecompiledObjectLogsResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleLogs, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	logs, err := controller.db.GetExampleLogs(ctx, exampleId)
 	if err != nil {
 		switch err {
@@ -426,10 +413,7 @@ func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Con
 
 // GetPrecompiledObjectGraph returns the graph of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Context, info *pb.GetPrecompiledObjectGraphRequest) (*pb.GetPrecompiledObjectGraphResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleGraph, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	graph, err := controller.db.GetExampleGraph(ctx, exampleId)
 	if err != nil {
 		switch err {

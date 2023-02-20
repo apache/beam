@@ -22,11 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +44,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
@@ -92,6 +95,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
@@ -105,6 +109,9 @@ public class ProcessBundleBenchmark {
   /** Sets up the {@link ExecutionStateTracker} and an execution state. */
   @State(Scope.Benchmark)
   public static class SdkHarness {
+    @Param({"true", "false"})
+    public String elementsEmbedding = "false";
+
     final GrpcFnServer<FnApiControlClientPoolService> controlServer;
     final GrpcFnServer<GrpcDataService> dataServer;
     final GrpcFnServer<GrpcStateService> stateServer;
@@ -117,6 +124,11 @@ public class ProcessBundleBenchmark {
     final Future<?> sdkHarnessExecutorFuture;
 
     public SdkHarness() {
+      Set<String> runnerCapabilities = new HashSet<>();
+      if (Boolean.parseBoolean(elementsEmbedding)) {
+        runnerCapabilities.add(
+            BeamUrns.getUrn(StandardRunnerProtocols.Enum.CONTROL_RESPONSE_ELEMENTS_EMBEDDING));
+      }
       try {
         // Setup execution-time servers
         ThreadFactory threadFactory =
@@ -163,7 +175,7 @@ public class ProcessBundleBenchmark {
                     FnHarness.main(
                         WORKER_ID,
                         pipelineOptions,
-                        Collections.emptySet(), // Runner capabilities.
+                        runnerCapabilities,
                         loggingServer.getApiServiceDescriptor(),
                         controlServer.getApiServiceDescriptor(),
                         null,
