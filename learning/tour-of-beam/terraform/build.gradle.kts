@@ -190,6 +190,7 @@ tasks.register("firebaseProjectCreate") {
 
 
 tasks.register("firebaseWebAppCreate") {
+    dependsOn("firebaseProjectCreate")
     group = "frontend-deploy"
     var project_id = ""
     if (project.hasProperty("project_id")) {
