@@ -218,7 +218,7 @@ tasks.register("getSdkConfigWebApp") {
         println(result)
         val output = result.toString().trim()
         println(output)
-        val pattern = Pattern.compile("\\{.*\\}", Pattern.DOTALL)
+        val pattern = Pattern.compile("\\{.*\"locationId\":\\s*\"(.*?)\".*\\}", Pattern.DOTALL)
         println(pattern)
         val matcher = pattern.matcher(output)
         println(matcher)
