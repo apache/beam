@@ -16,11 +16,53 @@
  * limitations under the License.
  */
 
-class ExampleOutputs {
-  static const javaAggregationMaxTail = 'INFO: 10\n';
+import 'package:playground_components/playground_components.dart';
 
-  static const pythonAggregationMeanContains =
-      '16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]';
+import '../example_descriptor.dart';
 
-  static const pythonWordCountWithMetricsTail = 'average word length: 4\n';
+/// To test code folding, read-only, and visible sections. Not runnable.
+const goExample = ExampleDescriptor(
+  //
+  '',
+  dbPath: '',
+  path:
+      '/playground/frontend/playground_components_dev/lib/src/examples/go/content/example.go',
+  sdk: Sdk.go,
+
+  croppedFoldedVisibleText: '''
+
+func Folded() {
+
+func Unfolded1() {
+  fmt.Print("editable")
+  fmt.Print("readonly")
 }
+
+func Unfolded2() {
+  fmt.Print("editable")
+  fmt.Print("readonly")
+}
+
+''',
+  foldedVisibleText: '''
+/*
+
+package main
+
+func OutsideOfSections() {
+
+
+func Folded() {
+
+func Unfolded1() {
+  fmt.Print("editable")
+  fmt.Print("readonly")
+}
+
+func Unfolded2() {
+  fmt.Print("editable")
+  fmt.Print("readonly")
+}
+
+''',
+);

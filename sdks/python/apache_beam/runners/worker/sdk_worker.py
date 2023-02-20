@@ -58,6 +58,7 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.data_plane import PeriodicThread
@@ -170,6 +171,7 @@ class SdkHarness(object):
       status_address=None,  # type: Optional[str]
       # Heap dump through status api is disabled by default
       enable_heap_dump=False,  # type: bool
+      data_sampler=None,  # type: Optional[data_sampler.DataSampler]
   ):
     # type: (...) -> None
     self._alive = True
@@ -196,6 +198,7 @@ class SdkHarness(object):
     self._state_handler_factory = GrpcStateHandlerFactory(
         self._state_cache, credentials)
     self._profiler_factory = profiler_factory
+    self.data_sampler = data_sampler
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -208,7 +211,9 @@ class SdkHarness(object):
     self._bundle_processor_cache = BundleProcessorCache(
         state_handler_factory=self._state_handler_factory,
         data_channel_factory=self._data_channel_factory,
-        fns=self._fns)
+        fns=self._fns,
+        data_sampler=self.data_sampler,
+    )
 
     if status_address:
       try:
@@ -363,6 +368,26 @@ class SdkHarness(object):
     _LOGGER.debug(
         "Currently using %s threads." % len(self._worker_thread_pool._workers))
 
+  def _request_sample_data(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
+
+    def get_samples(request):
+      # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
+      samples: Dict[str, List[bytes]] = {}
+      if self.data_sampler:
+        samples = self.data_sampler.samples(request.sample_data.pcollection_ids)
+
+      sample_response = beam_fn_api_pb2.SampleDataResponse()
+      for pcoll_id in samples:
+        sample_response.element_samples[pcoll_id].elements.extend(
+            beam_fn_api_pb2.SampledElement(element=s)
+            for s in samples[pcoll_id])
+
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=request.instruction_id, sample_data=sample_response)
+
+    self._execute(lambda: get_samples(request), request)
+
   def create_worker(self):
     # type: () -> SdkWorker
     return SdkWorker(
@@ -395,7 +420,8 @@ class BundleProcessorCache(object):
       self,
       state_handler_factory,  # type: StateHandlerFactory
       data_channel_factory,  # type: data_plane.DataChannelFactory
-      fns  # type: MutableMapping[str, beam_fn_api_pb2.ProcessBundleDescriptor]
+      fns,  # type: MutableMapping[str, beam_fn_api_pb2.ProcessBundleDescriptor]
+      data_sampler=None,  # type: Optional[data_sampler.DataSampler]
   ):
     # type: (...) -> None
     self.fns = fns
@@ -413,6 +439,7 @@ class BundleProcessorCache(object):
         float)  # type: DefaultDict[str, float]
     self._schedule_periodic_shutdown()
     self._lock = threading.Lock()
+    self.data_sampler = data_sampler
 
   def register(self, bundle_descriptor):
     # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
@@ -460,7 +487,8 @@ class BundleProcessorCache(object):
         self.fns[bundle_descriptor_id],
         self.state_handler_factory.create_state_handler(
             self.fns[bundle_descriptor_id].state_api_service_descriptor),
-        self.data_channel_factory)
+        self.data_channel_factory,
+        self.data_sampler)
     with self._lock:
       self.active_bundle_processors[
         instruction_id] = bundle_descriptor_id, processor

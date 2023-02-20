@@ -20,7 +20,7 @@
 set -euo pipefail
 
 # Variable containing the python versions to install
-python_versions_arr=("3.8.9" "3.6.13" "3.7.10" "3.9.4" "3.10.1")
+python_versions_arr=("3.8.16" "3.7.16" "3.9.16" "3.10.10")
 
 # Install pyenv dependencies.
 pyenv_dep(){

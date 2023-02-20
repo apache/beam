@@ -104,6 +104,12 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
         default=pickle
       inference_fn: The inference function to use.
         default=_default_numpy_inference_fn
+      min_batch_size: the minimum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Numpy
+        ndarrays.
+      max_batch_size: the maximum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Numpy
+        ndarrays.
     """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
@@ -211,6 +217,13 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         default=pickle
       inference_fn: The inference function to use.
         default=_default_pandas_inference_fn
+      min_batch_size: the minimum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Pandas
+        Dataframes.
+      max_batch_size: the maximum batch size to use when batching inputs. This
+        batch will be fed into the inference_fn as a Sequence of Pandas
+        Dataframes.
+
     """
     self._model_uri = model_uri
     self._model_file_type = model_file_type

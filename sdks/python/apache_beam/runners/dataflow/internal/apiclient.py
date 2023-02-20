@@ -61,6 +61,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -81,7 +82,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9', '3.10']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.7', '3.8', '3.9', '3.10']
 
 
 class Step(object):
@@ -444,6 +445,7 @@ class Job(object):
 
   def __init__(self, options, proto_pipeline):
     self.options = options
+    validate_pipeline_graph(proto_pipeline)
     self.proto_pipeline = proto_pipeline
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     if not self.google_cloud_options.job_name:

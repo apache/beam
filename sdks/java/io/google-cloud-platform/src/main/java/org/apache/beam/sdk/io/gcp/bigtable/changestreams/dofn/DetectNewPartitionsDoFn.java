@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 
 import java.io.IOException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
@@ -39,6 +40,7 @@ import org.joda.time.Instant;
 
 // Allows for detectNewPartitionsAction setup
 @SuppressWarnings("initialization.fields.uninitialized")
+@Internal
 @UnboundedPerElement
 public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, PartitionRecord> {
   private static final long serialVersionUID = 8052524268978107367L;
