@@ -193,24 +193,25 @@ tasks.register("firebaseWebAppCreate") {
         val output = result.toString()
         if (output.contains(webapp_id)) {
             println("Tour of Beam Web App: $webapp_id is already created on the project: $project_id.")
-            val pre_firebaseAppId = output.lines().find { it.contains("1:") }?.substringAfter("$webapp_id │ ")?.trim()
-            val firebaseAppId = pre_firebaseAppId.toString().lines().find {it.contains("1:")}?.substringBefore(" | WEB")?.trim()
+            val regex = Regex("1:(.*?):.*?WEB")
+            val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
             println(firebaseAppId)
-            } else {
-                val result2 = ByteArrayOutputStream()
-                exec {
-                    executable("firebase")
-                    args("apps:create", "WEB", webapp_id, "--project", project_id)
-                    standardOutput = result2
-                    }.assertNormalExitValue()
-                    println(result2)
-                    val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
-                    project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-                    println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
-            }
+        } else {
+            val result2 = ByteArrayOutputStream()
+            exec {
+                executable("firebase")
+                args("apps:create", "WEB", webapp_id, "--project", project_id)
+                standardOutput = result2
+            }.assertNormalExitValue()
+            println(result2)
+            val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
+            project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+            println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
+        }
     }
 }
+
 
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
 tasks.register("getSdkConfigWebApp") {
