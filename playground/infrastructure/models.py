@@ -120,7 +120,7 @@ class Tag(BaseModel):
 
     emulators: List[Emulator] = []
     """
-    List of emulators to start during pipeline execution. Currently only kafka type is supported.
+    List of emulators to start during pipeline execution. Currently only `kafka` type is supported.
     Example:
     emulators:
       - type: kafka
@@ -136,8 +136,8 @@ class Tag(BaseModel):
 
     pipeline_options: str = ""
     """
-    Pipeline options Example:
-    --name1 value1 --name2 value2
+    Pipeline options. Example:
+    pipeline_options: --name1 value1 --name2 value2
     """
 
     tags: List[str] = []
@@ -147,7 +147,7 @@ class Tag(BaseModel):
 
     url_notebook: Optional[HttpUrl] = None
     """
-    URL of Colab notebook that is based on this snippet.
+    The URL of the Colab notebook that is based on this snippet.
     """
 
     # These parameters are NOT parsed from YAML but are added at construction:
