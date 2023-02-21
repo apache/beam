@@ -23,10 +23,12 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConvert
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
+import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import com.google.cloud.bigtable.data.v2.models.Heartbeat;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.protobuf.ByteString;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
@@ -137,6 +139,38 @@ public class ChangeStreamAction {
         return Optional.of(DoFn.ProcessContinuation.stop());
       }
       metrics.incHeartbeatCount();
+    } else if (record instanceof CloseStream) {
+      CloseStream closeStream = (CloseStream) record;
+      StreamProgress streamProgress = new StreamProgress(closeStream);
+
+      if (shouldDebug) {
+        LOG.info(
+            "RCSP {}: CloseStream: {}",
+            formatByteStringRange(partitionRecord.getPartition()),
+            closeStream.getChangeStreamContinuationTokens().stream()
+                .map(
+                    c ->
+                        "{partition: "
+                            + formatByteStringRange(c.getPartition())
+                            + " token: "
+                            + c.getToken()
+                            + "}")
+                .collect(Collectors.joining(", ", "[", "]")));
+      }
+      // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
+      // a checkpoint. See {@link
+      // org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker}
+      // for more information regarding runner initiated checkpoints.
+      if (!tracker.tryClaim(streamProgress)) {
+        if (shouldDebug) {
+          LOG.info(
+              "RCSP {}: Failed to claim close stream tracker",
+              formatByteStringRange(partitionRecord.getPartition()));
+        }
+        return Optional.of(DoFn.ProcessContinuation.stop());
+      }
+      metrics.incClosestreamCount();
+      return Optional.of(DoFn.ProcessContinuation.resume());
     } else if (record instanceof ChangeStreamMutation) {
       ChangeStreamMutation changeStreamMutation = (ChangeStreamMutation) record;
       final Instant watermark = nanosToInstant(changeStreamMutation.getEstimatedLowWatermark());

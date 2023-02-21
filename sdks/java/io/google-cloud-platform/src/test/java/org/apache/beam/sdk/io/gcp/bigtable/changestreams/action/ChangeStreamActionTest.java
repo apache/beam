@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.instantToNanos;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -28,9 +30,12 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import com.google.cloud.bigtable.data.v2.models.Heartbeat;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.protobuf.ByteString;
+import com.google.rpc.Status;
+import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
@@ -86,6 +91,26 @@ public class ChangeStreamActionTest {
     verify(metrics).incHeartbeatCount();
     verify(watermarkEstimator).setWatermark(eq(lowWatermark));
     StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
+    verify(tracker).tryClaim(eq(streamProgress));
+  }
+
+  @Test
+  public void testCloseStreamResume() {
+    ChangeStreamContinuationToken changeStreamContinuationToken =
+        ChangeStreamContinuationToken.create(ByteStringRange.create("a", "b"), "1234");
+    CloseStream mockCloseStream = Mockito.mock(CloseStream.class);
+    Status statusProto = Status.newBuilder().setCode(11).build();
+    Mockito.when(mockCloseStream.getStatus()).thenReturn(statusProto);
+    Mockito.when(mockCloseStream.getChangeStreamContinuationTokens())
+        .thenReturn(Collections.singletonList(changeStreamContinuationToken));
+
+    final Optional<DoFn.ProcessContinuation> result =
+        action.run(partitionRecord, mockCloseStream, tracker, receiver, watermarkEstimator, false);
+
+    assertTrue(result.isPresent());
+    assertEquals(DoFn.ProcessContinuation.resume(), result.get());
+    verify(metrics).incClosestreamCount();
+    StreamProgress streamProgress = new StreamProgress(mockCloseStream);
     verify(tracker).tryClaim(eq(streamProgress));
   }
 

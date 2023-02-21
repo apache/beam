@@ -50,6 +50,14 @@ public class ChangeStreamMetrics implements Serializable {
           "heartbeat_count");
 
   /**
+   * Counter for the total number of heartbeats identified during the execution of the Connector.
+   */
+  public static final Counter CLOSESTREAM_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "closestream_count");
+
+  /**
    * Counter for the total number of ChangeStreamMutations that are initiated by users (not garbage
    * collection) identified during the execution of the Connector.
    */
@@ -73,6 +81,12 @@ public class ChangeStreamMetrics implements Serializable {
           org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
           "processing_delay_from_commit_timestamp");
 
+  /** Counter for the total number of active partitions being streamed. */
+  public static final Counter PARTITION_STREAM_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "partition_stream_count");
+
   /**
    * Increments the {@link
    * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#LIST_PARTITIONS_COUNT} by
@@ -89,6 +103,15 @@ public class ChangeStreamMetrics implements Serializable {
    */
   public void incHeartbeatCount() {
     inc(HEARTBEAT_COUNT);
+  }
+
+  /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#CLOSESTREAM_COUNT} by 1
+   * if the metric is enabled.
+   */
+  public void incClosestreamCount() {
+    inc(CLOSESTREAM_COUNT);
   }
 
   /**
@@ -110,6 +133,24 @@ public class ChangeStreamMetrics implements Serializable {
   }
 
   /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#PARTITION_STREAM_COUNT}
+   * by 1.
+   */
+  public void incPartitionStreamCount() {
+    inc(PARTITION_STREAM_COUNT);
+  }
+
+  /**
+   * Decrements the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#PARTITION_STREAM_COUNT}
+   * by 1.
+   */
+  public void decPartitionStreamCount() {
+    dec(PARTITION_STREAM_COUNT);
+  }
+
+  /**
    * Adds measurement of an instance for the {@link
    * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#PROCESSING_DELAY_FROM_COMMIT_TIMESTAMP}.
    */
@@ -119,6 +160,10 @@ public class ChangeStreamMetrics implements Serializable {
 
   private void inc(Counter counter) {
     counter.inc();
+  }
+
+  private void dec(Counter counter) {
+    counter.dec();
   }
 
   private void update(Distribution distribution, long value) {

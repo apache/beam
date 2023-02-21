@@ -21,9 +21,13 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTabl
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.NEW_PARTITION_PREFIX;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.STREAM_PARTITION_PREFIX;
 
+import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.Filters;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Range;
+import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
 import javax.annotation.Nullable;
@@ -99,6 +103,79 @@ public class MetadataTableDao {
   }
 
   /**
+   * Convert partition to a New Partition row key to query for partitions ready to be streamed as
+   * the result of splits and merges.
+   *
+   * @param partition convert to row key
+   * @return row key to insert to Cloud Bigtable.
+   */
+  public ByteString convertPartitionToNewPartitionRowKey(Range.ByteStringRange partition) {
+    return getFullNewPartitionPrefix()
+        .concat(Range.ByteStringRange.serializeToByteString(partition));
+  }
+
+  /**
+   * @return stream of all the new partitions resulting from splits and merges waiting to be
+   *     streamed.
+   */
+  public ServerStream<Row> readNewPartitions() {
+    // It's important that we limit to the latest value per column because it's possible to write to
+    // the same column multiple times. We don't want to read and send duplicate tokens to the
+    // server.
+    Query query =
+        Query.create(tableId)
+            .prefix(getFullNewPartitionPrefix())
+            .filter(Filters.FILTERS.limit().cellsPerColumn(1));
+    return dataClient.readRows(query);
+  }
+
+  /**
+   * After a split or merge from a close stream, write the new partition's information to the
+   * metadata table.
+   *
+   * @param changeStreamContinuationToken the token that can be used to pick up from where the
+   *     parent left off
+   * @param parentPartition the parent that stopped and split or merged
+   * @param lowWatermark the low watermark of the parent stream
+   */
+  public void writeNewPartition(
+      ChangeStreamContinuationToken changeStreamContinuationToken,
+      Range.ByteStringRange parentPartition,
+      Instant lowWatermark) {
+    writeNewPartition(
+        changeStreamContinuationToken.getPartition(),
+        changeStreamContinuationToken.toByteString(),
+        Range.ByteStringRange.serializeToByteString(parentPartition),
+        lowWatermark);
+  }
+
+  /**
+   * After a split or merge from a close stream, write the new partition's information to the
+   * metadata table.
+   *
+   * @param newPartition the new partition
+   * @param newPartitionContinuationToken continuation token for the new partition
+   * @param parentPartition the parent that stopped
+   * @param lowWatermark low watermark of the parent
+   */
+  private void writeNewPartition(
+      Range.ByteStringRange newPartition,
+      ByteString newPartitionContinuationToken,
+      ByteString parentPartition,
+      Instant lowWatermark) {
+    ByteString rowKey = convertPartitionToNewPartitionRowKey(newPartition);
+    RowMutation rowMutation =
+        RowMutation.create(tableId, rowKey)
+            .setCell(MetadataTableAdminDao.CF_INITIAL_TOKEN, newPartitionContinuationToken, 1)
+            .setCell(MetadataTableAdminDao.CF_PARENT_PARTITIONS, parentPartition, 1)
+            .setCell(
+                MetadataTableAdminDao.CF_PARENT_LOW_WATERMARKS,
+                parentPartition,
+                ByteString.copyFromUtf8(Long.toString(lowWatermark.getMillis())));
+    dataClient.mutateRow(rowMutation);
+  }
+
+  /**
    * Update the metadata for the rowKey. This helper adds necessary prefixes to the row key.
    *
    * @param rowKey row key of the row to update
@@ -135,6 +212,18 @@ public class MetadataTableDao {
       @Nullable ChangeStreamContinuationToken currentToken) {
     writeToMdTableWatermarkHelper(
         convertPartitionToStreamPartitionRowKey(partition), watermark, currentToken);
+  }
+
+  /**
+   * Delete the row key represented by the partition. This represents that the partition will no
+   * longer be streamed.
+   *
+   * @param partition forms the row key of the row to delete
+   */
+  public void deleteStreamPartitionRow(Range.ByteStringRange partition) {
+    ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
+    RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
+    dataClient.mutateRow(rowMutation);
   }
 
   /**
