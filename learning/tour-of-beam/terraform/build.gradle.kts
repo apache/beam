@@ -197,7 +197,7 @@ tasks.register("firebaseWebAppCreate") {
             val regex = Regex("$webapp_id[│ ]+([\\w:]+)[│ ]+WEB[│ ]+")
             val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-            println(firebaseAppId)
+            println("Firebase app ID for existing Firebase Web App: $firebaseAppId")
         } else {
             val result2 = ByteArrayOutputStream()
             exec {
@@ -205,7 +205,6 @@ tasks.register("firebaseWebAppCreate") {
                 args("apps:create", "WEB", webapp_id, "--project", project_id)
                 standardOutput = result2
             }.assertNormalExitValue()
-            println(result2)
             val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
             println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
@@ -214,11 +213,14 @@ tasks.register("firebaseWebAppCreate") {
     tasks.getByName("getSdkConfigWebApp").mustRunAfter(this)
 }
 
-// firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
+// firebase apps:sdkconfig WEB AppId
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
     doLast{
         val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
+        if (firebaseAppId == null) {
+            throw Exception("firebaseAppId not set.")
+        }
         val result = ByteArrayOutputStream()
         exec {
             executable("firebase")
@@ -226,17 +228,17 @@ tasks.register("getSdkConfigWebApp") {
             standardOutput = result
         }
         val output = result.toString().trim()
-        val pattern = Pattern.compile("\\{.*\"locationId\":\\s*\"(.*?)\".*\\}", Pattern.DOTALL)
+        val pattern = Pattern.compile("\"locationId\"\\s*:\\s*\"(.*?)\"")
         val matcher = pattern.matcher(output)
         if (matcher.find()) {
-            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "")
+            val locationId = matcher.group(1)
+            val firebaseConfigData = "{\n  \"locationId\": \"$locationId\"\n}"
             project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
-            println("Firebase config data: $firebaseConfigData")
+            println("Firebase config data:\n$firebaseConfigData")
         } else {
             throw Exception("Unable to extract Firebase config data from output.")
         }
     }
-
 }
 
 tasks.register("prepareFirebaseOptionsDart") {
