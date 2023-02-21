@@ -95,25 +95,18 @@ Advantages:
 - The CI of the Beam repository guarantees your snippet builds and runs correctly.
 - Output and graph are cached so the viewers of your snippet will not wait when they run it.
 
-#### 1. Put the file to the directory
+#### 1. Put the file to a directory
 
-Snippets for the Playground Catalog are automatically picked from predefined categories
-by a workflow **(WHICH ONE?)** after merging a PR.
+Snippets for the Playground Catalog are automatically picked from predefined directories:
 
-This directories are:
+- `/learning/katas`
+- `/examples`
+- `/sdks`
 
-| SDK | Snippet path root |
-|-|-|
-| Java | **?** |
-| Python | **?** |
-| Go | **?** |
+by the `playground_examples_ci.yml` workflow after merging a PR.
 
-Place the file anywhere under the given directory.
-
-**TODO: NAMING, DIRECTORY STRUCTURE?**
-
-Snippets in Scala are not yet supported for by that workflow.
-All existing Scala examples are added manually by the team.
+Snippets in Scala are not yet supported for by this workflow.
+All existing Scala snippets are added manually by the team.
 Please use other options to place your Scala snippets.
 
 #### 2. Add metadata
@@ -155,22 +148,18 @@ A reviewer will be assigned. After merge the snippet will be visible in the Play
 
 The CI we have will also check that the example compiles and runs alright.
 
-#### 4. Save the snippet path
+#### 4. Save the snippet ID
 
-The snippet will be assigned a path to identify it.
+The snippet will be assigned an ID.
 You can find it in the address bar of the browser when you select it in the dropdown.
 
 For example, this URL:
 
 ```
-https://play.beam.apache.org/?path=SDK_JAVA%2FPRECOMPILED_OBJECT_TYPE_EXAMPLE%2FMinimalWordCount&sdk=java
+https://play.beam.apache.org/?path=SDK_JAVA_MinimalWordCount&sdk=java
 ```
 
-after [URL decoding](https://www.urldecoder.org) indicates this snippet path:
-
-```
-SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount
-```
+the ID is: `SDK_JAVA_MinimalWordCount`.
 
 You will need it to embed the Playground code.
 
@@ -279,7 +268,7 @@ where you placed the code.
 
 The link contains the `path` to your snippet in the database. It is in the following format:
 ```
-https://play.beam.apache.org/?path=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax&sdk=java
+https://play.beam.apache.org/?path=SDK_JAVA_MinimalWordCount&sdk=java
 ```
 
 A special case is the default snippet for an SDK. It can be loaded by the following link:
@@ -374,7 +363,7 @@ are allowed for loading single examples, for instance:
 [
   {
     "sdk": "java",
-    "path": "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"
+    "path": "SDK_JAVA_MinimalWordCount"
   },
   {
     "sdk": "go",
@@ -386,7 +375,7 @@ are allowed for loading single examples, for instance:
 
 Then pass it in`examples` query parameter like this:
 
-`https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"},{"sdk":"go","url":"https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go","readonly":"iam_get_role"}]`
+`https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA_MinimalWordCount"},{"sdk":"go","url":"https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go","readonly":"iam_get_role"}]`
 
 This starts with the Go example loaded from the URL.
 If SDK is then switched to Java, the `AggregationMax` catalog example is loaded for it.
