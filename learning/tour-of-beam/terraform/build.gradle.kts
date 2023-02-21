@@ -206,7 +206,7 @@ tasks.register("firebaseWebAppCreate") {
         } else {
             exec {
                 executable("firebase")
-                args("apps:create", "WEB", "Tour-of-Beam-Web-App", "--project", project_id)
+                args("apps:create", "WEB", webapp_id, "--project", project_id)
                 standardOutput = result2
             }
             println(result2)
