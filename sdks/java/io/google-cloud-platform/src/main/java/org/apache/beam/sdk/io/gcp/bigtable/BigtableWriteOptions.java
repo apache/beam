@@ -48,8 +48,11 @@ abstract class BigtableWriteOptions implements Serializable {
   /** Returns the number of bytes of a batch. */
   abstract @Nullable Long getBatchBytes();
 
-  /** Returns the max number of concurrent requests allowed. */
-  abstract @Nullable Long getMaxRequests();
+  /** Returns the max number of concurrent elements allowed before enforcing flow control. */
+  abstract @Nullable Long getMaxOutstandingElements();
+
+  /** Returns the max number of concurrent bytes allowed before enforcing flow control. */
+  abstract @Nullable Long getMaxOutstandingBytes();
 
   abstract Builder toBuilder();
 
@@ -70,7 +73,9 @@ abstract class BigtableWriteOptions implements Serializable {
 
     abstract Builder setBatchBytes(long bytes);
 
-    abstract Builder setMaxRequests(long count);
+    abstract Builder setMaxOutstandingElements(long count);
+
+    abstract Builder setMaxOutstandingBytes(long bytes);
 
     abstract BigtableWriteOptions build();
   }
@@ -94,8 +99,11 @@ abstract class BigtableWriteOptions implements Serializable {
         .addIfNotNull(
             DisplayData.item("batchBytes", getBatchBytes()).withLabel("Write batch byte size"))
         .addIfNotNull(
-            DisplayData.item("maxRequests", getMaxRequests())
-                .withLabel("Write max concurrent requests"));
+            DisplayData.item("maxOutstandingElements", getMaxOutstandingElements())
+                .withLabel("Write max outstanding elements"))
+        .addIfNotNull(
+            DisplayData.item("maxOutstandingBytes", getMaxOutstandingBytes())
+                .withLabel("Write max outstanding bytes"));
   }
 
   void validate() {

@@ -950,15 +950,30 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with the max number of concurrent requests.
+     * Returns a new {@link BigtableIO.Write} with the max number of outstanding elements allowed
+     * before enforcing flow control.
      *
      * <p>Does not modify this object.
      */
-    public Write withMaxRequests(long requests) {
-      checkArgument(requests > 0, "max requests must be positive");
+    public Write withMaxOutstandingElements(long count) {
+      checkArgument(count > 0, "max outstanding elements must be positive");
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setMaxRequests(requests).build())
+          .setBigtableWriteOptions(options.toBuilder().setMaxOutstandingElements(count).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the max number of outstanding bytes allowed
+     * before enforcing flow control.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withMaxOutstandingBytes(long bytes) {
+      checkArgument(bytes > 0, "max outstanding bytes must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setMaxOutstandingBytes(bytes).build())
           .build();
     }
 

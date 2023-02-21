@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import com.google.api.gax.batching.BatchingSettings;
+import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
@@ -167,20 +168,15 @@ class BigtableConfigTranslator {
       batchingSettings.setRequestByteThreshold(writeOptions.getBatchBytes());
     }
 
-    if (writeOptions.getMaxRequests() != null) {
-      BatchingSettings tmpSettings = batchingSettings.build();
-      batchingSettings =
-          batchingSettings.setFlowControlSettings(
-              callSettings
-                  .getBatchingSettings()
-                  .getFlowControlSettings()
-                  .toBuilder()
-                  .setMaxOutstandingElementCount(
-                      tmpSettings.getElementCountThreshold() * writeOptions.getMaxRequests())
-                  .setMaxOutstandingRequestBytes(
-                      tmpSettings.getRequestByteThreshold() * writeOptions.getMaxRequests())
-                  .build());
+    FlowControlSettings.Builder flowControlSettings =
+        callSettings.getBatchingSettings().getFlowControlSettings().toBuilder();
+    if (writeOptions.getMaxOutstandingElements() != null) {
+      flowControlSettings.setMaxOutstandingElementCount(writeOptions.getMaxOutstandingElements());
     }
+    if (writeOptions.getMaxOutstandingBytes() != null) {
+      flowControlSettings.setMaxOutstandingRequestBytes(writeOptions.getMaxOutstandingBytes());
+    }
+    batchingSettings = batchingSettings.setFlowControlSettings(flowControlSettings.build());
 
     settings
         .stubSettings()
@@ -334,7 +330,12 @@ class BigtableConfigTranslator {
     // configure batch size
     builder.setBatchElements(options.getBulkOptions().getBulkMaxRowKeyCount());
     builder.setBatchBytes(options.getBulkOptions().getBulkMaxRequestSize());
-    builder.setMaxRequests(options.getBulkOptions().getMaxInflightRpcs());
+    builder.setMaxOutstandingElements(
+        options.getBulkOptions().getMaxInflightRpcs()
+            * (long) options.getBulkOptions().getBulkMaxRowKeyCount());
+    builder.setMaxOutstandingBytes(
+        options.getBulkOptions().getMaxInflightRpcs()
+            * options.getBulkOptions().getBulkMaxRequestSize());
 
     return builder.build();
   }

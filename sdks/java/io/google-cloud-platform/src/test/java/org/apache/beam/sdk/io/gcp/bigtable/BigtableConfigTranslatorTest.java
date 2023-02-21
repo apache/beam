@@ -134,13 +134,15 @@ public class BigtableConfigTranslatorTest {
     assertNotNull(writeOptions.getOperationTimeout());
     assertNotNull(writeOptions.getBatchBytes());
     assertNotNull(writeOptions.getBatchElements());
-    assertNotNull(writeOptions.getMaxRequests());
+    assertNotNull(writeOptions.getMaxOutstandingElements());
+    assertNotNull(writeOptions.getMaxOutstandingBytes());
 
     assertEquals(org.joda.time.Duration.millis(200), writeOptions.getAttemptTimeout());
     assertEquals(org.joda.time.Duration.millis(2000), writeOptions.getOperationTimeout());
     assertEquals(20, (long) writeOptions.getBatchBytes());
     assertEquals(100, (long) writeOptions.getBatchElements());
-    assertEquals(5, (long) writeOptions.getMaxRequests());
+    assertEquals(5 * 100, (long) writeOptions.getMaxOutstandingElements());
+    assertEquals(5 * 20, (long) writeOptions.getMaxOutstandingBytes());
   }
 
   @Test
@@ -191,9 +193,10 @@ public class BigtableConfigTranslatorTest {
             .setTableId(ValueProvider.StaticValueProvider.of("table"))
             .setAttemptTimeout(org.joda.time.Duration.millis(101))
             .setOperationTimeout(org.joda.time.Duration.millis(1001))
-            .setMaxRequests(11)
             .setBatchElements(105)
             .setBatchBytes(102)
+            .setMaxOutstandingElements(10001)
+            .setMaxOutstandingBytes(100001)
             .build();
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
 
@@ -221,7 +224,7 @@ public class BigtableConfigTranslatorTest {
         (long)
             stubSettings.bulkMutateRowsSettings().getBatchingSettings().getRequestByteThreshold());
     assertEquals(
-        105 * 11,
+        10001,
         (long)
             stubSettings
                 .bulkMutateRowsSettings()
@@ -230,7 +233,7 @@ public class BigtableConfigTranslatorTest {
                 .getMaxOutstandingElementCount());
 
     assertEquals(
-        102 * 11,
+        100001,
         (long)
             stubSettings
                 .bulkMutateRowsSettings()
