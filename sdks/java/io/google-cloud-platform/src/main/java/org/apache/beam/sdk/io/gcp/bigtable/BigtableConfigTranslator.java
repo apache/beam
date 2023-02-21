@@ -37,7 +37,6 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.util.Objects;
-import javax.annotation.Nonnull;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.threeten.bp.Duration;
 
 /**
@@ -62,18 +62,18 @@ class BigtableConfigTranslator {
 
   /** Translate BigtableConfig and BigtableReadOptions to Veneer settings. */
   static BigtableDataSettings translateReadToVeneerSettings(
-      @Nonnull BigtableConfig config,
-      @Nonnull BigtableReadOptions options,
-      @Nonnull PipelineOptions pipelineOptions) {
+      @NonNull BigtableConfig config,
+      @NonNull BigtableReadOptions options,
+      @NonNull PipelineOptions pipelineOptions) {
     BigtableDataSettings.Builder settings = buildBigtableDataSettings(config, pipelineOptions);
     return configureReadSettings(settings, options);
   }
 
   /** Translate BigtableConfig and BigtableWriteOptions to Veneer settings. */
   static BigtableDataSettings translateWriteToVeneerSettings(
-      @Nonnull BigtableConfig config,
-      @Nonnull BigtableWriteOptions options,
-      @Nonnull PipelineOptions pipelineOptions) {
+      @NonNull BigtableConfig config,
+      @NonNull BigtableWriteOptions options,
+      @NonNull PipelineOptions pipelineOptions) {
 
     BigtableDataSettings.Builder settings = buildBigtableDataSettings(config, pipelineOptions);
     return configureWriteSettings(settings, options);
@@ -81,7 +81,7 @@ class BigtableConfigTranslator {
 
   /** Translate BigtableConfig and BigtableWriteOptions to Veneer settings. */
   static BigtableDataSettings translateToVeneerSettings(
-      @Nonnull BigtableConfig config, @Nonnull PipelineOptions pipelineOptions) {
+      @NonNull BigtableConfig config, @NonNull PipelineOptions pipelineOptions) {
 
     return buildBigtableDataSettings(config, pipelineOptions).build();
   }

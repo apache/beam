@@ -61,7 +61,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -75,6 +74,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -619,8 +619,8 @@ class BigtableServiceImpl implements BigtableService {
     private final ByteString value;
     private final boolean isClosed;
 
-    @Nonnull
-    static StartPoint extract(@Nonnull RowRange rowRange) {
+    @NonNull
+    static StartPoint extract(@NonNull RowRange rowRange) {
       switch (rowRange.getStartKeyCase()) {
         case STARTKEY_NOT_SET:
           return new StartPoint(ByteString.EMPTY, true);
@@ -638,13 +638,13 @@ class BigtableServiceImpl implements BigtableService {
       }
     }
 
-    private StartPoint(@Nonnull ByteString value, boolean isClosed) {
+    private StartPoint(@NonNull ByteString value, boolean isClosed) {
       this.value = value;
       this.isClosed = isClosed;
     }
 
     @Override
-    public int compareTo(@Nonnull StartPoint o) {
+    public int compareTo(@NonNull StartPoint o) {
       return ComparisonChain.start()
           // Empty string comes first
           .compareTrueFirst(value.isEmpty(), o.value.isEmpty())
@@ -660,8 +660,8 @@ class BigtableServiceImpl implements BigtableService {
     private final ByteString value;
     private final boolean isClosed;
 
-    @Nonnull
-    static EndPoint extract(@Nonnull RowRange rowRange) {
+    @NonNull
+    static EndPoint extract(@NonNull RowRange rowRange) {
       switch (rowRange.getEndKeyCase()) {
         case ENDKEY_NOT_SET:
           return new EndPoint(ByteString.EMPTY, true);
@@ -679,13 +679,13 @@ class BigtableServiceImpl implements BigtableService {
       }
     }
 
-    private EndPoint(@Nonnull ByteString value, boolean isClosed) {
+    private EndPoint(@NonNull ByteString value, boolean isClosed) {
       this.value = value;
       this.isClosed = isClosed;
     }
 
     @Override
-    public int compareTo(@Nonnull EndPoint o) {
+    public int compareTo(@NonNull EndPoint o) {
       return ComparisonChain.start()
           // Empty string comes last
           .compareFalseFirst(value.isEmpty(), o.value.isEmpty())
@@ -717,13 +717,12 @@ class BigtableServiceImpl implements BigtableService {
       private com.google.bigtable.v2.Row.Builder protoBuilder =
           com.google.bigtable.v2.Row.newBuilder();
 
-      private ByteString currentValue;
-      private Family.Builder lastFamily;
-      private String lastFamilyName;
-      private Column.Builder lastColumn;
-      private ByteString lastColumnName;
-
-      private Cell.Builder lastCell;
+      private @Nullable ByteString currentValue;
+      private Family.@Nullable Builder lastFamily;
+      private @Nullable String lastFamilyName;
+      private Column.@Nullable Builder lastColumn;
+      private @Nullable ByteString lastColumnName;
+      private Cell.@Nullable Builder lastCell;
 
       @Override
       public void startRow(ByteString key) {
