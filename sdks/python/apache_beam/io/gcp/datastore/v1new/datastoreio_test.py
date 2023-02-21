@@ -66,9 +66,9 @@ class FakeMutation(object):
 
   def ByteSize(self):
     if self.entity is not None:
-      return helpers.entity_to_protobuf(self.entity).ByteSize()
+      return util.extract_byte_size(helpers.entity_to_protobuf(self.entity))
     else:
-      return self.key.to_protobuf().ByteSize()
+      return util.extract_byte_size(self.key.to_protobuf())
 
 
 class FakeBatch(object):
