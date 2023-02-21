@@ -243,8 +243,8 @@ tasks.register("getSdkConfigWebApp") {
 
 tasks.register("prepareFirebaseOptionsDart") {
     group = "frontend-deploy"
-    val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
     doLast {
+        val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
         val file = project.file("../frontend/lib/firebase_options.dart")
         val content = file.readText()
         val updatedContent = content.replace(Regex("""FirebaseOptions\((.*)\)"""), "FirebaseOptions(${firebaseConfigData})")
