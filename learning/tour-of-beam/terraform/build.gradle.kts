@@ -231,8 +231,8 @@ tasks.register("getSdkConfigWebApp") {
         val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
         val matcher = pattern.matcher(output)
         if (matcher.find()) {
-            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "").replace("\"locationId\":\\s*\".*?\",?".toRegex(), "")
-            project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData.trim()
+            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "")
+            project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
             println("Firebase config data: $firebaseConfigData")
         } else {
             throw Exception("Unable to extract Firebase config data from output.")
@@ -241,14 +241,14 @@ tasks.register("getSdkConfigWebApp") {
     tasks.getByName("prepareFirebaseOptionsDart").mustRunAfter(this)
 }
 
-
 tasks.register("prepareFirebaseOptionsDart") {
     group = "frontend-deploy"
     doLast {
         val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
+        println("FirebaseConfigData for firebase_options file is: $firebaseConfigData")
         val file = project.file("../frontend/lib/firebase_options.dart")
         val content = file.readText()
-        val updatedContent = content.replace(Regex("""static const FirebaseOptions web = FirebaseOptions\(\s*([^)]+)\);"""), "static const FirebaseOptions web = FirebaseOptions($firebaseConfigData);")
+        val updatedContent = content.replace(Regex("""FirebaseOptions\((.*)\)"""), "FirebaseOptions(${firebaseConfigData})")
         file.writeText(updatedContent)
     }
 }
