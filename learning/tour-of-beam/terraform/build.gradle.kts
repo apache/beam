@@ -206,11 +206,11 @@ tasks.register("firebaseWebAppCreate") {
             args("apps:create", "WEB", "Tour-of-Beam-Web-App", "--project", project_id)
             standardOutput = result2
         }
+        println(result2)
+        val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
+        project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+        println("Firebase app ID for condition 2: $firebaseAppId")
     }
-    println(result2)
-    val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
-    project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-    println("Firebase app ID for condition 2: $firebaseAppId")
 }
 
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
