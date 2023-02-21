@@ -38,7 +38,6 @@ import pkg_resources
 
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
-os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'upb'
 
 LICENSE_HEADER = """
 #
@@ -125,6 +124,7 @@ def generate_urn_files(out_dir, api_path):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
+  from google._upb import _message
   from google.protobuf import message
 
   class Context(object):
@@ -180,8 +180,8 @@ def generate_urn_files(out_dir, api_path):
           obj,
           (
               list,
-              containers.RepeatedScalarFieldContainer,
-              containers.RepeatedCompositeFieldContainer
+              _message.RepeatedScalarContainer,
+              _message.RepeatedCompositeContainer,
           )):  # pylint: disable=c-extension-no-member
         return '[%s]' % ', '.join(self.python_repr(x) for x in obj)
       else:
@@ -203,13 +203,12 @@ def generate_urn_files(out_dir, api_path):
       else:
         return self.empty_type(type(msg))
 
-    def write_enum(self, enum_name, descriptor, indent):
+    def write_enum(self, enum_name, enum, indent):
       ctx = Context(indent=indent)
-
       with ctx.indent():
-        for enum_name, v in descriptor.enum_types_by_name.items():
-          extensions = v.GetOptions().Extensions
-
+        for enum_value_name in enum.values_by_name:
+          enum_value_descriptor = enum.values_by_name[enum_value_name]
+          extensions = enum_value_descriptor.GetOptions().Extensions
           prop = (
               extensions[beam_runner_api_pb2.beam_urn],
               extensions[beam_runner_api_pb2.beam_constant],
@@ -221,7 +220,7 @@ def generate_urn_files(out_dir, api_path):
             continue
           ctx.line(
               '%s = PropertiesFromEnumValue(%s)' %
-              (v.name, ', '.join(self.python_repr(x) for x in prop)))
+              (enum_value_name, ', '.join(self.python_repr(x) for x in prop)))
 
       if ctx.lines:
         ctx.prepend('class %s(object):' % enum_name)
@@ -233,13 +232,11 @@ def generate_urn_files(out_dir, api_path):
       ctx = Context(indent=indent)
 
       with ctx.indent():
-        if 'MonitoringInfoSpecs' in str(message):
-          pass
         for obj_name, obj in inspect.getmembers(message):
-          if self.is_message_type(obj):
-            ctx.lines += self.write_message(obj_name, obj, ctx._indent)
-          elif obj_name == 'DESCRIPTOR':
-            ctx.lines += self.write_enum(obj_name, obj, ctx._indent)
+          if obj_name == 'DESCRIPTOR':
+            for enum_name in obj.enum_types_by_name:
+              enum = obj.enum_types_by_name[enum_name]
+              ctx.lines += self.write_enum(enum_name, enum, ctx._indent)
 
       if ctx.lines:
         ctx.prepend('class %s(object):' % message_name)
