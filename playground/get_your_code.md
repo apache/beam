@@ -19,10 +19,10 @@ They can be combined, e.g.
   * [Named Sections](#named-sections)
 - [Step 2. Place your code somewhere the Playground can load it from](#step-2-place-your-code-somewhere-the-playground-can-load-it-from)
   * [Source 1. Playground Visible Catalog](#source-1-playground-visible-catalog)
-    + [1. Put the file to the directory](#1-put-the-file-to-the-directory)
+    + [1. Put the file to a directory](#1-put-the-file-to-a-directory)
     + [2. Add metadata](#2-add-metadata)
     + [3. Make a PR](#3-make-a-pr)
-    + [4. Save the snippet path](#4-save-the-snippet-path)
+    + [4. Save the snippet ID](#4-save-the-snippet-id)
   * [Source 2. Playground Unlisted Database](#source-2-playground-unlisted-database)
   * [Source 3. Tour of Beam unit](#source-3-tour-of-beam-unit)
   * [Source 4. User-shared Code](#source-4-user-shared-code)
@@ -41,10 +41,10 @@ They can be combined, e.g.
       - [Hiding everything except a section](#hiding-everything-except-a-section)
     + [Linking to multiple examples](#linking-to-multiple-examples)
     + [Embedded vs Standalone Playground URLs](#embedded-vs-standalone-playground-urls)
-  * [Embed into HTML](#embed-into-html)
-    + [1. Embed a snippet from Playground Visible Catalog](#1-embed-a-snippet-from-playground-visible-catalog)
-    + [2. Embed User-shared Code](#2-embed-user-shared-code)
-    + [3. Embed a snippet from any other source](#3-embed-a-snippet-from-any-other-source)
+  * [Embedding into HTML](#embedding-into-html)
+    + [1. Embedding a snippet from Playground Visible Catalog](#1-embedding-a-snippet-from-playground-visible-catalog)
+    + [2. Embedding User-shared Code](#2-embedding-user-shared-code)
+    + [3. Embedding a snippet from any other source](#3-embedding-a-snippet-from-any-other-source)
   * [Embedding into the Beam documentation](#embedding-into-the-beam-documentation)
 
 
@@ -97,10 +97,10 @@ Advantages:
 
 #### 1. Put the file to a directory
 
-Snippets for the Playground Catalog are automatically picked from predefined directories:
+Snippets for the Playground Catalog are automatically picked from these predefined directories:
 
-- `/learning/katas`
 - `/examples`
+- `/learning/katas`
 - `/sdks`
 
 by the `playground_examples_ci.yml` workflow after merging a PR.
@@ -133,7 +133,7 @@ The CI we have will also check that the example compiles and runs alright.
 The snippet will be assigned an ID.
 You can find it in the address bar of the browser when you select it in the dropdown.
 
-For example, this URL:
+For example, in this URL:
 
 ```
 https://play.beam.apache.org/?path=SDK_JAVA_MinimalWordCount&sdk=java
@@ -145,9 +145,10 @@ You will need it to embed the Playground code.
 
 ### Source 2. Playground Unlisted Database
 
-If your snippet is less useful to public for learning but still beneficial to some group
-of people, you can put it into the same database as the Playground Visible Catalog
-but make it unlisted.
+If your snippet is not as significant to show to everyone in the dropdown
+but still is a good example of some feature,
+you can put it into the same database as the Playground Visible Catalog but make it unlisted.
+This is the recommended method for snippets for the Beam website documentation.
 
 Advantages:
 
@@ -162,7 +163,7 @@ Proceed the same way as with Playground Visible Catalog except:
    - `default_example`
    - `tags`
 
-The ID of the snippet is a function of the SDK and the `name` tag from its metadata:
+The ID of the snippet is a function of the SDK and the `name` attribute from its metadata:
 
 | SDK | ID |
 |-|-|
@@ -183,13 +184,13 @@ Advantages:
 
 Proceed the same way as with Playground Visible Catalog except:
 
-1. Use the directory `/learning/tour-of-beam/learning-content`.
+1. Use the directory `/learning/tour-of-beam/learning-content`
 2. Use an empty list for `categories` attribute: `categories: []`
 3. Do not use the following attributes:
    - `default_example`
    - `tags`
 
-The ID of the snippet is a function of the SDK and the `name` tag from its metadata:
+The ID of the snippet is a function of the SDK and the `name` attribute from its metadata:
 
 | SDK | ID |
 |-|-|
@@ -212,7 +213,7 @@ Drawbacks:
 
 - The code may be deleted if it is not loaded by anyone during a 6 months rolling window.
 - No validation.
-- No cached output and graph.
+- No cached output or graph.
 - A snippet is immutable. If you edit the code and re-share, you get a new link.
 - You cannot delete the code uploaded by accident.
 
@@ -223,7 +224,7 @@ It contains the ID of your snippet that you can later use with other sharing met
 ### Source 5. HTTPS
 
 You can upload a snippet file to any HTTPS-server you have access to.
-Then you refer to it by a URL to load into Playground.
+Then you refer to it by a URL to load it into Playground.
 
 Advantages:
 
@@ -234,7 +235,7 @@ Advantages:
 Drawbacks:
 
 - No validation.
-- No cached output and graph.
+- No cached output or graph.
 
 For Playground to be able to load the snippet over HTTPS,
 your server needs to allow the access by sending the following header:
@@ -254,7 +255,7 @@ GitHub is known to allow cross-origin access on direct links to raw file content
 
 ## Step 3. Create a link or embed
 
-Once you uploaded or otherwise prepared your code, you can get it shown in the Playground.
+Once you have uploaded or otherwise prepared your code, you can get it shown in the Playground.
 Choose any of the following ways.
 
 ### Direct Link to the Standalone Playground Web App
@@ -312,7 +313,7 @@ https://play.beam.apache.org/?sdk=go&url=https://raw.githubusercontent.com/golan
 
 #### 6. Link to an empty editor
 
-You can link to an empty editor to make uses start their snippets from scratch:
+You can link to an empty editor to make your users start their snippets from scratch:
 
 ```
 https://play.beam.apache.org/?sdk=go&empty=true
@@ -320,7 +321,8 @@ https://play.beam.apache.org/?sdk=go&empty=true
 
 #### Passing View Options
 
-If your code contains named sections as described in the beginning of this page,
+If your code contains named sections as described in the
+[Step 1. Prepare Your Code](#step-1-prepare-your-code),
 you can apply view options to those sections. Otherwise skip this.
 
 ##### Read-only sections
@@ -399,23 +401,23 @@ Additionally the Embedded playground supports the following parameters:
 
 - `editable=0` to make the editor read-only.
 
-### Embed into HTML
+### Embedding into HTML
 
-#### 1. Embed a snippet from Playground Visible Catalog
+#### 1. Embedding a snippet from Playground Visible Catalog
 
 1. Open your snippet in the dropdown menu.
 2. Without changing it, click "Share my code".
 3. Go to "Embed" tab.
 4. Copy the HTML code.
 
-#### 2. Embed User-shared Code
+#### 2. Embedding User-shared Code
 
 1. Open your code by the link that you got when you shared it.
 2. Again click "Share my code".
 3. Go to "Embed" tab.
 4. Copy the HTML code.
 
-#### 3. Embed a snippet from any other source
+#### 3. Embedding a snippet from any other source
 
 1. Follow the instructions to [get a link](#direct-link-to-the-standalone-playground-web-app) to your code.
 2. Optionally make the link to the Embedded Playground by replacing `beam.apache.org/?...`
