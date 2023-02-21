@@ -228,13 +228,12 @@ tasks.register("getSdkConfigWebApp") {
             standardOutput = result
         }
         val output = result.toString().trim()
-        val pattern = Pattern.compile("\"locationId\"\\s*:\\s*\"(.*?)\"")
+        val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
         val matcher = pattern.matcher(output)
         if (matcher.find()) {
-            val locationId = matcher.group(1)
-            val firebaseConfigData = "{\n  \"locationId\": \"$locationId\"\n}"
+            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "")
             project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
-            println("Firebase config data:\n$firebaseConfigData")
+            println("Firebase config data: $firebaseConfigData")
         } else {
             throw Exception("Unable to extract Firebase config data from output.")
         }
