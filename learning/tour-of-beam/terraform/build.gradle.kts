@@ -238,12 +238,13 @@ tasks.register("getSdkConfigWebApp") {
             throw Exception("Unable to extract Firebase config data from output.")
         }
     }
+    tasks.getByName("prepareFirebaseOptionsDart").mustRunAfter(this)
 }
 
 tasks.register("prepareFirebaseOptionsDart") {
     group = "frontend-deploy"
+    val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
     doLast {
-        val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
         val file = project.file("../frontend/lib/firebase_options.dart")
         val content = file.readText()
         val updatedContent = content.replace(Regex("""FirebaseOptions\((.*)\)"""), "FirebaseOptions(${firebaseConfigData})")
