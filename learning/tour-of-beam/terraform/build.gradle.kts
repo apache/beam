@@ -216,9 +216,9 @@ tasks.register("firebaseWebAppCreate") {
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
-    val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
-    val result = ByteArrayOutputStream()
     doLast{
+        val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
+        val result = ByteArrayOutputStream()
         exec {
             executable("firebase")
             args("apps:sdkconfig", "WEB", firebaseAppId)
@@ -235,6 +235,7 @@ tasks.register("getSdkConfigWebApp") {
             throw Exception("Unable to extract Firebase config data from output.")
         }
     }
+    tasks.getByName("firebaseWebAppCreate").mustRunAfter(this)
 }
 
 tasks.register("prepareFirebaseOptionsDart") {
