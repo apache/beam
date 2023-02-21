@@ -200,7 +200,7 @@ tasks.register("firebaseWebAppCreate") {
             standardOutput = result1
         }
         val output = result1.toString().trim()
-        if (output.contains("$webapp_id")) {
+        if (output.contains(webapp_id)) {
             println("Tour of Beam Web App $webapp_id is already created on the project $project_id.")
             val firebaseAppId = result1.toString().lines().find { it.contains("1:") }?.substringAfter("$webapp_id │ ")?.substringBefore(" │ WEB")?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
@@ -316,7 +316,7 @@ tasks.register("prepareConfig") {
         }
         val configFileName = "config.dart"
         val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
-        var file = File("$modulePath/lib/$configFileName")
+        val file = File("$modulePath/lib/$configFileName")
 
         file.writeText(
                 """
@@ -363,7 +363,7 @@ tasks.register("populateDatastore") {
         if (result.exitValue != 0) {
             throw GradleException("Command execution failed with exit code ${result.exitValue}")
         }
-        println("Output of script:\n${result.toString()}")
+        println("Output of script:\n$result")
     }
 }
 
