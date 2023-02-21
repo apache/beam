@@ -213,9 +213,6 @@ tasks.register("firebaseWebAppCreate") {
     }
 }
 
-
-
-
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
 tasks.register("getSdkConfigWebApp") {
     dependsOn("firebaseWebAppCreate")
@@ -301,6 +298,7 @@ tasks.register("firebaseDeploy") {
 
 tasks.register("prepareConfig") {
     group = "frontend-deploy"
+    outputs.upToDateWhen { false } // Disable up-to-date checks
     doLast {
         var dns_name = ""
         var region = ""
