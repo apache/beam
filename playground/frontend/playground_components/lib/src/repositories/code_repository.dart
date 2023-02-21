@@ -53,8 +53,9 @@ class CodeRepository {
                   .map((e) => '--${e.key} ${e.value}')
                   .join(' ') + '\n';
       final initResult = RunCodeResult(
-        status: RunCodeStatus.preparation,
         log: log,
+        sdk: request.sdk,
+        status: RunCodeStatus.preparation,
       );
       yield initResult;
 
@@ -67,9 +68,10 @@ class CodeRepository {
       );
     } on RunCodeError catch (error) {
       yield RunCodeResult(
-        status: RunCodeStatus.unknownError,
         errorMessage: error.message ?? kUnknownErrorText,
         output: error.message ?? kUnknownErrorText,
+        sdk: request.sdk,
+        status: RunCodeStatus.unknownError,
       );
     }
   }
@@ -80,7 +82,7 @@ class CodeRepository {
 
   Stream<RunCodeResult> _checkPipelineExecution(
     String pipelineUuid, {
-    RunCodeResult? prevResult,
+    required RunCodeResult prevResult,
   }) async* {
     try {
       final statusResponse = await runWithRetry(
@@ -101,10 +103,11 @@ class CodeRepository {
       }
     } on RunCodeError catch (error) {
       yield RunCodeResult(
-        pipelineUuid: prevResult?.pipelineUuid,
-        status: RunCodeStatus.unknownError,
         errorMessage: error.message ?? kUnknownErrorText,
         output: error.message ?? kUnknownErrorText,
+        pipelineUuid: prevResult.pipelineUuid,
+        sdk: prevResult.sdk,
+        status: RunCodeStatus.unknownError,
       );
     }
   }
@@ -112,69 +115,77 @@ class CodeRepository {
   Future<RunCodeResult> _getPipelineResult(
     String pipelineUuid,
     RunCodeStatus status,
-    RunCodeResult? prevResult,
+    RunCodeResult prevResult,
   ) async {
-    final prevOutput = prevResult?.output ?? '';
-    final prevLog = prevResult?.log ?? '';
-    final prevGraph = prevResult?.graph ?? '';
+    final prevOutput = prevResult.output ?? '';
+    final prevLog = prevResult.log ?? '';
+    final prevGraph = prevResult.graph ?? '';
 
     switch (status) {
       case RunCodeStatus.compileError:
         final compileOutput = await _client.getCompileOutput(pipelineUuid);
         return RunCodeResult(
-          pipelineUuid: pipelineUuid,
-          status: status,
-          output: compileOutput.output,
-          log: prevLog,
           graph: prevGraph,
+          log: prevLog,
+          output: compileOutput.output,
+          pipelineUuid: pipelineUuid,
+          sdk: prevResult.sdk,
+          status: status,
         );
 
       case RunCodeStatus.timeout:
         return RunCodeResult(
-          pipelineUuid: pipelineUuid,
-          status: status,
           errorMessage: kTimeoutErrorText,
-          output: kTimeoutErrorText,
-          log: prevLog,
           graph: prevGraph,
+          log: prevLog,
+          output: kTimeoutErrorText,
+          pipelineUuid: pipelineUuid,
+          sdk: prevResult.sdk,
+          status: status,
         );
 
       case RunCodeStatus.runError:
         final output = await _client.getRunErrorOutput(pipelineUuid);
         return RunCodeResult(
-          pipelineUuid: pipelineUuid,
-          status: status,
-          output: output.output,
-          log: prevLog,
           graph: prevGraph,
+          log: prevLog,
+          output: output.output,
+          pipelineUuid: pipelineUuid,
+          sdk: prevResult.sdk,
+          status: status,
         );
 
       case RunCodeStatus.validationError:
-        final output = await _client.getValidationErrorOutput(pipelineUuid);
+        final output =
+            await _client.getValidationErrorOutput(pipelineUuid);
         return RunCodeResult(
-          status: status,
-          output: output.output,
-          log: prevLog,
           graph: prevGraph,
+          log: prevLog,
+          output: output.output,
+          sdk: prevResult.sdk,
+          status: status,
         );
 
       case RunCodeStatus.preparationError:
-        final output = await _client.getPreparationErrorOutput(pipelineUuid);
+        final output =
+            await _client.getPreparationErrorOutput(pipelineUuid);
         return RunCodeResult(
-          status: status,
-          output: output.output,
-          log: prevLog,
           graph: prevGraph,
+          log: prevLog,
+          output: output.output,
+          sdk: prevResult.sdk,
+          status: status,
         );
 
       case RunCodeStatus.unknownError:
         return RunCodeResult(
-          pipelineUuid: pipelineUuid,
-          status: status,
           errorMessage: kUnknownErrorText,
-          output: kUnknownErrorText,
-          log: prevLog,
           graph: prevGraph,
+          log: prevLog,
+          output: kUnknownErrorText,
+          pipelineUuid: pipelineUuid,
+          sdk: prevResult.sdk,
+          status: status,
         );
 
       case RunCodeStatus.executing:
@@ -189,11 +200,12 @@ class CodeRepository {
         final log = responses[1];
         final graph = responses[2];
         return RunCodeResult(
-          pipelineUuid: pipelineUuid,
-          status: status,
-          output: prevOutput + output.output,
-          log: prevLog + log.output,
           graph: graph.output,
+          log: prevLog + log.output,
+          output: prevOutput + output.output,
+          pipelineUuid: pipelineUuid,
+          sdk: prevResult.sdk,
+          status: status,
         );
 
       case RunCodeStatus.finished:
@@ -210,19 +222,21 @@ class CodeRepository {
         final error = responses[2];
         final graph = responses[3];
         return RunCodeResult(
-          pipelineUuid: pipelineUuid,
-          status: status,
-          output: prevOutput + output.output + error.output,
-          log: prevLog + log.output,
           graph: graph.output,
+          log: prevLog + log.output,
+          output: prevOutput + output.output + error.output,
+          pipelineUuid: pipelineUuid,
+          sdk: prevResult.sdk,
+          status: status,
         );
 
       default:
         return RunCodeResult(
-          pipelineUuid: pipelineUuid,
-          log: prevLog,
-          status: status,
           graph: prevGraph,
+          log: prevLog,
+          pipelineUuid: pipelineUuid,
+          sdk: prevResult.sdk,
+          status: status,
         );
     }
   }

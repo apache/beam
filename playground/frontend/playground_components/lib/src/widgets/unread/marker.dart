@@ -17,34 +17,20 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 
 import '../../constants/sizes.dart';
 
-class BeamTabBar<K extends Object> extends StatelessWidget {
-  const BeamTabBar({
-    super.key,
-    required this.tabs,
-    this.hasPadding = false,
-  });
-
-  final bool hasPadding;
-  final Map<K, Widget> tabs;
+class UnreadMarkerWidget extends StatelessWidget {
+  const UnreadMarkerWidget();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: hasPadding
-          ? const EdgeInsets.symmetric(horizontal: BeamSizes.size16)
-          : EdgeInsets.zero,
-      child: SizedBox(
-        height: BeamSizes.tabBarHeight,
-        child: KeyedTabBar.withDefaultController<K>(
-          isScrollable: true,
-          tabs: {
-            for (final key in tabs.keys) key: Tab(child: tabs[key]),
-          },
-        ),
+    return Container(
+      width: BeamIconSizes.xs,
+      height: BeamIconSizes.xs,
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor,
+        shape: BoxShape.circle,
       ),
     );
   }

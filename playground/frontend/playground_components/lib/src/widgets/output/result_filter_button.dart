@@ -16,35 +16,42 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
+import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 
 import '../../constants/sizes.dart';
+import '../../controllers/playground_controller.dart';
+import 'result_filter_popover.dart';
 
-class BeamTabBar<K extends Object> extends StatelessWidget {
-  const BeamTabBar({
-    super.key,
-    required this.tabs,
-    this.hasPadding = false,
+class ResultFilterButton extends StatelessWidget {
+  const ResultFilterButton({
+    required this.playgroundController,
   });
 
-  final bool hasPadding;
-  final Map<K, Widget> tabs;
+  final PlaygroundController playgroundController;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: hasPadding
-          ? const EdgeInsets.symmetric(horizontal: BeamSizes.size16)
-          : EdgeInsets.zero,
-      child: SizedBox(
-        height: BeamSizes.tabBarHeight,
-        child: KeyedTabBar.withDefaultController<K>(
-          isScrollable: true,
-          tabs: {
-            for (final key in tabs.keys) key: Tab(child: tabs[key]),
-          },
-        ),
+    return GestureDetector(
+      onTap: () {
+        unawaited(
+          showAlignedDialog(
+            context: context,
+            builder: (dialogContext) => ResultFilterPopover(
+              playgroundController: playgroundController,
+            ),
+            followerAnchor: Alignment.topLeft,
+            targetAnchor: Alignment.topLeft,
+            barrierColor: Colors.transparent,
+          ),
+        );
+      },
+      child: Icon(
+        Icons.filter_alt_outlined,
+        size: BeamIconSizes.small,
+        color: Theme.of(context).primaryColor,
       ),
     );
   }

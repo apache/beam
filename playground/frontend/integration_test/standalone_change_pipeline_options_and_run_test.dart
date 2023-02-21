@@ -27,7 +27,6 @@ import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
-import 'common/finder.dart';
 import 'standalone_cancel_running_example_test.dart';
 
 void main() {

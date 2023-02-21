@@ -17,35 +17,22 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 
-import '../../constants/sizes.dart';
+import 'graph_builder/canvas_drawer.dart';
+import 'graph_builder/painters/graph_painter.dart';
 
-class BeamTabBar<K extends Object> extends StatelessWidget {
-  const BeamTabBar({
-    super.key,
-    required this.tabs,
-    this.hasPadding = false,
-  });
+class GraphCustomPainter extends CustomPainter {
+  final GraphPainter graph;
 
-  final bool hasPadding;
-  final Map<K, Widget> tabs;
+  GraphCustomPainter({required this.graph});
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: hasPadding
-          ? const EdgeInsets.symmetric(horizontal: BeamSizes.size16)
-          : EdgeInsets.zero,
-      child: SizedBox(
-        height: BeamSizes.tabBarHeight,
-        child: KeyedTabBar.withDefaultController<K>(
-          isScrollable: true,
-          tabs: {
-            for (final key in tabs.keys) key: Tab(child: tabs[key]),
-          },
-        ),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    graph.paint(CanvasDrawer(canvas));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
   }
 }

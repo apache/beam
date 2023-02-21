@@ -16,36 +16,31 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
+import 'package:flutter/widgets.dart';
 
-import '../../constants/sizes.dart';
+import '../../controllers/unread_controller.dart';
 
-class BeamTabBar<K extends Object> extends StatelessWidget {
-  const BeamTabBar({
+/// Calls [builder] when [controller] changes and passes the unread status
+/// of [unreadKey].
+class UnreadBuilder extends StatelessWidget {
+  const UnreadBuilder({
     super.key,
-    required this.tabs,
-    this.hasPadding = false,
+    required this.builder,
+    required this.controller,
+    required this.unreadKey,
   });
 
-  final bool hasPadding;
-  final Map<K, Widget> tabs;
+  final Widget Function(BuildContext context, bool isUnread) builder;
+  final UnreadController controller;
+  final Object unreadKey;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: hasPadding
-          ? const EdgeInsets.symmetric(horizontal: BeamSizes.size16)
-          : EdgeInsets.zero,
-      child: SizedBox(
-        height: BeamSizes.tabBarHeight,
-        child: KeyedTabBar.withDefaultController<K>(
-          isScrollable: true,
-          tabs: {
-            for (final key in tabs.keys) key: Tab(child: tabs[key]),
-          },
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return builder(context, controller.isUnread(unreadKey));
+      },
     );
   }
 }

@@ -16,37 +16,27 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:playground_components_dev/playground_components_dev.dart';
 
-import '../../enums/result_filter.dart';
-import '../bubble.dart';
+import 'common/common.dart';
+import 'miscellaneous_ui/toggle_brightness_mode_test.dart';
 
-class ResultFilterBubble extends StatelessWidget {
-  final ResultFilterEnum groupValue;
-  final ValueChanged<ResultFilterEnum> onChanged;
-  final String title;
-  final ResultFilterEnum value;
+final _url = '/embedded?path=${javaMinimalWordCount.dbPath}&sdk=java';
 
-  const ResultFilterBubble({
-    super.key,
-    required this.groupValue,
-    required this.onChanged,
-    required this.title,
-    required this.value,
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('Embedded run', (WidgetTester wt) async {
+    await init(wt);
+
+    await _openJavaMinimalWordCount(wt);
+    await wt.runExpectCached(javaMinimalWordCount);
+    await wt.modifyRunExpectReal(javaMinimalWordCount);
+    await checkToggleBrightnessMode(wt);
   });
+}
 
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = value == groupValue;
-
-    return BubbleWidget(
-      isSelected: isSelected,
-      onTap: () {
-        if (!isSelected) {
-          onChanged(value);
-        }
-      },
-      title: title,
-    );
-  }
+Future<void> _openJavaMinimalWordCount(WidgetTester wt) async {
+  await wt.navigateAndSettle(_url);
 }

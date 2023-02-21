@@ -21,14 +21,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 import 'common_finders.dart';
+import 'examples/example_descriptor.dart';
 import 'expect.dart';
-
-const String _kCachedResultsLog =
-    'The results of this example are taken from the Apache Beam Playground cache';
 
 extension WidgetTesterExtension on WidgetTester {
   //workaround for https://github.com/flutter/flutter/issues/120060
@@ -38,6 +37,16 @@ extension WidgetTesterExtension on WidgetTester {
     codeField.focusNode?.requestFocus();
   }
 
+  Brightness getBrightness() {
+    final context = element(find.toggleThemeButton());
+    return Theme.of(context).brightness;
+  }
+
+  Future<void> toggleTheme() async {
+    await tap(find.toggleThemeButton());
+    await pumpAndSettle();
+  }
+
   CodeController findOneCodeController() {
     final codeField = find.codeField();
     expect(codeField, findsOneWidget);
@@ -45,11 +54,15 @@ extension WidgetTesterExtension on WidgetTester {
     return widget<CodeField>(codeField).controller;
   }
 
-  TabController findOutputTabController() {
-    final outputTabs = find.byType(OutputTabs);
-    expect(outputTabs, findsOneWidget);
+  KeyedTabController<OutputTabEnum> findOutputTabController() {
+    final beamTabBar = find.descendant(
+      of: find.outputWidget(),
+      matching: find.byType(BeamTabBar<OutputTabEnum>),
+    );
 
-    return widget<OutputTabs>(outputTabs).tabController;
+    expect(beamTabBar, findsOneWidget);
+
+    return beamTabBar.evaluate().first.getKeyedTabController<OutputTabEnum>()!;
   }
 
   String? findOutputText() {
@@ -99,33 +112,57 @@ extension WidgetTesterExtension on WidgetTester {
   }
 
   /// Runs and expects that the execution is as fast as it should be for cache.
-  Future<void> runExpectCached() async {
-    final dateTimeStart = DateTime.now();
+  Future<void> runExpectCached(ExampleDescriptor example) async {
+    final codeRunner = findPlaygroundController().codeRunner;
 
     await tap(find.runOrCancelButton());
-    await pumpAndSettle();
+    await pump();
+    expect(codeRunner.isCodeRunning, true);
 
-    expectOutputStartsWith(_kCachedResultsLog, this);
-    expect(
-      DateTime.now().difference(dateTimeStart),
+    try {
+      await pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(milliseconds: 1000),
+      );
 
-      /// This is the safe threshold considering test delays.
-      lessThan(const Duration(milliseconds: 3000)),
-    );
+      // ignore: avoid_catching_errors
+    } on FlutterError catch (ex) {
+      // Expected timeout because for some reason UI updates way longer.
+    }
+
+    expect(codeRunner.isCodeRunning, false);
+
+    await pumpAndSettle(); // Let the UI catch up.
+
+    expectOutputStartsWith(kCachedResultsLog, this);
+    expectOutput(example, this);
   }
 
   /// Runs and expects that the execution is as fast as it should be for cache.
-  Future<void> runExpectReal() async {
+  Future<void> modifyRunExpectReal(ExampleDescriptor example) async {
+    _modifyCodeController();
     await tap(find.runOrCancelButton());
     await pumpAndSettle();
 
     final actualText = findOutputText();
-    expect(actualText, isNot(startsWith(_kCachedResultsLog)));
+    expect(actualText, isNot(startsWith(kCachedResultsLog)));
+    expectOutput(example, this);
+  }
+
+  void _modifyCodeController() {
+    // Add a character into the first comment.
+    // This relies on that the position 10 is inside a license comment.
+    final controller = findOneCodeController();
+    final text = controller.fullText;
+
+    // ignore: prefer_interpolation_to_compose_strings
+    controller.fullText = text.substring(0, 10) + '+' + text.substring(10);
   }
 
   Future<void> navigateAndSettle(String urlString) async {
     final url = Uri.parse(urlString);
-    print('Navigating: $url\n');
+    print('Navigating: $url\n'); // ignore: avoid_print
     await _navigate(url);
 
     // These appears to be the minimal reliable delay.

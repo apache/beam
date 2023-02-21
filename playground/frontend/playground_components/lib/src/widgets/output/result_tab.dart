@@ -16,34 +16,32 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 
-import '../../constants/sizes.dart';
+import '../../controllers/playground_controller.dart';
+import '../../enums/unread_entry.dart';
+import '../unread/builder.dart';
+import 'output_tab.dart';
+import 'result_filter_button.dart';
 
-class BeamTabBar<K extends Object> extends StatelessWidget {
-  const BeamTabBar({
-    super.key,
-    required this.tabs,
-    this.hasPadding = false,
+class ResultTab extends StatelessWidget {
+  const ResultTab({
+    required this.playgroundController,
   });
 
-  final bool hasPadding;
-  final Map<K, Widget> tabs;
+  final PlaygroundController playgroundController;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: hasPadding
-          ? const EdgeInsets.symmetric(horizontal: BeamSizes.size16)
-          : EdgeInsets.zero,
-      child: SizedBox(
-        height: BeamSizes.tabBarHeight,
-        child: KeyedTabBar.withDefaultController<K>(
-          isScrollable: true,
-          tabs: {
-            for (final key in tabs.keys) key: Tab(child: tabs[key]),
-          },
+    return UnreadBuilder(
+      controller: playgroundController.codeRunner.unreadController,
+      unreadKey: UnreadEntryEnum.result,
+      builder: (context, isUnread) => OutputTab(
+        isUnread: isUnread,
+        title: 'widgets.output.result'.tr(),
+        trailing: ResultFilterButton(
+          playgroundController: playgroundController,
         ),
       ),
     );

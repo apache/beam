@@ -16,37 +16,43 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
-import '../../enums/result_filter.dart';
-import '../bubble.dart';
+/// Tracks the unread status of arbitrary data.
+class UnreadController<K> extends ChangeNotifier {
+  final _values = <K, dynamic>{};
+  final _unreadKeys = <K>{};
 
-class ResultFilterBubble extends StatelessWidget {
-  final ResultFilterEnum groupValue;
-  final ValueChanged<ResultFilterEnum> onChanged;
-  final String title;
-  final ResultFilterEnum value;
+  /// Marks [key] as unread if [value] differs from the last call.
+  void setValue(K key, dynamic value) {
+    if (_values.containsKey(key) && _values[key] == value) {
+      return;
+    }
 
-  const ResultFilterBubble({
-    super.key,
-    required this.groupValue,
-    required this.onChanged,
-    required this.title,
-    required this.value,
-  });
+    _values[key] = value;
+    _unreadKeys.add(key);
+    notifyListeners();
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = value == groupValue;
+  bool isUnread(K key) {
+    return _unreadKeys.contains(key);
+  }
 
-    return BubbleWidget(
-      isSelected: isSelected,
-      onTap: () {
-        if (!isSelected) {
-          onChanged(value);
-        }
-      },
-      title: title,
-    );
+  void markRead(K key) {
+    if (!_unreadKeys.contains(key)) {
+      return;
+    }
+
+    _unreadKeys.remove(key);
+    notifyListeners();
+  }
+
+  void markAllRead() {
+    if (_unreadKeys.isEmpty) {
+      return;
+    }
+
+    _unreadKeys.clear();
+    notifyListeners();
   }
 }

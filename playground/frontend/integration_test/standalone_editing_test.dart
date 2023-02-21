@@ -23,7 +23,6 @@ import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
-import 'common/finder.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

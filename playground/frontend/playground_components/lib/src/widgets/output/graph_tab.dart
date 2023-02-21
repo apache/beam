@@ -20,42 +20,28 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../controllers/playground_controller.dart';
+import '../../enums/unread_entry.dart';
+import '../unread/builder.dart';
 import 'output_tab.dart';
 
-class OutputTabs extends StatelessWidget {
-  final PlaygroundController playgroundController;
-  final TabController tabController;
-
-  const OutputTabs({
-    super.key,
+class GraphTab extends StatelessWidget {
+  const GraphTab({
     required this.playgroundController,
-    required this.tabController,
   });
+
+  final PlaygroundController playgroundController;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 300,
-      child: TabBar(
-        controller: tabController,
-        tabs: <Widget>[
-          OutputTab(
-            playgroundController: playgroundController,
-            name: 'widgets.output.result'.tr(),
-            isSelected: tabController.index == 0,
-            maxPossibleContent: playgroundController.codeRunner.resultLogOutput,
-            hasFilter: true,
-          ),
-          if (playgroundController.graphAvailable)
-            OutputTab(
-              playgroundController: playgroundController,
-              name: 'widgets.output.graph'.tr(),
-              isSelected: tabController.index == 2,
-              maxPossibleContent:
-                  playgroundController.codeRunner.result?.graph ?? '',
-            ),
-        ],
-      ),
+    return UnreadBuilder(
+      controller: playgroundController.codeRunner.unreadController,
+      unreadKey: UnreadEntryEnum.graph,
+      builder: (context, isUnread) {
+        return OutputTab(
+          isUnread: isUnread,
+          title: 'widgets.output.graph'.tr(),
+        );
+      },
     );
   }
 }

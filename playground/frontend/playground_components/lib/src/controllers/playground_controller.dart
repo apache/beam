@@ -41,19 +41,20 @@ import '../services/symbols/symbols_notifier.dart';
 import '../util/logical_keyboard_key.dart';
 import 'code_runner.dart';
 import 'example_loaders/examples_loader.dart';
-import 'output_filter_type_controller.dart';
+import 'result_filter_controller.dart';
 import 'snippet_editing_controller.dart';
 
 const kTitleLength = 25;
 const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
+const kCachedResultsLog =
+    'The results of this example are taken from the Apache Beam Playground cache.\n';
 
 /// The main state object for the code and its running.
 class PlaygroundController with ChangeNotifier {
   final ExampleCache exampleCache;
   final ExamplesLoader examplesLoader;
-  final OutputFilterTypeController outputTypeController =
-      OutputFilterTypeController();
+  final resultFilterController = ResultFilterController();
 
   late final CodeRunner codeRunner;
 

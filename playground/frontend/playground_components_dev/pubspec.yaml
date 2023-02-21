@@ -25,13 +25,14 @@ environment:
   flutter: '>=3.7.3'
 
 dependencies:
-  app_state: ^0.9.0
+  app_state: ^0.9.3
   flutter: { sdk: flutter }
-  flutter_code_editor: ^0.2.9
+  flutter_code_editor: ^0.2.12
   flutter_test: { sdk: flutter }
   get_it: ^7.2.0
   highlight: ^0.7.0
   http: ^0.13.5
+  keyed_collection_widgets: ^0.4.3
   playground_components: { path: ../playground_components }
   provider: ^6.0.3
   total_lints: ^2.18.0

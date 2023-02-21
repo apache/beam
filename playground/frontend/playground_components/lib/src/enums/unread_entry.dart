@@ -16,37 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-
-import '../../enums/result_filter.dart';
-import '../bubble.dart';
-
-class ResultFilterBubble extends StatelessWidget {
-  final ResultFilterEnum groupValue;
-  final ValueChanged<ResultFilterEnum> onChanged;
-  final String title;
-  final ResultFilterEnum value;
-
-  const ResultFilterBubble({
-    super.key,
-    required this.groupValue,
-    required this.onChanged,
-    required this.title,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = value == groupValue;
-
-    return BubbleWidget(
-      isSelected: isSelected,
-      onTap: () {
-        if (!isSelected) {
-          onChanged(value);
-        }
-      },
-      title: title,
-    );
-  }
+/// Keys to track the unread status for.
+enum UnreadEntryEnum {
+  result,
+  graph,
 }

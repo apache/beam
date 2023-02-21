@@ -146,7 +146,7 @@ flutter format ./lib
 To delete all generated files and re-generate them again and then run tests:
 
 ```bash
-./gradlew :playground:frontend:playground_components::test
+./gradlew :playground:frontend:playground_components:test
 ./gradlew :playground:frontend:test
 ```
 

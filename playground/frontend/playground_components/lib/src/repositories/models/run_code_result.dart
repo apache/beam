@@ -18,6 +18,8 @@
 
 import 'package:equatable/equatable.dart';
 
+import '../../models/sdk.dart';
+
 enum RunCodeStatus {
   unspecified,
   preparation,
@@ -43,20 +45,22 @@ const kFinishedStatuses = [
 ];
 
 class RunCodeResult with EquatableMixin {
-  final RunCodeStatus status;
-  final String? pipelineUuid;
-  final String? output;
-  final String? log;
-  final String? graph;
   final String? errorMessage;
+  final String? graph;
+  final String? log;
+  final String? output;
+  final String? pipelineUuid;
+  final Sdk sdk;
+  final RunCodeStatus status;
 
   const RunCodeResult({
+    required this.sdk,
     required this.status,
-    this.pipelineUuid,
-    this.output,
-    this.log,
     this.errorMessage,
     this.graph,
+    this.log,
+    this.output,
+    this.pipelineUuid,
   });
 
   bool get isFinished {
@@ -70,11 +74,7 @@ class RunCodeResult with EquatableMixin {
         log,
         output,
         pipelineUuid,
+        sdk,
         status,
       ];
-
-  @override
-  String toString() {
-    return 'RunCodeResult{pipelineId: $pipelineUuid, status: $status, output: $output, log: $log, errorMessage: $errorMessage}';
-  }
 }
