@@ -231,7 +231,7 @@ tasks.register("getSdkConfigWebApp") {
         val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
         val matcher = pattern.matcher(output)
         if (matcher.find()) {
-            val firebaseConfigData = matcher.group().replace(",\n  \"locationId\": \"[^\"]+\"".toRegex(), "")
+            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "").replace("\n\"locationId\":.*?,", "")
             project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
             println("Firebase config data: $firebaseConfigData")
         } else {
@@ -240,6 +240,7 @@ tasks.register("getSdkConfigWebApp") {
     }
     tasks.getByName("prepareFirebaseOptionsDart").mustRunAfter(this)
 }
+
 
 
 tasks.register("prepareFirebaseOptionsDart") {
