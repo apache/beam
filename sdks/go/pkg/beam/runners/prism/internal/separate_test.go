@@ -37,7 +37,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-// separate_test.go is retains structures and tests to ensure the runner can
+// separate_test.go retains structures and tests to ensure the runner can
 // perform separation, and terminate checkpoints.
 
 // Global variable, so only one is registered with the OS.
@@ -49,7 +49,7 @@ var ws = &Watchers{}
 //
 // First is channel splits, where a slowly processing
 // bundle might have it's remaining buffered elements truncated
-// so they can be processed by a another bundle,
+// so they can be processed by another bundle,
 // possibly simultaneously.
 //
 // Second is sub element splitting, where a single element
@@ -189,7 +189,7 @@ type Watchers struct {
 	serviceAddress string
 }
 
-// Args is the set of parameters to the watchers RPC methdos.
+// Args is the set of parameters to the watchers RPC methods.
 type Args struct {
 	WatcherID int
 }
@@ -224,7 +224,7 @@ func (ws *Watchers) Check(args *Args, unblocked *bool) error {
 	return nil
 }
 
-// Delay returns whether the sentinels shoudld delay.
+// Delay returns whether the sentinels should delay.
 // This increments the sentinel cap, and returns unblocked.
 // Intended to validate ProcessContinuation behavior.
 func (ws *Watchers) Delay(args *Args, delay *bool) error {
@@ -256,7 +256,7 @@ func (ws *Watchers) initRPCServer() {
 	})
 }
 
-// newWatcher starts an rpc server to maange state for watching for
+// newWatcher starts an rpc server to manage state for watching for
 // sentinels across local machines.
 func (ws *Watchers) newWatcher(sentinelCap int) int {
 	ws.mu.Lock()
@@ -301,9 +301,9 @@ func (fn *sepHarnessBase) setup() error {
 		sepWaitMap = map[int]chan struct{}{}
 	})
 
-	// Check if there's alreaedy a local channel for this id, and if not
+	// Check if there's already a local channel for this id, and if not
 	// start a watcher goroutine to poll and unblock the harness when
-	// the expected number of ssentinels is reached.
+	// the expected number of sentinels is reached.
 	if _, ok := sepWaitMap[fn.WatcherID]; !ok {
 		return nil
 	}
