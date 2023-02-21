@@ -174,6 +174,7 @@ tasks.register("firebaseProjectCreate") {
             println("Firebase has been added to project $project_id.")
         }
     }
+    tasks.getByName("firebaseWebAppCreate").mustRunAfter(this)
 }
 
 
@@ -210,7 +211,7 @@ tasks.register("firebaseWebAppCreate") {
             println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
         }
     }
-    tasks.getByName("firebaseProjectCreate").mustRunAfter(this)
+    tasks.getByName("getSdkConfigWebApp").mustRunAfter(this)
 }
 
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
@@ -235,7 +236,7 @@ tasks.register("getSdkConfigWebApp") {
             throw Exception("Unable to extract Firebase config data from output.")
         }
     }
-    tasks.getByName("firebaseWebAppCreate").mustRunAfter(this)
+
 }
 
 tasks.register("prepareFirebaseOptionsDart") {
