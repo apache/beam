@@ -216,7 +216,7 @@ tasks.register("firebaseWebAppCreate") {
 // firebase apps:sdkconfig WEB AppId
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
-    doLast{
+    doLast {
         val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
         if (firebaseAppId == null) {
             throw Exception("firebaseAppId not set.")
@@ -231,7 +231,7 @@ tasks.register("getSdkConfigWebApp") {
         val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
         val matcher = pattern.matcher(output)
         if (matcher.find()) {
-            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "")
+            val firebaseConfigData = matcher.group().replace(",\n  \"locationId\": \"[^\"]+\"".toRegex(), "")
             project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
             println("Firebase config data: $firebaseConfigData")
         } else {
@@ -241,6 +241,7 @@ tasks.register("getSdkConfigWebApp") {
     tasks.getByName("prepareFirebaseOptionsDart").mustRunAfter(this)
 }
 
+
 tasks.register("prepareFirebaseOptionsDart") {
     group = "frontend-deploy"
     doLast {
@@ -248,7 +249,7 @@ tasks.register("prepareFirebaseOptionsDart") {
         println("FirebaseConfigData for firebase_options file is: $firebaseConfigData")
         val file = project.file("../frontend/lib/firebase_options.dart")
         val content = file.readText()
-        val updatedContent = content.replace(Regex("""FirebaseOptions(*)"""), "FirebaseOptions(${firebaseConfigData})")
+        val updatedContent = content.replace(Regex("""FirebaseOptions\((.*)\)"""), "FirebaseOptions(${firebaseConfigData})")
         file.writeText(updatedContent)
     }
 }
