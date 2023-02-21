@@ -79,7 +79,7 @@ The following command will build and serve the backend locally:
 
 ```shell
 SERVER_PORT=<port> \
-BEAM_SDK=<beam_sdk_type> \ 
+BEAM_SDK=<beam_sdk_type> \
 APP_WORK_DIR=<path_to_workdir> \
 DATASTORE_EMULATOR_HOST=127.0.0.1:8888 \
 DATASTORE_PROJECT_ID=test \
