@@ -185,6 +185,9 @@ tasks.register("firebaseWebAppCreate") {
     var project_id = ""
     if (project.hasProperty("project_id")) {
         project_id = project.property("project_id") as String
+    var webapp_id = ""
+    if (project.hasProperty("webapp_id")) {
+        webapp_id = project.property("webapp_id") as String
     }
     val result1 = ByteArrayOutputStream()
     val result2 = ByteArrayOutputStream()
@@ -195,11 +198,11 @@ tasks.register("firebaseWebAppCreate") {
         standardOutput = result1
     }
     val output = result1.toString().trim()
-    if (output.contains("Tour-of-Beam-Web-App")) {
-        println("Tour of Beam Web App is already created on the project $project_id.")
-        val firebaseAppId = result1.toString().lines().find { it.contains("1:") }?.substringAfter("App │ ")?.substringBefore(" │ WEB")?.trim()
+    if (output.contains("$webapp_id")) {
+        println("Tour of Beam Web App $webapp_id is already created on the project $project_id.")
+        val firebaseAppId = result1.toString().lines().find { it.contains("1:") }?.substringAfter("$webapp_id │ ")?.substringBefore(" │ WEB")?.trim()
         project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-        println("Firebase app ID for condition 1: $firebaseAppId")
+        println("Firebase app ID for already created Firebase Web App: $firebaseAppId")
     } else {
         exec {
             executable("firebase")
@@ -209,7 +212,7 @@ tasks.register("firebaseWebAppCreate") {
         println(result2)
         val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
         project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-        println("Firebase app ID for condition 2: $firebaseAppId")
+        println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
     }
 }
 
