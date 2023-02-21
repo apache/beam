@@ -223,40 +223,6 @@ public class BigtableIO {
   }
 
   /**
-   * Creates an uninitialized {@link BigtableIO.ReadChangeStream}. Before use, the {@code
-   * ReadChangeStream} must be initialized with
-   *
-   * <ul>
-   *   <li>{@link BigtableIO.ReadChangeStream#withProjectId}
-   *   <li>{@link BigtableIO.ReadChangeStream#withInstanceId}
-   *   <li>{@link BigtableIO.ReadChangeStream#withTableId}
-   *   <li>{@link BigtableIO.ReadChangeStream#withAppProfileId}
-   * </ul>
-   *
-   * <p>And optionally with
-   *
-   * <ul>
-   *   <li>{@link BigtableIO.ReadChangeStream#withStartTime} which defaults to now.
-   *   <li>{@link BigtableIO.ReadChangeStream#withEndTime} which defaults to empty.
-   *   <li>{@link BigtableIO.ReadChangeStream#withHeartbeatDuration} with defaults to 1 seconds.
-   *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableProjectId} which defaults to value
-   *       from {@link BigtableIO.ReadChangeStream#withProjectId}
-   *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableInstanceId} which defaults to value
-   *       from {@link BigtableIO.ReadChangeStream#withInstanceId}
-   *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableTableId} which defaults to {@link
-   *       MetadataTableAdminDao#DEFAULT_METADATA_TABLE_NAME}
-   *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableAppProfileId} which defaults to value
-   *       from {@link BigtableIO.ReadChangeStream#withAppProfileId}
-   *   <li>{@link BigtableIO.ReadChangeStream#withChangeStreamName} which defaults to randomly
-   *       generated string.
-   * </ul>
-   */
-  @Experimental
-  public static ReadChangeStream readChangeStream() {
-    return ReadChangeStream.create();
-  }
-
-  /**
    * A {@link PTransform} that reads from Google Cloud Bigtable. See the class-level Javadoc on
    * {@link BigtableIO} for more information.
    *
