@@ -117,27 +117,7 @@ See [this](https://github.com/apache/beam/blob/3e080ff212d8ed7208c8486b515bb73c5
 This comment block is cut from the text before putting it to the database and so is not visible
 to end users. The block is in the format of a YAML map.
 
-The following attributes are required:
-
-| Attribute | Description | Values |
-|-|-|-|
-| `description` | Description text to show on mouse over. | Text | Required |
-| `multifile` | Whether this is a file of a multi-file example. | `true`, `false` | Required |
-| `name` | Name to show in the dropdown. | Text| Required |
-
-The following optional attributes are supported:
-
-| Attribute | Description | Values |
-|-|-|-|
-| `categories` | Titles of categories to list this snippet in. Non-existent categories will be created. | Array of strings |
-| `complexity` | How hard is the snippet to understand. | `BASIC`, `MEDIUM`, `ADVANCED` |
-| `context_line` | The line number to scroll to when the snippet is loaded. This applies after the metadata block is removed from the file, so discount for those lines. | Integer, 1-based |
-| `default_example` | Whether this is the default example in its SDK. If multiple snippets set this to `true` the behavior is undefined. | `false` (default), `true` |
-| `tags` | Tags by which this snippet can be found in the dropdown. | Array of strings |
-
-**TODO: ARE THE REQUIRED AND OPTIONAL ATTRIBUTES IDENTIFIED CORRECTLY?**
-
-**TODO: ARE THERE ANY OTHER SUPPORTED ATTRIBUTES?**
+For metadata reference see fields in "Tag" class [here](infrastructure/models.py).
 
 #### 3. Make a PR
 
@@ -174,13 +154,21 @@ Advantages:
 - The CI of the Beam repository guarantees your snippet builds and runs correctly.
 - Output and graph are cached so the viewers of your snippet will not wait when they run it.
 
-Proceed the same way as with Playground Visible Catalog, but do not use these attributes:
+Proceed the same way as with Playground Visible Catalog except:
 
-- `categories`
-- `default_example`
-- `tags`
+1. Use the directory... **TODO**
+2. Use an empty list for `categories` attribute: `categories: []`
+3. Do not use the following attributes:
+   - `default_example`
+   - `tags`
 
-**TODO: How to get the path of the example?**
+The ID of the snippet is a function of the SDK and the `name` tag from its metadata:
+
+| SDK | ID |
+|-|-|
+| Go | SDK_GO_name |
+| Java | SDK_JAVA_name |
+| Python | SDK_PYTHON_name |
 
 ### Source 3. Tour of Beam unit
 
@@ -193,7 +181,21 @@ Advantages:
 - The CI of the Beam repository guarantees your snippet builds and runs correctly.
 - Output and graph are cached so the viewers of your snippet will not wait when they run it.
 
-**TODO: HOWTO**
+Proceed the same way as with Playground Visible Catalog except:
+
+1. Use the directory `/learning/tour-of-beam/learning-content`.
+2. Use an empty list for `categories` attribute: `categories: []`
+3. Do not use the following attributes:
+   - `default_example`
+   - `tags`
+
+The ID of the snippet is a function of the SDK and the `name` tag from its metadata:
+
+| SDK | ID |
+|-|-|
+| Go | TB_EXAMPLES_SDK_GO_name |
+| Java | TB_EXAMPLES_SDK_JAVA_name |
+| Python | TB_EXAMPLES_SDK_PYTHON_name |
 
 ### Source 4. User-shared Code
 
@@ -288,7 +290,9 @@ manually edit the link. Use the example above and replace the `path` and `sdk` w
 
 #### 3. Link for a Tour of Beam Unit
 
-**TODO**
+The code can be accessed with the same link as with Playground Visible Catalog.
+Since the snippet is unlisted, you cannot select it in the dropdown and so you should
+manually edit the link. Use the example above and replace the `path` and `sdk` with yours.
 
 #### 4. Link for User-shared Code
 
