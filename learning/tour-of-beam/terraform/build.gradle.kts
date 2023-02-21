@@ -153,10 +153,9 @@ tasks.register("indexcreate") {
 
 tasks.register("firebaseProjectCreate") {
     group = "frontend-deploy"
-    val project_id = project.property("project_id") as String
     description = "Adds Firebase to a project if it doesn't already have Firebase."
-
     doLast {
+        val project_id = project.property("project_id") as String
         val result = ByteArrayOutputStream()
 
         exec {
@@ -181,9 +180,9 @@ tasks.register("firebaseProjectCreate") {
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
     outputs.upToDateWhen { false } // Disable up-to-date checks
-    val project_id = project.property("project_id") as String
-    val webapp_id = project.property("webapp_id") as String
     doLast {
+        val project_id = project.property("project_id") as String
+        val webapp_id = project.property("webapp_id") as String
         val result = ByteArrayOutputStream()
         exec {
             executable("firebase")
