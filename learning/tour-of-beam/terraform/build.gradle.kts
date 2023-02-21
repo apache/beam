@@ -192,8 +192,8 @@ tasks.register("firebaseWebAppCreate") {
         println(result)
         val output = result.toString()
         if (output.contains(webapp_id)) {
-            println("Tour of Beam Web App $webapp_id is already created on the project $project_id.")
-            val pre_firebaseAppId = result.toString().lines().find { it.contains("1:") }?.substringAfter("$webapp_id │ ")?.trim()
+            println("Tour of Beam Web App: $webapp_id is already created on the project: $project_id.")
+            val pre_firebaseAppId = output.lines().find { it.contains("1:") }?.substringAfter("$webapp_id │ ")?.trim()
             val firebaseAppId = pre_firebaseAppId.toString().lines().find {it.contains("1:")}?.substringBefore(" | WEB")?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
             println(firebaseAppId)
