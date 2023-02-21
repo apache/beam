@@ -231,12 +231,11 @@ tasks.register("getSdkConfigWebApp") {
         val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
         val matcher = pattern.matcher(output)
         if (matcher.find()) {
-            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "")
-                    .split(",")
-                    .map { it.trim().split(":").map { v -> v.trim() } }
-                    .joinToString("\n") { "${it[0]}:\"${it[1]}\"" }
-            project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
-            println("Firebase config data:\n$firebaseConfigData")
+            var firebaseConfigData = matcher.group().replace("{", "").replace("}", "").replace("\"locationId\":\\s*\".*?\",?".toRegex(), "")
+            firebaseConfigData = firebaseConfigData.replace("\"(\\w+)\":".toRegex(), "$1:")
+            firebaseConfigData = firebaseConfigData.replace(":\\s*\"(.*?)\"".toRegex(), ":$1")
+            project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData.trim()
+            println("Firebase config data: $firebaseConfigData")
         } else {
             throw Exception("Unable to extract Firebase config data from output.")
         }
@@ -244,15 +243,13 @@ tasks.register("getSdkConfigWebApp") {
     tasks.getByName("prepareFirebaseOptionsDart").mustRunAfter(this)
 }
 
-
 tasks.register("prepareFirebaseOptionsDart") {
     group = "frontend-deploy"
     doLast {
         val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
-        println("FirebaseConfigData for firebase_options file is: $firebaseConfigData")
         val file = project.file("../frontend/lib/firebase_options.dart")
         val content = file.readText()
-        val updatedContent = content.replace(Regex("""FirebaseOptions\((.*)\)"""), "FirebaseOptions(${firebaseConfigData})")
+        val updatedContent = content.replace(Regex("""static const FirebaseOptions web = FirebaseOptions\(([^)]+)\);"""), "static const FirebaseOptions web = FirebaseOptions(${firebaseConfigData});")
         file.writeText(updatedContent)
     }
 }
