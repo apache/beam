@@ -88,6 +88,7 @@
 
 import typing
 
+import numpy as np
 from apache_beam.coders import RowCoder
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -125,8 +126,8 @@ Config = typing.NamedTuple(
         ('fetch_size', typing.Optional[int]),
         ('output_parallelization', typing.Optional[bool]),
         ('autosharding', typing.Optional[bool]),
-        ('partitionColumn', typing.Optional[str]),
-        ('partitions', typing.Optional[bool])
+        ('partition_column', typing.Optional[str]),
+        ('partitions', typing.Optional[np.int16])
     ],
 )
 
@@ -228,6 +229,8 @@ class WriteToJdbc(ExternalTransform):
                             fetch_size=None,
                             output_parallelization=None,
                             autosharding=autosharding,
+                            partitions=None,
+                            partition_column=None
                         ))),
         ),
         expansion_service or default_io_expansion_service(classpath),
