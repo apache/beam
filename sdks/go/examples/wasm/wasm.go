@@ -81,7 +81,7 @@ func main() {
 func run(ctx context.Context) error {
 	p, s := beam.NewPipelineWithRoot()
 
-	in := beam.Create(s, "Ada", "Lovelace", "World", "Beam", "Senior López")
+	in := beam.Create(s, "Ada", "Lovelace", "World", "Beam", "Senior López", "Random unicorn emoji 🦄")
 
 	out := beam.ParDo(s, &embeddedWasmFn{}, in)
 
@@ -115,14 +115,14 @@ func (fn *embeddedWasmFn) Setup(ctx context.Context) error {
 	// log to the console.
 	_, err := fn.r.NewHostModuleBuilder("env").
 		NewFunctionBuilder().WithFunc(logString).Export("log").
-		Instantiate(ctx, fn.r)
+		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to instantiate host module: %w", err)
 	}
 
 	// Instantiate a WebAssembly module that imports the "log" function defined
 	// in "env" and exports "memory" and functions we'll use in this example.
-	fn.mod, err = fn.r.InstantiateModuleFromBinary(ctx, greetWasm)
+	fn.mod, err = fn.r.Instantiate(ctx, greetWasm)
 	if err != nil {
 		return fmt.Errorf("failed to instantiate wasm module: %v", err)
 	}

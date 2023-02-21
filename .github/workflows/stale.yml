@@ -21,7 +21,7 @@ on:
 permissions: read-all
 jobs:
   stale:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
