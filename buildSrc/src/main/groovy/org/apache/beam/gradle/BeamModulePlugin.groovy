@@ -2384,7 +2384,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def javaClassLookupAllowlistFile = project.project(":sdks:java:testing:expansion-service").projectDir.getPath() + "/src/test/resources/test_expansion_service_allowlist.yaml"
       def expansionServiceOpts = [
         "group_id": project.name,
-        "java_expansion_service_jars": expansionJar,
+        "java_expansion_service_jar": expansionJar,
         "java_port": javaPort,
         "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
         "python_expansion_service_allowlist_glob": "\\*",
