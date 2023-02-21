@@ -202,14 +202,12 @@ tasks.register("firebaseWebAppCreate") {
             println("Tour of Beam Web App $webapp_id is already created on the project $project_id.")
             val firebaseAppId = result1.toString().lines().find { it.contains("1:") }?.substringAfter("$webapp_id │ ")?.substringBefore(" │ WEB")?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-            println("Firebase app ID for already created Firebase Web App: $firebaseAppId")
         } else {
             exec {
                 executable("firebase")
                 args("apps:create", "WEB", webapp_id, "--project", project_id)
                 standardOutput = result2
             }
-            println(result2)
             val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
             println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
@@ -228,7 +226,6 @@ tasks.register("getSdkConfigWebApp") {
             args("apps:sdkconfig", "WEB", firebaseAppId)
             standardOutput = result
         }
-        println(result)
         val output = result.toString().trim()
         val pattern = Pattern.compile("\\{.*\"locationId\":\\s*\"(.*?)\".*\\}", Pattern.DOTALL)
         val matcher = pattern.matcher(output)
