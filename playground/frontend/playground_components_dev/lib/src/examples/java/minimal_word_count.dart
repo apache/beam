@@ -16,14 +16,18 @@
  * limitations under the License.
  */
 
-class ExamplePaths {
-  static const javaAggregationMax =
-      '/learning/katas/java/Common Transforms/Aggregation/Max/src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java';
-  static const javaMinimalWordCount =
-      '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java';
+import 'package:playground_components/playground_components.dart';
 
-  static const pythonAggregationMean =
-      '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py';
-  static const pythonMinimalWordCountWithMetrics =
-      '/sdks/python/apache_beam/examples/wordcount_with_metrics.py';
-}
+import '../example_descriptor.dart';
+
+const javaMinimalWordCount = ExampleDescriptor(
+  //
+  'MinimalWordCount',
+  contextLine1Based: 71,
+  dbPath: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+  path:
+      '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java',
+  sdk: Sdk.java,
+
+  outputContains: ['Finalizing for destination'],
+);

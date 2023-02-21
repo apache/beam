@@ -24,7 +24,7 @@ on:
 jobs:
   assign:
     name: Generate issue report
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: Setup Node

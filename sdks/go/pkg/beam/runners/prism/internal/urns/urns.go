@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package urn handles extracting urns from all the protos.
+// Package urns handles extracting urns from all the protos.
 package urns
 
 import (

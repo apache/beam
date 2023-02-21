@@ -540,7 +540,15 @@ public class BigQueryIO {
    * A formatting function that maps a TableRow to itself. This allows sending a {@code
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
-  static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER = input -> input;
+  static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER =
+      SerializableFunctions.identity();;
+
+  /**
+   * A formatting function that maps a GenericRecord to itself. This allows sending a {@code
+   * PCollection<GenericRecord>} directly to BigQueryIO.Write.
+   */
+  static final SerializableFunction<AvroWriteRequest<GenericRecord>, GenericRecord>
+      GENERIC_RECORD_IDENTITY_FORMATTER = AvroWriteRequest::getElement;
 
   static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
@@ -1926,7 +1934,16 @@ public class BigQueryIO {
    * Write#withFormatFunction(SerializableFunction)}.
    */
   public static Write<TableRow> writeTableRows() {
-    return BigQueryIO.<TableRow>write().withFormatFunction(IDENTITY_FORMATTER);
+    return BigQueryIO.<TableRow>write().withFormatFunction(TABLE_ROW_IDENTITY_FORMATTER);
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord
+   * GenericRecords} to a BigQuery table.
+   */
+  public static Write<GenericRecord> writeGenericRecords() {
+    return BigQueryIO.<GenericRecord>write()
+        .withAvroFormatFunction(GENERIC_RECORD_IDENTITY_FORMATTER);
   }
 
   /** Implementation of {@link #write}. */
@@ -2897,15 +2914,6 @@ public class BigQueryIO {
             !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
       }
 
-      if (method != Write.Method.FILE_LOADS) {
-        // we only support writing avro for FILE_LOADS
-        checkArgument(
-            getAvroRowWriterFactory() == null,
-            "Writing avro formatted data is only supported for FILE_LOADS, however "
-                + "the method was %s",
-            method);
-      }
-
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
@@ -3182,6 +3190,26 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsBeamRow<>(
                   dynamicDestinations, elementSchema, elementToRowFunction);
+        } else if (getAvroRowWriterFactory() != null) {
+          // we can configure the avro to storage write api proto converter for this
+          // assuming the format function returns an Avro GenericRecord
+          // and there is a schema defined
+          checkArgument(
+              getJsonSchema() != null
+                  || getDynamicDestinations() != null
+                  || getSchemaFromView() != null,
+              "A schema must be provided for avro rows to be used with StorageWrite API.");
+
+          RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>
+              recordWriterFactory =
+                  (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
+                      rowWriterFactory;
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
+              Optional.ofNullable(getAvroSchemaFactory()).orElse(DEFAULT_AVRO_SCHEMA_FACTORY);
+
+          storageApiDynamicDestinations =
+              new StorageApiDynamicDestinationsGenericRecord<>(
+                  dynamicDestinations, avroSchemaFactory, recordWriterFactory.getToAvroFn());
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
               (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
