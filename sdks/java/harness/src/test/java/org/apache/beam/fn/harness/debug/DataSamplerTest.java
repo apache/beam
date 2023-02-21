@@ -239,13 +239,6 @@ public class DataSamplerTest {
             () -> {
               for (int i = 0; i < 1000000; i++) {
                 sampler.sampleOutput("pcollection-" + i, coder).sample(0);
-
-                // This sleep is here to allow for the test to stop this thread.
-                try {
-                  Thread.sleep(0);
-                } catch (InterruptedException e) {
-                  return;
-                }
               }
             });
 
