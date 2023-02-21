@@ -128,7 +128,7 @@ public class DataSamplerTest {
   }
 
   /**
-   * Smoke test that a samples show in the output map.
+   * Smoke test that a sample shows in the output map.
    *
    * @throws Exception
    */
