@@ -178,6 +178,42 @@ tasks.register("firebaseProjectCreate") {
 }
 
 
+tasks.register("firebaseWebAppCreate") {
+    group = "frontend-deploy"
+    outputs.upToDateWhen { false } // Disable up-to-date checks
+    doLast {
+        val project_id = project.property("project_id") as String
+        val webapp_id = project.property("webapp_id") as String
+        val result = ByteArrayOutputStream()
+        exec {
+            executable("firebase")
+            args("apps:list", "--project", project_id)
+            standardOutput = result
+        }
+        println(result)
+        val output = result.toString()
+        if (output.contains(webapp_id)) {
+            println("Tour of Beam Web App: $webapp_id is already created on the project: $project_id.")
+            val regex = Regex("$webapp_id[│ ]+([\\w:]+)[│ ]+WEB[│ ]+")
+            val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
+            project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+            println("Firebase app ID for existing Firebase Web App: $firebaseAppId")
+        } else {
+            val result2 = ByteArrayOutputStream()
+            exec {
+                executable("firebase")
+                args("apps:create", "WEB", webapp_id, "--project", project_id)
+                standardOutput = result2
+            }.assertNormalExitValue()
+            val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
+            project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+            println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
+        }
+    }
+    tasks.getByName("getSdkConfigWebApp").mustRunAfter(this)
+}
+
+// firebase apps:sdkconfig WEB AppId
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
     doLast {
@@ -200,24 +236,6 @@ tasks.register("getSdkConfigWebApp") {
             project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData.trim()
             println("Firebase config data: $firebaseConfigData")
         }
-    }
-}
-
-// firebase apps:sdkconfig WEB AppId
-tasks.register("getSdkConfigWebApp") {
-    group = "frontend-deploy"
-    doLast {
-        val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
-        val result = ByteArrayOutputStream()
-        exec {
-            executable("firebase")
-            args("apps:sdkconfig", "WEB", firebaseAppId)
-            standardOutput = result
-        }
-        println(result)
-        val output = result.toString().trim()
-        println(output)
-        tasks.getByName("prepareFirebaseOptionsDart").mustRunAfter(this)
     }
 }
 
