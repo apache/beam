@@ -426,6 +426,7 @@ tasks.register("InitFrontend") {
     dependsOn(firebaseDeploy)
     firebaseProjectCreate.mustRunAfter(prepareConfig)
     firebaseWebAppCreate.mustRunAfter(firebaseProjectCreate)
+    firebaseWebAppCreate.mustRunAfter(prepareConfig)
     getSdkConfigWebApp.mustRunAfter(firebaseWebAppCreate)
     prepareFirebaseOptionsDart.mustRunAfter(getSdkConfigWebApp)
     flutterPubGetPG.mustRunAfter(prepareFirebaseOptionsDart)
