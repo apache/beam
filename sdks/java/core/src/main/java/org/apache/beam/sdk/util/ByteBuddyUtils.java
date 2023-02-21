@@ -36,8 +36,8 @@ public final class ByteBuddyUtils {
       // a legacy strategy to allow proxying some built-in JDK classes (e.g. interfaces, public
       // abstract classes) since we don't have permissions to get a private lookup for the
       // java.base module
-      boolean systemClass = proxyType.getClassLoader() == null;
-      if (ClassInjector.UsingLookup.isAvailable() && ~systemClass) {
+      boolean systemClass = classLoader == null;
+      if (ClassInjector.UsingLookup.isAvailable() && !systemClass) {
         try {
             Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles", true, classLoader);
             @SuppressWarnings("nullness") // MethodHandles#lookup accepts null
