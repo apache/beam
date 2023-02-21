@@ -407,6 +407,7 @@ tasks.register("InitFrontend") {
     dependsOn(firebaseProjectCreate)
     Thread.sleep(9000)
     dependsOn(firebaseWebAppCreate)
+    Thread.sleep(9000)
     dependsOn(getSdkConfigWebApp)
     dependsOn(prepareFirebaseOptionsDart)
     dependsOn(flutterPubGetPG)
