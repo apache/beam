@@ -23,5 +23,5 @@ Here is an example of how you might use the useBeamSchema method when reading da
 
 ```
 p.apply("ReadFromBigQuery",
-    BigQueryIO.read().from("mydataset.mytable").withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ).useBeamSchema())
+    BigQueryIO.write().to("mydataset.outputtable").useBeamSchema())
 ```

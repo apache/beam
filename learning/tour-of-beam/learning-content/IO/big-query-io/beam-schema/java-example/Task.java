@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: write-beam-schema
-//   description: write-beam-schema example.
+//   name: beam-schema
+//   description: BiqQueryIO beam-schema example.
 //   multifile: false
 //   context_line: 56
 //   categories:
@@ -55,10 +55,10 @@ public class Task {
 
     public static void main(String[] args) {
         LOG.info("Running Task");
-        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\menderes\\Downloads\\c.json");
+        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "to\\path\\credential.json");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-        options.setTempLocation("gs://btestq");
-        options.as(BigQueryOptions.class).setProject("tess-372508");
+        options.setTempLocation("gs://bucket");
+        options.as(BigQueryOptions.class).setProject("project-id");
 
         Pipeline pipeline = Pipeline.create(options);
 
@@ -68,9 +68,10 @@ public class Task {
                 .addField("age", Schema.FieldType.INT32)
                 .build();
 
+        /*
         PCollection<Object> pCollection = pipeline
                 .apply(BigQueryIO.readTableRows()
-                        .from("tess-372508.fir.xasw"))
+                        .from("project-id.dataset.table"))
                 .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
                 .setCoder(CustomCoder.of())
                 .setRowSchema(inputSchema);
@@ -79,7 +80,7 @@ public class Task {
                 .apply("WriteToBigQuery", BigQueryIO.write()
                         .to("mydataset.outputtable")
                         .useBeamSchema());
-
+*/
         pipeline.run();
     }
 

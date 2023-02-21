@@ -15,45 +15,38 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: table-schema
-#   description: TextIO table schema example.
+#   name: kafkaIO
+#   description: TextIO read query example.
 #   multifile: false
-#   context_line: 30
+#   context_line: 34
 #   categories:
 #     - Quickstart
 #   complexity: ADVANCED
 #   tags:
 #     - hellobeam
+
+
 import apache_beam as beam
-from apache_beam.io import WriteToBigQuery
-from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.kafka import ReadFromKafka, WriteToKafka
 
-p = beam.Pipeline()
+def process_data(element):
+    # Do some processing on the data
+    return element
 
-table_spec = bigquery.TableReference(
-                 projectId='project-id',
-                 datasetId='dataset',
-                 tableId='table')
+options = beam.options.pipeline_options.PipelineOptions()
+p = beam.Pipeline(options=options)
 
-table_schema = {
-    'fields': [{
-        'name': 'source', 'type': 'STRING', 'mode': 'NULLABLE'
-    }, {
-        'name': 'quote', 'type': 'STRING', 'mode': 'REQUIRED'
-    }]
-}
+input_topic = 'input-topic'
+output_topic = 'output-topic'
+bootstrap_servers = {"bootstrap.servers": "localhost:9092"}
 
-input = p | beam.Create([
-    {
-        'source': 'Mahatma Gandhi', 'quote': 'My life is my message.'
-    },
-    {
-        'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."
-    },
-])
+input = p | beam.Create([{"key": "foo", "value": "bar"}])
 
-input | beam.io.WriteToBigQuery(
-    table_spec,
-    schema=table_schema,
-    write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-    create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
+# (input |  "Write to Kafka" >> WriteToKafka(
+#       topic=output_topic,
+#       producer_config = bootstrap_servers,
+#       key='key',
+#       value='value')
+# )
+
+p.run().wait_until_finish()

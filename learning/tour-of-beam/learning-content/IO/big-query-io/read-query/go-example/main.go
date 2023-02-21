@@ -18,7 +18,7 @@
 
 // beam-playground:
 //   name: read-query
-//   description: BigQuery read beam-schema example.
+//   description: BigQuery read query example.
 //   multifile: false
 //   context_line: 40
 //   categories:
@@ -30,36 +30,40 @@
 package main
 
 import (
-	"context"
-	"log"
-
-	"github.com/apache/beam/sdk/io/gcp/bigquery"
-	"github.com/apache/beam/sdk/options/pipelineoptions"
-	"github.com/apache/beam/sdk/pipeline"
+  "log"
+/*
+  "context"
+  beam_log "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+  "cloud.google.com/go/bigquery"
+  "github.com/apache/beam/sdks/v2/go/pkg/beam"
+  "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+*/
 )
 
 func main() {
-	log.Println("Running Task")
+  log.Println("Running Task")
 
-	options := pipelineoptions.NewPipelineOptions(nil)
-	options.SetTempLocation("gs://btestq")
-	options.SetProject("tess-372508")
+  /*
 
-	p := pipeline.NewPipeline(options)
+  ctx := context.Background()
+  p := beam.NewPipeline()
 
-	pCollection, err := bigquery.NewClient(context.Background(), options).Read(p,
-		bigquery.Query("SELECT max_temperature FROM `tess-372508.fir.xasw`"),
-		bigquery.WithCoder(bigquery.Float64()))
-	if err != nil {
-		log.Fatalf("Failed to read from BigQuery: %v", err)
-	}
 
-	pCollection.Apply("Log words", ParDo(func(el float64, emit func(float64)) {
-		log.Printf("Processing element: %v", el)
-		emit(el)
-	}, bigquery.Float64()))
+  pCollection, err := bigquery.NewClient(context.Background(), options).Read(p,
+    bigquery.Query("SELECT field FROM `project-id.dataset.table`"),
+    bigquery.WithCoder(bigquery.Float64()))
+  if err != nil {
+    log.Fatalf("Failed to read from BigQuery: %v", err)
+  }
 
-	if err := p.Run(); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
-	}
+  pCollection.Apply("Log words", ParDo(func(el float64, emit func(float64)) {
+    log.Printf("Processing element: %v", el)
+    emit(el)
+  }, bigquery.Float64()))
+
+  if err := p.Run(); err != nil {
+    log.Fatalf("Failed to execute job: %v", err)
+  }
+*/
 }

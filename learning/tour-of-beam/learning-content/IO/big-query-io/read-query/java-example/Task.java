@@ -18,7 +18,7 @@
 
 // beam-playground:
 //   name: read-query
-//   description: BigQuery read beam-schema example.
+//   description: BigQuery read query example.
 //   multifile: false
 //   context_line: 56
 //   categories:
@@ -46,25 +46,24 @@ public class Task {
 
     public static void main(String[] args) {
         LOG.info("Running Task");
-        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\menderes\\Downloads\\c.json");
+        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "to\\path\\credential.json");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-        options.setTempLocation("gs://btestq");
-        options.as(BigQueryOptions.class).setProject("tess-372508");
+        options.setTempLocation("gs://bucket");
+        options.as(BigQueryOptions.class).setProject("project-id");
 
         Pipeline pipeline = Pipeline.create(options);
 
 
-        PCollection<Double> pCollection = pipeline
+        /*PCollection<Double> pCollection = pipeline
                 .apply(BigQueryIO.read(
-                                (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+                                (SchemaAndRecord elem) -> (Double) elem.getRecord().get("field"))
                         .fromQuery(
-                                "SELECT max_temperature FROM `tess-372508.fir.xasw`")
+                                "SELECT field FROM `project-id.dataset.table`")
                         .usingStandardSql()
                         .withCoder(DoubleCoder.of()));
-
         pCollection
                 .apply("Log words", ParDo.of(new LogOutput<>()));
-
+*/
 
         pipeline.run();
     }

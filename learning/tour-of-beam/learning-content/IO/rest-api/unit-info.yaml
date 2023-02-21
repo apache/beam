@@ -20,7 +20,6 @@
 sdk:
   - Java
   - Python
-  - Go
 complexity: ADVANCED
 id: rest-api-io
 name: REST API

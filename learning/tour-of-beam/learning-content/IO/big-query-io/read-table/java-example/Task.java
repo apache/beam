@@ -45,19 +45,20 @@ public class Task {
 
     public static void main(String[] args) {
         LOG.info("Running Task");
-        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\menderes\\Downloads\\c.json");
+        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "to\\path\\credential.json");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-        options.setTempLocation("gs://btestq");
-        options.as(BigQueryOptions.class).setProject("tess-372508");
+        options.setTempLocation("gs://bucket");
+        options.as(BigQueryOptions.class).setProject("project-id");
 
         Pipeline pipeline = Pipeline.create(options);
 
-
+/*
         PCollection<TableRow> pCollection = pipeline
-                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("tess-372508.fir.xasw"));
+                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("bucket.project-id.table"));
 
         pCollection
                 .apply("Log words", ParDo.of(new LogOutput<>()));
+*/
 
 
         pipeline.run();

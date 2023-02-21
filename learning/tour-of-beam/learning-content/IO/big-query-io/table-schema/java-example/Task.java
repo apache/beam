@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: write-table-schema
-//   description: BigQueryIO write beam-schema example.
+//   name: table-schema
+//   description: BigQueryIO table-schema example.
 //   multifile: false
 //   context_line: 56
 //   categories:
@@ -61,15 +61,15 @@ public class Task {
 
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
-    private static final String projectId = "tess-372508";
-    private static final String dataset = "fir";
-    private static final String table = "xasw";
+    private static final String projectId = "project-id";
+    private static final String dataset = "dataset";
+    private static final String table = "table";
 
     public static void main(String[] args) {
         LOG.info("Running Task");
-        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\menderes\\Downloads\\c.json");
+        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "to\\path\\credential.json");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-        options.setTempLocation("gs://btestq");
+        options.setTempLocation("gs://bucket");
         options.as(BigQueryOptions.class).setProject(projectId);
 
         Pipeline pipeline = Pipeline.create(options);
@@ -80,60 +80,16 @@ public class Task {
                 .addField("age", Schema.FieldType.INT32)
                 .build();
 
-        PCollection<User> pCollection = pipeline
+        /*PCollection<User> pCollection = pipeline
                 .apply(BigQueryIO.readTableRows()
                         .from(String.format("%s.%s.%s", projectId, dataset, table)))
                 .apply(MapElements.into(TypeDescriptor.of(User.class)).via(it -> new User((String) it.get("id"), (String) it.get("name"), (Integer) it.get("age"))))
                 .setCoder(CustomCoder.of())
                 .setRowSchema(inputSchema);
 
-        pCollection.apply(
-                BigQueryIO.<User>write()
-                        .to(
-                                new DynamicDestinations<User, String>() {
-                                    @Override
-                                    public String getDestination(ValueInSingleWindow<User> elem) {
-                                        return elem.getValue().id;
-                                    }
-
-                                    @Override
-                                    public TableDestination getTable(String destination) {
-                                        return new TableDestination(
-                                                new TableReference()
-                                                        .setProjectId(projectId)
-                                                        .setDatasetId(dataset)
-                                                        .setTableId(table + "_" + destination),
-                                                "Table for year " + destination);
-                                    }
-
-                                    @Override
-                                    public TableSchema getSchema(String destination) {
-                                        return new TableSchema()
-                                                .setFields(
-                                                        ImmutableList.of(
-                                                                new TableFieldSchema()
-                                                                        .setName("id")
-                                                                        .setType("STRING")
-                                                                        .setMode("REQUIRED"),
-                                                                new TableFieldSchema()
-                                                                        .setName("name")
-                                                                        .setType("STRING")
-                                                                        .setMode("REQUIRED"),
-                                                                new TableFieldSchema()
-                                                                        .setName("age")
-                                                                        .setType("INTEGER")
-                                                                        .setMode("REQUIRED")));
-                                    }
-                                })
-                        .withFormatFunction(
-                                (User elem) ->
-                                        new TableRow()
-                                                .set("year", elem.id)
-                                                .set("month", elem.name)
-                                                .set("day", elem.age))
-                        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
-
+        pCollection
+                .apply("User", ParDo.of(new LogOutput<>()));
+        */
         pipeline.run();
     }
 

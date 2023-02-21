@@ -30,38 +30,49 @@
 package main
 
 import (
-    "context"
     "log"
-    "os"
-
+    /*
+    "context"
+    beam_log "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
     "cloud.google.com/go/bigquery"
     "github.com/apache/beam/sdks/v2/go/pkg/beam"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+    */
 )
+
+var(projectID = "project-id"
+    datasetID = "dataset"
+    tableID = "table")
 
 func main() {
     log.Println("Running Task")
-    ctx := context.Background()
 
-    projectID := "tess-372508"
-    datasetID := "fir"
-    tableID := "xasw"
+    /*
+    ctx := context.Background()
+    p := beam.NewPipeline()
 
     // set up pipeline
-    p, s := beam.NewPipelineWithRoot()
+
+    s := p.Root()
     s = s.Scope("ReadFromBigQuery")
     rows := bigqueryio.Read(s, bigquery.TableReference{ProjectID: projectID, DatasetID: datasetID, TableID: tableID})
 
     beam.ParDo0(s, &logOutput{}, rows)
 
-    if err := beam.Run(ctx, p); err != nil {
-        log.Fatalf("Failed to execute job: %v", err)
-    }
+    if err := beamx.Run(ctx, p); err != nil {
+      beam_log.Fatalf(ctx, "Failed to execute job: %v", err)
+  }
+*/
 }
 
+/*
 type logOutput struct{}
 
 func (l *logOutput) ProcessElement(row bigquery.Value, emit func(bigquery.Value)) {
     log.Printf("Processing element: %v", row)
     emit(row)
 }
+*/
+
+

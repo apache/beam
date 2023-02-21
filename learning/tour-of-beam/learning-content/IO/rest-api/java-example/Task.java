@@ -1,4 +1,4 @@
-/*
+package com.example.demo;/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,49 +27,178 @@
 //   tags:
 //     - hellobeam
 
+import avro.shaded.com.google.common.collect.ImmutableList;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.*;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 
 public class Task {
 
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+
+    private static final String projectId = "tess-372508";
+    private static final String dataset = "fir";
+    private static final String table = "xasw";
 
     public static void main(String[] args) {
         LOG.info("Running Task");
         System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\menderes\\Downloads\\c.json");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         options.setTempLocation("gs://btestq");
-        options.as(BigQueryOptions.class).setProject("tess-372508");
+        options.as(BigQueryOptions.class).setProject(projectId);
 
         Pipeline pipeline = Pipeline.create(options);
 
+        Schema inputSchema = Schema.builder()
+                .addField("id", Schema.FieldType.INT32)
+                .addField("name", Schema.FieldType.STRING)
+                .addField("age", Schema.FieldType.INT32)
+                .build();
 
-        PCollection<TableRow> pCollection = pipeline
-                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("tess-372508.fir.xasw"));
+        /*PCollection<User> pCollection = pipeline
+                .apply(BigQueryIO.readTableRows()
+                        .from(String.format("%s.%s.%s", projectId, dataset, table)))
+                .apply(MapElements.into(TypeDescriptor.of(User.class)).via(it -> new User((String) it.get("id"), (String) it.get("name"), (Integer) it.get("age"))))
+                .setCoder(CustomCoder.of())
+                .setRowSchema(inputSchema);
 
-        WriteResult writeResult = pCollection.apply("Save Rows to BigQuery",
-                BigQueryIO.writeTableRows()
-                        .to("tess-372508.fir.xas")
-                        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
-                        .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
-        );
+        pCollection.apply(
+                BigQueryIO.<User>write()
+                        .to(
+                                new DynamicDestinations<User, String>() {
+                                    @Override
+                                    public String getDestination(ValueInSingleWindow<User> elem) {
+                                        return elem.getValue().id;
+                                    }
 
-        writeResult.getSuccessfulInserts()
-                .apply("Log", ParDo.of(new LogOutput<>()));
+                                    @Override
+                                    public TableDestination getTable(String destination) {
+                                        return new TableDestination(
+                                                new TableReference()
+                                                        .setProjectId(projectId)
+                                                        .setDatasetId(dataset)
+                                                        .setTableId(table + "_" + destination),
+                                                "Table for year " + destination);
+                                    }
 
+                                    @Override
+                                    public TableSchema getSchema(String destination) {
+                                        return new TableSchema()
+                                                .setFields(
+                                                        ImmutableList.of(
+                                                                new TableFieldSchema()
+                                                                        .setName("id")
+                                                                        .setType("STRING")
+                                                                        .setMode("REQUIRED"),
+                                                                new TableFieldSchema()
+                                                                        .setName("name")
+                                                                        .setType("STRING")
+                                                                        .setMode("REQUIRED"),
+                                                                new TableFieldSchema()
+                                                                        .setName("age")
+                                                                        .setType("INTEGER")
+                                                                        .setMode("REQUIRED")));
+                                    }
+                                })
+                        .withFormatFunction(
+                                (User elem) ->
+                                        new TableRow()
+                                                .set("id", elem.id)
+                                                .set("name", elem.name)
+                                                .set("age", elem.age))
+                        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));*/
 
         pipeline.run();
+    }
+
+    static class User {
+        private String id;
+        private String name;
+        private Integer age;
+
+        public User(String id, String name, Integer age) {
+            this.id = id;
+            this.name = name;
+            this.age = age;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public Integer getAge() {
+            return age;
+        }
+
+        public void setAge(Integer age) {
+            this.age = age;
+        }
+    }
+
+    static class CustomCoder extends Coder<User> {
+        final ObjectMapper objectMapper = new ObjectMapper();
+        private static final CustomCoder INSTANCE = new CustomCoder();
+
+        public static CustomCoder of() {
+            return INSTANCE;
+        }
+
+        @Override
+        public void encode(User user, OutputStream outStream) throws IOException {
+            String line = user.toString();
+            outStream.write(line.getBytes());
+        }
+
+        @Override
+        public User decode(InputStream inStream) throws IOException {
+            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
+            return objectMapper.readValue(serializedDTOs, User.class);
+        }
+
+        @Override
+        public List<? extends Coder<?>> getCoderArguments() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void verifyDeterministic() {
+        }
     }
 
     static class LogOutput<T> extends DoFn<T, T> {
