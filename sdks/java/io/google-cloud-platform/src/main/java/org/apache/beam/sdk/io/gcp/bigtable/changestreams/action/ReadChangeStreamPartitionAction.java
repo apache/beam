@@ -17,11 +17,21 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isSuperset;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
+
 import com.google.api.gax.rpc.ServerStream;
+import com.google.cloud.bigtable.common.Status;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
+import com.google.cloud.bigtable.data.v2.models.CloseStream;
+import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
@@ -126,6 +136,47 @@ public class ReadChangeStreamPartitionAction {
               + watermarkEstimator.getState()
               + "\n RestrictionTracker: "
               + tracker.currentRestriction());
+    }
+
+    // Process CloseStream if it exists
+    CloseStream closeStream = tracker.currentRestriction().getCloseStream();
+    if (closeStream != null) {
+      if (Status.fromProto(closeStream.getStatus()).getCode() != Status.Code.OUT_OF_RANGE) {
+        LOG.error(
+            "RCSP {}: Reached unexpected terminal state: {}",
+            formatByteStringRange(partitionRecord.getPartition()),
+            closeStream.getStatus());
+        metrics.decPartitionStreamCount();
+        return ProcessContinuation.stop();
+      }
+      // The partitions in the continuation tokens should be a superset of this partition.
+      // If there's only 1 token, then the token's partition should be a superset of this partition.
+      // If there are more than 1 tokens, then the tokens should form a continuous row range that is
+      // a superset of this partition.
+      List<Range.ByteStringRange> partitions = new ArrayList<>();
+      for (ChangeStreamContinuationToken changeStreamContinuationToken :
+          closeStream.getChangeStreamContinuationTokens()) {
+        partitions.add(changeStreamContinuationToken.getPartition());
+        metadataTableDao.writeNewPartition(
+            changeStreamContinuationToken,
+            partitionRecord.getPartition(),
+            watermarkEstimator.getState());
+      }
+      if (shouldDebug) {
+        LOG.info(
+            "RCSP {}: Split/Merge into {}",
+            formatByteStringRange(partitionRecord.getPartition()),
+            partitionsToString(partitions));
+      }
+      if (!isSuperset(partitions, partitionRecord.getPartition())) {
+        LOG.warn(
+            "RCSP {}: CloseStream has child partition(s) {} that doesn't cover the keyspace",
+            formatByteStringRange(partitionRecord.getPartition()),
+            partitionsToString(partitions));
+      }
+      metadataTableDao.deleteStreamPartitionRow(partitionRecord.getPartition());
+      metrics.decPartitionStreamCount();
+      return ProcessContinuation.stop();
     }
 
     // Update the metadata table with the watermark

@@ -83,6 +83,7 @@ public class ReadChangeStreamPartitionDoFn
 
   @GetInitialRestriction
   public StreamProgress initialRestriction() {
+    metrics.incPartitionStreamCount();
     return new StreamProgress();
   }
 

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
 
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Internal;
@@ -36,10 +37,11 @@ import org.joda.time.Instant;
  */
 @Internal
 public class StreamProgress implements Serializable {
-  private static final long serialVersionUID = -5384329262726188695L;
+  private static final long serialVersionUID = -8597355120329526194L;
 
   private @Nullable ChangeStreamContinuationToken currentToken;
   private @Nullable Instant estimatedLowWatermark;
+  private @Nullable CloseStream closeStream;
 
   public @Nullable ChangeStreamContinuationToken getCurrentToken() {
     return currentToken;
@@ -49,12 +51,20 @@ public class StreamProgress implements Serializable {
     return estimatedLowWatermark;
   }
 
+  public @Nullable CloseStream getCloseStream() {
+    return closeStream;
+  }
+
   public StreamProgress() {}
 
   public StreamProgress(
       @Nullable ChangeStreamContinuationToken token, Instant estimatedLowWatermark) {
     this.currentToken = token;
     this.estimatedLowWatermark = estimatedLowWatermark;
+  }
+
+  public StreamProgress(@Nullable CloseStream closeStream) {
+    this.closeStream = closeStream;
   }
 
   @Override
@@ -67,7 +77,8 @@ public class StreamProgress implements Serializable {
     }
     StreamProgress that = (StreamProgress) o;
     return Objects.equals(getCurrentToken(), that.getCurrentToken())
-        && Objects.equals(getEstimatedLowWatermark(), that.getEstimatedLowWatermark());
+        && Objects.equals(getEstimatedLowWatermark(), that.getEstimatedLowWatermark())
+        && Objects.equals(getCloseStream(), that.getCloseStream());
   }
 
   @Override
@@ -82,6 +93,8 @@ public class StreamProgress implements Serializable {
         + currentToken
         + ", estimatedLowWatermark="
         + estimatedLowWatermark
+        + ", closeStream="
+        + closeStream
         + '}';
   }
 }
