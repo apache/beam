@@ -434,5 +434,6 @@ tasks.register("InitFrontend") {
     flutterPubRunTob.mustRunAfter(flutterPubGetTob)
     flutterBuildWeb.mustRunAfter(flutterPubRunTob)
     firebaseDeploy.mustRunAfter(flutterBuildWeb)
-
 }
+}
+
