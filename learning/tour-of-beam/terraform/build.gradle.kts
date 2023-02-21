@@ -183,6 +183,8 @@ tasks.register("firebaseWebAppCreate") {
     val project_id = project.property("project_id") as String
     val webapp_id = project.property("webapp_id") as String
     doLast {
+        println(project_id)
+        println(webapp_id)
         val result = ByteArrayOutputStream()
 
         exec {
