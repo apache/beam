@@ -358,6 +358,8 @@ class BeamModulePlugin implements Plugin<Project> {
     FileCollection classpath
     // Expansion service to start up
     String expansionJar
+    // Custom collect for Python pipeline tests that use Java expansion
+    String collect_java_expansion
   }
 
   def isRelease(Project project) {
@@ -2478,7 +2480,7 @@ class BeamModulePlugin implements Plugin<Project> {
           "suite": "xlangValidateRunner",
         ]
         if (sdk == "Java") {
-          beamPythonTestPipelineOptions["collect"] = "uses_java_expansion_service"
+          beamPythonTestPipelineOptions["collect"] = config.collect_java_expansion ?: "uses_java_expansion_service"
         } else if (sdk == "Python") {
           beamPythonTestPipelineOptions["collect"] = "uses_python_expansion_service"
         } else {
