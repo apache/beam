@@ -186,17 +186,31 @@ tasks.register("firebaseWebAppCreate") {
     if (project.hasProperty("project_id")) {
         project_id = project.property("project_id") as String
     }
-    val result = ByteArrayOutputStream()
+    doLast {
+        val result1 = ByteArrayOutputStream()
+        val result2 = ByteArrayOutputStream()
+
         exec {
             executable("firebase")
-            args("apps:create", "WEB", "Tour-of-Beam-Web-App", "--project", project_id)
-            standardOutput = result
+            args("apps:list", "--project", project_id)
+            standardOutput = result1
         }
-    println(result)
-    val firebaseAppId = result.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
-    project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-    println("Firebase app ID: $firebaseAppId")
-
+        val output = result1.toString().trim()
+        if (output.contains("Tour-of-Beam-Web-App")) {
+            println("Tour of Beam Web App is already created on the project $project_id.")
+            val firebaseAppId = output.toString().lines().find { it.startsWith("1:1") }?.trim()
+        } else {
+            exec {
+                executable("firebase")
+                args("apps:create", "WEB", "Tour-of-Beam-Web-App", "--project", project_id)
+                standardOutput = result2
+            }
+        }
+        println(result2)
+        val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
+        project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+        println("Firebase app ID: $firebaseAppId")
+    }
 }
 
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
@@ -206,18 +220,14 @@ tasks.register("getSdkConfigWebApp") {
     val result = ByteArrayOutputStream()
     doLast{
         exec {
-            println(firebaseAppId)
             executable("firebase")
             args("apps:sdkconfig", "WEB", firebaseAppId)
             standardOutput = result
         }
         println(result)
         val output = result.toString().trim()
-        println(output)
         val pattern = Pattern.compile("\\{.*\"locationId\":\\s*\"(.*?)\".*\\}", Pattern.DOTALL)
-        println(pattern)
         val matcher = pattern.matcher(output)
-        println(matcher)
         if (matcher.find()) {
             val firebaseConfigData = matcher.group().replace("{", "").replace("}", "")
             project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData
