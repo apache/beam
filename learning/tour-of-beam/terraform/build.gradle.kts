@@ -180,6 +180,7 @@ tasks.register("firebaseProjectCreate") {
 
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
+    outputs.upToDateWhen { false } // Disable up-to-date checks
     val project_id = project.property("project_id") as String
     val webapp_id = project.property("webapp_id") as String
     doLast {
