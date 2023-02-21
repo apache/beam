@@ -65,6 +65,10 @@ dependencies {
   implementation "commons-lang:commons-lang:2.6"
   implementation library.java.commons_lang3
   implementation library.java.commons_codec
+  permitUnusedDeclared library.java.everit_json_schema
+  provided library.java.everit_json_schema
+  permitUnusedDeclared library.java.avro
+  provided library.java.avro
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation "io.findify:s3mock_2.12:0.2.6"
