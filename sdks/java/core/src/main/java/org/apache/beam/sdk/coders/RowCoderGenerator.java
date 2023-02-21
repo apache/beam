@@ -171,8 +171,8 @@ public abstract class RowCoderGenerator {
             builder
                 .make()
                 .load(
-                    ReflectHelpers.findClassLoader(schema.getClass().getClassLoader()),
-                    getClassLoadingStrategy(schema.getClass()))
+                    ReflectHelpers.findClassLoader(Coder.class.getClassLoader()),
+                    getClassLoadingStrategy(Coder.class))
                 .getLoaded()
                 .getDeclaredConstructor(Coder[].class, int[].class)
                 .newInstance((Object) componentCoders, (Object) encodingPosToRowIndex);
