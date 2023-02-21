@@ -180,7 +180,6 @@ tasks.register("firebaseProjectCreate") {
 
 
 tasks.register("firebaseWebAppCreate") {
-    dependsOn("firebaseProjectCreate")
     group = "frontend-deploy"
     var project_id = ""
     if (project.hasProperty("project_id")) {
@@ -190,7 +189,6 @@ tasks.register("firebaseWebAppCreate") {
     if (project.hasProperty("webapp_id")) {
         webapp_id = project.property("webapp_id") as String
     }
-    doLast {
         val result1 = ByteArrayOutputStream()
         val result2 = ByteArrayOutputStream()
 
@@ -214,7 +212,6 @@ tasks.register("firebaseWebAppCreate") {
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
             println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
         }
-    }
 }
 
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
