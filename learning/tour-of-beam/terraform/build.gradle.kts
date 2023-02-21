@@ -164,7 +164,6 @@ tasks.register("firebaseProjectCreate") {
             args("projects:list")
             standardOutput = result
         }
-
         val output = result.toString().trim()
         if (output.contains(project_id)) {
             println("Firebase is already added to project $project_id.")
@@ -181,37 +180,32 @@ tasks.register("firebaseProjectCreate") {
 
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
-    var project_id = ""
-    if (project.hasProperty("project_id")) {
-        project_id = project.property("project_id") as String
-    }
-    var webapp_id = ""
-    if (project.hasProperty("webapp_id")) {
-        webapp_id = project.property("webapp_id") as String
-    }
-        val result1 = ByteArrayOutputStream()
-        val result2 = ByteArrayOutputStream()
+    val project_id = project.property("project_id") as String
+    val webapp_id = project.property("webapp_id") as String
+    doLast {
+        val result = ByteArrayOutputStream()
 
         exec {
             executable("firebase")
             args("apps:list", "--project", project_id)
-            standardOutput = result1
+            standardOutput = result
         }
-        val output = result1.toString().trim()
+        val output = result.toString().trim()
         if (output.contains(webapp_id)) {
             println("Tour of Beam Web App $webapp_id is already created on the project $project_id.")
-            val firebaseAppId = result1.toString().lines().find { it.contains("1:") }?.substringAfter("$webapp_id │ ")?.substringBefore(" │ WEB")?.trim()
+            val firebaseAppId = result.toString().lines().find { it.contains("1:") }?.substringAfter("$webapp_id │ ")?.substringBefore(" │ WEB")?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
         } else {
             exec {
                 executable("firebase")
                 args("apps:create", "WEB", webapp_id, "--project", project_id)
-                standardOutput = result2
-            }
-            val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
-            project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-            println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
+                standardOutput = result
+                }
+                val firebaseAppId = result.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
+                project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+                println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
         }
+    }
 }
 
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
