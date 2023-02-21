@@ -247,9 +247,9 @@ tasks.register("prepareFirebaseOptionsDart") {
     doLast {
         val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
         val file = project.file("../frontend/lib/firebase_options.dart")
-        val content = file.readText()
-        val updatedContent = content.replace(Regex("""static const FirebaseOptions web = FirebaseOptions\(([^)]+)\);"""), "static const FirebaseOptions web = FirebaseOptions(${firebaseConfigData});")
-        file.writeText(updatedContent)
+        var content = file.readText()
+        content = content.replace(Regex("""FirebaseOptions\((.*)\)"""), "FirebaseOptions(${firebaseConfigData.replace("\n", "")})")
+        file.writeText(content)
     }
 }
 
