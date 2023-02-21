@@ -15,8 +15,20 @@
 
 package internal
 
+import (
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
+)
+
 // stage represents a fused subgraph.
 // temporary implementation to break up PRs.
 type stage struct {
 	transforms []string
+}
+
+type transformExecuter interface {
+	ExecuteUrns() []string
+	ExecuteWith(t *pipepb.PTransform) string
+	ExecuteTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, data [][]byte) *worker.B
 }
