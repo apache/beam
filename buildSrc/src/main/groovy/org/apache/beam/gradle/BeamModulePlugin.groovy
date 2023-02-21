@@ -574,8 +574,8 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20211016-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20211130-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20211201-$google_clients_version",
-        google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
-        google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
+        google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:1.6.1", // google_cloud_platform_libraries_bom sets version
+        google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:1.6.1", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable", // google_cloud_platform_libraries_bom sets version
