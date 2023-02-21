@@ -216,31 +216,19 @@ tasks.register("firebaseWebAppCreate") {
 // firebase apps:sdkconfig WEB AppId
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
-    doLast{
+    doLast {
         val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
-        if (firebaseAppId == null) {
-            throw Exception("firebaseAppId not set.")
-        }
         val result = ByteArrayOutputStream()
         exec {
             executable("firebase")
             args("apps:sdkconfig", "WEB", firebaseAppId)
             standardOutput = result
         }
+        println(result)
         val output = result.toString().trim()
-        val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
-        val matcher = pattern.matcher(output)
-        if (matcher.find()) {
-            val firebaseConfigData = matcher.group().replace("{", "").replace("}", "")
-                    .replace(Regex("\"\\s*:\\s*\""), ":\"").replace(Regex("(?<!:)(\\w+)"), "\"$1\"")
-                    .replace(Regex(",\\s*\"locationId\":\\s*\".*?\""), "")
-            project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData.trim()
-            println("Firebase config data: $firebaseConfigData")
-        } else {
-            throw Exception("Unable to extract Firebase config data from output.")
-        }
+        println(output)
+        tasks.getByName("prepareFirebaseOptionsDart").mustRunAfter(this)
     }
-    tasks.getByName("prepareFirebaseOptionsDart").mustRunAfter(this)
 }
 
 tasks.register("prepareFirebaseOptionsDart") {
