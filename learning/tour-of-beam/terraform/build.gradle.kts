@@ -210,11 +210,11 @@ tasks.register("firebaseWebAppCreate") {
             println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
         }
     }
+    tasks.getByName("firebaseProjectCreate").mustRunAfter(this)
 }
 
 // firebase apps:sdkconfig WEB 1:11155893632:web:09743665f1f2d7cb086565
 tasks.register("getSdkConfigWebApp") {
-    dependsOn("firebaseWebAppCreate")
     group = "frontend-deploy"
     val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
     val result = ByteArrayOutputStream()
@@ -409,11 +409,8 @@ tasks.register("InitFrontend") {
     val flutterBuildWeb = tasks.getByName("flutterBuildWeb")
     val firebaseDeploy = tasks.getByName("firebaseDeploy")
     dependsOn(prepareConfig)
-    Thread.sleep(5000)
     dependsOn(firebaseProjectCreate)
-    Thread.sleep(9000)
     dependsOn(firebaseWebAppCreate)
-    Thread.sleep(9000)
     dependsOn(getSdkConfigWebApp)
     dependsOn(prepareFirebaseOptionsDart)
     dependsOn(flutterPubGetPG)
