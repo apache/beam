@@ -137,7 +137,7 @@ public class DataSamplerTest {
     DataSampler sampler = new DataSampler();
 
     String rawString = "hello";
-    byte[] byteArray = rawString.getBytes(Charset.forName("ASCII"));
+    byte[] byteArray = rawString.getBytes(StandardCharsets.US_ASCII);
     ByteArrayCoder coder = ByteArrayCoder.of();
     sampler.sampleOutput("pcollection-id", coder).sample(byteArray);
 
