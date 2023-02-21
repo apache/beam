@@ -248,7 +248,7 @@ tasks.register("prepareFirebaseOptionsDart") {
         println("FirebaseConfigData for firebase_options file is: $firebaseConfigData")
         val file = project.file("../frontend/lib/firebase_options.dart")
         val content = file.readText()
-        val updatedContent = content.replace(Regex("""FirebaseOptions\((.*)\)"""), "FirebaseOptions(${firebaseConfigData})")
+        val updatedContent = content.replace(Regex("""FirebaseOptions(*)"""), "FirebaseOptions(${firebaseConfigData})")
         file.writeText(updatedContent)
     }
 }
