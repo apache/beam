@@ -39,7 +39,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * An implementation of {@link SchemaIOProvider} for reading and writing JSON payloads with {@link
  * JdbcIO}.
  */
-@SuppressWarnings({"unsafe"})
 @Internal
 @AutoService(SchemaIOProvider.class)
 public class JdbcSchemaIOProvider implements SchemaIOProvider {
@@ -123,8 +122,8 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
                   ? config.getString("partitionColumn")
                   : null;
           if (partitionColumn != null) {
-            JdbcIO.ReadWithPartitions<?, ?> readRows =
-                JdbcIO.readWithPartitions()
+            JdbcIO.ReadWithPartitions<Row, ?> readRows =
+                JdbcIO.<Row>readWithPartitions()
                     .withDataSourceConfiguration(getDataSourceConfiguration())
                     .withTable(location)
                     .withPartitionColumn(partitionColumn)
@@ -133,10 +132,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
             if (partitions != null) {
               readRows = readRows.withNumPartitions(partitions);
             }
-
-            // Need to do a cast here
-            return input.apply((JdbcIO.ReadWithPartitions<Row, ?>) readRows);
-
+            return input.apply(readRows);
           } else {
 
             @Nullable String readQuery = config.getString("readQuery");
