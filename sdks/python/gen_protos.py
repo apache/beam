@@ -38,7 +38,7 @@ import pkg_resources
 
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
-os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'upb'
 
 LICENSE_HEADER = """
 #
@@ -203,11 +203,11 @@ def generate_urn_files(out_dir, api_path):
       else:
         return self.empty_type(type(msg))
 
-    def write_enum(self, enum_name, enum, indent):
+    def write_enum(self, enum_name, descriptor, indent):
       ctx = Context(indent=indent)
 
       with ctx.indent():
-        for v in enum.DESCRIPTOR.values:
+        for enum_name, v in descriptor.enum_types_by_name.items():
           extensions = v.GetOptions().Extensions
 
           prop = (
@@ -233,10 +233,12 @@ def generate_urn_files(out_dir, api_path):
       ctx = Context(indent=indent)
 
       with ctx.indent():
+        if 'MonitoringInfoSpecs' in str(message):
+          pass
         for obj_name, obj in inspect.getmembers(message):
           if self.is_message_type(obj):
             ctx.lines += self.write_message(obj_name, obj, ctx._indent)
-          elif self.is_enum_type(obj):
+          elif obj_name == 'DESCRIPTOR':
             ctx.lines += self.write_enum(obj_name, obj, ctx._indent)
 
       if ctx.lines:
