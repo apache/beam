@@ -25,8 +25,16 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 
+/**
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerializerProvider</code>
+ *     instead of this one.
+ */
 @Internal
 @Experimental(Kind.SCHEMAS)
+@Deprecated
 @AutoService(PayloadSerializerProvider.class)
 public class AvroPayloadSerializerProvider implements PayloadSerializerProvider {
   @Override
