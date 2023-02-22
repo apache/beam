@@ -54,14 +54,14 @@ Tour of Beam backend uses `terraform.tfvars` located in `learning/tour-of-beam/t
 
 * `terraform.tfvars` environment variables:
 ```
-project_id = "gcp_project_id" # Your GCP Project ID
-cloudfunctions_bucket = "gcs_bucket_name" # Name of bucket that will be created for cloud functions source code (Note: has to be globally unique)
-region = "gcp_region" # Your GCP resources region
+project_id = "gcp_project_id"                   # Your GCP Project ID
+cloudfunctions_bucket = "gcs_bucket_name"       # Name of bucket that will be created for cloud functions source code (Note: has to be globally unique)
+region = "gcp_region"                           # Your GCP resources region
 
 ```
 * `state.tfbackend` environment variables:
 ```
-bucket = "bucket_name" # Your created bucket name for terraform tfstate file
+bucket = "bucket_name"                          # Your created bucket name for terraform tfstate file
 ```
 2. Configure authentication for the Google Cloud Platform
 ```
