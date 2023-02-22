@@ -339,7 +339,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
@@ -350,6 +350,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     playgroundController
         .snippetEditingController?.activeFileController?.codeController
         .removeListener(_onCodeChanged);
-    super.dispose();
+    await super.dispose();
   }
 }
