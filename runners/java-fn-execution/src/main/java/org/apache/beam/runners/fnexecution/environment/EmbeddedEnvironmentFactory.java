@@ -29,6 +29,8 @@ import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool.Source;
@@ -108,7 +110,10 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
                 FnHarness.main(
                     workerId,
                     options,
-                    Collections.emptySet(), // Runner capabilities.
+                    Collections.singleton(
+                        BeamUrns.getUrn(
+                            StandardRunnerProtocols.Enum
+                                .CONTROL_RESPONSE_ELEMENTS_EMBEDDING)), // Runner capabilities.
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
                     null,

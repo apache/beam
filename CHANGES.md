@@ -54,21 +54,37 @@
 
 ## Highlights
 
+* Java SDK containers migrated to [Eclipse Temurin](https://hub.docker.com/_/eclipse-temurin)
+  as a base. This change migrates away from the deprecated [OpenJDK](https://hub.docker.com/_/openjdk)
+  container. Eclipse Temurin is currently based upon Ubuntu 22.04 while the OpenJDK
+  container was based upon Debian 11.
 * RunInference PTransform will accept model paths as SideInputs in Python SDK. ([#24042](https://github.com/apache/beam/issues/24042))
+* RunInference supports ONNX runtime in Python SDK ([#22972](https://github.com/apache/beam/issues/22972))
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added in JmsIO a retry policy for failed publications (Java) ([#24971](https://github.com/apache/beam/issues/24971)).
+* Support for `LZMA` compression/decompression of text files added to the Python SDK ([#25316](https://github.com/apache/beam/issues/25316))
 
 ## New Features / Improvements
 
 * Add UDF metrics support for Samza portable mode.
 * Option for SparkRunner to avoid the need of SDF output to fit in memory ([#23852](https://github.com/apache/beam/issues/23852)).
   This helps e.g. with ParquetIO reads. Turn the feature on by adding experiment `use_bounded_concurrent_output_for_sdf`.
+* Add `WatchFilePattern` transform, which can be used as a side input to the RunInference PTransfrom to watch for model updates using a file pattern. ([#24042](https://github.com/apache/beam/issues/24042))
+* Add support for loading TorchScript models with `PytorchModelHandler`. The TorchScript model path can be
+  passed to PytorchModelHandler using `torch_script_model_path=<path_to_model>`. ([#25321](https://github.com/apache/beam/pull/25321))
+* The Go SDK now requires Go 1.19 to build. ([#25545](https://github.com/apache/beam/pull/25545))
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* The deprecated SparkRunner for Spark 2 (see [2.41.0](#2410---2022-08-23)) was removed ([#25263](https://github.com/apache/beam/pull/25263)).
+* Python's BatchElements performs more aggressive batching in some cases,
+  capping at 10 second rather than 1 second batches by default and excluding
+  fixed cost in this computation to better handle cases where the fixed cost
+  is larger than a single second. To get the old behavior, one can pass
+  `target_batch_duration_secs_including_fixed_cost=1` to BatchElements.
 
 ## Deprecations
 
@@ -82,7 +98,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.45.0] - Unreleased
+# [2.45.0] - 2023-02-15
 
 ## Highlights
 
@@ -100,6 +116,7 @@
 * Adding override of allowed TLS algorithms (Java), now maintaining the disabled/legacy algorithms
   present in 2.43.0 (up to 1.8.0_342, 11.0.16, 17.0.2 for respective Java versions). This is accompanied
   by an explicit re-enabling of TLSv1 and TLSv1.1 for Java 8 and Java 11.
+* Add UDF metrics support for Samza portable mode.
 
 ## Breaking Changes
 
@@ -108,20 +125,13 @@
   `disable_runner_v2_until_2023`, `disable_prime_runner_v2` experiments will raise an error during
   pipeline construction. You can no longer specify the Dataflow worker jar override. Note that
   non-portable Java jobs and non-portable Python batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515)).
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Beam now requires `pyarrow>=3` and `pandas>=1.4.3` since older versions are not compatible with `numpy==1.24.0`.
 
 ## Bugfixes
 
 * Avoids Cassandra syntax error when user-defined query has no where clause in it (Java) ([#24829](https://github.com/apache/beam/issues/24829)).
 * Fixed JDBC connection failures (Java) during handshake due to deprecated TLSv1(.1) protocol for the JDK. ([#24623](https://github.com/apache/beam/issues/24623))
 * Fixed Python BigQuery Batch Load write may truncate valid data when deposition sets to WRITE_TRUNCATE and incoming data is large (Python) ([#24623](https://github.com/apache/beam/issues/24535)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.44.0] - 2023-01-12
 

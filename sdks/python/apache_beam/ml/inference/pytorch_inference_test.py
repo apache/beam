@@ -123,6 +123,7 @@ class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
     self._device = device
     self._inference_fn = inference_fn
     self._state_dict_path = None
+    self._torch_script_model_path = None
 
 
 class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
@@ -131,6 +132,7 @@ class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
     self._device = device
     self._inference_fn = inference_fn
     self._state_dict_path = None
+    self._torch_script_model_path = None
 
 
 def _compare_prediction_result(x, y):
@@ -520,6 +522,53 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(
               KEYED_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
 
+  def test_pipeline_local_model_extra_inference_args_batching_args(self):
+    with TestPipeline() as pipeline:
+      inference_args = {
+          'prediction_param_array': torch.from_numpy(
+              np.array([1, 2], dtype="float32")),
+          'prediction_param_bool': True
+      }
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      def batch_validator_keyed_tensor_inference_fn(
+          batch,
+          model,
+          device,
+          inference_args,
+          model_id,
+      ):
+        if len(batch) != 2:
+          raise Exception(
+              f'Expected batch of size 2, received batch of size {len(batch)}')
+        return default_keyed_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
+
+      model_handler = PytorchModelHandlerKeyedTensor(
+          state_dict_path=path,
+          model_class=PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          },
+          inference_fn=batch_validator_keyed_tensor_inference_fn,
+          min_batch_size=2,
+          max_batch_size=2)
+
+      pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
+      inference_args_side_input = (
+          pipeline | 'create side' >> beam.Create(inference_args))
+      predictions = pcoll | RunInference(
+          model_handler=model_handler,
+          inference_args=beam.pvalue.AsDict(inference_args_side_input))
+      assert_that(
+          predictions,
+          equal_to(
+              KEYED_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
+
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
@@ -541,6 +590,51 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           model_params={
               'input_dim': 1, 'output_dim': 1
           })
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(expected_predictions, equals_fn=_compare_prediction_result))
+
+  @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
+  def test_pipeline_gcs_model_control_batching(self):
+    with TestPipeline() as pipeline:
+      examples = torch.from_numpy(
+          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
+      expected_predictions = [
+          PredictionResult(ex, pred) for ex,
+          pred in zip(
+              examples,
+              torch.Tensor([example * 2.0 + 0.5
+                            for example in examples]).reshape(-1, 1))
+      ]
+
+      def batch_validator_tensor_inference_fn(
+          batch,
+          model,
+          device,
+          inference_args,
+          model_id,
+      ):
+        if len(batch) != 2:
+          raise Exception(
+              f'Expected batch of size 2, received batch of size {len(batch)}')
+        return default_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
+
+
+      gs_pth = 'gs://apache-beam-ml/models/' \
+          'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
+      model_handler = PytorchModelHandlerTensor(
+          state_dict_path=gs_pth,
+          model_class=PytorchLinearRegression,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          },
+          inference_fn=batch_validator_tensor_inference_fn,
+          min_batch_size=2,
+          max_batch_size=2)
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
       predictions = pcoll | RunInference(model_handler)
@@ -608,6 +702,135 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           "WARNING:root:Model handler specified a 'GPU' device, but GPUs " \
           "are not available. Switching to CPU.",
           log.output)
+
+  def test_load_torch_script_model(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_script_model = torch.jit.script(torch_model)
+
+    torch_script_path = os.path.join(self.tmpdir, 'torch_script_model.pt')
+
+    torch.jit.save(torch_script_model, torch_script_path)
+
+    model_handler = PytorchModelHandlerTensor(
+        torch_script_model_path=torch_script_path)
+
+    torch_script_model = model_handler.load_model()
+
+    self.assertTrue(isinstance(torch_script_model, torch.jit.ScriptModule))
+
+  def test_inference_torch_script_model(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+
+    torch_script_model = torch.jit.script(torch_model)
+
+    torch_script_path = os.path.join(self.tmpdir, 'torch_script_model.pt')
+
+    torch.jit.save(torch_script_model, torch_script_path)
+
+    model_handler = PytorchModelHandlerTensor(
+        torch_script_model_path=torch_script_path)
+
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(
+              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
+
+  def test_torch_model_class_none(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_path = os.path.join(self.tmpdir, 'torch_model.pt')
+
+    torch.save(torch_model, torch_path)
+
+    with self.assertRaisesRegex(
+        RuntimeError,
+        "A state_dict_path has been supplied to the model "
+        "handler, but the required model_class is missing. "
+        "Please provide the model_class in order to"):
+      _ = PytorchModelHandlerTensor(state_dict_path=torch_path)
+
+    with self.assertRaisesRegex(
+        RuntimeError,
+        "A state_dict_path has been supplied to the model "
+        "handler, but the required model_class is missing. "
+        "Please provide the model_class in order to"):
+      _ = (PytorchModelHandlerKeyedTensor(state_dict_path=torch_path))
+
+  def test_torch_model_state_dict_none(self):
+    with self.assertRaisesRegex(
+        RuntimeError,
+        "A model_class has been supplied to the model "
+        "handler, but the required state_dict_path is missing. "
+        "Please provide the state_dict_path in order to"):
+      _ = PytorchModelHandlerTensor(model_class=PytorchLinearRegression)
+
+    with self.assertRaisesRegex(
+        RuntimeError,
+        "A model_class has been supplied to the model "
+        "handler, but the required state_dict_path is missing. "
+        "Please provide the state_dict_path in order to"):
+      _ = PytorchModelHandlerKeyedTensor(model_class=PytorchLinearRegression)
+
+  def test_specify_torch_script_path_and_state_dict_path(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_path = os.path.join(self.tmpdir, 'torch_model.pt')
+
+    torch.save(torch_model, torch_path)
+    torch_script_model = torch.jit.script(torch_model)
+
+    torch_script_path = os.path.join(self.tmpdir, 'torch_script_model.pt')
+
+    torch.jit.save(torch_script_model, torch_script_path)
+    with self.assertRaisesRegex(
+        RuntimeError, "Please specify either torch_script_model_path or "):
+      _ = PytorchModelHandlerTensor(
+          state_dict_path=torch_path,
+          model_class=PytorchLinearRegression,
+          torch_script_model_path=torch_script_path)
+
+  def test_prediction_result_model_id_with_torch_script_model(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_script_model = torch.jit.script(torch_model)
+    torch_script_path = os.path.join(self.tmpdir, 'torch_script_model.pt')
+    torch.jit.save(torch_script_model, torch_script_path)
+
+    model_handler = PytorchModelHandlerTensor(
+        torch_script_model_path=torch_script_path)
+
+    def check_torch_script_model_id(element):
+      assert ('torch_script_model.pt' in element.model_id) is True
+
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      predictions = pcoll | RunInference(model_handler)
+      _ = predictions | beam.Map(check_torch_script_model_id)
+
+  def test_prediction_result_model_id_with_torch_model(self):
+    # weights associated with PytorchLinearRegression class
+    state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                              ('linear.bias', torch.Tensor([0.5]))])
+    torch_path = os.path.join(self.tmpdir, 'torch_model.pt')
+    torch.save(state_dict, torch_path)
+
+    model_handler = PytorchModelHandlerTensor(
+        state_dict_path=torch_path,
+        model_class=PytorchLinearRegression,
+        model_params={
+            'input_dim': 2, 'output_dim': 1
+        })
+
+    def check_torch_script_model_id(element):
+      assert ('torch_model.pt' in element.model_id) is True
+
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      predictions = pcoll | RunInference(model_handler)
+      _ = predictions | beam.Map(check_torch_script_model_id)
 
 
 if __name__ == '__main__':
