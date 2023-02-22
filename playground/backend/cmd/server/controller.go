@@ -51,6 +51,8 @@ const (
 	userCloudConnectionErrMsg  = "Cloud connection error"
 	resourceNotFoundErrMsg     = "Resource is not found"
 	resourceInconsistentErrMsg = "Resource is not consistent"
+	buildCommitHash            = "<unknown>"
+	beamSdkVersion             = "<unknown>"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -531,5 +533,16 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 			IsMain:  file.IsMain,
 		})
 	}
+	return &response, nil
+}
+
+// GetMetadata returns runner metadata
+func (controller *playgroundController) GetMetadata(ctx context.Context, info *pb.GetMetadataRequest) (*pb.GetMetadataResponse, error) {
+	response := pb.GetMetadataResponse{
+		RunnerSdk:       controller.env.BeamSdkEnvs.ApacheBeamSdk.String(),
+		BuildCommitHash: buildCommitHash,
+		BeamSdkVersion:  beamSdkVersion,
+	}
+
 	return &response, nil
 }
