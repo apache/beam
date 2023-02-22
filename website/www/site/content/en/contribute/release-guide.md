@@ -277,6 +277,9 @@ After cutting the branch, you should manually update `CHANGES.md` on `master` by
 * **Script:** [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
 
 * **Usage**
+
+`RELEASE_VERSION` and `NEXT_VERSION` should be formatted like `{major}.{minor}.{patch}` (e.g. `2.46.0`)
+
   ```
   # Cut a release branch
   ./beam/release/src/main/scripts/cut_release_branch.sh \
@@ -303,6 +306,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
       ./beam/release/src/main/scripts/start_snapshot_build.sh
 
 * **The script will:**
+  1. Ask for the url of your personal clone of Beam (e.g. `https://github.com/<user>/beam`).
   1. Install [hub](https://github.com/github/hub) with your agreement.
   1. Touch an empty txt file and commit changes into ```${your remote beam repo}/snapshot_build```
   1. Use hub to create a PR against apache:master, which triggers a Jenkins job to build snapshot.
