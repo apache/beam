@@ -60,6 +60,8 @@
   container was based upon Debian 11.
 * RunInference PTransform will accept model paths as SideInputs in Python SDK. ([#24042](https://github.com/apache/beam/issues/24042))
 * RunInference supports ONNX runtime in Python SDK ([#22972](https://github.com/apache/beam/issues/22972))
+* Tensorflow Model Handler for RunInference in Python SDK ([#25366](https://github.com/apache/beam/issues/25366))
+* Java SDK modules migrated to use `:sdks:java:extensions:avro` ([#24748](https://github.com/apache/beam/issues/24748))
 
 ## I/Os
 
@@ -77,6 +79,8 @@
 * Add support for loading TorchScript models with `PytorchModelHandler`. The TorchScript model path can be
   passed to PytorchModelHandler using `torch_script_model_path=<path_to_model>`. ([#25321](https://github.com/apache/beam/pull/25321))
 * The Go SDK now requires Go 1.19 to build. ([#25545](https://github.com/apache/beam/pull/25545))
+* The Go SDK now has an initial native Go implementation of a portable Beam Runner called Prism. ([#24789](https://github.com/apache/beam/pull/24789))
+  * For more details and current state see https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism.
 
 ## Breaking Changes
 
@@ -89,7 +93,9 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Avro related classes are deprecated in module `beam-sdks-java-core` and will be eventually removed. Please, migrate to a new module `beam-sdks-java-extensions-avro` instead by importing the classes from `org.apache.beam.sdk.extensions.avro` package.
+  For the sake of migration simplicity, the relative package path and the whole class hierarchy of Avro related classes in new module is preserved the same as it was before.
+  For example, import `org.apache.beam.sdk.extensions.avro.coders.AvroCoder` class instead of`org.apache.beam.sdk.coders.AvroCoder`. ([#24749](https://github.com/apache/beam/issues/24749)).
 
 ## Bugfixes
 
