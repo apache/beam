@@ -69,7 +69,7 @@ public class Task {
                 .apply(Flatten.iterables())
                 .apply("Log amounts", ParDo.of(new LogDouble()));
 
-        p.run().waitUntilFinish();
+        pipeline.run().waitUntilFinish();
 
     }
 

@@ -76,7 +76,7 @@ public class Task {
 
 
         //Concept #3. Read text file and split into PCollection of words.
-        PCollection<String> words = p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
+        PCollection<String> words = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
                 .apply(FlatMapElements.into(TypeDescriptors.strings()).via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
                 .apply(Filter.by((String word) -> !word.isEmpty()));
 
@@ -86,7 +86,7 @@ public class Task {
 
         // Concept #4. Write PCollection to text file.
         sampleWords.apply(TextIO.write().to("sample-words"));
-        p.run().waitUntilFinish();
+        pipeline.run().waitUntilFinish();
     }
 
     public static class LogStrings extends DoFn<String, String> {
