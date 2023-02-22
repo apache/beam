@@ -26,20 +26,122 @@ def DATAFLOW_VERSION = "dataflow.version"
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
 
+// Returns a string representing the relocated path to be used with the shadow
+// plugin when given a suffix such as "com.".
+def getWorkerRelocatedPath = { String suffix ->
+    return ("org.apache.beam.runners.dataflow.worker.repackaged."
+            + suffix)
+}
+
+def sdk_provided_dependencies = [
+        google_api_services_dataflow,
+        library.java.avro,
+        library.java.google_http_client,
+        library.java.google_http_client_gson,
+        library.java.jackson_annotations,
+        library.java.jackson_core,
+        library.java.jackson_databind,
+        library.java.joda_time,
+        library.java.slf4j_api,
+        library.java.vendored_grpc_1_48_1,
+]
+
+def sdk_provided_shaded_project_dependencies = [
+        ":model:pipeline",
+        ":sdks:java:core",
+]
+def sdk_provided_project_dependencies = [
+        ":runners:google-cloud-dataflow-java",
+        ":sdks:java:extensions:google-cloud-platform-core",
+        ":sdks:java:io:google-cloud-platform",
+]
+
+// Exclude unneeded dependencies when building jar
+def excluded_dependencies = [
+        "com.google.auto.service:auto-service",      // Provided scope added from applyJavaNature
+        "com.google.auto.value:auto-value",          // Provided scope added from applyJavaNature
+        "org.codehaus.jackson:jackson-core-asl",     // Exclude an old version of jackson-core-asl introduced by google-http-client-jackson
+        "org.objenesis:objenesis",                   // Transitive dependency introduced from Beam
+        library.java.commons_compress,               // Transitive dependency introduced from Beam
+        library.java.error_prone_annotations,        // Provided scope added in worker
+        library.java.hamcrest,                       // Test only
+        library.java.junit,                          // Test only
+        library.java.jsonassert                      // Test only
+]
+
 applyJavaNature(
-  archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
-  publish: false,
-  exportJavadoc: false,
-  classesTriggerCheckerBugs: [
-    'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
-    'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
-    'FetchAndFilterStreamingSideInputsOperation': 'https://github.com/typetools/checker-framework/issues/5436',
-  ],
-  enableSpotbugs: true,
-  validateShadowJar: false,
-  shadowClosure: {
-    // In the case of the Fn API worker jar we are creating an application so we rely on
-    // the shadow plugin to include all transitive dependencies to create an uber jar.
+        automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
+        archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
+        classesTriggerCheckerBugs: [
+          'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
+          'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
+          'FetchAndFilterStreamingSideInputsOperation': 'https://github.com/typetools/checker-framework/issues/5436',
+        ],
+        exportJavadoc: false,
+        enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
+        shadowJarValidationExcludes: [
+            "org/apache/beam/runners/dataflow/worker/**",
+            "org/apache/beam/repackaged/beam_runners_google_cloud_dataflow_java_legacy_worker/**",
+            // TODO(https://github.com/apache/beam/issues/19114): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
+            "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
+            // Allow slf4j implementation worker for logging during pipeline execution
+            "org/slf4j/impl/**"
+        ],
+        shadowClosure: {
+    // Each included dependency must also include all of its necessary transitive dependencies
+    // or have them provided by the users pipeline during job submission. Typically a users
+    // pipeline includes :runners:google-cloud-dataflow-java and its transitive dependencies
+    // so those dependencies don't need to be shaded (bundled and relocated) away. All other
+    // dependencies needed to run the worker must be shaded (bundled and relocated) to prevent
+    // ClassNotFound and/or MethodNotFound errors during pipeline execution.
+    //
+    // Each included dependency should have a matching relocation rule below that ensures
+    // that the shaded jar is correctly built.
+
+    dependencies {
+      include(dependency(library.java.slf4j_jdk14))
+    }
+
+    dependencies {
+        include(project(path: ":model:fn-execution", configuration: "shadow"))
+    }
+    relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
+
+    dependencies {
+        include(project(":runners:core-construction-java"))
+        include(project(":runners:core-java"))
+    }
+    relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
+    relocate("org.apache.beam.repackaged.beam_runners_core_construction_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_construction_java"))
+    relocate("org.apache.beam.repackaged.beam_runners_core_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_java"))
+
+    dependencies {
+        include(project(":runners:java-fn-execution"))
+    }
+    relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
+    relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
+
+    dependencies {
+        include(project(":sdks:java:fn-execution"))
+    }
+    relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
+    relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
+
+    dependencies {
+        // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
+        // which includes several org.eclipse.jetty artifacts + servlet-api
+        include(dependency("org.eclipse.jetty:.*:9.2.10.v20150310"))
+        include(dependency("javax.servlet:javax.servlet-api:3.1.0"))
+    }
+    relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
+    relocate("javax.servlet", getWorkerRelocatedPath("javax.servlet"))
+
+    // We don't relocate windmill since it is already underneath the org.apache.beam.runners.dataflow.worker namespace and never
+    // expect a user pipeline to include it. There is also a JNI component that windmill server relies on which makes
+    // arbitrary relocation more difficult.
+    dependencies {
+        include(project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow"))
+    }
 
     // Include original source files extracted under
     // '$buildDir/original_sources_to_package' to jar
@@ -47,84 +149,105 @@ applyJavaNature(
 
     exclude "META-INF/LICENSE.txt"
     exclude "about.html"
-  },
-)
+})
 
 /******************************************************************************/
 // Configure the worker root project
 
 configurations {
-  sourceFile
+    sourceFile
 
-  // Ban these dependencies from all configurations
-  all {
-    // Ban the usage of AppleJavaExtensions in spotbugs.
-    exclude group: "com.apple", module: "AppleJavaExtensions"
-  }
+    // Ban these dependencies from all configurations
+    all {
+        // Ban the usage of AppleJavaExtensions in spotbugs.
+        exclude group: "com.apple", module: "AppleJavaExtensions"
+    }
 }
 
 dependencies {
-  // Note that any dependency that is modified here should also be modified within
-  // runners/google-cloud-dataflow-java/worker/legacy-worker/build.gradle using the rules provided
-  // there.
-  //
-  // All main sourceset dependencies here should be listed as implementation scope so that the dependencies
-  // are all packaged into a single uber jar allowing the jar to serve as an application.
-  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  implementation project(":runners:google-cloud-dataflow-java")
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  implementation project(":sdks:java:io:google-cloud-platform")
-  implementation project(path: ":model:fn-execution", configuration: "shadow")
-  implementation project(path: ":model:pipeline", configuration: "shadow")
-  implementation project(":runners:core-construction-java")
-  implementation project(":runners:core-java")
-  implementation project(":runners:java-fn-execution")
-  implementation project(":sdks:java:fn-execution")
-  implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
-  implementation library.java.vendored_grpc_1_48_1
-  implementation google_api_services_dataflow
-  implementation library.java.avro
-  implementation library.java.google_api_client
-  permitUnusedDeclared library.java.google_api_client // BEAM-11761
-  implementation library.java.google_auth_library_credentials
-  implementation library.java.google_http_client
-  implementation library.java.google_http_client_gson
-  implementation library.java.jackson_annotations
-  implementation library.java.jackson_core
-  implementation library.java.jackson_databind
-  implementation library.java.joda_time
-  implementation library.java.proto_google_common_protos
-  shadow library.java.vendored_guava_26_0_jre
-  implementation library.java.slf4j_api
-  implementation "io.opencensus:opencensus-api:0.31.0"
-  implementation "javax.servlet:javax.servlet-api:3.1.0"
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
 
-  // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
-  // (Context: https://github.com/apache/beam/pull/13846)
-  // Conscrypt will be added to runtime dependencies by GrpcVendoring so compileOnly works for now.
-  compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
+    // Note that any dependency that is modified here should also be modified within
+    // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
+    // there.
+    sdk_provided_dependencies.each {
+        provided(it)
+        testImplementation(it)
+    }
+    sdk_provided_shaded_project_dependencies.each {
+        provided project(path: it, configuration: "shadow")
+    }
+    sdk_provided_project_dependencies.each {
+        provided project(path: it)
+        testImplementation project(path: it)
+    }
 
-  implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
-  implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
-  implementation library.java.error_prone_annotations
-  permitUnusedDeclared library.java.error_prone_annotations // BEAM-11761
-  implementation library.java.slf4j_jdk14
-  permitUnusedDeclared library.java.slf4j_jdk14 // BEAM-11761
+    implementation project(path: ":model:fn-execution", configuration: "shadow")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":runners:core-construction-java")
+    implementation project(":runners:core-java")
+    implementation project(":runners:java-fn-execution")
+    implementation project(":sdks:java:fn-execution")
+    implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
+    shadow library.java.vendored_guava_26_0_jre
 
-  // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
-  // relocating any code.
-  shadowTest project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-  shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
-  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
-  shadowTest library.java.jsonassert
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.powermock
+    implementation library.java.google_auth_library_credentials
+    implementation library.java.proto_google_common_protos
+
+    // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
+    // (Context: https://github.com/apache/beam/pull/13846)
+    // Conscrypt will be added to runtime dependencies by GrpcVendoring so compileOnly works for now.
+    compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
+
+    implementation "javax.servlet:javax.servlet-api:3.1.0"
+    implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
+    implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+    implementation library.java.avro
+    implementation library.java.jackson_annotations
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
+    implementation library.java.joda_time
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_grpc_1_48_1
+    implementation library.java.error_prone_annotations
+    permitUnusedDeclared library.java.error_prone_annotations
+    runtimeOnly library.java.slf4j_jdk14
+
+    // Any test dependency which intersects with our relocation rules above needs to be relocated
+    // as well and placed within the testImplementation configuration. Otherwise we can place it within
+    // the shadowTest configuration.
+    testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+    shadowTest project(path: ":runners:direct-java", configuration: "shadow")
+    shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
+    shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+    shadowTest library.java.jsonassert
+    shadowTest library.java.junit
+    shadowTest library.java.mockito_core
+    shadowTest library.java.powermock
 }
+
+project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
+    ext.outFile = project.file("${project.reportsDir}/${name}.out")
+    inputs.files(project.configurations.shadow.artifacts.files)
+        .withPropertyName("shadowArtifactsFiles")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.files outFile
+    doLast {
+        project.configurations.shadow.artifacts.files.each {
+            FileTree slf4jImpl = project.zipTree(it).matching {
+                include "org/slf4j/impl/JDK14LoggerAdapter.class"
+            }
+            outFile.text = slf4jImpl.files
+            if (slf4jImpl.files.isEmpty()) {
+                throw new GradleException("Did not find slf4j-jdk14 in Dataflow Worker uber jar")
+            }
+        }
+    }
+}
+
+tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
 
 //TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false

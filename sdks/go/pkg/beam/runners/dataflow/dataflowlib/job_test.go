@@ -20,6 +20,14 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestValidateWorkerSettings(t *testing.T) {
@@ -193,4 +201,82 @@ func TestCurrentStateMessage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_containerImages(t *testing.T) {
+	type testcase struct {
+		name        string
+		envs        map[string]*pipepb.Environment
+		wantImages  []*df.SdkHarnessContainerImage
+		wantDisplay []string
+	}
+
+	type img struct {
+		id, image string
+		single    bool
+		caps      []string
+	}
+
+	newCase := func(name string, imgs ...img) testcase {
+		envs := map[string]*pipepb.Environment{}
+		images := []*df.SdkHarnessContainerImage{}
+		display := []string{}
+
+		for _, i := range imgs {
+			envs[i.id] = &pipepb.Environment{
+				Capabilities: i.caps,
+				Payload: protox.MustEncode(&pipepb.DockerPayload{
+					ContainerImage: i.image,
+				}),
+			}
+			images = append(images, &df.SdkHarnessContainerImage{
+				ContainerImage:            i.image,
+				UseSingleCorePerContainer: i.single,
+				Capabilities:              i.caps,
+				EnvironmentId:             i.id,
+			})
+			display = append(display, i.image)
+		}
+		return testcase{
+			name:        name,
+			envs:        envs,
+			wantImages:  images,
+			wantDisplay: display,
+		}
+	}
+
+	tests := []testcase{
+		newCase("go", img{"go", "goImage", false, []string{graphx.URNMultiCore}}),
+		newCase("py", img{"py", "pyImage", true, []string{graphx.URNWorkerStatus}}),
+		newCase("multi",
+			img{"py", "pyImage", true, []string{graphx.URNWorkerStatus}},
+			img{"go", "goImage", false, []string{graphx.URNMultiCore}},
+			img{"java", "javaImage", false, []string{graphx.URNMultiCore, graphx.URNExpand}},
+		),
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			pipeline := &pipepb.Pipeline{
+				Components: &pipepb.Components{
+					Environments: test.envs,
+				},
+			}
+			gotImages, gotDisplay, err := containerImages(pipeline)
+			if err != nil {
+				t.Fatalf("containerImages(...) error = %v, want nil", err)
+			}
+			less := func(a, b *df.SdkHarnessContainerImage) bool {
+				return a.ContainerImage < b.ContainerImage
+			}
+			if d := cmp.Diff(test.wantImages, gotImages, protocmp.Transform(), cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("containerImages(...) images diff; (-want, +got)\n%v", d)
+			}
+			if d := cmp.Diff(test.wantDisplay, gotDisplay, cmpopts.SortSlices(func(a, b string) bool { return a < b })); d != "" {
+				t.Errorf("containerImages(...) display diff; (-want, +got)\n%v", d)
+			}
+		})
+
+	}
+
 }

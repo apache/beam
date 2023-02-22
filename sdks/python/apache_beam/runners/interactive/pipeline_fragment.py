@@ -104,6 +104,11 @@ class PipelineFragment(object):
 
   def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
+    from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+    if not isinstance(self._runner_pipeline.runner, InteractiveRunner):
+      raise RuntimeError(
+          'Please specify InteractiveRunner when creating '
+          'the Beam pipeline to use this function.')
     try:
       preserved_skip_display = self._runner_pipeline.runner._skip_display
       preserved_force_compute = self._runner_pipeline.runner._force_compute

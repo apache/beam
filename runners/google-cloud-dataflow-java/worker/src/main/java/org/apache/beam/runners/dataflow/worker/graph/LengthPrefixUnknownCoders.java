@@ -22,7 +22,6 @@ import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
-import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Source;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,7 +38,6 @@ import org.apache.beam.runners.dataflow.worker.graph.Networks.TypeSafeNodeFuncti
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.RemoteGrpcPortNode;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -96,68 +94,6 @@ public class LengthPrefixUnknownCoders {
     Networks.replaceDirectedNetworkNodes(network, andReplaceForInstructionOutputNode());
     Networks.replaceDirectedNetworkNodes(network, andReplaceForParallelInstructionNode());
     return network;
-  }
-
-  /**
-   * Wraps unknown coders on every {@link InstructionOutputNode} for the SDK portion of a {@link
-   * MutableNetwork} that is a predecessor or successor of a {@link RemoteGrpcPortNode}, with a
-   * {@link org.apache.beam.sdk.coders.LengthPrefixCoder}.
-   */
-  public static MutableNetwork<Node, Edge> forSdkNetwork(MutableNetwork<Node, Edge> network) {
-    Networks.replaceDirectedNetworkNodes(network, forInstructionOutputNode(network));
-    return network;
-  }
-
-  /**
-   * Wraps unknown coders on every {@link SideInputInfo} with length prefixes and also replaces the
-   * wrapped coder with a byte array coder if requested.
-   */
-  public static List<SideInputInfo> forSideInputInfos(
-      List<SideInputInfo> sideInputInfos, boolean replaceWithByteArrayCoder) {
-    ImmutableList.Builder<SideInputInfo> updatedSideInputInfos = ImmutableList.builder();
-    for (SideInputInfo sideInputInfo : sideInputInfos) {
-      try {
-        SideInputInfo updatedSideInputInfo = clone(sideInputInfo, SideInputInfo.class);
-        for (Source source : updatedSideInputInfo.getSources()) {
-          source.setCodec(forCodec(source.getCodec(), replaceWithByteArrayCoder));
-        }
-        updatedSideInputInfos.add(updatedSideInputInfo);
-      } catch (IOException e) {
-        throw new RuntimeException(
-            String.format(
-                "Failed to replace unknown coder with " + "LengthPrefixCoder for : {%s}",
-                sideInputInfo),
-            e);
-      }
-    }
-    return updatedSideInputInfos.build();
-  }
-
-  /**
-   * Wraps unknown coders on the given {@link InstructionOutputNode} with a {@link
-   * org.apache.beam.sdk.coders.LengthPrefixCoder}.
-   */
-  @VisibleForTesting
-  static Function<Node, Node> forInstructionOutputNode(MutableNetwork<Node, Edge> network) {
-    return new TypeSafeNodeFunction<InstructionOutputNode>(InstructionOutputNode.class) {
-      @Override
-      public InstructionOutputNode typedApply(InstructionOutputNode input) {
-        InstructionOutput cloudOutput = input.getInstructionOutput();
-        if (network.predecessors(input).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)
-            || network.successors(input).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
-          try {
-            cloudOutput = forInstructionOutput(cloudOutput, false /* only wrap unknown coders */);
-          } catch (Exception e) {
-            throw new RuntimeException(
-                String.format(
-                    "Failed to replace unknown coder with " + "LengthPrefixCoder for : {%s}",
-                    input.getInstructionOutput()),
-                e);
-          }
-        }
-        return InstructionOutputNode.create(cloudOutput, input.getPcollectionId());
-      }
-    };
   }
 
   /**

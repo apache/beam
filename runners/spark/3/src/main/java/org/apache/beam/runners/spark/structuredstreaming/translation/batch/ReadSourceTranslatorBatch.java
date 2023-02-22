@@ -38,6 +38,10 @@ import org.apache.spark.sql.SparkSession;
 class ReadSourceTranslatorBatch<T>
     extends TransformTranslator<PBegin, PCollection<T>, SplittableParDo.PrimitiveBoundedRead<T>> {
 
+  ReadSourceTranslatorBatch() {
+    super(0.05f);
+  }
+
   @Override
   public void translate(SplittableParDo.PrimitiveBoundedRead<T> transform, Context cxt)
       throws IOException {
@@ -50,6 +54,7 @@ class ReadSourceTranslatorBatch<T>
 
     cxt.putDataset(
         cxt.getOutput(),
-        BoundedDatasetFactory.createDatasetFromRDD(session, source, options, encoder));
+        BoundedDatasetFactory.createDatasetFromRDD(session, source, options, encoder),
+        false);
   }
 }

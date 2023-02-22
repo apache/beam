@@ -32,10 +32,19 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.Histogram;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -163,9 +172,66 @@ public class ExecutionStateSampler {
     return new ExecutionStateTracker();
   }
 
+  /**
+   * A {@link MetricsContainer} that uses the current {@link ExecutionState} tracked by the provided
+   * {@link ExecutionStateTracker}.
+   */
+  private static class MetricsContainerForTracker implements MetricsContainer {
+    private final transient ExecutionStateTracker tracker;
+
+    private MetricsContainerForTracker(ExecutionStateTracker tracker) {
+      this.tracker = tracker;
+    }
+
+    @Override
+    public Counter getCounter(MetricName metricName) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getCounter(metricName);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getCounter(metricName);
+    }
+
+    @Override
+    public Distribution getDistribution(MetricName metricName) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getDistribution(metricName);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getDistribution(metricName);
+    }
+
+    @Override
+    public Gauge getGauge(MetricName metricName) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getGauge(metricName);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getGauge(metricName);
+    }
+
+    @Override
+    public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getHistogram(metricName, bucketType);
+      }
+      return tracker
+          .metricsContainerRegistry
+          .getUnboundContainer()
+          .getHistogram(metricName, bucketType);
+    }
+
+    @Override
+    public Iterable<MonitoringInfo> getMonitoringInfos() {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getMonitoringInfos();
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getMonitoringInfos();
+    }
+  }
+
   /** Tracks the current state of a single execution thread. */
   public class ExecutionStateTracker implements BundleProgressReporter {
-
+    // Used to create and store metrics containers for the execution states.
+    private final MetricsContainerStepMap metricsContainerRegistry;
+    private final MetricsContainer metricsContainer;
     // The set of execution states that this tracker is responsible for. Effectively
     // final since create() should not be invoked once any bundle starts processing.
     private final List<ExecutionStateImpl> executionStates;
@@ -187,13 +253,36 @@ public class ExecutionStateSampler {
     // Read and written by the ExecutionStateSampler thread
     private long transitionsAtLastSample;
 
+    // Ignore the @UnderInitialization for ExecutionStateTracker since it will be initialized by the
+    // time this method returns and no references are leaked to other threads during construction.
+    @SuppressWarnings({"assignment", "argument"})
     private ExecutionStateTracker() {
+      this.metricsContainerRegistry = new MetricsContainerStepMap();
       this.executionStates = new ArrayList<>();
       this.trackedThread = new AtomicReference<>();
       this.lastTransitionTime = new AtomicLong();
       this.numTransitionsLazy = new AtomicLong();
       this.currentStateLazy = new AtomicReference<>();
       this.processBundleId = new AtomicReference<>();
+      this.metricsContainer = new MetricsContainerForTracker(this);
+    }
+
+    /**
+     * Returns the {@link MetricsContainerStepMap} that is managed by this {@link
+     * ExecutionStateTracker}. This metrics container registry stores all the user counters
+     * associated for the current bundle execution.
+     */
+    public MetricsContainerStepMap getMetricsContainerRegistry() {
+      return metricsContainerRegistry;
+    }
+
+    /**
+     * Returns a {@link MetricsContainer} that delegates based upon the current execution state to
+     * the appropriate metrics container that is bound to the current {@link ExecutionState} or to
+     * the unbound {@link MetricsContainer} if no execution state is currently running.
+     */
+    public MetricsContainer getMetricsContainer() {
+      return metricsContainer;
     }
 
     /**
@@ -203,7 +292,12 @@ public class ExecutionStateSampler {
     public ExecutionState create(
         String shortId, String ptransformId, String ptransformUniqueName, String stateName) {
       ExecutionStateImpl newState =
-          new ExecutionStateImpl(shortId, ptransformId, ptransformUniqueName, stateName);
+          new ExecutionStateImpl(
+              shortId,
+              ptransformId,
+              ptransformUniqueName,
+              stateName,
+              metricsContainerRegistry.getContainer(ptransformId));
       executionStates.add(newState);
       return newState;
     }
@@ -285,10 +379,13 @@ public class ExecutionStateSampler {
 
     /** {@link ExecutionState} represents the current state of an execution thread. */
     private class ExecutionStateImpl implements ExecutionState {
+
       private final String shortId;
       private final String ptransformId;
       private final String ptransformUniqueName;
       private final String stateName;
+      private final MetricsContainer metricsContainer;
+
       // Read and written by the bundle processing thread frequently.
       private long msecs;
       // Read by the ExecutionStateSampler, written by the bundle processing thread frequently.
@@ -301,11 +398,16 @@ public class ExecutionStateSampler {
       private @Nullable ExecutionStateImpl previousState;
 
       private ExecutionStateImpl(
-          String shortId, String ptransformId, String ptransformName, String stateName) {
+          String shortId,
+          String ptransformId,
+          String ptransformName,
+          String stateName,
+          MetricsContainer metricsContainer) {
         this.shortId = shortId;
         this.ptransformId = ptransformId;
         this.ptransformUniqueName = ptransformName;
         this.stateName = stateName;
+        this.metricsContainer = metricsContainer;
         this.lazyMsecs = new AtomicLong();
       }
 
@@ -406,6 +508,7 @@ public class ExecutionStateSampler {
       this.numTransitions = 0;
       this.numTransitionsLazy.lazySet(0);
       this.lastTransitionTime.lazySet(0);
+      this.metricsContainerRegistry.reset();
     }
   }
 

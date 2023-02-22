@@ -15,10 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BEAM_VERSION=2.43.0
-ARG BASE_IMAGE=apache/beam_java8_sdk:${BEAM_VERSION}
+ARG BEAM_VERSION=2.44.0
 FROM golang:1.18-bullseye AS build
-
+ARG BEAM_VERSION
 # Setup Go Environment
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
@@ -37,15 +36,25 @@ RUN go mod download &&\
     cd cmd/server &&\
     go build -o /go/bin/server_java_backend
 
-FROM $BASE_IMAGE
-# docker linter we use doesn't allow to have ARG declaration without value although it's a valid syntax
-ARG BEAM_VERSION=2.42.0
-ARG HAMCREST_VERSION=1.3
-ARG JUNIT_VERSION=4.13.2
-ARG GRPC_VERSION=1_48_1
-ARG BEAM_VENDOR_GRPC_VERSION=0.1
+FROM maven:3.8.6-openjdk-8 as dep
+ARG BEAM_VERSION
+RUN mvn archetype:generate \
+    -DinteractiveMode=false \
+    -DarchetypeGroupId=org.apache.beam \
+    -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-gcp-bom-examples \
+    -DarchetypeVersion=$BEAM_VERSION \
+    -DtargetPlatform=8 \
+    -DartifactId=pipeline-dependencies \
+    -DgroupId=org.apache.beam.samples
+WORKDIR /pipeline-dependencies/
+RUN mvn dependency:resolve && mvn -o dependency:list
+RUN mvn dependency:copy-dependencies
+
+FROM apache/beam_java8_sdk:$BEAM_VERSION
+
+ARG BEAM_VERSION
+ARG SPRING_VERSION=5.3.25
 ARG KAFKA_CLIENTS_VERSION=2.3.1
-ARG SPRING_VERSION=5.3.18
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
@@ -57,37 +66,17 @@ COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/datasets/
+COPY --from=dep /pipeline-dependencies/target/dependency/ /opt/apache/beam/jars/
 
-# Install Beam DirectRunner
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
-    mv beam-runners-direct-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-direct.jar
-# Install Beam SDK Core
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION.jar &&\
-    mv beam-sdks-java-core-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-core.jar
 # Install Beam Examples
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
     mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
 # Install jars for Playground graphs
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-construction-java/$BEAM_VERSION/beam-runners-core-construction-java-$BEAM_VERSION.jar &&\
     mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-model-pipeline/$BEAM_VERSION/beam-model-pipeline-$BEAM_VERSION.jar &&\
-    mv beam-model-pipeline-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-model-pipeline-$BEAM_VERSION.jar
-# Install Beam SDK Core tests
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
-# Install Hamcrest
-RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERSION/hamcrest-all-$HAMCREST_VERSION.jar &&\
-    mv hamcrest-all-$HAMCREST_VERSION.jar /opt/apache/beam/jars/hamcrest-all.jar
-# Install JUnit
-RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
-    mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
-# Install Beam Vendor gRPC
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-$GRPC_VERSION/$BEAM_VENDOR_GRPC_VERSION/beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar &&\
-    mv beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
-# Install Kafka IO
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-io-kafka/$BEAM_VERSION/beam-sdks-java-io-kafka-$BEAM_VERSION.jar &&\
-    mv beam-sdks-java-io-kafka-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-io-kafka.jar
-# Install Apache Kafka Clients
+# Downgrade Apache Kafka Client to support mock kafka cluster
 RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/$KAFKA_CLIENTS_VERSION/kafka-clients-$KAFKA_CLIENTS_VERSION.jar &&\
     mv kafka-clients-$KAFKA_CLIENTS_VERSION.jar /opt/apache/beam/jars/kafka-clients.jar
 # Install Spring Expression
