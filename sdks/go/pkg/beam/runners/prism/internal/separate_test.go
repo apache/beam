@@ -425,8 +425,9 @@ func (fn *sepHarnessSdf) ProcessElement(rt *sdf.LockRTracker, v beam.T, emit fun
 }
 
 func init() {
-	register.DoFn3x1[*sdf.LockRTracker, beam.T, func(beam.T), sdf.ProcessContinuation]((*sepHarnessSdfStream)(nil))
+	register.DoFn3x0[*sdf.LockRTracker, beam.T, func(beam.T)]((*sepHarnessSdf)(nil))
 	register.Emitter1[beam.T]()
+	register.DoFn3x1[*sdf.LockRTracker, beam.T, func(beam.T), sdf.ProcessContinuation]((*sepHarnessSdfStream)(nil))
 	register.DoFn3x1[*sdf.LockRTracker, beam.T, func(int64), sdf.ProcessContinuation]((*singleStepSdfStream)(nil))
 	register.Emitter1[int64]()
 	register.DoFn4x1[*CWE, *sdf.LockRTracker, beam.T, func(beam.EventTime, int64), sdf.ProcessContinuation]((*eventtimeSDFStream)(nil))
