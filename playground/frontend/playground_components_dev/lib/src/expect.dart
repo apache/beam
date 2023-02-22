@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:playground_components/playground_components.dart';
 
 import 'widget_tester.dart';
 
@@ -25,12 +28,46 @@ void expectOutput(String text, WidgetTester wt) {
   expect(actualText, text);
 }
 
-void expectOutputContains(String text, WidgetTester wt) {
+void expectOutputContains(String? text, WidgetTester wt) {
   final actualText = wt.findOutputText();
+  expect(text, isNotNull);
   expect(actualText, contains(text));
 }
 
-void expectOutputEndsWith(String text, WidgetTester wt) {
+void expectOutputEndsWith(String? text, WidgetTester wt) {
   final actualText = wt.findOutputText();
-  expect(actualText, endsWith(text));
+  expect(text, isNotNull);
+  expect(actualText, endsWith(text!));
+}
+
+void expectOutputStartsWith(String? text, WidgetTester wt) {
+  final actualText = wt.findOutputText();
+  expect(text, isNotNull);
+  expect(actualText, startsWith(text!));
+}
+
+void expectSdk(Sdk sdk, WidgetTester wt) {
+  final controller = wt.findPlaygroundController();
+  expect(controller.sdk, sdk);
+}
+
+void expectVisibleText(String? visibleText, WidgetTester wt) {
+  final controller = wt.findOneCodeController();
+  expect(visibleText, isNotNull);
+  expect(controller.text, visibleText);
+}
+
+void expectContextLine(int contextLine1Based, WidgetTester wt) {
+  final controller = wt.findOneCodeController();
+  final selection = controller.selection;
+  final position = controller.code.hiddenRanges.recoverPosition(
+    selection.baseOffset,
+    placeHiddenRanges: TextAffinity.downstream,
+  );
+
+  expect(selection.isCollapsed, true);
+  expect(
+    controller.code.lines.characterIndexToLineIndex(position),
+    contextLine1Based - 1,
+  );
 }

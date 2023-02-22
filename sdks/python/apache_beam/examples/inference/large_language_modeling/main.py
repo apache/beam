@@ -88,9 +88,9 @@ def parse_args(argv):
   parser.add_argument(
       "--model_name",
       dest="model_name",
-      required=True,
+      required=False,
       help="Path to the model's state_dict.",
-      default="t5-small",
+      default="t5-11b",
   )
 
   return parser.parse_known_args(args=argv)

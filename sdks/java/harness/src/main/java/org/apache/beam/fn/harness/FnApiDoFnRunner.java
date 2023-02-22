@@ -85,7 +85,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -2166,7 +2165,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   /** Provides arguments for a {@link DoFnInvoker} for a window observing method. */
-  private class WindowObservingProcessBundleContext extends ProcessBundleContextBase {
+  private abstract class WindowObservingProcessBundleContextBase extends ProcessBundleContextBase {
     @Override
     public BoundedWindow window() {
       return currentWindow;
@@ -2180,6 +2179,53 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
       return stateAccessor.get(view, currentWindow);
+    }
+  }
+
+  private class WindowObservingProcessBundleContext
+      extends WindowObservingProcessBundleContextBase {
+
+    @Override
+    public void output(OutputT output) {
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(
+          mainOutputConsumer,
+          WindowedValue.of(
+              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output) {
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(
+          consumer,
+          WindowedValue.of(
+              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+    }
+
+    @Override
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
+      outputTo(
+          mainOutputConsumer,
+          WindowedValue.of(output, timestamp, currentWindow, currentElement.getPane()));
+    }
+
+    @Override
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      outputTo(
+          consumer, WindowedValue.of(output, timestamp, currentWindow, currentElement.getPane()));
     }
 
     @Override
@@ -2233,35 +2279,60 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentElement.getTimestamp(),
           currentElement.getPane());
     }
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
-      outputTo(
-          mainOutputConsumer,
-          WindowedValue.of(output, timestamp, currentWindow, currentElement.getPane()));
-    }
-
-    @Override
-    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
-      FnDataReceiver<WindowedValue<T>> consumer =
-          (FnDataReceiver) localNameToConsumer.get(tag.getId());
-      if (consumer == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(
-          consumer, WindowedValue.of(output, timestamp, currentWindow, currentElement.getPane()));
-    }
   }
 
   /** This context outputs KV<KV<Element, KV<Restriction, WatemarkEstimatorState>>, Size>. */
   private class SizedRestrictionWindowObservingProcessBundleContext
-      extends WindowObservingProcessBundleContext {
+      extends WindowObservingProcessBundleContextBase {
     private final String errorContextPrefix;
 
     SizedRestrictionWindowObservingProcessBundleContext(String errorContextPrefix) {
       this.errorContextPrefix = errorContextPrefix;
+    }
+
+    @Override
+    // OutputT == RestrictionT
+    public void output(OutputT output) {
+      double size =
+          doFnInvoker.invokeGetSize(
+              new DelegatingArgumentProvider<InputT, OutputT>(
+                  this, this.errorContextPrefix + "/GetSize") {
+                @Override
+                public Object restriction() {
+                  return output;
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                  return currentElement.getTimestamp();
+                }
+
+                @Override
+                public RestrictionTracker<?, ?> restrictionTracker() {
+                  return doFnInvoker.invokeNewTracker(this);
+                }
+              });
+
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(
+          mainOutputConsumer,
+          (WindowedValue<OutputT>)
+              WindowedValue.of(
+                  KV.of(
+                      KV.of(
+                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
+                      size),
+                  currentElement.getTimestamp(),
+                  currentWindow,
+                  currentElement.getPane()));
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output) {
+      // Note that the OutputReceiver/RowOutputReceiver specifically will use the non-tag versions
+      // of these methods when producing output.
+      throw new UnsupportedOperationException(
+          String.format("Non-main output %s unsupported in %s", tag, errorContextPrefix));
     }
 
     @Override
@@ -2300,15 +2371,83 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   currentWindow,
                   currentElement.getPane()));
     }
+
+    @Override
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      // Note that the OutputReceiver/RowOutputReceiver specifically will use the non-tag versions
+      // of these methods when producing output.
+      throw new UnsupportedOperationException(
+          String.format("Non-main output %s unsupported in %s", tag, errorContextPrefix));
+    }
+
+    @Override
+    public State state(String stateId, boolean alwaysFetched) {
+      throw new UnsupportedOperationException(
+          String.format("State unsupported in %s", errorContextPrefix));
+    }
+
+    @Override
+    public org.apache.beam.sdk.state.Timer timer(String timerId) {
+      throw new UnsupportedOperationException(
+          String.format("Timer unsupported in %s", errorContextPrefix));
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      throw new UnsupportedOperationException(
+          String.format("Timer unsupported in %s", errorContextPrefix));
+    }
   }
 
   /** This context outputs KV<KV<Element, KV<Restriction, WatermarkEstimatorState>>, Size>. */
   private class SizedRestrictionNonWindowObservingProcessBundleContext
-      extends NonWindowObservingProcessBundleContext {
+      extends NonWindowObservingProcessBundleContextBase {
     private final String errorContextPrefix;
 
     SizedRestrictionNonWindowObservingProcessBundleContext(String errorContextPrefix) {
       this.errorContextPrefix = errorContextPrefix;
+    }
+
+    @Override
+    // OutputT == RestrictionT
+    public void output(OutputT output) {
+      double size =
+          doFnInvoker.invokeGetSize(
+              new DelegatingArgumentProvider<InputT, OutputT>(
+                  this, errorContextPrefix + "/GetSize") {
+                @Override
+                public Object restriction() {
+                  return output;
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                  return currentElement.getTimestamp();
+                }
+
+                @Override
+                public RestrictionTracker<?, ?> restrictionTracker() {
+                  return doFnInvoker.invokeNewTracker(this);
+                }
+              });
+
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(
+          mainOutputConsumer,
+          (WindowedValue<OutputT>)
+              currentElement.withValue(
+                  KV.of(
+                      KV.of(
+                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
+                      size)));
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output) {
+      // Note that the OutputReceiver/RowOutputReceiver specifically will use the non-tag versions
+      // of these methods when producing output.
+      throw new UnsupportedOperationException(
+          String.format("Non-main output %s unsupported in %s", tag, errorContextPrefix));
     }
 
     @Override
@@ -2347,10 +2486,37 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   currentElement.getWindows(),
                   currentElement.getPane()));
     }
+
+    @Override
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      // Note that the OutputReceiver/RowOutputReceiver specifically will use the non-tag versions
+      // of these methods when producing output.
+      throw new UnsupportedOperationException(
+          String.format("Non-main output %s unsupported in %s", tag, errorContextPrefix));
+    }
   }
 
   /** Provides arguments for a {@link DoFnInvoker} for a non-window observing method. */
-  private class NonWindowObservingProcessBundleContext extends ProcessBundleContextBase {
+  private class NonWindowObservingProcessBundleContext
+      extends NonWindowObservingProcessBundleContextBase {
+
+    @Override
+    public void output(OutputT output) {
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(mainOutputConsumer, currentElement.withValue(output));
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output) {
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(consumer, currentElement.withValue(output));
+    }
+
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       checkTimestamp(timestamp);
@@ -2373,7 +2539,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           WindowedValue.of(
               output, timestamp, currentElement.getWindows(), currentElement.getPane()));
     }
+  }
 
+  /** Provides base arguments for a {@link DoFnInvoker} for a non-window observing method. */
+  private abstract class NonWindowObservingProcessBundleContextBase
+      extends ProcessBundleContextBase {
     @Override
     public BoundedWindow window() {
       throw new UnsupportedOperationException(
@@ -2413,7 +2583,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   /** Base implementation that does not override methods which need to be window aware. */
   private abstract class ProcessBundleContextBase extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT>, OutputReceiver<OutputT> {
 
     private ProcessBundleContextBase() {
       doFn.super();
@@ -2478,17 +2648,114 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, null);
+      return this;
     }
+
+    private final OutputReceiver<Row> mainRowOutputReceiver =
+        mainOutputSchemaCoder == null
+            ? null
+            : new OutputReceiver<Row>() {
+              private final SerializableFunction<Row, OutputT> fromRowFunction =
+                  mainOutputSchemaCoder.getFromRowFunction();
+
+              @Override
+              public void output(Row output) {
+                ProcessBundleContextBase.this.output(fromRowFunction.apply(output));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row output, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWithTimestamp(
+                    fromRowFunction.apply(output), timestamp);
+              }
+            };
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, null, mainOutputSchemaCoder);
+      checkState(
+          mainOutputSchemaCoder != null,
+          "Output with tag "
+              + mainOutputTag
+              + " must have a schema in order to call getRowReceiver");
+      return mainRowOutputReceiver;
     }
+
+    /** A {@link MultiOutputReceiver} which caches created instances to re-use across bundles. */
+    private final MultiOutputReceiver taggedOutputReceiver =
+        new MultiOutputReceiver() {
+          private final Map<TupleTag<?>, OutputReceiver<?>> taggedOutputReceivers = new HashMap<>();
+          private final Map<TupleTag<?>, OutputReceiver<Row>> taggedRowReceivers = new HashMap<>();
+
+          private <T> OutputReceiver<T> createTaggedOutputReceiver(TupleTag<T> tag) {
+            // Note that it is important that we use the non-tag versions here when using the main
+            // output tag for performance reasons and we also rely on it for the splittable DoFn
+            // context objects as well.
+            if (tag == null || mainOutputTag.equals(tag)) {
+              return (OutputReceiver<T>) ProcessBundleContextBase.this;
+            }
+            return new OutputReceiver<T>() {
+              @Override
+              public void output(T output) {
+                ProcessBundleContextBase.this.output(tag, output);
+              }
+
+              @Override
+              public void outputWithTimestamp(T output, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWithTimestamp(tag, output, timestamp);
+              }
+            };
+          }
+
+          private <T> OutputReceiver<Row> createTaggedRowReceiver(TupleTag<T> tag) {
+            // Note that it is important that we use the non-tag versions here when using the main
+            // output tag for performance reasons and we also rely on it for the splittable DoFn
+            // context objects as well.
+            if (tag == null || mainOutputTag.equals(tag)) {
+              checkState(
+                  mainOutputSchemaCoder != null,
+                  "Output with tag "
+                      + mainOutputTag
+                      + " must have a schema in order to call getRowReceiver");
+              return mainRowOutputReceiver;
+            }
+
+            Coder<T> outputCoder = (Coder<T>) outputCoders.get(tag);
+            checkState(outputCoder != null, "No output tag for " + tag);
+            checkState(
+                outputCoder instanceof SchemaCoder,
+                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+            return new OutputReceiver<Row>() {
+              private SerializableFunction<Row, T> fromRowFunction =
+                  ((SchemaCoder) outputCoder).getFromRowFunction();
+
+              @Override
+              public void output(Row output) {
+                ProcessBundleContextBase.this.output(tag, fromRowFunction.apply(output));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row output, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWithTimestamp(
+                    tag, fromRowFunction.apply(output), timestamp);
+              }
+            };
+          }
+
+          @Override
+          public <T> OutputReceiver<T> get(TupleTag<T> tag) {
+            return (OutputReceiver<T>)
+                taggedOutputReceivers.computeIfAbsent(tag, this::createTaggedOutputReceiver);
+          }
+
+          @Override
+          public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
+            return taggedRowReceivers.computeIfAbsent(tag, this::createTaggedRowReceiver);
+          }
+        };
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return taggedOutputReceiver;
     }
 
     @Override
@@ -2523,16 +2790,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public void output(OutputT output) {
-      outputWithTimestamp(output, currentElement.getTimestamp());
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output) {
-      outputWithTimestamp(tag, output, currentElement.getTimestamp());
-    }
-
-    @Override
     public InputT element() {
       return currentElement.getValue();
     }
@@ -2563,7 +2820,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * DoFn.OnWindowExpiration @OnWindowExpiration}.
    */
   private class OnWindowExpirationContext<K> extends BaseArgumentProvider<InputT, OutputT> {
-    private class Context extends DoFn<InputT, OutputT>.OnWindowExpirationContext {
+    private class Context extends DoFn<InputT, OutputT>.OnWindowExpirationContext
+        implements OutputReceiver<OutputT> {
       private Context() {
         doFn.super();
       }
@@ -2671,17 +2929,106 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(context, null);
+      return context;
     }
+
+    private final OutputReceiver<Row> mainRowOutputReceiver =
+        mainOutputSchemaCoder == null
+            ? null
+            : new OutputReceiver<Row>() {
+              private final SerializableFunction<Row, OutputT> fromRowFunction =
+                  mainOutputSchemaCoder.getFromRowFunction();
+
+              @Override
+              public void output(Row output) {
+                context.output(fromRowFunction.apply(output));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row output, Instant timestamp) {
+                context.outputWithTimestamp(fromRowFunction.apply(output), timestamp);
+              }
+            };
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(context, null, mainOutputSchemaCoder);
+      checkState(
+          mainOutputSchemaCoder != null,
+          "Output with tag "
+              + mainOutputTag
+              + " must have a schema in order to call getRowReceiver");
+      return mainRowOutputReceiver;
     }
+
+    /** A {@link MultiOutputReceiver} which caches created instances to re-use across bundles. */
+    private final MultiOutputReceiver taggedOutputReceiver =
+        new MultiOutputReceiver() {
+          private final Map<TupleTag<?>, OutputReceiver<?>> taggedOutputReceivers = new HashMap<>();
+          private final Map<TupleTag<?>, OutputReceiver<Row>> taggedRowReceivers = new HashMap<>();
+
+          private <T> OutputReceiver<T> createTaggedOutputReceiver(TupleTag<T> tag) {
+            if (tag == null || mainOutputTag.equals(tag)) {
+              return (OutputReceiver<T>) context;
+            }
+            return new OutputReceiver<T>() {
+              @Override
+              public void output(T output) {
+                context.output(tag, output);
+              }
+
+              @Override
+              public void outputWithTimestamp(T output, Instant timestamp) {
+                context.outputWithTimestamp(tag, output, timestamp);
+              }
+            };
+          }
+
+          private <T> OutputReceiver<Row> createTaggedRowReceiver(TupleTag<T> tag) {
+            if (tag == null || mainOutputTag.equals(tag)) {
+              checkState(
+                  mainOutputSchemaCoder != null,
+                  "Output with tag "
+                      + mainOutputTag
+                      + " must have a schema in order to call getRowReceiver");
+              return mainRowOutputReceiver;
+            }
+
+            Coder<T> outputCoder = (Coder<T>) outputCoders.get(tag);
+            checkState(outputCoder != null, "No output tag for " + tag);
+            checkState(
+                outputCoder instanceof SchemaCoder,
+                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+            return new OutputReceiver<Row>() {
+              private SerializableFunction<Row, T> fromRowFunction =
+                  ((SchemaCoder) outputCoder).getFromRowFunction();
+
+              @Override
+              public void output(Row output) {
+                context.output(tag, fromRowFunction.apply(output));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row output, Instant timestamp) {
+                context.outputWithTimestamp(tag, fromRowFunction.apply(output), timestamp);
+              }
+            };
+          }
+
+          @Override
+          public <T> OutputReceiver<T> get(TupleTag<T> tag) {
+            return (OutputReceiver<T>)
+                taggedOutputReceivers.computeIfAbsent(tag, this::createTaggedOutputReceiver);
+          }
+
+          @Override
+          public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
+            return taggedRowReceivers.computeIfAbsent(tag, this::createTaggedRowReceiver);
+          }
+        };
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(context);
+      return taggedOutputReceiver;
     }
 
     @Override
@@ -2716,7 +3063,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
   private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
 
-    private class Context extends DoFn<InputT, OutputT>.OnTimerContext {
+    private class Context extends DoFn<InputT, OutputT>.OnTimerContext
+        implements OutputReceiver<OutputT> {
       private Context() {
         doFn.super();
       }
@@ -2840,17 +3188,107 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(context, null);
+      return context;
     }
+
+    private final OutputReceiver<Row> mainRowOutputReceiver =
+        mainOutputSchemaCoder == null
+            ? null
+            : new OutputReceiver<Row>() {
+              private final SerializableFunction<Row, OutputT> fromRowFunction =
+                  mainOutputSchemaCoder.getFromRowFunction();
+
+              @Override
+              public void output(Row output) {
+                context.outputWithTimestamp(
+                    fromRowFunction.apply(output), currentElement.getTimestamp());
+              }
+
+              @Override
+              public void outputWithTimestamp(Row output, Instant timestamp) {
+                context.outputWithTimestamp(fromRowFunction.apply(output), timestamp);
+              }
+            };
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(context, null, mainOutputSchemaCoder);
+      checkState(
+          mainOutputSchemaCoder != null,
+          "Output with tag "
+              + mainOutputTag
+              + " must have a schema in order to call getRowReceiver");
+      return mainRowOutputReceiver;
     }
+
+    /** A {@link MultiOutputReceiver} which caches created instances to re-use across bundles. */
+    private final MultiOutputReceiver taggedOutputReceiver =
+        new MultiOutputReceiver() {
+          private final Map<TupleTag<?>, OutputReceiver<?>> taggedOutputReceivers = new HashMap<>();
+          private final Map<TupleTag<?>, OutputReceiver<Row>> taggedRowReceivers = new HashMap<>();
+
+          private <T> OutputReceiver<T> createTaggedOutputReceiver(TupleTag<T> tag) {
+            if (tag == null || mainOutputTag.equals(tag)) {
+              return (OutputReceiver<T>) context;
+            }
+            return new OutputReceiver<T>() {
+              @Override
+              public void output(T output) {
+                context.output(tag, output);
+              }
+
+              @Override
+              public void outputWithTimestamp(T output, Instant timestamp) {
+                context.outputWithTimestamp(tag, output, timestamp);
+              }
+            };
+          }
+
+          private <T> OutputReceiver<Row> createTaggedRowReceiver(TupleTag<T> tag) {
+            if (tag == null || mainOutputTag.equals(tag)) {
+              checkState(
+                  mainOutputSchemaCoder != null,
+                  "Output with tag "
+                      + mainOutputTag
+                      + " must have a schema in order to call getRowReceiver");
+              return mainRowOutputReceiver;
+            }
+
+            Coder<T> outputCoder = (Coder<T>) outputCoders.get(tag);
+            checkState(outputCoder != null, "No output tag for " + tag);
+            checkState(
+                outputCoder instanceof SchemaCoder,
+                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+            return new OutputReceiver<Row>() {
+              private SerializableFunction<Row, T> fromRowFunction =
+                  ((SchemaCoder) outputCoder).getFromRowFunction();
+
+              @Override
+              public void output(Row output) {
+                context.output(tag, fromRowFunction.apply(output));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row output, Instant timestamp) {
+                context.outputWithTimestamp(tag, fromRowFunction.apply(output), timestamp);
+              }
+            };
+          }
+
+          @Override
+          public <T> OutputReceiver<T> get(TupleTag<T> tag) {
+            return (OutputReceiver<T>)
+                taggedOutputReceivers.computeIfAbsent(tag, this::createTaggedOutputReceiver);
+          }
+
+          @Override
+          public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
+            return taggedRowReceivers.computeIfAbsent(tag, this::createTaggedRowReceiver);
+          }
+        };
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(context);
+      return taggedOutputReceiver;
     }
 
     @Override

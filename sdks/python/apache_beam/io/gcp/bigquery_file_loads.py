@@ -333,7 +333,7 @@ class UpdateDestinationSchema(beam.DoFn):
   regardless of whether data is loaded directly to the destination table or
   loaded into temporary tables before being copied into the destination.
 
-  This tranform takes as input a (destination, job_reference) pair where the
+  This transform takes as input a (destination, job_reference) pair where the
   job_reference refers to a completed load job into a temporary table.
 
   This transform emits (destination, job_reference) pairs where the
