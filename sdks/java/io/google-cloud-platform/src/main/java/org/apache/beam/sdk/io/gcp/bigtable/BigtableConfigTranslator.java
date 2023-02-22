@@ -93,6 +93,7 @@ class BigtableConfigTranslator {
   private static BigtableDataSettings.Builder buildBigtableDataSettings(
       BigtableConfig config, PipelineOptions pipelineOptions) throws IOException {
     BigtableDataSettings.Builder dataBuilder;
+    boolean emulator = false;
     if (!Strings.isNullOrEmpty(config.getEmulatorHost())) {
       String hostAndPort = config.getEmulatorHost();
       try {
@@ -101,6 +102,7 @@ class BigtableConfigTranslator {
         dataBuilder =
             BigtableDataSettings.newBuilderForEmulator(
                 hostAndPort.substring(0, lastIndexOfCol), port);
+        emulator = true;
       } catch (NumberFormatException | IndexOutOfBoundsException ex) {
         throw new RuntimeException("Invalid host/port in BigtableConfig " + hostAndPort);
       }
@@ -117,22 +119,26 @@ class BigtableConfigTranslator {
       dataBuilder.setAppProfileId(Objects.requireNonNull(config.getAppProfileId().get()));
     }
 
-    if (((GcpOptions) pipelineOptions).getGcpCredential() != null) {
-      dataBuilder
-          .stubSettings()
-          .setCredentialsProvider(
-              FixedCredentialsProvider.create(((GcpOptions) pipelineOptions).getGcpCredential()));
-    }
-
-    if (config.getCredentialFactory() != null) {
-      CredentialFactory credentialFactory = config.getCredentialFactory();
-      try {
+    // Skip resetting the credentials if it's connected to an emulator
+    if (!emulator) {
+      if (pipelineOptions.as(GcpOptions.class).getGcpCredential() != null) {
         dataBuilder
             .stubSettings()
             .setCredentialsProvider(
-                FixedCredentialsProvider.create(credentialFactory.getCredential()));
-      } catch (GeneralSecurityException e) {
-        throw new RuntimeException("Exception getting credentials ", e);
+                FixedCredentialsProvider.create(
+                    (pipelineOptions.as(GcpOptions.class)).getGcpCredential()));
+      }
+
+      if (config.getCredentialFactory() != null) {
+        CredentialFactory credentialFactory = config.getCredentialFactory();
+        try {
+          dataBuilder
+              .stubSettings()
+              .setCredentialsProvider(
+                  FixedCredentialsProvider.create(credentialFactory.getCredential()));
+        } catch (GeneralSecurityException e) {
+          throw new RuntimeException("Exception getting credentials ", e);
+        }
       }
     }
 
@@ -253,7 +259,7 @@ class BigtableConfigTranslator {
       builder.setEmulatorHost(String.format("%s:%s", options.getDataHost(), options.getPort()));
     }
 
-    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+    GcpOptions pipelineOptions = PipelineOptionsFactory.create().as(GcpOptions.class);
     if (options.getCredentialOptions() != null) {
       try {
         CredentialOptions credOptions = options.getCredentialOptions();
