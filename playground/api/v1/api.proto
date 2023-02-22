@@ -314,6 +314,16 @@ message GetSnippetResponse {
   Complexity complexity = 4;
 }
 
+// GetMetadataRequest represents request for runner metadata
+message GetMetadataRequest {}
+
+// GetMetadataResponse contains metadata about the runner
+message GetMetadataResponse {
+  string runner_sdk = 1;
+  string build_commit_hash = 2;
+  string beam_sdk_version = 3;
+}
+
 service PlaygroundService {
 
   // Submit the job for an execution and get the pipeline uuid.
@@ -372,4 +382,7 @@ service PlaygroundService {
 
   // Get the snippet of playground.
   rpc GetSnippet(GetSnippetRequest) returns (GetSnippetResponse);
+
+  // Get the runner metadata.
+  rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse);
 }
