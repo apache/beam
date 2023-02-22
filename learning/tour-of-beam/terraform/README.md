@@ -25,12 +25,12 @@ This guide shows you how to deploy Tour of Beam environment on Google Cloud Plat
 1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
    Ensure that the account has at least following privileges:
-   Cloud Datastore Owner
-   Create Service Accounts
-   Security Admin
-   Service Account User
-   Service Usage Admin
-   Storage Admin
+   - Cloud Datastore Owner
+   - Create Service Accounts
+   - Security Admin
+   - Service Account User 
+   - Service Usage Admin
+   - Storage Admin
 
 3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
 
