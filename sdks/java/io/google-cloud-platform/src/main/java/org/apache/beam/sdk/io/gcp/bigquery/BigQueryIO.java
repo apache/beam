@@ -540,7 +540,15 @@ public class BigQueryIO {
    * A formatting function that maps a TableRow to itself. This allows sending a {@code
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
-  static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER = input -> input;
+  static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER =
+      SerializableFunctions.identity();;
+
+  /**
+   * A formatting function that maps a GenericRecord to itself. This allows sending a {@code
+   * PCollection<GenericRecord>} directly to BigQueryIO.Write.
+   */
+  static final SerializableFunction<AvroWriteRequest<GenericRecord>, GenericRecord>
+      GENERIC_RECORD_IDENTITY_FORMATTER = AvroWriteRequest::getElement;
 
   static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
@@ -990,7 +998,7 @@ public class BigQueryIO {
        * Specifies that a query should be run with a BATCH priority.
        *
        * <p>Batch mode queries are queued by BigQuery. These are started as soon as idle resources
-       * are available, usually within a few minutes. Batch queries don’t count towards your
+       * are available, usually within a few minutes. Batch queries don't count towards your
        * concurrent rate limit.
        */
       BATCH
@@ -1914,6 +1922,7 @@ public class BigQueryIO {
         .setPropagateSuccessful(true)
         .setAutoSchemaUpdate(false)
         .setDeterministicRecordIdFn(null)
+        .setMaxRetryJobs(1000)
         .build();
   }
 
@@ -1925,7 +1934,16 @@ public class BigQueryIO {
    * Write#withFormatFunction(SerializableFunction)}.
    */
   public static Write<TableRow> writeTableRows() {
-    return BigQueryIO.<TableRow>write().withFormatFunction(IDENTITY_FORMATTER);
+    return BigQueryIO.<TableRow>write().withFormatFunction(TABLE_ROW_IDENTITY_FORMATTER);
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord
+   * GenericRecords} to a BigQuery table.
+   */
+  public static Write<GenericRecord> writeGenericRecords() {
+    return BigQueryIO.<GenericRecord>write()
+        .withAvroFormatFunction(GENERIC_RECORD_IDENTITY_FORMATTER);
   }
 
   /** Implementation of {@link #write}. */
@@ -2044,6 +2062,8 @@ public class BigQueryIO {
 
     abstract Boolean getIgnoreInsertIds();
 
+    abstract int getMaxRetryJobs();
+
     abstract @Nullable String getKmsKey();
 
     abstract Boolean getOptimizeWrites();
@@ -2146,6 +2166,8 @@ public class BigQueryIO {
 
       @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
+      abstract Builder<T> setMaxRetryJobs(int maxRetryJobs);
 
       abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
 
@@ -2656,6 +2678,11 @@ public class BigQueryIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    /** If set, this will set the max number of retry of batch load jobs. */
+    public Write<T> withMaxRetryJobs(int maxRetryJobs) {
+      return toBuilder().setMaxRetryJobs(maxRetryJobs).build();
+    }
+
     /**
      * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
      * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. By
@@ -2885,15 +2912,6 @@ public class BigQueryIO {
             "Auto schema update currently only supported when ignoreUnknownValues also set.");
         checkArgument(
             !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
-      }
-
-      if (method != Write.Method.FILE_LOADS) {
-        // we only support writing avro for FILE_LOADS
-        checkArgument(
-            getAvroRowWriterFactory() == null,
-            "Writing avro formatted data is only supported for FILE_LOADS, however "
-                + "the method was %s",
-            method);
       }
 
       if (input.isBounded() == IsBounded.BOUNDED) {
@@ -3153,7 +3171,7 @@ public class BigQueryIO {
         // When running in streaming (unbounded mode) we want to retry failed load jobs
         // indefinitely. Failing the bundle is expensive, so we set a fairly high limit on retries.
         if (IsBounded.UNBOUNDED.equals(input.isBounded())) {
-          batchLoads.setMaxRetryJobs(1000);
+          batchLoads.setMaxRetryJobs(getMaxRetryJobs());
         }
         batchLoads.setTriggeringFrequency(getTriggeringFrequency());
         if (getAutoSharding()) {
@@ -3172,6 +3190,26 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsBeamRow<>(
                   dynamicDestinations, elementSchema, elementToRowFunction);
+        } else if (getAvroRowWriterFactory() != null) {
+          // we can configure the avro to storage write api proto converter for this
+          // assuming the format function returns an Avro GenericRecord
+          // and there is a schema defined
+          checkArgument(
+              getJsonSchema() != null
+                  || getDynamicDestinations() != null
+                  || getSchemaFromView() != null,
+              "A schema must be provided for avro rows to be used with StorageWrite API.");
+
+          RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>
+              recordWriterFactory =
+                  (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
+                      rowWriterFactory;
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
+              Optional.ofNullable(getAvroSchemaFactory()).orElse(DEFAULT_AVRO_SCHEMA_FACTORY);
+
+          storageApiDynamicDestinations =
+              new StorageApiDynamicDestinationsGenericRecord<>(
+                  dynamicDestinations, avroSchemaFactory, recordWriterFactory.getToAvroFn());
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
               (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;

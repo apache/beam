@@ -17,18 +17,29 @@
  */
 package org.apache.beam.fn.harness.jmh;
 
+import java.util.Arrays;
+import java.util.Collection;
 import org.apache.beam.fn.harness.jmh.ProcessBundleBenchmark.StatefulTransform;
 import org.apache.beam.fn.harness.jmh.ProcessBundleBenchmark.TrivialTransform;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 /** Tests for {@link ProcessBundleBenchmark}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class ProcessBundleBenchmarkTest {
+
+  @Parameterized.Parameter public String elementsEmbedding;
+
+  @Parameterized.Parameters
+  public static Collection<Object[]> parameters() {
+    return Arrays.asList(new Object[][] {{"false"}, {"true"}});
+  }
+
   @Test
   public void testTinyBundle() throws Exception {
     TrivialTransform transform = new TrivialTransform();
+    transform.elementsEmbedding = elementsEmbedding;
     new ProcessBundleBenchmark().testTinyBundle(transform);
     transform.tearDown();
   }
@@ -36,6 +47,7 @@ public class ProcessBundleBenchmarkTest {
   @Test
   public void testLargeBundle() throws Exception {
     TrivialTransform transform = new TrivialTransform();
+    transform.elementsEmbedding = elementsEmbedding;
     new ProcessBundleBenchmark().testLargeBundle(transform);
     transform.tearDown();
   }
@@ -43,6 +55,7 @@ public class ProcessBundleBenchmarkTest {
   @Test
   public void testStateWithoutCaching() throws Exception {
     StatefulTransform transform = new StatefulTransform();
+    transform.elementsEmbedding = elementsEmbedding;
     new ProcessBundleBenchmark().testStateWithoutCaching(transform);
     transform.tearDown();
   }
@@ -50,6 +63,7 @@ public class ProcessBundleBenchmarkTest {
   @Test
   public void testStateWithCaching() throws Exception {
     StatefulTransform transform = new StatefulTransform();
+    transform.elementsEmbedding = elementsEmbedding;
     new ProcessBundleBenchmark().testStateWithCaching(transform);
     transform.tearDown();
   }

@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTabl
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao.STREAM_PARTITION_PREFIX;
 
 import com.google.protobuf.ByteString;
+import org.apache.beam.sdk.annotations.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
  * identify itself which is used as the row prefix.
  */
 @SuppressWarnings({"UnusedVariable", "UnusedMethod"})
+@Internal
 public class MetadataTableDao {
   private static final Logger LOG = LoggerFactory.getLogger(MetadataTableDao.class);
 

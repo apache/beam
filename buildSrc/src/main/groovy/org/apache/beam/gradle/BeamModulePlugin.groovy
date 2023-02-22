@@ -466,11 +466,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.8.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.22.0"
+    def gax_version = "2.23.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.35.2"
+    def google_cloud_spanner_version = "6.36.0"
     def google_code_gson_version = "2.9.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -505,7 +505,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def jmh_version = "1.34"
 
     // Export Spark versions, so they are defined in a single place only
-    project.ext.spark2_version = spark2_version
     project.ext.spark3_version = spark3_version
 
     // A map of maps containing common libraries used per language. To use:
@@ -609,10 +608,10 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
-        // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/26.5.0/artifact_details.html
+        // The release notes shows the versions set by the BOM:
+        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.8.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.5.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.8.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -730,8 +729,6 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.8.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
-        spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark2_version",
-        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
         spark3_core                                 : "org.apache.spark:spark-core_2.12:$spark3_version",
         spark3_network_common                       : "org.apache.spark:spark-network-common_2.12:$spark3_version",
@@ -2018,7 +2015,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.19.3"
+      project.ext.goVersion = "go1.19.6"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.

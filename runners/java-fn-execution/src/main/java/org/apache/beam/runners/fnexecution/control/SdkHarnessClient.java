@@ -520,6 +520,10 @@ public class SdkHarnessClient implements AutoCloseable {
           // We don't have to worry about the completion stage.
           if (exception == null) {
             BeamFnApi.ProcessBundleResponse completedResponse = MoreFutures.get(response);
+            if (completedResponse.hasElements()) {
+              beamFnDataInboundObserver.get().accept(completedResponse.getElements());
+            }
+
             outstandingRequests.arriveAndAwaitAdvance();
 
             progressHandler.onCompleted(completedResponse);

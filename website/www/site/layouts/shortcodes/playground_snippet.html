@@ -16,8 +16,11 @@ because here only a div is created and not an iframe. It is 'playground' that ac
 an iframe.
 
 Required parameters:
-- example - the example ID or snippet ID.
 - language - the string to be passed as SDK to playground. 'py' translates to 'python'.
+- any of the following:
+    - path - the example in the catalog.
+    - shared - the snippet ID shared by a user.
+    - url - the URL of the example code.
 
 Optional parameters:
 - readonly - comma-separated section names to make read-only.

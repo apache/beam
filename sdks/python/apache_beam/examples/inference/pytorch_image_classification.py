@@ -130,18 +130,16 @@ def run(
     model_class = models.mobilenet_v2
     model_params = {'num_classes': 1000}
 
-  class PytorchModelHandlerTensorWithBatchSize(PytorchModelHandlerTensor):
-    def batch_elements_kwargs(self):
-      return {'min_batch_size': 10, 'max_batch_size': 100}
-
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
   model_handler = KeyedModelHandler(
-      PytorchModelHandlerTensorWithBatchSize(
+      PytorchModelHandlerTensor(
           state_dict_path=known_args.model_state_dict_path,
           model_class=model_class,
           model_params=model_params,
-          device=device))
+          device=device,
+          min_batch_size=10,
+          max_batch_size=100))
 
   pipeline = test_pipeline
   if not test_pipeline:
