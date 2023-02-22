@@ -173,6 +173,10 @@ please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mi
 
 If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Nexus might error out not being able to find the keys), use a keyserver at `ubuntu.com` instead: https://keyserver.ubuntu.com/.
 
+You will need to use an ascii-armored version of your key.
+This can be obtained by running `gpg --export --armor` and copying the whole block
+(including `-----<START/END> PGP PUBLIC KEY BLOCK-----`).
+
 #### Website development setup
 
 Updating the Beam website requires submitting PRs to both the main `apache/beam` repo and the `apache/beam-site` repo.
