@@ -29,6 +29,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
@@ -1234,5 +1235,43 @@ public class TestPOJOs {
       Schema.builder()
           .addRowField("nested", NESTED_POJO_SCHEMA)
           .addRowField("simplePojo", SIMPLE_POJO_SCHEMA)
+          .build();
+
+  /** A simple POJO containing nullable basic types. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class SimplePOJOWithDescription {
+    @SchemaFieldDescription("a simple string that is part of this field")
+    public @Nullable String str;
+
+    public SimplePOJOWithDescription() {}
+
+    public SimplePOJOWithDescription(String str) {
+      this.str = str;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SimplePOJOWithDescription that = (SimplePOJOWithDescription) o;
+      return Objects.equals(str, that.str);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(str);
+    }
+  }
+
+  /** The schema for {@link NullablePOJO}. * */
+  public static final Schema SIMPLE_POJO_WITH_DESCRIPTION_SCHEMA =
+      Schema.builder()
+          .addField(
+              Schema.Field.nullable("str", FieldType.STRING)
+                  .withDescription("a simple string that is part of this field"))
           .build();
 }

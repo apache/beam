@@ -277,7 +277,8 @@ class MatchContinuously(beam.PTransform):
       start_timestamp=Timestamp.now(),
       stop_timestamp=MAX_TIMESTAMP,
       match_updated_files=False,
-      apply_windowing=False):
+      apply_windowing=False,
+      empty_match_treatment=EmptyMatchTreatment.ALLOW):
     """Initializes a MatchContinuously transform.
 
     Args:
@@ -299,6 +300,7 @@ class MatchContinuously(beam.PTransform):
     self.stop_ts = stop_timestamp
     self.match_upd = match_updated_files
     self.apply_windowing = apply_windowing
+    self.empty_match_treatment = empty_match_treatment
 
   def expand(self, pbegin) -> beam.PCollection[filesystem.FileMetadata]:
     # invoke periodic impulse
@@ -311,7 +313,7 @@ class MatchContinuously(beam.PTransform):
     match_files = (
         impulse
         | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
-        | MatchAll())
+        | MatchAll(self.empty_match_treatment))
 
     # apply deduplication strategy if required
     if self.has_deduplication:

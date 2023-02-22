@@ -26,11 +26,24 @@ def cloudMLJob = { scope ->
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 360)
 
+  Map pipelineOptions = [
+    influx_db_name      : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname     : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+    metrics_dataset     : 'beam_cloudml',
+    publish_to_big_query: true,
+    project             : 'apache-beam-testing',
+    region              : 'us-central1',
+    staging_location    : 'gs://temp-storage-for-perf-tests/loadtests',
+    temp_location       : 'gs://temp-storage-for-perf-tests/loadtests',
+    runner              : 'DataflowRunner',
+    requirements_file   : "apache_beam/testing/benchmarks/cloudml/requirements.txt"
+  ]
   // Gradle goals for this job.
   scope.steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
+      switches("-Popts=\'${commonJobProperties.mapToArgString(pipelineOptions)}\'")
       tasks(':sdks:python:test-suites:dataflow:tftTests')
     }
   }

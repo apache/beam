@@ -55,7 +55,7 @@ class StandardExampleLoader extends ExampleLoader {
       final example = await _loadExampleBase();
 
       if (example == null) {
-        _completer.completeError('Example not found: $descriptor');
+        _completer.completeError(Exception('Example not found: $descriptor'));
         return;
       }
 

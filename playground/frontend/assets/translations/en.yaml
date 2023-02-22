@@ -19,4 +19,7 @@ intents:
   playground:
     clearOutput: 'Clear Output'
     newExample: 'New Example'
+    openGoogleColab: 'Open in Google Colab'
+    showDatasets: 'Dataset: {fileName}'
+    viewOnGithub: 'View on GitHub'
     usesEmulatedData: 'This examples uses emulated data'
