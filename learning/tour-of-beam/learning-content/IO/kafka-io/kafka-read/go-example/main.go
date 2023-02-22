@@ -35,10 +35,10 @@ import (
   "time"
 
   "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio"
+  // "github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/register"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+  // "github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+  // "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 var (
@@ -49,9 +49,9 @@ var (
   topic = flag.String("topic", "kafka_taxirides_realtime", "Kafka topic to write to and read from.")
 )
 
-func init() {
-  register.DoFn2x0[context.Context, []byte](&LogFn{})
-}
+// func init() {
+//  register.DoFn2x0[context.Context, []byte](&LogFn{})
+// }
 
 // LogFn is a DoFn to log rides.
 type LogFn struct{}
