@@ -12,16 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-### Trigger
+### Triggers
 
-When collecting and grouping data into windows, Beam uses triggers to determine when to emit the aggregated results of each window (referred to as a pane). If you use Beam’s default windowing configuration and default trigger, Beam outputs the aggregated result when it estimates all data has arrived, and discards all subsequent data for that window.
+When collecting and grouping data into windows, Beam uses triggers to determine when to emit the aggregated results of each window (referred to as a pane). If you use Beam’s default windowing configuration and default trigger, Beam outputs the aggregated result when it estimates all data has arrived and discards all subsequent data for that window.
 
-You can set triggers for your PCollections to change this default behavior. Beam provides a number of pre-built triggers that you can set:
+You can set triggers for your PCollections to change this default behavior. Beam provides several pre-built triggers that you can set:
 
-Event time triggers. These triggers operate on the event time, as indicated by the timestamp on each data element. Beam’s default trigger is event time-based.
-Processing time triggers. These triggers operate on the processing time – the time when the data element is processed at any given stage in the pipeline.
-Data-driven triggers. These triggers operate by examining the data as it arrives in each window, and firing when that data meets a certain property. Currently, data-driven triggers only support firing after a certain number of data elements.
-Composite triggers. These triggers combine multiple triggers in various ways.
+* Event time triggers. These triggers operate on the event time, as indicated by the timestamp on each data element. Beam’s default trigger is event time-based.
+* Processing time triggers. These triggers operate on the processing time – the time when the data element is processed at any given stage in the pipeline.
+* Data-driven triggers. These triggers operate by examining the data as it arrives in each window and firing when that data meets a certain property. Currently, data-driven triggers only support firing after a certain number of data elements.
+* Composite triggers. These triggers combine multiple triggers in various ways.
 
 ### Handling late data
 

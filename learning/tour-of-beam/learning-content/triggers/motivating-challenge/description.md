@@ -10,7 +10,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-### Common Transforms motivating challenge
+### Triggers motivating exercise
 
 You are provided with a "PCollection" from the array of the taxi order price in a csv file. Your task is to set the `trigger` to 10 elements. And another `trigger` for every minute.
 
