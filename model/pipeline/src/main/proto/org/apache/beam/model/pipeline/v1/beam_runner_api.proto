@@ -191,11 +191,11 @@ message PTransform {
   // there is none, it may be omitted.
   repeated DisplayData display_data = 6;
 
-  // (Optional) Environment where the current PTransform should be executed in.
+  // Environment where the current PTransform should be executed in.
   //
   // Transforms that are required to be implemented by a runner must omit this.
   // All other transforms are required to specify this.
-  optional string environment_id = 7;
+  string environment_id = 7;
 
   // (Optional) A map from URNs designating a type of annotation, to the
   // annotation in binary format. For example, an annotation could indicate
@@ -749,19 +749,19 @@ message WriteFilesPayload {
 // proto if with_attributes == true. Otherwise, the bytes is the raw payload.
 message PubSubReadPayload {
 
-  // (Optional) Topic to read from. Exactly one of topic or subscription should be set.
+  // Topic to read from. Exactly one of topic or subscription should be set.
   // Topic format is: /topics/project_id/subscription_name
-  optional string topic = 1;
+  string topic = 1;
 
-  // (Optional) Subscription to read from. Exactly one of topic or subscription should be set.
+  // Subscription to read from. Exactly one of topic or subscription should be set.
   // Subscription format is: /subscriptions/project_id/subscription_name
-  optional string subscription = 2;
+  string subscription = 2;
 
-  // (Optional) Attribute that provides element timestamps.
-  optional string timestamp_attribute = 3;
+  // Attribute that provides element timestamps.
+  string timestamp_attribute = 3;
 
-  // (Optional) Attribute to be used for uniquely identifying messages.
-  optional string id_attribute = 4;
+  // Attribute to be used for uniquely identifying messages.
+  string id_attribute = 4;
 
   // If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
   bool with_attributes = 5;
@@ -786,11 +786,11 @@ message PubSubWritePayload {
   // Topic format is: /topics/project_id/subscription_name
   string topic = 1;
 
-  // (Optional) Attribute that provides element timestamps.
-  optional string timestamp_attribute = 2;
+  // Attribute that provides element timestamps.
+  string timestamp_attribute = 2;
 
-  // (Optional) Attribute that uniquely identify messages.
-  optional string id_attribute = 3;
+  // Attribute that uniquely identify messages.
+  string id_attribute = 3;
 
   // If set, the topic is expected to be provided during runtime.
   string topic_runtime_overridden = 4;
@@ -1540,7 +1540,7 @@ message Environment {
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  optional bytes payload = 3;
+  bytes payload = 3;
 
   // (Optional) Static display data for the environment. If there is none,
   // it may be omitted.

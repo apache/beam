@@ -946,7 +946,7 @@ message StateGetRequest {
   //
   // If unspecified, signals to the runner that the response should start
   // from the beginning of the logical continuable stream.
-  optional bytes continuation_token = 1;
+  bytes continuation_token = 1;
 }
 
 // A response to get state representing a logical byte stream which can be
