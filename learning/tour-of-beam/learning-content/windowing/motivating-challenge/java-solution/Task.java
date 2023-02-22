@@ -60,10 +60,10 @@ public class Task {
 
         PCollection<Double> slidingWindowedItems = rideTotalAmounts.apply(
                         Window.<Double>into(SlidingWindows.of(Duration.standardSeconds(10)).every(Duration.standardSeconds(5))))
-                .apply(Combine.globally((SerializableFunction<Iterable<Double>, Double>) input -> {
-                    Iterator<Double> iterator = input.iterator();
+                .apply(Combine.globally((SerializableFunction<Iterable<Double>, Double>) ride -> {
+                    Iterator<Double> iterator = ride.iterator();
                     double firstValue = iterator.hasNext() ? iterator.next() : -Double.MAX_VALUE;
-                    for (double i : input){
+                    for (double i : ride){
                         if(firstValue<i){
                             firstValue = i;
                         }
