@@ -251,7 +251,6 @@ tasks.register("prepareFirebaseOptionsDart") {
 }
 
 tasks.register("flutterPubGetPG") {
-    outputs.upToDateWhen { false }
     exec {
     commandLine("flutter", "pub", "get")
     workingDir("../../../playground/frontend/playground_components")
@@ -259,7 +258,6 @@ tasks.register("flutterPubGetPG") {
 }
 
 tasks.register("flutterPubRunPG") {
-    outputs.upToDateWhen { false }
     exec {
         executable("flutter")
         args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
@@ -268,7 +266,6 @@ tasks.register("flutterPubRunPG") {
 }
 
 tasks.register("flutterPubGetTob") {
-    outputs.upToDateWhen { false }
     exec {
         commandLine("flutter", "pub", "get")
         workingDir("../frontend")
@@ -276,7 +273,6 @@ tasks.register("flutterPubGetTob") {
 }
 
 tasks.register("flutterPubRunTob") {
-    outputs.upToDateWhen { false }
     exec {
         commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
         workingDir("../frontend")
@@ -284,7 +280,6 @@ tasks.register("flutterPubRunTob") {
 }
 
 tasks.register("flutterBuildWeb") {
-    outputs.upToDateWhen { false }
     exec {
         commandLine("flutter", "build", "web", "--profile", "--dart-define=Dart2jsOptimization=O0")
         workingDir("../frontend")
@@ -292,7 +287,6 @@ tasks.register("flutterBuildWeb") {
 }
 
 tasks.register("firebaseDeploy") {
-    outputs.upToDateWhen { false }
     var project_id = ""
     if (project.hasProperty("project_id")) {
         project_id = project.property("project_id") as String
