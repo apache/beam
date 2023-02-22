@@ -19,6 +19,7 @@
 
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'base'
+apply from: "$project.rootDir/playground/backend/containers/git-functions.gradle"
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
@@ -87,7 +88,9 @@ docker {
                            "golang:1.18-bullseye",
              'SDK_TAG': project.rootProject.hasProperty(["sdk-tag"]) ?
                   project.rootProject["sdk-tag"] : project.rootProject.sdk_version,
-             'SDK_TAG_LOCAL': project.rootProject.sdk_version])
+             'SDK_TAG_LOCAL': project.rootProject.sdk_version,
+             'GIT_COMMIT': getGitCommitHash(),
+             'GIT_TIMESTAMP': getGitCommitTimestamp()])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

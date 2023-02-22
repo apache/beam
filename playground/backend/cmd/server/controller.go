@@ -15,10 +15,9 @@
 package main
 
 import (
+	"cloud.google.com/go/datastore"
 	"context"
 	"errors"
-
-	"cloud.google.com/go/datastore"
 	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -51,8 +50,6 @@ const (
 	userCloudConnectionErrMsg  = "Cloud connection error"
 	resourceNotFoundErrMsg     = "Resource is not found"
 	resourceInconsistentErrMsg = "Resource is not consistent"
-	buildCommitHash            = "<unknown>"
-	beamSdkVersion             = "<unknown>"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -539,9 +536,10 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 // GetMetadata returns runner metadata
 func (controller *playgroundController) GetMetadata(ctx context.Context, info *pb.GetMetadataRequest) (*pb.GetMetadataResponse, error) {
 	response := pb.GetMetadataResponse{
-		RunnerSdk:       controller.env.BeamSdkEnvs.ApacheBeamSdk.String(),
-		BuildCommitHash: buildCommitHash,
-		BeamSdkVersion:  beamSdkVersion,
+		RunnerSdk:            controller.env.BeamSdkEnvs.ApacheBeamSdk.String(),
+		BuildCommitHash:      BuildCommitHash,
+		BuildCommitTimestamp: BuildCommitTimestamp,
+		BeamSdkVersion:       controller.env.BeamSdkEnvs.BeamVersion,
 	}
 
 	return &response, nil

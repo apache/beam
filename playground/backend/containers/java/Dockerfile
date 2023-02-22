@@ -18,6 +18,8 @@
 ARG BEAM_VERSION=2.44.0
 FROM golang:1.18-bullseye AS build
 ARG BEAM_VERSION
+ARG GIT_COMMIT="<unknown>"
+ARG GIT_TIMESTAMP="0"
 # Setup Go Environment
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
@@ -29,12 +31,12 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
 COPY src /go/src/playground/backend
 #COPY playground /go/src/playground/playground
 WORKDIR /go/src/playground/backend
-RUN ls
+
 # Build Application
 RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
-    go build -o /go/bin/server_java_backend
+    go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_java_backend
 
 FROM maven:3.8.6-openjdk-8 as dep
 ARG BEAM_VERSION
@@ -55,6 +57,7 @@ FROM apache/beam_java8_sdk:$BEAM_VERSION
 ARG BEAM_VERSION
 ARG SPRING_VERSION=5.3.25
 ARG KAFKA_CLIENTS_VERSION=2.3.1
+ENV BEAM_VERSION=$BEAM_VERSION
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/

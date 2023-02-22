@@ -2449,7 +2449,8 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetMetadataResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
     ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'runnerSdk')
     ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'buildCommitHash')
-    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'beamSdkVersion')
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'buildCommitTimestamp')
+    ..aOS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'beamSdkVersion')
     ..hasRequiredFields = false
   ;
 
@@ -2457,6 +2458,7 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
   factory GetMetadataResponse({
     $core.String? runnerSdk,
     $core.String? buildCommitHash,
+    $core.String? buildCommitTimestamp,
     $core.String? beamSdkVersion,
   }) {
     final _result = create();
@@ -2465,6 +2467,9 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
     }
     if (buildCommitHash != null) {
       _result.buildCommitHash = buildCommitHash;
+    }
+    if (buildCommitTimestamp != null) {
+      _result.buildCommitTimestamp = buildCommitTimestamp;
     }
     if (beamSdkVersion != null) {
       _result.beamSdkVersion = beamSdkVersion;
@@ -2511,12 +2516,21 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
   void clearBuildCommitHash() => clearField(2);
 
   @$pb.TagNumber(3)
-  $core.String get beamSdkVersion => $_getSZ(2);
+  $core.String get buildCommitTimestamp => $_getSZ(2);
   @$pb.TagNumber(3)
-  set beamSdkVersion($core.String v) { $_setString(2, v); }
+  set buildCommitTimestamp($core.String v) { $_setString(2, v); }
   @$pb.TagNumber(3)
-  $core.bool hasBeamSdkVersion() => $_has(2);
+  $core.bool hasBuildCommitTimestamp() => $_has(2);
   @$pb.TagNumber(3)
-  void clearBeamSdkVersion() => clearField(3);
+  void clearBuildCommitTimestamp() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get beamSdkVersion => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set beamSdkVersion($core.String v) { $_setString(3, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasBeamSdkVersion() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearBeamSdkVersion() => clearField(4);
 }
 
