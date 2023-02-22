@@ -95,6 +95,7 @@ class BigtableConfigTranslator {
     BigtableDataSettings.Builder dataBuilder;
     boolean emulator = false;
     if (!Strings.isNullOrEmpty(config.getEmulatorHost())) {
+      emulator = true;
       String hostAndPort = config.getEmulatorHost();
       try {
         int lastIndexOfCol = hostAndPort.lastIndexOf(":");
@@ -102,7 +103,6 @@ class BigtableConfigTranslator {
         dataBuilder =
             BigtableDataSettings.newBuilderForEmulator(
                 hostAndPort.substring(0, lastIndexOfCol), port);
-        emulator = true;
       } catch (NumberFormatException | IndexOutOfBoundsException ex) {
         throw new RuntimeException("Invalid host/port in BigtableConfig " + hostAndPort);
       }
