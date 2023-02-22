@@ -61,13 +61,14 @@ import apache_beam as beam
 def run(argv=None):
   """Run the workflow."""
   parser = argparse.ArgumentParser()
-
+  """
   parser.add_argument(
       '--output',
       required=True,
       help=(
           'Output BigQuery table for results specified as: '
           'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
+  """
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
