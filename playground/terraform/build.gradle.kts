@@ -298,7 +298,7 @@ tasks.register("prepareConfig") {
 
         file.writeText(
             """
-const String kAnalyticsUA = 'UA-73650088-2';
+const String kAnalyticsUA = 'G-BXFP2FNCKC';
 const String kApiClientURL =
       'https://router.${dns_name}';
 const String kApiJavaClientURL =

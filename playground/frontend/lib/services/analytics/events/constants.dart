@@ -25,6 +25,5 @@ class PlaygroundAnalyticsEvents {
 }
 
 class PlaygroundEventParams {
-  static const layout = 'layout';
   static const shareFormat = 'shareFormat';
 }

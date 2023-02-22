@@ -51,7 +51,7 @@ class EmbeddedPlaygroundNotifier extends ChangeNotifier
     // See https://github.com/alexeyinkin/flutter-app-state/issues/23
     // Anyway we do not switch between embedded/standalone at runtime.
     PlaygroundComponents.analyticsService.defaultEventParameters = {
-      PlaygroundEventParams.layout: PagesEnum.embeddedPlayground.name,
+      EventParams.app: PagesEnum.embeddedPlayground.name,
     };
   }
 

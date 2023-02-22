@@ -21,7 +21,8 @@
 // in the repository.
 // TODO: https://github.com/apache/beam/issues/24200
 
-const String kAnalyticsUA = 'G-184JLSJ9X4';
+const String kAnalyticsUA = 'G-BXFP2FNCKC';
+
 const String kApiClientURL = 'https://router.play-dev.beam.apache.org';
 const String kApiJavaClientURL = 'https://java.play-dev.beam.apache.org';
 const String kApiGoClientURL = 'https://go.play-dev.beam.apache.org';

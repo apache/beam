@@ -34,6 +34,6 @@ class RatedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
-        EventParams.rating: rating.name,
+        EventParams.feedbackRating: rating.name,
       };
 }

@@ -31,12 +31,13 @@ class BeamAnalyticsEvents {
 }
 
 class EventParams {
+  static const app = 'app';
   static const brightness = 'brightness';
-  static const file = 'file';
-  static const rating = 'rating';
+  static const destinationUrl = 'destinationUrl';
+  static const feedbackRating = 'feedbackRating';
+  static const feedbackText = 'feedbackText';
+  static const fileName = 'fileName';
   static const runSeconds = 'runSeconds';
   static const sdk = 'sdk';
   static const snippet = 'snippet';
-  static const text = 'text';
-  static const url = 'url';
 }

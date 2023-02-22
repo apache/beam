@@ -25,21 +25,21 @@ import 'constants.dart';
 /// For multi-file snippets this fires up to one time on each modified file.
 class SnippetModifiedAnalyticsEvent extends AnalyticsEvent {
   const SnippetModifiedAnalyticsEvent({
-    required this.file,
+    required this.fileName,
     required this.sdk,
     required this.snippet,
   }) : super(
           name: BeamAnalyticsEvents.snippetModified,
         );
 
-  final String file;
+  final String fileName;
   final Sdk sdk;
   final String snippet;
 
   @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
-        EventParams.file: file,
+        EventParams.fileName: fileName,
         EventParams.sdk: sdk.id,
         EventParams.snippet: snippet,
       };

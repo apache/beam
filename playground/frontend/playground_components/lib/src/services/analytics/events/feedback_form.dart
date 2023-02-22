@@ -38,7 +38,7 @@ class FeedbackFormAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
-        EventParams.rating: rating.name,
-        EventParams.text: text,
+        EventParams.feedbackRating: rating.name,
+        EventParams.feedbackText: text,
       };
 }
