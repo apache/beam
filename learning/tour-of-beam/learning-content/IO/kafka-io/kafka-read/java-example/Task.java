@@ -59,7 +59,7 @@ public class Task {
         Map<String, Object> consumerConfig = new HashMap<>();
         consumerConfig.put("auto.offset.reset", "earliest");
 
-        pipeline.apply(
+        /*pipeline.apply(
                         "ReadFromKafka",
                         KafkaIO.<String, String>read()
                                 .withBootstrapServers(
@@ -88,7 +88,7 @@ public class Task {
                                     public void processElement(ProcessContext c) throws JsonProcessingException {
                                         System.out.println(c.element());
                                     }
-                                }));
+                                }));*/
 
 
         pipeline.run().waitUntilFinish();

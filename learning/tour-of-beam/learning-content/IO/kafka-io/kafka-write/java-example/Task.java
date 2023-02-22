@@ -48,7 +48,7 @@ public class Task {
 
         PCollection<String> input = pipeline.apply(Create.of("Hello", "KafkaIO"));
 
-        Properties producerProps = new Properties();
+        /*Properties producerProps = new Properties();
         producerProps.setProperty("bootstrap.servers", "localhost:9092");
         producerProps.setProperty("key.serializer", StringSerializer.class.getName());
         producerProps.setProperty("value.serializer", ByteArraySerializer.class.getName());
@@ -59,7 +59,7 @@ public class Task {
                 .withTopic("my-topic")
                 .withKeySerializer(StringSerializer.class)
                 .withValueSerializer(StringSerializer.class)
-                .withProducerConfigUpdates(new HashMap<>()).values());
+                .withProducerConfigUpdates(new HashMap<>()).values());*/
 
         pipeline.run().waitUntilFinish();
     }
