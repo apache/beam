@@ -19,7 +19,7 @@
 #   description: TextIO read local file example.
 #   multifile: true
 #   files:
-#     - name: myfile.txt
+#     - name: ./myfile.txt
 #   context_line: 30
 #   categories:
 #     - Quickstart
