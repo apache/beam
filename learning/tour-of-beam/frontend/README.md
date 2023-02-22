@@ -1,109 +1,83 @@
 <!--
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+     Licensed to the Apache Software Foundation (ASF) under one
+     or more contributor license agreements.  See the NOTICE file
+     distributed with this work for additional information
+     regarding copyright ownership.  The ASF licenses this file
+     to you under the Apache License, Version 2.0 (the
+     "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
 
-      http://www.apache.org/licenses/LICENSE-2.0
+       http://www.apache.org/licenses/LICENSE-2.0
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
--->
-# Tour of Beam deployment on GCP
-This guide shows you how to deploy Tour of Beam environment on Google Cloud Platform (GCP) and Firebase environment.
+     Unless required by applicable law or agreed to in writing,
+     software distributed under the License is distributed on an
+     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+     specific language governing permissions and limitations
+     under the License.
+ -->
 
-## Prerequisites:
+# Tour of Beam
 
-### Following items need to be setup for Playground deployment on GCP:
-1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
-   Ensure that the account has at least following privileges:
-   Cloud Datastore Owner
-   Create Service Accounts
-   Security Admin
-   Service Account User
-   Service Usage Admin
-   Storage Admin
+These are the main sources of the Tour of Beam website.
 
-3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
+# About
 
-4. DNS name for your Tour of Beam deployment instance
+## Getting started
 
-5. OS with installed software listed below:
+This project relies on generated code for some functionality:
+deserializers, test mocks, constants for asset files,
+extracted Beam symbols for the editor, etc.
 
-* [Java](https://adoptopenjdk.net/)
-* [NodeJS & npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/)
-* [Flutter (3.7.0 >)](https://docs.flutter.dev/get-started/install)
-* [Dart SDK (2.19.2 to 4.0.0)](https://dart.dev/get-dart)
-* [Firebase CLI](https://docs.docker.com/engine/install/)
-* [Terraform](https://www.terraform.io/downloads)
-* [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
+All generated files are version-controlled, so after checkout the project is immediately runnable.
+However, after changes you may need to re-run code generation:
 
-6. Apache Beam Git repository cloned locally
-
-# Prepare deployment configuration:
-Tour of Beam backend uses `terraform.tfvars` located in `learning/tour-of-beam/terraform/environment/environment_name/` to define variables specific to an environment (e.g., prod, test, staging).<br>
-1. Create a folder (further referred as `environment_name`) to define a new environment and place configuration files into it:
-
-* `terraform.tfvars` environment variables:
-```
-project_id = "gcp_project_id" # Your GCP Project ID
-cloudfunctions_bucket = "gcs_bucket_name" # Name of bucket that will be created for cloud functions source code (Note: has to be globally unique)
-region = "gcp_region" # Your GCP resources region
-
-```
-* `state.tfbackend` environment variables:
-```
-bucket = "bucket_name" # Your created bucket name for terraform tfstate file
-```
-2. Configure authentication for the Google Cloud Platform
-```
-gcloud init
-```
-```
-gcloud auth application-default login
+```bash
+cd beam
+./gradlew :playground:frontend:playground_components:generateCode
+cd learning/tour-of-beam/frontend
+flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-3. Run the following command to authenticate in the Docker registry:
-```
- gcloud auth configure-docker `chosen_region`-docker.pkg.dev
-```
-4. Run the following command to authenticate in GKE:
-```
-gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` --project `project_id`
+### Run
+
+The following command is used to build and serve the frontend app locally:
+
+```bash
+flutter run -d chrome
 ```
 
-# Deploy Tour of Beam Backend
-5. Run the command below from the top level repository folder ("beam") to deploy the Tour of Beam Backend infrastructure:
-```
-./gradlew learning:tour-of-beam:terraform:InitBackend -Pproject_environment="environment_name"
-```
-Where:
-- **project_environment** - environment name (folder created to store terraform.tfvars and state.tfbackend files)
+### Backend Selection
 
-## FRONT
+To change the Google Project that is used as the backend:
 
-6. Run the command below and follow instructions to configure authentication for the Firebase
-```
-firebase login --no-localhost
-```
+1. Update Firebase configuration:
+   https://firebase.google.com/docs/flutter/setup?platform=web
 
-7. Run the following command from the top level repository folder ("beam") to deploy the Tour of Beam Frontend infrastructure:
-```
-./gradlew --info learning:tour-of-beam:terraform:InitFrontend -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name"
-```
-Where:
-- **project_id** - name of your GCP Project ID
-- **dns-name** - DNS name reserved for Beam Playground
-- **region** - name of your GCP Resources region
-- **webapp_id** - name of your Firebase Web Application that will be created (example: Tour-of-Beam-Web-App)
+2. In `/lib/config.dart`, update:
+   1. Google Project ID and region.
+   2. Playground's backend URLs.
 
-# Validate deployed Playground:
-8. Open Tour of Beam frontend webpage in a web browser (dns name will be provided in output once script is finished) to ensure that web page is available
+# Deployment
+
+# Tests
+
+Install ChromeDriver to run integration tests in a browser: https://docs.flutter.dev/testing/integration-tests#running-in-a-browser
+Run integration tests:
+flutter drive \
+ --driver=test_driver/integration_test.dart \
+ --target=integration_test/counter_test.dart \
+ -d web-server
+
+# Packages
+
+`flutter pub get`
+
+# Contribution guide
+
+For checks: `./gradlew rat`
+Exclusions for file checks can be added in the Tour of Beam section of this file: `beam/build.gradle.kts`
+
+# Additional resources
+
+# Troubleshooting
