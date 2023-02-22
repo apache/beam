@@ -36,7 +36,7 @@ message ApiServiceDescriptor {
   // (Optional) The method for authentication. If unspecified, access to the
   // url is already being performed in a trusted context (e.g. localhost,
   // private network).
-  AuthenticationSpec authentication = 2;
+  optional AuthenticationSpec authentication = 2;
 }
 
 message AuthenticationSpec {
@@ -48,7 +48,7 @@ message AuthenticationSpec {
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  bytes payload = 2;
+  optional bytes payload = 2;
 }
 
 // TODO: Add authentication specifications as needed.
