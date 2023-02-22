@@ -38,7 +38,7 @@ PCollection<LogEntry> unstampedLogs = ...;
       PCollection<LogEntry> stampedLogs =
           unstampedLogs.apply(ParDo.of(new DoFn<LogEntry, LogEntry>() {
             public void processElement(@Element LogEntry element, OutputReceiver<LogEntry> out) {
-              
+
               // Extract the timestamp from log entry we're currently processing.
               Instant logTimeStamp = extractTimeStampFromLogEntry(element);
 

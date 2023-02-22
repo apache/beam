@@ -66,6 +66,6 @@ Combine.globally(Min.ofIntegers())
 ```
 beam.CombineGlobally.globally(beam.combiners.MaxCombineFn())
 beam.CombineGlobally.globally(beam.combiners.MeanCombineFn())
-beam.CombineGlobally.globally(beam.combiners.MinCombineFn()) 
+beam.CombineGlobally.globally(beam.combiners.MinCombineFn())
 ```
 {{end}}

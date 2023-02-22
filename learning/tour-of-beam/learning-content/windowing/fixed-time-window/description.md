@@ -43,7 +43,7 @@ fixed_windowed_items = (
 ```
 {{end}}
 
-### Playground exercise 
+### Playground exercise
 
 You can start displaying elements from the beginning but also from the end:
 
