@@ -151,7 +151,7 @@ message PTransform {
   // is a ParDoPayload, and so on. For some special composite transforms,
   // the payload is also officially defined. See StandardPTransforms for
   // details.
-  optional FunctionSpec spec = 1;
+  FunctionSpec spec = 1;
 
   // (Optional) A list of the ids of transforms that it contains.
   //
@@ -529,12 +529,12 @@ message ParDoPayload {
   // (Optional) Only set when this ParDo contains a splittable DoFn.
   // If this is set, the corresponding standard requirement should also
   // be placed in the pipeline requirements.
-  optional string restriction_coder_id = 7;
+  string restriction_coder_id = 7;
 
   // (Optional) Only set when this ParDo can request bundle finalization.
   // If this is set, the corresponding standard requirement should also
   // be placed in the pipeline requirements.
-  optional bool requests_finalization = 8;
+  bool requests_finalization = 8;
 
   // Whether this stage requires time sorted input.
   // If this is set, the corresponding standard requirement should also
@@ -662,7 +662,7 @@ message TestStreamPayload {
 
   // (Optional) If specified, points to a TestStreamService to be
   // used to retrieve events.
-  optional ApiServiceDescriptor endpoint = 3;
+  ApiServiceDescriptor endpoint = 3;
 
   message Event {
     oneof event {
@@ -679,7 +679,7 @@ message TestStreamPayload {
       // (Optional) The output watermark tag for a PCollection. If unspecified
       // or with an empty string, this will default to the Main PCollection
       // Output
-      optional string tag = 2;
+      string tag = 2;
     }
 
     // Advances the processing time clock by the specified amount.
@@ -696,7 +696,7 @@ message TestStreamPayload {
       // (Optional) The output PCollection tag to add these elements to. If
       // unspecified or with an empty string, this will default to the Main
       // PCollection Output.
-      optional string tag = 3;
+      string tag = 3;
     }
   }
 
@@ -806,7 +806,7 @@ message GroupIntoBatchesPayload {
   int64 batch_size_bytes = 3;
 
   // (Optional) Max duration a batch is allowed to be cached in states.
-  optional int64 max_buffering_duration_millis = 2;
+  int64 max_buffering_duration_millis = 2;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -1156,7 +1156,7 @@ message WindowingStrategy {
   // (Optional) Environment where the current window_fn should be applied in.
   // Runner that executes the pipeline may choose to override this if needed.
   // If not specified, environment will be decided by the runner.
-  optional string environment_id = 11;
+  string environment_id = 11;
 }
 
 // Whether or not a PCollection's WindowFn is non-merging, merging, or
@@ -1297,10 +1297,10 @@ message Trigger {
   message AfterEndOfWindow {
 
     // (Optional) A trigger governing output prior to the end of the window.
-    optional Trigger early_firings = 1;
+    Trigger early_firings = 1;
 
     // (Optional) A trigger governing output after the end of the window.
-    optional Trigger late_firings = 2;
+    Trigger late_firings = 2;
   }
 
   // After input arrives, ready when the specified delay has passed.
@@ -1481,7 +1481,7 @@ message ArtifactUrlPayload {
   string url = 1;
 
   // (Optional) The hex-encoded sha256 checksum of the artifact if available.
-  optional string sha256 = 2;
+  string sha256 = 2;
 }
 
 message EmbeddedFilePayload {
@@ -1503,7 +1503,7 @@ message MavenPayload {
   string artifact = 1;
 
   // (Optional) Repository URL. If not specified, Maven central is used by default.
-  optional string repository_url = 2;
+  string repository_url = 2;
 }
 
 message DeferredArtifactPayload {
@@ -1765,7 +1765,7 @@ message FunctionSpec {
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  optional bytes payload = 3;
+  bytes payload = 3;
 }
 
 // A set of well known URNs describing display data.
@@ -1829,7 +1829,7 @@ message DisplayData {
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  optional bytes payload = 2;
+  bytes payload = 2;
 }
 
 
@@ -1846,7 +1846,7 @@ message MessageWithComponents {
   //
   // If this is absent, it is expected that there are no
   // references.
-  optional Components components = 1;
+  Components components = 1;
 
   // (Required) The root message that may contain pointers
   // that should be resolved by looking inside components.
@@ -1960,7 +1960,7 @@ message ExecutableStagePayload {
     // value using the beam:coder:windowed_value:v1 coder parameterized by
     // a beam:coder:bytes:v1 element coder and the window coder that this
     // param_windowed_value coder uses.
-    optional bytes payload = 2;
+    bytes payload = 2;
 
     // (Required) The target(PCollection or Timer) this setting applies to.
     oneof target {
