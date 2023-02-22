@@ -155,4 +155,4 @@ def extract_byte_size(proto_message):
   if hasattr(type(proto_message), "pb"):
     # proto-plus message
     return type(proto_message).pb(proto_message).ByteSize()
-  return None
+  return NotImplementedError
