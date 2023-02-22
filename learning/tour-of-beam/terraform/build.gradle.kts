@@ -363,6 +363,7 @@ tasks.register("prepareFirebasercConfig") {
 """
         )
     }
+    tasks.getByName("firebaseProjectCreate").mustRunAfter(this)
 }
 
 
