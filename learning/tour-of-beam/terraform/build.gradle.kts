@@ -340,6 +340,7 @@ const String kApiScioClientURL =
 """
         )
     }
+    tasks.getByName("prepareFirebasercConfig").mustRunAfter(this)
 }
 
 tasks.register("prepareFirebasercConfig") {
