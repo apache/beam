@@ -28,6 +28,7 @@ import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -54,9 +55,7 @@ public class BigtableConfigTranslatorTest {
             .build();
 
     BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
-    config =
-        BigtableConfigTranslator.translateToBigtableConfig(
-            config, options, PipelineOptionsFactory.as(GcpOptions.class));
+    config = BigtableConfigTranslator.translateToBigtableConfig(config, options);
 
     assertNotNull(config.getProjectId());
     assertNotNull(config.getInstanceId());
@@ -75,7 +74,7 @@ public class BigtableConfigTranslatorTest {
   }
 
   @Test
-  public void testBigtableOptionsToBigtableReadOptions() {
+  public void testBigtableOptionsToBigtableReadOptions() throws Exception {
     BigtableOptions options =
         BigtableOptions.builder()
             .setCallOptionsConfig(
@@ -102,7 +101,7 @@ public class BigtableConfigTranslatorTest {
   }
 
   @Test
-  public void testBigtableOptionsToBigtableWriteOptions() {
+  public void testBigtableOptionsToBigtableWriteOptions() throws Exception {
     BigtableOptions options =
         BigtableOptions.builder()
             .setCallOptionsConfig(
@@ -146,7 +145,7 @@ public class BigtableConfigTranslatorTest {
   }
 
   @Test
-  public void testVeneerReadSettings() {
+  public void testVeneerReadSettings() throws Exception {
     BigtableConfig config =
         BigtableConfig.builder()
             .setProjectId(ValueProvider.StaticValueProvider.of("project"))
@@ -160,7 +159,8 @@ public class BigtableConfigTranslatorTest {
             .setAttemptTimeout(org.joda.time.Duration.millis(101))
             .setOperationTimeout(org.joda.time.Duration.millis(1001))
             .build();
-    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
 
     BigtableDataSettings settings =
         BigtableConfigTranslator.translateReadToVeneerSettings(
@@ -180,7 +180,7 @@ public class BigtableConfigTranslatorTest {
   }
 
   @Test
-  public void testVeneerWriteSettings() {
+  public void testVeneerWriteSettings() throws Exception {
     BigtableConfig config =
         BigtableConfig.builder()
             .setProjectId(ValueProvider.StaticValueProvider.of("project"))
@@ -198,7 +198,8 @@ public class BigtableConfigTranslatorTest {
             .setMaxOutstandingElements(10001)
             .setMaxOutstandingBytes(100001)
             .build();
-    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
 
     BigtableDataSettings settings =
         BigtableConfigTranslator.translateWriteToVeneerSettings(
@@ -240,5 +241,59 @@ public class BigtableConfigTranslatorTest {
                 .getBatchingSettings()
                 .getFlowControlSettings()
                 .getMaxOutstandingRequestBytes());
+  }
+
+  @Test
+  public void testUsingNullCredentialsFromBigtableOptions() throws Exception {
+    BigtableOptions options =
+        BigtableOptions.builder()
+            .setProjectId("project")
+            .setInstanceId("instance")
+            .setAppProfileId("app-profile")
+            .setDataHost("localhost")
+            .setPort(1234)
+            .setCredentialOptions(CredentialOptions.nullCredential())
+            .build();
+
+    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+    pipelineOptions.setGcpCredential(new TestCredential());
+
+    BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
+    config = BigtableConfigTranslator.translateToBigtableConfig(config, options);
+
+    BigtableDataSettings veneerSettings =
+        BigtableConfigTranslator.translateToVeneerSettings(config, pipelineOptions);
+
+    assertNotNull(veneerSettings.getStubSettings().getCredentialsProvider());
+
+    NoopCredentialFactory factory =
+        NoopCredentialFactory.fromOptions(PipelineOptionsFactory.create());
+    assertEquals(
+        factory.getCredential(),
+        veneerSettings.getStubSettings().getCredentialsProvider().getCredentials());
+  }
+
+  @Test
+  public void testUsingPipelineOptionsCredential() throws Exception {
+    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+    TestCredential testCredential = new TestCredential();
+    pipelineOptions.setGcpCredential(testCredential);
+    BigtableOptions options = BigtableOptions.builder().build();
+    BigtableConfig config =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of("project"))
+            .setInstanceId(ValueProvider.StaticValueProvider.of("instance"))
+            .setValidate(true)
+            .build();
+
+    config = BigtableConfigTranslator.translateToBigtableConfig(config, options);
+
+    BigtableDataSettings veneerSettings =
+        BigtableConfigTranslator.translateToVeneerSettings(config, pipelineOptions);
+
+    assertNotNull(veneerSettings.getStubSettings().getCredentialsProvider());
+
+    assertEquals(
+        testCredential, veneerSettings.getStubSettings().getCredentialsProvider().getCredentials());
   }
 }

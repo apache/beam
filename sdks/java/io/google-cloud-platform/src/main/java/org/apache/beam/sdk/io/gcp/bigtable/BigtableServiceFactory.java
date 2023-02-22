@@ -102,9 +102,7 @@ class BigtableServiceFactory implements Serializable {
     BigtableOptions effectiveOptions = getEffectiveOptions(config);
     if (effectiveOptions != null) {
       // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
-      config =
-          BigtableConfigTranslator.translateToBigtableConfig(
-              config, effectiveOptions, pipelineOptions);
+      config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
       opts = BigtableConfigTranslator.translateToBigtableReadOptions(opts, effectiveOptions);
     }
     BigtableDataSettings settings =
@@ -130,9 +128,7 @@ class BigtableServiceFactory implements Serializable {
     BigtableOptions effectiveOptions = getEffectiveOptions(config);
     if (effectiveOptions != null) {
       // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
-      config =
-          BigtableConfigTranslator.translateToBigtableConfig(
-              config, effectiveOptions, pipelineOptions);
+      config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
       opts = BigtableConfigTranslator.translateToBigtableWriteOptions(opts, effectiveOptions);
     }
 
@@ -155,9 +151,7 @@ class BigtableServiceFactory implements Serializable {
       throws IOException {
     BigtableOptions effectiveOptions = getEffectiveOptions(config);
     if (effectiveOptions != null) {
-      config =
-          BigtableConfigTranslator.translateToBigtableConfig(
-              config, effectiveOptions, pipelineOptions);
+      config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
     }
 
     if (config.isDataAccessible()) {

@@ -37,10 +37,12 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.util.Objects;
+import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -64,7 +66,8 @@ class BigtableConfigTranslator {
   static BigtableDataSettings translateReadToVeneerSettings(
       @NonNull BigtableConfig config,
       @NonNull BigtableReadOptions options,
-      @NonNull PipelineOptions pipelineOptions) {
+      @NonNull PipelineOptions pipelineOptions)
+      throws IOException {
     BigtableDataSettings.Builder settings = buildBigtableDataSettings(config, pipelineOptions);
     return configureReadSettings(settings, options);
   }
@@ -73,7 +76,8 @@ class BigtableConfigTranslator {
   static BigtableDataSettings translateWriteToVeneerSettings(
       @NonNull BigtableConfig config,
       @NonNull BigtableWriteOptions options,
-      @NonNull PipelineOptions pipelineOptions) {
+      @NonNull PipelineOptions pipelineOptions)
+      throws IOException {
 
     BigtableDataSettings.Builder settings = buildBigtableDataSettings(config, pipelineOptions);
     return configureWriteSettings(settings, options);
@@ -81,13 +85,13 @@ class BigtableConfigTranslator {
 
   /** Translate BigtableConfig and BigtableWriteOptions to Veneer settings. */
   static BigtableDataSettings translateToVeneerSettings(
-      @NonNull BigtableConfig config, @NonNull PipelineOptions pipelineOptions) {
+      @NonNull BigtableConfig config, @NonNull PipelineOptions pipelineOptions) throws IOException {
 
     return buildBigtableDataSettings(config, pipelineOptions).build();
   }
 
   private static BigtableDataSettings.Builder buildBigtableDataSettings(
-      BigtableConfig config, PipelineOptions pipelineOptions) {
+      BigtableConfig config, PipelineOptions pipelineOptions) throws IOException {
     BigtableDataSettings.Builder dataBuilder;
     if (!Strings.isNullOrEmpty(config.getEmulatorHost())) {
       String hostAndPort = config.getEmulatorHost();
@@ -113,12 +117,23 @@ class BigtableConfigTranslator {
       dataBuilder.setAppProfileId(Objects.requireNonNull(config.getAppProfileId().get()));
     }
 
-    if (config.getCredentialFactory() != null) {
+    if (((GcpOptions) pipelineOptions).getGcpCredential() != null) {
       dataBuilder
           .stubSettings()
           .setCredentialsProvider(
-              FixedCredentialsProvider.create(
-                  ((GcpOptions) config.getCredentialFactory()).getGcpCredential()));
+              FixedCredentialsProvider.create(((GcpOptions) pipelineOptions).getGcpCredential()));
+    }
+
+    if (config.getCredentialFactory() != null) {
+      CredentialFactory credentialFactory = config.getCredentialFactory();
+      try {
+        dataBuilder
+            .stubSettings()
+            .setCredentialsProvider(
+                FixedCredentialsProvider.create(credentialFactory.getCredential()));
+      } catch (GeneralSecurityException e) {
+        throw new RuntimeException("Exception getting credentials ", e);
+      }
     }
 
     configureHeaderProvider(dataBuilder.stubSettings(), pipelineOptions);
@@ -218,8 +233,7 @@ class BigtableConfigTranslator {
    * Translate BigtableOptions to BigtableConfig for backward compatibility. If the values are set
    * on BigtableConfig, ignore the settings in BigtableOptions.
    */
-  static BigtableConfig translateToBigtableConfig(
-      BigtableConfig config, BigtableOptions options, PipelineOptions pipelineOptions) {
+  static BigtableConfig translateToBigtableConfig(BigtableConfig config, BigtableOptions options) {
     BigtableConfig.Builder builder = config.toBuilder();
 
     if (options.getProjectId() != null && config.getProjectId() == null) {
@@ -239,12 +253,13 @@ class BigtableConfigTranslator {
       builder.setEmulatorHost(String.format("%s:%s", options.getDataHost(), options.getPort()));
     }
 
+    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
     if (options.getCredentialOptions() != null) {
       try {
         CredentialOptions credOptions = options.getCredentialOptions();
         switch (credOptions.getCredentialType()) {
           case DefaultCredentials:
-            // Veneer uses GoogleDefaultCredentials, so we don't need to reset it
+            // Veneer uses default credentials, so no need to reset here
             break;
           case P12:
             String keyFile = ((CredentialOptions.P12CredentialOptions) credOptions).getKeyFile();
@@ -262,12 +277,11 @@ class BigtableConfigTranslator {
               if (privateKey == null) {
                 throw new IllegalStateException("private key cannot be null");
               }
-              ((GcpOptions) pipelineOptions)
-                  .setGcpCredential(
-                      ServiceAccountJwtAccessCredentials.newBuilder()
-                          .setClientEmail(serviceAccount)
-                          .setPrivateKey(privateKey)
-                          .build());
+              pipelineOptions.setGcpCredential(
+                  ServiceAccountJwtAccessCredentials.newBuilder()
+                      .setClientEmail(serviceAccount)
+                      .setPrivateKey(privateKey)
+                      .build());
               builder.setCredentialFactory(GcpCredentialFactory.fromOptions(pipelineOptions));
             } catch (GeneralSecurityException exception) {
               throw new RuntimeException("exception while retrieving credentials", exception);
@@ -276,15 +290,14 @@ class BigtableConfigTranslator {
           case SuppliedCredentials:
             Credentials credentials =
                 ((CredentialOptions.UserSuppliedCredentialOptions) credOptions).getCredential();
-            ((GcpOptions) pipelineOptions).setGcpCredential(credentials);
+            pipelineOptions.setGcpCredential(credentials);
             builder.setCredentialFactory(GcpCredentialFactory.fromOptions(pipelineOptions));
             break;
           case SuppliedJson:
             CredentialOptions.JsonCredentialsOptions jsonCredentialsOptions =
                 (CredentialOptions.JsonCredentialsOptions) credOptions;
-            ((GcpOptions) pipelineOptions)
-                .setGcpCredential(
-                    GoogleCredentials.fromStream(jsonCredentialsOptions.getInputStream()));
+            pipelineOptions.setGcpCredential(
+                GoogleCredentials.fromStream(jsonCredentialsOptions.getInputStream()));
             builder.setCredentialFactory(GcpCredentialFactory.fromOptions(pipelineOptions));
             break;
           case None:

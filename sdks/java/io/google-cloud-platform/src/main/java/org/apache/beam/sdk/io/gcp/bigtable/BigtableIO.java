@@ -412,8 +412,9 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} with provided credentials. If it's not set, it'll use
-     * the default credentials in {@link GcpOptions}.
+     * Returns a new {@link BigtableIO.Read} with the provided credentials. If it's not set, it'll
+     * use the credentials in {@link GcpOptions}. If credentials in {@link GcpOptions} is also not
+     * set, it'll use Google default credentials.
      *
      * <p>Does not modify this object.
      */
@@ -802,7 +803,8 @@ public class BigtableIO {
 
     /**
      * Returns a new {@link BigtableIO.Write} with the provided credentials. If it's not set, it'll
-     * use the default credentials in {@link GcpOptions}.
+     * use the credentials in {@link GcpOptions}. If credentials in {@link GcpOptions} is also not
+     * set, it'll use Google default credentials.
      *
      * <p>Does not modify this object.
      */
