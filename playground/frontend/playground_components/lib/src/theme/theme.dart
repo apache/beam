@@ -129,6 +129,7 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
 final kLightTheme = ThemeData(
   brightness: Brightness.light,
   appBarTheme: _getAppBarTheme(BeamLightThemeColors.secondaryBackground),
+  // TODO(nausharipov): resolve deprecation warnings.
   backgroundColor: BeamLightThemeColors.primaryBackground,
   canvasColor: BeamLightThemeColors.primaryBackground,
   dividerColor: BeamLightThemeColors.grey,
