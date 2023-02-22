@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
@@ -74,6 +75,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
   /** If the field is a map type, returns the key type. */
   public abstract @Nullable FieldValueTypeInformation getMapValueType();
 
+  /** If the field has a description, returns the description for the field. */
+  public abstract @Nullable String getDescription();
+
   abstract Builder toBuilder();
 
   @AutoValue.Builder
@@ -99,6 +103,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
     public abstract Builder setMapKeyType(@Nullable FieldValueTypeInformation mapKeyType);
 
     public abstract Builder setMapValueType(@Nullable FieldValueTypeInformation mapValueType);
+
+    public abstract Builder setDescription(@Nullable String fieldDescription);
 
     abstract FieldValueTypeInformation build();
   }
@@ -132,6 +138,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setMapKeyType(getMapKeyType(field))
         .setMapValueType(getMapValueType(field))
         .setOneOfTypes(Collections.emptyMap())
+        .setDescription(getFieldDescription(field))
         .build();
   }
 
@@ -167,6 +174,16 @@ public abstract class FieldValueTypeInformation implements Serializable {
     }
   }
 
+  public static <T extends AnnotatedElement & Member> @Nullable String getFieldDescription(
+      T member) {
+    @Nullable
+    SchemaFieldDescription fieldDescription = member.getAnnotation(SchemaFieldDescription.class);
+    if (fieldDescription == null) {
+      return null;
+    }
+    return fieldDescription.value();
+  }
+
   public static FieldValueTypeInformation forGetter(Method method, int index) {
     String name;
     if (method.getName().startsWith("get")) {
@@ -190,6 +207,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setMapKeyType(getMapKeyType(type))
         .setMapValueType(getMapValueType(type))
         .setOneOfTypes(Collections.emptyMap())
+        .setDescription(getFieldDescription(method))
         .build();
   }
 

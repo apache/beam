@@ -22,7 +22,7 @@ jobs:
     permissions:
       issues: write
     name: Mark issue as triaged when assigned
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
     steps:
     - run: |
         ISSUE_NUMBER="$(jq '.issue.number' $GITHUB_EVENT_PATH)"

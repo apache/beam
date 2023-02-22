@@ -43,6 +43,8 @@ public final class MonitoringInfoConstants {
     public static final String FINISH_BUNDLE_MSECS =
         "beam:metric:pardo_execution_time:finish_bundle_msecs:v1";
     public static final String TOTAL_MSECS = extractUrn(MonitoringInfoSpecs.Enum.TOTAL_MSECS);
+    public static final String USER_LATEST_INT64 =
+        extractUrn(MonitoringInfoSpecs.Enum.USER_LATEST_INT64);
     public static final String USER_SUM_INT64 = extractUrn(MonitoringInfoSpecs.Enum.USER_SUM_INT64);
     public static final String USER_SUM_DOUBLE =
         extractUrn(MonitoringInfoSpecs.Enum.USER_SUM_DOUBLE);

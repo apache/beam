@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.io.csv;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.allPrimitiveDataTypes;
-import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.allPrimitiveDataTypesToRowFn;
-import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.nullableAllPrimitiveDataTypes;
-import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.nullableAllPrimitiveDataTypesToRowFn;
-import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.timeContaining;
-import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.timeContainingToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.allPrimitiveDataTypes;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.allPrimitiveDataTypesToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypes;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypesToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContaining;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingToRowFn;
 
 import java.math.BigDecimal;
 import java.util.Collections;

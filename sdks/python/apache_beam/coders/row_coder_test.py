@@ -417,7 +417,8 @@ class RowCoderTest(unittest.TestCase):
     batch_out = coder_impl.create_OutputStream()
     columnar = {
         field: np.array([getattr(person, field) for person in self.PEOPLE],
-                        ndmin=1)
+                        ndmin=1,
+                        dtype=object)
         for field in Person._fields
     }
     coder.encode_batch_to_stream(columnar, batch_out)
