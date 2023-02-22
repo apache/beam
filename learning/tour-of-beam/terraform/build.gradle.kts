@@ -342,6 +342,29 @@ const String kApiScioClientURL =
     }
 }
 
+tasks.register("prepareFirebasercConfig") {
+    group = "frontend-deploy"
+    doLast {
+        var project_id = ""
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        val configFileName = ".firebaserc"
+        val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
+        val file = File("$modulePath/$configFileName")
+
+        file.writeText(
+                """
+{
+  "projects": {
+    "default": "$project_id"
+  }
+}
+"""
+        )
+    }
+}
+
 
 // Should be as CI CD process
 
@@ -400,6 +423,7 @@ tasks.register("InitFrontend") {
     group = "frontend-deploy"
     description = "ToB Frontend Init"
     val prepareConfig = tasks.getByName("prepareConfig")
+    val prepareFirebasercConfig = tasks.getByName("prepareFirebasercConfig")
     val firebaseProjectCreate = tasks.getByName("firebaseProjectCreate")
     val firebaseWebAppCreate = tasks.getByName("firebaseWebAppCreate")
     val getSdkConfigWebApp = tasks.getByName("getSdkConfigWebApp")
@@ -411,6 +435,7 @@ tasks.register("InitFrontend") {
     val flutterBuildWeb = tasks.getByName("flutterBuildWeb")
     val firebaseDeploy = tasks.getByName("firebaseDeploy")
     dependsOn(prepareConfig)
+    dependsOn(prepareFirebasercConfig)
     dependsOn(firebaseProjectCreate)
     dependsOn(firebaseWebAppCreate)
     dependsOn(getSdkConfigWebApp)
@@ -421,7 +446,8 @@ tasks.register("InitFrontend") {
     dependsOn(flutterPubRunTob)
     dependsOn(flutterBuildWeb)
     dependsOn(firebaseDeploy)
-    firebaseProjectCreate.mustRunAfter(prepareConfig)
+    prepareFirebasercConfig.mustRunAfter(prepareConfig)
+    firebaseProjectCreate.mustRunAfter(prepareFirebasercConfig)
     firebaseWebAppCreate.mustRunAfter(firebaseProjectCreate)
     getSdkConfigWebApp.mustRunAfter(firebaseWebAppCreate)
     prepareFirebaseOptionsDart.mustRunAfter(getSdkConfigWebApp)

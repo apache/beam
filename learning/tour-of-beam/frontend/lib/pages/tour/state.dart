@@ -213,12 +213,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     return playgroundController;
   }
 
-  @override
-  void dispose() {
+@override
+  Future<void> dispose() async {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onUnitProgressChanged);
-    super.dispose();
-  }
+    await super.dispose();
+   }
 }
