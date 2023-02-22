@@ -179,34 +179,32 @@ tasks.getByName("firebaseWebAppCreate").mustRunAfter(this)
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
     outputs.upToDateWhen { false } // Disable up-to-date checks
-    doLast {
-        val project_id = project.property("project_id") as String
-        val webapp_id = project.property("webapp_id") as String
-        val result = ByteArrayOutputStream()
+    val project_id = project.property("project_id") as String
+    val webapp_id = project.property("webapp_id") as String
+    val result = ByteArrayOutputStream()
+    exec {
+        executable("firebase")
+        args("apps:list", "--project", project_id)
+        standardOutput = result
+    }
+    println(result)
+    val output = result.toString()
+    if (output.contains(webapp_id)) {
+        println("Tour of Beam Web App: $webapp_id is already created on the project: $project_id.")
+        val regex = Regex("$webapp_id[│ ]+([\\w:]+)[│ ]+WEB[│ ]+")
+        val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
+        project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+        println("Firebase app ID for existing Firebase Web App: $firebaseAppId")
+    } else {
+        val result2 = ByteArrayOutputStream()
         exec {
             executable("firebase")
-            args("apps:list", "--project", project_id)
-            standardOutput = result
-        }
-        println(result)
-        val output = result.toString()
-        if (output.contains(webapp_id)) {
-            println("Tour of Beam Web App: $webapp_id is already created on the project: $project_id.")
-            val regex = Regex("$webapp_id[│ ]+([\\w:]+)[│ ]+WEB[│ ]+")
-            val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
-            project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-            println("Firebase app ID for existing Firebase Web App: $firebaseAppId")
-        } else {
-            val result2 = ByteArrayOutputStream()
-            exec {
-                executable("firebase")
-                args("apps:create", "WEB", webapp_id, "--project", project_id)
-                standardOutput = result2
-            }.assertNormalExitValue()
-            val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
-            project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-            println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
-        }
+            args("apps:create", "WEB", webapp_id, "--project", project_id)
+            standardOutput = result2
+        }.assertNormalExitValue()
+        val firebaseAppId = result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
+        project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
+        println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
     }
     tasks.getByName("getSdkConfigWebApp").mustRunAfter(this)
 }
@@ -214,38 +212,34 @@ tasks.register("firebaseWebAppCreate") {
 // firebase apps:sdkconfig WEB AppId
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
-    doLast {
-        val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
-        val result = ByteArrayOutputStream()
-        exec {
-            executable("firebase")
-            args("apps:sdkconfig", "WEB", firebaseAppId)
-            standardOutput = result
-        }
-        val output = result.toString().trim()
-        val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
-        val matcher = pattern.matcher(output)
-        if (matcher.find()) {
-            val firebaseConfigData = matcher.group().replace("{", "")
-                    .replace("}", "")
-                    .replace("\"locationId\":\\s*\".*?\",?".toRegex(), "")
-                    .replace("\"(\\w+)\":".toRegex(), "$1:")
-                    .replace(":\\s*\"(.*?)\"".toRegex(), ":\"$1\"")
-            project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData.trim()
-            println("Firebase config data: $firebaseConfigData")
-        }
+    val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
+    val result = ByteArrayOutputStream()
+    exec {
+        executable("firebase")
+        args("apps:sdkconfig", "WEB", firebaseAppId)
+        standardOutput = result
+    }
+    val output = result.toString().trim()
+    val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
+    val matcher = pattern.matcher(output)
+    if (matcher.find()) {
+        val firebaseConfigData = matcher.group().replace("{", "")
+                .replace("}", "")
+                .replace("\"locationId\":\\s*\".*?\",?".toRegex(), "")
+                .replace("\"(\\w+)\":".toRegex(), "$1:")
+                .replace(":\\s*\"(.*?)\"".toRegex(), ":\"$1\"")
+        project.extensions.extraProperties["firebaseConfigData"] = firebaseConfigData.trim()
+        println("Firebase config data: $firebaseConfigData")
     }
 }
 
 tasks.register("prepareFirebaseOptionsDart") {
     group = "frontend-deploy"
-    doLast {
-        val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
-        val file = project.file("../frontend/lib/firebase_options.dart")
-        val content = file.readText()
-        val updatedContent = content.replace(Regex("""static const FirebaseOptions web = FirebaseOptions\(([^)]+)\);"""), "static const FirebaseOptions web = FirebaseOptions(${firebaseConfigData});")
-        file.writeText(updatedContent)
-    }
+    val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
+    val file = project.file("../frontend/lib/firebase_options.dart")
+    val content = file.readText()
+    val updatedContent = content.replace(Regex("""static const FirebaseOptions web = FirebaseOptions\(([^)]+)\);"""), "static const FirebaseOptions web = FirebaseOptions(${firebaseConfigData});")
+    file.writeText(updatedContent)
 }
 
 tasks.register("flutterPubGetPG") {
@@ -298,7 +292,6 @@ tasks.register("firebaseDeploy") {
 tasks.register("prepareConfig") {
     group = "frontend-deploy"
     outputs.upToDateWhen { false } // Disable up-to-date checks
-    doLast {
         var dns_name = ""
         var region = ""
         var project_id = ""
@@ -337,13 +330,11 @@ const String kApiScioClientURL =
 'https://scio.${dns_name}';
 """
         )
-    }
     tasks.getByName("prepareFirebasercConfig").mustRunAfter(this)
 }
 
 tasks.register("prepareFirebasercConfig") {
     group = "frontend-deploy"
-    doLast {
         var project_id = ""
         if (project.hasProperty("project_id")) {
             project_id = project.property("project_id") as String
@@ -361,7 +352,6 @@ tasks.register("prepareFirebasercConfig") {
 }
 """
         )
-    }
     tasks.getByName("firebaseProjectCreate").mustRunAfter(this)
 }
 
