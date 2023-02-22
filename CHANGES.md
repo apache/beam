@@ -61,6 +61,7 @@
 * RunInference PTransform will accept model paths as SideInputs in Python SDK. ([#24042](https://github.com/apache/beam/issues/24042))
 * RunInference supports ONNX runtime in Python SDK ([#22972](https://github.com/apache/beam/issues/22972))
 * Tensorflow Model Handler for RunInference in Python SDK ([#25366](https://github.com/apache/beam/issues/25366))
+* Java SDK modules migrated to use `:sdks:java:extensions:avro` ([#24748](https://github.com/apache/beam/issues/24748))
 
 ## I/Os
 
