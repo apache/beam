@@ -1928,7 +1928,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       load_job_project_id: Specifies an alternate GCP project id to use for
         billingBatch File Loads. By default, the project id of the table is
         used.
-      num_streaming_keys: The number of shards per destination when writing via streaming inserts.
+      num_streaming_keys: The number of shards per destination when writing via
+        streaming inserts.
     """
     self._table = table
     self._dataset = dataset
