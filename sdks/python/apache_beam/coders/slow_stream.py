@@ -69,6 +69,9 @@ class OutputStream(object):
   def write_bigendian_int32(self, v):
     self.write(struct.pack('>i', v))
 
+  def write_bigendian_int16(self, v):
+    self.write(struct.pack('>h', v))
+
   def write_bigendian_double(self, v):
     self.write(struct.pack('>d', v))
 
@@ -171,6 +174,9 @@ class InputStream(object):
 
   def read_bigendian_int32(self):
     return struct.unpack('>i', self.read(4))[0]
+
+  def read_bigendian_int16(self):
+    return struct.unpack('>h', self.read(2))[0]
 
   def read_bigendian_double(self):
     return struct.unpack('>d', self.read(8))[0]
