@@ -93,9 +93,7 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
       return self._jar
     else:
       if self._spark_version == '2':
-        return self.path_to_beam_jar(
-            ':runners:spark:2:job-server:shadowJar',
-            artifact_id='beam-runners-spark-job-server')
+        raise ValueError('Support for Spark 2 was dropped.')
       return self.path_to_beam_jar(':runners:spark:3:job-server:shadowJar')
 
   def java_arguments(

@@ -22,6 +22,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:get_it/get_it.dart';
 
+import '../constants/constants.dart';
 import '../models/example_view_options.dart';
 import '../models/sdk.dart';
 import '../models/snippet_file.dart';
@@ -43,6 +44,8 @@ class SnippetFileEditingController extends ChangeNotifier {
     required ExampleViewOptions viewOptions,
     int? contextLine1Based,
   }) : codeController = CodeController(
+          // ignore: avoid_redundant_argument_values
+          params: const EditorParams(tabSpaces: spaceCount),
           language: sdk.highlightMode,
           namedSectionParser: const BracketsStartEndNamedSectionParser(),
           text: savedFile.content,
@@ -110,7 +113,8 @@ class SnippetFileEditingController extends ChangeNotifier {
   bool get isChanged => _isChanged;
 
   bool _isCodeChanged() {
-    return savedFile.content != codeController.fullText;
+    return savedFile.content.tabsToSpaces(spaceCount) !=
+        codeController.fullText;
   }
 
   void _updateIsChanged() {

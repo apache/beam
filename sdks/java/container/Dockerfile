@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG java_version
-FROM openjdk:${java_version}-bullseye
+FROM eclipse-temurin:${java_version}
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 ARG pull_licenses

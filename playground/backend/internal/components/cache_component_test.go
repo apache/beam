@@ -171,7 +171,7 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 					actualPCObj.Multifile != false ||
 					actualPCObj.Name != "MOCK_EXAMPLE" ||
 					actualPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-					actualPCObj.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
+					actualPCObj.CloudPath != "SDK_JAVA_MOCK_EXAMPLE" ||
 					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
 					actualPCObj.Description != "MOCK_DESCR" ||
 					actualPCObj.Link != "MOCK_PATH" ||
