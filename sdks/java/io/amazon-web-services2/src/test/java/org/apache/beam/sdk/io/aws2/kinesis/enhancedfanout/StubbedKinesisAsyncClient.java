@@ -53,12 +53,14 @@ class StubbedKinesisAsyncClient implements KinesisAsyncClient {
   private final int publisherRateMs;
 
   private final Map<String, Deque<StubbedSdkPublisher>> stubbedPublishers = new HashMap<>();
+  private final List<String> initialShardsIds;
 
   private final ConcurrentLinkedQueue<SubscribeToShardRequest> subscribeRequestsSeen =
       new ConcurrentLinkedQueue<>();
 
-  StubbedKinesisAsyncClient(int publisherRateMs) {
+  StubbedKinesisAsyncClient(int publisherRateMs, List<String> initialShardsIds) {
     this.publisherRateMs = publisherRateMs;
+    this.initialShardsIds = initialShardsIds;
   }
 
   /**
@@ -99,7 +101,7 @@ class StubbedKinesisAsyncClient implements KinesisAsyncClient {
   }
 
   private List<Shard> buildShards() {
-    return stubbedPublishers.keySet().stream()
+    return initialShardsIds.stream()
         .map(
             shardId ->
                 Shard.builder()

@@ -22,7 +22,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.kinesis.model.ChildShard;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
 
@@ -58,6 +60,19 @@ class RecordsGenerators {
 
   static SubscribeToShardEvent eventWithRecords(int numRecords) {
     return eventWithRecords(0, numRecords);
+  }
+
+  static SubscribeToShardEvent shardUpEvent(
+      List<String> parentShardsIds, List<String> childShardsIds) {
+    List<ChildShard> childShards =
+        childShardsIds.stream()
+            .map(s -> ChildShard.builder().shardId(s).parentShards(parentShardsIds).build())
+            .collect(Collectors.toList());
+
+    return SubscribeToShardEvent.builder()
+        .continuationSequenceNumber(null)
+        .childShards(childShards)
+        .build();
   }
 
   static SubscribeToShardEvent eventWithRecords(int startSeqNumber, int numRecords) {

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisReaderCheckpoint;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
 import org.apache.beam.sdk.io.aws2.kinesis.ShardCheckpoint;
+import org.apache.beam.sdk.io.aws2.kinesis.StartingPoint;
 import org.apache.beam.sdk.io.aws2.kinesis.WatermarkPolicy;
 import org.apache.beam.sdk.io.aws2.kinesis.WatermarkPolicyFactory;
 import org.apache.beam.sdk.util.Preconditions;
@@ -47,10 +49,12 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.ChildShard;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
+import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
@@ -76,6 +80,7 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
 @SuppressWarnings({"nullness"})
 class EFOShardSubscribersPool {
   private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscribersPool.class);
+  private static final long SCHEDULER_SHUTDOWN_TIMEOUT_MS = 1_000L;
   private static final long ON_ERROR_COOL_DOWN_MS_DEFAULT = 1_000L;
   private final long onErrorCoolDownMs;
 
@@ -171,9 +176,7 @@ class EFOShardSubscribersPool {
   }
 
   /**
-   * FIXME: this has some bug
-   *
-   * <p>Returns the next deaggregated {@link KinesisRecord} if available and updates {@link #state}
+   * Returns the next disaggregated {@link KinesisRecord} if available and updates {@link #state}
    * accordingly so that it reflects a mutable checkpoint AFTER returning that record.
    *
    * <p>Async subscription errors are delayed until {@link #eventQueue} is completely drained and
@@ -216,7 +219,6 @@ class EFOShardSubscribersPool {
         return kinesisRecord;
       } else {
         onEventDone(shardState, current);
-        shardState.update(current);
         current = null;
       }
     }
@@ -233,11 +235,64 @@ class EFOShardSubscribersPool {
    * <p>In case of re-sharding, start all new {@link EFOShardSubscriber#subscribe subscriptions}
    * with the subscription {@link #errorHandler} if there is no {@link #subscriptionError} yet.
    */
-  @SuppressWarnings("UnusedVariable")
-  private void onEventDone(ShardState shardState, EventRecords records) {
-    if (records.event.hasChildShards()) {
-      LOG.info("Child shards: {} ", records.event.childShards());
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private void onEventDone(ShardState shardState, EventRecords noRecordsEvent) {
+    if (noRecordsEvent.event.continuationSequenceNumber() == null
+        && noRecordsEvent.event.hasChildShards()
+        && subscriptionError == null) {
+      LOG.info("Processing re-shard signal {}", noRecordsEvent.event);
+      List<String> successorShardsIds = computeSuccessorShardsIds(noRecordsEvent);
+      successorShardsIds.forEach(
+          successorShardId -> {
+            ShardCheckpoint newCheckpoint =
+                new ShardCheckpoint(
+                    read.getStreamName(),
+                    successorShardId,
+                    new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+
+            state.computeIfAbsent(
+                successorShardId,
+                k -> {
+                  EFOShardSubscriber subscriber =
+                      new EFOShardSubscriber(
+                          this, successorShardId, read, kinesis, onErrorCoolDownMs);
+                  StartingPosition startingPosition = newCheckpoint.toStartingPosition();
+                  subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
+                  return new ShardState(subscriber);
+                });
+          });
+      state.remove(noRecordsEvent.shardId);
+    } else {
+      shardState.update(noRecordsEvent);
     }
+  }
+
+  private static List<String> computeSuccessorShardsIds(EventRecords records) {
+    List<String> successorShardsIds = new ArrayList<>();
+    SubscribeToShardEvent event = records.event;
+    for (ChildShard childShard : event.childShards()) {
+      if (childShard.parentShards().contains(records.shardId)) {
+        if (childShard.parentShards().size() > 1) {
+          // This is the case of merging two shards into one.
+          // when there are 2 parent shards, we only pick it up if
+          // its max shard equals to sender shard ID
+          String maxId = childShard.parentShards().stream().max(String::compareTo).get();
+          if (records.shardId.equals(maxId)) {
+            successorShardsIds.add(childShard.shardId());
+          }
+        } else {
+          // This is the case when shard is split
+          successorShardsIds.add(childShard.shardId());
+        }
+      }
+    }
+
+    if (successorShardsIds.isEmpty()) {
+      LOG.info("Found no successors for shard {}", records.shardId);
+    } else {
+      LOG.info("Found successors for shard {}: {}", records.shardId, successorShardsIds);
+    }
+    return successorShardsIds;
   }
 
   /** Adds a {@link EventRecords} iterator for shardId and event to {@link #eventQueue}. */
@@ -249,27 +304,37 @@ class EFOShardSubscribersPool {
     return latestRecordTimestampPolicy.getWatermark();
   }
 
-  // TODO: handle case when no records passed, but there was a re-shard
   public KinesisReaderCheckpoint getCheckpointMark() {
     List<ShardCheckpoint> checkpoints =
         state.entrySet().stream()
             .map(
-                entry ->
-                    new ShardCheckpoint(
+                entry -> {
+                  // FIXME: this must take into account initial checkpoint the pool was started with
+                  // Example - with specific timestamp
+                  if (entry.getValue().sequenceNumber == null) {
+                    return new ShardCheckpoint(
+                        read.getStreamName(),
+                        entry.getKey(),
+                        new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+                  } else {
+                    return new ShardCheckpoint(
                         read.getStreamName(),
                         entry.getKey(),
                         ShardIteratorType.AFTER_SEQUENCE_NUMBER,
                         entry.getValue().sequenceNumber,
-                        entry.getValue().subSequenceNumber))
+                        entry.getValue().subSequenceNumber);
+                  }
+                })
             .collect(Collectors.toList());
 
     return new KinesisReaderCheckpoint(checkpoints);
   }
 
-  // TODO:
   public boolean stop() throws InterruptedException {
+    LOG.info("Stopping pool {}", poolId);
     state.forEach((shardId, st) -> st.subscriber.cancel());
-    return true;
+    scheduler.shutdown();
+    return scheduler.awaitTermination(SCHEDULER_SHUTDOWN_TIMEOUT_MS, MILLISECONDS);
   }
 
   /**
