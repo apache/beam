@@ -17,13 +17,23 @@
  */
 package org.apache.beam.fn.harness.debug;
 
+import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.PriorityQueue;
+import java.util.concurrent.CountDownLatch;
+
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
@@ -103,31 +113,83 @@ public class OutputSamplerTest {
   @Test
   public void testConcurrentSamples() throws Exception {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 100000, 1);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 2);
+
+    CountDownLatch startSignal = new CountDownLatch(1);
+    CountDownLatch doneSignal = new CountDownLatch(2);
 
     // Iteration count was empirically chosen to have a high probability of failure without the
     // test going for too long.
+    // Generates a range of numbers from 0 to 1000000.
     Thread sampleThreadA =
         new Thread(
             () -> {
-              for (int i = 0; i < 10000000; i++) {
+              try {
+                startSignal.await();
+              } catch (InterruptedException e) {
+                return;
+              }
+
+              for (int i = 0; i < 1000000; i++) {
                 outputSampler.sample(i);
               }
+
+              doneSignal.countDown();
             });
 
+    // Generates a range of numbers from -1000000 to 0.
     Thread sampleThreadB =
         new Thread(
             () -> {
-              for (int i = 0; i < 10000000; i++) {
+              try {
+                startSignal.await();
+              } catch (InterruptedException e) {
+                return;
+              }
+
+              for (int i = -1000000; i < 0; i++) {
                 outputSampler.sample(i);
               }
+
+              doneSignal.countDown();
             });
 
+    // Ready the threads.
     sampleThreadA.start();
     sampleThreadB.start();
 
-    for (int i = 0; i < 10000; i++) {
-      outputSampler.samples();
+    // Start the threads at the same time.
+    startSignal.countDown();
+
+    // Generate contention by sampling at the same time as the samples are generated.
+    List<BeamFnApi.SampledElement> samples = new ArrayList<>();
+    while (doneSignal.getCount() > 0) {
+      samples.addAll(outputSampler.samples());
     }
+
+    // Stop the threads and sort the samples from which thread it came from.
+    sampleThreadA.join();
+    sampleThreadB.join();
+    List<Integer> samplesFromThreadA = new ArrayList<>();
+    List<Integer> samplesFromThreadB = new ArrayList<>();
+    for (BeamFnApi.SampledElement sampledElement : samples) {
+      int el = coder.decode(sampledElement.getElement().newInput());
+      if (el >= 0) {
+        samplesFromThreadA.add(el);
+      } else {
+        samplesFromThreadB.add(el);
+      }
+    }
+
+    // Copy the array and sort it.
+    List<Integer> sortedSamplesFromThreadA = new ArrayList<>(samplesFromThreadA);
+    List<Integer> sortedSamplesFromThreadB = new ArrayList<>(samplesFromThreadB);
+    Collections.sort(sortedSamplesFromThreadA);
+    Collections.sort(sortedSamplesFromThreadB);
+
+    // Order is preserved when getting the samples. If there is a weird race condition, these
+    // numbers may be out of order.
+    assertEquals(samplesFromThreadA, sortedSamplesFromThreadA);
+    assertEquals(samplesFromThreadB, sortedSamplesFromThreadB);
   }
 }

@@ -35,7 +35,7 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 public class OutputSampler<T> {
 
   // Temporarily holds elements until the SDK receives a sample data request.
-  private final List<T> buffer;
+  private List<T> buffer;
 
   // Maximum number of elements in buffer.
   private final int maxElements;
@@ -104,19 +104,22 @@ public class OutputSampler<T> {
 
     // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
     // so as to not slow down the main processing hot path.
-    List<T> copiedBuffer;
+    List<T> bufferToSend;
+    int sampleIndex = 0;
     synchronized (this) {
-      copiedBuffer = new ArrayList<>(buffer);
-      buffer.clear();
+      bufferToSend = buffer;
+      sampleIndex = resampleIndex;
+      buffer = new ArrayList<>(maxElements);
       resampleIndex = 0;
     }
 
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    for (T el : copiedBuffer) {
+    for (int i = 0; i < bufferToSend.size(); i++) {
+      int index = (sampleIndex + i) % bufferToSend.size();
       // This is deprecated, but until this is fully removed, this specifically needs the nested
       // context. This is because the SDK will need to decode the sampled elements with the
       // ToStringFn.
-      coder.encode(el, stream, Coder.Context.NESTED);
+      coder.encode(bufferToSend.get(index), stream, Coder.Context.NESTED);
       ret.add(
           BeamFnApi.SampledElement.newBuilder().setElement(stream.toByteStringAndReset()).build());
     }
