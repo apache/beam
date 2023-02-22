@@ -242,7 +242,12 @@ if __name__ == '__main__':
         'objsize>=0.6.1,<0.7.0',
         'pymongo>=3.8.0,<4.0.0',
         'proto-plus>=1.7.1,<2',
-        'protobuf>=4.00,<=5',
+        # use a tighter upper bound in protobuf dependency
+        # to make sure the minor version at job submission
+        # does not exceed the minor version at runtime.
+        # To avoid depending on an old dependency, update the minor version on
+        # every Beam release, see: https://github.com/apache/beam/issues/25590
+        'protobuf>=4.21.1,<4.23.0',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
@@ -296,20 +301,20 @@ if __name__ == '__main__':
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
             'google-cloud-bigquery>=1.6.0,<4',
-            'google-cloud-bigquery-storage>=2.6.3,<2.19',
+            'google-cloud-bigquery-storage>=2.6.3,<3',
             'google-cloud-core>=0.28.1,<3',
             'google-cloud-bigtable>=0.31.1,<3',
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
-            'google-cloud-dlp>=3.0.0,<4.0',
-            'google-cloud-language>=2.0,<3.0',
-            'google-cloud-videointelligence>=2.0,<3.0',
+            'google-cloud-dlp>=3.0.0,<4',
+            'google-cloud-language>=2.0,<3',
+            'google-cloud-videointelligence>=2.0,<3',
             'google-cloud-vision>=2,<4',
-            'google-cloud-recommendations-ai>=0.1.0,<1.0'
+            'google-cloud-recommendations-ai>=0.1.0,<1'
           ],
           'interactive': [
             'facets-overview>=1.1.0,<2',
-            'google-cloud-dataproc>=3.0.0,<3.2.0',
+            'google-cloud-dataproc>=5.0.0,<6',
             # IPython>=8 is not compatible with Python<=3.7
             'ipython>=7,<8;python_version<="3.7"',
             'ipython>=8,<9;python_version>"3.7"',
