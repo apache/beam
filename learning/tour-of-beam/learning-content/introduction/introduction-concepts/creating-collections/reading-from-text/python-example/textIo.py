@@ -46,10 +46,10 @@ class Output(beam.PTransform):
 
 
 with beam.Pipeline() as p:
-  lines = p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+  input = p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
             | beam.Filter(lambda line: line != "")
 
-  lines | 'Log fixed lines' >> beam.combiners.Sample.FixedSizeGlobally(10) \
+  input | 'Log fixed lines' >> beam.combiners.Sample.FixedSizeGlobally(10) \
     | beam.FlatMap(lambda sentence: sentence) \
     | Output(prefix = 'Fixed first 10 lines: ')
 

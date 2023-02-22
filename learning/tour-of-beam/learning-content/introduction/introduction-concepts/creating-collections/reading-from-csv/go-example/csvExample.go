@@ -49,9 +49,9 @@ func less(a, b float64) bool{
 func main() {
     p, s := beam.NewPipelineWithRoot()
 
-    file := Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
+    input := Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
-    cost := applyTransform(s, file)
+    cost := applyTransform(s, input)
 
     fixedSizeElements := top.Largest(s,cost,10,less)
 

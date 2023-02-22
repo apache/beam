@@ -51,9 +51,9 @@ func less(a, b string) bool{
 func main() {
     p, s := beam.NewPipelineWithRoot()
 
-    file := Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+    input := Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-    lines := getLines(s, file)
+    lines := getLines(s, input)
     fixedSizeLines := top.Largest(s,lines,10,less)
     output(s, "Lines: ", fixedSizeLines)
 
