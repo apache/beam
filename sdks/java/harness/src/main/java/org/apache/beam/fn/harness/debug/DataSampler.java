@@ -50,8 +50,12 @@ public class DataSampler {
    * @param sampleEveryN Sets how often to sample.
    */
   public DataSampler(int maxSamples, int sampleEveryN) {
-    checkArgument(maxSamples > 0, "Expected positive number of samples, did you mean to disable data sampling?");
-    checkArgument(sampleEveryN > 0, "Expected positive number for sampling period, did you mean to disable data sampling?");
+    checkArgument(
+        maxSamples > 0,
+        "Expected positive number of samples, did you mean to disable data sampling?");
+    checkArgument(
+        sampleEveryN > 0,
+        "Expected positive number for sampling period, did you mean to disable data sampling?");
     this.maxSamples = maxSamples;
     this.sampleEveryN = sampleEveryN;
   }

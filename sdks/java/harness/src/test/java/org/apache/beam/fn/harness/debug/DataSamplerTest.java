@@ -25,14 +25,12 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -240,27 +238,28 @@ public class DataSamplerTest {
     Thread[] sampleThreads = new Thread[100];
     CountDownLatch startSignal = new CountDownLatch(1);
     CountDownLatch doneSignal = new CountDownLatch(sampleThreads.length);
-    
-    for (int i = 0; i < sampleThreads.length; i++) {
-      sampleThreads[i] = new Thread(
-          () -> {
-            try {
-              startSignal.await();
-            } catch (InterruptedException e) {
-              return;
-            }
-            
-            for (int j = 0; j < 100; j++) {
-              sampler.sampleOutput("pcollection-" + j, coder).sample(0);
-            }
 
-            doneSignal.countDown();
-          });
+    for (int i = 0; i < sampleThreads.length; i++) {
+      sampleThreads[i] =
+          new Thread(
+              () -> {
+                try {
+                  startSignal.await();
+                } catch (InterruptedException e) {
+                  return;
+                }
+
+                for (int j = 0; j < 100; j++) {
+                  sampler.sampleOutput("pcollection-" + j, coder).sample(0);
+                }
+
+                doneSignal.countDown();
+              });
       sampleThreads[i].start();
     }
 
     startSignal.countDown();
-    while(doneSignal.getCount() > 0) {
+    while (doneSignal.getCount() > 0) {
       sampler.handleDataSampleRequest(
           BeamFnApi.InstructionRequest.newBuilder()
               .setSampleData(BeamFnApi.SampleDataRequest.newBuilder())
