@@ -36,4 +36,4 @@ protobuf==3.19.4;python_version=="3.10" and sys_platform=="darwin"
 distlib==0.3.1
 
 # Numpy headers
-numpy>=1.14.3,<1.23.0
+numpy>=1.14.3,<1.25

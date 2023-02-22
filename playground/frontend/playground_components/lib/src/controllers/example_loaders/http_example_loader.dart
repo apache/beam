@@ -47,6 +47,10 @@ class HttpExampleLoader extends ExampleLoader {
   Future<Example> get future async {
     final response = await http.get(descriptor.uri);
 
+    if (response.statusCode >= 400) {
+      throw Exception('Example not found: Error code ${response.statusCode}');
+    }
+
     return Example(
       name: descriptor.uri.path.split('/').lastOrNull ?? 'HTTP Example',
       files: [

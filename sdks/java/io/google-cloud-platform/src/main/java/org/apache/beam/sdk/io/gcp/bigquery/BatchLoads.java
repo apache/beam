@@ -141,6 +141,14 @@ class BatchLoads<DestinationT, ElementT>
   // the table, even if there is no data in it.
   private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+
+  /**
+   * destinationsWithMatching wraps the dynamicDestinations redirects the schema, partitioning, etc
+   * to the final destination tables, if the final destination table exists already (and we're
+   * appending to it). It is used in writing to temp tables and updating final table schema.
+   */
+  private DynamicDestinations<?, DestinationT> destinationsWithMatching;
+
   private final Coder<DestinationT> destinationCoder;
   private int maxNumWritersPerBundle;
   private long maxFileSize;
@@ -179,6 +187,9 @@ class BatchLoads<DestinationT, ElementT>
     this.createDisposition = createDisposition;
     this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
+    this.destinationsWithMatching =
+        DynamicDestinationsHelpers.matchTableDynamicDestinations(
+            dynamicDestinations, bigQueryServices);
     this.destinationCoder = destinationCoder;
     this.maxNumWritersPerBundle = DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE;
     this.maxFileSize = DEFAULT_MAX_FILE_SIZE;
@@ -201,6 +212,15 @@ class BatchLoads<DestinationT, ElementT>
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
     this.schemaUpdateOptions = schemaUpdateOptions;
+    // In the case schemaUpdateOptions are specified by the user, do not wrap dynamicDestinations
+    // to respect those options.
+    if (schemaUpdateOptions != null && !schemaUpdateOptions.isEmpty()) {
+      this.destinationsWithMatching = dynamicDestinations;
+    } else {
+      this.destinationsWithMatching =
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(
+              dynamicDestinations, bigQueryServices);
+    }
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -287,6 +307,8 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> tempLoadJobIdPrefixView =
         createJobIdPrefixView(p, JobType.TEMP_TABLE_LOAD);
+    final PCollectionView<String> zeroLoadJobIdPrefixView =
+        createJobIdPrefixView(p, JobType.SCHEMA_UPDATE);
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
@@ -367,7 +389,7 @@ class BatchLoads<DestinationT, ElementT>
         writeTempTables(partitions.get(multiPartitionsTag), tempLoadJobIdPrefixView);
 
     List<PCollectionView<?>> sideInputsForUpdateSchema =
-        Lists.newArrayList(tempLoadJobIdPrefixView);
+        Lists.newArrayList(zeroLoadJobIdPrefixView);
     sideInputsForUpdateSchema.addAll(dynamicDestinations.getSideInputs());
 
     PCollection<TableDestination> successfulMultiPartitionWrites =
@@ -385,14 +407,14 @@ class BatchLoads<DestinationT, ElementT>
                 ParDo.of(
                         new UpdateSchemaDestination<DestinationT>(
                             bigQueryServices,
-                            tempLoadJobIdPrefixView,
+                            zeroLoadJobIdPrefixView,
                             loadJobProjectId,
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
                             kmsKey,
                             schemaUpdateOptions,
-                            dynamicDestinations))
+                            destinationsWithMatching))
                     .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameTriggered",
@@ -426,6 +448,8 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> tempLoadJobIdPrefixView =
         createJobIdPrefixView(p, JobType.TEMP_TABLE_LOAD);
+    final PCollectionView<String> zeroLoadJobIdPrefixView =
+        createJobIdPrefixView(p, JobType.SCHEMA_UPDATE);
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
@@ -471,7 +495,7 @@ class BatchLoads<DestinationT, ElementT>
         writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
 
     List<PCollectionView<?>> sideInputsForUpdateSchema =
-        Lists.newArrayList(tempLoadJobIdPrefixView);
+        Lists.newArrayList(zeroLoadJobIdPrefixView);
     sideInputsForUpdateSchema.addAll(dynamicDestinations.getSideInputs());
 
     PCollection<TableDestination> successfulMultiPartitionWrites =
@@ -481,14 +505,14 @@ class BatchLoads<DestinationT, ElementT>
                 ParDo.of(
                         new UpdateSchemaDestination<DestinationT>(
                             bigQueryServices,
-                            tempLoadJobIdPrefixView,
+                            zeroLoadJobIdPrefixView,
                             loadJobProjectId,
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
                             kmsKey,
                             schemaUpdateOptions,
-                            dynamicDestinations))
+                            destinationsWithMatching))
                     .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameUntriggered",
@@ -727,18 +751,6 @@ class BatchLoads<DestinationT, ElementT>
         KvCoder.of(
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
-
-    // If the final destination table exists already (and we're appending to it), then the temp
-    // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
-    // with one that makes this happen.
-    // In the case schemaUpdateOptions are specified by the user, matching does not occur in order
-    // to respect those options.
-    DynamicDestinations<?, DestinationT> destinationsWithMatching = dynamicDestinations;
-    if (schemaUpdateOptions.isEmpty()) {
-      destinationsWithMatching =
-          DynamicDestinationsHelpers.matchTableDynamicDestinations(
-              dynamicDestinations, bigQueryServices);
-    }
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
