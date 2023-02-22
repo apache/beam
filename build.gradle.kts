@@ -263,6 +263,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:expansion-service:build")
   dependsOn(":sdks:java:expansion-service:app:build")
   dependsOn(":sdks:java:extensions:arrow:build")
+  dependsOn(":sdks:java:extensions:avro:build")
   dependsOn(":sdks:java:extensions:euphoria:build")
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:build")
   dependsOn(":sdks:java:extensions:jackson:build")
