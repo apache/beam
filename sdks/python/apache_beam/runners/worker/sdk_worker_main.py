@@ -119,10 +119,16 @@ def create_harness(environment, dry_run=False):
       _LOGGER.error(
           'Could not load main session: %s', exception_details, exc_info=True)
       raise
-    except Exception:  # pylint: disable=broad-except
-      exception_details = traceback.format_exc()
-      _LOGGER.error(
-          'Could not load main session: %s', exception_details, exc_info=True)
+    except Exception as e:  # pylint: disable=broad-except
+      summary = (
+          "Could not load main session. Inspect which external dependencies "
+          "are used in the main module of your pipeline. Verify that "
+          "corresponding packages are installed in the pipeline runtime "
+          "environment and their installed version match the versions used in "
+          "pipeline submission environment. For more information, see: https://"
+          "beam.apache.org/documentation/sdks/python-pipeline-dependencies/")
+      _LOGGER.error(summary, exc_info=True)
+      raise CorruptMainSessionException(summary) from e
 
   _LOGGER.info(
       'Pipeline_options: %s',
