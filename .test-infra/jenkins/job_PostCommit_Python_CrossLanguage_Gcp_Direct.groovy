@@ -19,6 +19,8 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS
+
 // This job runs end-to-end cross language GCP IO tests with DirectRunner.
 // Collects tests with the @pytest.mark.uses_gcp_java_expansion_service decorator
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Direct',
