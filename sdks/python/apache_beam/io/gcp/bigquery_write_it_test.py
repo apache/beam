@@ -23,8 +23,8 @@
 import base64
 import datetime
 import logging
-import secrets
 import os
+import secrets
 import time
 import unittest
 from decimal import Decimal
@@ -594,43 +594,44 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
     self.row_elements = [
-      beam.Row(
-        my_int=e[0],
-        my_float=e[1],
-        my_string=e[2],
-        my_timestamp=e[3],
-        my_bool=e[4],
-        my_bytes=e[5]) for e in self.ELEMENTS
+        beam.Row(
+            my_int=e[0],
+            my_float=e[1],
+            my_string=e[2],
+            my_timestamp=e[3],
+            my_bool=e[4],
+            my_bytes=e[5]) for e in self.ELEMENTS
     ]
 
     # BigQuery matcher query returns a datetime.datetime object
     self.expected_elements = [(
-            e[:3] +
-            (e[3].to_utc_datetime().replace(tzinfo=datetime.timezone.utc),) +
-            e[4:]) for e in self.ELEMENTS]
+        e[:3] +
+        (e[3].to_utc_datetime().replace(tzinfo=datetime.timezone.utc), ) +
+        e[4:]) for e in self.ELEMENTS]
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(
-      projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
+        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
       _LOGGER.info(
-        "Deleting dataset %s in project %s", self.dataset_id, self.project)
+          "Deleting dataset %s in project %s", self.dataset_id, self.project)
       self.bigquery_client.client.datasets.Delete(request)
     except HttpError:
       _LOGGER.debug(
-        'Failed to clean up dataset %s in project %s',
-        self.dataset_id,
-        self.project)
+          'Failed to clean up dataset %s in project %s',
+          self.dataset_id,
+          self.project)
 
   @pytest.mark.uses_java_expansion_service
   def test_xlang_storage_write(self):
     table_id = '{}:{}.python_xlang_storage_write'.format(
-      self.project, self.dataset_id)
+        self.project, self.dataset_id)
 
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM %s" % '{}.python_xlang_storage_write'.format(self.dataset_id),
-      data=self.expected_elements)
+        project=self.project,
+        query="SELECT * FROM %s" %
+        '{}.python_xlang_storage_write'.format(self.dataset_id),
+        data=self.expected_elements)
 
     with beam.Pipeline() as p:
       _ = (

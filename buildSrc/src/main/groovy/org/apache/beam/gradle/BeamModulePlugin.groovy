@@ -356,6 +356,10 @@ class BeamModulePlugin implements Plugin<Project> {
     String semiPersistDir = "/tmp"
     // classpath for running tests.
     FileCollection classpath
+    // Expansion service to start up
+    String expansionJar
+    // Custom collect for Python pipeline tests that use Java expansion
+    String collectTestsWithDecorator = "uses_java_expansion_service"
   }
 
   def isRelease(Project project) {
@@ -2376,7 +2380,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def pythonDir = project.project(":sdks:python").projectDir
       def javaPort = getRandomPort()
       def pythonPort = getRandomPort()
-      def expansionJar = project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
+      def expansionJar = config.expansionJar ?: project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
       def javaClassLookupAllowlistFile = project.project(":sdks:java:testing:expansion-service").projectDir.getPath() + "/src/test/resources/test_expansion_service_allowlist.yaml"
       def expansionServiceOpts = [
         "group_id": project.name,
@@ -2476,7 +2480,7 @@ class BeamModulePlugin implements Plugin<Project> {
           "suite": "xlangValidateRunner",
         ]
         if (sdk == "Java") {
-          beamPythonTestPipelineOptions["collect"] = "uses_java_expansion_service"
+          beamPythonTestPipelineOptions["collect"] = config.collectTestsWithDecorator
         } else if (sdk == "Python") {
           beamPythonTestPipelineOptions["collect"] = "uses_python_expansion_service"
         } else {
