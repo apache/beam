@@ -114,21 +114,6 @@ tasks {
     }
 }
 
-//Add as terminal command in README
-
-//tasks.register("getCredentials") {
-//    var gkeClusterName = ""
-//    var gkeClusterZone = ""
-//    dependsOn("getGKEClusterName", "getGKEClusterZone")
-//    mustRunAfter(":learning:tour-of-beam:terraform:getGKEClusterName", ":learning:tour-of-beam:terraform:getGKEClusterZone")
-//    group = "backend-deploy"
-//    doLast {
-//        exec {
-//            commandLine("gcloud", "container", "clusters", "get-credentials", gkeClusterName, "--zone", gkeClusterZone)
-//        }
-//    }
-//}
-
 tasks.register("getRouterHost") {
     group = "backend-deploy"
     val result = ByteArrayOutputStream()
@@ -172,13 +157,11 @@ tasks.register("firebaseProjectCreate") {
         }.assertNormalExitValue()
         println("Firebase has been added to project $project_id.")
     }
-tasks.getByName("firebaseWebAppCreate").mustRunAfter(this)
 }
 
 
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
-    outputs.upToDateWhen { false } // Disable up-to-date checks
     val project_id = project.property("project_id") as String
     val webapp_id = project.property("webapp_id") as String
     val result = ByteArrayOutputStream()
@@ -190,11 +173,10 @@ tasks.register("firebaseWebAppCreate") {
     println(result)
     val output = result.toString()
     if (output.contains(webapp_id)) {
-        println("Tour of Beam Web App: $webapp_id is already created on the project: $project_id.")
+        println("Webapp id $webapp_id is already created on the project: $project_id.")
         val regex = Regex("$webapp_id[│ ]+([\\w:]+)[│ ]+WEB[│ ]+")
         val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
         project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
-        println("Firebase app ID for existing Firebase Web App: $firebaseAppId")
     } else {
         val result2 = ByteArrayOutputStream()
         exec {
@@ -206,7 +188,6 @@ tasks.register("firebaseWebAppCreate") {
         project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
         println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
     }
-    tasks.getByName("getSdkConfigWebApp").mustRunAfter(this)
 }
 
 // firebase apps:sdkconfig WEB AppId
@@ -291,7 +272,6 @@ tasks.register("firebaseDeploy") {
 
 tasks.register("prepareConfig") {
     group = "frontend-deploy"
-    outputs.upToDateWhen { false } // Disable up-to-date checks
         var dns_name = ""
         var region = ""
         var project_id = ""
@@ -330,7 +310,6 @@ const String kApiScioClientURL =
 'https://scio.${dns_name}';
 """
         )
-    tasks.getByName("prepareFirebasercConfig").mustRunAfter(this)
 }
 
 tasks.register("prepareFirebasercConfig") {
@@ -352,9 +331,7 @@ tasks.register("prepareFirebasercConfig") {
 }
 """
         )
-    tasks.getByName("firebaseProjectCreate").mustRunAfter(this)
 }
-
 
 // Should be as CI CD process
 
@@ -425,17 +402,11 @@ tasks.register("InitFrontend") {
     val flutterBuildWeb = tasks.getByName("flutterBuildWeb")
     val firebaseDeploy = tasks.getByName("firebaseDeploy")
     dependsOn(prepareConfig)
-    Thread.sleep(5000)
     dependsOn(prepareFirebasercConfig)
-    Thread.sleep(5000)
     dependsOn(firebaseProjectCreate)
-    Thread.sleep(5000)
     dependsOn(firebaseWebAppCreate)
-    Thread.sleep(5000)
     dependsOn(getSdkConfigWebApp)
-    Thread.sleep(5000)
     dependsOn(prepareFirebaseOptionsDart)
-    Thread.sleep(5000)
     dependsOn(flutterPubGetPG)
     dependsOn(flutterPubRunPG)
     dependsOn(flutterPubGetTob)
