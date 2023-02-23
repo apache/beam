@@ -27,8 +27,21 @@ class MarkdownCodeBuilder extends MarkdownElementBuilder {
     final String textContent = element.textContent;
     final bool isCodeBlock = textContent.contains('\n');
     if (isCodeBlock) {
-      /// codeblockDecoration is applied
-      return null;
+      final scrollController = ScrollController();
+      return Padding(
+        padding: const EdgeInsets.all(BeamSizes.size4),
+        child: Scrollbar(
+          controller: scrollController,
+          scrollbarOrientation: ScrollbarOrientation.bottom,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(BeamSizes.size10),
+            scrollDirection: Axis.horizontal,
+            child: Text(textContent),
+          ),
+        ),
+      );
     }
     return _InlineCode(text: textContent);
   }
