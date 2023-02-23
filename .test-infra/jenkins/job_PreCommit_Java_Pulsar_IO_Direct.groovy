@@ -29,10 +29,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
-      '^sdks/java/io/common/.*$',
+      '^sdks/java/core/src/main/.*$',
       '^sdks/java/io/pulsar/.*$',
     ],
-    defaultPathTriggering: false,
     timeoutMins: 60,
     )
 builder.build {
