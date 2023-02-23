@@ -270,7 +270,8 @@ if __name__ == '__main__':
               'Sphinx>=1.5.2,<2.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
-              'docutils==0.17.1'
+              'docutils==0.17.1',
+              'pandas<2.0.0',
           ],
           'test': [
             'freezegun>=0.3.12',
