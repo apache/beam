@@ -35,8 +35,3 @@ ext.getGitCommitTimestamp = () -> {
    }
    return stdout.toString().trim()
 } as Closure<String>
-
-//ext {
-//   getGitCommitHash = this.&getGitCommitHash
-//   getGitCommitTimestamp = this.&getGitCommitTimestamp
-//}
