@@ -637,7 +637,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       _ = (
           p
           | beam.Create(self.row_elements)
-          | beam.io.StorageWriteToBigQuery(table=table_id))
+          | beam.io.StorageWriteToBigQuery(
+              table=table_id, expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
 
