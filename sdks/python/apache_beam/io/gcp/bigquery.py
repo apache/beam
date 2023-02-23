@@ -302,6 +302,35 @@ result.destination_file_pairs       <--> result['destination_file_pairs']
 result.destination_copy_jobid_pairs <--> result['destination_copy_jobid_pairs']
 ```
 
+Writing with Storage Write API using Cross Language
+---------------------------------------------------
+After starting up an expansion service that contains the Java implementation
+of Storage Write API SchemaTransform, the StorageWriteToBigQuery() PTransform
+can be used. This is used to discover and inject the Java implementation into
+the Python pipeline.
+
+StorageWriteToBigQuery receives a PCollection of beam.Row() elements and
+writes the elements to BigQuery. It returns two dead-letter queues: one
+containing just the failed rows and the other containing failed rows and
+errors. This is represented as a dictionary of PCollections.
+Example::
+
+  with beam.Pipeline() as p:
+    items = []
+    for i in range(10):
+      items.append(beam.Row(id=i, name="row " + str(i)))
+    result = (p
+          | 'Create items' >> beam.Create(items)
+          | 'Write data' >> StorageWriteToBigQuery(
+                              table="project:dataset.table"))
+    _ = (result['failed_rows_with_errors']
+         | 'Format errors' >> beam.Map(
+                              lambda e: "failed row id: %s, error: %s" %
+                              (e.failed_row.id, e.error_message))
+         | 'Write errors' >> beam.io.WriteToText('./output')))
+
+**Note**: The schema is inferred from the input beam.Row() elements.
+
 
 *** Short introduction to BigQuery concepts ***
 Tables have rows (TableRow) and each row has cells (TableCell).
@@ -2310,26 +2339,10 @@ def _default_io_expansion_service(append_args=None):
 
 
 class StorageWriteToBigQuery(PTransform):
-  """Writes data to BigQuery using Storage API.
-  Receives a PCollection of beam.Row() elements and writes the elements
-  to BigQuery. Returns a dead-letter queue of errors and failed rows
-  represented as a dictionary of PCollections.
-  Example::
-    with beam.Pipeline() as p:
-      items = []
-      for i in range(10):
-        items.append(beam.Row(id=i))
-      result = (p
-            | 'Create items' >> beam.Create(items)
-            | 'Write data' >> StorageWriteToBigQuery(
-                                table="project:dataset.table"))
-      _ = (result['failed_rows_with_errors']
-           | 'Format errors' >> beam.Map(
-                                lambda e: "failed row id: %s, error: %s" %
-                                (e.failed_row.id, e.error_message))
-           | 'Write errors' >> beam.io.WriteToText('./output')))
-  """
+  """Writes data to BigQuery using Storage API."""
   URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v1"
+  FAILED_ROWS = "failed_rows"
+  FAILED_ROWS_WITH_ERRORS = "failed_rows_with_errors"
 
   def __init__(
       self,
@@ -2340,23 +2353,30 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       expansion_service=None):
     """Initialize a StorageWriteToBigQuery transform.
-      :param table: a fully-qualified table ID specified as
-        ``'PROJECT:DATASET.TABLE'``
-      :param create_disposition: a string specifying the strategy to
-        take when the table doesn't exist. Possible values are:
-        * ``'CREATE_IF_NEEDED'``: create if does not exist.
-        * ``'CREATE_NEVER'``: fail the write if does not exist.
-      :param write_disposition: a string specifying the strategy to take
-        when the table already contains data. Possible values are:
-        * ``'WRITE_TRUNCATE'``: delete existing rows.
-        * ``'WRITE_APPEND'``: add to existing rows.
-        * ``'WRITE_EMPTY'``: fail the write if table not empty.
-      :param triggering_frequency: the time in seconds between write
-        commits. Should only be specified for streaming pipelines. Defaults
-        to 5 seconds.
-      :param use_at_least_once: use at-least-once semantics. Is cheaper
-        and provides lower latency, but will potentially duplicate records.
-      :param expansion_service: the address (host:port) of the expansion service
+
+    :param table:
+      Fully-qualified table ID specified as ``'PROJECT:DATASET.TABLE'``.
+    :param create_disposition:
+      String specifying the strategy to take when the table doesn't
+      exist. Possible values are:
+      * ``'CREATE_IF_NEEDED'``: create if does not exist.
+      * ``'CREATE_NEVER'``: fail the write if does not exist.
+    :param write_disposition:
+      String specifying the strategy to take when the table already
+      contains data. Possible values are:
+      * ``'WRITE_TRUNCATE'``: delete existing rows.
+      * ``'WRITE_APPEND'``: add to existing rows.
+      * ``'WRITE_EMPTY'``: fail the write if table not empty.
+    :param triggering_frequency:
+      The time in seconds between write commits. Should only be specified
+      for streaming pipelines. Defaults to 5 seconds.
+    :param use_at_least_once:
+      Use at-least-once semantics. Is cheaper and provides lower latency,
+      but will potentially duplicate records.
+    :param expansion_service:
+      The address (host:port) of the expansion service. If no expansion
+      service is provided, will attempt to run the default GCP expansion
+      service.
     """
     super().__init__()
     self._table = table
