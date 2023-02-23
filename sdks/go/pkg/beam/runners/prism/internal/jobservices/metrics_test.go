@@ -23,7 +23,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
@@ -73,7 +72,7 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 		// TODO convert input to non-legacy metrics once we support, and then delete these.
 		input [][]*pipepb.MonitoringInfo
 
-		want []*pipeline_v1.MonitoringInfo
+		want []*pipepb.MonitoringInfo
 	}{
 		{
 			name: "int64Sum",

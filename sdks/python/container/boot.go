@@ -30,8 +30,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
@@ -216,10 +216,10 @@ func launchSDKProcess() error {
 
 	// Keep track of child PIDs for clean shutdown without zombies
 	childPids := struct {
-		v []int
+		v        []int
 		canceled bool
-		mu sync.Mutex
-	} {v: make([]int, 0, len(workerIds))}
+		mu       sync.Mutex
+	}{v: make([]int, 0, len(workerIds))}
 
 	// Forward trapped signals to child process groups in order to terminate them gracefully and avoid zombies
 	go func() {
@@ -251,20 +251,33 @@ func launchSDKProcess() error {
 		go func(workerId string) {
 			defer wg.Done()
 
-			childPids.mu.Lock()
-			if childPids.canceled {
+			errorCount := 0
+			for {
+				childPids.mu.Lock()
+				if childPids.canceled {
+					childPids.mu.Unlock()
+					return
+				}
+				log.Printf("Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
+				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, "python", args...)
+				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
-				return
-			}
-			log.Printf("Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-			cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, "python", args...)
-			childPids.v = append(childPids.v, cmd.Process.Pid)
-			childPids.mu.Unlock()
 
-			if err := cmd.Wait(); err != nil {
-				log.Printf("Python (worker %v) exited: %v", workerId, err)
-			} else {
-				log.Printf("Python (worker %v) exited.", workerId)
+				if err := cmd.Wait(); err != nil {
+					// Retry on fatal errors, like OOMs and segfaults, not just
+					// DoFns throwing exceptions.
+					errorCount += 1
+					if errorCount < 4 {
+						log.Printf("Python (worker %v) exited %v times: %v\nrestarting SDK process",
+							workerId, errorCount, err)
+					} else {
+						log.Fatalf("Python (worker %v) exited %v times: %v\nout of retries, failing container",
+							workerId, errorCount, err)
+					}
+				} else {
+					log.Printf("Python (worker %v) exited.", workerId)
+					break
+				}
 			}
 		}(workerId)
 	}
@@ -297,7 +310,7 @@ func StartCommandEnv(env map[string]string, prog string, args ...string) *exec.C
 func setupVenv(baseDir, workerId string) (string, error) {
 	log.Printf("Initializing temporary Python venv ...")
 
-	dir := filepath.Join(baseDir, "beam-venv-worker-" + workerId)
+	dir := filepath.Join(baseDir, "beam-venv-worker-"+workerId)
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		// Probably leftovers from a previous run
 		log.Printf("Cleaning up previous venv ...")

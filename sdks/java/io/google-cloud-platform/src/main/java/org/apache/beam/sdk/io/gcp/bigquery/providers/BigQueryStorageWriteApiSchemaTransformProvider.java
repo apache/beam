@@ -336,7 +336,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .to(configuration.getTable())
               .withMethod(writeMethod)
               .useBeamSchema()
-              .withFormatFunction(BigQueryUtils.toTableRow());
+              .withFormatFunction(BigQueryUtils.toTableRow())
+              .withWriteDisposition(WriteDisposition.WRITE_APPEND);
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
