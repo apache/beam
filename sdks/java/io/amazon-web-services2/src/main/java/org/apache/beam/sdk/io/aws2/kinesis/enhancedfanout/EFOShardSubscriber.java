@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import io.netty.channel.ChannelException;
-import io.netty.handler.timeout.ReadTimeoutException;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -34,12 +33,12 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
@@ -95,32 +94,20 @@ class EFOShardSubscriber {
    */
   private final BiConsumer<Void, Throwable> reSubscriptionHandler;
 
-  /**
-   * TODO: add 2 other retry-able cases.
-   *
-   * @param error
-   * @return
-   */
-  private static boolean isRetryAble(Throwable error) {
-    Throwable cause = unWrapCompletionException(error);
-    if (cause instanceof SdkClientException
-        && cause.getCause() != null
-        && cause.getCause() instanceof ReadTimeoutException) {
-      return true;
+  private static boolean isRetryable(Throwable error) {
+    Throwable cause = unwrapCompletionException(error);
+    if (cause instanceof SdkException && ((SdkException) cause).retryable()) {
+      return true; // retryable SDK exception
     }
-    if (cause instanceof ReadTimeoutException) {
-      return true;
-    }
-    return false;
+    // check the root cause for issues that can be addressed using retries
+    cause = Throwables.getRootCause(cause);
+    return cause instanceof ClosedChannelException // Java Nio
+        || cause instanceof TimeoutException // Java
+        || cause instanceof ChannelException; // Netty (e.g. ReadTimeoutException)
   }
 
-  /**
-   * Loops through completion exceptions until we get the underlying cause.
-   *
-   * @param completionException
-   * @return
-   */
-  private static Throwable unWrapCompletionException(Throwable completionException) {
+  /** Loops through completion exceptions until we get the underlying cause. */
+  private static Throwable unwrapCompletionException(Throwable completionException) {
     Throwable current = completionException;
     while (current instanceof CompletionException) {
       Throwable cause = current.getCause();
@@ -147,11 +134,12 @@ class EFOShardSubscriber {
     this.reSubscriptionHandler =
         (Void unused, Throwable error) -> {
           eventsSubscriber.cancel();
-          if (error != null && !isRetryAble(error)) {
+          if (error != null && !isRetryable(error)) {
             done.completeExceptionally(error);
           } else if (state != STOPPED) {
             String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
-            // FIXME must resubscribe from initial starting position if retryable error && lastContinuationSequenceNumber == null
+            // FIXME must resubscribe from initial starting position if retryable error &&
+            // lastContinuationSequenceNumber == null
             if (lastContinuationSequenceNumber == null) {
               done.complete(null); // completely consumed this shard, done
             } else if (error != null && inFlight.get() == IN_FLIGHT_LIMIT) {
