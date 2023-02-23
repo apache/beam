@@ -33,7 +33,6 @@ import time
 from collections import defaultdict
 from importlib import import_module
 
-from google.protobuf.internal import containers
 import pkg_resources
 
 LOG = logging.getLogger()

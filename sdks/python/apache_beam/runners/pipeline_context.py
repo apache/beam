@@ -312,8 +312,10 @@ class PipelineContext(object):
       cloned_env = beam_runner_api_pb2.Environment()
       # Remove the suppress warning for type once mypy is updated to
       # newer version. https://github.com/apache/beam/issues/25615
-      #  error: Argument 1 to "CopyFrom" of "Message" has incompatible type "Message";
-      #  expected "Environment"  [arg-type]
+      #  error: Argument 1 to "CopyFrom" of "Message" has incompatible type
+      #  "Message"; expected "Environment"  [arg-type]
+      # Here, Environment is a subclass of Message but mypy still
+      # throws an error.
       cloned_env.CopyFrom(template_env) # type: ignore[arg-type]
       cloned_env.resource_hints.clear()
       cloned_env.resource_hints.update(resource_hints)
