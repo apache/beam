@@ -24,7 +24,7 @@ import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIO
 // This job runs end-to-end cross language GCP IO tests with DataflowRunner.
 // Collects tests with the @pytest.mark.uses_gcp_java_expansion_service decorator
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Dataflow',
-    'Run Python_Xlang_Gcp_Dataflow PostCommit', 'Dataflow Runner CrossLanguage GCP IOs PythonUsingJava Tests', this) {
+    'Run Python_Xlang_Gcp_Dataflow PostCommit', 'Python_Xlang_Gcp_Dataflow (\"Run Python_Xlang_Gcp_Dataflow PostCommit\")', this) {
       description('Runs end-to-end cross language GCP IO tests on the Dataflow runner.')
 
       // Set common parameters.
@@ -38,7 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Dataflow',
       // Gradle goals for this job.
       steps {
         CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
-          shell("echo \" Running cross language GCP IO tests with python ${pythonVersion} on DataflowRunner.")
+          shell("echo \"Running cross language GCP IO tests with python ${pythonVersion} on DataflowRunner.\"")
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
             tasks(":sdks:python:test-suites:dataflow:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
