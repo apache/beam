@@ -904,6 +904,8 @@ try:
             skip = True
           if not skip:
             extra_lines.append(line[indent:])
+      # Expand title underline due to Parameters -> Pandas Parameters.
+      extra_lines[1] += '-------'
       dest.__doc__ += '\n'.join(extra_lines)
       return dest
 
@@ -931,6 +933,7 @@ try:
   @append_pandas_args(
       pandas.DataFrame.to_csv, exclude=['path_or_buf', 'index', 'index_label'])
   def WriteToCsv(path, num_shards=None, file_naming=None, **kwargs):
+    # pylint: disable=line-too-long
     """A PTransform for writing a schema'd PCollection as a (set of)
     comma-separated values (csv) files.
 
@@ -942,7 +945,8 @@ try:
         write. Defaults to None, letting the system choose an optimal value.
       file_naming (optional callable): A file-naming strategy, determining the
         actual shard names given their shard number, etc.
-        See the section on `file naming` <https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html#file-naming>`_
+        See the section on `file naming
+        <https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html#file-naming>`_
         Defaults to `fileio.default_file_naming`, which names files as
         `path-XXXXX-of-NNNNN`.
       **kwargs: Extra arguments passed to `pandas.Dataframe.to_csv` (see below).
@@ -982,6 +986,7 @@ try:
       orient='records',
       lines=True,
       **kwargs):
+    # pylint: disable=line-too-long
     """A PTransform for writing a PCollection as json values to files.
 
     Args:
@@ -992,7 +997,8 @@ try:
         write. Defaults to None, letting the system choose an optimal value.
       file_naming (optional callable): A file-naming strategy, determining the
         actual shard names given their shard number, etc.
-        See the section on `file naming` <https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html#file-naming>`_
+        See the section on `file naming
+        <https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html#file-naming>`_
         Defaults to `fileio.default_file_naming`, which names files as
         `path-XXXXX-of-NNNNN`.
       orient (str): Format of the json elements in the file.
@@ -1001,7 +1007,8 @@ try:
       lines (bool): Whether each line should be considered a separate record,
         as opposed to the entire file being a valid JSON object or list.
         Defaults to True if orient is 'records' (unlike Pandas).
-      **kwargs: Extra arguments passed to `pandas.Dataframe.to_json` (see below).
+      **kwargs: Extra arguments passed to `pandas.Dataframe.to_json`
+        (see below).
     """
     from apache_beam.dataframe.io import WriteViaPandas
     if num_shards is not None:

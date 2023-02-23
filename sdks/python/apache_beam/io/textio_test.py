@@ -1716,8 +1716,8 @@ class CsvTest(unittest.TestCase):
     records = [beam.Row(a='str', b=ix) for ix in range(3)]
     with tempfile.TemporaryDirectory() as dest:
       with TestPipeline() as p:
-        p | beam.Create(records) | beam.io.WriteToCsv(
-            os.path.join(dest, 'out'))
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(records) | beam.io.WriteToCsv(os.path.join(dest, 'out'))
       with TestPipeline() as p:
         pcoll = (
             p
@@ -1732,6 +1732,7 @@ class JsonTest(unittest.TestCase):
     records = [beam.Row(a='str', b=ix) for ix in range(3)]
     with tempfile.TemporaryDirectory() as dest:
       with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
         p | beam.Create(records) | beam.io.WriteToJson(
             os.path.join(dest, 'out'))
       with TestPipeline() as p:
