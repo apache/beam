@@ -955,7 +955,7 @@ message StateGetResponse {
   // (Optional) If specified, represents a token which can be used with the
   // state API to get the next chunk of this logical byte stream. The end of
   // the logical byte stream is signalled by this field being unset.
-  optional bytes continuation_token = 1;
+  bytes continuation_token = 1;
 
   // Represents a part of a logical byte stream. Elements within
   // the logical byte stream are encoded in the nested context and
