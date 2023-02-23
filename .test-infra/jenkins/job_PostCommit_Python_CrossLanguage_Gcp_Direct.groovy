@@ -39,7 +39,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Direct',
           shell("echo \"Running cross language GCP IO tests with python ${pythonVersion} on DirectRunner.\"")
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":sdks:python:test-suites:direct:py${getVersionSuffix(pythonVersion)}:gcpCrossLanguagePythonUsingJava")
+            tasks(":sdks:python:test-suites:direct:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
             commonJobProperties.setGradleSwitches(delegate)
           }
         }

@@ -41,7 +41,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Dataflow',
           shell("echo \" Running cross language GCP IO tests with python ${pythonVersion} on DataflowRunner.")
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":sdks:python:test-suites:dataflow:py${getVersionSuffix(pythonVersion)}:gcpCrossLanguagePythonUsingJava")
+            tasks(":sdks:python:test-suites:dataflow:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
             commonJobProperties.setGradleSwitches(delegate)
           }
         }
