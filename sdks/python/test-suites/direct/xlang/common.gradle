@@ -44,6 +44,9 @@ def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
 
 // Create tasks for running tests against GCP expansion service
 def gcpExpansionJar = project.project(':sdks:java:io:google-cloud-platform:expansion-service').buildTestExpansionServiceJar.archivePath
+def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+def dataflowGcpXlangTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-xlang-gcp-tests'
 
 createCrossLanguageValidatesRunnerTask(
   name: "gcpCrossLanguage",
@@ -55,12 +58,17 @@ createCrossLanguageValidatesRunnerTask(
   classpath: crossLanguageTestClasspath,
   pythonPipelineOptions: [
     "--runner=TestDirectRunner",
+    "--project=${dataflowProject}",
+    "--region=${dataflowRegion}",
     "--job_endpoint=localhost:${jobPort}",
     "--environment_cache_millis=10000",
     "--experiments=beam_fn_api",
   ],
   javaPipelineOptions: [
-    "--runner=PortableRunner",
+    "--runner=TestDirectRunner",
+    "--project=${dataflowProject}",
+    "--region=${dataflowRegion}",
+    "--tempRoot=${dataflowGcpXlangTempRoot}",
     "--jobEndpoint=localhost:${jobPort}",
     "--environmentCacheMillis=10000",
     "--experiments=beam_fn_api",

@@ -44,6 +44,13 @@ def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
 
 // Create tasks for running tests against GCP expansion service
 def gcpExpansionJar = project.project(':sdks:java:io:google-cloud-platform:expansion-service').buildTestExpansionServiceJar.archivePath
+def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+def dataflowGcpXlangTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-xlang-gcp-tests'
+def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
+def dockerJavaImageContainer = "${dockerImageRoot}/java"
+def dockerPythonImageContainer = "${dockerImageRoot}/python"
+def dockerTag = new Date().format('yyyyMMddHHmmss')
 
 createCrossLanguageValidatesRunnerTask(
   name: "gcpCrossLanguage",
@@ -55,14 +62,16 @@ createCrossLanguageValidatesRunnerTask(
   classpath: crossLanguageTestClasspath,
   pythonPipelineOptions: [
     "--runner=TestDataflowRunner",
-    "--job_endpoint=localhost:${jobPort}",
-    "--environment_cache_millis=10000",
-    "--experiments=beam_fn_api",
+    "--project=${dataflowProject}",
+    "--region=${dataflowRegion}",
+    "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
   ],
   javaPipelineOptions: [
-    "--runner=PortableRunner",
-    "--jobEndpoint=localhost:${jobPort}",
-    "--environmentCacheMillis=10000",
-    "--experiments=beam_fn_api",
+    "--runner=TestDataflowRunner",
+    "--project=${dataflowProject}",
+    "--region=${dataflowRegion}",
+    "--tempRoot=${dataflowGcpXlangTempRoot}",
+    "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
+    "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
   ],
 )
