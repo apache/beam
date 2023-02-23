@@ -934,6 +934,7 @@ try:
       pandas.DataFrame.to_csv, exclude=['path_or_buf', 'index', 'index_label'])
   def WriteToCsv(path, num_shards=None, file_naming=None, **kwargs):
     # pylint: disable=line-too-long
+
     """A PTransform for writing a schema'd PCollection as a (set of)
     comma-separated values (csv) files.
 
@@ -987,6 +988,7 @@ try:
       lines=True,
       **kwargs):
     # pylint: disable=line-too-long
+
     """A PTransform for writing a PCollection as json values to files.
 
     Args:
