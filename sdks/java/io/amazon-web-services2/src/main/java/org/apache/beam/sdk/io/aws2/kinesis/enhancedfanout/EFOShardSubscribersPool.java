@@ -83,8 +83,8 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
 @SuppressWarnings({"nullness"})
 class EFOShardSubscribersPool {
   private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscribersPool.class);
-  private static final long ON_ERROR_COOL_DOWN_MS_DEFAULT = 1_000L;
-  private final long onErrorCoolDownMs;
+  private static final int ON_ERROR_COOL_DOWN_MS_DEFAULT = 1_000;
+  private final int onErrorCoolDownMs;
 
   private final UUID poolId;
   private final KinesisIO.Read read;
@@ -150,7 +150,7 @@ class EFOShardSubscribersPool {
   }
 
   EFOShardSubscribersPool(
-      KinesisIO.Read readSpec, KinesisAsyncClient kinesis, long onErrorCoolDownMs) {
+      KinesisIO.Read readSpec, KinesisAsyncClient kinesis, int onErrorCoolDownMs) {
     this.poolId = UUID.randomUUID();
     this.read = readSpec;
     this.kinesis = kinesis;

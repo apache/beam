@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
+import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.EFOShardSubscriber.State.INITIALIZED;
+import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.EFOShardSubscriber.State.PAUSED;
+import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.EFOShardSubscriber.State.RUNNING;
+import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.EFOShardSubscriber.State.STOPPED;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import io.netty.channel.ChannelException;
 import io.netty.handler.timeout.ReadTimeoutException;
@@ -44,7 +50,16 @@ import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
 
 class EFOShardSubscriber {
+  enum State {
+    INITIALIZED, // Initialized, but not started yet
+    RUNNING, // Subscriber started
+    PAUSED, // Subscriber paused due to backpressure
+    STOPPED // Subscriber stopped
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscriber.class);
+  private static final Integer IN_FLIGHT_LIMIT = 10;
+
   private final EFOShardSubscribersPool pool;
   private final String consumerArn;
 
@@ -53,8 +68,8 @@ class EFOShardSubscriber {
   // Read configuration
   private final KinesisAsyncClient kinesis;
 
-  /** Signals if subscriber is stopped from externally. */
-  volatile boolean isStopped = false;
+  /** Internal subscriber state */
+  private volatile State state = INITIALIZED;
 
   /**
    * Completes once this shard subscriber is done, either normally (stopped or shard is completely
@@ -65,9 +80,7 @@ class EFOShardSubscriber {
   private final ShardEventsSubscriber eventsSubscriber = new ShardEventsSubscriber();
 
   /** Tracks number of delivered events in flight (until ack-ed). */
-  AtomicInteger inFlight;
-
-  private static final Integer IN_FLIGHT_LIMIT = 3;
+  private final AtomicInteger inFlight = new AtomicInteger();
 
   /**
    * Async completion handler for {@link KinesisAsyncClient#subscribeToShard} that:
@@ -76,8 +89,8 @@ class EFOShardSubscriber {
    *     retryable {@link SdkException}, {@link ClosedChannelException}, {@link ChannelException},
    *     {@link TimeoutException} (any of these might be wrapped in {@link CompletionException}s)
    * <li>or completes {@link #done} exceptionally for any other error,
-   * <li>completes {@link #done} normally if subscriber {@link #isStopped} or if shard completed (no
-   *     further {@link ShardEventsSubscriber#sequenceNumber}),
+   * <li>completes {@link #done} normally if subscriber {@link #state} is {@link State#STOPPED} or
+   *     if shard completed (no further {@link ShardEventsSubscriber#sequenceNumber}),
    * <li>or otherwise re-subscribes at {@link ShardEventsSubscriber#sequenceNumber}.
    */
   private final BiConsumer<Void, Throwable> reSubscriptionHandler;
@@ -126,31 +139,25 @@ class EFOShardSubscriber {
       String shardId,
       KinesisIO.Read read,
       KinesisAsyncClient kinesis,
-      long onErrorCoolDownMs) {
+      int onErrorCoolDownMs) {
     this.pool = pool;
     this.consumerArn = checkArgumentNotNull(read.getConsumerArn());
     this.shardId = shardId;
     this.kinesis = kinesis;
-    this.inFlight = new AtomicInteger();
     this.reSubscriptionHandler =
         (Void unused, Throwable error) -> {
           eventsSubscriber.cancel();
           if (error != null && !isRetryAble(error)) {
             done.completeExceptionally(error);
-          } else if (!isStopped) {
+          } else if (state != STOPPED) {
             String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
-            if (lastContinuationSequenceNumber == null) {
+            if (error == null && lastContinuationSequenceNumber == null) {
               done.complete(null); // completely consumed this shard, done
+            } else if (error != null && inFlight.get() == IN_FLIGHT_LIMIT) {
+              state = PAUSED;
             } else {
-              Long delay = (error != null) ? onErrorCoolDownMs : 0L;
-              pool.delayedTask(
-                  () ->
-                      subscribe(
-                          StartingPosition.builder()
-                              .type(ShardIteratorType.AFTER_SEQUENCE_NUMBER)
-                              .sequenceNumber(lastContinuationSequenceNumber)
-                              .build()),
-                  delay);
+              int delayMs = (error != null) ? onErrorCoolDownMs : 0;
+              pool.delayedTask(() -> internalReSubscribe(lastContinuationSequenceNumber), delayMs);
             }
           } else {
             done.complete(null);
@@ -172,6 +179,20 @@ class EFOShardSubscriber {
    */
   @SuppressWarnings("FutureReturnValueIgnored")
   CompletableFuture<Void> subscribe(StartingPosition position) {
+    checkState(state == INITIALIZED, "Subscriber was already started");
+    return internalSubscribe(position);
+  }
+
+  private CompletableFuture<Void> internalReSubscribe(String sequenceNumber) {
+    return internalSubscribe(
+        StartingPosition.builder()
+            .type(ShardIteratorType.AFTER_SEQUENCE_NUMBER)
+            .sequenceNumber(sequenceNumber)
+            .build());
+  }
+
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private CompletableFuture<Void> internalSubscribe(StartingPosition position) {
     SubscribeToShardRequest request = subscribeRequest(position);
     LOG.info("Pool {} Shard {} starting subscribe request {}", pool.getPoolId(), shardId, request);
     try {
@@ -196,14 +217,14 @@ class EFOShardSubscriber {
   }
 
   /**
-   * Cancels shard subscriber. Sets {@link #isStopped} and invokes {@link
+   * Cancels shard subscriber. Sets {@link #state} to {@link State#STOPPED} and invokes {@link
    * ShardEventsSubscriber#cancel()} if defined.
    */
   void cancel() {
     LOG.info("Pool {} Shard {} cancelling", pool.getPoolId(), shardId);
-    if (!isStopped && eventsSubscriber != null) {
+    if (state != STOPPED && eventsSubscriber != null) {
       eventsSubscriber.cancel();
-      isStopped = true;
+      state = STOPPED;
     }
   }
 
@@ -211,8 +232,13 @@ class EFOShardSubscriber {
    * Decrements events {@link #inFlight} and, if previously at the limit, requests a next event from
    * {@link ShardEventsSubscriber#subscription} (if active).
    */
+  @SuppressWarnings("FutureReturnValueIgnored")
   void ackEvent() {
-    if (inFlight.getAndDecrement() <= IN_FLIGHT_LIMIT) {
+    int prevInFlight = inFlight.getAndDecrement();
+    if (state == PAUSED) {
+      state = RUNNING;
+      internalReSubscribe(checkStateNotNull(eventsSubscriber.sequenceNumber));
+    } else if (prevInFlight == IN_FLIGHT_LIMIT) {
       Subscription s = eventsSubscriber.subscription;
       if (s != null) {
         s.request(1);
@@ -233,20 +259,24 @@ class EFOShardSubscriber {
       if (subscription != null) {
         subscription.cancel();
       }
+      subscription = null;
     }
 
     /**
      * Handles new established {@link Subscription}.
      *
-     * <p>Cancels subscription immediately if {@link EFOShardSubscriber#isStopped} already.
-     * Otherwise, if below the {@link #inFlight} limit, the first event is requested.
+     * <p>Cancels subscription immediately if {@link EFOShardSubscriber#state} is {@link
+     * State#STOPPED} already. Otherwise, if below the {@link #inFlight} limit, the first event is
+     * requested.
      */
     @Override
     public void onSubscribe(Subscription subscription) {
-      if (subscription != null) {
+      this.subscription = subscription;
+      if (state == STOPPED) {
+        cancel();
+      } else if (inFlight.get() < IN_FLIGHT_LIMIT) {
         subscription.request(1);
       }
-      this.subscription = subscription;
     }
 
     /**
@@ -264,7 +294,9 @@ class EFOShardSubscriber {
     public void visit(SubscribeToShardEvent event) {
       pool.enqueueEvent(shardId, event);
       sequenceNumber = event.continuationSequenceNumber();
-      if (inFlight.incrementAndGet() < IN_FLIGHT_LIMIT && subscription != null) {
+      int currentInFlight = inFlight.incrementAndGet();
+      checkState(currentInFlight <= IN_FLIGHT_LIMIT, "Exceeded in-flight limit");
+      if (currentInFlight < IN_FLIGHT_LIMIT && subscription != null) {
         subscription.request(1);
       }
     }

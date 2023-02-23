@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.io.aws2.kinesis.CustomOptional;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisReaderCheckpoint;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
@@ -44,7 +44,7 @@ public class KinesisEnhancedFanOutReader extends UnboundedSource.UnboundedReader
   private final CheckpointGenerator checkpointGenerator;
 
   private @Nullable KinesisRecord currentRecord = null;
-  private CustomOptional<EFOShardSubscribersPool> shardSubscribersPool = CustomOptional.absent();
+  private @Nullable EFOShardSubscribersPool shardSubscribersPool = null;
 
   KinesisEnhancedFanOutReader(
       KinesisIO.Read spec,
@@ -61,19 +61,22 @@ public class KinesisEnhancedFanOutReader extends UnboundedSource.UnboundedReader
   public boolean start() throws IOException {
     LOG.info("Starting reader using {}", checkpointGenerator);
     try {
-      EFOShardSubscribersPool pool = createPool();
+      shardSubscribersPool = createPool();
       KinesisReaderCheckpoint initialCheckpoint = checkpointGenerator.generate(kinesis);
-      pool.start(initialCheckpoint);
-      shardSubscribersPool = CustomOptional.of(pool);
+      shardSubscribersPool.start(initialCheckpoint);
       return advance(); // should return false if no input is currently available
     } catch (TransientKinesisException e) {
       throw new IOException(e);
     }
   }
 
+  private EFOShardSubscribersPool shardSubscribersPool() {
+    return checkStateNotNull(shardSubscribersPool, "Reader was not started");
+  }
+
   @Override
   public boolean advance() throws IOException {
-    currentRecord = shardSubscribersPool.get().getNextRecord();
+    currentRecord = shardSubscribersPool().getNextRecord();
     return currentRecord != null;
   }
 
@@ -96,7 +99,7 @@ public class KinesisEnhancedFanOutReader extends UnboundedSource.UnboundedReader
   public void close() throws IOException {
     try {
       try (AutoCloseable c = kinesis) {
-        boolean isStoppedCleanly = shardSubscribersPool.get().stop();
+        boolean isStoppedCleanly = shardSubscribersPool().stop();
         if (!isStoppedCleanly) {
           LOG.warn("Pool was not stopped correctly");
         }
@@ -110,12 +113,12 @@ public class KinesisEnhancedFanOutReader extends UnboundedSource.UnboundedReader
 
   @Override
   public Instant getWatermark() {
-    return shardSubscribersPool.get().getWatermark();
+    return shardSubscribersPool().getWatermark();
   }
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    return shardSubscribersPool.get().getCheckpointMark();
+    return shardSubscribersPool().getCheckpointMark();
   }
 
   @Override
