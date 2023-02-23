@@ -32,10 +32,12 @@ resource "null_resource" "enable_cf_admin" {
   provisioner "local-exec" {
     command = "gcloud projects add-iam-policy-binding ${var.project_id} --member=user:$(gcloud config get-value core/account) --role=roles/cloudfunctions.admin"
   }
+  depends_on = [google_project_service.required_services]
 }
 
 resource "null_resource" "enable_firebase_admin" {
   provisioner "local-exec" {
     command = "gcloud projects add-iam-policy-binding ${var.project_id} --member=user:$(gcloud config get-value core/account) --role=roles/firebase.admin"
   }
+  depends_on = [google_project_service.required_services]
 }

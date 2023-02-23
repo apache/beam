@@ -34,7 +34,7 @@ This guide shows you how to deploy Tour of Beam environment on Google Cloud Plat
 
 3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
 
-4. DNS name for your Tour of Beam deployment instance
+4. DNS name for your Tour of Beam deployment instance (or use subdomain)
 
 5. OS with installed software listed below:
 
@@ -97,7 +97,7 @@ firebase login --no-localhost
 
 7. Run the following command from the top level repository folder ("beam") to deploy the Tour of Beam Frontend infrastructure:
 ```
-./gradlew --info learning:tour-of-beam:terraform:InitFrontend -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name"
+./gradlew learning:tour-of-beam:terraform:InitFrontend -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name"
 ```
 Where:
 - **project_id** - name of your GCP Project ID
