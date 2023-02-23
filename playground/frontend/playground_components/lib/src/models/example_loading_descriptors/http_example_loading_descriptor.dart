@@ -19,11 +19,9 @@
 import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
-import 'sdk_aware_example_loading_descriptor.dart';
 
 /// Describes an example with the code to be fetched from [uri].
-class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor
-    implements SdkAwareExampleLoadingDescriptor {
+class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   @override
   final Sdk sdk;
 

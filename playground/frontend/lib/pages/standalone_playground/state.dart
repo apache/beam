@@ -23,7 +23,7 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../controllers/factories.dart';
 import '../../modules/examples/models/example_loading_descriptors/no_url_example_loading_descriptor.dart';
-import '../../services/analytics/events/constants.dart';
+import '../../services/analytics/events/loaded.dart';
 import '../enum.dart';
 import 'path.dart';
 
@@ -52,6 +52,15 @@ class StandalonePlaygroundNotifier extends ChangeNotifier
     PlaygroundComponents.analyticsService.defaultEventParameters = {
       EventParams.app: PagesEnum.standalonePlayground.name,
     };
+
+    // Note that for default example `null` is sent for `snippet`
+    // because it is not known at this point.
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      LoadedAnalyticsEvent(
+        sdk: initialDescriptor.initialSnippetSdk,
+        snippet: initialDescriptor.initialSnippetToken,
+      ),
+    );
   }
 
   void _onPlaygroundControllerChanged() {

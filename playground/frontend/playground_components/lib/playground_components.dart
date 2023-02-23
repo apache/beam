@@ -41,7 +41,6 @@ export 'src/models/example_loading_descriptors/empty_example_loading_descriptor.
 export 'src/models/example_loading_descriptors/example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/examples_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/http_example_loading_descriptor.dart';
-export 'src/models/example_loading_descriptors/sdk_aware_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 export 'src/models/example_view_options.dart';

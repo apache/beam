@@ -24,6 +24,7 @@ const _key = 'default';
 
 /// Describes a single loadable example that is default for its [sdk].
 class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
 
   const CatalogDefaultExampleLoadingDescriptor({

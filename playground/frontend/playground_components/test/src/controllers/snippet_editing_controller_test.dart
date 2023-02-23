@@ -209,7 +209,7 @@ void main() async {
       });
 
       test('Unchanged, changed', () {
-        final descriptors = <SdkAwareExampleLoadingDescriptor>[
+        final descriptors = <ExampleLoadingDescriptor>[
           HttpExampleLoadingDescriptor(
             sdk: Sdk.go,
             uri: Uri.parse('https://example.com'),

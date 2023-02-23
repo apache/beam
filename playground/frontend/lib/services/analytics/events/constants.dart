@@ -17,6 +17,7 @@
  */
 
 class PlaygroundAnalyticsEvents {
+  static const loaded = 'loaded';
   static const newExample = 'new_example';
   static const shareableCopied = 'shareable_copied';
   static const shareCodeClicked = 'share_code_clicked';

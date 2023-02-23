@@ -33,6 +33,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   final Complexity? complexity;
 
+  @override
   final Sdk sdk;
 
   const ContentExampleLoadingDescriptor({
