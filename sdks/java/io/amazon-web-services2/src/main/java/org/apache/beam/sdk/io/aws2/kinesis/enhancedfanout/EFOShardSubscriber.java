@@ -151,7 +151,8 @@ class EFOShardSubscriber {
             done.completeExceptionally(error);
           } else if (state != STOPPED) {
             String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
-            if (error == null && lastContinuationSequenceNumber == null) {
+            // FIXME must resubscribe from initial starting position if retryable error && lastContinuationSequenceNumber == null
+            if (lastContinuationSequenceNumber == null) {
               done.complete(null); // completely consumed this shard, done
             } else if (error != null && inFlight.get() == IN_FLIGHT_LIMIT) {
               state = PAUSED;
