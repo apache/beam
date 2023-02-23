@@ -112,7 +112,8 @@ tasks.register("mongodbioIT") {
   doFirst {
     exec {
       executable 'sh'
-      args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:latest"
+      // TODO(https://github.com/apache/beam/issues/25359) switch back to use latest container when issue resolved.
+      args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:6.0.3"
     }
   }
 
@@ -280,11 +281,39 @@ task tfxInferenceTest {
     }
 }
 
+// TensorFlow RunInference IT tests
+task tensorflowInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/tensorflow_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_tf and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'torchInferenceTest',
   'sklearnInferenceTest',
-  'tfxInferenceTest'
+  'tfxInferenceTest',
+  'tensorflowInferenceTest'
   ]
 }

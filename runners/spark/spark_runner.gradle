@@ -161,12 +161,11 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:extensions:avro")
   implementation library.java.jackson_annotations
   implementation library.java.slf4j_api
   implementation library.java.joda_time
-  if (project.property("spark_version").startsWith("3.")) {
-    implementation library.java.commons_lang3
-  }
+  implementation library.java.commons_lang3
   implementation library.java.args4j
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
@@ -177,15 +176,9 @@ dependencies {
     provided "$component:$spark_version"
   }
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
-  if (project.property("spark_scala_version").equals("2.11")) {
-    implementation "io.dropwizard.metrics:metrics-core:3.1.5" // version used by Spark 2.4
-    compileOnly "org.scala-lang:scala-library:2.11.12"
-    runtimeOnly library.java.jackson_module_scala_2_11
-  } else {
-    implementation "io.dropwizard.metrics:metrics-core:4.1.1" // version used by Spark 3.1
-    compileOnly "org.scala-lang:scala-library:2.12.15"
-    runtimeOnly library.java.jackson_module_scala_2_12
-  }
+  implementation "io.dropwizard.metrics:metrics-core:4.1.1" // version used by Spark 3.1
+  compileOnly "org.scala-lang:scala-library:2.12.15"
+  runtimeOnly library.java.jackson_module_scala_2_12
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
   provided library.java.hadoop_common
@@ -199,6 +192,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:harness")
   testImplementation library.java.avro
   testImplementation "org.apache.kafka:kafka_$spark_scala_version:2.4.1"

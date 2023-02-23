@@ -82,7 +82,9 @@ class EmbeddedActions extends StatelessWidget {
       '',
     );
 
-    final descriptor = controller.getLoadingDescriptor();
+    final descriptor =
+        controller.getLoadingDescriptor().copyWithoutViewOptions();
+
     javaScriptPostMessageRepeated(
       window,
       SetContentMessage(

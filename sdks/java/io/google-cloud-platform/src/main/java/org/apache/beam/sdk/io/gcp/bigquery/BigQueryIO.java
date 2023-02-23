@@ -68,14 +68,17 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
-import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -540,7 +543,15 @@ public class BigQueryIO {
    * A formatting function that maps a TableRow to itself. This allows sending a {@code
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
-  static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER = input -> input;
+  static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER =
+      SerializableFunctions.identity();;
+
+  /**
+   * A formatting function that maps a GenericRecord to itself. This allows sending a {@code
+   * PCollection<GenericRecord>} directly to BigQueryIO.Write.
+   */
+  static final SerializableFunction<AvroWriteRequest<GenericRecord>, GenericRecord>
+      GENERIC_RECORD_IDENTITY_FORMATTER = AvroWriteRequest::getElement;
 
   static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
@@ -990,7 +1001,7 @@ public class BigQueryIO {
        * Specifies that a query should be run with a BATCH priority.
        *
        * <p>Batch mode queries are queued by BigQuery. These are started as soon as idle resources
-       * are available, usually within a few minutes. Batch queries don’t count towards your
+       * are available, usually within a few minutes. Batch queries don't count towards your
        * concurrent rate limit.
        */
       BATCH
@@ -1171,11 +1182,11 @@ public class BigQueryIO {
 
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
       Pipeline p = input.getPipeline();
+      BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
       final BigQuerySourceDef sourceDef = createSourceDef();
 
       Schema beamSchema = null;
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
         beamSchema = sourceDef.getBeamSchema(bqOptions);
         beamSchema = getFinalSchema(beamSchema, getSelectedFields());
       }
@@ -1183,7 +1194,7 @@ public class BigQueryIO {
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
       if (getMethod() == TypedRead.Method.DIRECT_READ) {
-        return expandForDirectRead(input, coder, beamSchema);
+        return expandForDirectRead(input, coder, beamSchema, bqOptions);
       }
 
       checkArgument(
@@ -1361,7 +1372,7 @@ public class BigQueryIO {
     }
 
     private PCollection<T> expandForDirectRead(
-        PBegin input, Coder<T> outputCoder, Schema beamSchema) {
+        PBegin input, Coder<T> outputCoder, Schema beamSchema, BigQueryOptions bqOptions) {
       ValueProvider<TableReference> tableProvider = getTableProvider();
       Pipeline p = input.getPipeline();
       if (tableProvider != null) {
@@ -1408,6 +1419,7 @@ public class BigQueryIO {
       //
 
       PCollectionView<String> jobIdTokenView;
+      PCollectionTuple tuple;
       PCollection<T> rows;
 
       if (!getWithTemplateCompatibility()) {
@@ -1438,108 +1450,46 @@ public class BigQueryIO {
         jobIdTokenView = jobIdTokenCollection.apply("ViewId", View.asSingleton());
 
         TupleTag<ReadStream> readStreamsTag = new TupleTag<>();
+        TupleTag<List<ReadStream>> listReadStreamsTag = new TupleTag<>();
         TupleTag<ReadSession> readSessionTag = new TupleTag<>();
         TupleTag<String> tableSchemaTag = new TupleTag<>();
 
-        PCollectionTuple tuple =
-            jobIdTokenCollection.apply(
-                "RunQueryJob",
-                ParDo.of(
-                        new DoFn<String, ReadStream>() {
-                          @ProcessElement
-                          public void processElement(ProcessContext c) throws Exception {
-                            BigQueryOptions options =
-                                c.getPipelineOptions().as(BigQueryOptions.class);
-                            String jobUuid = c.element();
-                            // Execute the query and get the destination table holding the results.
-                            // The getTargetTable call runs a new instance of the query and returns
-                            // the destination table created to hold the results.
-                            BigQueryStorageQuerySource<T> querySource =
-                                createStorageQuerySource(jobUuid, outputCoder);
-                            Table queryResultTable = querySource.getTargetTable(options);
+        if (!bqOptions.getEnableBundling()) {
+          tuple =
+              createTupleForDirectRead(
+                  jobIdTokenCollection,
+                  outputCoder,
+                  readStreamsTag,
+                  readSessionTag,
+                  tableSchemaTag);
+          tuple.get(readStreamsTag).setCoder(ProtoCoder.of(ReadStream.class));
+        } else {
+          tuple =
+              createTupleForDirectReadWithStreamBundle(
+                  jobIdTokenCollection,
+                  outputCoder,
+                  listReadStreamsTag,
+                  readSessionTag,
+                  tableSchemaTag);
+          tuple.get(listReadStreamsTag).setCoder(ListCoder.of(ProtoCoder.of(ReadStream.class)));
+        }
 
-                            // Create a read session without specifying a desired stream count and
-                            // let the BigQuery storage server pick the number of streams.
-                            CreateReadSessionRequest request =
-                                CreateReadSessionRequest.newBuilder()
-                                    .setParent(
-                                        BigQueryHelpers.toProjectResourceName(
-                                            options.getBigQueryProject() == null
-                                                ? options.getProject()
-                                                : options.getBigQueryProject()))
-                                    .setReadSession(
-                                        ReadSession.newBuilder()
-                                            .setTable(
-                                                BigQueryHelpers.toTableResourceName(
-                                                    queryResultTable.getTableReference()))
-                                            .setDataFormat(DataFormat.AVRO))
-                                    .setMaxStreamCount(0)
-                                    .build();
-
-                            ReadSession readSession;
-                            try (StorageClient storageClient =
-                                getBigQueryServices().getStorageClient(options)) {
-                              readSession = storageClient.createReadSession(request);
-                            }
-
-                            for (ReadStream readStream : readSession.getStreamsList()) {
-                              c.output(readStream);
-                            }
-
-                            c.output(readSessionTag, readSession);
-                            c.output(
-                                tableSchemaTag,
-                                BigQueryHelpers.toJsonString(queryResultTable.getSchema()));
-                          }
-                        })
-                    .withOutputTags(
-                        readStreamsTag, TupleTagList.of(readSessionTag).and(tableSchemaTag)));
-
-        tuple.get(readStreamsTag).setCoder(ProtoCoder.of(ReadStream.class));
         tuple.get(readSessionTag).setCoder(ProtoCoder.of(ReadSession.class));
         tuple.get(tableSchemaTag).setCoder(StringUtf8Coder.of());
-
         PCollectionView<ReadSession> readSessionView =
             tuple.get(readSessionTag).apply("ReadSessionView", View.asSingleton());
         PCollectionView<String> tableSchemaView =
             tuple.get(tableSchemaTag).apply("TableSchemaView", View.asSingleton());
 
-        rows =
-            tuple
-                .get(readStreamsTag)
-                .apply(Reshuffle.viaRandomKey())
-                .apply(
-                    ParDo.of(
-                            new DoFn<ReadStream, T>() {
-                              @ProcessElement
-                              public void processElement(ProcessContext c) throws Exception {
-                                ReadSession readSession = c.sideInput(readSessionView);
-                                TableSchema tableSchema =
-                                    BigQueryHelpers.fromJsonString(
-                                        c.sideInput(tableSchemaView), TableSchema.class);
-                                ReadStream readStream = c.element();
-
-                                BigQueryStorageStreamSource<T> streamSource =
-                                    BigQueryStorageStreamSource.create(
-                                        readSession,
-                                        readStream,
-                                        tableSchema,
-                                        getParseFn(),
-                                        outputCoder,
-                                        getBigQueryServices());
-
-                                // Read all of the data from the stream. In the event that this work
-                                // item fails and is rescheduled, the same rows will be returned in
-                                // the same order.
-                                BoundedSource.BoundedReader<T> reader =
-                                    streamSource.createReader(c.getPipelineOptions());
-                                for (boolean more = reader.start(); more; more = reader.advance()) {
-                                  c.output(reader.getCurrent());
-                                }
-                              }
-                            })
-                        .withSideInputs(readSessionView, tableSchemaView))
-                .setCoder(outputCoder);
+        if (!bqOptions.getEnableBundling()) {
+          rows =
+              createPCollectionForDirectRead(
+                  tuple, outputCoder, readStreamsTag, readSessionView, tableSchemaView);
+        } else {
+          rows =
+              createPCollectionForDirectReadWithStreamBundle(
+                  tuple, outputCoder, listReadStreamsTag, readSessionView, tableSchemaView);
+        }
       }
 
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
@@ -1583,6 +1533,235 @@ public class BigQueryIO {
             getFromBeamRowFn().apply(beamSchema));
       }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
+    }
+
+    private PCollectionTuple createTupleForDirectRead(
+        PCollection<String> jobIdTokenCollection,
+        Coder<T> outputCoder,
+        TupleTag<ReadStream> readStreamsTag,
+        TupleTag<ReadSession> readSessionTag,
+        TupleTag<String> tableSchemaTag) {
+      PCollectionTuple tuple =
+          jobIdTokenCollection.apply(
+              "RunQueryJob",
+              ParDo.of(
+                      new DoFn<String, ReadStream>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext c) throws Exception {
+                          BigQueryOptions options =
+                              c.getPipelineOptions().as(BigQueryOptions.class);
+                          String jobUuid = c.element();
+                          // Execute the query and get the destination table holding the results.
+                          // The getTargetTable call runs a new instance of the query and returns
+                          // the destination table created to hold the results.
+                          BigQueryStorageQuerySource<T> querySource =
+                              createStorageQuerySource(jobUuid, outputCoder);
+                          Table queryResultTable = querySource.getTargetTable(options);
+
+                          // Create a read session without specifying a desired stream count and
+                          // let the BigQuery storage server pick the number of streams.
+                          CreateReadSessionRequest request =
+                              CreateReadSessionRequest.newBuilder()
+                                  .setParent(
+                                      BigQueryHelpers.toProjectResourceName(
+                                          options.getBigQueryProject() == null
+                                              ? options.getProject()
+                                              : options.getBigQueryProject()))
+                                  .setReadSession(
+                                      ReadSession.newBuilder()
+                                          .setTable(
+                                              BigQueryHelpers.toTableResourceName(
+                                                  queryResultTable.getTableReference()))
+                                          .setDataFormat(DataFormat.AVRO))
+                                  .setMaxStreamCount(0)
+                                  .build();
+
+                          ReadSession readSession;
+                          try (StorageClient storageClient =
+                              getBigQueryServices().getStorageClient(options)) {
+                            readSession = storageClient.createReadSession(request);
+                          }
+
+                          for (ReadStream readStream : readSession.getStreamsList()) {
+                            c.output(readStream);
+                          }
+
+                          c.output(readSessionTag, readSession);
+                          c.output(
+                              tableSchemaTag,
+                              BigQueryHelpers.toJsonString(queryResultTable.getSchema()));
+                        }
+                      })
+                  .withOutputTags(
+                      readStreamsTag, TupleTagList.of(readSessionTag).and(tableSchemaTag)));
+
+      return tuple;
+    }
+
+    private PCollectionTuple createTupleForDirectReadWithStreamBundle(
+        PCollection<String> jobIdTokenCollection,
+        Coder<T> outputCoder,
+        TupleTag<List<ReadStream>> listReadStreamsTag,
+        TupleTag<ReadSession> readSessionTag,
+        TupleTag<String> tableSchemaTag) {
+
+      PCollectionTuple tuple =
+          jobIdTokenCollection.apply(
+              "RunQueryJob",
+              ParDo.of(
+                      new DoFn<String, List<ReadStream>>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext c) throws Exception {
+                          BigQueryOptions options =
+                              c.getPipelineOptions().as(BigQueryOptions.class);
+                          String jobUuid = c.element();
+                          // Execute the query and get the destination table holding the results.
+                          // The getTargetTable call runs a new instance of the query and returns
+                          // the destination table created to hold the results.
+                          BigQueryStorageQuerySource<T> querySource =
+                              createStorageQuerySource(jobUuid, outputCoder);
+                          Table queryResultTable = querySource.getTargetTable(options);
+
+                          // Create a read session without specifying a desired stream count and
+                          // let the BigQuery storage server pick the number of streams.
+                          CreateReadSessionRequest request =
+                              CreateReadSessionRequest.newBuilder()
+                                  .setParent(
+                                      BigQueryHelpers.toProjectResourceName(
+                                          options.getBigQueryProject() == null
+                                              ? options.getProject()
+                                              : options.getBigQueryProject()))
+                                  .setReadSession(
+                                      ReadSession.newBuilder()
+                                          .setTable(
+                                              BigQueryHelpers.toTableResourceName(
+                                                  queryResultTable.getTableReference()))
+                                          .setDataFormat(DataFormat.AVRO))
+                                  .setMaxStreamCount(0)
+                                  .build();
+
+                          ReadSession readSession;
+                          try (StorageClient storageClient =
+                              getBigQueryServices().getStorageClient(options)) {
+                            readSession = storageClient.createReadSession(request);
+                          }
+                          int streamIndex = 0;
+                          int streamsPerBundle = 10;
+                          List<ReadStream> streamBundle = Lists.newArrayList();
+                          for (ReadStream readStream : readSession.getStreamsList()) {
+                            streamIndex++;
+                            streamBundle.add(readStream);
+                            if (streamIndex % streamsPerBundle == 0) {
+                              c.output(streamBundle);
+                              streamBundle = Lists.newArrayList();
+                            }
+                          }
+                          if (streamIndex % streamsPerBundle != 0) {
+                            c.output(streamBundle);
+                          }
+                          c.output(readSessionTag, readSession);
+                          c.output(
+                              tableSchemaTag,
+                              BigQueryHelpers.toJsonString(queryResultTable.getSchema()));
+                        }
+                      })
+                  .withOutputTags(
+                      listReadStreamsTag, TupleTagList.of(readSessionTag).and(tableSchemaTag)));
+
+      return tuple;
+    }
+
+    private PCollection<T> createPCollectionForDirectRead(
+        PCollectionTuple tuple,
+        Coder<T> outputCoder,
+        TupleTag<ReadStream> readStreamsTag,
+        PCollectionView<ReadSession> readSessionView,
+        PCollectionView<String> tableSchemaView) {
+      PCollection<T> rows =
+          tuple
+              .get(readStreamsTag)
+              .apply(Reshuffle.viaRandomKey())
+              .apply(
+                  ParDo.of(
+                          new DoFn<ReadStream, T>() {
+                            @ProcessElement
+                            public void processElement(ProcessContext c) throws Exception {
+                              ReadSession readSession = c.sideInput(readSessionView);
+                              TableSchema tableSchema =
+                                  BigQueryHelpers.fromJsonString(
+                                      c.sideInput(tableSchemaView), TableSchema.class);
+                              ReadStream readStream = c.element();
+
+                              BigQueryStorageStreamSource<T> streamSource =
+                                  BigQueryStorageStreamSource.create(
+                                      readSession,
+                                      readStream,
+                                      tableSchema,
+                                      getParseFn(),
+                                      outputCoder,
+                                      getBigQueryServices());
+
+                              // Read all of the data from the stream. In the event that this work
+                              // item fails and is rescheduled, the same rows will be returned in
+                              // the same order.
+                              BoundedSource.BoundedReader<T> reader =
+                                  streamSource.createReader(c.getPipelineOptions());
+                              for (boolean more = reader.start(); more; more = reader.advance()) {
+                                c.output(reader.getCurrent());
+                              }
+                            }
+                          })
+                      .withSideInputs(readSessionView, tableSchemaView))
+              .setCoder(outputCoder);
+
+      return rows;
+    }
+
+    private PCollection<T> createPCollectionForDirectReadWithStreamBundle(
+        PCollectionTuple tuple,
+        Coder<T> outputCoder,
+        TupleTag<List<ReadStream>> listReadStreamsTag,
+        PCollectionView<ReadSession> readSessionView,
+        PCollectionView<String> tableSchemaView) {
+      PCollection<T> rows =
+          tuple
+              .get(listReadStreamsTag)
+              .apply(Reshuffle.viaRandomKey())
+              .apply(
+                  ParDo.of(
+                          new DoFn<List<ReadStream>, T>() {
+                            @ProcessElement
+                            public void processElement(ProcessContext c) throws Exception {
+                              ReadSession readSession = c.sideInput(readSessionView);
+                              TableSchema tableSchema =
+                                  BigQueryHelpers.fromJsonString(
+                                      c.sideInput(tableSchemaView), TableSchema.class);
+                              List<ReadStream> streamBundle = c.element();
+
+                              BigQueryStorageStreamBundleSource<T> streamSource =
+                                  BigQueryStorageStreamBundleSource.create(
+                                      readSession,
+                                      streamBundle,
+                                      tableSchema,
+                                      getParseFn(),
+                                      outputCoder,
+                                      getBigQueryServices(),
+                                      1L);
+
+                              // Read all of the data from the stream. In the event that this work
+                              // item fails and is rescheduled, the same rows will be returned in
+                              // the same order.
+                              BoundedReader<T> reader =
+                                  streamSource.createReader(c.getPipelineOptions());
+                              for (boolean more = reader.start(); more; more = reader.advance()) {
+                                c.output(reader.getCurrent());
+                              }
+                            }
+                          })
+                      .withSideInputs(readSessionView, tableSchemaView))
+              .setCoder(outputCoder);
+
+      return rows;
     }
 
     @Override
@@ -1926,7 +2105,16 @@ public class BigQueryIO {
    * Write#withFormatFunction(SerializableFunction)}.
    */
   public static Write<TableRow> writeTableRows() {
-    return BigQueryIO.<TableRow>write().withFormatFunction(IDENTITY_FORMATTER);
+    return BigQueryIO.<TableRow>write().withFormatFunction(TABLE_ROW_IDENTITY_FORMATTER);
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord
+   * GenericRecords} to a BigQuery table.
+   */
+  public static Write<GenericRecord> writeGenericRecords() {
+    return BigQueryIO.<GenericRecord>write()
+        .withAvroFormatFunction(GENERIC_RECORD_IDENTITY_FORMATTER);
   }
 
   /** Implementation of {@link #write}. */
@@ -2897,15 +3085,6 @@ public class BigQueryIO {
             !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
       }
 
-      if (method != Write.Method.FILE_LOADS) {
-        // we only support writing avro for FILE_LOADS
-        checkArgument(
-            getAvroRowWriterFactory() == null,
-            "Writing avro formatted data is only supported for FILE_LOADS, however "
-                + "the method was %s",
-            method);
-      }
-
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
@@ -3182,6 +3361,26 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsBeamRow<>(
                   dynamicDestinations, elementSchema, elementToRowFunction);
+        } else if (getAvroRowWriterFactory() != null) {
+          // we can configure the avro to storage write api proto converter for this
+          // assuming the format function returns an Avro GenericRecord
+          // and there is a schema defined
+          checkArgument(
+              getJsonSchema() != null
+                  || getDynamicDestinations() != null
+                  || getSchemaFromView() != null,
+              "A schema must be provided for avro rows to be used with StorageWrite API.");
+
+          RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>
+              recordWriterFactory =
+                  (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
+                      rowWriterFactory;
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
+              Optional.ofNullable(getAvroSchemaFactory()).orElse(DEFAULT_AVRO_SCHEMA_FACTORY);
+
+          storageApiDynamicDestinations =
+              new StorageApiDynamicDestinationsGenericRecord<>(
+                  dynamicDestinations, avroSchemaFactory, recordWriterFactory.getToAvroFn());
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
               (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;

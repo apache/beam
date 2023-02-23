@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -63,7 +65,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </ul>
  */
 public final class UnboundedScheduledExecutorService implements ScheduledExecutorService {
-
   /**
    * A {@link FutureTask} that handles periodically rescheduling tasks.
    *
@@ -181,7 +182,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   private final AtomicLong sequencer = new AtomicLong();
 
   private final NanoClock clock;
-  private final ThreadPoolExecutor threadPoolExecutor;
+  @VisibleForTesting final ThreadPoolExecutor threadPoolExecutor;
   @VisibleForTesting final PriorityQueue<ScheduledFutureTask<?>> tasks;
   private final AbstractExecutorService invokeMethodsAdapter;
   private final Future<?> launchTasks;
@@ -201,9 +202,26 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
         new ThreadPoolExecutor(
             0,
             Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
-            Long.MAX_VALUE,
-            TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
-            new SynchronousQueue<>(),
+            // Put a high-timeout on non-core threads. This reduces memory for per-thread caches
+            // over time.
+            1,
+            HOURS,
+            new SynchronousQueue<Runnable>() {
+              @Override
+              public boolean offer(Runnable r) {
+                try {
+                  // By blocking for a little we hope to delay thread creation if there are existing
+                  // threads that will eventually return. We expect this timeout to be very rarely
+                  // hit as the high-watermark of necessary threads will remain for up to an hour.
+                  if (offer(r, 10, MILLISECONDS)) {
+                    return true;
+                  }
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return false;
+              }
+            },
             threadFactoryBuilder.build());
 
     // Create an internal adapter so that execute does not re-wrap the ScheduledFutureTask again

@@ -254,8 +254,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:samza:build")
   dependsOn(":runners:samza:job-server:build")
-  dependsOn(":runners:spark:2:build")
-  dependsOn(":runners:spark:2:job-server:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
@@ -265,6 +263,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:expansion-service:build")
   dependsOn(":sdks:java:expansion-service:app:build")
   dependsOn(":sdks:java:extensions:arrow:build")
+  dependsOn(":sdks:java:extensions:avro:build")
   dependsOn(":sdks:java:extensions:euphoria:build")
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:build")
   dependsOn(":sdks:java:extensions:jackson:build")
@@ -340,7 +339,6 @@ tasks.register("javaPostCommitSickbay") {
   dependsOn(":runners:flink:1.13:validatesRunnerSickbay")
   dependsOn(":runners:flink:1.14:validatesRunnerSickbay")
   dependsOn(":runners:flink:1.15:validatesRunnerSickbay")
-  dependsOn(":runners:spark:2:job-server:validatesRunnerSickbay")
   dependsOn(":runners:spark:3:job-server:validatesRunnerSickbay")
   dependsOn(":runners:direct-java:validatesRunnerSickbay")
   dependsOn(":runners:portability:java:validatesRunnerSickbay")
@@ -353,7 +351,6 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
-  dependsOn(":runners:spark:2:hadoopVersionsTest")
   dependsOn(":runners:spark:3:hadoopVersionsTest")
 }
 
@@ -454,7 +451,6 @@ tasks.register("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
   dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:direct:py37:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py37:mongodbioIT")
   dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
   dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
@@ -548,7 +544,6 @@ tasks.register("typescriptPreCommit") {
 }
 
 tasks.register("pushAllDockerImages") {
-  dependsOn(":runners:spark:2:job-server:container:dockerPush")
   dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")

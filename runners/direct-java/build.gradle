@@ -26,7 +26,8 @@ def dependOnProjects = [":runners:core-construction-java",
                         ":runners:core-java",
                         ":runners:local-java",
                         ":runners:java-fn-execution",
-                        ":sdks:java:fn-execution"
+                        ":sdks:java:fn-execution",
+                        ":sdks:java:extensions:avro"
                         ]
 
 applyJavaNature(
@@ -96,6 +97,7 @@ dependencies {
   permitUnusedDeclared library.java.vendored_grpc_1_48_1
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
+  permitUnusedDeclared project(":sdks:java:extensions:avro")
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
