@@ -137,6 +137,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     } else {
       _emptyPlayground();
     }
+    notifyListeners();
   }
 
   Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
