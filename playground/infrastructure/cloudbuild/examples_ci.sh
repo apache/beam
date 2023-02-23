@@ -15,147 +15,196 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Added set -x to show output into cloud build console to the bucket
-set -x
+# Script validates examples against runners (Java, Python, Go) built as local containers from a current branch
+#
+# Command line arguments:
+# LOG_PATH - full path lo a log file. Output is also logged to stdout (Default: /dev/null)
+# BEAM_ROOT_DIR - Path (full) to cloned repo root. Used by ci_cd.py (Default: /home/root/beam)
+# PROJECT_ID - GCP Project ID. Used by ci_cd.py (Default: test)
+# BEAM_CONCURRENCY - Number of examples to run in parallel. Used by ci_cd.py (Default: 4)
+# BEAM_VERSION - version of BEAM SDK to build containers
+# SUBDIRS - array of paths (relative to beam repo root) to search changed examples (Default: ./learning/katas ./examples ./sdks)
+# COMMIT - Git commit hash to build containers from (Default: HEAD)
+# DIFF_BASE - Git branch to compare with $COMMIT to look for changed examples (Default: origin/master)
+# SDKS - Array of SDKS to validate (Default: java python go)
+# ORIGIN - examples origin (Default: PG_EXAMPLES)
+# ALLOWLIST - List of paths (relative to the repo root) not in examples (SUBDIRS) that cause reb
 
-export GRADLE_VERSION=7.5.1
-export GO_VERSION=1.18
-
-#Install python java8 and dependencies
-apt-get update > /dev/null
-apt update > /dev/null
-export DEBIAN_FRONTEND=noninteractive
-
-# Env configuration commands
-apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
-add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
-apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
-apt install --reinstall python3.8-distutils > /dev/null
-pip install --upgrade google-api-python-client > /dev/null
-python3.8 -m pip install pip --upgrade > /dev/null
-ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
-apt install python3.8-venv > /dev/null
-pip install -r playground/infrastructure/requirements.txt > /dev/null
-
-# Install jdk and gradle
-apt-get install openjdk-8-jdk -y > /dev/null
-curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip > /dev/null
-unzip gradle-${GRADLE_VERSION}-bin.zip > /dev/null
-export PATH=$PATH:gradle-${GRADLE_VERSION}/bin > /dev/null
-
-# Install go
-curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
-tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz > /dev/null
-export PATH=$PATH:/usr/local/go/bin > /dev/null
-
-# Install Docker
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/null
-add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
-apt update > /dev/null && apt install -y docker-ce > /dev/null
-
-# Assigning required values for CI_CD.py script
-export \
-ORIGIN=PG_EXAMPLES \
-STEP=CI \
-SUBDIRS="./learning/katas ./examples ./sdks" \
-GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
-BEAM_ROOT_DIR="../.." \
-SDK_CONFIG="../sdks.yaml" \
-BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
-BEAM_CONCURRENCY=4 \
-BEAM_VERSION=${beam_version} \
-sdks=("java" "python" "go") \
-allowlist=("playground/infrastructure" "playground/backend")
-
-# Check whether commit is tagged
-tag_name=$(git tag --points-at $commit_sha)
-
-# Get diff
-if [ -z $base_ref ] || [ $base_ref == "master" ]
-then
-    base_ref=origin/master
-fi
-diff=$(git diff --name-only $base_ref $commit_sha | tr '\n' ' ')
-
-# Check if there are Examples as
-for sdk in "${sdks[@]}"
+for ARGUMENT in "$@"
 do
-      cd playground/infrastructure
-      python3 checker.py \
-      --verbose \
-      --sdk SDK_"${sdk^^}" \
-      --allowlist "${allowlist[@]}" \
-      --paths ${diff}
-      checker_status=$?
-      cd -
-      if [ $checker_status -eq 0 ]
-      then
-          echo "Checker has found changed examples" >> ${log_location}
-          example_has_changed=True
-      elif [ $checker_status -eq 11 ]
-      then
-          echo "Checker did not find any changed examples" >> ${log_location}
-          example_has_changed=False
-      else
-          echo "Error: Checker is broken" >> ${log_location}
-          exit 1
-      fi
+   KEY=$(echo $ARGUMENT | cut -f1 -d=)
 
-# Run main logic if examples have been changed
-      if [[ $example_has_changed == "True" ]]
-      then
-            if [ "${tag_name}" ]
-            then
-                DOCKERTAG=${tag_name}
-            elif [ "${commit_sha}" ]
-            then
-                DOCKERTAG=${commit_sha}
-            else
-                echo "Error: DOCKERTAG variable is empty. Exiting..." >> ${log_location}
-                exit 1
-            fi
+   KEY_LENGTH=${#KEY}
+   VALUE="${ARGUMENT:$KEY_LENGTH+1}"
 
-            if [ "$sdk" == "python" ]
-            then
-                # builds apache/beam_python3.7_sdk:$DOCKERTAG image
-                ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${DOCKERTAG}
-                # and set SDK_TAG to DOCKERTAG so that the next step would find it
-                SDK_TAG=${DOCKERTAG}
-            else
-                unset SDK_TAG
-            fi
-
-            opts=" -Pdocker-tag=${DOCKERTAG}"
-            if [ -n "$SDK_TAG" ]
-            then
-                opts="${opts} -Psdk-tag=${SDK_TAG}"
-            fi
-
-            if [ "$sdk" == "java" ]
-            then
-                # Java uses a fixed BEAM_VERSION
-                opts="$opts -Pbase-image=apache/beam_java8_sdk:${beam_version}"
-            fi
-
-            ./gradlew -i playground:backend:containers:"${sdk}":docker ${opts}
-
-            IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
-
-
-            docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} $IMAGE_TAG
-            sleep 10
-            export SERVER_ADDRESS=container-${sdk}:8080
-            cd playground/infrastructure
-            python3 ci_cd.py \
-            --step ${STEP} \
-            --sdk SDK_"${sdk^^}" \
-            --origin ${ORIGIN} \
-            --subdirs ${SUBDIRS} >> ${log_location}
-
-            docker stop container-${sdk}
-            docker rm container-${sdk}
-            cd -
-      else
-            echo "No changes in examples. CI stage is skipped" >> ${log_location}
-      fi
+   export "$KEY"="$VALUE"
 done
+
+export LOG_PATH=${LOG_PATH-"/dev/null"}
+export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/home/root/beam"}
+export PROJECT_ID=${PROJECT_ID-"test"}
+export BEAM_VERSION=${BEAM_VERSION-"2.44.0"}
+export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
+export SDKS=${SDKS-"java python go"}
+export COMMIT=${COMMIT-"HEAD"}
+export DIFF_BASE=${DIFF_BASE-"origin/master"}
+export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-"4"}
+export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
+export ALLOWLIST=${ALLOWLIST-"playground/backend"}
+# export ALLOWLIST=${ALLOWLIST-"playground/infrastructure playground/backend"}
+
+function LogOutput ()
+{
+    echo "$(date --utc '+%D %T') $1" >> $LOG_PATH
+    # CILOG keyword to simplify search over the global log
+    echo "CILOG $(date --utc '+%D %T') $1"
+}
+
+
+LogOutput "Input variables:
+            LOG_PATH=$LOG_PATH
+            BEAM_ROOT_DIR=$BEAM_ROOT_DIR
+            PROJECT_ID=$PROJECT_ID
+            BEAM_VERSION=$BEAM_VERSION
+            SUBDIRS=$SUBDIRS
+            SDKS=$SDKS
+            COMMIT=$COMMIT
+            BEAM_CONCURRENCY=$BEAM_CONCURRENCY
+            ORIGIN=$ORIGIN
+            ALLOWLIST=$ALLOWLIST"
+
+# Assigning constant values
+export STEP=CI 
+export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
+export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
+export GRADLE_VERSION=7.5.1
+export GO_VERSION=1.18 
+
+LogOutput "Installing python java8 and dependencies"
+## apt-get update > /dev/null
+## apt update > /dev/null
+## export DEBIAN_FRONTEND=noninteractive
+
+LogOutput "Installing Python environment"
+## apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
+## add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
+## apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
+## apt install --reinstall python3.8-distutils > /dev/null
+## pip install --upgrade google-api-python-client > /dev/null
+## python3.8 -m pip install pip --upgrade > /dev/null
+## ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
+## apt install python3.8-venv > /dev/null
+## pip install -r playground/infrastructure/requirements.txt > /dev/null
+
+LogOutput "Installing JDK and Gradle"
+## apt-get install openjdk-8-jdk -y > /dev/null
+## curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip > /dev/null
+## unzip gradle-${GRADLE_VERSION}-bin.zip > /dev/null
+## export PATH=$PATH:gradle-${GRADLE_VERSION}/bin > /dev/null
+
+LogOutput "Installing GO"
+## curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
+## tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz > /dev/null
+## export PATH=$PATH:/usr/local/go/bin > /dev/null
+
+LogOutput "Installing Docker"
+## curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/null
+## add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
+## apt update > /dev/null && apt install -y docker-ce > /dev/null
+
+tag_name=$(git tag --points-at $COMMIT)
+if [ "$tag_name" ]
+then
+    LogOutput "Commit $COMMIT is tagged with $tag_name"
+    DOCKERTAG=$tag_name
+else
+    LogOutput "Commit $COMMIT is not tagged"
+    DOCKERTAG=$COMMIT
+fi
+LogOutput "Docker tag for containers: $DOCKERTAG"
+
+diff_log=$(git diff --name-only $DIFF_BASE...$COMMIT)
+diff=($(echo "$diff_log" | tr '\n' ' '))
+LogOutput "Discovered changes introduced by $COMMIT relative to $DIFF_BASE in files:
+$diff_log"
+
+LogOutput "Looking for changes that require CI validation for [$SDKS] SDKs"
+allowlist_array=($ALLOWLIST)
+for sdk in $SDKS
+do
+    example_has_changed="UNKNOWN"
+    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
+    cd $BEAM_ROOT_DIR/playground/infrastructure
+    python3 checker.py \
+    --verbose \
+    --sdk SDK_"${sdk^^}" \
+    --allowlist "${allowlist_array[@]}" \
+    --paths "${diff[@]}"  >> ${LOG_PATH} 2>&1
+    checker_status=$?
+    cd $BEAM_ROOT_DIR
+    if [ $checker_status -eq 0 ]
+    then
+        LogOutput "Checker found changed examples for SDK_${sdk^^}"
+        example_has_changed=True
+    elif [ $checker_status -eq 11 ]
+    then
+        LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
+        example_has_changed=False
+    else
+        LogOutput "Error: Checker is broken. Exiting the script."
+        exit 1
+    fi
+
+    #Nothing to check
+    if [[ $example_has_changed != "True" ]]
+    then
+        LogOutput "No changes require validation for SDK_${sdk^^}"
+        continue
+    fi
+
+    docker_options="-Psdk-tag=${DOCKERTAG}"
+
+    # Special cases for Python and Java
+    if [ "$sdk" == "python" ]
+    then
+        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG"
+        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${DOCKERTAG}"
+        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${DOCKERTAG}
+        if [ $? -ne 0 ]
+        then
+            LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
+            continue
+        fi
+    elif [ "$sdk" == "java" ]
+    then
+        # Java is built from released base image instead of current commit
+        docker_options="-Psdk-tag=${BEAM_VERSION}"
+    fi
+
+    LogOutput "Buidling a container for $sdk runner"
+    LogOutput "./gradlew -i playground:backend:containers:"${sdk}":docker ${docker_options}"
+    ./gradlew -i playground:backend:containers:"${sdk}":docker ${docker_options}
+    if [ $? -ne 0 ]
+    then
+        LogOutput "Container build failed for $sdk runner"
+        continue
+    fi
+    LogOutput "Starting container for $sdk runner"
+    docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} apache/beam_playground-backend-${sdk}:${DOCKERTAG}
+    sleep 10
+    export SERVER_ADDRESS=container-${sdk}:8080
+
+    LogOutput "Starting ci_cd.py to validate ${sdk} examples"
+    cd $BEAM_ROOT_DIR/playground/infrastructure
+    python3 ci_cd.py \
+    --step ${STEP} \
+    --sdk SDK_"${sdk^^}" \
+    --origin ${ORIGIN} \
+    --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
+    LogOutput "ci_cd.py exit code: $?"
+    cd $BEAM_ROOT_DIR
+    LogOutput "Stopping container for $sdk runner"
+    docker stop container-${sdk}
+    docker rm container-${sdk}
+done
+LogOutput "Script finished"
