@@ -31,6 +31,7 @@ This guide shows you how to deploy Tour of Beam environment on Google Cloud Plat
    - Service Account User 
    - Service Usage Admin
    - Storage Admin
+   - Kubernetes Engine Cluster Viewer
 
 3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
 
