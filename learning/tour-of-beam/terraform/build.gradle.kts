@@ -159,7 +159,6 @@ tasks.register("firebaseProjectCreate") {
     }
 }
 
-
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
     val project_id = project.property("project_id") as String
