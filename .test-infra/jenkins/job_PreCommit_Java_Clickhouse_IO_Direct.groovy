@@ -32,6 +32,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/java/core/src/main/.*$',
       '^sdks/java/io/pulsar/.*$',
     ],
+    defaultPathTriggering: false,
     timeoutMins: 60,
     )
 builder.build {

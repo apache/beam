@@ -29,12 +29,12 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
-      '^sdks/java/core/src/main/.*$',
       '^sdks/java/io/common/.*$',
       '^sdks/java/io/hadoop-common/.*$',
       '^sdks/java/io/hadoop-format/.*$',
       '^sdks/java/io/cdap/.*$',
     ],
+    defaultPathTriggering: false,
     timeoutMins: 60,
     )
 builder.build {

@@ -34,11 +34,11 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
-      '^sdks/java/core/src/main/.*$',
       '^sdks/java/io/common/.*$',
       '^sdks/java/io/elasticsearch/.*$',
       '^sdks/java/io/elasticsearch-tests/.*$',
     ],
+    defaultPathTriggering: false,
     timeoutMins: 60,
     )
 builder.build {

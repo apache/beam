@@ -32,10 +32,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^runners/google-cloud-dataflow-java/.*$',
-      '^sdks/java/core/src/main/.*$',
       '^sdks/java/io/common/.*$',
       '^sdks/java/io/debezium/.*$',
     ],
+    defaultPathTriggering: false,
     timeoutMins: 60,
     )
 builder.build {
