@@ -516,7 +516,7 @@ def generate_proto_files(force=False):
             # and remove Optional from the param type annotation. This causes
             # some mypy errors. So to mitigate and fall back to old behavior,
             # use `relax_strict_optional_primitives` flag. more at
-            # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint:disable=line-tool-long
+            # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint:disable=line-too-long
             ['--mypy_out=relax_strict_optional_primitives:%s' % PYTHON_OUTPUT_PATH] +
             # TODO(robertwb): Remove the prefix once it's the default.
             ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] +

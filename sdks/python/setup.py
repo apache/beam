@@ -296,14 +296,14 @@ if __name__ == '__main__':
             # https://github.com/googleapis/google-cloud-python/issues/10566
             'google-auth>=1.18.0,<3',
             'google-auth-httplib2>=0.1.0,<0.2.0',
-            'google-cloud-datastore>=1.8.0,<3',
+            'google-cloud-datastore>=2.0.0,<3',
             'google-cloud-pubsub>=2.1.0,<3',
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
-            'google-cloud-bigquery>=1.6.0,<4',
+            'google-cloud-bigquery>=2.0.0,<4',
             'google-cloud-bigquery-storage>=2.6.3,<3',
-            'google-cloud-core>=0.28.1,<3',
-            'google-cloud-bigtable>=0.31.1,<3',
+            'google-cloud-core>=2.0.0,<3',
+            'google-cloud-bigtable>=2.0.0,<3',
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
