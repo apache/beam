@@ -1617,6 +1617,8 @@ class BigQueryWriteFn(DoFn):
                            ])
 
 
+# The number of shards per destination when writing via streaming inserts.
+DEFAULT_SHARDS_PER_DESTINATION = 500
 # The max duration a batch of elements is allowed to be buffered before being
 # flushed to BigQuery.
 DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC = 0.2
@@ -1639,7 +1641,7 @@ class _StreamToBigQuery(PTransform):
       ignore_insert_ids,
       ignore_unknown_columns,
       with_auto_sharding,
-      num_streaming_keys,
+      num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       test_client=None,
       max_retries=None):
     self.table_reference = table_reference
@@ -1783,7 +1785,7 @@ class WriteToBigQuery(PTransform):
       with_auto_sharding=False,
       ignore_unknown_columns=False,
       load_job_project_id=None,
-      num_streaming_keys=500):
+      num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION):
     """Initialize a WriteToBigQuery transform.
 
     Args:
