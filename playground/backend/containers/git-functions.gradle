@@ -19,8 +19,8 @@
 ext.getGitCommitHash = () -> {
    def stdout = new ByteArrayOutputStream()
    exec {
-      executable 'git'
-      args 'rev-parse', 'HEAD'
+      executable('git')
+      args('rev-parse', 'HEAD')
       standardOutput = stdout
    }
    return stdout.toString().trim()
@@ -29,8 +29,8 @@ ext.getGitCommitHash = () -> {
 ext.getGitCommitTimestamp = () -> {
    def stdout = new ByteArrayOutputStream()
    exec {
-      executable 'git'
-      args 'show', '-s', '--format=%ct', 'HEAD'
+      executable('git')
+      args('show', '-s', '--format=%ct', 'HEAD')
       standardOutput = stdout
    }
    return stdout.toString().trim()
