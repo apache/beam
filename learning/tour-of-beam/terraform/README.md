@@ -46,6 +46,7 @@ This guide shows you how to deploy Tour of Beam environment on Google Cloud Plat
 * [Firebase CLI](https://docs.docker.com/engine/install/)
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
+* [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
 
 6. Apache Beam Git repository cloned locally
 
