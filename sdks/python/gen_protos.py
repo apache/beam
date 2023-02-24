@@ -512,7 +512,12 @@ def generate_proto_files(force=False):
             ['--proto_path=%s' % d
              for d in proto_dirs] + ['--python_out=%s' % PYTHON_OUTPUT_PATH] +
             ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
-            ['--mypy_out=%s' % PYTHON_OUTPUT_PATH] +
+            # new version of mypy-protobuf converts None to zero default value
+            # and remove Optional from the param type annotation. This causes
+            # some mypy errors. So to mitigate and fall back to old behaviort,
+            # use `relax_strict_optional_primitives` flag. more at
+            # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint: disable: line-tool-long
+            ['--mypy_out=relax_strict_optional_primitives:%s' % PYTHON_OUTPUT_PATH] +
             # TODO(robertwb): Remove the prefix once it's the default.
             ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] +
             proto_files)
