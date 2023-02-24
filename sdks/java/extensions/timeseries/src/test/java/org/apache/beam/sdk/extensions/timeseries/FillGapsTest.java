@@ -99,8 +99,13 @@ public class FillGapsTest {
       builder.append("------").append(el.getKey()).append("------").append("\n");
       Iterable<TimestampedValue<Message>> messages = el.getValue();
       for (TimestampedValue<Message> message : messages) {
-        builder.append("\t").append(message.getTimestamp()).append(":").append(message.getValue().getKey())
-                .append("|").append(message.getValue().getValue());
+        builder
+            .append("\t")
+            .append(message.getTimestamp())
+            .append(":")
+            .append(message.getValue().getKey())
+            .append("|")
+            .append(message.getValue().getValue());
       }
       System.out.println(builder);
     }
@@ -128,14 +133,17 @@ public class FillGapsTest {
                 FillGaps.<Message>of(Duration.standardSeconds(1), "key")
                     .withStopTime(Instant.ofEpochSecond(5)))
             .apply(Reify.timestamps())
-                    .setCoder(TimestampedValue.TimestampedValueCoder.of(input.getCoder()));
+            .setCoder(TimestampedValue.TimestampedValueCoder.of(input.getCoder()));
 
-    PCollection<KV<Instant, Iterable<TimestampedValue<Message>>>> kvTimedMessages = gapFilled
-            .apply(WithKeys.of((TimestampedValue<Message> x)->x.getTimestamp()).withKeyType(TypeDescriptor.of(Instant.class)))
-                    .apply(GroupByKey.create());
+    PCollection<KV<Instant, Iterable<TimestampedValue<Message>>>> kvTimedMessages =
+        gapFilled
+            .apply(
+                WithKeys.of((TimestampedValue<Message> x) -> x.getTimestamp())
+                    .withKeyType(TypeDescriptor.of(Instant.class)))
+            .apply(GroupByKey.create());
     kvTimedMessages.apply(ParDo.of(new PrintingDoFn()));
 
-            FixedWindows fixedWindows = FixedWindows.of(Duration.standardSeconds(1));
+    FixedWindows fixedWindows = FixedWindows.of(Duration.standardSeconds(1));
     PAssert.that(gapFilled)
         .containsInAnyOrder(
             Iterables.concat(
