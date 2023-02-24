@@ -179,7 +179,7 @@ do
     elif [ "$sdk" == "java" ]
     then
         # Java is built from released base image instead of current commit
-        docker_options="-Psdk-tag=${BEAM_VERSION}"
+        docker_options="-Psdk-tag=${BEAM_VERSION} -Pdocker-tag=${BEAM_VERSION}"
         sdk_tag=${BEAM_VERSION}
     fi
 
