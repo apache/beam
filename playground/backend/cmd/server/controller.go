@@ -536,14 +536,25 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 
 // GetMetadata returns runner metadata
 func (controller *playgroundController) GetMetadata(_ context.Context, _ *pb.GetMetadataRequest) (*pb.GetMetadataResponse, error) {
-	commitTimestampInteger, err := strconv.ParseInt(BuildCommitTimestamp, 10, 64)
-	if err != nil {
-		logger.Errorf("GetMetadata(): failed to parse BuildCommitTimestamp (\"%s\"): %s", BuildCommitTimestamp, err.Error())
-		commitTimestampInteger = -1
-	}
+	commitTimestampInteger := func() *int64 {
+		timestamp, err := strconv.ParseInt(BuildCommitTimestamp, 10, 64)
+		if err != nil {
+			logger.Errorf("GetMetadata(): failed to parse BuildCommitTimestamp (\"%s\"): %s", BuildCommitTimestamp, err.Error())
+			return nil
+		}
+		return &timestamp
+	}()
+
+	buildCommitHash := func() *string {
+		if BuildCommitHash == "" {
+			return nil
+		}
+		return &BuildCommitHash
+	}()
+
 	response := pb.GetMetadataResponse{
 		RunnerSdk:                             controller.env.BeamSdkEnvs.ApacheBeamSdk.String(),
-		BuildCommitHash:                       BuildCommitHash,
+		BuildCommitHash:                       buildCommitHash,
 		BuildCommitTimestampSecondsSinceEpoch: commitTimestampInteger,
 		BeamSdkVersion:                        controller.env.BeamSdkEnvs.BeamVersion,
 	}
