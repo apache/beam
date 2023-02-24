@@ -19,7 +19,7 @@
 #
 # Command line arguments:
 # LOG_PATH - full path lo a log file. Output is also logged to stdout (Default: /dev/null)
-# BEAM_ROOT_DIR - Path (full) to cloned repo root. Used by ci_cd.py (Default: /home/root/beam)
+# BEAM_ROOT_DIR - Path (full) to cloned repo root. Used by ci_cd.py (Default: /workspace/beam)
 # PROJECT_ID - GCP Project ID. Used by ci_cd.py (Default: test)
 # BEAM_CONCURRENCY - Number of examples to run in parallel. Used by ci_cd.py (Default: 4)
 # BEAM_VERSION - version of BEAM SDK to build containers
@@ -41,7 +41,7 @@ do
 done
 
 export LOG_PATH=${LOG_PATH-"/dev/null"}
-export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/home/root/beam"}
+export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
 export PROJECT_ID=${PROJECT_ID-"test"}
 export BEAM_VERSION=${BEAM_VERSION-"2.44.0"}
 export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
