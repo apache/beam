@@ -82,7 +82,7 @@ The RunInference API doesn't currently support making remote inference calls usi
 
 ## Model validation
 
-Model validation allows you to benchmark your model’s performance against an unseen dataset. You can extract chosen metrics, create visualizations, log metadata, and compare the performance of different models with the end goal of validating whether your model is ready to deploy. Beam provides support for running model evaluation on a TensorFlow model directly inside your pipeline.
+Model validation allows you to benchmark your model’s performance against a previously unseen dataset. You can extract chosen metrics, create visualizations, log metadata, and compare the performance of different models with the end goal of validating whether your model is ready to deploy. Beam provides support for running model evaluation on a TensorFlow model directly inside your pipeline.
 
 Further reading:
 * [ML model evaluation](/documentation/ml/model-evaluation): Illustrates how to integrate model evaluation as part of your pipeline by using [TensorFlow Model Analysis (TFMA)](https://www.tensorflow.org/tfx/guide/tfma).
