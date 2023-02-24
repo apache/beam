@@ -28,7 +28,7 @@ This guide shows you how to deploy Tour of Beam environment on Google Cloud Plat
    - Cloud Datastore Owner
    - Create Service Accounts
    - Security Admin
-   - Service Account User 
+   - Service Account User
    - Service Usage Admin
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
