@@ -38,6 +38,7 @@ RUN go mod download &&\
 
 FROM maven:3.8.6-openjdk-8 as dep
 ARG BEAM_VERSION
+ENV MAVEN_OPTS="-Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3"
 RUN mvn archetype:generate \
     -DinteractiveMode=false \
     -DarchetypeGroupId=org.apache.beam \
