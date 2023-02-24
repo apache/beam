@@ -410,13 +410,13 @@ class GetMetadataRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetMetadataResponse(_message.Message):
-    __slots__ = ["runner_sdk", "build_commit_hash", "build_commit_timestamp", "beam_sdk_version"]
+    __slots__ = ["runner_sdk", "build_commit_hash", "build_commit_timestamp_seconds_since_epoch", "beam_sdk_version"]
     RUNNER_SDK_FIELD_NUMBER: _ClassVar[int]
     BUILD_COMMIT_HASH_FIELD_NUMBER: _ClassVar[int]
-    BUILD_COMMIT_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    BUILD_COMMIT_TIMESTAMP_SECONDS_SINCE_EPOCH_FIELD_NUMBER: _ClassVar[int]
     BEAM_SDK_VERSION_FIELD_NUMBER: _ClassVar[int]
     runner_sdk: str
     build_commit_hash: str
-    build_commit_timestamp: str
+    build_commit_timestamp_seconds_since_epoch: int
     beam_sdk_version: str
-    def __init__(self, runner_sdk: _Optional[str] = ..., build_commit_hash: _Optional[str] = ..., build_commit_timestamp: _Optional[str] = ..., beam_sdk_version: _Optional[str] = ...) -> None: ...
+    def __init__(self, runner_sdk: _Optional[str] = ..., build_commit_hash: _Optional[str] = ..., build_commit_timestamp_seconds_since_epoch: _Optional[int] = ..., beam_sdk_version: _Optional[str] = ...) -> None: ...

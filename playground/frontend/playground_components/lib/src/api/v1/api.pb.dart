@@ -7,6 +7,7 @@
 
 import 'dart:core' as $core;
 
+import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 import 'api.pbenum.dart';
@@ -2449,7 +2450,7 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetMetadataResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
     ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'runnerSdk')
     ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'buildCommitHash')
-    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'buildCommitTimestamp')
+    ..aInt64(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'buildCommitTimestampSecondsSinceEpoch')
     ..aOS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'beamSdkVersion')
     ..hasRequiredFields = false
   ;
@@ -2458,7 +2459,7 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
   factory GetMetadataResponse({
     $core.String? runnerSdk,
     $core.String? buildCommitHash,
-    $core.String? buildCommitTimestamp,
+    $fixnum.Int64? buildCommitTimestampSecondsSinceEpoch,
     $core.String? beamSdkVersion,
   }) {
     final _result = create();
@@ -2468,8 +2469,8 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
     if (buildCommitHash != null) {
       _result.buildCommitHash = buildCommitHash;
     }
-    if (buildCommitTimestamp != null) {
-      _result.buildCommitTimestamp = buildCommitTimestamp;
+    if (buildCommitTimestampSecondsSinceEpoch != null) {
+      _result.buildCommitTimestampSecondsSinceEpoch = buildCommitTimestampSecondsSinceEpoch;
     }
     if (beamSdkVersion != null) {
       _result.beamSdkVersion = beamSdkVersion;
@@ -2516,13 +2517,13 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
   void clearBuildCommitHash() => clearField(2);
 
   @$pb.TagNumber(3)
-  $core.String get buildCommitTimestamp => $_getSZ(2);
+  $fixnum.Int64 get buildCommitTimestampSecondsSinceEpoch => $_getI64(2);
   @$pb.TagNumber(3)
-  set buildCommitTimestamp($core.String v) { $_setString(2, v); }
+  set buildCommitTimestampSecondsSinceEpoch($fixnum.Int64 v) { $_setInt64(2, v); }
   @$pb.TagNumber(3)
-  $core.bool hasBuildCommitTimestamp() => $_has(2);
+  $core.bool hasBuildCommitTimestampSecondsSinceEpoch() => $_has(2);
   @$pb.TagNumber(3)
-  void clearBuildCommitTimestamp() => clearField(3);
+  void clearBuildCommitTimestampSecondsSinceEpoch() => clearField(3);
 
   @$pb.TagNumber(4)
   $core.String get beamSdkVersion => $_getSZ(3);

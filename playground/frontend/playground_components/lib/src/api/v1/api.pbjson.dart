@@ -564,10 +564,10 @@ const GetMetadataResponse$json = const {
   '2': const [
     const {'1': 'runner_sdk', '3': 1, '4': 1, '5': 9, '10': 'runnerSdk'},
     const {'1': 'build_commit_hash', '3': 2, '4': 1, '5': 9, '10': 'buildCommitHash'},
-    const {'1': 'build_commit_timestamp', '3': 3, '4': 1, '5': 9, '10': 'buildCommitTimestamp'},
+    const {'1': 'build_commit_timestamp_seconds_since_epoch', '3': 3, '4': 1, '5': 3, '10': 'buildCommitTimestampSecondsSinceEpoch'},
     const {'1': 'beam_sdk_version', '3': 4, '4': 1, '5': 9, '10': 'beamSdkVersion'},
   ],
 };
 
 /// Descriptor for `GetMetadataResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getMetadataResponseDescriptor = $convert.base64Decode('ChNHZXRNZXRhZGF0YVJlc3BvbnNlEh0KCnJ1bm5lcl9zZGsYASABKAlSCXJ1bm5lclNkaxIqChFidWlsZF9jb21taXRfaGFzaBgCIAEoCVIPYnVpbGRDb21taXRIYXNoEjQKFmJ1aWxkX2NvbW1pdF90aW1lc3RhbXAYAyABKAlSFGJ1aWxkQ29tbWl0VGltZXN0YW1wEigKEGJlYW1fc2RrX3ZlcnNpb24YBCABKAlSDmJlYW1TZGtWZXJzaW9u');
+final $typed_data.Uint8List getMetadataResponseDescriptor = $convert.base64Decode('ChNHZXRNZXRhZGF0YVJlc3BvbnNlEh0KCnJ1bm5lcl9zZGsYASABKAlSCXJ1bm5lclNkaxIqChFidWlsZF9jb21taXRfaGFzaBgCIAEoCVIPYnVpbGRDb21taXRIYXNoElkKKmJ1aWxkX2NvbW1pdF90aW1lc3RhbXBfc2Vjb25kc19zaW5jZV9lcG9jaBgDIAEoA1IlYnVpbGRDb21taXRUaW1lc3RhbXBTZWNvbmRzU2luY2VFcG9jaBIoChBiZWFtX3Nka192ZXJzaW9uGAQgASgJUg5iZWFtU2RrVmVyc2lvbg==');
