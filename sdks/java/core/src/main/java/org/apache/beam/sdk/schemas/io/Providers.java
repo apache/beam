@@ -30,6 +30,7 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 @Experimental(Kind.SCHEMAS)
 public final class Providers {
+
   public interface Identifyable {
     /**
      * Returns an id that uniquely represents this among others implementing its derived interface.
@@ -44,16 +45,12 @@ public final class Providers {
     for (T provider : ServiceLoader.load(klass)) {
       // Avro provider is treated as a special case since two Avro providers may want to be loaded -
       // from "core" (deprecated) and from "extensions/avro" (actual) - but only one must succeed.
-      // TODO: this check should be removed once once AvroPayloadSerializerProvider from "core" is
+      // TODO: we won't need this check once all Avro providers from "core" will be
       // removed
       if (provider.identifier().equals("avro")) {
         // Avro provider from "extensions/avro" must have a priority.
-        if (provider
-            .getClass()
-            .getName()
-            .equals(
-                "org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerializerProvider")) {
-          // Use AvroPayloadSerializerProvider from extensions/avro by any case.
+        if (provider.getClass().getName().startsWith("org.apache.beam.sdk.extensions.avro")) {
+          // Load Avro provider from "extensions/avro" by any case.
           providers.put(provider.identifier(), provider);
         } else {
           // Load Avro provider from "core" if it was not loaded from Avro extension before.
