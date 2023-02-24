@@ -162,22 +162,24 @@ do
     fi
 
     docker_options="-Psdk-tag=${DOCKERTAG}"
+    sdk_tag=$DOCKERTAG
 
     # Special cases for Python and Java
     if [ "$sdk" == "python" ]
     then
-        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG"
-        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${DOCKERTAG}"
-        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${DOCKERTAG}
+        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$sdk_tag"
+        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${sdk_tag}"
+        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${sdk_tag}
         if [ $? -ne 0 ]
         then
-            LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
+            LogOutput "Build failed for apache/beam_python3.7_sdk:$sdk_tag"
             continue
         fi
     elif [ "$sdk" == "java" ]
     then
         # Java is built from released base image instead of current commit
         docker_options="-Psdk-tag=${BEAM_VERSION}"
+        sdk_tag=${BEAM_VERSION}
     fi
 
     LogOutput "Buidling a container for $sdk runner"
@@ -189,7 +191,7 @@ do
         continue
     fi
     LogOutput "Starting container for $sdk runner"
-    docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} apache/beam_playground-backend-${sdk}:${DOCKERTAG}
+    docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} apache/beam_playground-backend-${sdk}:${sdk_tag}
     sleep 10
     export SERVER_ADDRESS=container-${sdk}:8080
 
