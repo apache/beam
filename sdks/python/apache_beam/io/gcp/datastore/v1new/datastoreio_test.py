@@ -49,6 +49,8 @@ except ImportError:
   client = None
 
 
+# TODO(https://github.com/apache/beam/issues/25625)
+# remove this FakeMutation and replace it with proto.Message class.
 class FakeMutation(object):
   def __init__(self, entity=None, key=None):
     """Fake mutation request object.

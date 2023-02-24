@@ -14,3 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+# TODO(https://github.com/apache/beam/issues/25625)
+# update relevant code -> example: use class something(beam.PTransform)
+# instead of decorator @beam.ptransform_fn on a function.
+
+# update type annotations and doc strings.
