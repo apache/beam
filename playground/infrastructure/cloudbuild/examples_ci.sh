@@ -81,36 +81,36 @@ export GRADLE_VERSION=7.5.1
 export GO_VERSION=1.18 
 
 LogOutput "Installing python java8 and dependencies"
-## apt-get update > /dev/null
-## apt update > /dev/null
-## export DEBIAN_FRONTEND=noninteractive
+apt-get update > /dev/null
+apt update > /dev/null
+export DEBIAN_FRONTEND=noninteractive
 
 LogOutput "Installing Python environment"
-## apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
-## add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
-## apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
-## apt install --reinstall python3.8-distutils > /dev/null
-## pip install --upgrade google-api-python-client > /dev/null
-## python3.8 -m pip install pip --upgrade > /dev/null
-## ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
-## apt install python3.8-venv > /dev/null
-## pip install -r playground/infrastructure/requirements.txt > /dev/null
+apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
+add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
+apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
+apt install --reinstall python3.8-distutils > /dev/null
+pip install --upgrade google-api-python-client > /dev/null
+python3.8 -m pip install pip --upgrade > /dev/null
+ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
+apt install python3.8-venv > /dev/null
+pip install -r playground/infrastructure/requirements.txt > /dev/null
 
 LogOutput "Installing JDK and Gradle"
-## apt-get install openjdk-8-jdk -y > /dev/null
-## curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip > /dev/null
-## unzip gradle-${GRADLE_VERSION}-bin.zip > /dev/null
-## export PATH=$PATH:gradle-${GRADLE_VERSION}/bin > /dev/null
+apt-get install openjdk-8-jdk -y > /dev/null
+curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip > /dev/null
+unzip gradle-${GRADLE_VERSION}-bin.zip > /dev/null
+export PATH=$PATH:gradle-${GRADLE_VERSION}/bin > /dev/null
 
 LogOutput "Installing GO"
-## curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
-## tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz > /dev/null
-## export PATH=$PATH:/usr/local/go/bin > /dev/null
+curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
+tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz > /dev/null
+export PATH=$PATH:/usr/local/go/bin > /dev/null
 
 LogOutput "Installing Docker"
-## curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/null
-## add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
-## apt update > /dev/null && apt install -y docker-ce > /dev/null
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/null
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
+apt update > /dev/null && apt install -y docker-ce > /dev/null
 
 tag_name=$(git tag --points-at $COMMIT)
 if [ "$tag_name" ]
