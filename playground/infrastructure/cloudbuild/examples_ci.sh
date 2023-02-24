@@ -50,8 +50,7 @@ export COMMIT=${COMMIT-"HEAD"}
 export DIFF_BASE=${DIFF_BASE-"origin/master"}
 export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-"4"}
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
-export ALLOWLIST=${ALLOWLIST-"playground/backend"}
-# export ALLOWLIST=${ALLOWLIST-"playground/infrastructure playground/backend"}
+export ALLOWLIST=${ALLOWLIST-"playground/infrastructure playground/backend"}
 
 function LogOutput ()
 {
