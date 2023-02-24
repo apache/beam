@@ -29,13 +29,12 @@ import org.apache.beam.sdk.testing.UsesLoopingTimer;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -92,25 +91,6 @@ public class FillGapsTest {
     abstract Builder toBuilder();
   }
 
-  static class PrintingDoFn extends DoFn<KV<Instant, Iterable<TimestampedValue<Message>>>, Void> {
-    @ProcessElement
-    public void process(@Element KV<Instant, Iterable<TimestampedValue<Message>>> el) {
-      StringBuilder builder = new StringBuilder();
-      builder.append("------").append(el.getKey()).append("------").append("\n");
-      Iterable<TimestampedValue<Message>> messages = el.getValue();
-      for (TimestampedValue<Message> message : messages) {
-        builder
-            .append("\t")
-            .append(message.getTimestamp())
-            .append(":")
-            .append(message.getValue().getKey())
-            .append("|")
-            .append(message.getValue().getValue());
-      }
-      System.out.println(builder);
-    }
-  }
-
   @Test
   public void testFillGaps() {
     List<TimestampedValue<Message>> values =
@@ -132,16 +112,7 @@ public class FillGapsTest {
             .apply(
                 FillGaps.<Message>of(Duration.standardSeconds(1), "key")
                     .withStopTime(Instant.ofEpochSecond(5)))
-            .apply(Reify.timestamps())
-            .setCoder(TimestampedValue.TimestampedValueCoder.of(input.getCoder()));
-
-    PCollection<KV<Instant, Iterable<TimestampedValue<Message>>>> kvTimedMessages =
-        gapFilled
-            .apply(
-                WithKeys.of((TimestampedValue<Message> x) -> x.getTimestamp())
-                    .withKeyType(TypeDescriptor.of(Instant.class)))
-            .apply(GroupByKey.create());
-    kvTimedMessages.apply(ParDo.of(new PrintingDoFn()));
+            .apply(Reify.timestamps());
 
     FixedWindows fixedWindows = FixedWindows.of(Duration.standardSeconds(1));
     PAssert.that(gapFilled)
