@@ -73,6 +73,7 @@ LogOutput "Input variables:
             ALLOWLIST=$ALLOWLIST"
 
 # Assigning constant values
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin/:/usr/bin:/sbin:/bin
 export STEP=CI 
 export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
 export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
