@@ -1338,7 +1338,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               .build();
 
       StreamWriter streamWriter =
-          StreamWriter.newBuilder(streamName)
+          StreamWriter.newBuilder(streamName, newWriteClient)
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
               .setEnableConnectionPool(useConnectionPool)
