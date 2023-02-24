@@ -28,90 +28,58 @@ terraformPlugin {
     terraformVersion.set("1.0.9")
 }
 
-tasks {
-    /* init Infrastructure for migrate */
-    register<TerraformTask>("terraformInit") {
-        // exec args can be passed by commandline, for example
-        var environment = "unknown"
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
-        }
-        args(
-                "init", "-migrate-state",
-                "-backend-config=./environment/$environment/state.tfbackend",
-                "-var=environment=$environment",
-                if (file("./environment/$environment/terraform.tfvars").exists()) {
-                    "-var-file=./environment/$environment/terraform.tfvars"
-                } else {
-                    "-no-color"
-                }
-        )
-    }
+val environment = project.property("project_environment") as String
+var project_id = project.property("project_id") as String
 
-    /* refresh Infrastucture for remote state */
-    register<TerraformTask>("terraformRef") {
-        mustRunAfter(":learning:tour-of-beam:terraform:terraformInit")
-        var environment = "unknown"
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
+/* init Infrastructure for migrate */
+tasks.register<TerraformTask>("terraformInit") {
+    // exec args can be passed by commandline, for example
+    args(
+        "init", "-migrate-state",
+        "-backend-config=./environment/$environment/state.tfbackend",
+        "-var=environment=$environment",
+        if (file("./environment/$environment/terraform.tfvars").exists()) {
+            "-var-file=./environment/$environment/terraform.tfvars"
+        } else {
+            "-no-color"
         }
-        args(
-                "refresh",
-                "-lock=false",
-                "-var=environment=$environment",
-                if (file("./environment/$environment/terraform.tfvars").exists()) {
-                    "-var-file=./environment/$environment/terraform.tfvars"
-                } else {
-                    "-no-color"
-                }
-        )
-    }
+    )
+}
 
-    register<TerraformTask>("terraformDestroy") {
-        dependsOn("getRouterHost")
-        val pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
-        var environment = "unknown"
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
+/* refresh Infrastucture for remote state */
+tasks.register<TerraformTask>("terraformRef") {
+    mustRunAfter(":learning:tour-of-beam:terraform:terraformInit")
+    args(
+        "refresh",
+        "-lock=false",
+        "-var=environment=$environment",
+        if (file("./environment/$environment/terraform.tfvars").exists()) {
+            "-var-file=./environment/$environment/terraform.tfvars"
+        } else {
+            "-no-color"
         }
-        args(
-                "destroy",
-                "-auto-approve",
-                "-lock=false",
-                "-var=environment=$environment",
-                "-var=pg_router_host=$pg_router_host",
-                if (file("./environment/$environment/terraform.tfvars").exists()) {
-                    "-var-file=./environment/$environment/terraform.tfvars"
-                } else {
-                    "-no-color"
-                }
-        )
-    }
+    )
+}
 
-    register<TerraformTask>("terraformApplyBackend") {
-        group = "backend-deploy"
-        var environment = ""
-        val pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
+tasks.register<TerraformTask>("terraformApplyBackend") {
+    group = "backend-deploy"
+    var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
+    args(
+        "apply",
+        "-auto-approve",
+        "-lock=false",
+        "-var=pg_router_host=$pg_router_host",
+        "-target=module.api_enable",
+        "-target=module.setup",
+        "-target=module.functions_buckets",
+        "-target=module.cloud_functions",
+        "-var=environment=$environment",
+        if (file("./environment/$environment/terraform.tfvars").exists()) {
+            "-var-file=./environment/$environment/terraform.tfvars"
+        } else {
+            "-no-color"
         }
-        args(
-                "apply",
-                "-auto-approve",
-                "-lock=false",
-                "-var=pg_router_host=$pg_router_host",
-                "-target=module.api_enable",
-                "-target=module.setup",
-                "-target=module.functions_buckets",
-                "-target=module.cloud_functions",
-                "-var=environment=$environment",
-                if (file("./environment/$environment/terraform.tfvars").exists()) {
-                    "-var-file=./environment/$environment/terraform.tfvars"
-                } else {
-                    "-no-color"
-                }
-        )
-    }
+    )
 }
 
 tasks.register("getRouterHost") {
@@ -123,23 +91,20 @@ tasks.register("getRouterHost") {
     }
     val pg_router_host = result.toString().trim().replace("'", "")
     project.extensions.extraProperties["pg_router_host"] = pg_router_host
-    }
+}
 
 tasks.register("indexcreate") {
     group = "backend-deploy"
     val indexpath = "../backend/internal/storage/index.yaml"
-    doLast{
-        exec {
-            executable("gcloud")
-            args("datastore", "indexes", "create", indexpath)
-        }
+    exec {
+        executable("gcloud")
+        args("datastore", "indexes", "create", indexpath)
     }
 }
 
 tasks.register("firebaseProjectCreate") {
     group = "frontend-deploy"
     description = "Adds Firebase to a project if it doesn't already have Firebase."
-    val project_id = project.property("project_id") as String
     val result = ByteArrayOutputStream()
 
     exec {
@@ -161,8 +126,7 @@ tasks.register("firebaseProjectCreate") {
 
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
-    val project_id = project.property("project_id") as String
-    val webapp_id = project.property("webapp_id") as String
+    var webapp_id = project.property("webapp_id") as String
     val result = ByteArrayOutputStream()
     exec {
         executable("firebase")
@@ -224,8 +188,8 @@ tasks.register("prepareFirebaseOptionsDart") {
 
 tasks.register("flutterPubGetPG") {
     exec {
-    commandLine("flutter", "pub", "get")
-    workingDir("../../../playground/frontend/playground_components")
+        commandLine("flutter", "pub", "get")
+        workingDir("../../../playground/frontend/playground_components")
     }
 }
 
@@ -259,10 +223,6 @@ tasks.register("flutterBuildWeb") {
 }
 
 tasks.register("firebaseDeploy") {
-    var project_id = ""
-    if (project.hasProperty("project_id")) {
-        project_id = project.property("project_id") as String
-    }
     exec {
         commandLine("firebase", "deploy", "--project", project_id)
         workingDir("../frontend")
@@ -271,24 +231,14 @@ tasks.register("firebaseDeploy") {
 
 tasks.register("prepareConfig") {
     group = "frontend-deploy"
-        var dns_name = ""
-        var region = ""
-        var project_id = ""
-        if (project.hasProperty("region")) {
-            region = project.property("region") as String
-        }
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
-        if (project.hasProperty("dns-name")) {
-            dns_name = project.property("dns-name") as String
-        }
-        val configFileName = "config.dart"
-        val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
-        val file = File("$modulePath/lib/$configFileName")
+    var dns_name = project.property("dns-name") as String
+    var region = project.property("region") as String
+    val configFileName = "config.dart"
+    val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
+    val file = File("$modulePath/lib/$configFileName")
 
-        file.writeText(
-                """
+    file.writeText(
+            """
 const _cloudFunctionsProjectRegion = '$region';
 const _cloudFunctionsProjectId = '$project_id';
 const cloudFunctionsBaseUrl = 'https://'
@@ -313,16 +263,12 @@ const String kApiScioClientURL =
 
 tasks.register("prepareFirebasercConfig") {
     group = "frontend-deploy"
-        var project_id = ""
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
-        val configFileName = ".firebaserc"
-        val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
-        val file = File("$modulePath/$configFileName")
+    val configFileName = ".firebaserc"
+    val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
+    val file = File("$modulePath/$configFileName")
 
-        file.writeText(
-                """
+    file.writeText(
+            """
 {
   "projects": {
     "default": "$project_id"
@@ -332,29 +278,17 @@ tasks.register("prepareFirebasercConfig") {
         )
 }
 
-// Should be as CI CD process
-
-tasks.register("populateDatastore") {
+tasks.register("uploadLearningMaterials") {
     group = "backend-deploy"
-    var project_id = "unknown"
-    if (project.hasProperty("project_id")) {
-        project_id = project.property("project_id") as String
+    val result: ExecResult = project.exec {
+        commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
+        environment("DATASTORE_PROJECT_ID", project_id)
+        environment("GOOGLE_PROJECT_ID", project_id)
+        environment("TOB_LEARNING_ROOT", "../learning-content/")
+        workingDir("../backend")
     }
-    doLast {
-        val result: ExecResult = project.exec {
-            commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
-            environment("DATASTORE_PROJECT_ID", project_id)
-            environment("GOOGLE_PROJECT_ID", project_id)
-            environment("TOB_LEARNING_ROOT", "../learning-content/")
-            workingDir("../backend")
-        }
-        if (result.exitValue != 0) {
-            throw GradleException("Command execution failed with exit code ${result.exitValue}")
-        }
-        println("Output of script:\n$result")
-    }
+    println("Output of script:\n$result")
 }
-
 
 /* Tour of Beam backend init */
     tasks.register("InitBackend") {
@@ -364,25 +298,17 @@ tasks.register("populateDatastore") {
     val indexCreate = tasks.getByName("indexcreate")
     val tfInit = tasks.getByName("terraformInit")
     val tfApplyBackend = tasks.getByName("terraformApplyBackend")
+    val uploadLearningMaterials = tasks.getByName("uploadLearningMaterials")
     dependsOn(getRouterHost)
-    Thread.sleep(3000)
     dependsOn(indexCreate)
     dependsOn(tfInit)
     dependsOn(tfApplyBackend)
+    dependsOn(uploadLearningMaterials)
     indexCreate.mustRunAfter(getRouterHost)
     tfInit.mustRunAfter(indexCreate)
     tfApplyBackend.mustRunAfter(tfInit)
-}
+    uploadLearningMaterials.mustRunAfter(tfApplyBackend)
 
-tasks.register("destroyBackend") {
-    group = "backend-destroy"
-    description = "ToB Backend Destroy"
-    val getRouterHost = tasks.getByName("getRouterHost")
-    val terraformDestroy = tasks.getByName("terraformDestroy")
-    dependsOn(getRouterHost)
-    Thread.sleep(3000)
-    dependsOn(terraformDestroy)
-    terraformDestroy.mustRunAfter(getRouterHost)
 }
 
 tasks.register("InitFrontend") {
