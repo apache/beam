@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Script validates examples against  runners (Java, Python, Go)       built as local containers from a current branch
+# Script validates examples against  runners (Java, Python, Go)        built as local containers from a current branch
 #
 # Command line arguments:
 # LOG_PATH - full path lo a log file. Output is also logged to stdout (Default: /dev/null)
