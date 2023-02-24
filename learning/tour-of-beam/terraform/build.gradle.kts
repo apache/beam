@@ -28,8 +28,12 @@ terraformPlugin {
     terraformVersion.set("1.0.9")
 }
 
+/* Variables block */
 val environment = project.property("project_environment") as String
 var project_id = project.property("project_id") as String
+var webapp_id = project.property("webapp_id") as String
+var dns_name = project.property("dns-name") as String
+var region = project.property("region") as String
 
 /* init Infrastructure for migrate */
 tasks.register<TerraformTask>("terraformInit") {
@@ -104,7 +108,6 @@ tasks.register("indexcreate") {
 
 tasks.register("firebaseProjectCreate") {
     group = "frontend-deploy"
-    description = "Adds Firebase to a project if it doesn't already have Firebase."
     val result = ByteArrayOutputStream()
 
     exec {
@@ -126,7 +129,6 @@ tasks.register("firebaseProjectCreate") {
 
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
-    var webapp_id = project.property("webapp_id") as String
     val result = ByteArrayOutputStream()
     exec {
         executable("firebase")
@@ -231,8 +233,6 @@ tasks.register("firebaseDeploy") {
 
 tasks.register("prepareConfig") {
     group = "frontend-deploy"
-    var dns_name = project.property("dns-name") as String
-    var region = project.property("region") as String
     val configFileName = "config.dart"
     val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
     val file = File("$modulePath/lib/$configFileName")
@@ -293,7 +293,6 @@ tasks.register("uploadLearningMaterials") {
 /* Tour of Beam backend init */
     tasks.register("InitBackend") {
     group = "backend-deploy"
-    description = "ToB Backend Init"
     val getRouterHost = tasks.getByName("getRouterHost")
     val indexCreate = tasks.getByName("indexcreate")
     val tfInit = tasks.getByName("terraformInit")
@@ -313,7 +312,6 @@ tasks.register("uploadLearningMaterials") {
 
 tasks.register("InitFrontend") {
     group = "frontend-deploy"
-    description = "ToB Frontend Init"
     val prepareConfig = tasks.getByName("prepareConfig")
     val prepareFirebasercConfig = tasks.getByName("prepareFirebasercConfig")
     val firebaseProjectCreate = tasks.getByName("firebaseProjectCreate")
