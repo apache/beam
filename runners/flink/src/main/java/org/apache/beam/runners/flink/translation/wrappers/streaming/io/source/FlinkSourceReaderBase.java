@@ -163,7 +163,15 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     checkExceptionAndMaybeThrow();
     if (!sourceSplits.isEmpty() || !beamSourceReaders.isEmpty()) {
       // There are still live readers.
-      return isAvailableForAliveReaders();
+      CompletableFuture<Void> aliveReaderAvailableFuture = isAvailableForAliveReaders();
+      // Regardless of whether there is data available from the alive readers, the
+      // main thread needs to be woken up if there is a split change. Hence, we
+      // need to combine the data available future with the split change future.
+      if (waitingForSplitChangeFuture.isDone()) {
+        waitingForSplitChangeFuture = new CompletableFuture<>();
+      }
+      return CompletableFuture.anyOf(aliveReaderAvailableFuture, waitingForSplitChangeFuture)
+          .thenAccept(ignored -> {});
     } else if (noMoreSplits) {
       // All the splits have been read, wait for idle timeout.
       checkIdleTimeoutAndMaybeStartCountdown();

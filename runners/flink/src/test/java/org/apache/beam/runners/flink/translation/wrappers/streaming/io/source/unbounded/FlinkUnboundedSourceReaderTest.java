@@ -19,8 +19,10 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.u
 
 import static org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded.FlinkUnboundedSourceReader.PENDING_BYTES_METRIC_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -100,8 +102,8 @@ public class FlinkUnboundedSourceReaderTest
             WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
             FlinkSourceSplit<KV<Integer, Integer>>>
         reader = createReader(executor, Long.MAX_VALUE)) {
-      reader.addSplits(splits);
       reader.start();
+      reader.addSplits(splits);
 
       Thread mainThread =
           new Thread(
@@ -135,6 +137,42 @@ public class FlinkUnboundedSourceReaderTest
       mainThread.start();
       executorThread.start();
       executorThread.join();
+    }
+  }
+
+  @Test
+  public void testIsAvailableOnSplitChangeWhenNoDataAvailableForAliveReaders() throws Exception {
+    List<FlinkSourceSplit<KV<Integer, Integer>>> splits1 = new ArrayList<>();
+    List<FlinkSourceSplit<KV<Integer, Integer>>> splits2 = new ArrayList<>();
+    splits1.add(new FlinkSourceSplit<>(0, new DummySource(0)));
+    splits2.add(new FlinkSourceSplit<>(1, new DummySource(0)));
+    RecordsValidatingOutput validatingOutput = new RecordsValidatingOutput(splits1);
+    ManuallyTriggeredScheduledExecutorService executor =
+        new ManuallyTriggeredScheduledExecutorService();
+
+    try (SourceReader<
+            WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+            FlinkSourceSplit<KV<Integer, Integer>>>
+        reader = createReader(executor, Long.MAX_VALUE)) {
+      reader.start();
+      reader.addSplits(splits1);
+
+      assertEquals(
+          "The reader should have nothing available",
+          InputStatus.NOTHING_AVAILABLE,
+          reader.pollNext(validatingOutput));
+
+      CompletableFuture<Void> future1 = reader.isAvailable();
+      assertFalse("Future1 should be uncompleted without live split.", future1.isDone());
+
+      reader.addSplits(splits2);
+      assertTrue("Future1 should be completed upon addition of new splits.", future1.isDone());
+
+      CompletableFuture<Void> future2 = reader.isAvailable();
+      assertFalse("Future2 should be uncompleted without live split.", future2.isDone());
+
+      reader.notifyNoMoreSplits();
+      assertTrue("Future2 should be completed upon NoMoreSplitsNotification.", future2.isDone());
     }
   }
 

@@ -70,6 +70,12 @@ public abstract class FlinkSource<T, OutputT>
   public static FlinkBoundedSource<byte[]> unboundedImpulse(long shutdownSourceAfterIdleMs) {
     FlinkPipelineOptions flinkPipelineOptions = FlinkPipelineOptions.defaults();
     flinkPipelineOptions.setShutdownSourcesAfterIdleMs(shutdownSourceAfterIdleMs);
+    // Here we wrap the BeamImpulseSource with a FlinkBoundedSource, but overriding its
+    // boundedness to CONTINUOUS_UNBOUNDED. By doing so, the Flink engine will treat this
+    // source as an unbounded source and execute the job in streaming mode. This also
+    // works well with checkpoint, because the FlinkSourceSplit containing the
+    // BeamImpulseSource will be discarded after the impulse emission. So the streaming
+    // job won't see another impulse after failover.
     return new FlinkBoundedSource<>(
         new BeamImpulseSource(),
         new SerializablePipelineOptions(flinkPipelineOptions),
