@@ -23,6 +23,7 @@ import logging
 from functools import partial
 from typing import Any
 from typing import Optional
+from typing import TYPE_CHECKING
 
 from apache_beam import typehints
 from apache_beam.coders import coders
@@ -35,6 +36,9 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+
+if TYPE_CHECKING:
+  from apache_beam.io import fileio
 
 __all__ = [
     'ReadFromText',
@@ -913,7 +917,7 @@ try:
 
   @append_pandas_args(
       pandas.read_csv, exclude=['filepath_or_buffer', 'iterator'])
-  def ReadFromCsv(path, *, splittable=True, **kwargs):
+  def ReadFromCsv(path: str, *, splittable: bool = True, **kwargs):
     """A PTransform for reading comma-separated values (csv) files into a
     PCollection.
 
@@ -932,7 +936,11 @@ try:
 
   @append_pandas_args(
       pandas.DataFrame.to_csv, exclude=['path_or_buf', 'index', 'index_label'])
-  def WriteToCsv(path, num_shards=None, file_naming=None, **kwargs):
+  def WriteToCsv(
+      path: str,
+      num_shards: Optional[int] = None,
+      file_naming: Optional['fileio.FileNaming'] = None,
+      **kwargs):
     # pylint: disable=line-too-long
 
     """A PTransform for writing a schema'd PCollection as a (set of)
@@ -960,7 +968,8 @@ try:
     return WriteViaPandas('csv', path, index=False, **kwargs)
 
   @append_pandas_args(pandas.read_json, exclude=['path_or_buf'])
-  def ReadFromJson(path, *, orient='records', lines=True, **kwargs):
+  def ReadFromJson(
+      path: str, *, orient: str = 'records', lines: bool = True, **kwargs):
     """A PTransform for reading json values from files into a PCollection.
 
     Args:
@@ -980,12 +989,12 @@ try:
   @append_pandas_args(
       pandas.DataFrame.to_json, exclude=['path_or_buf', 'index'])
   def WriteToJson(
-      path,
+      path: str,
       *,
-      num_shards=None,
-      file_naming=None,
-      orient='records',
-      lines=True,
+      num_shards: Optional[int] = None,
+      file_naming: Optional['fileio.FileNaming'] = None,
+      orient: str = 'records',
+      lines: Optional[bool] = None,
       **kwargs):
     # pylint: disable=line-too-long
 
@@ -1017,6 +1026,8 @@ try:
       kwargs['num_shards'] = num_shards
     if file_naming is not None:
       kwargs['file_naming'] = file_naming
+    if lines is None:
+      lines = orient == 'records'
     return WriteViaPandas('json', path, orient=orient, lines=lines, **kwargs)
 
 except ImportError:
