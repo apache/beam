@@ -167,6 +167,8 @@ class BatchLoads<DestinationT, ElementT>
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
 
+  private boolean allowNullSchema = false;
+
   BatchLoads(
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
@@ -181,7 +183,8 @@ class BatchLoads<DestinationT, ElementT>
       @Nullable String kmsKey,
       boolean clusteringEnabled,
       boolean useAvroLogicalTypes,
-      String tempDataset) {
+      String tempDataset,
+      boolean allowNullSchema) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -208,6 +211,7 @@ class BatchLoads<DestinationT, ElementT>
     this.tempDataset = tempDataset;
     this.tableDestinationCoder =
         clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
+    this.allowNullSchema =allowNullSchema;
   }
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
@@ -781,7 +785,8 @@ class BatchLoads<DestinationT, ElementT>
                 // tables. They also shouldn't be needed. See
                 // https://github.com/apache/beam/issues/21105 for additional details.
                 schemaUpdateOptions,
-                tempDataset))
+                tempDataset,
+                    allowNullSchema))
         .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
 
@@ -821,7 +826,8 @@ class BatchLoads<DestinationT, ElementT>
                     rowWriterFactory.getSourceFormat(),
                     useAvroLogicalTypes,
                     schemaUpdateOptions,
-                    null))
+                    null,
+                        allowNullSchema))
             .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
 
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);

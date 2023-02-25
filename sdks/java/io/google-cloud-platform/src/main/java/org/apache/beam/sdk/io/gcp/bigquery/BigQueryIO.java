@@ -1923,6 +1923,7 @@ public class BigQueryIO {
         .setAutoSchemaUpdate(false)
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
+        .setAllowNullSchema(false)
         .build();
   }
 
@@ -2064,6 +2065,8 @@ public class BigQueryIO {
 
     abstract int getMaxRetryJobs();
 
+    abstract Boolean getAllowNullSchema();
+
     abstract @Nullable String getKmsKey();
 
     abstract Boolean getOptimizeWrites();
@@ -2168,6 +2171,8 @@ public class BigQueryIO {
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
 
       abstract Builder<T> setMaxRetryJobs(int maxRetryJobs);
+
+      abstract Builder<T> setAllowNullSchema(Boolean allowNullSchema);
 
       abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
 
@@ -2683,6 +2688,12 @@ public class BigQueryIO {
       return toBuilder().setMaxRetryJobs(maxRetryJobs).build();
     }
 
+    /** If set, this will control whether null schema is allowed or not. */
+    public Write<T> withAllowNullSchema(Boolean allowNullSchema) {
+      return toBuilder().setAllowNullSchema(allowNullSchema).build();
+    }
+
+
     /**
      * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
      * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. By
@@ -3154,7 +3165,8 @@ public class BigQueryIO {
                 getKmsKey(),
                 getClustering() != null,
                 getUseAvroLogicalTypes(),
-                getWriteTempDataset());
+                getWriteTempDataset(),
+                getAllowNullSchema());
         batchLoads.setTestServices(getBigQueryServices());
         if (getSchemaUpdateOptions() != null) {
           batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());

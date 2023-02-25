@@ -147,6 +147,8 @@ class WriteTables<DestinationT extends @NonNull Object>
   private @Nullable JobService jobService;
   private final @Nullable String tempDataset;
 
+  private final Boolean allowNullSchema;
+
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, WritePartition.Result>, KV<DestinationT, Result>> {
 
@@ -206,16 +208,20 @@ class WriteTables<DestinationT extends @NonNull Object>
             BigQueryHelpers.fromJsonString(jsonSchemas.get(destination), TableSchema.class);
       } else {
         tableSchema = dynamicDestinations.getSchema(destination);
-        Preconditions.checkArgumentNotNull(
-            tableSchema,
-            "Unless create disposition is %s, a schema must be specified, i.e. "
-                + "DynamicDestinations.getSchema() may not return null. "
-                + "However, create disposition is %s, and %s returned null for destination %s",
-            CreateDisposition.CREATE_NEVER,
-            firstPaneCreateDisposition,
-            dynamicDestinations,
-            destination);
-        jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
+        if (!allowNullSchema) {
+          Preconditions.checkArgumentNotNull(
+                  tableSchema,
+                  "Unless create disposition is %s, a schema must be specified, i.e. "
+                          + "DynamicDestinations.getSchema() may not return null. "
+                          + "However, create disposition is %s, and %s returned null for destination %s",
+                  CreateDisposition.CREATE_NEVER,
+                  firstPaneCreateDisposition,
+                  dynamicDestinations,
+                  destination);
+        }
+        if (tableSchema!=null) {
+          jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
+        }
       }
 
       TableDestination tableDestination = dynamicDestinations.getTable(destination);
@@ -281,7 +287,9 @@ class WriteTables<DestinationT extends @NonNull Object>
               tableReference,
               tableDestination.getTimePartitioning(),
               tableDestination.getClustering(),
-              tableSchema,
+
+
+                  tableSchema,
               partitionFiles,
               writeDisposition,
               createDisposition,
@@ -404,7 +412,8 @@ class WriteTables<DestinationT extends @NonNull Object>
       String sourceFormat,
       boolean useAvroLogicalTypes,
       Set<SchemaUpdateOption> schemaUpdateOptions,
-      @Nullable String tempDataset) {
+      @Nullable String tempDataset,
+      boolean allowNullSchema) {
 
     this.tempTable = tempTable;
     this.bqServices = bqServices;
@@ -423,6 +432,7 @@ class WriteTables<DestinationT extends @NonNull Object>
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
     this.tempDataset = tempDataset;
+    this.allowNullSchema =allowNullSchema;
   }
 
   @Override

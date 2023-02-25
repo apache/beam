@@ -86,6 +86,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBase
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A fake implementation of BigQuery's job service. */
 @Internal
@@ -381,10 +383,6 @@ public class FakeJobService implements JobService, Serializable {
     CreateDisposition createDisposition = CreateDisposition.valueOf(load.getCreateDisposition());
 
     Table existingTable = datasetService.getTable(destination);
-    if (schema == null) {
-      schema = existingTable.getSchema();
-    }
-    checkArgument(schema != null, "No schema specified");
 
     if (!validateDispositions(existingTable, createDisposition, writeDisposition)) {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
