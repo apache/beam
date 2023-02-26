@@ -88,7 +88,7 @@ gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` 
 ./gradlew learning:tour-of-beam:terraform:InitBackend -Pproject_environment="environment_name"
 ```
 Where:
-- **project_environment** - environment name (folder created to store terraform.tfvars and state.tfbackend files)
+- **project_environment** - environment name
 
 ## FRONT
 
@@ -99,9 +99,10 @@ firebase login --no-localhost
 
 7. Run the following command from the top level repository folder ("beam") to deploy the Tour of Beam Frontend infrastructure:
 ```
-./gradlew learning:tour-of-beam:terraform:InitFrontend -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name"
+./gradlew learning:tour-of-beam:terraform:InitFrontend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name" 
 ```
 Where:
+- **project_environment** - environment name
 - **project_id** - name of your GCP Project ID
 - **dns-name** - DNS name reserved for Beam Playground
 - **region** - name of your GCP Resources region
