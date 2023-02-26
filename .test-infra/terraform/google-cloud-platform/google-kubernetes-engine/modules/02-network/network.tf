@@ -18,13 +18,14 @@
 
 // Provision virtual custom 02-network
 resource "google_compute_network" "default" {
+  depends_on              = [google_project_service.compute]
   name                    = var.network_base_name
   auto_create_subnetworks = false
 }
 
 // Provision subnetwork of the virtual custom 02-network
 resource "google_compute_subnetwork" "default" {
-  name                     = var.network_base_name
+  name                     = google_compute_network.default.name
   ip_cidr_range            = var.subnetwork_cidr_range
   network                  = google_compute_network.default.name
   private_ip_google_access = true
@@ -33,7 +34,7 @@ resource "google_compute_subnetwork" "default" {
 
 // Provision firewall rule for internal 02-network traffic only
 resource "google_compute_firewall" "default" {
-  name    = "allow-${var.network_base_name}-internal"
+  name    = "allow-${google_compute_network.default.name}-internal"
   network = google_compute_network.default.name
 
   allow {
@@ -41,14 +42,14 @@ resource "google_compute_firewall" "default" {
   }
 
   source_service_accounts = [
-    var.kubernetes_node_service_account_email
+    var.kubernetes_node_service_account.email
   ]
 }
 
 // Provision firewall rule for SSH ingress from identity aware proxy
 // See https://cloud.google.com/iap/docs/using-tcp-forwarding#create-firewall-rule
 resource "google_compute_firewall" "iap" {
-  name    = "allow-${var.network_base_name}-ssh-ingress-from-iap"
+  name    = "allow-${google_compute_network.default.name}-ssh-ingress-from-iap"
   network = google_compute_network.default.name
 
   allow {

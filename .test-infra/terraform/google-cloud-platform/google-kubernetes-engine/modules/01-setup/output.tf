@@ -16,12 +16,7 @@
  * limitations under the License.
  */
 
-// Export the provisioned service account email.
-output "kubernetes_node_service_account_email" {
-  value = google_service_account.kubernetes_node_service_account.email
-}
-
-// Export project API services
-output "required_services" {
-  value = google_project_service.required_services
+// Export the provisioned service account.
+output "kubernetes_node_service_account" {
+  value = google_service_account.kubernetes_node_service_account
 }

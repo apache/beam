@@ -16,24 +16,8 @@
  * limitations under the License.
  */
 
-// Provisions regional private Google Kubernetes Engine cluster
-resource "google_container_cluster" "default" {
-  depends_on       = [google_project_service.container]
-  name             = var.cluster_name
-  location         = var.region
-  enable_autopilot = true
-  network          = var.network.id
-  subnetwork       = var.subnetwork.id
-  node_config {
-    service_account = var.kubernetes_node_service_account.email
-  }
-  master_authorized_networks_config {}
-  private_cluster_config {
-    enable_private_endpoint = true
-    enable_private_nodes    = true
-    master_global_access_config {
-      enabled = true
-    }
-  }
-  ip_allocation_policy {}
+// Required for depends_on implicit declaration
+resource "google_project_service" "container" {
+  service            = "container.googleapis.com"
+  disable_on_destroy = false
 }

@@ -39,23 +39,21 @@ module "setup" {
 module "network" {
   source = "./modules/02-network"
 
-  kubernetes_node_service_account_email = module.setup.kubernetes_node_service_account_email
-  network_base_name                     = local.common_resource_name
-  project                               = var.project
-  region                                = var.region
-  subnetwork_cidr_range                 = var.subnetwork_cidr_range
-  required_services = module.setup.required_services
+  kubernetes_node_service_account = module.setup.kubernetes_node_service_account
+  network_base_name               = local.common_resource_name
+  project                         = var.project
+  region                          = var.region
+  subnetwork_cidr_range           = var.subnetwork_cidr_range
 }
 
 // Provision Google Kubernetes Engine cluster.
 module "cluster" {
   source = "./modules/03-cluster"
 
-  cluster_name = local.common_resource_name
-  kubernetes_node_service_account_email = module.setup.kubernetes_node_service_account_email
-  network = module.network.network
-  project = var.project
-  region = var.region
-  subnetwork = module.network.subnetwork
-  required_services = module.setup.required_services
+  cluster_name                    = local.common_resource_name
+  kubernetes_node_service_account = module.setup.kubernetes_node_service_account
+  network                         = module.network.network
+  subnetwork                      = module.network.subnetwork
+  project                         = var.project
+  region                          = var.region
 }

@@ -26,24 +26,28 @@ variable "region" {
   description = "The Google Cloud Platform (GCP) region in which to provision resources"
 }
 
-variable "kubernetes_node_service_account_email" {
-  type        = string
-  description = "The Google Cloud Platform Service Account email to be used by the node VMs created by GKE"
+variable "kubernetes_node_service_account" {
+  type = object({
+    email = string
+  })
+  description = "The Google Cloud Platform Service Account bound to the GKE node"
 }
 
 variable "network" {
+  type = object({
+    id = string
+  })
   description = "The Google Cloud Platform Virtual Cloud network within which we provision the kubernetes node"
 }
 
 variable "subnetwork" {
+  type = object({
+    id = string
+  })
   description = "The Google Cloud Platform Virtual Cloud subnetwork within which we provision the kubernetes node"
 }
 
 variable "cluster_name" {
-  type = string
+  type        = string
   description = "The name of the Google Kubernetes engine cluster."
-}
-
-variable "required_services" {
-  description = "A hack to wait for turning on Google Project API services prior to applying this module."
 }

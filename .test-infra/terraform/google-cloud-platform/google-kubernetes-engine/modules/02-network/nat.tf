@@ -23,7 +23,7 @@
 // resources outside the Google Virtual Private Cloud
 // See https://cloud.google.com/nat/docs/overview
 resource "google_compute_router_nat" "default" {
-  name                               = "${var.network_base_name}-${var.region}-nat"
+  name                               = "${google_compute_router.default.name}-nat"
   nat_ip_allocate_option             = "AUTO_ONLY"
   region                             = google_compute_router.default.region
   router                             = google_compute_router.default.name
@@ -37,7 +37,7 @@ resource "google_compute_router_nat" "default" {
 // Required by the Cloud NAT.
 // See https://cloud.google.com/network-connectivity/docs/router.
 resource "google_compute_router" "default" {
-  name    = "${var.network_base_name}-${var.region}-router"
-  network = google_compute_network.default.id
-  region  = var.region
+  name    = "${google_compute_subnetwork.default.name}-${var.region}-router"
+  network = google_compute_subnetwork.default.network
+  region  = google_compute_subnetwork.default.region
 }
