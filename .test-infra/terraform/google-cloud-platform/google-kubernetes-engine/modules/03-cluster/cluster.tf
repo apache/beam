@@ -24,8 +24,11 @@ resource "google_container_cluster" "default" {
   enable_autopilot = true
   network          = var.network.id
   subnetwork       = var.subnetwork.id
-  node_config {
-    service_account = var.kubernetes_node_service_account.email
+  cluster_autoscaling {
+    auto_provisioning_defaults {
+      service_account = var.kubernetes_node_service_account.email
+      oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
+    }
   }
   master_authorized_networks_config {}
   private_cluster_config {
