@@ -57,3 +57,15 @@ module "cluster" {
   project                         = var.project
   region                          = var.region
 }
+
+// Provision bastion host for remote private GKE cluster connectivity.
+module "bastion" {
+  source = "./modules/04-bastion"
+
+  bastion_compute_machine_type    = var.bastion_compute_machine_type
+  kubernetes_node_service_account = module.setup.kubernetes_node_service_account
+  network                         = module.network.network
+  subnetwork                      = module.network.subnetwork
+  project                         = var.project
+  region                          = var.region
+}
