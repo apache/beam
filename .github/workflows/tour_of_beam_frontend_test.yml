@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  playground_frontend_test:
+  tour_of_beam_test:
     name: Tour of Beam Test
     runs-on: ubuntu-latest
 
