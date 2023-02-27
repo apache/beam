@@ -130,7 +130,7 @@ release = version
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
-autodoc_mock_imports = ["tensorrt", "cuda"]
+autodoc_mock_imports = ["tensorrt", "cuda", "torch", "onnxruntime", "onnx", "tensorflow", "tensorflow_hub"]
 
 # Allow a special section for documenting DataFrame API
 napoleon_custom_sections = ['Differences from pandas']

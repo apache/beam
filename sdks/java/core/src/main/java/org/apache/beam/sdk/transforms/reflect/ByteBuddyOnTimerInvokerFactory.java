@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import java.lang.reflect.Constructor;
@@ -28,6 +27,7 @@ import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
 import net.bytebuddy.implementation.Implementation;
@@ -225,7 +225,9 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     Class<? extends OnTimerInvoker<?, ?>> res =
         (Class<? extends OnTimerInvoker<?, ?>>)
             unloaded
-                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
+                .load(
+                    findClassLoader(fnClass.getClassLoader()),
+                    ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
   }
@@ -275,7 +277,9 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     Class<? extends OnTimerInvoker<?, ?>> res =
         (Class<? extends OnTimerInvoker<?, ?>>)
             unloaded
-                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
+                .load(
+                    findClassLoader(fnClass.getClassLoader()),
+                    ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
   }

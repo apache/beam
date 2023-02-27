@@ -184,10 +184,8 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 		}
 
 		if attempt.Count() == maxRetries {
-			if err != nil {
-				err = errors.Wrap(err, "expansion failed")
-				return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
-			}
+			err = errors.Wrap(err, "expansion failed")
+			return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 		}
 	}
 	if len(res.GetError()) != 0 { // ExpansionResponse includes an error.
