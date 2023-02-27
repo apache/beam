@@ -1338,9 +1338,10 @@ class BigQueryServicesImpl implements BigQueryServices {
               .build();
 
       StreamWriter streamWriter =
-          StreamWriter.newBuilder(
-                  streamName,
-                  org.apache.beam.sdk.util.Preconditions.checkStateNotNull(newWriteClient))
+          StreamWriter.newBuilder(streamName)
+              .setExecutorProvider(
+                  FixedExecutorProvider.create(
+                      options.as(ExecutorOptions.class).getScheduledExecutorService()))
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
               .setEnableConnectionPool(useConnectionPool)
