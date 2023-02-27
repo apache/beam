@@ -59,3 +59,12 @@ You can watch while all the resources are created.
 ```
 kubectl get all --namespace strimzi
 ```
+
+## 4. Acquire kafka host and port.
+
+After all kafka cluster resources are created, you can run the 
+following command to find the kafka host and port.
+
+```
+kubectl get svc beam-testing-cluster-kafka-external-bootstrap --namespace strimzi
+```
