@@ -130,6 +130,7 @@ $diff_log"
 
 LogOutput "Looking for changes that require CI validation for [$SDKS] SDKs"
 allowlist_array=($ALLOWLIST)
+build_failed="False"
 for sdk in $SDKS
 do
     example_has_changed="UNKNOWN"
@@ -162,37 +163,40 @@ do
         continue
     fi
 
-    docker_options="-Psdk-tag=${DOCKERTAG}"
-    sdk_tag=$DOCKERTAG
+    # docker_options="-Psdk-tag=${DOCKERTAG}"
+    sdk_tag=$BEAM_VERSION
 
     # Special cases for Python and Java
     if [ "$sdk" == "python" ]
     then
-        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$sdk_tag"
-        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${sdk_tag}"
-        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${sdk_tag}
+        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG"
+        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG"
+        sdk_tag=$DOCKERTAG
+        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG
         if [ $? -ne 0 ]
         then
-            LogOutput "Build failed for apache/beam_python3.7_sdk:$sdk_tag"
+            build_failed="True"
+            LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
             continue
         fi
-    elif [ "$sdk" == "java" ]
-    then
+    # elif [ "$sdk" == "java" ]
+    # then
         # Java is built from released base image instead of current commit
-        docker_options="-Psdk-tag=${BEAM_VERSION} -Pdocker-tag=${BEAM_VERSION}"
-        sdk_tag=${BEAM_VERSION}
+        # docker_options="-Psdk-tag=${BEAM_VERSION} -Pdocker-tag=$DOCKERTAG"
+    #     sdk_tag=${BEAM_VERSION}
     fi
 
     LogOutput "Buidling a container for $sdk runner"
-    LogOutput "./gradlew -i playground:backend:containers:"${sdk}":docker ${docker_options}"
-    ./gradlew -i playground:backend:containers:"${sdk}":docker ${docker_options}
+    LogOutput "./gradlew -i playground:backend:containers:"${sdk}":docker -Psdk-tag=$sdk_tag -Pdocker-tag=$DOCKERTAG"
+    ./gradlew -i playground:backend:containers:"${sdk}":docker -Psdk-tag=$sdk_tag -Pdocker-tag=$DOCKERTAG
     if [ $? -ne 0 ]
     then
+        build_failed="True"
         LogOutput "Container build failed for $sdk runner"
         continue
     fi
     LogOutput "Starting container for $sdk runner"
-    docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} apache/beam_playground-backend-${sdk}:${sdk_tag}
+    docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} apache/beam_playground-backend-${sdk}:$DOCKERTAG
     sleep 10
     export SERVER_ADDRESS=container-${sdk}:8080
 
@@ -203,10 +207,20 @@ do
     --sdk SDK_"${sdk^^}" \
     --origin ${ORIGIN} \
     --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
-    LogOutput "ci_cd.py exit code: $?"
+    if [ $? -ne 0 ]
+    then
+        build_failed="True"
+        LogOutput "ci_cd.py  failed for $sdk runner"
+    fi
     cd $BEAM_ROOT_DIR
     LogOutput "Stopping container for $sdk runner"
     docker stop container-${sdk}
     docker rm container-${sdk}
 done
 LogOutput "Script finished"
+if [ "$build_failed" != "False" ]
+then
+    "At least one of the checks has failed"
+    exit 1
+fi
+exit 0
