@@ -35,19 +35,33 @@ variable "kubernetes_node_service_account" {
 
 variable "network" {
   type = object({
-    id = string
+    name = string
   })
   description = "The Google Cloud Platform Virtual Cloud network within which we provision the kubernetes node"
 }
 
 variable "subnetwork" {
   type = object({
-    id = string
+    name = string
   })
   description = "The Google Cloud Platform Virtual Cloud subnetwork within which we provision the kubernetes node"
 }
 
 variable "bastion_compute_machine_type" {
   type        = string
-  description = "The machine type of the Bastion host. See gcloud compute machine-types list for available types."
+  description = "The machine type of the Bastion host. See gcloud compute machine-types list for available types"
+}
+
+variable "router" {
+  type = object({
+    name = string
+  })
+  description = "The Google Cloud Platform Virtual Cloud router"
+}
+
+variable "nat" {
+  type = object({
+    name = string
+  })
+  description = "The Google Cloud Platform Virtual Cloud router NAT"
 }

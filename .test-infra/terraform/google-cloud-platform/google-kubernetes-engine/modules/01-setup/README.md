@@ -19,7 +19,8 @@
 
 # Overview
 
-This module sets up the Google Cloud minimally necessary environment to provision a Google Kubernetes engine.
+This module sets up the Google Cloud minimally necessary environment to
+provision a Google Kubernetes engine.
 
 - Service Account with Kubernetes Engine Node Service Account role
 - Required Project service APIs

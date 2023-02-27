@@ -23,20 +23,31 @@ This module provisions a private Google Kubernetes Engine cluster.
 
 # Requirements and Usage
 
-See [Google Cloud Platform requirements](../../google-cloud-platform/README.md) for details on requirements
+See [Google Cloud Platform requirements](../../google-cloud-platform/README.md)
+for details on requirements
 and usage.
 
+## 1. Create vars.tfvars
+
+Create a `vars.tfvars` file
+in [.test-infra/terraform/google-cloud-platform/google-kubernetes-engine](.).
+Edit with your IDE terraform plugin installed and it will autocomplete the
+variable names.
+
+## 2. Initialize and apply the terraform module.
+
 ```
-RESOURCE_NAME_PREFIX=
 terraform init
-terraform apply -var-file=vars.tfvars -var="project=$(gcloud config get-value project)" -var="resource_name_prefix=$RESOURCE_NAME_PREFIX"
+terraform apply -var-file=vars.tfvars
 ```
 
 # Special Instructions
 
-This module also provisions a bastion host needed to connect to the private cluster.  To connect to the kubernetes
-cluster, do so through the bastion host by following directions starting at [Connect to your cluster from the remote client]
-(https://cloud.google.com/kubernetes-engine/docs/tutorials/private-cluster-bastion#connect).
+This module also provisions a bastion host needed to connect to the private
+cluster. To connect to the kubernetes
+cluster, do so through the bastion host by following directions starting at
+[Connect to your cluster from the remote client](https://cloud.google.com/kubernetes-engine/docs/tutorials/private-cluster-bastion#connect)
+.
 
 To find the bastion host, run:
 

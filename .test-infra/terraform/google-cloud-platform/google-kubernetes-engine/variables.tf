@@ -33,10 +33,10 @@ variable "resource_name_prefix" {
 
 variable "subnetwork_cidr_range" {
   type        = string
-  description = "The address range for this subnet, in CIDR notation. Use a standard private VPC network address range: for example, 10.0.0.0/9."
+  description = "The address range for this subnet, in CIDR notation. Use a standard private VPC network address range: for example, 10.128.0.0/20"
 }
 
 variable "bastion_compute_machine_type" {
   type        = string
-  description = "The machine type of the Bastion host. See gcloud compute machine-types list for available types."
+  description = "The machine type of the Bastion host. See gcloud compute machine-types list for available types, for example e2-standard-2"
 }

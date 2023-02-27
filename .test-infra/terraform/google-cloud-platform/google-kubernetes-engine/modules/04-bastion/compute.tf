@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+// Generate a postfix for resource naming.
 resource "random_string" "postfix" {
   length  = 6
   upper   = false
@@ -26,14 +27,11 @@ locals {
   tinyproxy_content = file("${path.module}/tinyproxy.conf")
 }
 
-data "google_compute_zones" "available" {
-  region = var.region
-}
-
+// Query available zones in the region.
 // Provision bastion host for private cluster connectivity.
 // See https://cloud.google.com/kubernetes-engine/docs/tutorials/private-cluster-bastion
 resource "google_compute_instance" "bastion" {
-  depends_on   = [google_project_service.compute]
+  depends_on   = [data.google_compute_router.default]
   machine_type = var.bastion_compute_machine_type
   name         = "bastion-${random_string.postfix.result}"
   zone         = data.google_compute_zones.available.names[0]
@@ -49,8 +47,8 @@ resource "google_compute_instance" "bastion" {
     }
   }
   network_interface {
-    network    = var.network.id
-    subnetwork = var.subnetwork.id
+    network    = data.google_compute_network.default.id
+    subnetwork = data.google_compute_subnetwork.default.id
   }
 
   metadata_startup_script = <<EOF

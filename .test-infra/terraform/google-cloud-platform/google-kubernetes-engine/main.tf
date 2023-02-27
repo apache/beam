@@ -68,4 +68,6 @@ module "bastion" {
   subnetwork                      = module.network.subnetwork
   project                         = var.project
   region                          = var.region
+  router                          = module.network.router
+  nat                             = module.network.nat
 }

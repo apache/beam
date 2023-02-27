@@ -16,10 +16,22 @@
  * limitations under the License.
  */
 
+// Export the provisioned VPC network.
 output "network" {
   value = google_compute_network.default
 }
 
+// Export the provisioned VPC subnetwork.
 output "subnetwork" {
   value = google_compute_subnetwork.default
+}
+
+// Export the provisioned VPC NAT.
+output "nat" {
+  value = google_compute_router_nat.default
+}
+
+// Export the provisioned VPC NAT router.
+output "router" {
+  value = google_compute_router.default
 }

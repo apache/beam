@@ -19,7 +19,8 @@
 
 # Overview
 
-This module sets up the Google Cloud Virtual Provide Cloud (VPC) network and related resources.
+This module sets up the Google Cloud Virtual Provide Cloud (VPC) network and
+related resources.
 
 - Provision a custom network and subnetwork
 - Provision Cloud NAT and Router
