@@ -109,6 +109,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       startOffset = DEFAULT_START_OFFSET;
     }
     this.startOffset = startOffset;
+    LOG.info("Finish constructor SDF, startOffset = {}", startOffset);
   }
 
   @GetInitialRestriction
@@ -146,14 +147,17 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
     @SuppressWarnings("nullness") // Base method can return null
     @Override
     public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+      LOG.info("SPLIT SDF START");
       if (lastAttemptedOffset != null) {
         if (range.getTo() == Long.MAX_VALUE) {
           // Do not split, just use primary range
+          LOG.info("USE PRIMARY RANGE");
           return null;
         } else {
           // Need to add residual range
           OffsetRange res = new OffsetRange(range.getTo(), Long.MAX_VALUE);
           this.range = new OffsetRange(range.getFrom(), range.getTo());
+          LOG.info("Return split result with original range {} and residual range {}", range, res);
           return SplitResult.of(range, res);
         }
       }
@@ -173,11 +177,13 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
               MathContext.DECIMAL128);
 
       long split = splitPos.longValue();
-      if (split >= range.getTo()) {
+      if (split >= range.getTo() || split <= range.getFrom()) {
+        LOG.info("Do not split");
         return null;
       }
       OffsetRange res = new OffsetRange(split, range.getTo());
       this.range = new OffsetRange(range.getFrom(), split);
+      LOG.info("Return new split result with original range {} and residual range {}", range, res);
       return SplitResult.of(range, res);
     }
 
@@ -185,6 +191,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
     public void checkDone() throws IllegalStateException {
       if (lastAttemptedOffset != null && range.getTo() == Long.MAX_VALUE) {
         // Perform basic split
+        LOG.info("Check done, perform basic split");
         super.trySplit(0);
       }
     }
@@ -271,6 +278,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
         LOG.error("Can not init Spark Receiver!", e);
         throw new IllegalStateException("Spark Receiver was not initialized");
       }
+      LOG.info("Starting receiver");
       ((HasOffset) sparkReceiver).setStartOffset(startOffset);
       sparkReceiver.supervisor().startReceiver();
       try {
@@ -279,6 +287,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
         LOG.error("SparkReceiver was interrupted before polling started", e);
         throw new IllegalStateException("Spark Receiver was interrupted before polling started");
       }
+      LOG.info("Receiver started");
     }
 
     @Override
@@ -297,6 +306,11 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       WatermarkEstimator<Instant> watermarkEstimator,
       OutputReceiver<V> receiver) {
 
+    if (tracker.currentRestriction() != null) {
+      LOG.info("Start processing element. Restriction = {}", tracker.currentRestriction().toString());
+    } else {
+      LOG.info("Restriction is null");
+    }
     SparkConsumer<V> sparkConsumer;
     Receiver<V> sparkReceiver;
     try {
@@ -310,6 +324,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
     sparkConsumer.start(sparkReceiver);
 
     while (true) {
+      LOG.info("START POLLING");
       try {
         TimeUnit.MILLISECONDS.sleep(START_POLL_TIMEOUT_MS);
       } catch (InterruptedException e) {
@@ -317,6 +332,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
         throw new IllegalStateException("Spark Receiver was interrupted before polling started");
       }
       if (!sparkConsumer.hasRecords()) {
+        LOG.info("No records left");
         sparkConsumer.stop();
         tracker.checkDone();
         if (pullFrequencySec != 0L) {
@@ -329,19 +345,21 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
                 "Spark Receiver was interrupted while waiting to poll new records");
           }
         }
-        LOG.debug("Resume for restriction: {}", tracker.currentRestriction().toString());
+        LOG.info("Resume for restriction: {}", tracker.currentRestriction().toString());
         return ProcessContinuation.resume();
       }
       while (sparkConsumer.hasRecords()) {
+        LOG.info("Process record");
         V record = sparkConsumer.poll();
         if (record != null) {
           Long offset = getOffsetFn.apply(record);
           if (!tracker.tryClaim(offset)) {
             sparkConsumer.stop();
-            LOG.debug("Stop for restriction: {}", tracker.currentRestriction().toString());
+            LOG.info("Stop for restriction: {}", tracker.currentRestriction().toString());
             return ProcessContinuation.stop();
           }
           Instant currentTimeStamp = getTimestampFn.apply(record);
+          LOG.debug("Record: {}", record);
           ((ManualWatermarkEstimator<Instant>) watermarkEstimator).setWatermark(currentTimeStamp);
           receiver.outputWithTimestamp(record, currentTimeStamp);
         }
