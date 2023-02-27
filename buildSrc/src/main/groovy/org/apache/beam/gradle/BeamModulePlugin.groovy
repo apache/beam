@@ -318,6 +318,48 @@ class BeamModulePlugin implements Plugin<Project> {
     }
   }
 
+  // A class defining the common properties in a given suite of cross-language tests
+  // Properties are shared across runners and are used when creating a CrossLanguageUsingJavaExpansionConfiguration object
+  static class CrossLanguageTaskCommon {
+    // Used as the task name for cross-language
+    String name
+    // The expansion service's project path (required)
+    String expansionProjectPath
+    // Collect Python pipeline tests with this marker
+    String collectMarker
+    // Job server startup task.
+    TaskProvider startJobServer
+    // Job server cleanup task.
+    TaskProvider cleanupJobServer
+  }
+
+  // A class defining the configuration for CrossLanguageUsingJavaExpansion.
+  static class CrossLanguageUsingJavaExpansionConfiguration {
+    // Task name for cross-language tests using Java expansion.
+    String name = 'crossLanguageUsingJavaExpansion'
+    // Python pipeline options to use.
+    List<String> pythonPipelineOptions = [
+      "--runner=PortableRunner",
+      "--job_endpoint=localhost:8099",
+      "--environment_cache_millis=10000",
+      "--experiments=beam_fn_api",
+    ]
+    // Additional pytest options
+    List<String> pytestOptions = []
+    // Job server startup task.
+    TaskProvider startJobServer
+    // Job server cleanup task.
+    TaskProvider cleanupJobServer
+    // Number of parallel test runs.
+    Integer numParallelTests = 1
+    // Whether the pipeline needs --sdk_location option
+    boolean needsSdkLocation = false
+    // Project path for the expansion service to start up
+    String expansionProjectPath
+    // Collect Python pipeline tests with this marker
+    String collectMarker
+  }
+
   // A class defining the configuration for CrossLanguageValidatesRunner.
   static class CrossLanguageValidatesRunnerConfiguration {
     // Task name for cross-language validate runner case.
@@ -356,10 +398,6 @@ class BeamModulePlugin implements Plugin<Project> {
     String semiPersistDir = "/tmp"
     // classpath for running tests.
     FileCollection classpath
-    // Expansion service to start up
-    String expansionJar
-    // Custom collect for Python pipeline tests that use Java expansion
-    String collectTestsWithDecorator = "uses_java_expansion_service"
   }
 
   def isRelease(Project project) {
@@ -2358,6 +2396,103 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     /** ***********************************************************************************************/
+    // Method to create the createCrossLanguageUsingJavaExpansionTask.
+    // The method takes CrossLanguageUsingJavaExpansionConfiguration as parameter.
+    // This method creates a task that runs Python SDK pipeline tests that use Java transforms via an input expansion service
+    project.ext.createCrossLanguageUsingJavaExpansionTask = {
+      // This task won't work if the python build file doesn't exist.
+      if (!project.project(":sdks:python").buildFile.exists()) {
+        System.err.println 'Python build file not found. Skipping createCrossLanguageUsingJavaExpansionTask.'
+        return
+      }
+      def config = it ? it as CrossLanguageUsingJavaExpansionConfiguration : new CrossLanguageUsingJavaExpansionConfiguration()
+
+      project.evaluationDependsOn(":sdks:python")
+      project.evaluationDependsOn(config.expansionProjectPath)
+      project.evaluationDependsOn(":runners:core-construction-java")
+      project.evaluationDependsOn(":sdks:java:extensions:python")
+
+      // Setting up args to launch the expansion service
+      def envDir = project.project(":sdks:python").envdir
+      def pythonDir = project.project(":sdks:python").projectDir
+      def javaExpansionPort = getRandomPort()
+      def expansionJar = project.project(config.expansionProjectPath).buildTestExpansionServiceJar.archivePath
+      def javaClassLookupAllowlistFile = project.project(config.expansionProjectPath).projectDir.getPath()
+      def expansionServiceOpts = [
+        "group_id": project.name,
+        "java_expansion_service_jar": expansionJar,
+        "java_port": javaExpansionPort,
+        "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
+      ]
+      def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
+      def javaContainerSuffix
+      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+        javaContainerSuffix = 'java8'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+        javaContainerSuffix = 'java11'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+        javaContainerSuffix = 'java17'
+      } else {
+        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
+        throw new GradleException(exceptionMessage)
+      }
+
+      // 1. Builds the chosen expansion service jar and launches it
+      def setupTask = project.tasks.register(config.name+"Setup", Exec) {
+        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
+        dependsOn config.expansionProjectPath+':buildTestExpansionServiceJar'
+        dependsOn ":sdks:python:installGcpTest"
+        // setup test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+      }
+
+      // 2. Sets up, collects, and runs Python pipeline tests
+      def sdkLocationOpt = []
+      if (config.needsSdkLocation) {
+        setupTask.configure {dependsOn ':sdks:python:sdist'}
+        sdkLocationOpt = [
+          "--sdk_location=${pythonDir}/build/apache-beam.tar.gz"
+        ]
+      }
+      def beamPythonTestPipelineOptions = [
+        "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
+        "test_opts": config.pytestOptions,
+        "suite": config.name,
+        "collect": config.collectMarker,
+      ]
+      def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
+      def mainTask = project.tasks.register(config.name) {
+        group = "Verification"
+        description = "Runs Python SDK pipeline tests that use a Java expansion service"
+      }
+      def pythonTask = project.tasks.register(config.name+"PythonUsingJava", Exec) {
+        group = "Verification"
+        description = "Runs Python SDK pipeline tests that use a Java expansion service"
+        environment "EXPANSION_JAR", expansionJar
+        environment "EXPANSION_PORT", javaExpansionPort
+        executable 'sh'
+        args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+        dependsOn setupTask
+        dependsOn config.startJobServer
+      }
+
+      // 3. Shuts down the expansion service
+      def cleanupTask = project.tasks.register(config.name+'Cleanup', Exec) {
+        // teardown test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
+      }
+
+      setupTask.configure {finalizedBy cleanupTask}
+      config.startJobServer.configure {finalizedBy config.cleanupJobServer}
+      mainTask.configure {dependsOn pythonTask}
+
+      cleanupTask.configure{mustRunAfter pythonTask}
+      config.cleanupJobServer.configure{mustRunAfter pythonTask}
+    }
+
+    /** ***********************************************************************************************/
 
     // Method to create the crossLanguageValidatesRunnerTask.
     // The method takes crossLanguageValidatesRunnerConfiguration as parameter.
@@ -2380,7 +2515,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def pythonDir = project.project(":sdks:python").projectDir
       def javaPort = getRandomPort()
       def pythonPort = getRandomPort()
-      def expansionJar = config.expansionJar ?: project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
+      def expansionJar = project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
       def javaClassLookupAllowlistFile = project.project(":sdks:java:testing:expansion-service").projectDir.getPath() + "/src/test/resources/test_expansion_service_allowlist.yaml"
       def expansionServiceOpts = [
         "group_id": project.name,
@@ -2480,7 +2615,7 @@ class BeamModulePlugin implements Plugin<Project> {
           "suite": "xlangValidateRunner",
         ]
         if (sdk == "Java") {
-          beamPythonTestPipelineOptions["collect"] = config.collectTestsWithDecorator
+          beamPythonTestPipelineOptions["collect"] = "uses_java_expansion_service"
         } else if (sdk == "Python") {
           beamPythonTestPipelineOptions["collect"] = "uses_python_expansion_service"
         } else {

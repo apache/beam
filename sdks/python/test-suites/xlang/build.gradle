@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
+// This is a base file to set up cross language tests for different runners
 import org.apache.beam.gradle.BeamModulePlugin
-
+import static org.apache.beam.gradle.BeamModulePlugin.CrossLanguageTaskCommon
 project.evaluationDependsOn(":sdks:python")
-project.evaluationDependsOn(":runners:direct-java")
-project.evaluationDependsOn(":sdks:java:io:google-cloud-platform:expansion-service")
 
 // Set up cross language tests
 def envDir = project.project(":sdks:python").envdir
-def crossLanguageTestClasspath = project.project(":runners:direct-java").sourceSets.test.runtimeClasspath
 def jobPort = BeamModulePlugin.getRandomPort()
 def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
 def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
@@ -42,35 +38,21 @@ def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
   args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
 }
 
-// Create tasks for running tests against GCP expansion service
-def gcpExpansionJar = project.project(':sdks:java:io:google-cloud-platform:expansion-service').buildTestExpansionServiceJar.archivePath
-def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
-def dataflowGcpXlangTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-xlang-gcp-tests'
+// List of objects representing task metadata to create cross-language tasks from.
+// Each object contains the minimum relevant metadata.
+def xlangTasks = []
 
-createCrossLanguageValidatesRunnerTask(
-  name: "gcpCrossLanguage",
-  expansionJar: gcpExpansionJar,
-  collectTestsWithDecorator: "uses_gcp_java_expansion_service",
-  startJobServer: setupTask,
-  cleanupJobServer: cleanupTask,
-  numParallelTests: 1,
-  classpath: crossLanguageTestClasspath,
-  pythonPipelineOptions: [
-    "--runner=TestDirectRunner",
-    "--project=${dataflowProject}",
-    "--region=${dataflowRegion}",
-    "--job_endpoint=localhost:${jobPort}",
-    "--environment_cache_millis=10000",
-    "--experiments=beam_fn_api",
-  ],
-  javaPipelineOptions: [
-    "--runner=TestDirectRunner",
-    "--project=${dataflowProject}",
-    "--region=${dataflowRegion}",
-    "--tempRoot=${dataflowGcpXlangTempRoot}",
-    "--jobEndpoint=localhost:${jobPort}",
-    "--environmentCacheMillis=10000",
-    "--experiments=beam_fn_api",
-  ],
-)
+// Java GCP expansion service
+def gcpExpansionProject = project.project(':sdks:java:io:google-cloud-platform:expansion-service')
+def gcpXlangCommon = new CrossLanguageTaskCommon().tap {
+    name = "gcpCrossLanguage"
+    expansionProjectPath = gcpExpansionProject.getPath()
+    collectMarker = "uses_gcp_java_expansion_service"
+    startJobServer = setupTask
+    cleanupJobServer = cleanupTask
+}
+xlangTasks.add(gcpXlangCommon)
+
+// Java ___ expansion service
+
+ext.xlangTasks = xlangTasks
