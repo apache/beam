@@ -17,6 +17,7 @@
  */
 
 evaluationDependsOn(':runners:google-cloud-dataflow-java:worker')
+evaluationDependsOn(':sdks:python:test-suites:xlang')
 enablePythonPerformanceTest()
 
 String pythonVersionSuffix = project.ext.pythonVersion

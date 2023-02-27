@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+evaluationDependsOn(':sdks:python:test-suites:xlang')
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 def pythonContainerVersion = project.ext.pythonVersion
