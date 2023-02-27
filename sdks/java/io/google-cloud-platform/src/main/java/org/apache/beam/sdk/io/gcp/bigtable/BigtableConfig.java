@@ -76,6 +76,9 @@ public abstract class BigtableConfig implements Serializable {
    */
   abstract @Nullable CredentialFactory getCredentialFactory();
 
+  /** Get number of channels. */
+  abstract @Nullable Integer getChannelCount();
+
   abstract Builder toBuilder();
 
   static BigtableConfig.Builder builder() {
@@ -107,6 +110,8 @@ public abstract class BigtableConfig implements Serializable {
     abstract Builder setUserAgent(String userAgent);
 
     abstract Builder setCredentialFactory(CredentialFactory credentialFactory);
+
+    abstract Builder setChannelCount(int count);
 
     abstract BigtableConfig build();
   }
@@ -149,10 +154,6 @@ public abstract class BigtableConfig implements Serializable {
   public BigtableConfig withEmulator(String emulatorHost) {
     checkArgument(emulatorHost != null, "emulatorHost can not be null");
     return toBuilder().setEmulatorHost(emulatorHost).build();
-  }
-
-  BigtableConfig withCredentialFactory(CredentialFactory factory) {
-    return toBuilder().setCredentialFactory(factory).build();
   }
 
   void validate() {

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import com.google.auth.Credentials;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CallOptionsConfig;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 import org.threeten.bp.Duration;
 
 /** Unit tests for {@link BigtableConfigTranslator}. */
@@ -244,15 +246,15 @@ public class BigtableConfigTranslatorTest {
   }
 
   @Test
-  public void testUsingNullCredentialsFromBigtableOptions() throws Exception {
+  public void testUsingCredentialsFromBigtableOptions() throws Exception {
+    Credentials fakeCredentials = Mockito.mock(Credentials.class);
     BigtableOptions options =
         BigtableOptions.builder()
             .setProjectId("project")
             .setInstanceId("instance")
             .setAppProfileId("app-profile")
-            .setDataHost("localhost")
-            .setPort(1234)
-            .setCredentialOptions(CredentialOptions.nullCredential())
+            .setCredentialOptions(
+                CredentialOptions.UserSuppliedCredentialOptions.credential(fakeCredentials))
             .build();
 
     GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
@@ -266,10 +268,8 @@ public class BigtableConfigTranslatorTest {
 
     assertNotNull(veneerSettings.getStubSettings().getCredentialsProvider());
 
-    NoopCredentialFactory factory =
-        NoopCredentialFactory.fromOptions(PipelineOptionsFactory.create());
     assertEquals(
-        factory.getCredential(),
+        fakeCredentials,
         veneerSettings.getStubSettings().getCredentialsProvider().getCredentials());
   }
 

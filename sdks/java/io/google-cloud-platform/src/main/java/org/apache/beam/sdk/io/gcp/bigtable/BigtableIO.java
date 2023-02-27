@@ -46,8 +46,6 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -412,18 +410,6 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} with the provided credentials. If it's not set, it'll
-     * use the credentials in {@link GcpOptions}. If credentials in {@link GcpOptions} is also not
-     * set, it'll use Google default credentials.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withCredentialFactory(CredentialFactory credentialFactory) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withCredentialFactory(credentialFactory)).build();
-    }
-
-    /**
      * WARNING: Should be used only to specify additional parameters for connection to the Cloud
      * Bigtable, instanceId and projectId should be provided over {@link #withInstanceId} and {@link
      * #withProjectId} respectively.
@@ -434,7 +420,8 @@ public class BigtableIO {
      * <p>Does not modify this object.
      *
      * @deprecated please set the configurations directly:
-     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Read withBigtableOptions(BigtableOptions options) {
@@ -456,7 +443,8 @@ public class BigtableIO {
      * <p>Does not modify this object.
      *
      * @deprecated please set the configurations directly:
-     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Read withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
@@ -476,7 +464,8 @@ public class BigtableIO {
      * <p>Does not modify this object.
      *
      * @deprecated please set the configurations directly:
-     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Read withBigtableOptionsConfigurator(
@@ -802,17 +791,6 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with the provided credentials. If it's not set, it'll
-     * use the credentials in {@link GcpOptions}. If credentials in {@link GcpOptions} is also not
-     * set, it'll use Google default credentials.
-     *
-     * <p>Does not modify this object.
-     */
-    public Write withCredentialFactory(CredentialFactory credentialFactory) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withCredentialFactory(credentialFactory)).build();
-    }
-    /**
      * WARNING: Should be used only to specify additional parameters for connection to the Cloud
      * Bigtable, instanceId and projectId should be provided over {@link #withInstanceId} and {@link
      * #withProjectId} respectively.
@@ -823,7 +801,8 @@ public class BigtableIO {
      * <p>Does not modify this object.
      *
      * @deprecated please configure the write options directly:
-     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Write withBigtableOptions(BigtableOptions options) {
@@ -845,7 +824,8 @@ public class BigtableIO {
      * <p>Does not modify this object.
      *
      * @deprecated please configure the write options directly:
-     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Write withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
@@ -865,7 +845,8 @@ public class BigtableIO {
      * <p>Does not modify this object.
      *
      * @deprecated please configure the write options directly:
-     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId).
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Write withBigtableOptionsConfigurator(

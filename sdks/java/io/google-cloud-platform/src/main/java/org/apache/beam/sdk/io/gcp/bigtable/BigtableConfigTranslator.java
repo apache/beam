@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import com.google.api.gax.batching.BatchingSettings;
 import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.grpc.ChannelPoolSettings;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.StubSettings;
@@ -38,7 +40,6 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.util.Objects;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
-import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -142,6 +143,7 @@ class BigtableConfigTranslator {
       }
     }
 
+    configureChannelPool(dataBuilder.stubSettings(), config);
     configureHeaderProvider(dataBuilder.stubSettings(), pipelineOptions);
 
     return dataBuilder;
@@ -157,6 +159,20 @@ class BigtableConfigTranslator {
                 Objects.requireNonNull(pipelineOptions.getUserAgent()));
 
     stubSettings.setHeaderProvider(FixedHeaderProvider.create(headersBuilder.build()));
+  }
+
+  private static void configureChannelPool(
+      StubSettings.Builder<?, ?> stubSettings, BigtableConfig config) {
+    if (config.getChannelCount() != null
+        && stubSettings.getTransportChannelProvider() instanceof InstantiatingGrpcChannelProvider) {
+      InstantiatingGrpcChannelProvider grpcChannelProvider =
+          (InstantiatingGrpcChannelProvider) stubSettings.getTransportChannelProvider();
+      stubSettings.setTransportChannelProvider(
+          grpcChannelProvider
+              .toBuilder()
+              .setChannelPoolSettings(ChannelPoolSettings.staticallySized(config.getChannelCount()))
+              .build());
+    }
   }
 
   private static BigtableDataSettings configureWriteSettings(
@@ -259,7 +275,8 @@ class BigtableConfigTranslator {
       builder.setEmulatorHost(String.format("%s:%s", options.getDataHost(), options.getPort()));
     }
 
-    GcpOptions pipelineOptions = PipelineOptionsFactory.create().as(GcpOptions.class);
+    builder.setChannelCount(options.getChannelCount());
+
     if (options.getCredentialOptions() != null) {
       try {
         CredentialOptions credOptions = options.getCredentialOptions();
@@ -283,12 +300,12 @@ class BigtableConfigTranslator {
               if (privateKey == null) {
                 throw new IllegalStateException("private key cannot be null");
               }
-              pipelineOptions.setGcpCredential(
+              Credentials credentials =
                   ServiceAccountJwtAccessCredentials.newBuilder()
                       .setClientEmail(serviceAccount)
                       .setPrivateKey(privateKey)
-                      .build());
-              builder.setCredentialFactory(GcpCredentialFactory.fromOptions(pipelineOptions));
+                      .build();
+              builder.setCredentialFactory(FixedCredentialFactory.create(credentials));
             } catch (GeneralSecurityException exception) {
               throw new RuntimeException("exception while retrieving credentials", exception);
             }
@@ -296,18 +313,18 @@ class BigtableConfigTranslator {
           case SuppliedCredentials:
             Credentials credentials =
                 ((CredentialOptions.UserSuppliedCredentialOptions) credOptions).getCredential();
-            pipelineOptions.setGcpCredential(credentials);
-            builder.setCredentialFactory(GcpCredentialFactory.fromOptions(pipelineOptions));
+            builder.setCredentialFactory(FixedCredentialFactory.create(credentials));
             break;
           case SuppliedJson:
             CredentialOptions.JsonCredentialsOptions jsonCredentialsOptions =
                 (CredentialOptions.JsonCredentialsOptions) credOptions;
-            pipelineOptions.setGcpCredential(
-                GoogleCredentials.fromStream(jsonCredentialsOptions.getInputStream()));
-            builder.setCredentialFactory(GcpCredentialFactory.fromOptions(pipelineOptions));
+            builder.setCredentialFactory(
+                FixedCredentialFactory.create(
+                    GoogleCredentials.fromStream(jsonCredentialsOptions.getInputStream())));
             break;
           case None:
             // pipelineOptions is ignored
+            PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
             builder.setCredentialFactory(NoopCredentialFactory.fromOptions(pipelineOptions));
             break;
         }
