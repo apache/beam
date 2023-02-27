@@ -16,30 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
-
-import '../../../cache/unit_progress.dart';
-import '../../../repositories/client/client.dart';
-
-class UnitController extends ChangeNotifier {
-  final String unitId;
-  final String sdkId;
-
-  UnitController({
-    required this.unitId,
-    required this.sdkId,
-  });
-
-  Future<void> completeUnit() async {
-    final client = GetIt.instance.get<TobClient>();
-    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
-    try {
-      unitProgressCache.addUpdatingUnitId(unitId);
-      await client.postUnitComplete(sdkId, unitId);
-    } finally {
-      await unitProgressCache.updateUnitProgress();
-      unitProgressCache.clearUpdatingUnitId(unitId);
-    }
-  }
+enum SaveCodeStatus {
+  error,
+  saved,
+  saving,
 }

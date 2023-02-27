@@ -10,4 +10,5 @@ UnitProgressModel _$UnitProgressModelFromJson(Map<String, dynamic> json) =>
     UnitProgressModel(
       id: json['id'] as String,
       isCompleted: json['isCompleted'] as bool,
+      userSnippetId: json['userSnippetId'] as String?,
     );

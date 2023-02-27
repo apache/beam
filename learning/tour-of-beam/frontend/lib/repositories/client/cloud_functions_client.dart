@@ -21,6 +21,7 @@ import 'dart:io';
 
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
+import 'package:playground_components/playground_components.dart';
 
 import '../../auth/notifier.dart';
 import '../../config.dart';
@@ -99,6 +100,31 @@ class CloudFunctionsTobClient extends TobClient {
       headers: {
         HttpHeaders.authorizationHeader: 'Bearer $token',
       },
+    );
+  }
+
+  @override
+  Future<void> postUserCode({
+    required List<SnippetFile> snippetFiles,
+    required String sdkId,
+    required String unitId,
+  }) async {
+    final token = await GetIt.instance.get<AuthNotifier>().getToken();
+    if (token == null) {
+      return;
+    }
+
+    await http.post(
+      Uri.parse(
+        '$cloudFunctionsBaseUrl/postUserCode?sdk=$sdkId&id=$unitId',
+      ),
+      headers: {
+        HttpHeaders.authorizationHeader: 'Bearer $token',
+      },
+      body: jsonEncode({
+        'files': snippetFiles.map((file) => file.toJson()).toList(),
+        'pipelineOptions': '',
+      }),
     );
   }
 }

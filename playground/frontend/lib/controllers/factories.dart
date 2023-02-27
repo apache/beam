@@ -54,7 +54,7 @@ Future<void> _loadExamples(
   ExamplesLoadingDescriptor descriptor,
 ) async {
   try {
-    await controller.examplesLoader.load(descriptor);
+    await controller.examplesLoader.loadIfNew(descriptor);
   } on Exception catch (ex) {
     PlaygroundComponents.toastNotifier.addException(ex);
 
