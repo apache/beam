@@ -71,6 +71,7 @@ state_bucket         = "bucket_name"         #GCS bucket name for Beam Playgroun
 redis_name           = "playground_redis"    #Choose the name for redis instance
 min_count            = 2                     #Min node count for GKE cluster
 max_count            = 6                     #Max node count for GKE cluster
+gke_machine_type     = "e2-standard-4"       #Machine type for GKE Nodes
 
 ```
 * `state.tfbackend` environment variables:
