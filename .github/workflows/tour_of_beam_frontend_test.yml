@@ -57,7 +57,7 @@ jobs:
           cd playground/frontend/playground_components && flutter pub get && cd ..
           cd playground_components_dev && flutter pub get && cd ..
           flutter pub get && cd ../../
-          cd 'learning/tour-of-beam/frontend && flutter pub get
+          cd learning/tour-of-beam/frontend && flutter pub get
 
 #      - name: 'Formatting'
 #        run: dart format --output=none --set-exit-if-changed .
