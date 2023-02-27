@@ -16,15 +16,10 @@
  * limitations under the License.
  */
 
-// TODO(alexeyinkin): Generate this file on deployment.
-
-const _cloudFunctionsProjectRegion = 'us-east1';
-const _cloudFunctionsProjectId = 'tour-of-beam-2';
-const cloudFunctionsBaseUrl = 'https://'
-    '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
-    '.cloudfunctions.net';
-
-// Copied from Playground's config.g.dart
+// To build and run the app, copy this file to './config.g.dart'
+// This is a temporary solution while we cannot have 'config.g.dart'
+// in the repository.
+// TODO: https://github.com/apache/beam/issues/24200
 
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =

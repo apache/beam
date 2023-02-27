@@ -154,3 +154,29 @@ val deleteFilesByRegExp: (String) -> Unit = { re ->
     args("assets", "lib", "test", "-regex", re, "-delete")
   }
 }
+
+tasks.register("integrationTest") {
+  dependsOn("integrationTest_miscellaneous_ui")
+}
+
+tasks.register("integrationTest_miscellaneous_ui") {
+  doLast {
+    runIntegrationTest("miscellaneous_ui", "/")
+  }
+}
+
+fun runIntegrationTest(path: String, url: String) {
+  // Run with -PdeviceId=web-server for headless tests.
+  val deviceId: String = if (project.hasProperty("deviceId")) project.property("deviceId") as String else "chrome"
+
+  exec {
+    executable = "flutter"
+    args(
+      "drive",
+      "--driver=test_driver/integration_test.dart",
+      "--target=integration_test/${path}_test.dart",
+      "--web-launch-url='$url'",
+      "--device-id=$deviceId",
+    )
+  }
+}
