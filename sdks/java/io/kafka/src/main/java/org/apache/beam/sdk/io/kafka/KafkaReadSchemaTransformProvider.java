@@ -114,11 +114,11 @@ public class KafkaReadSchemaTransformProvider
             : "To read from Kafka, a schema must be provided directly or though Confluent "
                 + "Schema Registry, but not both.";
         final Schema beamSchema =
-            Objects.equals(configuration.getDataFormat(), "JSON")
+            Objects.equals(configuration.getFormat(), "JSON")
                 ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
                 : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
         SerializableFunction<byte[], Row> valueMapper =
-            Objects.equals(configuration.getDataFormat(), "JSON")
+            Objects.equals(configuration.getFormat(), "JSON")
                 ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
                 : AvroUtils.getAvroBytesToRowFunction(beamSchema);
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
