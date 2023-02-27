@@ -2462,10 +2462,6 @@ class BeamModulePlugin implements Plugin<Project> {
         "collect": config.collectMarker,
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
-      def mainTask = project.tasks.register(config.name) {
-        group = "Verification"
-        description = "Runs Python SDK pipeline tests that use a Java expansion service"
-      }
       def pythonTask = project.tasks.register(config.name+"PythonUsingJava", Exec) {
         group = "Verification"
         description = "Runs Python SDK pipeline tests that use a Java expansion service"
@@ -2486,7 +2482,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
       setupTask.configure {finalizedBy cleanupTask}
       config.startJobServer.configure {finalizedBy config.cleanupJobServer}
-      mainTask.configure {dependsOn pythonTask}
 
       cleanupTask.configure{mustRunAfter pythonTask}
       config.cleanupJobServer.configure{mustRunAfter pythonTask}
