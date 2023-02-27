@@ -54,10 +54,13 @@ resource "google_compute_instance" "bastion" {
   }
 
   metadata_startup_script = <<EOF
-apt install tinyproxy
-cat << TP > /etc/tinyproxy/tinyproxy.conf
+sudo apt install tinyproxy -y
+sudo mkdir -p /etc/tinyproxy
+
+sudo cat << TP > /etc/tinyproxy/tinyproxy.conf
 ${local.tinyproxy_content}
 TP
-service tinyproxy restart
+
+sudo service tinyproxy restart
 EOF
 }
