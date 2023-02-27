@@ -28,8 +28,34 @@ See [requirements](../README.md) for details on requirements.
 
 # Usage
 
-Run the following command to provision the kafka cluster.
+Run the following commands to provision the kafka cluster.  Each command needs to wait until the previous completes.
+
+## 1. Create the namespace.
 
 ```
-kubectl apply -k .
+kubectl apply -f 00-namespace.yaml
+```
+
+## 2. Create the strimzi operator.
+
+```
+kubectl apply -f 01-strimzi-operator.yaml
+```
+
+Wait until completion before proceeding to the next step.
+
+```
+ kubectl get deploy strimzi-cluster-operator --namespace strimzi -w
+```
+
+## 3. Create the kafka cluster.
+
+```
+kubectl apply -f 02-kafka-persistent.yaml
+```
+
+You can watch while all the resources are created.
+
+```
+kubectl get all --namespace strimzi
 ```

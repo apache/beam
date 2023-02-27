@@ -34,4 +34,12 @@ terraform apply -var-file=vars.tfvars -var="project=$(gcloud config get-value pr
 
 # Special Instructions
 
-After provisioning resources, see https://cloud.google.com/kubernetes-engine/docs/tutorials/private-cluster-bastion.
+This module also provisions a bastion host needed to connect to the private cluster.  To connect to the kubernetes
+cluster, do so through the bastion host by following directions starting at [Connect to your cluster from the remote client]
+(https://cloud.google.com/kubernetes-engine/docs/tutorials/private-cluster-bastion#connect).
+
+To find the bastion host, run:
+
+```
+gcloud compute instances list --filter=name:bastion
+```
