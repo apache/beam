@@ -21,9 +21,10 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../cache/unit_progress.dart';
+import '../../../models/event_context.dart';
 import '../../../models/unit.dart';
-// import '../../../modules/analytics/google_analytics_service.dart';
 import '../../../repositories/client/client.dart';
+import '../../../services/analytics/events/unit_completed.dart';
 
 class UnitController extends ChangeNotifier {
   final UnitModel unit;
@@ -41,8 +42,14 @@ class UnitController extends ChangeNotifier {
       unitProgressCache.addUpdatingUnitId(unit.id);
       await client.postUnitComplete(sdk.id, unit.id);
     } finally {
-      // TODO: Send event.
-      // await TobGoogleAnalyticsService.get().completeUnit(sdk, unit);
+      PlaygroundComponents.analyticsService.sendUnawaited(
+        UnitCompletedTobAnalyticsEvent(
+          tobContext: TobEventContext(
+            sdkId: sdk.id,
+            unitId: unit.id,
+          ),
+        ),
+      );
       await unitProgressCache.updateCompletedUnits();
       unitProgressCache.clearUpdatingUnitId(unit.id);
     }

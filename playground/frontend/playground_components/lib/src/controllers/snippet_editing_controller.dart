@@ -45,6 +45,14 @@ class SnippetEditingController extends ChangeNotifier {
   final _fileControllers = <SnippetFileEditingController>[];
   final _fileControllersByName = <String, SnippetFileEditingController>{};
 
+  Map<String, dynamic> _defaultEventParams = const {};
+  void setDefaultEventParams(Map<String, dynamic> eventParams) {
+    _defaultEventParams = eventParams;
+    for (final fileController in _fileControllers) {
+      fileController.defaultEventParams = eventParams;
+    }
+  }
+
   SnippetEditingController({
     required this.sdk,
   });
@@ -191,6 +199,8 @@ class SnippetEditingController extends ChangeNotifier {
 
     _activeFileController =
         _fileControllers.firstWhereOrNull((c) => c.savedFile.isMain);
+
+    setDefaultEventParams(_defaultEventParams);
   }
 
   void _onFileControllerChanged() {

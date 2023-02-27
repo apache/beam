@@ -19,39 +19,41 @@
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../constants/global_shortcuts.dart';
+import '../pages/tour/state.dart';
 
-class PlaygroundShortcutsManager extends StatelessWidget {
-  const PlaygroundShortcutsManager({
+class TobShortcutsManager extends StatelessWidget {
+  const TobShortcutsManager({
     required this.child,
-    required this.playgroundController,
+    required this.tourNotifier,
   });
 
   final Widget child;
-  final PlaygroundController playgroundController;
+  final TourNotifier tourNotifier;
 
   @override
   Widget build(BuildContext context) {
     return ShortcutsManager(
       shortcuts: [
-        ...playgroundController.shortcuts,
+        ...tourNotifier.playgroundController.shortcuts,
         BeamRunShortcut(
           onInvoke: () {
-            final codeRunner = playgroundController.codeRunner;
+            final codeRunner = tourNotifier.playgroundController.codeRunner;
 
             if (codeRunner.canRun) {
-              codeRunner.runCode();
+              codeRunner.runCode(
+                analyticsData: tourNotifier.tobEventContext.toJson(),
+              );
 
               PlaygroundComponents.analyticsService.sendUnawaited(
                 RunStartedAnalyticsEvent(
                   snippetContext: codeRunner.eventSnippetContext!,
                   trigger: EventTrigger.shortcut,
+                  additionalParams: codeRunner.analyticsData,
                 ),
               );
             }
           },
         ),
-        ...globalShortcuts,
       ],
       child: child,
     );

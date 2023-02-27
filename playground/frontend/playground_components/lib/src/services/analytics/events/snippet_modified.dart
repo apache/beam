@@ -25,6 +25,7 @@ import 'constants.dart';
 /// For multi-file snippets this fires up to one time on each modified file.
 class SnippetModifiedAnalyticsEvent extends AnalyticsEvent {
   const SnippetModifiedAnalyticsEvent({
+    required this.additionalParams,
     required this.fileName,
     required this.sdk,
     required this.snippet,
@@ -32,6 +33,7 @@ class SnippetModifiedAnalyticsEvent extends AnalyticsEvent {
           name: BeamAnalyticsEvents.snippetModified,
         );
 
+  final Map<String, dynamic> additionalParams;
   final String fileName;
   final Sdk sdk;
   final String snippet;
@@ -42,5 +44,6 @@ class SnippetModifiedAnalyticsEvent extends AnalyticsEvent {
         EventParams.fileName: fileName,
         EventParams.sdk: sdk.id,
         EventParams.snippet: snippet,
+        ...additionalParams,
       };
 }

@@ -38,6 +38,8 @@ class SnippetFileEditingController extends ChangeNotifier {
 
   final _symbolsNotifier = GetIt.instance.get<SymbolsNotifier>();
 
+  Map<String, dynamic> defaultEventParams = const {};
+
   SnippetFileEditingController({
     required this.savedFile,
     required this.sdk,

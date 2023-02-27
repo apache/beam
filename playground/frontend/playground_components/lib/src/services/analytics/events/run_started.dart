@@ -19,20 +19,21 @@
 import 'abstract.dart';
 import 'constants.dart';
 
-/// A real or cached run is cancelled.
-class CancelRunAnalyticsEvent extends AnalyticsEventWithSnippetContext {
-  const CancelRunAnalyticsEvent({
-    required this.duration,
+/// 'Run' button is pressed to show cached result or to run for real.
+class RunStartedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
+  const RunStartedAnalyticsEvent({
     required super.snippetContext,
+    required this.trigger,
+    super.additionalParams,
   }) : super(
-          name: BeamAnalyticsEvents.cancelRun,
+          name: BeamAnalyticsEvents.runStarted,
         );
 
-  final Duration duration;
+  final EventTrigger trigger;
 
   @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
-        EventParams.runSeconds: duration.inSeconds,
+        EventParams.trigger: trigger.name,
       };
 }

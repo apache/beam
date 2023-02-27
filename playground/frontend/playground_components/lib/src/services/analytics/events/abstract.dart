@@ -42,9 +42,11 @@ abstract class AnalyticsEventWithSnippetContext extends AnalyticsEvent {
   const AnalyticsEventWithSnippetContext({
     required this.snippetContext,
     required super.name,
+    this.additionalParams = const {},
   });
 
   final EventSnippetContext snippetContext;
+  final Map<String, dynamic> additionalParams;
 
   @override
   List<Object?> get props => [
@@ -53,8 +55,12 @@ abstract class AnalyticsEventWithSnippetContext extends AnalyticsEvent {
       ];
 
   @override
-  Map<String, dynamic> toJson() => {
-        ...super.toJson(),
-        ...snippetContext.toJson(),
-      };
+  Map<String, dynamic> toJson() {
+    final map = {
+      ...super.toJson(),
+      ...snippetContext.toJson(),
+      ...additionalParams,
+    };
+    return map;
+  }
 }

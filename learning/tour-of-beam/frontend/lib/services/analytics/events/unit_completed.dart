@@ -16,29 +16,13 @@
  * limitations under the License.
  */
 
-import '../../../enums/feedback_rating.dart';
 import 'abstract.dart';
 import 'constants.dart';
 
-/// Feedback with the [rating] and the [text] is sent.
-///
-/// Currently this analytics event is the only medium to log the feedback.
-class FeedbackFormAnalyticsEvent extends AnalyticsEventWithSnippetContext {
-  const FeedbackFormAnalyticsEvent({
-    required this.rating,
-    required this.text,
-    required super.snippetContext,
+class UnitCompletedTobAnalyticsEvent extends AnalyticsEventWithTobContext {
+  const UnitCompletedTobAnalyticsEvent({
+    required super.tobContext,
   }) : super(
-          name: BeamAnalyticsEvents.feedbackForm,
+          name: TobAnalyticsEvents.unitCompleted,
         );
-
-  final FeedbackRating rating;
-  final String text;
-
-  @override
-  Map<String, dynamic> toJson() => {
-        ...super.toJson(),
-        EventParams.feedbackRating: rating.name,
-        EventParams.feedbackText: text,
-      };
 }

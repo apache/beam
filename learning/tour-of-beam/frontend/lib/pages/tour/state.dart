@@ -27,8 +27,11 @@ import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
 import '../../cache/unit_progress.dart';
 import '../../config.dart';
+import '../../models/event_context.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
+import '../../services/analytics/events/unit_closed.dart';
+import '../../services/analytics/events/unit_opened.dart';
 import '../../state.dart';
 import 'controllers/content_tree.dart';
 import 'controllers/unit.dart';
@@ -44,6 +47,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
   DateTime? _currentUnitOpenedAt;
+
+  TobEventContext _tobEventContext = TobEventContext.empty;
+  TobEventContext get tobEventContext => _tobEventContext;
 
   TourNotifier({
     required String initialSdkId,
@@ -136,7 +142,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     if (_currentUnitOpenedAt != null && _currentUnitContent != null) {
-      // TODO: Send close unit event.
+      PlaygroundComponents.analyticsService.sendUnawaited(
+        UnitClosedTobAnalyticsEvent(
+          tobContext: _tobEventContext,
+          timeSpent: DateTime.now().difference(_currentUnitOpenedAt!),
+        ),
+      );
     }
 
     _currentUnitContent = content;
@@ -145,7 +156,18 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     _currentUnitOpenedAt = DateTime.now();
-    // TODO: Send open unit event.
+    _tobEventContext = TobEventContext(
+      sdkId: sdk.id,
+      unitId: unit.id,
+    );
+    playgroundController
+        .requireSnippetEditingController()
+        .setDefaultEventParams(_tobEventContext.toJson());
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      UnitOpenedTobAnalyticsEvent(
+        tobContext: _tobEventContext,
+      ),
+    );
 
     final taskSnippetId = content.taskSnippetId;
     await _setPlaygroundSnippet(taskSnippetId);
@@ -225,11 +247,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onUnitProgressChanged);
-    super.dispose();
+    await super.dispose();
   }
 }

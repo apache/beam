@@ -146,6 +146,7 @@ class _SnippetFileEditorState extends State<SnippetFileEditor> {
             fileName: widget.controller.savedFile.name,
             sdk: widget.controller.sdk,
             snippet: snippet,
+            additionalParams: widget.controller.defaultEventParams,
           ),
         );
       }

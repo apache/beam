@@ -17,25 +17,27 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 
-class ResetAction extends StatelessWidget {
-  const ResetAction();
+import 'intents.dart';
+import 'shortcut.dart';
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<PlaygroundController>(
-      builder: (context, playgroundController, child) => ResetButton(
-        playgroundController: playgroundController,
-        beforeReset: () {
-          PlaygroundComponents.analyticsService.sendUnawaited(
-            SnippetResetAnalyticsEvent(
-              snippetContext: playgroundController.eventSnippetContext,
-            ),
-          );
-        },
-      ),
-    );
-  }
+class BeamRunShortcut extends BeamShortcut {
+  final VoidCallback onInvoke;
+
+  BeamRunShortcut({
+    required this.onInvoke,
+  }) : super(
+          shortcuts: LogicalKeySet(
+            LogicalKeyboardKey.meta,
+            LogicalKeyboardKey.enter,
+          ),
+          actionIntent: const RunIntent(),
+          createAction: (BuildContext context) => CallbackAction(
+            onInvoke: (_) {
+              onInvoke();
+              return;
+            },
+          ),
+        );
 }

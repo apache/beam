@@ -20,22 +20,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../state.dart';
+
 class PlaygroundWidget extends StatelessWidget {
-  final PlaygroundController playgroundController;
+  final TourNotifier tourNotifier;
 
   const PlaygroundWidget({
-    required this.playgroundController,
+    required this.tourNotifier,
   });
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: playgroundController,
+      animation: tourNotifier.playgroundController,
       builder: _buildOnChange,
     );
   }
 
   Widget _buildOnChange(BuildContext context, Widget? child) {
+    final playgroundController = tourNotifier.playgroundController;
     final snippetController = playgroundController.snippetEditingController;
     if (snippetController == null) {
       return const LoadingIndicator();
@@ -59,7 +62,40 @@ class PlaygroundWidget extends StatelessWidget {
           right: 30,
           child: Row(
             children: [
-              RunOrCancelButton(playgroundController: playgroundController),
+              if (playgroundController.codeRunner.canRun)
+                RunOrCancelButton(
+                  playgroundController: playgroundController,
+                  beforeCancel: (runner) {
+                    PlaygroundComponents.analyticsService.sendUnawaited(
+                      RunCancelledAnalyticsEvent(
+                        snippetContext: runner.eventSnippetContext!,
+                        duration: runner.elapsed!,
+                        trigger: EventTrigger.click,
+                        additionalParams: tourNotifier.tobEventContext.toJson(),
+                      ),
+                    );
+                  },
+                  beforeRun: () {
+                    PlaygroundComponents.analyticsService.sendUnawaited(
+                      RunStartedAnalyticsEvent(
+                        snippetContext: tourNotifier.playgroundController
+                            .codeRunner.eventSnippetContext!,
+                        trigger: EventTrigger.click,
+                        additionalParams: tourNotifier.tobEventContext.toJson(),
+                      ),
+                    );
+                  },
+                  onComplete: (runner) {
+                    PlaygroundComponents.analyticsService.sendUnawaited(
+                      RunFinishedAnalyticsEvent(
+                        snippetContext: runner.eventSnippetContext!,
+                        duration: runner.elapsed!,
+                        trigger: EventTrigger.click,
+                        additionalParams: tourNotifier.tobEventContext.toJson(),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),

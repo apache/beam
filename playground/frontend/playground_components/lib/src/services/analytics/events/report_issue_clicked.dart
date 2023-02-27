@@ -20,10 +20,11 @@ import 'abstract.dart';
 import 'constants.dart';
 
 /// Report issue is clicked.
-class ReportIssueAnalyticsEvent extends AnalyticsEventWithSnippetContext {
-  const ReportIssueAnalyticsEvent({
+class ReportIssueClickedAnalyticsEvent
+    extends AnalyticsEventWithSnippetContext {
+  const ReportIssueClickedAnalyticsEvent({
     required super.snippetContext,
   }) : super(
-          name: BeamAnalyticsEvents.reportIssue,
+          name: BeamAnalyticsEvents.reportIssueClicked,
         );
 }

@@ -175,7 +175,7 @@ class FeedbackDropdownContent extends StatelessWidget {
                     onPressed: () {
                       if (textController.text.isNotEmpty) {
                         PlaygroundComponents.analyticsService.sendUnawaited(
-                          FeedbackFormAnalyticsEvent(
+                          FeedbackFormSentAnalyticsEvent(
                             rating: feedbackRating,
                             text: textController.text,
                             snippetContext: eventSnippetContext,

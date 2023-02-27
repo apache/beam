@@ -16,26 +16,29 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
+import '../../../enums/feedback_rating.dart';
+import 'abstract.dart';
+import 'constants.dart';
 
-class ResetAction extends StatelessWidget {
-  const ResetAction();
+/// Feedback with the [rating] and the [text] is sent.
+///
+/// Currently this analytics event is the only medium to log the feedback.
+class FeedbackFormSentAnalyticsEvent extends AnalyticsEventWithSnippetContext {
+  const FeedbackFormSentAnalyticsEvent({
+    required this.rating,
+    required this.text,
+    required super.snippetContext,
+  }) : super(
+          name: BeamAnalyticsEvents.feedbackFormSent,
+        );
+
+  final FeedbackRating rating;
+  final String text;
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<PlaygroundController>(
-      builder: (context, playgroundController, child) => ResetButton(
-        playgroundController: playgroundController,
-        beforeReset: () {
-          PlaygroundComponents.analyticsService.sendUnawaited(
-            SnippetResetAnalyticsEvent(
-              snippetContext: playgroundController.eventSnippetContext,
-            ),
-          );
-        },
-      ),
-    );
-  }
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        EventParams.feedbackRating: rating.name,
+        EventParams.feedbackText: text,
+      };
 }

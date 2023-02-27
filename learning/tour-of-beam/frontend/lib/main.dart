@@ -46,6 +46,10 @@ void main() async {
   final routeInformationParser = TobRouteInformationParser();
   final backButtonDispatcher = PageStackBackButtonDispatcher(pageStack);
 
+  PlaygroundComponents.analyticsService.defaultEventParameters = {
+    EventParams.app: 'tob',
+  };
+
   runApp(
     EasyLocalization(
       supportedLocales: const [englishLocale],

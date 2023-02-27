@@ -24,15 +24,19 @@ class RunFinishedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const RunFinishedAnalyticsEvent({
     required this.duration,
     required super.snippetContext,
+    required this.trigger,
+    super.additionalParams,
   }) : super(
           name: BeamAnalyticsEvents.runFinished,
         );
 
   final Duration duration;
+  final EventTrigger trigger;
 
   @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
-        EventParams.runSeconds: duration.inSeconds,
+        EventParams.runDurationInSeconds: duration.inSeconds,
+        EventParams.trigger: trigger.name,
       };
 }

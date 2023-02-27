@@ -16,26 +16,33 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
+import 'package:equatable/equatable.dart';
 
-class ResetAction extends StatelessWidget {
-  const ResetAction();
+const _none = 'none';
+
+/// Basic information of the Tour of Beam state to augment analytics events.
+class TobEventContext with EquatableMixin {
+  const TobEventContext({
+    required this.sdkId,
+    required this.unitId,
+  });
+
+  final String? sdkId;
+  final String? unitId;
+
+  static const empty = TobEventContext(
+    sdkId: null,
+    unitId: null,
+  );
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<PlaygroundController>(
-      builder: (context, playgroundController, child) => ResetButton(
-        playgroundController: playgroundController,
-        beforeReset: () {
-          PlaygroundComponents.analyticsService.sendUnawaited(
-            SnippetResetAnalyticsEvent(
-              snippetContext: playgroundController.eventSnippetContext,
-            ),
-          );
-        },
-      ),
-    );
-  }
+  List<Object?> get props => [
+        sdkId,
+        unitId,
+      ];
+
+  Map<String, dynamic> toJson() => {
+        'sdkId': sdkId ?? _none,
+        'unitId': unitId ?? _none,
+      };
 }

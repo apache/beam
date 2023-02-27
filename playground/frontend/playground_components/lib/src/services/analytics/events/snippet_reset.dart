@@ -20,10 +20,10 @@ import 'abstract.dart';
 import 'constants.dart';
 
 /// 'Reset Snippet' is clicked.
-class ResetSnippetAnalyticsEvent extends AnalyticsEventWithSnippetContext {
-  const ResetSnippetAnalyticsEvent({
+class SnippetResetAnalyticsEvent extends AnalyticsEventWithSnippetContext {
+  const SnippetResetAnalyticsEvent({
     required super.snippetContext,
   }) : super(
-          name: BeamAnalyticsEvents.resetSnippet,
+          name: BeamAnalyticsEvents.snippetReset,
         );
 }

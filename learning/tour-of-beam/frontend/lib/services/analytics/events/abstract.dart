@@ -16,14 +16,27 @@
  * limitations under the License.
  */
 
-import 'abstract.dart';
-import 'constants.dart';
+import 'package:playground_components/playground_components.dart';
 
-/// 'Run' button is pressed to show cached result or to run for real.
-class RunAnalyticsEvent extends AnalyticsEventWithSnippetContext {
-  const RunAnalyticsEvent({
-    required super.snippetContext,
-  }) : super(
-          name: BeamAnalyticsEvents.run,
-        );
+import '../../../models/event_context.dart';
+
+abstract class AnalyticsEventWithTobContext extends AnalyticsEvent {
+  const AnalyticsEventWithTobContext({
+    required this.tobContext,
+    required super.name,
+  });
+
+  final TobEventContext tobContext;
+
+  @override
+  List<Object?> get props => [
+        ...super.props,
+        tobContext,
+      ];
+
+  @override
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        ...tobContext.toJson(),
+      };
 }

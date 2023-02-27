@@ -16,26 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
+import 'abstract.dart';
+import 'constants.dart';
 
-class ResetAction extends StatelessWidget {
-  const ResetAction();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<PlaygroundController>(
-      builder: (context, playgroundController, child) => ResetButton(
-        playgroundController: playgroundController,
-        beforeReset: () {
-          PlaygroundComponents.analyticsService.sendUnawaited(
-            SnippetResetAnalyticsEvent(
-              snippetContext: playgroundController.eventSnippetContext,
-            ),
-          );
-        },
-      ),
-    );
-  }
+class UnitOpenedTobAnalyticsEvent extends AnalyticsEventWithTobContext {
+  const UnitOpenedTobAnalyticsEvent({
+    required super.tobContext,
+  }) : super(
+          name: TobAnalyticsEvents.unitOpened,
+        );
 }
