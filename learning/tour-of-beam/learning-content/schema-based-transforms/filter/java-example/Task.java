@@ -144,15 +144,15 @@ public class Task {
         PCollection<User> pCollection = input
                 .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
                 .setSchema(type,
-                        TypeDescriptor.of(Object.class), input ->
+                        TypeDescriptor.of(Object.class), row ->
                         {
-                            User user = (User) input;
+                            User user = (User) row;
                             return Row.withSchema(type)
                                     .addValues(user.userId, user.userName, user.game.score, user.game.gameId, user.game.date)
                                     .build();
                         },
-                        input -> new User(input.getString(0), input.getString(1),
-                                new Game(input.getString(0), input.getInt32(2), input.getString(3), input.getString(4)))
+                        row -> new User(row.getString(0), row.getString(1),
+                                new Game(row.getString(0), row.getInt32(2), row.getString(3), row.getString(4)))
                 )
                 .apply(Filter.create().whereFieldName("score", score -> (int) score > 11))
                 .apply(MapElements.into(TypeDescriptor.of(User.class)).via(user -> (User) user));

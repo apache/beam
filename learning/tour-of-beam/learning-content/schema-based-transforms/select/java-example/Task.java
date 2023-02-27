@@ -138,7 +138,7 @@ public class Task {
         game.apply("User game", ParDo.of(new LogOutput<>("Game")));
 
         // Flattened row, select all fields
-        PCollection<Row> flattened = fullStatistics.apply(Select.flattenedSchema());
+        PCollection<Row> flattened = input.apply(Select.flattenedSchema());
         flattened.apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
 
