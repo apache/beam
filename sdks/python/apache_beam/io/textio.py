@@ -21,9 +21,9 @@
 
 import logging
 from functools import partial
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
-from typing import TYPE_CHECKING
 
 from apache_beam import typehints
 from apache_beam.coders import coders
