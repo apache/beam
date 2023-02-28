@@ -54,12 +54,12 @@ def rmdir(directory):
   directory.rmdir()
 
 def clear_tf_hub_temp_dir(model_path):
-  # When loading a tensorflow hub using tfhub.resolve, the model is saved in a
-  # temporary directory. That file can be persisted between test runs, in which
-  # case tfhub.resolve will no-op. If the model is deleted and the file isn't,
-  # tfhub.resolve will still no-op and tf.keras.models.load_model will throw.
-  # To avoid this (and test more robustly) we delete the temporary directory
-  # entirely between runs.
+  # When loading from tensorflow hub using tfhub.resolve, the model is saved in
+  # a temporary directory. That file can be persisted between test runs, in
+  # which case tfhub.resolve will no-op. If the model is deleted and the file
+  # isn't, tfhub.resolve will still no-op and tf.keras.models.load_model will
+  # throw. To avoid this (and test more robustly) we delete the temporary
+  # directory entirely between runs.
   local_path = hub.resolve(model_path)
   rmdir(local_path)
 
