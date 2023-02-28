@@ -58,6 +58,7 @@ public class KinesisEnhancedFanOutReader extends UnboundedSource.UnboundedReader
   }
 
   @Override
+  @SuppressWarnings("dereference.of.nullable")
   public boolean start() throws IOException {
     LOG.info("Starting reader using {}", checkpointGenerator);
     try {
