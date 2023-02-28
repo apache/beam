@@ -51,19 +51,19 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 6. Apache Beam Git repository cloned locally
 
 # Prepare deployment configuration:
-Tour of Beam backend uses `terraform.tfvars` located in `learning/tour-of-beam/terraform/environment/environment_name/` to define variables specific to an environment (e.g., prod, test, staging).<br>
-1. Create a folder (further referred as `environment_name`) to define a new environment and place configuration files into it:
+Tour of Beam backend uses `terraform.tfvars` located in `learning/tour-of-beam/terraform/environment/environment_name/` to define variables specific to an environment (e.g., prod, test, staging). Follow the steps below to prepare the deployment configuration:<br>
+1. Create a folder (referred to as `environment_name`) to define a new environment and place configuration files into it:
 
 * `terraform.tfvars` environment variables:
 ```
-project_id = "gcp_project_id"                   # Your GCP Project ID
-cloudfunctions_bucket = "gcs_bucket_name"       # Name of bucket that will be created for cloud functions source code (Note: has to be globally unique)
-region = "gcp_region"                           # Your GCP resources region
+project_id              = "gcp_project_id"            # Your GCP Project ID
+cloudfunctions_bucket   = "gcs_bucket_name"           # Name of bucket that will be created for cloud functions source code (Note: has to be globally unique)
+region                  = "gcp_region"                # Your GCP resources region
 
 ```
 * `state.tfbackend` environment variables:
 ```
-bucket = "bucket_name"                          # Your created bucket name for terraform tfstate file
+bucket = "bucket_name"          # Your created bucket name for terraform tfstate file
 ```
 2. Configure authentication for the Google Cloud Platform
 ```
@@ -73,18 +73,18 @@ gcloud init
 gcloud auth application-default login
 ```
 
-3. Run the following command to authenticate in the Docker registry:
+3. Configure authenticate in the Docker registry:
 ```
  gcloud auth configure-docker `chosen_region`-docker.pkg.dev
 ```
-4. Run the following command to authenticate in GKE:
+4. And the authentication in GKE:
 ```
 gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` --project `project_id`
 ```
 
-# Deploy Tour of Beam Backend:
+# Deploy the Tour of Beam Backend:
 
-5. Run the command below from the top level repository folder ("beam") to deploy the Tour of Beam Backend infrastructure:
+5. Run the following command from the top-level repository folder ("beam") to deploy the Tour of Beam Backend infrastructure:
 ```
 ./gradlew learning:tour-of-beam:terraform:InitBackend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id"
 ```
@@ -92,14 +92,14 @@ Where:
 - **project_environment** - environment name
 - **project_id** - name of your GCP Project ID
 
-# Deploy Tour of Beam Frontend:
+# Deploy the Tour of Beam Frontend:
 
-6. Run the command below and follow instructions to configure authentication for the Firebase
+6. Run the following command and follow the instructions to configure authentication for Firebase:
 ```
 firebase login --no-localhost
 ```
 
-7. Run the following command from the top level repository folder ("beam") to deploy the Tour of Beam Frontend infrastructure:
+7. Run the following command from the top-level repository folder ("beam") to deploy the Tour of Beam Frontend infrastructure:
 ```
 ./gradlew learning:tour-of-beam:terraform:InitFrontend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name" 
 ```
@@ -110,8 +110,8 @@ Where:
 - **region** - name of your GCP Resources region
 - **webapp_id** - name of your Firebase Web Application that will be created (example: Tour-of-Beam-Web-App)
 
-# Validate deployed Tour of Beam:
-8. Open Tour of Beam frontend webpage in a web browser (Hosting URL will be provided in output once script is finished) to ensure that web page is available
+# Validate the deployment of the Tour of Beam:
+8. Open the Tour of Beam webpage in a web browser (Hosting URL will be provided in terminal output) to ensure that deployment has been successfully completed.
 
 Example:
 ```
