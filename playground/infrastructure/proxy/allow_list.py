@@ -17,7 +17,6 @@
 # from Beam Playground
 ALLOWED_LIST = [
     "logging.googleapis.com",
-    "datastore.googleapis.com",
     "oauth2.googleapis.com",
     "storage.googleapis.com",
     "www.googleapis.com",
