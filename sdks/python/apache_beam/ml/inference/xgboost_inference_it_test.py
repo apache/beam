@@ -29,6 +29,42 @@ try:
 except ImportError as e:
   xgboost = None
 
+EXPECTED_OUTPUT_SINGLE_BATCHES = [
+    "0,[1 1 1 0 0 0 0 1 2 0 0 2 0 2 1 2 2 2 2 0 0 0 0 2 2 0 2 2 2 1]"
+]
+EXPECTED_OUTPUT_MULTIPLE_BATCHES = [
+    "0,[1]",
+    "1,[1]",
+    "2,[1]",
+    "3,[0]",
+    "4,[0]",
+    "5,[0]",
+    "6,[0]",
+    "7,[1]",
+    "8,[2]",
+    "9,[0]",
+    "10,[0]",
+    "11,[2]",
+    "12,[0]",
+    "13,[2]",
+    "14,[1]",
+    "15,[2]",
+    "16,[2]",
+    "17,[2]",
+    "18,[2]",
+    "19,[0]",
+    "20,[0]",
+    "21,[0]",
+    "22,[0]",
+    "23,[2]",
+    "24,[2]",
+    "25,[0]",
+    "26,[2]",
+    "27,[2]",
+    "28,[2]",
+    "29,[1]",
+]
+
 
 def process_outputs(filepath):
   with FileSystems().open(filepath) as f:
@@ -64,8 +100,7 @@ class XGBoostInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = '/tmp/test_xgboost_iris_classification_numpy_single_batch_actual.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
+    expected_outputs = EXPECTED_OUTPUT_SINGLE_BATCHES
 
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
@@ -98,8 +133,7 @@ class XGBoostInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = '/tmp/test_xgboost_iris_classification_pandas_single_batch_actual.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
+    expected_outputs = EXPECTED_OUTPUT_SINGLE_BATCHES
 
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
@@ -132,8 +166,7 @@ class XGBoostInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = '/tmp/test_xgboost_iris_classification_scipy_single_batch_actual.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
+    expected_outputs = EXPECTED_OUTPUT_SINGLE_BATCHES
 
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
@@ -166,8 +199,7 @@ class XGBoostInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = '/tmp/test_xgboost_iris_classification_datatable_single_batch_actual.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
+    expected_outputs = EXPECTED_OUTPUT_SINGLE_BATCHES
 
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
@@ -200,8 +232,7 @@ class XGBoostInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = '/tmp/test_xgboost_iris_classification_numpy_multi_batch_actual.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
+    expected_outputs = EXPECTED_OUTPUT_MULTIPLE_BATCHES
 
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
@@ -234,8 +265,7 @@ class XGBoostInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = '/tmp/test_xgboost_iris_classification_pandas_multi_batch_actual.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
+    expected_outputs = EXPECTED_OUTPUT_MULTIPLE_BATCHES
 
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
@@ -268,8 +298,7 @@ class XGBoostInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = '/tmp/test_xgboost_iris_classification_scipy_multi_batch_actual.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
+    expected_outputs = EXPECTED_OUTPUT_MULTIPLE_BATCHES
 
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
@@ -302,8 +331,7 @@ class XGBoostInference(unittest.TestCase):
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
 
-    expected_output_filepath = '/tmp/test_xgboost_iris_classification_datatable_multi_batch_actual.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
+    expected_outputs = EXPECTED_OUTPUT_MULTIPLE_BATCHES
 
     predicted_outputs = process_outputs(output_file)
     self.assertEqual(len(expected_outputs), len(predicted_outputs))
