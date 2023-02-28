@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 -->
-# Tour of Beam deployment on GCP
+# The Tour of Beam deployment on GCP
 This guide provides instructions on how to deploy the Tour of Beam environment on Google Cloud Platform (GCP) and Firebase environment. Before starting the deployment, ensure that you have the following prerequisites in place:
 
 ## Prerequisites:
@@ -34,7 +34,7 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 
 3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
 
-4. DNS name for your Tour of Beam deployment instance (or use subdomain)
+4. DNS name for the Tour of Beam
 
 5. OS with installed software listed below:
 
