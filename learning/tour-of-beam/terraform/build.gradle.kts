@@ -293,7 +293,7 @@ tasks.register("uploadLearningMaterials") {
 }
 
 /* Tour of Beam backend init */
-    tasks.register("InitBackend") {
+tasks.register("InitBackend") {
     group = "backend-deploy"
     val getRouterHost = tasks.getByName("getRouterHost")
     val indexCreate = tasks.getByName("indexcreate")
