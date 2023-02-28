@@ -20,12 +20,12 @@
 import logging
 import unittest
 import uuid
+from pathlib import Path
 
 import pytest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
-from pathlib import Path
 
 # pylint: disable=ungrouped-imports
 try:
@@ -44,6 +44,7 @@ def process_outputs(filepath):
   lines = [l.decode('utf-8').strip('\n') for l in lines]
   return lines
 
+
 def rmdir(directory):
   directory = Path(directory)
   for item in directory.iterdir():
@@ -52,6 +53,7 @@ def rmdir(directory):
     else:
       item.unlink()
   directory.rmdir()
+
 
 def clear_tf_hub_temp_dir(model_path):
   # When loading from tensorflow hub using tfhub.resolve, the model is saved in
@@ -62,7 +64,6 @@ def clear_tf_hub_temp_dir(model_path):
   # directory entirely between runs.
   local_path = hub.resolve(model_path)
   rmdir(local_path)
-
 
 
 @unittest.skipIf(
