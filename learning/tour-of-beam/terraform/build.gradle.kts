@@ -35,55 +35,58 @@ var webapp_id = project.property("webapp_id") as String
 var dns_name = project.property("dns-name") as String
 var region = project.property("region") as String
 
+tasks {
+
 /* init Infrastructure for migrate */
-tasks.register<TerraformTask>("terraformInit") {
-    // exec args can be passed by commandline, for example
-    args(
-        "init", "-migrate-state",
-        "-backend-config=./environment/$environment/state.tfbackend",
-        "-var=environment=$environment",
-        if (file("./environment/$environment/terraform.tfvars").exists()) {
-            "-var-file=./environment/$environment/terraform.tfvars"
-        } else {
-            "-no-color"
-        }
-    )
-}
+    register<TerraformTask>("terraformInit") {
+        // exec args can be passed by commandline, for example
+        args(
+                "init", "-migrate-state",
+                "-backend-config=./environment/$environment/state.tfbackend",
+                "-var=environment=$environment",
+                if (file("./environment/$environment/terraform.tfvars").exists()) {
+                    "-var-file=./environment/$environment/terraform.tfvars"
+                } else {
+                    "-no-color"
+                }
+        )
+    }
 
-/* refresh Infrastucture for remote state */
-tasks.register<TerraformTask>("terraformRef") {
-    mustRunAfter(":learning:tour-of-beam:terraform:terraformInit")
-    args(
-        "refresh",
-        "-lock=false",
-        "-var=environment=$environment",
-        if (file("./environment/$environment/terraform.tfvars").exists()) {
-            "-var-file=./environment/$environment/terraform.tfvars"
-        } else {
-            "-no-color"
-        }
-    )
-}
+    /* refresh Infrastucture for remote state */
+    register<TerraformTask>("terraformRef") {
+        mustRunAfter(":learning:tour-of-beam:terraform:terraformInit")
+        args(
+                "refresh",
+                "-lock=false",
+                "-var=environment=$environment",
+                if (file("./environment/$environment/terraform.tfvars").exists()) {
+                    "-var-file=./environment/$environment/terraform.tfvars"
+                } else {
+                    "-no-color"
+                }
+        )
+    }
 
-tasks.register<TerraformTask>("terraformApplyBackend") {
-    group = "backend-deploy"
-    var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
-    args(
-        "apply",
-        "-auto-approve",
-        "-lock=false",
-        "-var=pg_router_host=$pg_router_host",
-        "-target=module.api_enable",
-        "-target=module.setup",
-        "-target=module.functions_buckets",
-        "-target=module.cloud_functions",
-        "-var=environment=$environment",
-        if (file("./environment/$environment/terraform.tfvars").exists()) {
-            "-var-file=./environment/$environment/terraform.tfvars"
-        } else {
-            "-no-color"
-        }
-    )
+    register<TerraformTask>("terraformApplyBackend") {
+        group = "backend-deploy"
+        var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
+        args(
+                "apply",
+                "-auto-approve",
+                "-lock=false",
+                "-var=pg_router_host=$pg_router_host",
+                "-target=module.api_enable",
+                "-target=module.setup",
+                "-target=module.functions_buckets",
+                "-target=module.cloud_functions",
+                "-var=environment=$environment",
+                if (file("./environment/$environment/terraform.tfvars").exists()) {
+                    "-var-file=./environment/$environment/terraform.tfvars"
+                } else {
+                    "-no-color"
+                }
+        )
+    }
 }
 
 tasks.register("getRouterHost") {
