@@ -34,9 +34,7 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 
 3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
 
-4. DNS name for the Tour of Beam
-
-5. OS with installed software listed below:
+4. An OS with the following software installed:
 
 * [Java](https://adoptopenjdk.net/)
 * [NodeJS & npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/)
@@ -48,7 +46,7 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 * [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
 * [Go](https://go.dev/doc/install)
 
-6. Apache Beam Git repository cloned locally
+5. Apache Beam Git repository cloned locally
 
 # Prepare deployment configuration:
 Tour of Beam backend uses `terraform.tfvars` located in `learning/tour-of-beam/terraform/environment/environment_name/` to define variables specific to an environment (e.g., prod, test, staging). Follow the steps below to prepare the deployment configuration:<br>
@@ -65,7 +63,7 @@ region                  = "gcp_region"                # Your GCP resources regio
 ```
 bucket = "bucket_name"          # Your created bucket name for terraform tfstate file
 ```
-2. Configure authentication for the Google Cloud Platform
+2. Configure authentication for the Google Cloud Platform (GCP)
 ```
 gcloud init
 ```
@@ -73,11 +71,11 @@ gcloud init
 gcloud auth application-default login
 ```
 
-3. Configure authenticate in the Docker registry:
+3. Configure authentication in the GCP Docker registry:
 ```
  gcloud auth configure-docker `chosen_region`-docker.pkg.dev
 ```
-4. And the authentication in GKE:
+4. And the authentication in GCP Google Kubernetes Engine:
 ```
 gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` --project `project_id`
 ```
