@@ -23,7 +23,7 @@ variable "project_id" {
 
 variable "machine_type" {
   description = "Node pool machine types , for prod set  c2d-highcpu-16"
-  default     = "e2-standard-4"
+  default     = "e2-standard-8"
 }
 variable "service_account_email" {
   description = "Service account email"

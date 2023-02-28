@@ -133,7 +133,7 @@ variable "network_region" {
 
 variable "gke_machine_type" {
   description = "Node pool machine types"
-  default     = "e2-standard-4"
+  default     = "e2-standard-8"
 }
 
 variable "gke_name" {

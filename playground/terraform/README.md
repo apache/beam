@@ -69,9 +69,10 @@ region               = "us-east1"            #Set the deployment region
 location             = "us-east1-b"          #Select the deployment location from available in the specified region
 state_bucket         = "bucket_name"         #GCS bucket name for Beam Playground temp files
 redis_name           = "playground_redis"    #Choose the name for redis instance
+redis_tier           = "BASIC"               #Redis tier type. Could be "Basic" or "Standard_HA". "BASIC" by default
 min_count            = 2                     #Min node count for GKE cluster
 max_count            = 6                     #Max node count for GKE cluster
-gke_machine_type     = "e2-standard-4"       #Machine type for GKE Nodes
+gke_machine_type     = "e2-standard-8"       #Machine type for GKE Nodes
 
 ```
 * `state.tfbackend` environment variables:
