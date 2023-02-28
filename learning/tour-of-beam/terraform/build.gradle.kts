@@ -28,18 +28,12 @@ terraformPlugin {
     terraformVersion.set("1.0.9")
 }
 
-/* Variables block */
-var environment = project.property("project_environment") as String
-var project_id = project.property("project_id") as String
-var webapp_id = project.property("webapp_id") as String
-var dns_name = project.property("dns-name") as String
-var region = project.property("region") as String
-
 tasks {
 
 /* init Infrastructure for migrate */
     register<TerraformTask>("terraformInit") {
         // exec args can be passed by commandline, for example
+        var environment = project.property("project_environment") as String
         args(
                 "init", "-migrate-state",
                 "-backend-config=./environment/$environment/state.tfbackend",
@@ -54,7 +48,7 @@ tasks {
 
     /* refresh Infrastucture for remote state */
     register<TerraformTask>("terraformRef") {
-        mustRunAfter(":learning:tour-of-beam:terraform:terraformInit")
+        var environment = project.property("project_environment") as String
         args(
                 "refresh",
                 "-lock=false",
@@ -70,6 +64,7 @@ tasks {
     register<TerraformTask>("terraformApplyBackend") {
         group = "backend-deploy"
         var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
+        var environment = project.property("project_environment") as String
         args(
                 "apply",
                 "-auto-approve",
@@ -112,7 +107,7 @@ tasks.register("indexcreate") {
 tasks.register("firebaseProjectCreate") {
     group = "frontend-deploy"
     val result = ByteArrayOutputStream()
-
+    var project_id = project.property("project_id") as String
     exec {
         executable("firebase")
         args("projects:list")
@@ -133,6 +128,8 @@ tasks.register("firebaseProjectCreate") {
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
     val result = ByteArrayOutputStream()
+    var project_id = project.property("project_id") as String
+    var webapp_id = project.property("webapp_id") as String
     exec {
         executable("firebase")
         args("apps:list", "--project", project_id)
@@ -236,6 +233,10 @@ tasks.register("firebaseDeploy") {
 
 tasks.register("prepareConfig") {
     group = "frontend-deploy"
+    var region = project.property("region") as String
+    var project_id = project.property("project_id") as String
+    var environment = project.property("project_environment") as String
+    var dns_name = project.property("dns-name") as String
     val configFileName = "config.dart"
     val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
     val file = File("$modulePath/lib/$configFileName")
@@ -266,6 +267,7 @@ const String kApiScioClientURL =
 
 tasks.register("prepareFirebasercConfig") {
     group = "frontend-deploy"
+    var project_id = project.property("project_id") as String
     val configFileName = ".firebaserc"
     val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
     val file = File("$modulePath/$configFileName")
@@ -282,6 +284,7 @@ tasks.register("prepareFirebasercConfig") {
 }
 
 tasks.register("uploadLearningMaterials") {
+    var project_id = project.property("project_id") as String
     group = "backend-deploy"
     exec {
         commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
