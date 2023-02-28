@@ -83,15 +83,17 @@ gcloud auth application-default login
 gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` --project `project_id`
 ```
 
-# Deploy Tour of Beam Backend
+# Deploy Tour of Beam Backend:
+
 5. Run the command below from the top level repository folder ("beam") to deploy the Tour of Beam Backend infrastructure:
 ```
 ./gradlew learning:tour-of-beam:terraform:InitBackend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id"
 ```
 Where:
 - **project_environment** - environment name
+- **project_id** - name of your GCP Project ID
 
-## FRONT
+# Deploy Tour of Beam Frontend:
 
 6. Run the command below and follow instructions to configure authentication for the Firebase
 ```
