@@ -38,6 +38,11 @@ resource "google_cloudfunctions_function" "cloud_function" {
     PLAYGROUND_ROUTER_HOST=var.pg_router_host
   }
 
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
 }
 
 # Create IAM entry so all users can invoke the function
