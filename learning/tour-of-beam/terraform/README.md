@@ -41,9 +41,9 @@ This guide shows you how to deploy Tour of Beam environment on Google Cloud Plat
 
 * [Java](https://adoptopenjdk.net/)
 * [NodeJS & npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/)
-* [Flutter (3.7.0 >)](https://docs.flutter.dev/get-started/install)
-* [Dart SDK (2.19.2 to 4.0.0)](https://dart.dev/get-dart)
-* [Firebase CLI](https://docs.docker.com/engine/install/)
+* [Flutter (3.7.3 >)](https://docs.flutter.dev/get-started/install)
+* [Dart SDK (2.19.2)](https://dart.dev/get-dart)
+* [Firebase-tools CLI](https://www.npmjs.com/package/firebase-tools)
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 * [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
