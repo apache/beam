@@ -24,4 +24,3 @@ spec:
     kind: Deployment
     name: playground-java
   targetCPUUtilizationPercentage: 90
-  
