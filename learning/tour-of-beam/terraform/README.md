@@ -21,7 +21,6 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 
 ## Prerequisites:
 
-### Following items need to be setup for Tour of Beam deployment on GCP:
 1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
    Ensure that the account has at least following privileges:
