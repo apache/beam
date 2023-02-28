@@ -79,6 +79,8 @@ docker {
   buildArgs(['py_version': "${project.ext.pythonVersion}",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
+  buildx project.containerPlatforms() != [project.nativeArchitecture()]
+  platform(*project.containerPlatforms())
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies
