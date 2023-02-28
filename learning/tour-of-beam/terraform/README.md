@@ -17,7 +17,7 @@
     under the License.
 -->
 # Tour of Beam deployment on GCP
-This guide shows you how to deploy Tour of Beam environment on Google Cloud Platform (GCP) and Firebase environment.
+This guide provides instructions on how to deploy the Tour of Beam environment on Google Cloud Platform (GCP) and Firebase environment. Before starting the deployment, ensure that you have the following prerequisites in place:
 
 ## Prerequisites:
 
@@ -112,4 +112,12 @@ Where:
 - **webapp_id** - name of your Firebase Web Application that will be created (example: Tour-of-Beam-Web-App)
 
 # Validate deployed Playground:
-8. Open Tour of Beam frontend webpage in a web browser (dns name will be provided in output once script is finished) to ensure that web page is available
+8. Open Tour of Beam frontend webpage in a web browser (Hosting URL will be provided in output once script is finished) to ensure that web page is available
+
+Example:
+```
+✔  Deploy complete!
+
+Project Console: https://console.firebase.google.com/project/some-gcp-project-id/overview
+Hosting URL: https://some-gcp-project-id.web.app
+```
