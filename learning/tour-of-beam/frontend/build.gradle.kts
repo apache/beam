@@ -156,12 +156,12 @@ val deleteFilesByRegExp: (String) -> Unit = { re ->
 }
 
 tasks.register("integrationTest") {
-  dependsOn("integrationTest_miscellaneous_ui")
+  dependsOn("integrationTest_welcome_page")
 }
 
-tasks.register("integrationTest_miscellaneous_ui") {
+tasks.register("integrationTest_welcome_page") {
   doLast {
-    runIntegrationTest("miscellaneous_ui", "/")
+    runIntegrationTest("welcome_page", "/")
   }
 }
 

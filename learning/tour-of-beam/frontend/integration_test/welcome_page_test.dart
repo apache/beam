@@ -26,6 +26,10 @@ void main() {
   testWidgets('mode toggle', (wt) async {
     await app.main();
     await wt.pumpAndSettle();
-    expect(find.byType(ToggleThemeButton), findsOneWidget);
+    await _checkSwitchTheme(wt);
   });
+}
+
+Future<void> _checkSwitchTheme(WidgetTester wt) async {
+  expect(find.byType(ToggleThemeButton), findsOneWidget);
 }
