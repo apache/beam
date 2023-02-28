@@ -29,7 +29,7 @@ terraformPlugin {
 }
 
 /* Variables block */
-val environment = project.property("project_environment") as String
+var environment = project.property("project_environment") as String
 var project_id = project.property("project_id") as String
 var webapp_id = project.property("webapp_id") as String
 var dns_name = project.property("dns-name") as String
