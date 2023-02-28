@@ -15,30 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.azure.cosmos
+package com.azure.cosmos.examples.common;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
-import org.apache.beam.sdk.annotations.Experimental
-import org.apache.beam.sdk.annotations.Experimental.Kind
+import java.io.Serializable;
 
-/** IO to read data on CosmosDB with Core (SQL) API.
-  *
-  * {{{
-  * pipeline.apply(
-  *   CosmosIO
-  *     .read()
-  *     .withCosmosEndpoint(ENDPOINT)
-  *     .withCosmosKey(KEY)
-  *     .withDatabase(DATABASE_NAME)
-  *     .withContainer(COLLECTIONS)
-  *     .withQuery(FILTER)
-  * )
-  * }}}
-  */
-@Experimental(Kind.SOURCE_SINK)
-@SuppressFBWarnings(Array("MS_PKGPROTECT"))
-object CosmosIO {
-  def read(): CosmosRead = {
-    CosmosRead()
+public class Address implements Serializable {
+  public String getState() {
+    return state;
   }
+
+  public void setState(String state) {
+    this.state = state;
+  }
+
+  public String getCounty() {
+    return county;
+  }
+
+  public void setCounty(String county) {
+    this.county = county;
+  }
+
+  public String getCity() {
+    return city;
+  }
+
+  public void setCity(String city) {
+    this.city = city;
+  }
+
+  private String state = "";
+  private String county = "";
+  private String city = "";
 }

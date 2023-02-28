@@ -18,41 +18,29 @@
 
 plugins {
   id("org.apache.beam.module")
-  id("scala")
 }
 
-ext {
-  junitVersion = "5.9.1"
-  cosmosVersion = "4.37.1"
-  cosmosContainerVersion = "1.17.5"
-  bsonMongoVersion = "4.7.2"
-  log4jVersion = "2.19.0"
-}
-
-applyJavaNature(automaticModuleName: "org.apache.beam.sdk.io.azure.cosmosdb")
+applyJavaNature(automaticModuleName: "org.apache.beam.sdk.io.azure.cosmos")
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Azure Cosmos DB"
-ext.summary = "IO library to read and write Azure Cosmos DB services from Beam."
+ext.summary = "IO library to read and write Azure Cosmos DB"
 
 dependencies {
-  implementation("org.scala-lang:scala-library:2.12.17")
-  implementation("com.azure:azure-cosmos:${cosmosVersion}")
-  implementation library.java.commons_io
+  implementation library.java.azure_cosmos
   permitUnusedDeclared library.java.commons_io // BEAM-11761
-  implementation library.java.slf4j_api
+  implementation library.java.guava
+  implementation library.java.jackson_databind
+  // implementation library.java.slf4j_api
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation("org.mongodb:bson:${bsonMongoVersion}")
 }
 
 // TEST
 dependencies {
-  testImplementation("org.testcontainers:azure:${cosmosContainerVersion}")
-  testImplementation("com.outr:scribe_2.12:3.10.4")
-  testImplementation("com.outr:scribe-slf4j_2.12:3.10.5")
+  testImplementation library.java.junit
+  testImplementation library.java.testcontainers_azure
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation library.java.mockito_core
-  testImplementation("org.junit.vintage:junit-vintage-engine:${junitVersion}")
-  testRuntimeOnly("org.apache.logging.log4j:log4j-api:$log4jVersion")
-  testRuntimeOnly("org.apache.logging.log4j:log4j-core:$log4jVersion")
+//  testImplementation library.java.mockito_core
+//  testRuntimeOnly("org.apache.logging.log4j:log4j-api:$log4jVersion")
+//  testRuntimeOnly("org.apache.logging.log4j:log4j-core:$log4jVersion")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

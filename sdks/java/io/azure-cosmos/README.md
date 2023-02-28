@@ -19,16 +19,16 @@
 
 # Cosmos DB Core SQL API
 
-Compile all module azure-cosmosdb
+Compile all module azure-cosmos
 
 ```shell
-gradle sdks:java:io:azure-cosmosdb:build
+gradle sdks:java:io:azure-cosmos:build
 ```
 
 Valite code:
 ```shell
 gradle rat
-gradle sdks:java:io:azure-cosmosdb:spotbugsMain
+gradle sdks:java:io:azure-cosmos:spotbugsMain
 ```
 
 ## Test
@@ -36,7 +36,7 @@ gradle sdks:java:io:azure-cosmosdb:spotbugsMain
 Run TEST for this module (Cosmos DB Core SQL API):
 
 ```shell
-gradle sdks:java:io:azure-cosmosdb:test
+gradle sdks:java:io:azure-cosmos:test
 ```
 
 
@@ -48,8 +48,8 @@ Publish this module
 # apache beam core
 gradle -Ppublishing -PdistMgmtSnapshotsUrl=~/.m2/repository/ -p sdks/java/core/  publishToMavenLocal
 
-# apache beam azure-cosmosdb
-gradle -Ppublishing -PdistMgmtSnapshotsUrl=~/.m2/repository/ -p sdks/java/io/azure-cosmosdb/  publishToMavenLocal
+# apache beam azure-cosmos
+gradle -Ppublishing -PdistMgmtSnapshotsUrl=~/.m2/repository/ -p sdks/java/io/azure-cosmos/  publishToMavenLocal
 ```
 
 Publish all modules of apache beam
