@@ -213,8 +213,8 @@ do
     fi
     cd $BEAM_ROOT_DIR
     LogOutput "Stopping container for $sdk runner"
-    docker stop container-${sdk}
-    docker rm container-${sdk}
+    docker stop container-${sdk} > /dev/null
+    docker rm container-${sdk} > /dev/null
 done
 
 LogOutput "Script finished"
