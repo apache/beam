@@ -1,6 +1,12 @@
-firstPRMergeComment: |
-  Thank you for merging your first PR to the Beam community! 🙌
+# This config.yml file is specifically for WelcomeBot, a probot bot.  See: https://github.com/behaviorbot/welcome
 
+firstPRMergeComment: |
+  Thank you for your contribution and getting your first PR merged into the Beam project! 🙌
+
+  We cut releases every 6 weeks.
+  Now that your PR has been merged into master it should be included in the next release branch.
+
+  Also:  
   The Apache Software Foundation (ASF) has a #FirstASFContribution Campaign
   Please consider sharing your story by submitting [this form](https://forms.gle/FDwR9wLZCkwhirTM9)
   
