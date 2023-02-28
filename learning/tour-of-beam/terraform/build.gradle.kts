@@ -243,7 +243,7 @@ const _cloudFunctionsProjectRegion = '$region';
 const _cloudFunctionsProjectId = '$project_id';
 const cloudFunctionsBaseUrl = 'https://'
     '$region-$project_id'
-    '.cloudfunctions.net';
+    '.cloudfunctions.net/$environment-';
 
 
 const String kAnalyticsUA = 'UA-73650088-2';
