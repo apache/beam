@@ -17,9 +17,11 @@
  */
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:rate_limiter/rate_limiter.dart';
@@ -39,6 +41,8 @@ import 'controllers/unit.dart';
 import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
+  static const _storage = FlutterSecureStorage();
+
   static const _saveUserCodeDebounceDuration = Duration(seconds: 2);
   Debounce? _saveCodeDebounced;
 
@@ -64,7 +68,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onAuthChanged);
-    _saveCodeDebounced = _saveUserCode.debounced(
+    _saveCodeDebounced = _saveCode.debounced(
       _saveUserCodeDebounceDuration,
     );
     // setSdk creates snippetEditingController if it doesn't exist.
@@ -192,6 +196,28 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
   }
 
+  Future<void> _saveCode({
+    required String sdkId,
+    required List<SnippetFile> snippetFiles,
+    required String unitId,
+  }) async {
+    if (_authNotifier.isAuthenticated) {
+      await _saveUserCode(
+        sdkId: sdkId,
+        snippetFiles: snippetFiles,
+        unitId: unitId,
+      );
+    } else {
+      await _saveLocalCode(
+        unitId,
+        ContentExampleLoadingDescriptor(
+          files: snippetFiles,
+          sdk: Sdk.parseOrCreate(sdkId),
+        ),
+      );
+    }
+  }
+
   Future<void> _saveUserCode({
     required String sdkId,
     required List<SnippetFile> snippetFiles,
@@ -211,6 +237,17 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       print(['Could not save code: ', e]);
       _saveCodeStatus = SaveCodeStatus.error;
     }
+  }
+
+  Future<void> _saveLocalCode(
+    String unitId,
+    ContentExampleLoadingDescriptor descriptor,
+  ) async {
+    final encoded = jsonEncode(descriptor);
+    await _storage.write(
+      key: unitId,
+      value: encoded,
+    );
   }
 
   Future<void> showSnippetByType(SnippetType snippetType) async {
@@ -255,9 +292,14 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetId = unit.taskSnippetId;
         break;
       case SnippetType.saved:
-        snippetId = _unitProgressCache.getUnitSavedSnippetId(currentUnitId) ??
-            unit.taskSnippetId;
-        break;
+        if (_authNotifier.isAuthenticated) {
+          snippetId = _unitProgressCache.getUnitSavedSnippetId(currentUnitId) ??
+              unit.taskSnippetId;
+          break;
+        } else {
+          await _setLocalCode(currentUnitId!);
+          return;
+        }
       case SnippetType.solution:
         snippetId = unit.solutionSnippetId;
         break;
@@ -266,6 +308,28 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   // Playground controller.
+
+  Future<void> _setLocalCode(String unitId) async {
+    final value = await _storage.read(key: unitId);
+    if (value != null) {
+      try {
+        final Map<String, dynamic> map = jsonDecode(value);
+        final descriptor = ContentExampleLoadingDescriptor.tryParse(map);
+
+        if (descriptor != null) {
+          await playgroundController.examplesLoader.load(
+            ExamplesLoadingDescriptor(
+              descriptors: [
+                descriptor,
+              ],
+            ),
+          );
+        }
+      } on Exception catch (_) {
+        // show toast
+      }
+    }
+  }
 
   Future<void> _setPlaygroundSnippet(String? snippetId) async {
     if (snippetId == null) {
