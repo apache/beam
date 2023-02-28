@@ -111,7 +111,7 @@ Where:
 - **region** - name of your GCP Resources region
 - **webapp_id** - name of your Firebase Web Application that will be created (example: Tour-of-Beam-Web-App)
 
-# Validate deployed Playground:
+# Validate deployed Tour of Beam:
 8. Open Tour of Beam frontend webpage in a web browser (Hosting URL will be provided in output once script is finished) to ensure that web page is available
 
 Example:
