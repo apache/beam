@@ -130,9 +130,9 @@ $diff_log"
 
 LogOutput "Looking for changes that require CI validation for [$SDKS] SDKs"
 allowlist_array=($ALLOWLIST)
-build_failed="False"
 for sdk in $SDKS
 do
+    eval "ci_${sdk}_passed"='False'
     example_has_changed="UNKNOWN"
     LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
     cd $BEAM_ROOT_DIR/playground/infrastructure
@@ -175,7 +175,6 @@ do
         ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG
         if [ $? -ne 0 ]
         then
-            build_failed="True"
             LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
             continue
         fi
@@ -191,7 +190,6 @@ do
     ./gradlew -i playground:backend:containers:"${sdk}":docker -Psdk-tag=$sdk_tag -Pdocker-tag=$DOCKERTAG
     if [ $? -ne 0 ]
     then
-        build_failed="True"
         LogOutput "Container build failed for $sdk runner"
         continue
     fi
@@ -209,18 +207,23 @@ do
     --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
     if [ $? -ne 0 ]
     then
-        build_failed="True"
         LogOutput "ci_cd.py  failed for $sdk runner"
+    else
+        eval "ci_${sdk}_passed"='True'
     fi
     cd $BEAM_ROOT_DIR
     LogOutput "Stopping container for $sdk runner"
     docker stop container-${sdk}
     docker rm container-${sdk}
 done
+
 LogOutput "Script finished"
-if [ "$build_failed" != "False" ]
-then
-    "At least one of the checks has failed"
-    exit 1
-fi
+for sdk in $SDKS
+do
+    result=$(eval echo '$'"ci_${sdk}_passed")
+    if [ "$result" != "True" ]; then
+        "At least one of the checks has failed"
+        exit 1
+    fi
+done
 exit 0
