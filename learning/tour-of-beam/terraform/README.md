@@ -47,6 +47,7 @@ This guide shows you how to deploy Tour of Beam environment on Google Cloud Plat
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 * [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
+* [Go](https://go.dev/doc/install)
 
 6. Apache Beam Git repository cloned locally
 
@@ -85,7 +86,7 @@ gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` 
 # Deploy Tour of Beam Backend
 5. Run the command below from the top level repository folder ("beam") to deploy the Tour of Beam Backend infrastructure:
 ```
-./gradlew learning:tour-of-beam:terraform:InitBackend -Pproject_environment="environment_name"
+./gradlew learning:tour-of-beam:terraform:InitBackend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id"
 ```
 Where:
 - **project_environment** - environment name
