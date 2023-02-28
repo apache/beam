@@ -280,14 +280,13 @@ tasks.register("prepareFirebasercConfig") {
 
 tasks.register("uploadLearningMaterials") {
     group = "backend-deploy"
-    val result: ExecResult = project.exec {
+    exec {
         commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
         environment("DATASTORE_PROJECT_ID", project_id)
         environment("GOOGLE_PROJECT_ID", project_id)
         environment("TOB_LEARNING_ROOT", "../learning-content/")
         workingDir("../backend")
     }
-    println("Output of script:\n$result")
 }
 
 /* Tour of Beam backend init */
@@ -348,5 +347,3 @@ tasks.register("InitFrontend") {
     flutterBuildWeb.mustRunAfter(flutterPubRunTob)
     firebaseDeploy.mustRunAfter(flutterBuildWeb)
 }
-
-
