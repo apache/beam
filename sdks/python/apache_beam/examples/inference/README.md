@@ -523,3 +523,56 @@ background
 ...
 ```
 Each line has a list of predicted label.
+
+---
+## MNIST digit classification with Tensorflow using Saved Model Weights
+[`tensorflow_mnist_with_weights.py`](./tensorflow_mnist_with_weights.py) contains an implementation for a RunInference pipeline that performs image classification on handwritten digits from the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
+
+The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file.
+
+The model is loaded from the saved model weights. This can be done by passing a function which creates the model and setting the model type as
+`ModelType.SAVED_WEIGHTS` to the `TFModelHandler`. The path to saved weights saved using `model.save_weights(path)` should be passed to the `model_path` argument.
+
+### Dataset and model for language modeling
+
+To use this transform, you need a dataset and model for language modeling.
+
+1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
+```
+1,0,0,0...
+0,0,0,0...
+1,0,0,0...
+4,0,0,0...
+...
+```
+2. Save the weights of trained tensorflow model to a directory `SAVED_WEIGHTS_DIR` .
+
+
+### Running `tensorflow_mnist_with_weights.py`
+
+To run the MNIST classification pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.tensorflow_mnist_with_weights.py \
+  --input INPUT \
+  --output OUTPUT \
+  --model_path SAVED_WEIGHTS_DIR
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.tensorflow_mnist_with_weights.py \
+  --input INPUT.csv \
+  --output predictions.txt \
+  --model_path SAVED_WEIGHTS_DIR
+```
+
+This writes the output to the `predictions.txt` with contents like:
+```
+1,1
+4,4
+0,0
+7,7
+3,3
+5,5
+...
+```
+Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
