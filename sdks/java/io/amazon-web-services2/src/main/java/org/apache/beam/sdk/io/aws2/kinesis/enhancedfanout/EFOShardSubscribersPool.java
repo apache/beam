@@ -18,18 +18,20 @@
 package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -43,6 +45,7 @@ import org.apache.beam.sdk.io.aws2.kinesis.WatermarkPolicy;
 import org.apache.beam.sdk.io.aws2.kinesis.WatermarkPolicyFactory;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ForwardingIterator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -80,7 +83,6 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
 @SuppressWarnings({"nullness"})
 class EFOShardSubscribersPool {
   private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscribersPool.class);
-  private static final long SCHEDULER_SHUTDOWN_TIMEOUT_MS = 1_000L;
   private static final long ON_ERROR_COOL_DOWN_MS_DEFAULT = 1_000L;
   private final long onErrorCoolDownMs;
 
@@ -96,10 +98,10 @@ class EFOShardSubscribersPool {
   /**
    * State map of currently active shards that can be checkpointed.
    *
-   * <p>This map may only be updated from within {@link #getNextRecord()} (and dependent {@link
-   * #onEventDone}).
+   * <p>This map may only be accessed and updated from within {@link #start}, {@link #getNextRecord}
+   * and dependent {@link #onEventDone} to prevent race conditions.
    */
-  private final Map<String, ShardState> state = new ConcurrentHashMap<>();
+  private final Map<String, ShardState> state = new HashMap<>();
 
   /**
    * Async subscription error (as first seen), if set all subscribers must be cancelled and no new
@@ -108,22 +110,27 @@ class EFOShardSubscribersPool {
    * <p>Must be volatile as it is accessed from various threads. But it's best effort, setting this
    * doesn't have to be atomic.
    */
-  volatile @MonotonicNonNull Throwable subscriptionError;
+  private volatile @MonotonicNonNull Throwable subscriptionError;
+
+  /**
+   * May only ever be altered from within {@link #stop()} or {@link #getNextRecord()} to prevent
+   * race conditions when cancelling subscribers.
+   */
+  private boolean isStopped = false;
 
   /**
    * Async completion callback handling {@link EFOShardSubscriber#subscribe supscriptions} that
    * terminate exceptionally.
    *
-   * <p>Unless already in error state, stores error as {@link #subscriptionError} and cancels all
-   * subscribers in {@link #state} to drain the {@link #eventQueue}. The {@link #subscriptionError}
-   * is only propagated when the queue is empty as this simplifies state management and
-   * checkpointing a lot.
+   * <p>Unless already in error state, stores error as {@link #subscriptionError}. This pool will be
+   * stopped when {@link #getNextRecord()} is called next, but allowing the {@link #eventQueue} to
+   * be drained. Only once empty any {@link #subscriptionError} is propagated. This simplifies state
+   * management and checkpointing a lot.
    */
   private final BiConsumer<Void, Throwable> errorHandler =
       (Void unused, Throwable error) -> {
         if (error != null && subscriptionError == null) {
           subscriptionError = error;
-          state.forEach((k, v) -> v.subscriber.cancel());
         }
       };
 
@@ -156,7 +163,6 @@ class EFOShardSubscribersPool {
    *
    * <p>{@link EFOShardSubscriber}s with their respective state are tracked in {@link #state}.
    */
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void start(Iterable<ShardCheckpoint> checkpoints) {
     LOG.info(
         "Starting pool {} {} {}. Checkpoints = {}",
@@ -164,14 +170,12 @@ class EFOShardSubscribersPool {
         read.getStreamName(),
         read.getConsumerArn(),
         checkpoints);
+    // FIXME pls use for loop
     checkpoints.forEach(
         ch -> {
-          EFOShardSubscriber subscriber =
-              new EFOShardSubscriber(this, ch.getShardId(), read, kinesis, onErrorCoolDownMs);
-          StartingPosition startingPosition = ch.toStartingPosition();
-          subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
-          ShardState shardState = new ShardState(subscriber);
-          state.putIfAbsent(ch.getShardId(), shardState);
+          checkState(!state.containsKey(ch.getShardId()), "Duplicate shard id %s", ch.getShardId());
+          ShardState shardState = new ShardState(initShardSubscriber(ch));
+          state.put(ch.getShardId(), shardState);
         });
   }
 
@@ -196,33 +200,45 @@ class EFOShardSubscribersPool {
    */
   @Nullable
   KinesisRecord getNextRecord() throws IOException {
-    if (current == null && eventQueue.isEmpty()) {
-      if (subscriptionError == null) {
-        return null;
-      } else {
+    while (true) {
+      if (!isStopped && subscriptionError != null) {
+        // Stop the pool to cancel all subscribers and prevent new subscriptions.
+        // Doing this as part of getNextRecord() avoids concurrent access to the state map and
+        // prevents any related issues.
+        stop();
+      }
+
+      if (current == null) {
+        current = eventQueue.poll();
+      }
+
+      if (current != null) {
+        String shardId = current.shardId;
+        ShardState shardState = Preconditions.checkStateNotNull(state.get(shardId));
+        if (current.hasNext()) {
+          KinesisClientRecord r = current.next();
+          shardState.update(r);
+          // Make sure to update shard state accordingly if `current` does not contain any more
+          // events. This is necessary to account for any re-sharding, so we could correctly resume
+          // from a checkpoint if taken once we advanced to the record returned by getNextRecord().
+          if (!current.hasNext()) {
+            onEventDone(shardState, current);
+            current = null;
+          }
+          KinesisRecord kinesisRecord = new KinesisRecord(r, read.getStreamName(), shardId);
+          latestRecordTimestampPolicy.update(kinesisRecord);
+          return kinesisRecord;
+        } else {
+          onEventDone(shardState, current);
+          current = null;
+        }
+      } else if (subscriptionError != null) {
+        stop();
         throw new IOException(subscriptionError);
-      }
-    }
-
-    if (current == null) {
-      current = eventQueue.poll();
-    }
-
-    if (current != null) {
-      String shardId = current.shardId;
-      ShardState shardState = Preconditions.checkStateNotNull(state.get(shardId));
-      if (current.hasNext()) {
-        KinesisClientRecord r = current.next();
-        shardState.update(r);
-        KinesisRecord kinesisRecord = new KinesisRecord(r, read.getStreamName(), shardId);
-        latestRecordTimestampPolicy.update(kinesisRecord);
-        return kinesisRecord;
       } else {
-        onEventDone(shardState, current);
-        current = null;
+        return null; // no record available, queue is empty
       }
     }
-    return null;
   }
 
   /**
@@ -235,12 +251,11 @@ class EFOShardSubscribersPool {
    * <p>In case of re-sharding, start all new {@link EFOShardSubscriber#subscribe subscriptions}
    * with the subscription {@link #errorHandler} if there is no {@link #subscriptionError} yet.
    */
-  @SuppressWarnings("FutureReturnValueIgnored")
   private void onEventDone(ShardState shardState, EventRecords noRecordsEvent) {
     if (noRecordsEvent.event.continuationSequenceNumber() == null
-        && noRecordsEvent.event.hasChildShards()
-        && subscriptionError == null) {
+        && noRecordsEvent.event.hasChildShards()) {
       LOG.info("Processing re-shard signal {}", noRecordsEvent.event);
+      // FIXME pls use for loop
       List<String> successorShardsIds = computeSuccessorShardsIds(noRecordsEvent);
       successorShardsIds.forEach(
           successorShardId -> {
@@ -249,22 +264,28 @@ class EFOShardSubscribersPool {
                     read.getStreamName(),
                     successorShardId,
                     new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
-
             state.computeIfAbsent(
-                successorShardId,
-                k -> {
-                  EFOShardSubscriber subscriber =
-                      new EFOShardSubscriber(
-                          this, successorShardId, read, kinesis, onErrorCoolDownMs);
-                  StartingPosition startingPosition = newCheckpoint.toStartingPosition();
-                  subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
-                  return new ShardState(subscriber);
-                });
+                successorShardId, id -> new ShardState(initShardSubscriber(newCheckpoint)));
           });
       state.remove(noRecordsEvent.shardId);
     } else {
       shardState.update(noRecordsEvent);
     }
+  }
+
+  /**
+   * Always initialize a new subscriber to make sure checkpoints will be correct. But only start the
+   * subscription if there is no {@link #subscriptionError}.
+   */
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private EFOShardSubscriber initShardSubscriber(ShardCheckpoint cp) {
+    EFOShardSubscriber subscriber =
+        new EFOShardSubscriber(this, cp.getShardId(), read, kinesis, onErrorCoolDownMs);
+    StartingPosition startingPosition = cp.toStartingPosition();
+    if (subscriptionError == null) {
+      subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
+    }
+    return subscriber;
   }
 
   private static List<String> computeSuccessorShardsIds(EventRecords records) {
@@ -305,6 +326,7 @@ class EFOShardSubscribersPool {
   }
 
   public KinesisReaderCheckpoint getCheckpointMark() {
+    // FIXME pls use for loop, unless streams provide much better readability
     List<ShardCheckpoint> checkpoints =
         state.entrySet().stream()
             .map(
@@ -330,11 +352,12 @@ class EFOShardSubscribersPool {
     return new KinesisReaderCheckpoint(checkpoints);
   }
 
-  public boolean stop() throws InterruptedException {
+  public boolean stop() {
     LOG.info("Stopping pool {}", poolId);
+    isStopped = true;
     state.forEach((shardId, st) -> st.subscriber.cancel());
-    scheduler.shutdown();
-    return scheduler.awaitTermination(SCHEDULER_SHUTDOWN_TIMEOUT_MS, MILLISECONDS);
+    scheduler.shutdownNow(); // immediately discard all scheduled tasks
+    return true; // FIXME nothing to return here
   }
 
   /**
@@ -353,17 +376,15 @@ class EFOShardSubscribersPool {
       this.subscriber = subscriber;
     }
 
-    ShardState update(KinesisClientRecord r) {
+    void update(KinesisClientRecord r) {
       sequenceNumber = r.sequenceNumber();
       subSequenceNumber = r.subSequenceNumber();
-      return this;
     }
 
-    ShardState update(EventRecords eventRecords) {
+    void update(EventRecords eventRecords) {
       sequenceNumber = eventRecords.event.continuationSequenceNumber();
       subSequenceNumber = 0L;
       subscriber.ackEvent();
-      return this;
     }
   }
 
@@ -374,6 +395,8 @@ class EFOShardSubscribersPool {
    * ForwardingIterator#delegate()} is first called.
    */
   private static class EventRecords extends ForwardingIterator<KinesisClientRecord> {
+    private static final AggregatorUtil AGG_UTIL = new AggregatorUtil();
+    // FIXME streamName is never used? Should be removed then.
     String streamName;
     String shardId;
     SubscribeToShardEvent event;
@@ -387,18 +410,15 @@ class EFOShardSubscribersPool {
 
     @Override
     protected Iterator<KinesisClientRecord> delegate() {
-      if (event.hasRecords() && !event.records().isEmpty()) {
-        if (delegate == null) {
-          AggregatorUtil au = new AggregatorUtil();
+      if (delegate == null) {
+        if (event.hasRecords() && !event.records().isEmpty()) {
           delegate =
-              au.deaggregate(
-                      event.records().stream()
-                          .map(KinesisClientRecord::fromRecord)
-                          .collect(Collectors.toList()))
+              AGG_UTIL
+                  .deaggregate(Lists.transform(event.records(), KinesisClientRecord::fromRecord))
                   .iterator();
+        } else {
+          delegate = Collections.emptyIterator();
         }
-      } else {
-        delegate = Collections.emptyIterator();
       }
       return delegate;
     }
@@ -414,10 +434,15 @@ class EFOShardSubscribersPool {
       return task.get();
     }
     final CompletableFuture<T> cf = new CompletableFuture<>();
-    scheduler.schedule(
-        () -> task.get().handle((t, e) -> e == null ? cf.complete(t) : cf.completeExceptionally(e)),
-        delayMs,
-        MILLISECONDS);
+    try {
+      scheduler.schedule(
+          () ->
+              task.get().handle((t, e) -> e == null ? cf.complete(t) : cf.completeExceptionally(e)),
+          delayMs,
+          MILLISECONDS);
+    } catch (RejectedExecutionException e) {
+      cf.completeExceptionally(e);
+    }
     return cf;
   }
 }

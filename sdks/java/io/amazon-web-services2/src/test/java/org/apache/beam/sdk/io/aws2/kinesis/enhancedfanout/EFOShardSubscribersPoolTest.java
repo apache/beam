@@ -21,7 +21,8 @@ import static junit.framework.TestCase.assertTrue;
 import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.Helpers.createReadSpec;
 import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.RecordsGenerators.eventWithOutRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.RecordsGenerators.eventWithRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.RecordsGenerators.shardUpEvent;
+import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.RecordsGenerators.reshardEvent;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
@@ -77,7 +78,7 @@ public class EFOShardSubscribersPoolTest {
 
     pool = new EFOShardSubscribersPool(readSpec, kinesis);
     pool.start(initialCheckpoint);
-    List<KinesisRecord> actualRecords = waitForRecords(pool, 26);
+    List<KinesisRecord> actualRecords = waitForRecords(pool, 19);
     assertEquals(18, actualRecords.size());
 
     List<SubscribeToShardRequest> expectedSubscribeRequests =
@@ -90,14 +91,12 @@ public class EFOShardSubscribersPoolTest {
             Helpers.subscribeAfterSeqNumber("shard-001", "7"));
     assertTrue(kinesis.subscribeRequestsSeen().containsAll(expectedSubscribeRequests));
 
-    List<ShardCheckpoint> expectedCheckPoint =
-        ImmutableList.of(
+    assertThat(pool.getCheckpointMark().iterator())
+        .containsExactlyInAnyOrder(
             new ShardCheckpoint(
-                "stream-01", "shard-001", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "9", 0L),
+                "stream-01", "shard-000", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "12", 0L),
             new ShardCheckpoint(
-                "stream-01", "shard-000", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "11", 0L));
-    KinesisReaderCheckpoint actualCheckPoint = pool.getCheckpointMark();
-    assertEquals(expectedCheckPoint, ImmutableList.copyOf(actualCheckPoint.iterator()));
+                "stream-01", "shard-001", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "10", 0L));
   }
 
   @Test
@@ -111,7 +110,7 @@ public class EFOShardSubscribersPoolTest {
 
     pool = new EFOShardSubscribersPool(readSpec, kinesis);
     pool.start(initialCheckpoint);
-    List<KinesisRecord> actualRecords = waitForRecords(pool, 6);
+    List<KinesisRecord> actualRecords = waitForRecords(pool, 1);
     assertEquals(0, actualRecords.size());
 
     List<SubscribeToShardRequest> expectedSubscribeRequests =
@@ -153,27 +152,33 @@ public class EFOShardSubscribersPoolTest {
 
     pool = new EFOShardSubscribersPool(readSpec, kinesis, 1L);
     pool.start(initialCheckpoint);
-    List<KinesisRecord> actualRecords = waitForRecords(pool, 25);
-    assertEquals(18, actualRecords.size());
 
-    List<SubscribeToShardRequest> expectedSubscribeRequests =
-        ImmutableList.of(
+    assertThat(waitForRecords(pool, 18)).hasSize(18);
+
+    assertThat(kinesis.subscribeRequestsSeen())
+        .containsExactlyInAnyOrder(
             Helpers.subscribeLatest("shard-000"),
             Helpers.subscribeLatest("shard-001"),
             Helpers.subscribeAfterSeqNumber("shard-000", "2"),
             Helpers.subscribeAfterSeqNumber("shard-001", "2"),
             Helpers.subscribeAfterSeqNumber("shard-000", "9"),
             Helpers.subscribeAfterSeqNumber("shard-001", "7"));
-    assertTrue(kinesis.subscribeRequestsSeen().containsAll(expectedSubscribeRequests));
 
-    List<ShardCheckpoint> expectedCheckPoint =
-        ImmutableList.of(
+    assertThat(pool.getCheckpointMark().iterator())
+        .containsExactlyInAnyOrder(
             new ShardCheckpoint(
-                "stream-01", "shard-001", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "8", 0L),
+                "stream-01", "shard-000", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "9", 0L),
             new ShardCheckpoint(
-                "stream-01", "shard-000", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "11", 0L));
-    KinesisReaderCheckpoint actualCheckPoint = pool.getCheckpointMark();
-    assertEquals(expectedCheckPoint, ImmutableList.copyOf(actualCheckPoint.iterator()));
+                "stream-01", "shard-001", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "7", 0L));
+
+    assertThat(waitForRecords(pool, 1)).isEmpty(); // no more records
+
+    assertThat(pool.getCheckpointMark().iterator())
+        .containsExactlyInAnyOrder(
+            new ShardCheckpoint(
+                "stream-01", "shard-000", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "12", 0L),
+            new ShardCheckpoint(
+                "stream-01", "shard-001", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "10", 0L));
   }
 
   @Test
@@ -256,7 +261,7 @@ public class EFOShardSubscribersPoolTest {
     addNoRecordsEvents(kinesis, "shard-000", 1, 10);
     kinesis.stubSubscribeToShard(
         "shard-000",
-        shardUpEvent(ImmutableList.of("shard-000"), ImmutableList.of("shard-002", "shard-003")));
+        reshardEvent(ImmutableList.of("shard-000"), ImmutableList.of("shard-002", "shard-003")));
     kinesis.stubSubscribeToShard("shard-002", eventWithRecords(5));
     addNoRecordsEvents(kinesis, "shard-002", 3, 5);
 
@@ -267,7 +272,7 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-001", eventWithRecords(3, 5));
     addNoRecordsEvents(kinesis, "shard-001", 1, 8);
     kinesis.stubSubscribeToShard(
-        "shard-001", shardUpEvent(ImmutableList.of("shard-001"), ImmutableList.of("shard-004")));
+        "shard-001", reshardEvent(ImmutableList.of("shard-001"), ImmutableList.of("shard-004")));
 
     kinesis.stubSubscribeToShard("shard-004", eventWithRecords(5));
     addNoRecordsEvents(kinesis, "shard-004", 2, 5);
@@ -277,7 +282,7 @@ public class EFOShardSubscribersPoolTest {
 
     pool = new EFOShardSubscribersPool(readSpec, kinesis);
     pool.start(initialCheckpoint);
-    List<KinesisRecord> actualRecords = waitForRecords(pool, 50);
+    List<KinesisRecord> actualRecords = waitForRecords(pool, 35);
     assertEquals(34, actualRecords.size());
 
     List<SubscribeToShardRequest> expectedSubscribeRequests =
@@ -293,16 +298,14 @@ public class EFOShardSubscribersPoolTest {
             Helpers.subscribeTrimHorizon("shard-004"));
     assertTrue(kinesis.subscribeRequestsSeen().containsAll(expectedSubscribeRequests));
 
-    List<ShardCheckpoint> expectedCheckPoint =
-        ImmutableList.of(
+    assertThat(pool.getCheckpointMark().iterator())
+        .containsExactlyInAnyOrder(
             new ShardCheckpoint(
-                "stream-01", "shard-002", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "6", 0L),
+                "stream-01", "shard-002", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "7", 0L),
             new ShardCheckpoint(
-                "stream-01", "shard-004", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "5", 0L),
+                "stream-01", "shard-003", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "8", 0L),
             new ShardCheckpoint(
-                "stream-01", "shard-003", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "7", 0L));
-    KinesisReaderCheckpoint actualCheckPoint = pool.getCheckpointMark();
-    assertEquals(expectedCheckPoint, ImmutableList.copyOf(actualCheckPoint.iterator()));
+                "stream-01", "shard-004", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "6", 0L));
   }
 
   @Test
@@ -316,25 +319,25 @@ public class EFOShardSubscribersPoolTest {
     addNoRecordsEvents(kinesis, "shard-000", 1, 10);
     kinesis.stubSubscribeToShard(
         "shard-000",
-        shardUpEvent(ImmutableList.of("shard-000", "shard-001"), ImmutableList.of("shard-004")));
+        reshardEvent(ImmutableList.of("shard-000", "shard-001"), ImmutableList.of("shard-004")));
 
     kinesis.stubSubscribeToShard("shard-001", eventWithRecords(5));
     addNoRecordsEvents(kinesis, "shard-001", 2, 5);
     kinesis.stubSubscribeToShard(
         "shard-001",
-        shardUpEvent(ImmutableList.of("shard-000", "shard-001"), ImmutableList.of("shard-004")));
+        reshardEvent(ImmutableList.of("shard-000", "shard-001"), ImmutableList.of("shard-004")));
 
     kinesis.stubSubscribeToShard("shard-002", eventWithRecords(5));
     addNoRecordsEvents(kinesis, "shard-002", 2, 5);
     kinesis.stubSubscribeToShard(
         "shard-002",
-        shardUpEvent(ImmutableList.of("shard-002", "shard-003"), ImmutableList.of("shard-005")));
+        reshardEvent(ImmutableList.of("shard-002", "shard-003"), ImmutableList.of("shard-005")));
 
     kinesis.stubSubscribeToShard("shard-003", eventWithRecords(5));
     addNoRecordsEvents(kinesis, "shard-003", 2, 5);
     kinesis.stubSubscribeToShard(
         "shard-003",
-        shardUpEvent(ImmutableList.of("shard-002", "shard-003"), ImmutableList.of("shard-005")));
+        reshardEvent(ImmutableList.of("shard-002", "shard-003"), ImmutableList.of("shard-005")));
 
     kinesis.stubSubscribeToShard("shard-004", eventWithRecords(6));
     addNoRecordsEvents(kinesis, "shard-004", 3, 6);
@@ -347,7 +350,7 @@ public class EFOShardSubscribersPoolTest {
 
     pool = new EFOShardSubscribersPool(readSpec, kinesis);
     pool.start(initialCheckpoint);
-    List<KinesisRecord> actualRecords = waitForRecords(pool, 60);
+    List<KinesisRecord> actualRecords = waitForRecords(pool, 38);
     assertEquals(37, actualRecords.size());
 
     List<SubscribeToShardRequest> expectedSubscribeRequests =
@@ -360,16 +363,16 @@ public class EFOShardSubscribersPoolTest {
             Helpers.subscribeTrimHorizon("shard-005"));
     assertTrue(kinesis.subscribeRequestsSeen().containsAll(expectedSubscribeRequests));
 
-    List<ShardCheckpoint> expectedCheckPoint =
-        ImmutableList.of(
+    assertThat(pool.getCheckpointMark().iterator())
+        .containsExactlyInAnyOrder(
             new ShardCheckpoint(
-                "stream-01", "shard-005", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "7", 0L),
+                "stream-01", "shard-005", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "8", 0L),
             new ShardCheckpoint(
                 "stream-01", "shard-004", ShardIteratorType.AFTER_SEQUENCE_NUMBER, "8", 0L));
-    KinesisReaderCheckpoint actualCheckPoint = pool.getCheckpointMark();
-    assertEquals(expectedCheckPoint, ImmutableList.copyOf(actualCheckPoint.iterator()));
   }
 
+  // FIXME pls use consistent style when stubbing
+  // This should return SubscribeToShardEvent[] that can then be used for stubbing
   static void addNoRecordsEvents(
       StubbedKinesisAsyncClient kinesis, String shardId, int numEvent, int startingSeqNum) {
     List<SubscribeToShardEvent> events = new ArrayList<>();
@@ -381,17 +384,19 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard(shardId, arr);
   }
 
-  static List<KinesisRecord> waitForRecords(EFOShardSubscribersPool pool, int maxAttempts)
+  static List<KinesisRecord> waitForRecords(EFOShardSubscribersPool pool, int recordsToWaitFor)
       throws Exception {
-    List<KinesisRecord> records = new ArrayList<>();
-    int i = 0;
-    while (i < maxAttempts) {
-      Thread.sleep(20);
+    List<KinesisRecord> records = new ArrayList<>(recordsToWaitFor);
+    int attempts = 0; // max attempts per record
+    while (records.size() < recordsToWaitFor && attempts < 5) {
       KinesisRecord r = pool.getNextRecord();
       if (r != null) {
         records.add(r);
+        attempts = 0;
+      } else {
+        attempts++;
+        Thread.sleep(50);
       }
-      i++;
     }
     return records;
   }

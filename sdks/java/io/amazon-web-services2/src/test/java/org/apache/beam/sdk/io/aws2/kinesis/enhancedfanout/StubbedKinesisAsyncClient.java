@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import avro.shaded.com.google.common.base.Objects;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -79,7 +80,7 @@ class StubbedKinesisAsyncClient implements KinesisAsyncClient {
     subscribeRequestsSeen.add(req);
     Deque<StubbedSdkPublisher> publishers =
         checkNotNull(stubbedPublishers.get(req.shardId()), "Not stubbed");
-    StubbedSdkPublisher publisher = checkNotNull(publishers.poll(), "No more stubs");
+    StubbedSdkPublisher publisher = Objects.firstNonNull(publishers.poll(), new NoopSdkPublisher());
     resp.onEventStream(publisher);
     return publisher.result;
   }
@@ -114,6 +115,27 @@ class StubbedKinesisAsyncClient implements KinesisAsyncClient {
 
   public interface CanFail {
     void failWith(Throwable error);
+  }
+
+  // Never delivers any event and completes only when cancelled.
+  private class NoopSdkPublisher extends StubbedSdkPublisher {
+    NoopSdkPublisher() {
+      super(new SubscribeToShardEventStream[] {});
+    }
+
+    @Override
+    public void subscribe(Subscriber<? super SubscribeToShardEventStream> subscriber) {
+      subscriber.onSubscribe(
+          new Subscription() {
+            @Override
+            public void request(long n) {}
+
+            @Override
+            public void cancel() {
+              result.complete(null);
+            }
+          });
+    }
   }
 
   private class StubbedSdkPublisher implements SdkPublisher<SubscribeToShardEventStream>, CanFail {

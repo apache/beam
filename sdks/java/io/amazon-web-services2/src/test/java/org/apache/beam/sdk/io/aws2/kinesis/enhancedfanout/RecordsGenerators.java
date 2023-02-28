@@ -62,7 +62,7 @@ class RecordsGenerators {
     return eventWithRecords(0, numRecords);
   }
 
-  static SubscribeToShardEvent shardUpEvent(
+  static SubscribeToShardEvent reshardEvent(
       List<String> parentShardsIds, List<String> childShardsIds) {
     List<ChildShard> childShards =
         childShardsIds.stream()
