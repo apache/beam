@@ -406,7 +406,7 @@ The Samza Runner and Samza are suitable for large scale, stateful streaming jobs
 Additionally, you can read more about the Samza Runner [here](https://beam.apache.org/documentation/runners/samza/)
 
 #### Run example
-
+{{end}}
 
 {{if (eq .Sdk "go")}}
 
@@ -432,7 +432,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 ```
 {{end}}
 
-
+{{if (eq .Sdk "java")}}
 You can specify your dependency on the Samza Runner by adding the following to your `pom.xml`:
 
 ```
