@@ -16,26 +16,5 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
-
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Java_Amqp_IO_Direct',
-    gradleTasks: [
-      ':sdks:java:io:amqp:build',
-    ],
-    gradleSwitches: [
-      '-PdisableSpotlessCheck=true',
-      '-PdisableCheckStyle=true'
-    ], // spotless checked in separate pre-commit
-    triggerPathPatterns: [
-      '^sdks/java/core/src/main/.*$',
-      '^sdks/java/io/amqp/.*$',
-    ],
-    timeoutMins: 60,
-    )
-builder.build {
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
-}
+/** Classes and utilities related to debugging features. */
+package org.apache.beam.fn.harness.debug;
