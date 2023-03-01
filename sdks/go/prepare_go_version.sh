@@ -70,6 +70,7 @@ case $key in
 esac
 done
 
+echo "!!! $(go env)"
 GOPATH=`go env GOPATH`
 GOBIN=$GOPATH/bin
 GOHOSTOS=`go env GOHOSTOS`
