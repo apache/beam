@@ -49,8 +49,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes = [
-      name,
+    create_before_destroy = true
     ]
   }
 
