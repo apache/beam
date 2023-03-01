@@ -28,10 +28,8 @@ terraformPlugin {
     terraformVersion.set("1.0.9")
 }
 
-tasks {
-
 /* init Infrastructure for migrate */
-    register<TerraformTask>("terraformInit") {
+tasks.register<TerraformTask>("terraformInit") {
         // exec args can be passed by commandline, for example
         var environment = project.property("project_environment") as String
         args(
@@ -47,7 +45,7 @@ tasks {
     }
 
     /* refresh Infrastucture for remote state */
-    register<TerraformTask>("terraformRef") {
+tasks.register<TerraformTask>("terraformRef") {
         var environment = project.property("project_environment") as String
         args(
                 "refresh",
@@ -61,7 +59,7 @@ tasks {
         )
     }
 
-    register<TerraformTask>("terraformApplyBackend") {
+tasks.register<TerraformTask>("terraformApplyBackend") {
         group = "backend-deploy"
         var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
         var environment = project.property("project_environment") as String
@@ -83,7 +81,6 @@ tasks {
         )
 
     }
-}
 
 tasks.register("getRouterHost") {
     group = "backend-deploy"
