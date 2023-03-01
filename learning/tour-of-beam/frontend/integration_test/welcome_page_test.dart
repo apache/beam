@@ -16,20 +16,103 @@
  * limitations under the License.
  */
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:playground_components/playground_components.dart';
+import 'package:playground_components_dev/playground_components_dev.dart';
+import 'package:tour_of_beam/cache/content_tree.dart';
+import 'package:tour_of_beam/cache/sdk.dart';
 import 'package:tour_of_beam/main.dart' as app;
+import 'package:tour_of_beam/state.dart';
+
+import 'common/common_finders.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('mode toggle', (wt) async {
     await app.main();
     await wt.pumpAndSettle();
-    await _checkSwitchTheme(wt);
+    await checkToggleBrightnessMode(wt);
+    await _checkSdksLoadedCorrectly(wt);
+    await _checkSwitchingSdkWorksCorrectly(wt);
   });
 }
 
-Future<void> _checkSwitchTheme(WidgetTester wt) async {
-  expect(find.byType(ToggleThemeButton), findsOneWidget);
+Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
+  //The source of truth of loaded sdks
+  final sdkCache = GetIt.instance.get<SdkCache>();
+
+  final sdks = sdkCache.getSdks();
+  for (final sdk in sdks) {
+    expect(
+      find.outlinedButtonWithText(sdk.title),
+      findsOneWidget,
+    );
+
+    expect(
+      find.dropdownMenuItemWithText(sdk.title),
+      findsNothing,
+    );
+  }
+
+  var button = wt.widget<ElevatedButton>(find.startTourButton());
+  expect(button.onPressed, isNull);
+
+  await wt.tapAndSettle(find.outlinedButtonWithText(sdks[0].title));
+
+  button = wt.widget<ElevatedButton>(find.startTourButton());
+  expect(button.onPressed, isNotNull);
+
+  await wt.tapAndSettle(find.sdkDropdwn());
+
+  for (final sdk in sdks) {
+    expect(
+      find.dropdownMenuItemWithText(sdk.title),
+      findsNWidgets(2), //DropdownButton widget peculiarity
+    );
+  }
+
+  await wt.sendKeyEvent(LogicalKeyboardKey.escape);
+  await wt.pumpAndSettle();
+}
+
+Future<void> _checkSwitchingSdkWorksCorrectly(WidgetTester wt) async {
+  checkModulesDisplayed();
+
+  final sdkCache = GetIt.instance.get<SdkCache>();
+
+  final secondSdk = sdkCache.getSdks()[1];
+  await wt.tapAndSettle(find.outlinedButtonWithText(secondSdk.title));
+
+  checkModulesDisplayed();
+
+  await wt.tapAndSettle(find.sdkDropdwn());
+  final thirdSdk = sdkCache.getSdks()[2];
+
+  await wt.tapAndSettle(
+    find.dropdownMenuItemWithText(thirdSdk.title).first,
+  );
+
+  checkModulesDisplayed();
+}
+
+void checkModulesDisplayed() {
+  final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
+  final appNotifier = GetIt.instance.get<AppNotifier>();
+  final sdkId = appNotifier.sdkId;
+
+  if (sdkId == null) {
+    throw Exception('sdkId is null');
+  }
+
+  final contentTree = contentTreeCache.getContentTree(sdkId);
+  if (contentTree == null) {
+    throw Exception('contentTree is null');
+  }
+
+  for (final module in contentTree.modules) {
+    expect(find.text(module.title), findsOneWidget);
+  }
 }

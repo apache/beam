@@ -28,6 +28,13 @@ extension CommonFindersExtension on CommonFinders {
     return byType(CodeField);
   }
 
+  Finder dropdownMenuItemWithText(String text) {
+    return find.descendant(
+      of: find.byType(DropdownMenuItem<String>),
+      matching: find.text(text),
+    );
+  }
+
   Finder graphTab() {
     // TODO(alexeyinkin): Use keys when output tabs get to use enum, https://github.com/apache/beam/issues/22663
     return widgetWithText(OutputTab, 'Graph');
@@ -37,6 +44,13 @@ extension CommonFindersExtension on CommonFinders {
     return find.descendant(
       of: find.outputWidget(),
       matching: find.byType(SelectableText),
+    );
+  }
+
+  Finder outlinedButtonWithText(String text) {
+    return find.descendant(
+      of: find.byType(OutlinedButton),
+      matching: find.text(text),
     );
   }
 

@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground_components_dev/src/common_tests/toggle_brightness_mode_test.dart';
 
 import 'common/common.dart';
 import 'miscellaneous_ui/description_test.dart';
@@ -25,7 +26,6 @@ import 'miscellaneous_ui/enjoy_playground_test.dart';
 import 'miscellaneous_ui/output_placement_test.dart';
 import 'miscellaneous_ui/resize_output_test.dart';
 import 'miscellaneous_ui/shortcuts_modal_test.dart';
-import 'miscellaneous_ui/toggle_brightness_mode_test.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

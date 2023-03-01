@@ -16,26 +16,20 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
-import 'package:playground_components_dev/playground_components_dev.dart';
+import 'package:tour_of_beam/components/sdk_dropdown.dart';
 
-import 'common/common.dart';
+extension CommonFindersExtension on CommonFinders {
+  Finder sdkDropdwn() {
+    return byType(SdkDropdown);
+  }
 
-final _url = '/embedded?path=${javaMinimalWordCount.dbPath}&sdk=java';
-
-void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets('Embedded run', (WidgetTester wt) async {
-    await init(wt);
-
-    await _openJavaMinimalWordCount(wt);
-    await wt.runExpectCached(javaMinimalWordCount);
-    await wt.modifyRunExpectReal(javaMinimalWordCount);
-    await checkToggleBrightnessMode(wt);
-  });
-}
-
-Future<void> _openJavaMinimalWordCount(WidgetTester wt) async {
-  await wt.navigateAndSettle(_url);
+  Finder startTourButton() {
+    return find.ancestor(
+      of: find.text('pages.welcome.startTour'.tr()),
+      matching: find.byType(ElevatedButton),
+    );
+  }
 }
