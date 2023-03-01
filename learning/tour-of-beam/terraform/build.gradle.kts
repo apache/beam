@@ -189,7 +189,7 @@ tasks.register("prepareFirebaseOptionsDart") {
 tasks.register("flutterPubGetPG") {
     exec {
         executable("flutter")
-        commandLine("pub", "get")
+        args("pub", "get")
         workingDir("../../../playground/frontend/playground_components")
     }
 }
@@ -204,21 +204,24 @@ tasks.register("flutterPubRunPG") {
 
 tasks.register("flutterPubGetTob") {
     exec {
-        commandLine("flutter", "pub", "get")
+        executable("flutter")
+        args("pub", "get")
         workingDir("../frontend")
     }
 }
 
 tasks.register("flutterPubRunTob") {
     exec {
-        commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+        executable("flutter")
+        args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
         workingDir("../frontend")
     }
 }
 
 tasks.register("flutterBuildWeb") {
     exec {
-        commandLine("flutter", "build", "web", "--profile", "--dart-define=Dart2jsOptimization=O0")
+        executable("flutter")
+        args("build", "web", "--profile", "--dart-define=Dart2jsOptimization=O0")
         workingDir("../frontend")
     }
 }
@@ -226,7 +229,8 @@ tasks.register("flutterBuildWeb") {
 tasks.register("firebaseDeploy") {
     var project_id = project.property("project_id") as String
     exec {
-        commandLine("firebase", "deploy", "--project", project_id)
+        executable("flutter")
+        args("deploy", "--project", project_id)
         workingDir("../frontend")
     }
 }
