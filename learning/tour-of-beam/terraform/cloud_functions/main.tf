@@ -47,6 +47,10 @@ resource "google_cloudfunctions_function" "cloud_function" {
     command = "sleep ${count.index * 60}"
   }
 
+  lifecycle {
+    ignore_changes = [name]
+  }
+
 }
 
 # Create IAM entry so all users can invoke the function
