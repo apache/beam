@@ -15,38 +15,44 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 resource "google_cloudfunctions_function" "cloud_function" {
-  count                 = 20
-  name                  = "${var.environment}_${var.entry_point_names[count.index % length(var.entry_point_names)]}"
-  runtime               = "go116"
-  available_memory_mb   = 128
-  project               = var.project_id
-  service_account_email = var.service_account_id
-  source_archive_bucket = var.source_archive_bucket
-  source_archive_object = var.source_archive_object
-  region                = var.region
-  ingress_settings      = "ALLOW_ALL"
-  # Get the source code of the cloud function as a Zip compression
-  trigger_http = true
-  # Name of the function that will be executed when the Google Cloud Function is triggered
-  entry_point = var.entry_point_names[count.index % length(var.entry_point_names)]
+  dynamic "entry_point" {
+    for_each = var.entry_point_names
+    content {
+      name                  = "${var.environment}_${entry_point.value}"
+      runtime               = "go116"
+      available_memory_mb   = 128
+      project               = var.project_id
+      service_account_email = var.service_account_id
+      source_archive_bucket = var.source_archive_bucket
+      source_archive_object = var.source_archive_object
+      region                = var.region
+      ingress_settings      = "ALLOW_ALL"
+      # Get the source code of the cloud function as a Zip compression
+      trigger_http = true
+      # Name of the function that will be executed when the Google Cloud Function is triggered
+      entry_point = entry_point.value
 
-  environment_variables = {
-    DATASTORE_PROJECT_ID=var.project_id
-    GOOGLE_PROJECT_ID=var.project_id
-    PLAYGROUND_ROUTER_HOST=var.pg_router_host
+      environment_variables = {
+        DATASTORE_PROJECT_ID=var.project_id
+        GOOGLE_PROJECT_ID=var.project_id
+        PLAYGROUND_ROUTER_HOST=var.pg_router_host
+      }
+
+      timeouts {
+        create = "20m"
+        delete = "20m"
+      }
+
+      provisioner "local-exec" {
+        command = "sleep ${entry_point.key * 60}"
+      }
+
+      lifecycle {
+        prevent_destroy = true
+      }
+    }
   }
-
-  timeouts {
-    create = "20m"
-    delete = "20m"
-  }
-
-  provisioner "local-exec" {
-    command = "sleep ${count.index * 60}"
-  }
-
 }
 
 # Create IAM entry so all users can invoke the function
