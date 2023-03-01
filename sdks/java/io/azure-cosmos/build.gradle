@@ -32,10 +32,8 @@ dependencies {
   implementation library.java.jackson_databind
   // implementation library.java.slf4j_api
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-}
+  implementation project(path: ":sdks:java:io:azure")
 
-// TEST
-dependencies {
   testImplementation library.java.junit
   testImplementation library.java.testcontainers_azure
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

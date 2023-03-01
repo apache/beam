@@ -23,12 +23,16 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.azure.cosmos.*;
 import com.azure.cosmos.implementation.*;
 import com.azure.cosmos.implementation.feedranges.FeedRangeInternal;
-import com.azure.cosmos.models.*;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
+import com.azure.cosmos.models.CosmosQueryRequestOptions;
+import com.azure.cosmos.models.FeedResponse;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -49,48 +53,7 @@ public class CosmosIO {
 
   private CosmosIO() {}
 
-  /** A POJO describing a connection configuration to Cosmos DB. */
-  @AutoValue
-  public abstract static class ConnectionConfiguration implements Serializable {
-
-    public abstract String getEndpoint();
-
-    public abstract @Nullable String getKey();
-
-    abstract Builder builder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-
-      abstract Builder setEndpoint(String endpoint);
-
-      abstract Builder setKey(String key);
-
-      abstract ConnectionConfiguration build();
-    }
-
-    public static ConnectionConfiguration create(String endpoint) {
-      return new AutoValue_CosmosIO_ConnectionConfiguration.Builder().setEndpoint(endpoint).build();
-    }
-
-    /** */
-    public ConnectionConfiguration withEndpoint(String endpoint) {
-      checkArgument(endpoint != null, "endpoint can not be null");
-      checkArgument(!endpoint.isEmpty(), "endpoint can not be empty");
-      return builder().setEndpoint(endpoint).build();
-    }
-
-    /** */
-    public ConnectionConfiguration withKey(String key) {
-      checkArgument(key != null, "key can not be null");
-      checkArgument(!key.isEmpty(), "key can not be empty");
-      return builder().setKey(key).build();
-    }
-
-    CosmosAsyncClient createClient() throws IOException {
-      return new CosmosClientBuilder().endpoint(getEndpoint()).key(getKey()).buildAsyncClient();
-    }
-  }
+  private static final String DEFAULT_QUERY = "SELECT * FROM root";
 
   /** Provide a {@link Read} {@link PTransform} to read data from a Cosmos DB. */
   public static <T> Read<T> read(Class<T> classType) {
@@ -104,11 +67,11 @@ public class CosmosIO {
 
     abstract @Nullable Class<T> getClassType();
 
-    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
-
     abstract @Nullable String getDatabase();
 
     abstract @Nullable String getContainer();
+
+    abstract @Nullable String getQuery();
 
     abstract @Nullable Coder<T> getCoder();
 
@@ -119,38 +82,37 @@ public class CosmosIO {
 
       abstract Builder<T> setClassType(Class<T> classType);
 
-      abstract Builder<T> setConnectionConfiguration(
-          ConnectionConfiguration connectionConfiguration);
-
       abstract Builder<T> setDatabase(String database);
 
       abstract Builder<T> setContainer(String container);
+
+      abstract Builder<T> setQuery(String query);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Read<T> build();
     }
 
-    /** */
-    public Read<T> withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(connectionConfiguration != null, "connectionConfiguration can not be null");
-      return builder().setConnectionConfiguration(connectionConfiguration).build();
-    }
-
-    /** */
+    /** Specify the Cosmos database to read from. */
     public Read<T> withDatabase(String database) {
       checkArgument(database != null, "database can not be null");
       checkArgument(!database.isEmpty(), "database can not be empty");
       return builder().setDatabase(database).build();
     }
 
-    /** */
+    /** Specify the Cosmos container to read from. */
     public Read<T> withContainer(String container) {
       checkArgument(container != null, "container can not be null");
       checkArgument(!container.isEmpty(), "container can not be empty");
       return builder().setContainer(container).build();
     }
 
+    /** Specify the query to read data. */
+    public Read<T> withQuery(String query) {
+      return builder().setQuery(query).build();
+    }
+
+    /** Specify the {@link Coder} used to serialize the document in the {@link PCollection}. */
     public Read<T> withCoder(Coder<T> coder) {
       checkArgument(coder != null, "coder can not be null");
       return builder().setCoder(coder).build();
@@ -158,10 +120,9 @@ public class CosmosIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkState(getConnectionConfiguration() != null, "withConnectionConfiguration() is required");
       checkState(getDatabase() != null, "withDatabase() is required");
       checkState(getContainer() != null, "withContainer() is required");
-      checkState(getCoder() != null, "withContainer() is required");
+      checkState(getCoder() != null, "withCoder() is required");
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedCosmosBDSource<>(this)));
     }
   }
@@ -188,7 +149,8 @@ public class CosmosIO {
     @Override
     public List<? extends BoundedSource<T>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-      try (CosmosAsyncClient client = spec.getConnectionConfiguration().createClient()) {
+      CosmosClientBuilder builder = options.as(CosmosOptions.class).getCosmosClientBuilder();
+      try (CosmosAsyncClient client = builder.buildAsyncClient()) {
         CosmosAsyncDatabase database = client.getDatabase(spec.getDatabase());
         CosmosAsyncContainer container = database.getContainer(spec.getContainer());
         AsyncDocumentClient document = CosmosBridgeInternal.getAsyncDocumentClient(client);
@@ -232,7 +194,8 @@ public class CosmosIO {
       if (estimatedByteSize != null) {
         return estimatedByteSize;
       }
-      try (CosmosAsyncClient client = spec.getConnectionConfiguration().createClient()) {
+      CosmosClientBuilder builder = options.as(CosmosOptions.class).getCosmosClientBuilder();
+      try (CosmosAsyncClient client = builder.buildAsyncClient()) {
         CosmosAsyncContainer container =
             client.getDatabase(spec.getDatabase()).getContainer(spec.getContainer());
 
@@ -263,7 +226,7 @@ public class CosmosIO {
 
     @Override
     public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
-      return new BoundedCosmosReader<>(this);
+      return new BoundedCosmosReader<>(this, options.as(CosmosOptions.class));
     }
   }
 
@@ -271,20 +234,21 @@ public class CosmosIO {
 
     private final BoundedCosmosBDSource<T> source;
 
-    private CosmosAsyncClient client;
+    private final CosmosAsyncClient client;
 
     private T current;
     private Iterator<T> iterator;
 
-    private BoundedCosmosReader(BoundedCosmosBDSource<T> source) {
+    private BoundedCosmosReader(BoundedCosmosBDSource<T> source, CosmosOptions options) {
       this.source = source;
+      this.client = options.as(CosmosOptions.class).getCosmosClientBuilder().buildAsyncClient();
     }
 
     @Override
     public boolean start() throws IOException {
-      client = source.spec.getConnectionConfiguration().createClient();
       String database = source.spec.getDatabase();
       String container = source.spec.getContainer();
+      String query = source.spec.getQuery();
       Class<T> classType = source.spec.getClassType();
       CosmosAsyncContainer c = client.getDatabase(database).getContainer(container);
 
@@ -295,9 +259,10 @@ public class CosmosIO {
               .disallowQueryPlanRetrieval(new CosmosQueryRequestOptions())
               .setFeedRange(source.range.toFeedRange());
 
-      // TODO
-      SqlQuerySpec query = new SqlQuerySpec("SELECT * FROM r");
-      iterator = c.queryItems(query, queryOptions, classType).toIterable().iterator();
+      iterator =
+          c.queryItems(query == null ? DEFAULT_QUERY : query, queryOptions, classType)
+              .toIterable()
+              .iterator();
 
       return readNext();
     }
@@ -325,9 +290,7 @@ public class CosmosIO {
 
     @Override
     public void close() throws IOException {
-      if (client != null) {
-        client.close();
-      }
+      client.close();
     }
 
     @Override
