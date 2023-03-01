@@ -1018,13 +1018,18 @@ func runOnRoots(ctx context.Context, t *testing.T, p *Plan, name string, mthd fu
 
 type TestDataManager struct {
 	R io.ReadCloser
+	C chan Elements
 }
 
-func (dm *TestDataManager) OpenRead(ctx context.Context, id StreamID) (io.ReadCloser, error) {
-	return dm.R, nil
+func (dm *TestDataManager) OpenElementChan(ctx context.Context, id StreamID) (<-chan Elements, error) {
+	return dm.C, nil
 }
 
 func (dm *TestDataManager) OpenWrite(ctx context.Context, id StreamID) (io.WriteCloser, error) {
+	return nil, nil
+}
+
+func (dm *TestDataManager) OpenTimerWrite(ctx context.Context, id StreamID, key string) (io.WriteCloser, error) {
 	return nil, nil
 }
 

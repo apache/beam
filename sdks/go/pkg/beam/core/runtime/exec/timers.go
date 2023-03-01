@@ -23,10 +23,11 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 type UserTimerAdapter interface {
-	NewTimerProvider(ctx context.Context, manager DataManager, w []typex.Window, element *MainInput) (timerProvider, error)
+	NewTimerProvider(ctx context.Context, manager DataManager, inputTimestamp typex.EventTime, windows []typex.Window, element *MainInput) (timerProvider, error)
 }
 
 type userTimerAdapter struct {
@@ -51,7 +52,7 @@ func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoders map[string]*c
 	return &userTimerAdapter{SID: sID, wc: wc, kc: kc, C: c, timerIDToCoder: timerCoders}
 }
 
-func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataManager, w []typex.Window, element *MainInput) (timerProvider, error) {
+func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataManager, inputTs typex.EventTime, w []typex.Window, element *MainInput) (timerProvider, error) {
 	if u.kc == nil {
 		return timerProvider{}, fmt.Errorf("cannot make a state provider for an unkeyed input %v", element)
 	}
@@ -68,6 +69,7 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataMan
 		ctx:             ctx,
 		tm:              manager,
 		elementKey:      elementKey,
+		inputTimestamp:  inputTs,
 		SID:             u.SID,
 		window:          w,
 		writersByFamily: make(map[string]io.Writer),
@@ -78,11 +80,12 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataMan
 }
 
 type timerProvider struct {
-	ctx        context.Context
-	tm         DataManager
-	SID        StreamID
-	elementKey []byte
-	window     []typex.Window
+	ctx            context.Context
+	tm             DataManager
+	SID            StreamID
+	inputTimestamp typex.EventTime
+	elementKey     []byte
+	window         []typex.Window
 
 	pn typex.PaneInfo
 
@@ -117,6 +120,7 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 		HoldTimestamp: t.HoldTimestamp,
 		Pane:          p.pn,
 	}
+	log.Debugf(p.ctx, "timer set: %+v", tm)
 	fv := FullValue{Elm: tm}
 	enc := MakeElementEncoder(coder.SkipW(p.codersByFamily[t.Family]))
 	if err := enc.Encode(&fv, w); err != nil {

@@ -102,7 +102,7 @@ func (t ProcessingTime) Set(p Provider, firingTimestamp time.Time) {
 
 func (t ProcessingTime) SetWithOpts(p Provider, firingTimestamp time.Time, opts Opts) {
 	fire := mtime.FromTime(firingTimestamp)
-	// Hold timestamp must match fireing timestamp if not otherwise set.
+	// Hold timestamp must match input element timestamp if not otherwise set.
 	tm := TimerMap{Family: t.Family, Tag: opts.Tag, FireTimestamp: fire, HoldTimestamp: fire}
 	if !opts.Hold.IsZero() {
 		tm.HoldTimestamp = mtime.FromTime(opts.Hold)

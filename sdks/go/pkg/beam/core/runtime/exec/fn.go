@@ -28,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 //go:generate specialize --input=fn_arity.tmpl
@@ -243,11 +242,10 @@ func (n *invoker) invokeWithOpts(ctx context.Context, pn typex.PaneInfo, ws []ty
 	}
 
 	if n.tpIdx >= 0 {
-		log.Debugf(ctx, "timercall %+v", opts)
-		tp, err := opts.ta.NewTimerProvider(ctx, opts.tm, ws, opts.opt)
+		tp, err := opts.ta.NewTimerProvider(ctx, opts.tm, ts, ws, opts.opt)
 		if err != nil {
 			return nil, err
-		}
+		} /*  */
 		n.tp = &tp
 		args[n.tpIdx] = n.tp
 	}

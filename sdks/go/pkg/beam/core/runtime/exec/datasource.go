@@ -97,17 +97,60 @@ func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContex
 	n.source = data.Data
 	n.state = data.State
 	n.start = time.Now()
-	n.index = -1
+	n.index = 0
 	n.splitIdx = math.MaxInt64
 	n.mu.Unlock()
 	return n.Out.StartBundle(ctx, id, data)
+}
+
+// process handles converting elements from the data source to timers.
+func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader) error, timer func(bcr *byteCountReader, timerFamilyID string) error) error {
+	elms, err := n.source.OpenElementChan(ctx, n.SID)
+	if err != nil {
+		return err
+	}
+
+	n.PCol.resetSize() // initialize the size distribution for this bundle.
+	var r bytes.Reader
+
+	var byteCount int
+	bcr := byteCountReader{reader: &r, count: &byteCount}
+	for {
+		var err error
+		select {
+		case e, ok := <-elms:
+			// Channel closed, so time to exit
+			if !ok {
+				return nil
+			}
+			if len(e.Data) > 0 {
+				r.Reset(e.Data)
+				log.Debugf(ctx, "%v: received %v", n, e.Data)
+				err = data(&bcr)
+			}
+			if len(e.Timers) > 0 {
+				r.Reset(e.Timers)
+				err = timer(&bcr, e.TimerFamilyID)
+			}
+		case <-ctx.Done():
+			return nil
+		}
+
+		if err != nil {
+			if err != io.EOF {
+				return errors.Wrap(err, "source failed")
+			}
+			// io.EOF means the reader successfully drained
+			// We're ready for a new buffer.
+		}
+	}
 }
 
 // ByteCountReader is a passthrough reader that counts all the bytes read through it.
 // It trusts the nested reader to return accurate byte information.
 type byteCountReader struct {
 	count  *int
-	reader io.ReadCloser
+	reader io.Reader
 }
 
 func (r *byteCountReader) Read(p []byte) (int, error) {
@@ -117,7 +160,10 @@ func (r *byteCountReader) Read(p []byte) (int, error) {
 }
 
 func (r *byteCountReader) Close() error {
-	return r.reader.Close()
+	if c, ok := r.reader.(io.Closer); ok {
+		c.Close()
+	}
+	return nil
 }
 
 func (r *byteCountReader) reset() int {
@@ -128,15 +174,6 @@ func (r *byteCountReader) reset() int {
 
 // Process opens the data source, reads and decodes data, kicking off element processing.
 func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
-	r, err := n.source.OpenRead(ctx, n.SID)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-	n.PCol.resetSize() // initialize the size distribution for this bundle.
-	var byteCount int
-	bcr := byteCountReader{reader: r, count: &byteCount}
-
 	c := coder.SkipW(n.Coder)
 	wc := MakeWindowDecoder(n.Coder.Window)
 
@@ -155,58 +192,68 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 	}
 
 	var checkpoints []*Checkpoint
-	for {
-		if n.incrementIndexAndCheckSplit() {
-			break
-		}
-		// TODO(lostluck) 2020/02/22: Should we include window headers or just count the element sizes?
-		ws, t, pn, err := DecodeWindowedValueHeader(wc, r)
-		if err != nil {
-			if err == io.EOF {
+	err := n.process(ctx, func(bcr *byteCountReader) error {
+		for {
+			// TODO(lostluck) 2020/02/22: Should we include window headers or just count the element sizes?
+			ws, t, pn, err := DecodeWindowedValueHeader(wc, bcr.reader)
+			if err != nil {
+				return err
+			}
+
+			// Decode key or parallel element.
+			pe, err := cp.Decode(bcr)
+			if err != nil {
+				return errors.Wrap(err, "source decode failed")
+			}
+			pe.Timestamp = t
+			pe.Windows = ws
+			pe.Pane = pn
+
+			log.Debugf(ctx, "%v: processing %v,%v", n, pe.Elm, pe.Elm2)
+
+			var valReStreams []ReStream
+			for _, cv := range cvs {
+				values, err := n.makeReStream(ctx, cv, bcr, len(cvs) == 1 && n.singleIterate)
+				if err != nil {
+					return err
+				}
+				valReStreams = append(valReStreams, values)
+			}
+
+			if err := n.Out.ProcessElement(ctx, pe, valReStreams...); err != nil {
+				return err
+			}
+			// Collect the actual size of the element, and reset the bytecounter reader.
+			n.PCol.addSize(int64(bcr.reset()))
+
+			// Check if there's a continuation and return residuals
+			// Needs to be done immeadiately after processing to not lose the element.
+			if c := n.getProcessContinuation(); c != nil {
+				cp, err := n.checkpointThis(ctx, c)
+				if err != nil {
+					// Errors during checkpointing should fail a bundle.
+					return err
+				}
+				if cp != nil {
+					checkpoints = append(checkpoints, cp)
+				}
+			}
+			//	We've finished processing an element, check if we have finished a split.
+			if n.incrementIndexAndCheckSplit() {
 				break
 			}
-			return nil, errors.Wrap(err, "source failed")
 		}
+		// Signal data loop exit.
+		log.Debugf(ctx, "%v: exiting data loop", n)
+		return nil
+	},
+		func(bcr *byteCountReader, timerFamilyID string) error {
+			tmap, err := decodeTimer(cp, wc, bcr)
+			log.Errorf(ctx, "timer received: %v - %+v  err: %v", timerFamilyID, tmap, err)
+			return nil
+		})
 
-		// Decode key or parallel element.
-		pe, err := cp.Decode(&bcr)
-		if err != nil {
-			return nil, errors.Wrap(err, "source decode failed")
-		}
-		pe.Timestamp = t
-		pe.Windows = ws
-		pe.Pane = pn
-
-		var valReStreams []ReStream
-		for _, cv := range cvs {
-			values, err := n.makeReStream(ctx, cv, &bcr, len(cvs) == 1 && n.singleIterate)
-			if err != nil {
-				return nil, err
-			}
-			valReStreams = append(valReStreams, values)
-		}
-
-		if err := n.Out.ProcessElement(ctx, pe, valReStreams...); err != nil {
-			return nil, err
-		}
-		// Collect the actual size of the element, and reset the bytecounter reader.
-		n.PCol.addSize(int64(bcr.reset()))
-		bcr.reader = r
-
-		// Check if there's a continuation and return residuals
-		// Needs to be done immeadiately after processing to not lose the element.
-		if c := n.getProcessContinuation(); c != nil {
-			cp, err := n.checkpointThis(ctx, c)
-			if err != nil {
-				// Errors during checkpointing should fail a bundle.
-				return nil, err
-			}
-			if cp != nil {
-				checkpoints = append(checkpoints, cp)
-			}
-		}
-	}
-	return checkpoints, nil
+	return checkpoints, err
 }
 
 func (n *DataSource) makeReStream(ctx context.Context, cv ElementDecoder, bcr *byteCountReader, onlyStream bool) (ReStream, error) {
@@ -313,7 +360,7 @@ func (n *DataSource) makeReStream(ctx context.Context, cv ElementDecoder, bcr *b
 	}
 }
 
-func readStreamToBuffer(cv ElementDecoder, r io.ReadCloser, size int64, buf []FullValue) ([]FullValue, error) {
+func readStreamToBuffer(cv ElementDecoder, r io.Reader, size int64, buf []FullValue) ([]FullValue, error) {
 	for i := int64(0); i < size; i++ {
 		value, err := cv.Decode(r)
 		if err != nil {
