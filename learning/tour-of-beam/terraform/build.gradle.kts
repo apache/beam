@@ -229,8 +229,7 @@ tasks.register("flutterBuildWeb") {
 tasks.register("firebaseDeploy") {
     var project_id = project.property("project_id") as String
     exec {
-        executable("flutter")
-        args("deploy", "--project", project_id)
+        commandLine("firebase", "deploy", "--project", project_id)
         workingDir("../frontend")
     }
 }
