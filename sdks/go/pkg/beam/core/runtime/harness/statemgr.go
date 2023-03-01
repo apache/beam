@@ -463,18 +463,17 @@ func (r *stateKeyReader) Close() error {
 	return nil
 }
 
-func (r *stateKeyWriter) Write(buf []byte) (int, error) {
-	r.mu.Lock()
-	localChannel := r.ch
-	r.mu.Unlock()
-
+func (w *stateKeyWriter) Write(buf []byte) (int, error) {
+	w.mu.Lock()
+	localChannel := w.ch
+	w.mu.Unlock()
 	var req *fnpb.StateRequest
-	switch r.writeType {
+	switch w.writeType {
 	case writeTypeAppend:
 		req = &fnpb.StateRequest{
 			// Id: set by StateChannel
-			InstructionId: string(r.instID),
-			StateKey:      r.key,
+			InstructionId: string(w.instID),
+			StateKey:      w.key,
 			Request: &fnpb.StateRequest_Append{
 				Append: &fnpb.StateAppendRequest{
 					Data: buf,
@@ -484,14 +483,14 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 	case writeTypeClear:
 		req = &fnpb.StateRequest{
 			// ID: set by StateChannel
-			InstructionId: string(r.instID),
-			StateKey:      r.key,
+			InstructionId: string(w.instID),
+			StateKey:      w.key,
 			Request: &fnpb.StateRequest_Clear{
 				Clear: &fnpb.StateClearRequest{},
 			},
 		}
 	default:
-		return 0, errors.Errorf("Unknown write type %v", r.writeType)
+		return 0, errors.Errorf("Unknown write type %v", w.writeType)
 	}
 
 	_, err := localChannel.Send(req)

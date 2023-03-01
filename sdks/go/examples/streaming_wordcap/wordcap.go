@@ -79,7 +79,7 @@ func NewStateful() *Stateful {
 }
 
 func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key, word string, emit func(string, string)) error {
-	log.Infof(ctx, "stateful dofn invoked key: %v word: %v", key, word)
+	//	log.Infof(ctx, "stateful dofn invoked key: %v word: %v", key, word)
 
 	s.ElementBag.Add(sp, word)
 	s.MinTime.Add(sp, int64(ts))
@@ -98,7 +98,7 @@ func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp sta
 
 	s.OutputState.SetWithOpts(tp, mtime.Time(toFire).ToTime(), timers.Opts{Hold: mtime.Time(minTime).ToTime()})
 	s.TimerTime.Write(sp, toFire)
-	log.Infof(ctx, "stateful dofn key: %v word: %v, timer: %v, minTime: %v", key, word, toFire, minTime)
+	//log.Infof(ctx, "stateful dofn key: %v word: %v, timer: %v, minTime: %v", key, word, toFire, minTime)
 
 	// // Get the Value stored in our state
 	// val, ok, err := s.Val.Read(p)
@@ -233,7 +233,7 @@ func main() {
 	// }, col)
 
 	imp := beam.Impulse(s)
-	elms := 100
+	elms := 3
 	out := beam.ParDo(s, &eventtimeSDFStream{
 		Sleep:    time.Second,
 		RestSize: int64(elms),
@@ -249,7 +249,6 @@ func main() {
 		log.Infof(ctx, "adding key ts: %v now: %v  word: %v", ts.ToTime(), time.Now(), s)
 		return "test", s
 	}, str)
-	debug.Printf(s, "pre stateful: %v", keyed)
 
 	timed := beam.ParDo(s, NewStateful(), keyed)
 	debug.Printf(s, "post stateful: %v", timed)

@@ -269,11 +269,14 @@ func (c *DataChannel) makeChannel(ctx context.Context, id clientID) *elementsCha
 		return r
 	}
 
+	log.Infof(ctx, "make data read channel %v", id)
+
 	r := &elementsChan{ch: make(chan exec.Elements, 20)}
 	// Just in case initial data for an instruction arrives *after* an instructon has ended.
 	// eg. it was blocked by another reader being slow, or the other instruction failed.
 	// So we provide a pre-completed reader, and do not cache it, as there's no further cleanup for it.
 	if _, ok := c.endedInstructions[id.instID]; ok {
+		log.Infof(ctx, "data read channel %v already ended", id)
 		close(r.ch)
 		r.complete = true
 		return r
@@ -364,7 +367,7 @@ func (c *DataChannel) read(ctx context.Context) {
 				instID:       instructionID(tim.GetInstructionId()),
 				// timerFamilyID: tim.GetTimerFamilyId(),
 			}
-			log.Infof(ctx, "timer received for %v, %v: %v", id, tim.GetTimerFamilyId(), tim.GetTimers())
+
 			var r *elementsChan
 			if local, ok := cache[id]; ok {
 				r = local
@@ -385,6 +388,7 @@ func (c *DataChannel) read(ctx context.Context) {
 				delete(cache, id)
 				continue
 			}
+			log.Infof(ctx, "timer received for %v, %v: %v", id, tim.GetTimerFamilyId(), tim.GetTimers())
 
 			// This send is deliberately blocking, if we exceed the buffering for
 			// a reader. We can't buffer the entire main input, if some user code
@@ -637,6 +641,8 @@ func (w *timerWriter) Close() error {
 func (w *timerWriter) writeTimers(p []byte) error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
+
+	log.Infof(context.TODO(), "timer write for %+v: %v", w.id, p)
 
 	msg := &fnpb.Elements{
 		Timers: []*fnpb.Elements_Timers{

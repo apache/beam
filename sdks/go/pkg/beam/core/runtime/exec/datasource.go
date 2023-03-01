@@ -125,7 +125,6 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 			}
 			if len(e.Data) > 0 {
 				r.Reset(e.Data)
-				log.Debugf(ctx, "%v: received %v", n, e.Data)
 				err = data(&bcr)
 			}
 			if len(e.Timers) > 0 {

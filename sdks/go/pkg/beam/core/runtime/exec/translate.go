@@ -35,6 +35,7 @@ import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
@@ -53,6 +54,7 @@ const (
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
 func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
+	log.Debug(context.TODO(), prototext.Format(desc))
 	b, err := newBuilder(desc)
 	if err != nil {
 		return nil, err
