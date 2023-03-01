@@ -188,7 +188,8 @@ tasks.register("prepareFirebaseOptionsDart") {
 
 tasks.register("flutterPubGetPG") {
     exec {
-        commandLine("flutter", "pub", "get")
+        executable("flutter")
+        commandLine("pub", "get")
         workingDir("../../../playground/frontend/playground_components")
     }
 }
