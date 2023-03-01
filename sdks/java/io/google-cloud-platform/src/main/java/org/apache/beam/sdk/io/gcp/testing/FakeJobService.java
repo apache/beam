@@ -86,8 +86,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBase
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A fake implementation of BigQuery's job service. */
 @Internal

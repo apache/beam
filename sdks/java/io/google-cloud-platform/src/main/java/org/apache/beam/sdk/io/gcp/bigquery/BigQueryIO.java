@@ -2693,7 +2693,6 @@ public class BigQueryIO {
       return toBuilder().setAllowNullSchema(allowNullSchema).build();
     }
 
-
     /**
      * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
      * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. By

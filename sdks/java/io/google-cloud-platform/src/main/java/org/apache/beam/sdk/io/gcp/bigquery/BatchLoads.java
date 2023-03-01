@@ -211,7 +211,7 @@ class BatchLoads<DestinationT, ElementT>
     this.tempDataset = tempDataset;
     this.tableDestinationCoder =
         clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
-    this.allowNullSchema =allowNullSchema;
+    this.allowNullSchema = allowNullSchema;
   }
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
@@ -786,7 +786,7 @@ class BatchLoads<DestinationT, ElementT>
                 // https://github.com/apache/beam/issues/21105 for additional details.
                 schemaUpdateOptions,
                 tempDataset,
-                    allowNullSchema))
+                allowNullSchema))
         .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
 
@@ -827,7 +827,7 @@ class BatchLoads<DestinationT, ElementT>
                     useAvroLogicalTypes,
                     schemaUpdateOptions,
                     null,
-                        allowNullSchema))
+                    allowNullSchema))
             .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
 
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);

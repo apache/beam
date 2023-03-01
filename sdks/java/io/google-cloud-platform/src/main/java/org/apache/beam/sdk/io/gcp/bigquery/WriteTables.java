@@ -210,16 +210,16 @@ class WriteTables<DestinationT extends @NonNull Object>
         tableSchema = dynamicDestinations.getSchema(destination);
         if (!allowNullSchema) {
           Preconditions.checkArgumentNotNull(
-                  tableSchema,
-                  "Unless create disposition is %s, a schema must be specified, i.e. "
-                          + "DynamicDestinations.getSchema() may not return null. "
-                          + "However, create disposition is %s, and %s returned null for destination %s",
-                  CreateDisposition.CREATE_NEVER,
-                  firstPaneCreateDisposition,
-                  dynamicDestinations,
-                  destination);
+              tableSchema,
+              "Unless create disposition is %s, a schema must be specified, i.e. "
+                  + "DynamicDestinations.getSchema() may not return null. "
+                  + "However, create disposition is %s, and %s returned null for destination %s",
+              CreateDisposition.CREATE_NEVER,
+              firstPaneCreateDisposition,
+              dynamicDestinations,
+              destination);
         }
-        if (tableSchema!=null) {
+        if (tableSchema != null) {
           jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
         }
       }
@@ -287,9 +287,7 @@ class WriteTables<DestinationT extends @NonNull Object>
               tableReference,
               tableDestination.getTimePartitioning(),
               tableDestination.getClustering(),
-
-
-                  tableSchema,
+              tableSchema,
               partitionFiles,
               writeDisposition,
               createDisposition,
@@ -432,7 +430,7 @@ class WriteTables<DestinationT extends @NonNull Object>
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
     this.tempDataset = tempDataset;
-    this.allowNullSchema =allowNullSchema;
+    this.allowNullSchema = allowNullSchema;
   }
 
   @Override

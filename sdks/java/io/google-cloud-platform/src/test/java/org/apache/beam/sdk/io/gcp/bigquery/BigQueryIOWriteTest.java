@@ -2236,14 +2236,14 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testAllowNullSchema() {
     BigQueryIO.Write<TableRow> write =
-            BigQueryIO.writeTableRows()
-                    .to("dataset.table")
-                    .withSchema(new TableSchema())
-                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                    .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                    .withSchemaUpdateOptions(
-                            EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
-                    .withAllowNullSchema(true);
+        BigQueryIO.writeTableRows()
+            .to("dataset.table")
+            .withSchema(new TableSchema())
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(
+                EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
+            .withAllowNullSchema(true);
     assertEquals(true, write.getAllowNullSchema());
   }
 
@@ -2412,10 +2412,9 @@ public class BigQueryIOWriteTest implements Serializable {
 
     @Override
     public TableSchema getSchema(String destination) {
-      if(nullSchema) {
+      if (nullSchema) {
         return null;
-      }
-      else {
+      } else {
         return new TableSchema();
       }
     }
@@ -2546,16 +2545,16 @@ public class BigQueryIOWriteTest implements Serializable {
       TableDestination tableDestination = new TableDestination(tableName, tableName);
       for (int j = 0; j < numPartitions; ++j) {
         String tempTableId =
-                BigQueryResourceNaming.createJobIdWithDestination(jobIdToken, tableDestination, j, 0);
+            BigQueryResourceNaming.createJobIdWithDestination(jobIdToken, tableDestination, j, 0);
         List<String> filesPerPartition = Lists.newArrayList();
         for (int k = 0; k < numFilesPerPartition; ++k) {
           String filename =
-                  Paths.get(
-                                  testFolder.getRoot().getAbsolutePath(),
-                                  String.format("files0x%08x_%05d", tempTableId.hashCode(), k))
-                          .toString();
+              Paths.get(
+                      testFolder.getRoot().getAbsolutePath(),
+                      String.format("files0x%08x_%05d", tempTableId.hashCode(), k))
+                  .toString();
           TableRowWriter<TableRow> writer =
-                  new TableRowWriter<>(filename, SerializableFunctions.identity());
+              new TableRowWriter<>(filename, SerializableFunctions.identity());
           try (TableRowWriter<TableRow> ignored = writer) {
             TableRow tableRow = new TableRow().set("name", tableName);
             writer.write(tableRow);
@@ -2563,83 +2562,83 @@ public class BigQueryIOWriteTest implements Serializable {
           filesPerPartition.add(writer.getResult().resourceId.toString());
         }
         partitions.add(
-                KV.of(
-                        ShardedKey.of(tableDestination.getTableSpec(), j),
-                        new AutoValue_WritePartition_Result(filesPerPartition, true)));
+            KV.of(
+                ShardedKey.of(tableDestination.getTableSpec(), j),
+                new AutoValue_WritePartition_Result(filesPerPartition, true)));
 
         String json =
-                String.format(
-                        "{\"datasetId\":\"dataset-id\",\"projectId\":\"project-id\",\"tableId\":\"%s\"}",
-                        tempTableId);
+            String.format(
+                "{\"datasetId\":\"dataset-id\",\"projectId\":\"project-id\",\"tableId\":\"%s\"}",
+                tempTableId);
         expectedTempTables.put(tableDestination, json);
       }
     }
 
     PCollection<KV<ShardedKey<String>, WritePartition.Result>> writeTablesInput =
-            p.apply(
-                    Create.of(partitions)
-                            .withCoder(
-                                    KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), ResultCoder.INSTANCE)));
+        p.apply(
+            Create.of(partitions)
+                .withCoder(
+                    KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), ResultCoder.INSTANCE)));
     PCollectionView<String> jobIdTokenView =
-            p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
+        p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
     List<PCollectionView<?>> sideInputs = ImmutableList.of(jobIdTokenView);
 
     DynamicDestinations<String, String> dynamicDestinations = new IdentityDynamicTables(true);
 
     fakeJobService.setNumFailuresExpected(3);
     WriteTables<String> writeTables =
-            new WriteTables<>(
-                    true,
-                    fakeBqServices,
-                    jobIdTokenView,
-                    BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
-                    BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
-                    sideInputs,
-                    dynamicDestinations,
-                    null,
-                    4,
-                    false,
-                    null,
-                    "NEWLINE_DELIMITED_JSON",
-                    false,
-                    Collections.emptySet(),
-                    null,
-                    true);
+        new WriteTables<>(
+            true,
+            fakeBqServices,
+            jobIdTokenView,
+            BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+            BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
+            sideInputs,
+            dynamicDestinations,
+            null,
+            4,
+            false,
+            null,
+            "NEWLINE_DELIMITED_JSON",
+            false,
+            Collections.emptySet(),
+            null,
+            true);
 
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
-            writeTablesInput
-                    .apply(writeTables)
-                    .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE))
-                    .apply(
-                            ParDo.of(
-                                    new DoFn<
-                                            KV<String, WriteTables.Result>,
-                                            KV<TableDestination, WriteTables.Result>>() {
-                                      @ProcessElement
-                                      public void processElement(
-                                              @Element KV<String, WriteTables.Result> e,
-                                              OutputReceiver<KV<TableDestination, WriteTables.Result>> o) {
-                                        o.output(KV.of(dynamicDestinations.getTable(e.getKey()), e.getValue()));
-                                      }
-                                    }));
+        writeTablesInput
+            .apply(writeTables)
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE))
+            .apply(
+                ParDo.of(
+                    new DoFn<
+                        KV<String, WriteTables.Result>,
+                        KV<TableDestination, WriteTables.Result>>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, WriteTables.Result> e,
+                          OutputReceiver<KV<TableDestination, WriteTables.Result>> o) {
+                        o.output(KV.of(dynamicDestinations.getTable(e.getKey()), e.getValue()));
+                      }
+                    }));
 
     PAssert.thatMultimap(writeTablesOutput)
-            .satisfies(
-                    input -> {
-                      assertEquals(expectedTempTables.keySet(), input.keySet());
-                      for (Map.Entry<TableDestination, Iterable<WriteTables.Result>> entry :
-                              input.entrySet()) {
-                        Iterable<String> tableNames =
-                                StreamSupport.stream(entry.getValue().spliterator(), false)
-                                        .map(Result::getTableName)
-                                        .collect(Collectors.toList());
-                        @SuppressWarnings("unchecked")
-                        String[] expectedValues =
-                                Iterables.toArray(expectedTempTables.get(entry.getKey()), String.class);
-                        assertThat(tableNames, containsInAnyOrder(expectedValues));
-                      }
-                      return null;
-                    });
+        .satisfies(
+            input -> {
+              assertEquals(expectedTempTables.keySet(), input.keySet());
+              for (Map.Entry<TableDestination, Iterable<WriteTables.Result>> entry :
+                  input.entrySet()) {
+                Iterable<String> tableNames =
+                    StreamSupport.stream(entry.getValue().spliterator(), false)
+                        .map(Result::getTableName)
+                        .collect(Collectors.toList());
+                @SuppressWarnings("unchecked")
+                String[] expectedValues =
+                    Iterables.toArray(expectedTempTables.get(entry.getKey()), String.class);
+                assertThat(tableNames, containsInAnyOrder(expectedValues));
+              }
+              return null;
+            });
     p.run();
   }
 
