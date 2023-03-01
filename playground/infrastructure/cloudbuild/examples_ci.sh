@@ -106,6 +106,8 @@ LogOutput "Installing GO"
 curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
 tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz > /dev/null
 export PATH=$PATH:/usr/local/go/bin > /dev/null
+# required to build beam/sdks/go container
+export GOMODCACHE="/workspace/go/pkg/mod"
 
 LogOutput "Installing Docker"
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/null
