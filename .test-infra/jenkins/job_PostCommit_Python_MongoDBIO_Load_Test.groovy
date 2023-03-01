@@ -22,7 +22,7 @@ String jobName = "beam_python_mongoio_load_test"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate, 'H H/6 * * *')
+  common.setAutoJob(delegate, 'H H/12 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Python MongoDBIO Load Test',
