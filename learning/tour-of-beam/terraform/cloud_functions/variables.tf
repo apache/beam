@@ -42,3 +42,5 @@ variable "entry_point_names" {
 variable "pg_router_host" {
   description = "Hostname:port of Playground GKE cluster's router grpc workload"
 }
+
+variable "environment" {}

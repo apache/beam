@@ -18,7 +18,7 @@
 
 resource "google_cloudfunctions_function" "cloud_function" {
   count                 = length(var.entry_point_names)
-  name                  = "${var.entry_point_names[count.index]}"
+  name                  = "${environment}_${var.entry_point_names[count.index]}"
   runtime               = "go116"
   available_memory_mb   = 128
   project               = var.project_id

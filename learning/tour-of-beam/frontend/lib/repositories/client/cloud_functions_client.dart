@@ -37,7 +37,7 @@ class CloudFunctionsTobClient extends TobClient {
   Future<GetSdksResponse> getSdks() async {
     final json = await http.get(
       Uri.parse(
-        '$cloudFunctionsBaseUrl+getSdkList',
+        '${cloudFunctionsBaseUrl}getSdkList',
       ),
     );
 
@@ -49,7 +49,7 @@ class CloudFunctionsTobClient extends TobClient {
   Future<ContentTreeModel> getContentTree(String sdkId) async {
     final json = await http.get(
       Uri.parse(
-        '$cloudFunctionsBaseUrl+getContentTree?sdk=$sdkId',
+        '${cloudFunctionsBaseUrl}getContentTree?sdk=$sdkId',
       ),
     );
 
@@ -62,7 +62,7 @@ class CloudFunctionsTobClient extends TobClient {
   Future<UnitContentModel> getUnitContent(String sdkId, String unitId) async {
     final json = await http.get(
       Uri.parse(
-        '$cloudFunctionsBaseUrl+getUnitContent?sdk=$sdkId&id=$unitId',
+        '${cloudFunctionsBaseUrl}getUnitContent?sdk=$sdkId&id=$unitId',
       ),
     );
 
@@ -78,7 +78,7 @@ class CloudFunctionsTobClient extends TobClient {
     }
     final json = await http.get(
       Uri.parse(
-        '$cloudFunctionsBaseUrl+getUserProgress?sdk=$sdkId',
+        '${cloudFunctionsBaseUrl}getUserProgress?sdk=$sdkId',
       ),
       headers: {
         HttpHeaders.authorizationHeader: 'Bearer $token',
@@ -94,7 +94,7 @@ class CloudFunctionsTobClient extends TobClient {
     final token = await GetIt.instance.get<AuthNotifier>().getToken();
     await http.post(
       Uri.parse(
-        '$cloudFunctionsBaseUrl+postUnitComplete?sdk=$sdkId&id=$id',
+        '${cloudFunctionsBaseUrl}postUnitComplete?sdk=$sdkId&id=$id',
       ),
       headers: {
         HttpHeaders.authorizationHeader: 'Bearer $token',
