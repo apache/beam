@@ -44,7 +44,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
   }
 
   provisioner "local-exec" {
-    command = "sleep ${count.index * 30}"
+    command = "sleep 60"
   }
 
 }
