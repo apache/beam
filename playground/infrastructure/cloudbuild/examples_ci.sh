@@ -73,7 +73,13 @@ LogOutput "Input variables:
             ALLOWLIST=$ALLOWLIST"
 
 # Assigning constant values
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin/:/usr/bin:/sbin:/bin
+# Script starts in a clean environment in Cloud Build. Set minimal required environment variables
+if [ -z "$PATH" ]; then
+    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin/:/usr/bin:/sbin:/bin"
+fi
+if [ -z "$HOME" ]; then
+    export HOME="/builder/home"
+fi
 export STEP=CI 
 export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
 export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
@@ -107,7 +113,7 @@ curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
 tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz > /dev/null
 export PATH=$PATH:/usr/local/go/bin > /dev/null
 # required to build beam/sdks/go container
-export GOMODCACHE="/workspace/go/pkg/mod"
+export GOMODCACHE="$HOME/go/pkg/mod"
 
 LogOutput "Installing Docker"
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/null
