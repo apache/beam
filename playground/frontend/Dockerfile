@@ -23,7 +23,12 @@ ARG FLUTTER_VERSION=3.7.3
 # Setting up.
 # ------------------------------------------------
 
+COPY . /app
+WORKDIR /app
+
 RUN apt-get update && apt-get install -y wget xz-utils git
+
+RUN cat /app/playground_components/lib/src/build_metadata.g.dart
 
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     tar -xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
@@ -33,9 +38,6 @@ RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/li
     ln -s /opt/flutter/bin/dart /usr/bin/dart &&\
     dart pub global activate protoc_plugin &&\
     ln -s /root/.pub-cache/bin/protoc-gen-dart /usr/bin/
-
-COPY . /app
-WORKDIR /app
 
 # ------------------------------------------------
 # Building the application.

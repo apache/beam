@@ -16,18 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:mockito/annotations.dart';
-
-import 'package:playground_components/playground_components.dart';
-
-@GenerateMocks([ExampleCache])
-class _C {} // ignore: unused_element
-
-/// Creates an [ExampleCache] with a broken URL so all requests fail.
-ExampleCache createFailingExampleCache() {
-  return ExampleCache(
-    exampleRepository: ExampleRepository(
-      client: GrpcExampleClient(url: Uri.parse('')),
-    ),
-  );
+/// Mimics [Future.wait] for maps.
+Future<Map<K, V>> waitMap<K, V>(Map<K, Future<V>> map) async {
+  final values = await Future.wait(map.values);
+  return Map.fromIterables(map.keys, values);
 }

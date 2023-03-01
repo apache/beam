@@ -29,72 +29,72 @@ import 'models/get_snippet_response.dart';
 import 'models/save_snippet_request.dart';
 
 class ExampleRepository {
-  final ExampleClient _client;
+  final ExampleClient client;
 
   ExampleRepository({
-    required ExampleClient client,
-  }) : _client = client;
+    required this.client,
+  });
 
   Future<Map<Sdk, List<CategoryWithExamples>>> getPrecompiledObjects(
     GetPrecompiledObjectsRequest request,
   ) async {
-    final result = await _client.getPrecompiledObjects(request);
+    final result = await client.getPrecompiledObjects(request);
     return result.categories;
   }
 
   Future<ExampleBase> getDefaultPrecompiledObject(
     GetDefaultPrecompiledObjectRequest request,
   ) async {
-    final result = await _client.getDefaultPrecompiledObject(request);
+    final result = await client.getDefaultPrecompiledObject(request);
     return result.example;
   }
 
   Future<List<SnippetFile>> getPrecompiledObjectCode(
     GetPrecompiledObjectRequest request,
   ) async {
-    final result = await _client.getPrecompiledObjectCode(request);
+    final result = await client.getPrecompiledObjectCode(request);
     return result.files;
   }
 
   Future<String> getPrecompiledObjectOutput(
     GetPrecompiledObjectRequest request,
   ) async {
-    final result = await _client.getPrecompiledObjectOutput(request);
+    final result = await client.getPrecompiledObjectOutput(request);
     return result.output;
   }
 
   Future<String> getPrecompiledObjectLogs(
     GetPrecompiledObjectRequest request,
   ) async {
-    final result = await _client.getPrecompiledObjectLogs(request);
+    final result = await client.getPrecompiledObjectLogs(request);
     return result.output;
   }
 
   Future<String> getPrecompiledObjectGraph(
     GetPrecompiledObjectRequest request,
   ) async {
-    final result = await _client.getPrecompiledObjectGraph(request);
+    final result = await client.getPrecompiledObjectGraph(request);
     return result.output;
   }
 
   Future<ExampleBase> getPrecompiledObject(
     GetPrecompiledObjectRequest request,
   ) async {
-    final result = await _client.getPrecompiledObject(request);
+    final result = await client.getPrecompiledObject(request);
     return result.example;
   }
 
   Future<GetSnippetResponse> getSnippet(
     GetSnippetRequest request,
   ) async {
-    final result = await _client.getSnippet(request);
+    final result = await client.getSnippet(request);
     return result;
   }
 
   Future<String> saveSnippet(
     SaveSnippetRequest request,
   ) async {
-    final result = await _client.saveSnippet(request);
+    final result = await client.saveSnippet(request);
     return result.id;
   }
 }

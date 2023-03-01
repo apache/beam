@@ -16,18 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:mockito/annotations.dart';
+import '../build_metadata.g.dart' as frontend_build_metadata;
 
-import 'package:playground_components/playground_components.dart';
+class ComponentVersion {
+  const ComponentVersion({
+    this.beamSdkVersion,
+    this.buildCommitHash,
+    this.dateTime,
+  });
 
-@GenerateMocks([ExampleCache])
-class _C {} // ignore: unused_element
+  final String? beamSdkVersion;
+  final String? buildCommitHash;
+  final DateTime? dateTime;
 
-/// Creates an [ExampleCache] with a broken URL so all requests fail.
-ExampleCache createFailingExampleCache() {
-  return ExampleCache(
-    exampleRepository: ExampleRepository(
-      client: GrpcExampleClient(url: Uri.parse('')),
+  /// The version of the frontend.
+  static final frontend = ComponentVersion(
+    buildCommitHash: frontend_build_metadata.buildCommitHash,
+    dateTime: DateTime.fromMillisecondsSinceEpoch(
+      frontend_build_metadata.buildCommitSecondsSinceEpoch * 1000,
     ),
   );
 }

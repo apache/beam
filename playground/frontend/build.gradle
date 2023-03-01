@@ -227,19 +227,25 @@ void runIntegrationTest(String path, String url) {
   }
 }
 
-task copyDockerfileDependencies(type: Copy) {
-   group = "build"
-   description = "Copy files that required to build docker container"
-   copy {
+tasks.register("copyDockerfileDependencies") {
+  dependsOn(":playground:frontend:playground_components:generateBuildMetadata")
+
+  group = "build"
+  description = "Copy files that required to build docker container"
+
+  doLast {
+    copy {
       from(".")
       into("build/")
       exclude("build")
       exclude("Dockerfile")
-   }
-   copy {
+    }
+
+    copy {
       from("../playground")
       into("build/playground")
-   }
+    }
+  }
 }
 
 docker {

@@ -16,18 +16,36 @@
  * limitations under the License.
  */
 
-import 'package:mockito/annotations.dart';
+import 'package:flutter/material.dart';
 
-import 'package:playground_components/playground_components.dart';
+// TODO(alexeyinkin): In future convert all dialogs to this one.
+class BeamDialog extends StatelessWidget {
+  const BeamDialog({
+    required this.child,
+    this.title,
+  });
 
-@GenerateMocks([ExampleCache])
-class _C {} // ignore: unused_element
+  final Widget child;
+  final Widget? title;
 
-/// Creates an [ExampleCache] with a broken URL so all requests fail.
-ExampleCache createFailingExampleCache() {
-  return ExampleCache(
-    exampleRepository: ExampleRepository(
-      client: GrpcExampleClient(url: Uri.parse('')),
-    ),
-  );
+  static Future<void> show({
+    required Widget child,
+    required BuildContext context,
+    Widget? title,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) => BeamDialog(
+        child: AlertDialog(
+          title: title,
+          content: child,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return child;
+  }
 }

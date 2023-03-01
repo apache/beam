@@ -21,6 +21,7 @@ import java.io.FileOutputStream
 description = "Apache Beam :: Playground :: playground_components Flutter Package"
 
 tasks.register("generate") {
+  dependsOn("generateBuildMetadata")
   dependsOn("generateCode")
   dependsOn("extractBeamSymbols")
 
@@ -117,6 +118,15 @@ val deleteFilesByRegExp by extra(
     }
   }
 )
+
+tasks.register("generateBuildMetadata") {
+  doLast {
+    exec {
+      executable("sh")
+      args("tools/generate_build_metadata.sh")
+    }
+  }
+}
 
 tasks.register("generateCode") {
   dependsOn("cleanFlutter")

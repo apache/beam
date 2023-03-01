@@ -16,18 +16,19 @@
  * limitations under the License.
  */
 
-import 'package:mockito/annotations.dart';
+import '../api/v1/api.pb.dart';
+import '../models/component_version.dart';
 
-import 'package:playground_components/playground_components.dart';
-
-@GenerateMocks([ExampleCache])
-class _C {} // ignore: unused_element
-
-/// Creates an [ExampleCache] with a broken URL so all requests fail.
-ExampleCache createFailingExampleCache() {
-  return ExampleCache(
-    exampleRepository: ExampleRepository(
-      client: GrpcExampleClient(url: Uri.parse('')),
-    ),
-  );
+extension MetadataResponseGrpcExtension on GetMetadataResponse {
+  ComponentVersion get componentVersion {
+    return ComponentVersion(
+      // If a string is optional in protobuf, for some reason it becomes
+      // a non-nullable Dart string with '' as the default value.
+      beamSdkVersion: beamSdkVersion == '' ? null : beamSdkVersion,
+      buildCommitHash: buildCommitHash,
+      dateTime: DateTime.fromMillisecondsSinceEpoch(
+        buildCommitTimestampSecondsSinceEpoch.toInt() * 1000,
+      ),
+    );
+  }
 }
