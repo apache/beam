@@ -59,17 +59,17 @@ input | beam.WindowInto(
 ```
 {{end}}
 
-
-* AfterAll - the example of composite trigger. It fires when all sub-triggers defined through of(List<Trigger> triggers) method are ready.
-* AfterEach - the sub-triggers are defined in inOrder(List<Trigger> triggers) method. The sub-trigger are executed in order, one by one.
-* AfterFirst - executes when at least one of defined sub-triggers fires. As AfterAll trigger, AfterFirst also defines the sub-triggers in of(...) method.
-* AfterPane - it's an example of data-driven trigger. It uses elementCountAtLeast(int countElems) method to define the minimal number of accumulated items before executing the trigger. It's important to know that even if this threshold is never reached, the trigger can execute for the lower number.
-* AfterProcessingTime - as the name indicates, it's an example of processing time-based trigger. It defines 2 methods to control trigger firing. The first one is called plusDelayOf(final Duration delay). It defines the interval of time during which new elements are accumulated. The second method, alignedTo(final Duration period, final Instant offset) does the same but in additional it adds specified period to the defined offset. Thus if we define the offset at 2017-01-01 10:00 and we allow the period of 4 minutes, it'll accept the data betweenn 10:00 and 10:04.
-* AfterWatermark - its method pastEndOfWindow() creates a trigger firing the pane after the end of the window. It also has more fine-grained access because it allows the definition for early results (withEarlyFirings(OnceTrigger earlyFirings), produced before the end of the window) and late results (withLateFirings(OnceTrigger lateFirings), produced after the end of the window and before the end of watermark).
-* DefaultTrigger - it's the class used by default that is an equivalent to repeatable execution of AfterWatermark trigger.
-* NeverTrigger - the pane is fired only after the passed window plus allowed lateness delay.
-* OrFinallyTrigger - it's a special kind of trigger constructed through Trigger's orFinally(OnceTrigger until) method. With the call to this method the main trigger executes until the moment when until trigger is fired.
-* Repeatedly - helps to execute given trigger repeatedly. The sub-trigger is defined in forever(Trigger repeated) method. That said even if we defined a AfterPane.elementCountAtLeast(2) as a repeatable sub-trigger, it won't stop after the first 2 elements in the pane but will continue the execution for every new 2 items.
+Beam SDK provides various built-in triggers:
+* `AfterAll` - the example of composite trigger. It fires when all sub-triggers defined through of(List<Trigger> triggers) method are ready.
+* `AfterEach` - the sub-triggers are defined in inOrder(List<Trigger> triggers) method. The sub-trigger are executed in order, one by one.
+* `AfterFirst` - executes when at least one of defined sub-triggers fires. As AfterAll trigger, AfterFirst also defines the sub-triggers in of(...) method.
+* `AfterPane` - it's an example of data-driven trigger. It uses elementCountAtLeast(int countElems) method to define the minimal number of accumulated items before executing the trigger. It's important to know that even if this threshold is never reached, the trigger can execute for the lower number.
+* `AfterProcessingTime` - as the name indicates, it's an example of processing time-based trigger. It defines 2 methods to control trigger firing. The first one is called plusDelayOf(final Duration delay). It defines the interval of time during which new elements are accumulated. The second method, alignedTo(final Duration period, final Instant offset) does the same but in additional it adds specified period to the defined offset. Thus if we define the offset at 2017-01-01 10:00 and we allow the period of 4 minutes, it'll accept the data betweenn 10:00 and 10:04.
+* `AfterWatermark` - its method pastEndOfWindow() creates a trigger firing the pane after the end of the window. It also has more fine-grained access because it allows the definition for early results (withEarlyFirings(OnceTrigger earlyFirings), produced before the end of the window) and late results (withLateFirings(OnceTrigger lateFirings), produced after the end of the window and before the end of watermark).
+* `DefaultTrigger` - it's the class used by default that is an equivalent to repeatable execution of AfterWatermark trigger.
+* `NeverTrigger` - the pane is fired only after the passed window plus allowed lateness delay.
+* `OrFinallyTrigger` - it's a special kind of trigger constructed through Trigger's orFinally(OnceTrigger until) method. With the call to this method the main trigger executes until the moment when until trigger is fired.
+* `Repeatedly` - helps to execute given trigger repeatedly. The sub-trigger is defined in forever(Trigger repeated) method. That said even if we defined a AfterPane.elementCountAtLeast(2) as a repeatable sub-trigger, it won't stop after the first 2 elements in the pane but will continue the execution for every new 2 items.
 
 ### Window accumulation
 

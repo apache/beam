@@ -28,17 +28,49 @@ trigger := trigger.AfterAll([]trigger.Trigger{trigger.AfterEndOfWindow().
 ```
 Window<String> window = Window.into(FixedWindows.of(Duration.standardMinutes(5)));
 
-        Trigger processingTimeTrigger = AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1));
-        Trigger dataDrivenTrigger = AfterPane.elementCountAtLeast(2);
+Trigger processingTimeTrigger = AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1));
+Trigger dataDrivenTrigger = AfterPane.elementCountAtLeast(2);
 
-        PCollection<String> windowed = input.apply(window.triggering(AfterAll.of(Arrays.asList(processingTimeTrigger,dataDrivenTrigger))).withAllowedLateness(Duration.ZERO).accumulatingFiredPanes());
+PCollection<String> windowed = input.apply(window.triggering(AfterAll.of(Arrays.asList(processingTimeTrigger,dataDrivenTrigger))).withAllowedLateness(Duration.ZERO).accumulatingFiredPanes());
 ```
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
+processing_time_trigger = trigger.AfterProcessingTime(60)
 event_time_trigger = trigger.AfterWatermark(early=trigger.AfterCount(100),
                                              late=trigger.AfterCount(200))
 
 composite_trigger = trigger.AfterAll(processing_time_trigger,event_time_trigger)
+```
+{{end}}
+
+### Playground exercise
+
+In composite triggers, you can make sure that after the first trigger is triggered, the second trigger is triggered
+
+{{if (eq .Sdk "go")}}
+```
+
+```
+{{end}}
+
+{{if (eq .Sdk "java")}}
+```
+Trigger trigger = AfterFirst.of(
+    AfterCount.of(100),
+    AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(5))
+);
+```
+{{end}}
+{{if (eq .Sdk "python")}}
+```
+input
+      | 'WindowIntoFixedWindows' >> beam.WindowInto(beam.window.FixedWindows(10))
+      | 'CountAndProcessTimeTrigger' >> beam.Trigger(
+            AfterFirst.of(
+                AfterCount(100),
+                AfterProcessingTime(5*60)  # 5 minutes
+            )
+      )
 ```
 {{end}}
