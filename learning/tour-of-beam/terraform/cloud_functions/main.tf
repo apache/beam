@@ -17,7 +17,6 @@
 
 
 resource "google_cloudfunctions_function" "cloud_function" {
-  count                 = length(var.entry_point_names)
   name                  = "${var.environment}_${var.entry_point_names[count.index]}"
   runtime               = "go116"
   available_memory_mb   = 128
@@ -49,7 +48,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
 
   lifecycle {
     prevent_destroy = true
-    create_before_destroy = true
+    ignore_changes = [name,]
   }
 
 }
