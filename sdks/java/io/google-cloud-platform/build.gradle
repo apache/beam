@@ -37,6 +37,7 @@ dependencies {
   implementation project(":runners:core-java")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:expansion-service")
+  implementation project(":sdks:java:extensions:avro")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:protobuf")
@@ -155,6 +156,7 @@ dependencies {
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")

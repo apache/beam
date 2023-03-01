@@ -126,7 +126,7 @@ To add CdapIO support for a new CDAP Streaming SparkReceiver [Plugin](src/main/j
        ```
         4. After these steps you will be able to use Cdap Plugin by class name like this: ``CdapIO.withCdapPluginClass(HubspotStreamingSource.class)``
 
-To learn more, please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
+To learn more, please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap).
 
 ## Dependencies
 

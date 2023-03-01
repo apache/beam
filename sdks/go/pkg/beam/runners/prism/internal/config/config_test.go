@@ -54,7 +54,7 @@ func TestHandlerRegistry(t *testing.T) {
 
 	type spotCheck struct {
 		v, h string
-		want interface{}
+		want any
 	}
 	tests := []struct {
 		name     string
