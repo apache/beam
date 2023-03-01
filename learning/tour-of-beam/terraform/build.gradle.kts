@@ -81,6 +81,7 @@ tasks {
                     "-no-color"
                 }
         )
+
     }
 }
 
@@ -294,6 +295,8 @@ tasks.register("uploadLearningMaterials") {
         environment("TOB_LEARNING_ROOT", "../learning-content/")
         workingDir("../backend")
     }
+    dependsOn("terraformApplyBackend")
+    mustRunAfter("terraformApplyBackend")
 }
 
 /* Tour of Beam backend init */
