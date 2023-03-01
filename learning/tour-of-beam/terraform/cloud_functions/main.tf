@@ -30,7 +30,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
   # Get the source code of the cloud function as a Zip compression
   trigger_http = true
   # Name of the function that will be executed when the Google Cloud Function is triggered
-  entry_point = var.entry_point_names[count.index]
+  entry_point = var.entry_point_names[count.index % length(var.entry_point_names)]
 
   environment_variables = {
     DATASTORE_PROJECT_ID=var.project_id
