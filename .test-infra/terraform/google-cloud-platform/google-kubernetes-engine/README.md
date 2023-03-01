@@ -26,12 +26,6 @@ This module provisions a private Google Kubernetes Engine cluster.
 See [Google Cloud Platform requirements](../../google-cloud-platform/README.md) for details on requirements
 and usage.
 
-```
-RESOURCE_NAME_PREFIX=
-terraform init
-terraform apply -var-file=vars.tfvars -var="project=$(gcloud config get-value project)" -var="resource_name_prefix=$RESOURCE_NAME_PREFIX"
-```
-
 # Special Instructions
 
 This module also provisions a bastion host needed to connect to the private cluster.  To connect to the kubernetes
