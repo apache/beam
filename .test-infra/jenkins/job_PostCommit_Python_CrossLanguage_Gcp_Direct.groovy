@@ -19,11 +19,13 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS
+
 // This job runs end-to-end cross language GCP IO tests with DirectRunner.
 // Collects tests with the @pytest.mark.uses_gcp_java_expansion_service decorator
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Direct',
-    'Run Python_Xlang_Gcp_Direct PostCommit', 'Direct Runner CrossLanguage GCP IOs PythonUsingJava Tests', this) {
-      description('Runs end-to-end cross language GCP IO tests h Direct runner.')
+    'Run Python_Xlang_Gcp_Direct PostCommit', 'Python_Xlang_Gcp_Direct (\"Run Python_Xlang_Gcp_Direct PostCommit\")', this) {
+      description('Runs end-to-end cross language GCP IO tests on the Direct runner.')
 
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
@@ -36,10 +38,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Direct',
       // Gradle goals for this job.
       steps {
         CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
-          shell("echo \"Running cross language GCP IO tests with python ${pythonVersion} on DirectRunner.\"")
+          shell("echo \"Running cross language GCP IO tests with Python ${pythonVersion} on DirectRunner.\"")
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":sdks:python:test-suites:direct:py${getVersionSuffix(pythonVersion)}:gcpCrossLanguagePythonUsingJava")
+            tasks(":sdks:python:test-suites:direct:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
             commonJobProperties.setGradleSwitches(delegate)
           }
         }

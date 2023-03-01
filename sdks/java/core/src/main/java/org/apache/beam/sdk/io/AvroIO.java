@@ -328,10 +328,16 @@ import org.joda.time.Duration;
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
  *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.io.AvroIO</code> instead of this one.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AvroIO {
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).

@@ -2403,13 +2403,14 @@ class StorageWriteToBigQuery(PTransform):
           available_runners)
 
     external_storage_write = SchemaAwareExternalTransform(
-        self.schematransform_config.identifier,
+        identifier=self.schematransform_config.identifier,
         expansion_service=self._expansion_service,
-        table=self._table,
         createDisposition=self._create_disposition,
         writeDisposition=self._write_disposition,
         triggeringFrequencySeconds=self._triggering_frequency,
-        useAtLeastOnceSemantics=self._use_at_least_once)
+        useAtLeastOnceSemantics=self._use_at_least_once,
+        table=self._table,
+    )
 
     input_tag = self.schematransform_config.inputs[0]
 

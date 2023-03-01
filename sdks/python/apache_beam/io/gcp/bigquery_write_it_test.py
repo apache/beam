@@ -583,6 +583,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.args = self.test_pipeline.get_full_options_as_args()
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
@@ -622,7 +623,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           self.dataset_id,
           self.project)
 
-  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_gcp_java_expansion_service
   def test_xlang_storage_write(self):
     table_id = '{}:{}.python_xlang_storage_write'.format(
         self.project, self.dataset_id)
@@ -633,11 +634,12 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         '{}.python_xlang_storage_write'.format(self.dataset_id),
         data=self.expected_elements)
 
-    with beam.Pipeline() as p:
+    with beam.Pipeline(argv=self.args) as p:
       _ = (
           p
           | beam.Create(self.row_elements)
-          | beam.io.StorageWriteToBigQuery(table=table_id))
+          | beam.io.StorageWriteToBigQuery(
+              table=table_id, expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
 

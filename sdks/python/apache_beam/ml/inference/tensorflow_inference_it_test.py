@@ -31,6 +31,7 @@ try:
   import tensorflow as tf
   from apache_beam.examples.inference import tensorflow_imagenet_segmentation
   from apache_beam.examples.inference import tensorflow_mnist_classification
+  from apache_beam.examples.inference import tensorflow_mnist_with_weights
 except ImportError as e:
   tf = None
 
@@ -51,9 +52,9 @@ class TensorflowInference(unittest.TestCase):
   def test_tf_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
-    output_file_dir = 'apache-beam-ml/testing/outputs'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'apache-beam-ml/models/tensorflow/mnist/'
+    model_path = 'gs://apache-beam-ml/models/tensorflow/mnist/'
     extra_opts = {
         'input': input_file,
         'output': output_file,
@@ -85,7 +86,7 @@ class TensorflowInference(unittest.TestCase):
     image_dir = (
         'https://storage.googleapis.com/download.tensorflow.org/example_images/'
     )
-    output_file_dir = 'apache-beam-ml/testing/outputs'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
     model_path = (
         'https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4')
@@ -107,6 +108,36 @@ class TensorflowInference(unittest.TestCase):
 
     for true_label, predicted_label in zip(expected_outputs, predicted_outputs):
       self.assertEqual(true_label, predicted_label)
+
+  def test_tf_mnist_with_weights_classification(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+    model_path = 'gs://apache-beam-ml/models/tensorflow/mnist'
+    extra_opts = {
+        'input': input_file,
+        'output': output_file,
+        'model_path': model_path,
+    }
+    tensorflow_mnist_with_weights.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+    self.assertEqual(FileSystems().exists(output_file), True)
+
+    expected_output_filepath = 'gs://apache-beam-ml/testing/expected_outputs/test_sklearn_mnist_classification_actuals.txt'  # pylint: disable=line-too-long
+    expected_outputs = process_outputs(expected_output_filepath)
+    predicted_outputs = process_outputs(output_file)
+    self.assertEqual(len(expected_outputs), len(predicted_outputs))
+
+    predictions_dict = {}
+    for i in range(len(predicted_outputs)):
+      true_label, prediction = predicted_outputs[i].split(',')
+      predictions_dict[true_label] = prediction
+
+    for i in range(len(expected_outputs)):
+      true_label, expected_prediction = expected_outputs[i].split(',')
+      self.assertEqual(predictions_dict[true_label], expected_prediction)
 
 
 if __name__ == '__main__':

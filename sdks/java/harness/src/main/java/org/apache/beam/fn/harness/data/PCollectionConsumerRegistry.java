@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
@@ -31,6 +32,8 @@ import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTr
 import org.apache.beam.fn.harness.control.Metrics;
 import org.apache.beam.fn.harness.control.Metrics.BundleCounter;
 import org.apache.beam.fn.harness.control.Metrics.BundleDistribution;
+import org.apache.beam.fn.harness.debug.DataSampler;
+import org.apache.beam.fn.harness.debug.OutputSampler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -48,7 +51,6 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
@@ -87,12 +89,22 @@ public class PCollectionConsumerRegistry {
   private final BundleProgressReporter.Registrar bundleProgressReporterRegistrar;
   private final ProcessBundleDescriptor processBundleDescriptor;
   private final RehydratedComponents rehydratedComponents;
+  private final @Nullable DataSampler dataSampler;
 
   public PCollectionConsumerRegistry(
       ExecutionStateTracker stateTracker,
       ShortIdMap shortIdMap,
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor) {
+    this(stateTracker, shortIdMap, bundleProgressReporterRegistrar, processBundleDescriptor, null);
+  }
+
+  public PCollectionConsumerRegistry(
+      ExecutionStateTracker stateTracker,
+      ShortIdMap shortIdMap,
+      BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
+      ProcessBundleDescriptor processBundleDescriptor,
+      @Nullable DataSampler dataSampler) {
     this.stateTracker = stateTracker;
     this.shortIdMap = shortIdMap;
     this.pCollectionIdsToConsumers = new HashMap<>();
@@ -106,6 +118,7 @@ public class PCollectionConsumerRegistry {
                 .putAllPcollections(processBundleDescriptor.getPcollectionsMap())
                 .putAllWindowingStrategies(processBundleDescriptor.getWindowingStrategiesMap())
                 .build());
+    this.dataSampler = dataSampler;
   }
 
   /**
@@ -201,16 +214,17 @@ public class PCollectionConsumerRegistry {
           if (consumerAndMetadatas.size() == 1) {
             ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(0);
             if (consumerAndMetadata.getConsumer() instanceof HandlesSplits) {
-              return new SplittingMetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata);
+              return new SplittingMetricTrackingFnDataReceiver(
+                  pcId, coder, consumerAndMetadata, dataSampler);
             }
-            return new MetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata);
+            return new MetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata, dataSampler);
           } else {
             /* TODO(SDF), Consider supporting splitting each consumer individually. This would never
             come up in the existing SDF expansion, but might be useful to support fused SDF nodes.
             This would require dedicated delivery of the split results to each of the consumers
             separately. */
             return new MultiplexingMetricTrackingFnDataReceiver(
-                pcId, coder, ImmutableList.copyOf(consumerAndMetadatas));
+                pcId, coder, consumerAndMetadatas, dataSampler);
           }
         });
   }
@@ -228,9 +242,13 @@ public class PCollectionConsumerRegistry {
     private final BundleCounter elementCountCounter;
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
+    private final @Nullable OutputSampler<T> outputSampler;
 
     public MetricTrackingFnDataReceiver(
-        String pCollectionId, Coder<T> coder, ConsumerAndMetadata consumerAndMetadata) {
+        String pCollectionId,
+        Coder<T> coder,
+        ConsumerAndMetadata consumerAndMetadata,
+        @Nullable DataSampler dataSampler) {
       this.delegate = consumerAndMetadata.getConsumer();
       this.executionState = consumerAndMetadata.getExecutionState();
 
@@ -266,6 +284,11 @@ public class PCollectionConsumerRegistry {
       bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
 
       this.coder = coder;
+      if (dataSampler == null) {
+        this.outputSampler = null;
+      } else {
+        this.outputSampler = dataSampler.sampleOutput(pCollectionId, coder);
+      }
     }
 
     @Override
@@ -275,6 +298,10 @@ public class PCollectionConsumerRegistry {
       // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window when
       // we have window optimization.
       this.sampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
+
+      if (outputSampler != null) {
+        outputSampler.sample(input.getValue());
+      }
 
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
@@ -302,9 +329,13 @@ public class PCollectionConsumerRegistry {
     private final BundleCounter elementCountCounter;
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
+    private final @Nullable OutputSampler<T> outputSampler;
 
     public MultiplexingMetricTrackingFnDataReceiver(
-        String pCollectionId, Coder<T> coder, List<ConsumerAndMetadata> consumerAndMetadatas) {
+        String pCollectionId,
+        Coder<T> coder,
+        List<ConsumerAndMetadata> consumerAndMetadatas,
+        @Nullable DataSampler dataSampler) {
       this.consumerAndMetadatas = consumerAndMetadatas;
 
       HashMap<String, String> labels = new HashMap<>();
@@ -339,6 +370,11 @@ public class PCollectionConsumerRegistry {
       bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
 
       this.coder = coder;
+      if (dataSampler == null) {
+        this.outputSampler = null;
+      } else {
+        this.outputSampler = dataSampler.sampleOutput(pCollectionId, coder);
+      }
     }
 
     @Override
@@ -349,10 +385,16 @@ public class PCollectionConsumerRegistry {
       // when we have window optimization.
       this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
 
+      if (outputSampler != null) {
+        outputSampler.sample(input.getValue());
+      }
+
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
-      // metrics container.
-      for (ConsumerAndMetadata consumerAndMetadata : consumerAndMetadatas) {
+      // metrics container. We specifically don't use a for-each loop since it creates an iterator
+      // on a hot path.
+      for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
+        ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         ExecutionState state = consumerAndMetadata.getExecutionState();
         state.activate();
         try {
@@ -377,8 +419,11 @@ public class PCollectionConsumerRegistry {
     private final HandlesSplits delegate;
 
     public SplittingMetricTrackingFnDataReceiver(
-        String pCollection, Coder<T> coder, ConsumerAndMetadata consumerAndMetadata) {
-      super(pCollection, coder, consumerAndMetadata);
+        String pCollection,
+        Coder<T> coder,
+        ConsumerAndMetadata consumerAndMetadata,
+        @Nullable DataSampler dataSampler) {
+      super(pCollection, coder, consumerAndMetadata, dataSampler);
       this.delegate = (HandlesSplits) consumerAndMetadata.getConsumer();
     }
 

@@ -22,4 +22,3 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.9'
 apply from: "../common.gradle"
-apply from: "../xlang/common.gradle"
