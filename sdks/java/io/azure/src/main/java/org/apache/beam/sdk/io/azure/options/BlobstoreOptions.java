@@ -17,17 +17,13 @@
  */
 package org.apache.beam.sdk.io.azure.options;
 
-import com.azure.core.credential.TokenCredential;
 import com.azure.core.http.HttpClient;
 import com.azure.core.http.HttpPipeline;
 import com.azure.core.http.policy.HttpPipelinePolicy;
-import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.blob.models.CustomerProvidedKey;
 import org.apache.beam.sdk.io.azure.blobstore.DefaultBlobstoreClientBuilderFactory;
 import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 // TODO: Tag each option with @Default or @Nullable

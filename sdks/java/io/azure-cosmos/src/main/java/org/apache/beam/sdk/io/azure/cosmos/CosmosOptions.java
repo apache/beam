@@ -44,16 +44,14 @@ public interface CosmosOptions extends AzureOptions {
   void setCosmosClientBuilder(CosmosClientBuilder builder);
 
   /** The Azure Cosmos service endpoint used by the Cosmos client. */
-  @Description(
-      "Sets the cosmos service endpoint, additionally parses it for information (SAS token)")
+  @Description("Sets the cosmos service endpoint")
   @Nullable
   String getCosmosServiceEndpoint();
 
   void setCosmosServiceEndpoint(String endpoint);
 
   /** The Azure Cosmos key used to perform authentication for accessing resource */
-  @Description(
-      "Sets the cosmos service endpoint, additionally parses it for information (SAS token)")
+  @Description("Sets the cosmos service endpoint")
   @Nullable
   String getCosmosKey();
 
