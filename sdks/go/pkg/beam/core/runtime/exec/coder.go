@@ -1295,6 +1295,9 @@ func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (typex.Time
 	if err != nil {
 		return tm, errors.WithContext(err, "error decoding timer key")
 	}
+
+	// TODO Change to not type assert once general timers key
+	// fix is done.
 	tm.Key = fv.Elm.(string)
 
 	s, err := coder.DecodeStringUTF8(r)

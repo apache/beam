@@ -21,16 +21,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestCoders(t *testing.T) {
-	for _, test := range []struct {
+	tests := []struct {
 		coder *coder.Coder
 		val   *FullValue
 	}{
@@ -92,8 +92,22 @@ func TestCoders(t *testing.T) {
 		}, {
 			coder: coder.NewIntervalWindowCoder(),
 			val:   &FullValue{Elm: window.IntervalWindow{Start: 0, End: 100}},
+		}, {
+			coder: coder.NewT(coder.NewString(), coder.NewGlobalWindow()),
+			val: &FullValue{
+				Elm: typex.TimerMap{
+					Key:           "key",
+					Tag:           "tag",
+					Windows:       []typex.Window{window.GlobalWindow{}},
+					Clear:         false,
+					FireTimestamp: 1234,
+					HoldTimestamp: 5678,
+					Pane:          typex.PaneInfo{IsFirst: true, IsLast: true, Timing: typex.PaneUnknown, Index: 0, NonSpeculativeIndex: 0},
+				},
+			},
 		},
-	} {
+	}
+	for _, test := range tests {
 		t.Run(fmt.Sprintf("%v", test.coder), func(t *testing.T) {
 			var buf bytes.Buffer
 			enc := MakeElementEncoder(test.coder)
@@ -132,7 +146,7 @@ func compareFV(t *testing.T, got *FullValue, want *FullValue) {
 		if gotFv, ok := got.Elm.(*FullValue); ok {
 			compareFV(t, gotFv, wantFv)
 		}
-	} else if got, want := got.Elm, want.Elm; got != want {
+	} else if got, want := got.Elm, want.Elm; !cmp.Equal(want, got) {
 		t.Errorf("got %v [type: %s], want %v [type %s]",
 			got, reflect.TypeOf(got), wantFv, reflect.TypeOf(wantFv))
 	}
