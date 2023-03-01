@@ -80,8 +80,8 @@ cd beam
 
 ### Router, runners, and frontend
 
-1. Edit `/playground/frontend/lib/config.g.dart` to set your local backend host and ports
-found in `/playground/docker-compose.local.yaml`.
+1. Edit `/playground/frontend/playground_components/lib/src/constants/backend_urls.dart`
+to override backend URLs with yours found in `/playground/docker-compose.local.yaml`.
 2. To start, run:
 
 ```bash

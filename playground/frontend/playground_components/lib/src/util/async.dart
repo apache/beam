@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-/// Mimics [Future.wait] for maps.
+/// Mimics [Future.wait] for a map.
 Future<Map<K, V>> waitMap<K, V>(Map<K, Future<V>> map) async {
   final values = await Future.wait(map.values);
   return Map.fromIterables(map.keys, values);

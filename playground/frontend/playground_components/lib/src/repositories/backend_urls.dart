@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// ignore_for_file: avoid_print
+
 import '../../playground_components.dart';
 import '../constants/backend_urls.dart';
 
@@ -89,8 +91,8 @@ Future<Uri> _getBackendUrl(String node) async {
     return urls.first;
   }
 
-  print('Probing multiple options for $node backend:'); // ignore: avoid_print
-  urls.forEach(print); // ignore: avoid_print
+  print('Probing multiple options for $node backend:');
+  urls.forEach(print);
 
   final lastUrl = urls.removeLast();
 
@@ -98,13 +100,13 @@ Future<Uri> _getBackendUrl(String node) async {
     try {
       final client = GrpcExampleClient(url: url);
       await client.getMetadata();
-      print('Using $url'); // ignore: avoid_print
+      print('Using $url');
       return url;
     } catch (ex) {
-      print('$url failed'); // ignore: avoid_print
+      print('$url failed');
     }
   }
 
-  print('Using $lastUrl'); // ignore: avoid_print
+  print('Using $lastUrl');
   return lastUrl;
 }

@@ -20,7 +20,6 @@ import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'config.g.dart';
 import 'pages/loading/page.dart';
 import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
