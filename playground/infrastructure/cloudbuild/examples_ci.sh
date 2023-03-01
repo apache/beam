@@ -205,11 +205,12 @@ do
     --sdk SDK_"${sdk^^}" \
     --origin ${ORIGIN} \
     --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
-    if [ $? -ne 0 ]
+    if [ $? -eq 0 ]
     then
-        LogOutput "ci_cd.py  failed for $sdk runner"
-    else
+        LogOutput "Example validation for $sdk SDK successfully completed"
         eval "ci_${sdk}_passed"='True'
+    else
+        LogOutput "Example validation for $sdk SDK failed"
     fi
     cd $BEAM_ROOT_DIR
     LogOutput "Stopping container for $sdk runner"
