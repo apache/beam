@@ -178,9 +178,9 @@ do
     if [ "$sdk" == "python" ]
     then
         LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG"
-        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG"
+        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
         sdk_tag=$DOCKERTAG
-        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG
+        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true
         if [ $? -ne 0 ]
         then
             LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
