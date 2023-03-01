@@ -39,8 +39,12 @@ resource "google_cloudfunctions_function" "cloud_function" {
   }
 
   timeouts {
-    create = "15m"
-    delete = "15m"
+    create = "20m"
+    delete = "20m"
+  }
+
+  provisioner "local-exec" {
+    command = "sleep ${count.index * 60}"
   }
 
 }
