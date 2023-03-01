@@ -93,10 +93,10 @@ def main():
 
     root_dir = os.getenv(BEAM_ROOT_DIR_ENV_VAR_KEY)
     if root_dir is None:
-        raise KeyError("BEAM_ROOT_DIR environment variable should be specified in os")
+        raise KeyError(f"{BEAM_ROOT_DIR_ENV_VAR_KEY} environment variable should be specified in os")
     categories_file = os.getenv(BEAM_EXAMPLE_CATEGORIES_ENV_VAR_KEY)
     if categories_file is None:
-        raise KeyError("BEAM_EXAMPLE_CATEGORIES environment variable should be specified in os")
+        raise KeyError(f"{BEAM_EXAMPLE_CATEGORIES_ENV_VAR_KEY} environment variable should be specified in os")
 
     load_supported_categories(categories_file)
 

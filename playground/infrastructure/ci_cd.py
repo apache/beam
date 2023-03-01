@@ -22,7 +22,7 @@ import logging
 import os
 from typing import List
 
-from constants import BEAM_ROOT_DIR_KEY, BEAM_EXAMPLE_CATEGORIES_KEY
+from constants import BEAM_ROOT_DIR_ENV_VAR_KEY, BEAM_EXAMPLE_CATEGORIES_ENV_VAR_KEY
 from models import SdkEnum, Example, StringToSdkEnum
 from config import Config, Origin
 from datastore_client import DatastoreClient
@@ -78,8 +78,8 @@ parser.add_argument(
     help="limit sub directories to walk through, relative to BEAM_ROOT_DIR",
 )
 
-root_dir = os.getenv(BEAM_ROOT_DIR_KEY)
-categories_file = os.getenv(BEAM_EXAMPLE_CATEGORIES_KEY)
+root_dir = os.getenv(BEAM_ROOT_DIR_ENV_VAR_KEY)
+categories_file = os.getenv(BEAM_EXAMPLE_CATEGORIES_ENV_VAR_KEY)
 
 
 def _check_envs():
