@@ -272,7 +272,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       Schema inputSchema = inputRows.getSchema();
       WriteResult result =
           inputRows
-              .apply("element-count", ParDo.of(new ElementCounterFn("BigQuery-write-element-counter")))
+              .apply(
+                  "element-count", ParDo.of(new ElementCounterFn("BigQuery-write-element-counter")))
               .setRowSchema(inputSchema)
               .apply(write);
 
