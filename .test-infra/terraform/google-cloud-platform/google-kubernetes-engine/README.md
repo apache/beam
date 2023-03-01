@@ -29,8 +29,7 @@ and usage.
 # Special Instructions
 
 This module also provisions a bastion host needed to connect to the private cluster.  To connect to the kubernetes
-cluster, do so through the bastion host by following directions starting at [Connect to your cluster from the remote client]
-(https://cloud.google.com/kubernetes-engine/docs/tutorials/private-cluster-bastion#connect).
+cluster, do so through the bastion host by following directions starting at [Connect to your cluster from the remote client](https://cloud.google.com/kubernetes-engine/docs/tutorials/private-cluster-bastion#connect).
 
 To find the bastion host, run:
 
