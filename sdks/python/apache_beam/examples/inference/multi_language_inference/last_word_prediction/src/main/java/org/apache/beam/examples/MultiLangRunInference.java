@@ -1,4 +1,4 @@
-package org;
+package org.apache.beam.examples;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -32,19 +32,19 @@ import org.apache.beam.sdk.values.PCollection;
 public class MultiLangRunInference {
     public interface MultiLanguageOptions extends PipelineOptions {
 
-        @Description("Path to an input file that contains labels and pixels to feed into the model")
+        @Description("Path to an input file that contains the IMDB review dataset.")
         @Required
         String getInputFile();
 
         void setInputFile(String value);
 
-        @Description("Path to a stored model.")
+        @Description("Path to a stored model which will be used for inference.")
         @Required
         String getModelPath();
 
         void setModelPath(String value);
 
-        @Description("Path to an input file that contains labels and pixels to feed into the model")
+        @Description("Path to for the output file, which will contain the predictions.")
         @Required
         String getOutputFile();
 
@@ -56,11 +56,12 @@ public class MultiLangRunInference {
 
         void setModelName(String value);
 
-        @Description("Port number of the expansion service.")
+        @Description("Path to a locally available package compiled as a tarball. "
+            + "This package should contain the python transforms used in the pipeline.")
         @Required
-        String getPort();
+        String getLocalPackage();
 
-        void setPort(String value);
+        void setLocalPackage(String value);
     }
 
     public static void main(String[] args) {
@@ -75,7 +76,7 @@ public class MultiLangRunInference {
         List<String> local_packages=new ArrayList<String>();
         local_packages.add("transformers==4.26.0");
         local_packages.add("torch==1.13.1");
-        local_packages.add("/Users/andresvervaecke/projects/client-work/Beam/beam/sdks/python/apache_beam/examples/inference/multi_language_inference/multi_language_custom_transform/dist/multi-language-custom-transform-0.1.tar.gz"); 
+        local_packages.add(options.getLocalPackage()); 
 
         List<String> packages=new ArrayList<String>();  
         input.apply("Predict", PythonExternalTransform.<PCollection<String>, PCollection<String>>from(

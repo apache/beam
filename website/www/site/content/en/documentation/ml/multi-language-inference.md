@@ -15,12 +15,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Cross Language RunInference
+# Using RunInference from Java SDK
 
-The pipeline is written in Java and reads the input data from Google Cloud Storage. With the help of a [PythonExternalTransform](https://beam.apache.org/documentation/programming-guide/#1312-creating-cross-language-python-transforms),
+The pipeline in this example is written in Java and reads the input data from Google Cloud Storage. With the help of a [PythonExternalTransform](https://beam.apache.org/documentation/programming-guide/#1312-creating-cross-language-python-transforms),
 a composite Python transform is called to do the preprocessing, postprocessing, and inference.
 Lastly, the data is written back to Google Cloud Storage in the Java pipeline.
 
+You can find the code used in this example in the [Beam repository](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference).
 ## NLP model and dataset
 A `bert-base-uncased` natural language processing (NLP) model is used to make inference. This model is open source and available on [HuggingFace](https://huggingface.co/bert-base-uncased). This BERT-model is
 used to predict the last word of a sentence based on the context of the sentence.
@@ -39,15 +40,13 @@ The following is a sample of the data after preprocessing:
 | Some films just simply should not be [MASK] 	| remade 	|
 | The Karen Carpenter Story shows a little more about singer Karen Carpenter's complex [MASK] 	| life 	|
 
-You can see the full code used in this example on [Github](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference).
-
 
 ## Multi-language Inference pipeline
 
 When using multi-language pipelines, you have access to a much larger pool of transforms. For more information, see [Multi-language pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines) in the Apache Beam Programming Guide.
 
-### Cross-Language Python transform
-In addition to running inference, we also need to perform preprocessing and postprocessing on the data. Processing the data makes it possible to interpret the output. In order to do these three tasks, one single composite custom PTransform is written, with a unit DoFn or PTransform for each of the tasks, shown in the following example:
+### Custom Python transform
+In addition to running inference, we also need to perform preprocessing and postprocessing on the data. Postprocessing the data makes it possible to interpret the output. In order to do these three tasks, one single composite custom PTransform is written, with a unit DoFn or PTransform for each of the tasks, as shown in the following snippet:
 
 ```python
 def expand(self, pcoll):
@@ -76,7 +75,7 @@ def __init__(self, model, model_path):
         model_params={'config': self._model_config},
         device='cuda:0')
 ```
-The `PytorchModelHandlerKeyedTensorWrapper`, a wrapper around the `PytorchModelHandlerKeyedTensor` model handler, is used. The `PytorchModelHandlerKeyedTensor` model handler makes inference on a PyTorch model. Because the tokenized strings generated from `BertTokenizer` might have different lengths and stack() requires tensors to be the same size, the `PytorchModelHandlerKeyedTensorWrapper` limits the batch size to 1. Restricting `max_batch_size` to 1 means the run_inference() call contains one example per batch. The following example shows the definition of the wrapper:
+The `PytorchModelHandlerKeyedTensorWrapper`, a wrapper around the `PytorchModelHandlerKeyedTensor` model handler, is used. The `PytorchModelHandlerKeyedTensor` model handler makes inference on a PyTorch model. Because the tokenized strings generated from `BertTokenizer` might have different lengths and stack() requires tensors to be the same size, the `PytorchModelHandlerKeyedTensorWrapper` limits the batch size to 1. Restricting `max_batch_size` to 1 means the run_inference() call contains one example per batch. The following code shows the definition of the wrapper:
 
 ```python
 class PytorchModelHandlerKeyedTensorWrapper(PytorchModelHandlerKeyedTensor):
@@ -93,69 +92,42 @@ The `ModelConfig` and `ModelTokenizer` are loaded in the initialization function
 
 Both of these parameters are specified in the Java `PipelineOptions`.
 
-Finally, postprocess the model predictions in the `Postprocess` DoFn. The `Postprocess` DoFn returns the original text, the last word of the sentence, and the predicted word.
+Finally, we postprocess the model predictions in the `Postprocess` DoFn. The `Postprocess` DoFn returns the original text, the last word of the sentence, and the predicted word.
 
-### Set up the expansion service
-***Note**: In Apache Beam 2.44.0 and later versions, you can use the `withExtraPackages` method to specify the required local packages directly in the Java pipeline. This means you do not need to set up an expansion service anymore and can skip this step.*
+### Compile Python code into package
 
-Because this example uses transforms from two different languages, we need an SDK for each language, in this case Python and Java. We also need to set up an expansion service, which is used to inject the cross-language Python transform into the Java pipeline. This should be done in a virtual environment which is setup for Beam. [This](https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment) guide shows how set it up.
-
-To set up the expansion service in the created virtual environment, run the following command in the terminal:
+The custom Python code needs to be written in a local package and be compiled as a tarball. This package can then be used by the Java pipeline. The following example shows how to compile the Python package into a tarball:
 
 ```bash
-export PORT = <port to host expansion service>
-export IMAGE = <custom docker image>
+ python setup.py sdist
+ ```
 
-python -m multi_language_custom_transform.start_expansion_service  \
-    --port=$PORT \
-    --fully_qualified_name_glob="*" \
-    --environment_config=$IMAGE \
-    --environment_type=DOCKER
-```
-
-This runs the `run_inference_expansion.py` script, which starts the expansion service. Specify two important parameters. First, the `port` parameter specifies the port that the expansion service is hosted on. Second, the `environment_config` parameter specifies the docker image used to run the Python transform. The docker image must contain the Apache Beam Python SDK and all of the other dependencies required to run the transform. For this example, the composite Python PTransform, from the previous section, is wrapped in a local package. Next, we install this local package on the custom docker image.
-
-If no custom transforms are used, you can use the default Apache Beam image. This image is used automatically if you don't specify an `environment_config` parameter. In this scenario, you also don't need to start up an explicit expansion service. The expansion service is started automatically when `PythonExternalTransform` is called.
-
+In order to run this, a `setup.py` is required. The path to the tarball will be used as an argument in the pipeline options of the Java pipeline.
 ### Run the Java pipeline
-The Java pipeline is defined in the `MultiLangRunInference` class. In this pipeline, the data is read from Google Cloud Storage, the cross-language Python transform is applied, and the output is written to Google Cloud Storage. The following example shows the pipeline:
+The Java pipeline is defined in the [`MultiLangRunInference`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/multi_language_inference/last_word_prediction/src/main/java/org/apache/beam/examples/MultiLangRunInference.java#L32) class. In this pipeline, the data is read from Google Cloud Storage, the cross-language Python transform is applied, and the output is written back to Google Cloud Storage.
 
-```java
-Pipeline p = Pipeline.create(options);
-    PCollection<String> input = p.apply("Read Input", TextIO.read().from(options.getInputFile()));
+The `PythonExternalTransform` is used to inject the cross-language Python transform into the Java pipeline. `PythonExternalTransform` takes a string parameter which is the fully qualified name of the Python transform.
 
-    input.apply("Predict", PythonExternalTransform.
-        <PCollection<String>PCollection<String>>from(
-            "multi_language_custom_transform.\
-                composite_transform.InferenceTransform", "localhost:" + options.getPort())
-            .withKwarg("model",  options.getModelName())
-            .withKwarg("model_path", options.getModelPath()))
-            .apply("Write Output", TextIO.write().to(options.getOutputFile()
-        )
-    );
-    p.run().waitUntilFinish();
-```
-
-Use `PythonExternalTransform` to inject the cross-language Python transform. `PythonExternalTransform` takes two parameters. The first parameter is the fully qualified name of the Python transform. The second parameter is the expansion service address. The `withKwarg` method is used to specify the parameters that are needed for the Python transform. In this example the `model` and `model_path` parameters are specified. These parameters are used in the initialization function of the composite Python PTransform, as shown in the first section.
+The `withKwarg` method is used to specify the parameters that are needed for the Python transform. In this example the `model` and `model_path` parameters are specified. These parameters are used in the initialization function of the composite Python PTransform, as shown in the first section. Finally the `withExtraPackages` method is used to specify the additional Python dependencies that are needed for the Python transform. In this example the `local_packages` list is used, which contains Python requirements and the path to the compiled tarball.
 
 To run the pipeline, use the following command:
 
 ```bash
-mvn compile exec:java -Dexec.mainClass=org.MultiLangRunInference \
-    -Dexec.args="--runner=DataflowRunner --project=$GCP_PROJECT\
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MultiLangRunInference \
+    -Dexec.args="--runner=DataflowRunner \
+                 --project=$GCP_PROJECT\
                  --region=$GCP_REGION \
                  --gcpTempLocation=gs://$GCP_BUCKET/temp/ \
                  --inputFile=gs://$GCP_BUCKET/input/imdb_reviews.csv \
                  --outputFile=gs://$GCP_BUCKET/output/ouput.txt \
                  --modelPath=gs://$GCP_BUCKET/input/bert-model/bert-base-uncased.pth \
                  --modelName=$MODEL_NAME \
-                 --port=$PORT" \
-    -Pdataflow-runner \
-    -e
+                 --localPackage=$LOCAL_PACKAGE" \
+    -Pdataflow-runner
 ```
-The standard Google Cloud and Runner parameters are specified. The `inputFile` and `outputFile` parameters are used to specify the input and output files. The `modelPath` and `modelName` custom parameters are passed to the `PythonExternalTransform`. The port parameter is used to specify the port on which the expansion service is hosted.
+The standard Google Cloud and Runner parameters are specified. The `inputFile` and `outputFile` parameters are used to specify the input and output files. The `modelPath` and `modelName` custom parameters are passed to the `PythonExternalTransform`. Finally the `localPackage` parameter is used to specify the path to the compiled Python package, which contains the custom Python transform.
 
 ## Final remarks
-Use this example as a base to create other custom multi-language transforms. You can also use other SDKs. For example, Go also has a wrapper that can make cross-language transforms. For more information, see [Using cross-language transforms in a Go pipeline](https://beam.apache.org/documentation/programming-guide/#1323-using-cross-language-transforms-in-a-go-pipeline) in the Apache Beam Programming Guide.
+Use this example as a base to create other custom multi-language inference pipelines. You can also use other SDKs. For example, Go also has a wrapper that can make cross-language transforms. For more information, see [Using cross-language transforms in a Go pipeline](https://beam.apache.org/documentation/programming-guide/#1323-using-cross-language-transforms-in-a-go-pipeline) in the Apache Beam Programming Guide.
 
 The full code used in this example can be found on [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference).

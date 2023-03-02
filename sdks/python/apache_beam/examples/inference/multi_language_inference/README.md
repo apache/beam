@@ -16,22 +16,10 @@
     specific language governing permissions and limitations
     under the License.
 -->
-## Setting up the Expansion service
-*Note: skip this step for Beam 2.44 and later.*
-
-Because we can not add local packages in Beam 2.43 we must create our own expansion service.
-Start up the expansion service with this command:
-
-```bash
-export PORT = <port to host expansion service>
-export IMAGE = <custom docker image>
-
-python -m multi_language_custom_transform.start_expansion_service  \
-    --port=$PORT \
-    --fully_qualified_name_glob="*" \
-    --environment_config=$IMAGE \
-    --environment_type=DOCKER
-```
+For a detailed explanation of this inference example, visit the [documentation](https://beam.apache.org/documentation/ml/multi-language-inference/).
+## Set up Python virtual environment
+Make sure to set up a virtual environment for Python with all the required dependencies.
+More details on how to do this can be found [here](https://beam.apache.org/get-started/quickstart-py/#set-up-your-environment).
 ## Running the Java pipeline
 Make sure you have Maven installed and added to PATH. Also make sure that JAVA_HOME
 points to the correct Java version.
@@ -51,28 +39,31 @@ mvn archetype:generate \
     -Dpackage=org.apache.beam.examples \
     -DinteractiveMode=false
 ```
-This will set up all the required dependencies for the Java pipeline. Next the pipeline needs to be 
-implemented. The logic of the pipeline is the file `MultiLangRunInference.java`. After this is done,
+This will set up all the required dependencies for the Java pipeline. Next the pipeline needs to be
+implemented. The logic of this pipeline is written in the `MultiLangRunInference.java` file. After that,
 run the following command to start the Java pipeline:
 
 ```bash
-export GCP_PROJECT= <your gcp project>
-export GCP_REGION= <region of bucket>
-export GCP_BUCKET= <your gcp bucker>
+export GCP_PROJECT=<your gcp project>
+export GCP_BUCKET=<your gcp bucker>
+export GCP_REGION=<region of bucket>
 export MODEL_NAME=bert-base-uncased
-export PORT= <port to host expansion service>
+export LOCAL_PACKAGE=<path to tarball>
 
-mvn compile exec:java -Dexec.mainClass=org.MultiLangRunInference \
-    -Dexec.args="--runner=DataflowRunner --project=$GCP_PROJECT\
+cd last_word_prediction
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MultiLangRunInference \
+    -Dexec.args="--runner=DataflowRunner \
+                 --project=$GCP_PROJECT\
                  --region=$GCP_REGION \
                  --gcpTempLocation=gs://$GCP_BUCKET/temp/ \
                  --inputFile=gs://$GCP_BUCKET/input/imdb_reviews.csv \
                  --outputFile=gs://$GCP_BUCKET/output/ouput.txt \
                  --modelPath=gs://$GCP_BUCKET/input/bert-model/bert-base-uncased.pth \
                  --modelName=$MODEL_NAME \
-                 --port=$PORT" \
-    -Pdataflow-runner \
-    -e
+                 --localPackage=$LOCAL_PACKAGE" \
+    -Pdataflow-runner
 ```
-Make sure to run this in the `last_word_prediction` directory. This will start the Java pipeline.
+
+The `localPackage` argument is the path to a locally available package compiled as a tarball. This package must be created by the user and contain the python transforms used in the pipeline.
+Make sure to run this in the [`last_word_prediction`](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference/last_word_prediction) directory. This will start the Java pipeline.
 
