@@ -44,10 +44,22 @@ resource "google_cloudfunctions_function" "cloud_function" {
   }
 
   provisioner "local-exec" {
-    command = "sleep 45"
+    # Only run the command after the first Cloud Function has been created
+    when    = count.index > 0
+    command = "until gcloud functions describe ${var.environment}_${var.entry_point_names[count.index - 1]} --project=${var.project_id} --region=${var.region} --format='value(status)' | grep -q 'READY'; do sleep 1; done"
   }
-
 }
+
+# Wait for each Cloud Function to be created before proceeding with the next one
+resource "null_resource" "wait_for_cloud_functions" {
+  count      = length(var.entry_point_names) > 1 ? length(var.entry_point_names) - 1 : 0
+  depends_on = [google_cloudfunctions_function.cloud_function[count.index]]
+
+  provisioner "local-exec" {
+    command = "until gcloud functions describe ${var.environment}_${var.entry_point_names[count.index + 1]} --project=${var.project_id} --region=${var.region} --format='value(status)' | grep -q 'READY'; do sleep 1; done"
+  }
+}
+
 
 # Create IAM entry so all users can invoke the function
 resource "google_cloudfunctions_function_iam_member" "invoker" {
