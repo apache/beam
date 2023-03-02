@@ -655,7 +655,6 @@ This pull request is against the `apache/beam` repo, on the `master` branch ([ex
   * Download links will not work until the release is finalized.
 * Update links to prior releases to point to https://archive.apache.org (see
   example PR).
-* Update `website/www/site/static/.htaccess` to redirect to the new version.
 * Create the Blog post:
 
 #### Blog post
