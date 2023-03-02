@@ -33,7 +33,9 @@ tasks.register<TerraformTask>("terraformInit") {
         // exec args can be passed by commandline, for example
         var environment = project.property("project_environment") as String
         args(
-                "init", "-migrate-state",
+                "init",
+                "-upgrade",
+                "-migrate-state",
                 "-backend-config=./environment/$environment/state.tfbackend",
                 "-var=environment=$environment",
                 if (file("./environment/$environment/terraform.tfvars").exists()) {
