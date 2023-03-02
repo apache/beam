@@ -27,6 +27,8 @@ terraform {
       version = "4.4.0"
     }
   }
+
+  max_parallelism = 1
 }
 
 provider "google" {

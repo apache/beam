@@ -43,10 +43,6 @@ resource "google_cloudfunctions_function" "cloud_function" {
     delete = "20m"
   }
 
-  provisioner "local-exec" {
-    command = "sleep 45"
-  }
-
 }
 
 # Create IAM entry so all users can invoke the function
