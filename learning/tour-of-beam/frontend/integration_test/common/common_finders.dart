@@ -22,7 +22,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tour_of_beam/components/sdk_dropdown.dart';
 
 extension CommonFindersExtension on CommonFinders {
-  Finder sdkDropdwn() {
+  Finder sdkDropdown() {
     return byType(SdkDropdown);
   }
 

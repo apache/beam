@@ -17,10 +17,10 @@ name: Tour Of Beam Fronend Test
 
 on:
   push:
-    paths: ['learning/tour-of-beam/frontend/**']
+    paths: ['learning/tour-of-beam/frontend/**', 'playground/frontend/playground_components']
     branches: ['**']
   pull_request:
-    paths: ['learning/tour-of-beam/frontend/**']
+    paths: ['learning/tour-of-beam/frontend/**', 'playground/frontend/playground_components']
     branches: ['**']
   workflow_dispatch:
 

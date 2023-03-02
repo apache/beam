@@ -18,7 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:playground_components_dev/src/common_tests/toggle_brightness_mode_test.dart';
+import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
 import 'miscellaneous_ui/description_test.dart';

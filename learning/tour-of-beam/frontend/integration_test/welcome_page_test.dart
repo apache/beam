@@ -50,12 +50,12 @@ Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
       find.outlinedButtonWithText(sdk.title),
       findsOneWidget,
     );
-
-    expect(
-      find.dropdownMenuItemWithText(sdk.title),
-      findsNothing,
-    );
   }
+
+  expect(
+    find.sdkDropdown(),
+    findsNothing,
+  );
 
   var button = wt.widget<ElevatedButton>(find.startTourButton());
   expect(button.onPressed, isNull);
@@ -65,7 +65,7 @@ Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
   button = wt.widget<ElevatedButton>(find.startTourButton());
   expect(button.onPressed, isNotNull);
 
-  await wt.tapAndSettle(find.sdkDropdwn());
+  await wt.tapAndSettle(find.sdkDropdown());
 
   for (final sdk in sdks) {
     expect(
@@ -79,26 +79,26 @@ Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
 }
 
 Future<void> _checkSwitchingSdkWorksCorrectly(WidgetTester wt) async {
-  checkModulesDisplayed();
+  _checkModulesDisplayed();
 
   final sdkCache = GetIt.instance.get<SdkCache>();
 
   final secondSdk = sdkCache.getSdks()[1];
   await wt.tapAndSettle(find.outlinedButtonWithText(secondSdk.title));
 
-  checkModulesDisplayed();
+  _checkModulesDisplayed();
 
-  await wt.tapAndSettle(find.sdkDropdwn());
+  await wt.tapAndSettle(find.sdkDropdown());
   final thirdSdk = sdkCache.getSdks()[2];
 
   await wt.tapAndSettle(
     find.dropdownMenuItemWithText(thirdSdk.title).first,
   );
 
-  checkModulesDisplayed();
+  _checkModulesDisplayed();
 }
 
-void checkModulesDisplayed() {
+void _checkModulesDisplayed() {
   final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
   final appNotifier = GetIt.instance.get<AppNotifier>();
   final sdkId = appNotifier.sdkId;

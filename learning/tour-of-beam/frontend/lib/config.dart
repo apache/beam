@@ -28,12 +28,12 @@ const cloudFunctionsBaseUrl = 'https://'
 
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-    'https://router.playground-uat.xyz';
+    'https://router.play-dev.beam.apache.org';
 const String kApiJavaClientURL =
-    'https://java.plyground-uat.xyz';
+    'https://java.play-dev.beam.apache.org';
 const String kApiGoClientURL =
-    'https://go.playground-uat.xyz';
+    'https://go.play-dev.beam.apache.org';
 const String kApiPythonClientURL =
-    'https://python.playground-uat.xyz';
+    'https://python.play-dev.beam.apache.org';
 const String kApiScioClientURL =
-    'https://scio.playground-uat.xyz';
+    'https://scio.play-dev.beam.apache.org';
