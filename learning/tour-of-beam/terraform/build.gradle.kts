@@ -34,7 +34,6 @@ tasks.register<TerraformTask>("terraformInit") {
         var environment = project.property("project_environment") as String
         args(
                 "init",
-                "-upgrade",
                 "-migrate-state",
                 "-backend-config=./environment/$environment/state.tfbackend",
                 "-var=environment=$environment",
@@ -69,6 +68,7 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
                 "apply",
                 "-auto-approve",
                 "-lock=false",
+                "-parallelism=3",
                 "-var=pg_router_host=$pg_router_host",
                 "-target=module.api_enable",
                 "-target=module.setup",
