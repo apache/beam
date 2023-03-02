@@ -132,7 +132,7 @@ fi
 LogOutput "Docker tag for containers: $DOCKERTAG"
 
 LogOutput "git fetch -all"
-git fetch -all # > /dev/null
+git fetch --all # > /dev/null
 LogOutput "git checkout $COMMIT"
 git checkout $COMMIT
 if [ $? -ne 0 ]; then
