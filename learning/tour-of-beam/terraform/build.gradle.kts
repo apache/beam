@@ -69,10 +69,6 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
                 "-lock=false",
                 "-parallelism=3",
                 "-var=pg_router_host=$pg_router_host",
-                "-target=module.api_enable",
-                "-target=module.setup",
-                "-target=module.functions_buckets",
-                "-target=module.cloud_functions",
                 "-var=environment=$environment",
                 if (file("./environment/$environment/terraform.tfvars").exists()) {
                     "-var-file=./environment/$environment/terraform.tfvars"
@@ -82,6 +78,23 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
         )
 
     }
+
+tasks.register<TerraformTask>("terraformDestroy") {
+    var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
+    var environment = project.property("project_environment") as String
+    args(
+            "destroy",
+            "-auto-approve",
+            "-lock=false",
+            "-var=pg_router_host=$pg_router_host",
+            "-var=environment=$environment",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
+    )
+}
 
 tasks.register("getRouterHost") {
     group = "backend-deploy"
