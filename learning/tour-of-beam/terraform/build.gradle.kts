@@ -305,7 +305,7 @@ tasks.register("uploadLearningMaterials") {
     var project_id = project.property("project_id") as String
     group = "backend-deploy"
     exec {
-        commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
+        commandLine("go", "run", "cmd/ci_cd/ci_cd.go", "--namespace PG-stg3")
         environment("DATASTORE_PROJECT_ID", project_id)
         environment("GOOGLE_PROJECT_ID", project_id)
         environment("TOB_LEARNING_ROOT", "../learning-content/")
