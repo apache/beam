@@ -18,6 +18,8 @@
 
 FROM debian:11 as build
 ARG FLUTTER_VERSION=3.7.3
+ARG BUILD_COMMIT_HASH
+ARG BUILD_COMMIT_SECONDS_SINCE_EPOCH
 
 # ------------------------------------------------
 # Setting up.
@@ -28,6 +30,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y wget xz-utils git
 
+RUN /app/playground_components/tools/generate_build_metadata.sh $BUILD_COMMIT_HASH $BUILD_COMMIT_SECONDS_SINCE_EPOCH
 RUN cat /app/playground_components/lib/src/build_metadata.g.dart
 
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\

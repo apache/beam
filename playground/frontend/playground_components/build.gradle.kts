@@ -21,7 +21,6 @@ import java.io.FileOutputStream
 description = "Apache Beam :: Playground :: playground_components Flutter Package"
 
 tasks.register("generate") {
-  dependsOn("generateBuildMetadata")
   dependsOn("generateCode")
   dependsOn("extractBeamSymbols")
 

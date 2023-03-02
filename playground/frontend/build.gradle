@@ -19,6 +19,7 @@
 
 apply(plugin: "org.apache.beam.module")
 apply(plugin: "base")
+apply(from: "$project.rootDir/playground/backend/containers/git-functions.gradle")
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace("-container", "")}"
@@ -227,25 +228,19 @@ void runIntegrationTest(String path, String url) {
   }
 }
 
-tasks.register("copyDockerfileDependencies") {
-  dependsOn(":playground:frontend:playground_components:generateBuildMetadata")
-
-  group = "build"
-  description = "Copy files that required to build docker container"
-
-  doLast {
-    copy {
+task copyDockerfileDependencies(type: Copy) {
+   group = "build"
+   description = "Copy files that required to build docker container"
+   copy {
       from(".")
       into("build/")
       exclude("build")
       exclude("Dockerfile")
-    }
-
-    copy {
+   }
+   copy {
       from("../playground")
       into("build/playground")
-    }
-  }
+   }
 }
 
 docker {
@@ -258,6 +253,10 @@ docker {
             : project.docker_image_default_repo_root
   )
   files("./build/")
+  buildArgs([
+    'BUILD_COMMIT_HASH': getGitCommitHash(),
+    'BUILD_COMMIT_SECONDS_SINCE_EPOCH': getGitCommitTimestamp(),
+  ])
   tags(containerImageTags())
 }
 

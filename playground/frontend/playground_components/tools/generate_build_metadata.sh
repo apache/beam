@@ -15,8 +15,10 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-# Run this from the playground_components project root
-FILE=$(realpath "$(realpath $(dirname $0))/../lib/src/build_metadata.g.dart")
+# Usage
+# ./generate_build_metadata.sh <build_commit_hash> <build_commit_seconds_since_epoch>
+
+FILE=$(realpath "$(dirname $0)/../lib/src/build_metadata.g.dart")
 
 cat > $FILE << EOF
 // GENERATED CODE - DO NOT MODIFY BY HAND
@@ -24,16 +26,11 @@ cat > $FILE << EOF
 // This file is generated during deployment to contain data about the commit.
 // The copy of this file stored in the repository is for development purpose
 // so the project can be started locally.
-// It is safe to commit changes here everytime you run code generation.
+// Keep these constants `null` in the repository.
 EOF
 
-printf 'const buildCommitHash = ' >> $FILE
-git rev-parse --sq HEAD >> $FILE
-echo ';' >> $FILE
-
-printf 'const buildCommitSecondsSinceEpoch = ' >> $FILE
-git show -s --format=%ct HEAD >> $FILE
-echo ';' >> $FILE
+echo "const buildCommitHash = '$1';" >> $FILE
+echo "const buildCommitSecondsSinceEpoch = $2;" >> $FILE
 
 echo "Written $FILE:"
 cat $FILE
