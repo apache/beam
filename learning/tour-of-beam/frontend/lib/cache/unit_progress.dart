@@ -57,9 +57,9 @@ class UnitProgressCache extends Cache {
     _future = client.getUserProgress(sdkId);
     final result = await _future;
 
+    _unitProgressByUnitId.clear();
     if (result != null) {
       _unitProgress = result.units;
-      _unitProgressByUnitId.clear();
       for (final unitProgress in _unitProgress) {
         _unitProgressByUnitId[unitProgress.id] = unitProgress;
       }

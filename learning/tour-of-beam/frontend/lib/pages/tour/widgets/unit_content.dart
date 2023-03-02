@@ -185,41 +185,57 @@ class _SnippetTypeSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: tourNotifier,
-      builder: (context, child) => Row(
-        children: [
-          if (tourNotifier.hasSolution)
-            _SnippetTypeButton(
-              groupValue: tourNotifier.snippetType,
-              title: 'pages.tour.solution'.tr(),
-              value: SnippetType.solution,
-              onChanged: () async {
-                await _setSnippetByType(SnippetType.solution);
-              },
-            ),
-          if (tourNotifier.hasSolution || tourNotifier.hasSavedSnippet)
-            _SnippetTypeButton(
-              groupValue: tourNotifier.snippetType,
-              title: unitContent.isChallenge
-                  ? 'pages.tour.assignment'.tr()
-                  : 'pages.tour.example'.tr(),
-              value: SnippetType.original,
-              onChanged: () async {
-                await _setSnippetByType(SnippetType.original);
-              },
-            ),
-          if (tourNotifier.hasSavedSnippet)
-            _SnippetTypeButton(
-              groupValue: tourNotifier.snippetType,
-              title: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
-                  ? 'pages.tour.saving'.tr()
-                  : 'pages.tour.myCode'.tr(),
-              value: SnippetType.saved,
-              onChanged: () async {
-                await _setSnippetByType(SnippetType.saved);
-              },
-            ),
-        ],
-      ),
+      builder: (context, child) {
+        final groupValue = tourNotifier.snippetType;
+        final originalCodeButtonTitle = unitContent.isChallenge
+            ? 'pages.tour.assignment'.tr()
+            : 'pages.tour.example'.tr();
+        final savedCodeButtonTitle =
+            tourNotifier.saveCodeStatus == SaveCodeStatus.saving
+                ? 'pages.tour.saving'.tr()
+                : 'pages.tour.myCode'.tr();
+
+        return Row(
+          children: [
+            if (tourNotifier.hasSolution)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: 'pages.tour.solution'.tr(),
+                value: SnippetType.solution,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.solution);
+                },
+              ),
+            if (tourNotifier.hasSolution || tourNotifier.isCodeSaved)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: originalCodeButtonTitle,
+                value: SnippetType.original,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.original);
+                },
+              ),
+            if (tourNotifier.isAuthenticated && tourNotifier.isCodeSynced)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: savedCodeButtonTitle,
+                value: SnippetType.saved,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.saved);
+                },
+              ),
+            if (!tourNotifier.isAuthenticated && tourNotifier.isCodeCached)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: savedCodeButtonTitle,
+                value: SnippetType.cached,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.cached);
+                },
+              )
+          ],
+        );
+      },
     );
   }
 }

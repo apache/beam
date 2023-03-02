@@ -16,9 +16,16 @@
  * limitations under the License.
  */
 
-enum SnippetType {
-  cached,
-  original,
-  saved,
-  solution,
+import 'package:playground_components/playground_components.dart';
+
+abstract class AbstractLocalStorage {
+  Future<void> saveCode(
+    String unitId,
+    ContentExampleLoadingDescriptor descriptor,
+  );
+
+  Future<ContentExampleLoadingDescriptor?> getSavedCode(
+    Sdk sdk,
+    String unitId,
+  );
 }

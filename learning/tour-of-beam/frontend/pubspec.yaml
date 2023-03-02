@@ -41,6 +41,7 @@ dependencies:
   flutter_svg: ^2.0.1
   get_it: ^7.2.0
   google_fonts: ^4.0.3
+  hive: ^2.2.3
   http: ^0.13.5
   json_annotation: ^4.7.0
   markdown: ^7.0.1
