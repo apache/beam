@@ -1854,7 +1854,6 @@ class WindmillStateInternals<K> implements StateInternals {
         keyState.removedLocally = true;
         keyState.values = new ConcatIterables<>();
         keyState.valuesSize = 0;
-        keyState.valuesCached = false;
         keyState.existence = KeyExistence.KNOWN_NONEXISTENT;
       } else {
         // no data in windmill, deleting from local cache is sufficient.
@@ -1863,6 +1862,7 @@ class WindmillStateInternals<K> implements StateInternals {
       if (!keyState.localAdditions.isEmpty()) {
         keyState.localAdditions = Lists.newArrayList();
       }
+      keyState.valuesCached = true;
     }
 
     @Override

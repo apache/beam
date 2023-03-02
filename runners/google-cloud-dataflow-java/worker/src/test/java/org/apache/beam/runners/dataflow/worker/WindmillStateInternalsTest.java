@@ -766,6 +766,34 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testMultimapRemovePersistPut() {
+    final String tag = "multimap";
+    StateTag<MultimapState<String, Integer>> addr =
+        StateTags.multimap(tag, StringUtf8Coder.of(), VarIntCoder.of());
+    MultimapState<String, Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    final String key = "key";
+    multimapState.put(key, 1);
+    multimapState.put(key, 2);
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+
+    // After key is removed, this key is cache complete and no need to read backend.
+    multimapState.remove(key);
+    multimapState.put(key, 4);
+    // Since key is cache complete, value 4 in localAdditions should be added to cached values,
+    /// instead of being cleared from cache after persisted.
+    underTest.persist(commitBuilder);
+    assertTagMultimapUpdates(
+        Iterables.getOnlyElement(commitBuilder.getMultimapUpdatesBuilderList()),
+        new MultimapEntryUpdate(key, Arrays.asList(4), true));
+
+    multimapState.put(key, 5);
+    assertThat(multimapState.get(key).read(), Matchers.containsInAnyOrder(4, 5));
+  }
+
+  @Test
   public void testMultimapGetLocalCombineStorage() throws IOException {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
@@ -914,6 +942,11 @@ public class WindmillStateInternalsTest {
   }
 
   private static CombinableMatcher<Object> multimapEntryMatcher(byte[] key, Integer value) {
+    return Matchers.both(Matchers.hasProperty("key", Matchers.equalTo(key)))
+        .and(Matchers.hasProperty("value", Matchers.equalTo(value)));
+  }
+
+  private static CombinableMatcher<Object> multimapEntryMatcher(String key, Integer value) {
     return Matchers.both(Matchers.hasProperty("key", Matchers.equalTo(key)))
         .and(Matchers.hasProperty("value", Matchers.equalTo(value)));
   }
