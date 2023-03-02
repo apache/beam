@@ -48,7 +48,7 @@ I want use Beam ML to do:
 * [Anomaly detection](#use-cases)
 
 
-### Prediction and inference
+## Prediction and inference
 
 Beam provides different ways to implement inference as part of your pipeline. You can run your ML model directly in your pipeline and apply it on big scale datasets, both in batch and streaming pipelines.
 
@@ -60,7 +60,7 @@ Beam provides different ways to implement inference as part of your pipeline. Yo
 | I want to use LLM inference | [Large Language Model Inference](/documentation/ml/large-language-modeling/) |:
 {{< /table >}}
 
-### Data processing
+## Data processing
 
 You can use Apache Beam for data validation and preprocessing by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of [I/O connectors](/documentation/io/built-in/) for ingesting and writing data, which allows you to integrate it with your existing file system, database, or messaging queue.
 
@@ -71,7 +71,7 @@ You can use Apache Beam for data validation and preprocessing by setting up data
 {{< /table >}}
 
 
-### Workflow orchestration
+## Workflow orchestration
 
 In order to automate and track the AI/ML workflows throughout your project, you can use orchestrators such as [Kubeflow pipelines](https://www.kubeflow.org/docs/components/pipelines/introduction/) (KFP) or [TensorFlow Extended](https://www.tensorflow.org/tfx) (TFX). These orchestrators automate your different building blocks and handle the transitions between them.
 
@@ -85,7 +85,7 @@ In order to automate and track the AI/ML workflows throughout your project, you 
 
 When you use Apache Beam as one of the building blocks in your project, these orchestrators are able to launch your Apache Beam job and to keep track of the input and output of your pipeline. These tasks are essential when moving your AI/ML solution into production, because they allow you to handle your model and data over time and improve the quality and reproducibility of results.
 
-### Model training
+## Model training
 
 {{< table >}}
 | Task | Example |
@@ -95,7 +95,7 @@ When you use Apache Beam as one of the building blocks in your project, these or
 | I want to benchmark model performance | [ML Model Evaluation](/documentation/ml/model-evaluation/) |:
 {{< /table >}}
 
-### Use cases
+## Use cases
 
 {{< table >}}
 | Task | Example |
@@ -103,7 +103,7 @@ When you use Apache Beam as one of the building blocks in your project, these or
 | I want to build an anomaly detection pipeline | [Anomaly Detection Example](/documentation/ml/anomaly-detection/) |:
 {{< /table >}}
 
-### Reference
+## Reference
 
 * [RunInference metrics](/documentation/ml/runinference-metrics/)
 * [ML model evaluation](/documentation/ml/model-evaluation/)
