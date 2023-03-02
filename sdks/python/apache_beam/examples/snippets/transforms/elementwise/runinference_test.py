@@ -18,7 +18,6 @@
 
 # pytype: skip-file
 
-import re
 import unittest
 from io import StringIO
 
@@ -44,40 +43,40 @@ except ImportError:
 
 def check_torch_keyed_model_handler():
   expected = '''[START torch_keyed_model_handler]
-('first_question', PredictionResult(example=tensor([105.]), inference=tensor([523.6982])))
-('second_question', PredictionResult(example=tensor([108.]), inference=tensor([538.5867])))
-('third_question', PredictionResult(example=tensor([1000.]), inference=tensor([4965.4019])))
-('fourth_question', PredictionResult(example=tensor([1013.]), inference=tensor([5029.9180])))
+('first_question', PredictionResult(example=tensor([105.]), inference=tensor([523.6982]), model_id='gs://apache-beam-samples/run_inference/five_times_table_torch.pt'))
+('second_question', PredictionResult(example=tensor([108.]), inference=tensor([538.5867]), model_id='gs://apache-beam-samples/run_inference/five_times_table_torch.pt'))
+('third_question', PredictionResult(example=tensor([1000.]), inference=tensor([4965.4019]), model_id='gs://apache-beam-samples/run_inference/five_times_table_torch.pt'))
+('fourth_question', PredictionResult(example=tensor([1013.]), inference=tensor([5029.9180]), model_id='gs://apache-beam-samples/run_inference/five_times_table_torch.pt'))
 [END torch_keyed_model_handler] '''.splitlines()[1:-1]
   return expected
 
 
 def check_sklearn_keyed_model_handler(actual):
   expected = '''[START sklearn_keyed_model_handler]
-('first_question', PredictionResult(example=[105.0], inference=array([525.])))
-('second_question', PredictionResult(example=[108.0], inference=array([540.])))
-('third_question', PredictionResult(example=[1000.0], inference=array([5000.])))
-('fourth_question', PredictionResult(example=[1013.0], inference=array([5065.])))
+('first_question', PredictionResult(example=[105.0], inference=array([525.]), model_id='gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl'))
+('second_question', PredictionResult(example=[108.0], inference=array([540.]), model_id='gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl'))
+('third_question', PredictionResult(example=[1000.0], inference=array([5000.]), model_id='gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl'))
+('fourth_question', PredictionResult(example=[1013.0], inference=array([5065.]), model_id='gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl'))
 [END sklearn_keyed_model_handler] '''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
 
 def check_torch_unkeyed_model_handler():
   expected = '''[START torch_unkeyed_model_handler]
-PredictionResult(example=tensor([10.]), inference=tensor([52.2325]))
-PredictionResult(example=tensor([40.]), inference=tensor([201.1165]))
-PredictionResult(example=tensor([60.]), inference=tensor([300.3724]))
-PredictionResult(example=tensor([90.]), inference=tensor([449.2563]))
+PredictionResult(example=tensor([10.]), inference=tensor([52.2325]), model_id='gs://apache-beam-samples/run_inference/five_times_table_torch.pt')
+PredictionResult(example=tensor([40.]), inference=tensor([201.1165]), model_id='gs://apache-beam-samples/run_inference/five_times_table_torch.pt')
+PredictionResult(example=tensor([60.]), inference=tensor([300.3724]), model_id='gs://apache-beam-samples/run_inference/five_times_table_torch.pt')
+PredictionResult(example=tensor([90.]), inference=tensor([449.2563]), model_id='gs://apache-beam-samples/run_inference/five_times_table_torch.pt')
 [END torch_unkeyed_model_handler] '''.splitlines()[1:-1]
   return expected
 
 
 def check_sklearn_unkeyed_model_handler(actual):
   expected = '''[START sklearn_unkeyed_model_handler]
-PredictionResult(example=array([20.], dtype=float32), inference=array([100.], dtype=float32))
-PredictionResult(example=array([40.], dtype=float32), inference=array([200.], dtype=float32))
-PredictionResult(example=array([60.], dtype=float32), inference=array([300.], dtype=float32))
-PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dtype=float32))
+PredictionResult(example=array([20.], dtype=float32), inference=array([100.], dtype=float32), model_id='gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl')
+PredictionResult(example=array([40.], dtype=float32), inference=array([200.], dtype=float32), model_id='gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl')
+PredictionResult(example=array([60.], dtype=float32), inference=array([300.], dtype=float32), model_id='gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl')
+PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dtype=float32), model_id='gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl')
 [END sklearn_unkeyed_model_handler]  '''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
@@ -103,22 +102,14 @@ class RunInferenceStdoutTest(unittest.TestCase):
     runinference.torch_keyed_model_handler()
     predicted = mock_stdout.getvalue().splitlines()
     expected = check_torch_keyed_model_handler()
-    actual_stdout = [line.split(':')[0] for line in predicted]
-    replace_fn = lambda x: re.sub(r"<UnbindBackward\d*>", "<UnbindBackward>", x)
-    actual_stdout = [replace_fn(x) for x in actual_stdout]
-    expected_stdout = [line.split(':')[0] for line in expected]
-    self.assertEqual(actual_stdout, expected_stdout)
+    self.assertEqual(predicted, expected)
 
   @pytest.mark.uses_pytorch
   def test_check_torch_unkeyed_model_handler(self, mock_stdout):
     runinference.torch_unkeyed_model_handler()
     predicted = mock_stdout.getvalue().splitlines()
     expected = check_torch_unkeyed_model_handler()
-    actual_stdout = [line.split(':')[0] for line in predicted]
-    replace_fn = lambda x: re.sub(r"<UnbindBackward\d*>", "<UnbindBackward>", x)
-    actual_stdout = [replace_fn(x) for x in actual_stdout]
-    expected_stdout = [line.split(':')[0] for line in expected]
-    self.assertEqual(actual_stdout, expected_stdout)
+    self.assertEqual(predicted, expected)
 
 
 if __name__ == '__main__':

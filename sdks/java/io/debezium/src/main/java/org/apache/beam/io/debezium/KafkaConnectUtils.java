@@ -21,6 +21,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.joda.time.Instant;
 
 public class KafkaConnectUtils {
   public static Schema beamSchemaFromKafkaConnectSchema(
@@ -76,6 +77,18 @@ public class KafkaConnectUtils {
             String.format(
                 "Unable to convert Kafka field schema %s to Beam Schema", kafkaFieldSchema));
     }
+  }
+
+  public static Instant debeziumRecordInstant(SourceRecord record) {
+    if (!record.valueSchema().type().equals(org.apache.kafka.connect.data.Schema.Type.STRUCT)
+        || record.valueSchema().field("ts_ms") == null) {
+      throw new IllegalArgumentException(
+          "Debezium record received is not of the right kind. "
+              + String.format(
+                  "Should be STRUCT with ts_ms field. Instead it is: %s", record.valueSchema()));
+    }
+    Struct recordValue = (Struct) record.value();
+    return Instant.ofEpochMilli(recordValue.getInt64("ts_ms"));
   }
 
   public static SourceRecordMapper<Row> beamRowFromSourceRecordFn(final Schema recordSchema) {

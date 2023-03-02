@@ -104,6 +104,15 @@ class SubClass(SuperClass):
   pass
 
 
+T = typing.TypeVar('T')
+
+
+class NonBuiltInGeneric(typing.NamedTuple('Entry', [('Field1', T),
+                                                    ('Field2', T)]),
+                        typing.Generic[T]):
+  pass
+
+
 class TypeHintTestCase(unittest.TestCase):
   def assertCompatible(self, base, sub):  # pylint: disable=invalid-name
     base, sub = native_type_compatibility.convert_to_beam_types([base, sub])
@@ -370,9 +379,15 @@ class TupleHintTestCase(TypeHintTestCase):
       typehints.Tuple[5, [1, 3]]
     self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
 
-    with self.assertRaises(TypeError) as e:
-      typehints.Tuple[list, dict]
-    self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
+    if sys.version_info < (3, 9):
+      with self.assertRaises(TypeError) as e:
+        typehints.Tuple[list, dict]
+      self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
+    else:
+      try:
+        typehints.Tuple[list, dict]
+      except TypeError:
+        self.fail("built-in composite raised TypeError unexpectedly")
 
   def test_compatibility_arbitrary_length(self):
     self.assertNotCompatible(
@@ -523,6 +538,17 @@ class TupleHintTestCase(TypeHintTestCase):
         "was received.",
         e.exception.args[0])
 
+  def test_normalize_with_builtin_tuple(self):
+    if sys.version_info >= (3, 9):
+      expected_beam_type = typehints.Tuple[int, int]
+      converted_beam_type = typehints.normalize(tuple[int, int], False)
+      self.assertEqual(converted_beam_type, expected_beam_type)
+
+  def test_builtin_and_type_compatibility(self):
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(tuple, typing.Tuple)
+      self.assertCompatible(tuple[int, int], typing.Tuple[int, int])
+
 
 class ListHintTestCase(TypeHintTestCase):
   def test_getitem_invalid_composite_type_param(self):
@@ -582,6 +608,17 @@ class ListHintTestCase(TypeHintTestCase):
         'instead received an instance of type str.',
         e.exception.args[0])
 
+  def test_normalize_with_builtin_list(self):
+    if sys.version_info >= (3, 9):
+      expected_beam_type = typehints.List[int]
+      converted_beam_type = typehints.normalize(list[int], False)
+      self.assertEqual(converted_beam_type, expected_beam_type)
+
+  def test_builtin_and_type_compatibility(self):
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(list, typing.List)
+      self.assertCompatible(list[int], typing.List[int])
+
 
 class KVHintTestCase(TypeHintTestCase):
   def test_getitem_param_must_be_tuple(self):
@@ -634,8 +671,14 @@ class DictHintTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_key_type_must_be_valid_composite_param(self):
-    with self.assertRaises(TypeError):
-      typehints.Dict[list, int]
+    if sys.version_info < (3, 9):
+      with self.assertRaises(TypeError):
+        typehints.Dict[list, int]
+    else:
+      try:
+        typehints.Tuple[list, int]
+      except TypeError:
+        self.fail("built-in composite raised TypeError unexpectedly")
 
   def test_value_type_must_be_valid_composite_param(self):
     with self.assertRaises(TypeError):
@@ -717,17 +760,36 @@ class DictHintTestCase(TypeHintTestCase):
     },
                      hint.match_type_variables(typehints.Dict[int, str]))
 
+  def test_normalize_with_builtin_dict(self):
+    if sys.version_info >= (3, 9):
+      expected_beam_type = typehints.Dict[str, int]
+      converted_beam_type = typehints.normalize(dict[str, int], False)
+      self.assertEqual(converted_beam_type, expected_beam_type)
+
+  def test_builtin_and_type_compatibility(self):
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(dict, typing.Dict)
+      self.assertCompatible(dict[str, int], typing.Dict[str, int])
+      self.assertCompatible(
+          dict[str, list[int]], typing.Dict[str, typing.List[int]])
+
 
 class BaseSetHintTest:
   class CommonTests(TypeHintTestCase):
     def test_getitem_invalid_composite_type_param(self):
-      with self.assertRaises(TypeError) as e:
-        self.beam_type[list]
-      self.assertEqual(
-          "Parameter to a {} hint must be a non-sequence, a "
-          "type, or a TypeConstraint. {} is an instance of "
-          "type.".format(self.string_type, list),
-          e.exception.args[0])
+      if sys.version_info < (3, 9):
+        with self.assertRaises(TypeError) as e:
+          self.beam_type[list]
+        self.assertEqual(
+            "Parameter to a {} hint must be a non-sequence, a "
+            "type, or a TypeConstraint. {} is an instance of "
+            "type.".format(self.string_type, list),
+            e.exception.args[0])
+      else:
+        try:
+          self.beam_type[list]
+        except TypeError:
+          self.fail("built-in composite raised TypeError unexpectedly")
 
     def test_compatibility(self):
       hint1 = self.beam_type[typehints.List[str]]
@@ -1608,6 +1670,13 @@ class TestPTransformAnnotations(unittest.TestCase):
       self.assertEqual(
           native_type_compatibility.convert_to_beam_type(type_a),
           native_type_compatibility.convert_to_beam_type(type_b))
+
+
+class TestNonBuiltInGenerics(unittest.TestCase):
+  def test_no_error_thrown(self):
+    input = NonBuiltInGeneric[str]
+    output = typehints.normalize(input)
+    self.assertEqual(input, output)
 
 
 if __name__ == '__main__':

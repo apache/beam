@@ -29,11 +29,11 @@ import '../common/example_repository_mock.mocks.dart';
 import '../common/examples.dart';
 import '../common/requests.dart';
 
-final kDefaultExamplesMapMock = UnmodifiableMapView({
-  Sdk.java: exampleWithAllAdditionsMock,
-  Sdk.go: exampleWithAllAdditionsMock,
-  Sdk.python: exampleWithAllAdditionsMock,
-  Sdk.scio: exampleWithAllAdditionsMock,
+final _defaultExamplesMapMock = UnmodifiableMapView({
+  Sdk.java: examplePython3,
+  Sdk.go: examplePython3,
+  Sdk.python: examplePython3,
+  Sdk.scio: examplePython3,
 });
 
 void main() {
@@ -75,8 +75,8 @@ void main() {
         'then loadExampleInfo should return example immediately',
         () async {
           expect(
-            await cache.loadExampleInfo(exampleMock1),
-            exampleMock1,
+            await cache.loadExampleInfo(examplePython1),
+            examplePython1,
           );
         },
       );
@@ -84,9 +84,18 @@ void main() {
       test(
         'loadExampleInfo loads source, output, logs, graph for given example',
         () async {
+          when(mockRepo.getPrecompiledObjectOutput(kRequestForExampleInfo))
+              .thenAnswer((_) async => examplePython3.outputs!);
+          when(mockRepo.getPrecompiledObjectCode(kRequestForExampleInfo))
+              .thenAnswer((_) async => examplePython3.files);
+          when(mockRepo.getPrecompiledObjectLogs(kRequestForExampleInfo))
+              .thenAnswer((_) async => examplePython3.logs!);
+          when(mockRepo.getPrecompiledObjectGraph(kRequestForExampleInfo))
+              .thenAnswer((_) async => examplePython3.graph!);
+
           expect(
-            await cache.loadExampleInfo(exampleWithoutSourceMock),
-            exampleWithAllAdditionsMock,
+            await cache.loadExampleInfo(exampleBasePython3),
+            examplePython3,
           );
         },
       );
@@ -97,9 +106,9 @@ void main() {
         'If defaultExamplesBySdk is not empty, '
         'loadDefaultExamples should not change it',
         () async {
-          cache.defaultExamplesBySdk.addAll(kDefaultExamplesMapMock);
+          cache.defaultExamplesBySdk.addAll(_defaultExamplesMapMock);
           await cache.loadDefaultPrecompiledObjects();
-          expect(cache.defaultExamplesBySdk, kDefaultExamplesMapMock);
+          expect(cache.defaultExamplesBySdk, _defaultExamplesMapMock);
         },
       );
 
@@ -109,19 +118,19 @@ void main() {
         () async {
           // stubs
           when(mockRepo.getPrecompiledObjectOutput(kRequestForExampleInfo))
-              .thenAnswer((_) async => kOutputResponse.output);
+              .thenAnswer((_) async => examplePython3.outputs!);
           when(mockRepo.getPrecompiledObjectCode(kRequestForExampleInfo))
-              .thenAnswer((_) async => kOutputResponse.output);
+              .thenAnswer((_) async => examplePython3.files);
           when(mockRepo.getPrecompiledObjectLogs(kRequestForExampleInfo))
-              .thenAnswer((_) async => kOutputResponse.output);
+              .thenAnswer((_) async => examplePython3.logs!);
           when(mockRepo.getPrecompiledObjectGraph(kRequestForExampleInfo))
-              .thenAnswer((_) async => kOutputResponse.output);
+              .thenAnswer((_) async => examplePython3.graph!);
 
           // test assertion
           await cache.loadDefaultPrecompiledObjects();
           expect(
             cache.defaultExamplesBySdk,
-            kDefaultExamplesMapMock,
+            _defaultExamplesMapMock,
           );
         },
       );

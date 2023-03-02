@@ -27,15 +27,16 @@ import '../exceptions/snippet_saving_exception.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
+import '../models/example_view_options.dart';
 import '../models/loading_status.dart';
 import '../models/sdk.dart';
+import '../models/snippet_file.dart';
 import '../repositories/example_repository.dart';
 import '../repositories/models/get_default_precompiled_object_request.dart';
 import '../repositories/models/get_precompiled_object_request.dart';
 import '../repositories/models/get_precompiled_objects_request.dart';
 import '../repositories/models/get_snippet_request.dart';
 import '../repositories/models/save_snippet_request.dart';
-import '../repositories/models/shared_file.dart';
 
 /// A runtime cache for examples fetched from a repository.
 class ExampleCache extends ChangeNotifier {
@@ -100,7 +101,7 @@ class ExampleCache extends ChangeNotifier {
     );
   }
 
-  Future<String> _getPrecompiledObjectCode(String path, Sdk sdk) {
+  Future<List<SnippetFile>> _getPrecompiledObjectCode(String path, Sdk sdk) {
     return _exampleRepository.getPrecompiledObjectCode(
       GetPrecompiledObjectRequest(path: path, sdk: sdk),
     );
@@ -118,24 +119,28 @@ class ExampleCache extends ChangeNotifier {
     );
   }
 
-  Future<Example> loadSharedExample(String id) async {
+  Future<Example> loadSharedExample(
+    String id, {
+    required ExampleViewOptions viewOptions,
+  }) async {
     final result = await _exampleRepository.getSnippet(
       GetSnippetRequest(id: id),
     );
 
     return Example(
       complexity: result.complexity,
+      files: result.files,
       name: result.files.first.name,
       path: id,
       sdk: result.sdk,
-      source: result.files.first.code,
       pipelineOptions: result.pipelineOptions,
       type: ExampleType.example,
+      viewOptions: viewOptions,
     );
   }
 
   Future<String> saveSnippet({
-    required List<SharedFile> files,
+    required List<SnippetFile> files,
     required Sdk sdk,
     required String pipelineOptions,
   }) async {
@@ -170,12 +175,13 @@ class ExampleCache extends ChangeNotifier {
 
       return Example.fromBase(
         example,
-        source: exampleData[0],
-        outputs: exampleData[1],
-        logs: exampleData[2],
+        files: exampleData[0] as List<SnippetFile>,
+        outputs: exampleData[1] as String,
+        logs: exampleData[2] as String,
       );
     }
 
+    // TODO(alexeyinkin): Load in a single request, https://github.com/apache/beam/issues/24305
     final exampleData = await Future.wait([
       _getPrecompiledObjectCode(example.path, example.sdk),
       _getPrecompiledObjectOutput(example.path, example.sdk),
@@ -185,10 +191,10 @@ class ExampleCache extends ChangeNotifier {
 
     return Example.fromBase(
       example,
-      source: exampleData[0],
-      outputs: exampleData[1],
-      logs: exampleData[2],
-      graph: exampleData[3],
+      files: exampleData[0] as List<SnippetFile>,
+      outputs: exampleData[1] as String,
+      logs: exampleData[2] as String,
+      graph: exampleData[3] as String,
     );
   }
 

@@ -34,7 +34,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':runners:google-cloud-dataflow-java:testJar')
-          tasks(':runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar')
+          tasks(':runners:google-cloud-dataflow-java:worker:shadowJar')
           switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_8_HOME}")
         }
 

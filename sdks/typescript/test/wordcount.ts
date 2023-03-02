@@ -17,7 +17,7 @@
  */
 
 import * as beam from "../src/apache_beam";
-import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
+import { directRunner } from "../src/apache_beam/runners/direct_runner";
 import * as testing from "../src/apache_beam/testing/assert";
 
 import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
@@ -35,7 +35,7 @@ function wordCount(
 
 describe("wordcount", function () {
   it("wordcount", async function () {
-    await new DirectRunner().run((root) => {
+    await directRunner().run((root) => {
       const lines = root.apply(
         beam.create([
           "In the beginning God created the heaven and the earth.",
@@ -50,7 +50,7 @@ describe("wordcount", function () {
   });
 
   it("wordcount assert", async function () {
-    await new DirectRunner().run((root) => {
+    await directRunner().run((root) => {
       const lines = root.apply(
         beam.create(["And God said, Let there be light: and there was light"])
       );

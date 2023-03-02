@@ -403,9 +403,13 @@ func TestDatastore_GetCatalog(t *testing.T) {
 			name: "Getting catalog in the usual case",
 			prepare: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String(), constants.ExampleOrigin)
 				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String(), false)
 				savePCObjs(exampleId)
+				exampleIdDifferentOrigin := utils.GetIDWithDelimiter(pb.Sdk_SDK_GO.String(), "MOCK_EXAMPLE_DIFFERENT_ORIGIN")
+				saveExample("MOCK_EXAMPLE_DIFFERENT_ORIGIN", pb.Sdk_SDK_GO.String(), "MOCK_ORIGIN")
+				saveSnippet(exampleIdDifferentOrigin, pb.Sdk_SDK_GO.String(), false)
+				savePCObjs(exampleIdDifferentOrigin)
 			},
 			args: args{
 				ctx: ctx,
@@ -427,6 +431,11 @@ func TestDatastore_GetCatalog(t *testing.T) {
 				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
 				test_cleaner.CleanSnippet(ctx, t, exampleId)
 				test_cleaner.CleanExample(ctx, t, exampleId)
+				exampleIdDifferentOrigin := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE_DIFFERENT_ORIGIN")
+				test_cleaner.CleanPCObjs(ctx, t, exampleIdDifferentOrigin)
+				test_cleaner.CleanFiles(ctx, t, exampleIdDifferentOrigin, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleIdDifferentOrigin)
+				test_cleaner.CleanExample(ctx, t, exampleIdDifferentOrigin)
 			},
 		},
 	}
@@ -439,6 +448,9 @@ func TestDatastore_GetCatalog(t *testing.T) {
 				t.Errorf("GetCatalog() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil {
+				if len(catalog) != 1 {
+					t.Error("GetCatalog() unexpected result: query returned too many objects")
+				}
 				if catalog[0].GetSdk() != pb.Sdk_SDK_JAVA {
 					t.Error("GetCatalog() unexpected result: wrong sdk")
 				}
@@ -451,7 +463,7 @@ func TestDatastore_GetCatalog(t *testing.T) {
 					actualPCObj.Multifile != false ||
 					actualPCObj.Name != "MOCK_EXAMPLE" ||
 					actualPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-					actualPCObj.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
+					actualPCObj.CloudPath != "SDK_JAVA_MOCK_EXAMPLE" ||
 					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
 					actualPCObj.Description != "MOCK_DESCR" ||
 					actualPCObj.Link != "MOCK_PATH" ||
@@ -482,7 +494,7 @@ func TestDatastore_GetDefaultExamples(t *testing.T) {
 			prepare: func() {
 				for sdk := range pb.Sdk_value {
 					exampleId := utils.GetIDWithDelimiter(sdk, "MOCK_DEFAULT_EXAMPLE")
-					saveExample("MOCK_DEFAULT_EXAMPLE", sdk)
+					saveExample("MOCK_DEFAULT_EXAMPLE", sdk, constants.ExampleOrigin)
 					saveSnippet(exampleId, sdk, false)
 					savePCObjs(exampleId)
 				}
@@ -551,7 +563,7 @@ func TestDatastore_GetExample(t *testing.T) {
 			name: "Getting an example in the usual case",
 			prepare: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String(), constants.ExampleOrigin)
 				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String(), false)
 				savePCObjs(exampleId)
 			},
@@ -587,7 +599,7 @@ func TestDatastore_GetExample(t *testing.T) {
 					example.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
 					example.Link != "MOCK_PATH" ||
 					example.PipelineOptions != "MOCK_OPTIONS" ||
-					example.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
+					example.CloudPath != "SDK_JAVA_MOCK_EXAMPLE" ||
 					example.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 					t.Errorf("GetExample() unexpected result: wrong precompiled obj")
 				}
@@ -613,7 +625,7 @@ func TestDatastore_GetExampleCode(t *testing.T) {
 			name: "Getting multifile example code",
 			prepare: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String(), constants.ExampleOrigin)
 				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String(), true /* multifile */)
 				savePCObjs(exampleId)
 			},
@@ -667,7 +679,7 @@ func TestDatastore_GetExampleOutput(t *testing.T) {
 			name: "Getting an example output in the usual case",
 			prepare: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String(), constants.ExampleOrigin)
 				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String(), false)
 				savePCObjs(exampleId)
 			},
@@ -719,7 +731,7 @@ func TestDatastore_GetExampleLogs(t *testing.T) {
 			name: "Getting an example logs in the usual case",
 			prepare: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String(), constants.ExampleOrigin)
 				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String(), false)
 				savePCObjs(exampleId)
 			},
@@ -771,7 +783,7 @@ func TestDatastore_GetExampleGraph(t *testing.T) {
 			name: "Getting an example graph in the usual case",
 			prepare: func() {
 				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
-				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String(), constants.ExampleOrigin)
 				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String(), false)
 				savePCObjs(exampleId)
 			},
@@ -940,7 +952,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func saveExample(name, sdk string) {
+func saveExample(name, sdk string, origin string) {
 	_, _ = datastoreDb.Client.Put(ctx, utils.GetExampleKey(ctx, sdk, name), &entity.ExampleEntity{
 		Name:   name,
 		Sdk:    utils.GetSdkKey(ctx, sdk),
@@ -948,7 +960,7 @@ func saveExample(name, sdk string) {
 		Cats:   []string{"MOCK_CATEGORY"},
 		Path:   "MOCK_PATH",
 		Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
-		Origin: constants.ExampleOrigin,
+		Origin: origin,
 		SchVer: utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	})
 }

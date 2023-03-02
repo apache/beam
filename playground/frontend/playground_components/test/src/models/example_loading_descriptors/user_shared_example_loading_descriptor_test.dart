@@ -26,6 +26,7 @@ void main() {
     const descriptor = UserSharedExampleLoadingDescriptor(
       sdk: Sdk.go,
       snippetId: 'snippetId',
+      viewOptions: viewOptions,
     );
 
     test('toJson -> tryParse', () {
@@ -35,11 +36,14 @@ void main() {
       expect(parsed, descriptor);
     });
 
-    test('parses viewOptions', () {
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = UserSharedExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed?.viewOptions, viewOptions);
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        UserSharedExampleLoadingDescriptor(
+          sdk: descriptor.sdk,
+          snippetId: descriptor.snippetId,
+        ),
+      );
     });
   });
 }

@@ -51,7 +51,7 @@ void main() {
     // TODO(alexeyinkin): Compare whole objects when that gets to include all fields, https://github.com/apache/beam/issues/23979
     expect(example.name, _name);
     expect(example.sdk, _sdk);
-    expect(example.source, _contents);
+    expect(example.files.first.content, _contents);
     expect(example.type, ExampleType.example);
     expect(example.path, _path);
   });

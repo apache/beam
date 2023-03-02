@@ -20,12 +20,13 @@
 
 import datetime
 import decimal
+import gc
 import json
 import logging
 import os
 import pickle
-import random
 import re
+import secrets
 import time
 import unittest
 import uuid
@@ -302,6 +303,13 @@ class TestReadFromBigQuery(unittest.TestCase):
   def tearDown(self):
     # Reset runtime options to avoid side-effects caused by other tests.
     RuntimeValueProvider.set_runtime_options(None)
+
+  @classmethod
+  def tearDownClass(cls):
+    # Unset the option added in setupClass to avoid interfere with other tests.
+    # Force a gc so PipelineOptions.__subclass__() no longer contains it.
+    del cls.UserDefinedOptions
+    gc.collect()
 
   def test_get_destination_uri_empty_runtime_vp(self):
     with self.assertRaisesRegex(ValueError,
@@ -1631,10 +1639,8 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
-    self.dataset_id = '%s%s%d' % (
-        self.BIG_QUERY_DATASET_ID,
-        str(int(time.time())),
-        random.randint(0, 10000))
+    self.dataset_id = '%s%d%s' % (
+        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
@@ -1931,10 +1937,8 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
-    self.dataset_id = '%s%s%s' % (
-        self.BIG_QUERY_DATASET_ID,
-        str(int(time.time())),
-        random.randint(0, 10000))
+    self.dataset_id = '%s%d%s' % (
+        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = '%s.output_table' % (self.dataset_id)

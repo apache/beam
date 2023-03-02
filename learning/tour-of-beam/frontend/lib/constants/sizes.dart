@@ -19,10 +19,10 @@
 class TobSizes {
   static const double footerHeight = 35;
   static const double authOverlayWidth = 260;
+  static const double hintPopupWidth = 420;
 }
 
 class ScreenSizes {
-  // TODO(nausharipov): name better
   static const medium = 1024;
 }
 

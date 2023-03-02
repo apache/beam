@@ -62,17 +62,21 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
+from apache_beam.transforms import environments
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
@@ -104,6 +108,7 @@ FnApiUserRuntimeStateTypes = Union['ReadModifyWriteRuntimeState',
 
 DATA_INPUT_URN = 'beam:runner:source:v1'
 DATA_OUTPUT_URN = 'beam:runner:sink:v1'
+SYNTHETIC_DATA_SAMPLING_URN = 'beam:internal:sampling:v1'
 IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
@@ -823,13 +828,35 @@ def only_element(iterable):
   return element
 
 
+def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
+  # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
+
+  runtime_sdk = environments.sdk_base_version_capability()
+  for t in process_bundle_descriptor.transforms.values():
+    env = process_bundle_descriptor.environments[t.environment_id]
+    for c in env.capabilities:
+      if (c.startswith(environments.SDK_VERSION_CAPABILITY_PREFIX) and
+          c != runtime_sdk):
+        raise RuntimeError(
+            "Pipeline construction environment and pipeline runtime "
+            "environment are not compatible. If you use a custom "
+            "container image, check that the Python interpreter minor version "
+            "and the Apache Beam version in your image match the versions "
+            "used at pipeline construction time. "
+            f"Submission environment: {c}. "
+            f"Runtime environment: {runtime_sdk}.")
+
+  # TODO: Consider warning on mismatches in versions of installed packages.
+
+
 class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
   def __init__(self,
                process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                state_handler,  # type: sdk_worker.CachingStateHandler
-               data_channel_factory  # type: data_plane.DataChannelFactory
+               data_channel_factory,  # type: data_plane.DataChannelFactory
+               data_sampler=None,  # type: Optional[data_sampler.DataSampler]
               ):
     # type: (...) -> None
 
@@ -844,8 +871,10 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
+    self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
 
+    _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
     # timer_api_service_descriptor when having timers. So this field cannot be
     # used as an indicator of timers.
@@ -868,10 +897,39 @@ class BundleProcessor(object):
     self.state_sampler = statesampler.StateSampler(
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
+
+    if self.data_sampler:
+      self.add_data_sampling_operations(process_bundle_descriptor)
+
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
     for op in reversed(self.ops.values()):
       op.setup()
     self.splitting_lock = threading.Lock()
+
+  def add_data_sampling_operations(self, pbd):
+    # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
+
+    """Adds a DataSamplingOperation to every PCollection.
+
+    Implementation note: the alternative to this, is to add modify each
+    Operation and forward a DataSampler to manually sample when an element is
+    processed. This gets messy very quickly and is not future-proof as new
+    operation types will need to be updated. This is the cleanest way of adding
+    new operations to the final execution tree.
+    """
+    coder = coders.FastPrimitivesCoder()
+
+    for pcoll_id in pbd.pcollections:
+      transform_id = 'synthetic-data-sampling-transform-{}'.format(pcoll_id)
+      transform_proto: beam_runner_api_pb2.PTransform = pbd.transforms[
+          transform_id]
+      transform_proto.unique_name = transform_id
+      transform_proto.spec.urn = SYNTHETIC_DATA_SAMPLING_URN
+
+      coder_id = pbd.pcollections[pcoll_id].coder_id
+      transform_proto.spec.payload = coder.encode((pcoll_id, coder_id))
+
+      transform_proto.inputs['None'] = pcoll_id
 
   def create_execution_tree(
       self,
@@ -883,7 +941,8 @@ class BundleProcessor(object):
         self.data_channel_factory,
         self.counter_factory,
         self.state_sampler,
-        self.state_handler)
+        self.state_handler,
+        self.data_sampler)
 
     self.timers_info = transform_factory.extract_timers_info()
 
@@ -1159,7 +1218,8 @@ class BeamTransformFactory(object):
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,  # type: counters.CounterFactory
                state_sampler,  # type: statesampler.StateSampler
-               state_handler  # type: sdk_worker.CachingStateHandler
+               state_handler,  # type: sdk_worker.CachingStateHandler
+               data_sampler,  # type: Optional[data_sampler.DataSampler]
               ):
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
@@ -1174,6 +1234,7 @@ class BeamTransformFactory(object):
             beam_fn_api_pb2.StateKey(
                 runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
             element_coder_impl))
+    self.data_sampler = data_sampler
 
   _known_urns = {
   }  # type: Dict[str, Tuple[ConstructorFn, Union[Type[message.Message], Type[bytes], None]]]
@@ -1697,7 +1758,7 @@ def create_assign_windows(
       yield WindowedValue(element, timestamp, new_windows)
 
   from apache_beam.transforms.core import Windowing
-  from apache_beam.transforms.window import WindowFn, WindowedValue
+  from apache_beam.transforms.window import WindowFn
   windowing = Windowing.from_runner_api(parameter, factory.context)
   return _create_simple_pardo_operation(
       factory,
@@ -1927,3 +1988,52 @@ def create_to_string_fn(
 
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers, ToString())
+
+
+class DataSamplingOperation(operations.Operation):
+  """Operation that samples incoming elements."""
+
+  def __init__(
+      self,
+      name_context,  # type: common.NameContext
+      counter_factory,  # type: counters.CounterFactory
+      state_sampler,  # type: statesampler.StateSampler
+      pcoll_id,  # type: str
+      sample_coder,  # type: coders.Coder
+      data_sampler,  # type: data_sampler.DataSampler
+  ):
+    # type: (...) -> None
+    super().__init__(name_context, None, counter_factory, state_sampler)
+    self._coder = sample_coder  # type: coders.Coder
+    self._pcoll_id = pcoll_id  # type: str
+
+    self._sampler: OutputSampler = data_sampler.sample_output(
+        self._pcoll_id, sample_coder)
+
+  def process(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
+    self._sampler.sample(windowed_value)
+
+
+@BeamTransformFactory.register_urn(SYNTHETIC_DATA_SAMPLING_URN, (bytes))
+def create_data_sampling_op(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    pcoll_and_coder_id,  # type: bytes
+    consumers,  # type: Dict[str, List[operations.Operation]]
+):
+  # Creating this operation should only occur when data sampling is enabled.
+  data_sampler = factory.data_sampler
+  assert data_sampler is not None
+
+  coder = coders.FastPrimitivesCoder()
+  pcoll_id, coder_id = coder.decode(pcoll_and_coder_id)
+  return DataSamplingOperation(
+      common.NameContext(transform_proto.unique_name, transform_id),
+      factory.counter_factory,
+      factory.state_sampler,
+      pcoll_id,
+      factory.get_coder(coder_id),
+      data_sampler,
+  )
