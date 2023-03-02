@@ -781,23 +781,34 @@ class TestWriteToBigQuery(unittest.TestCase):
               test_client=client))
 
   @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
-  def test_streaming_inserts_flushes_on_max_byte_size(self, mock_insert):
-    beam_bq.MAX_INSERT_PAYLOAD_SIZE = 0
-
+  def test_streaming_inserts_flush_on_byte_size_limit(self, mock_insert):
+    beam_bq.MAX_INSERT_PAYLOAD_SIZE = 500
+    mock_insert.return_value = []
+    table = 'project:dataset.table'
+    rows = [
+        {
+            'columnA': 'value1'
+        },
+        {
+            'columnA': 'value2'
+        },
+        # this very large row exceeds max size, so should be sent to DLQ
+        {
+            'columnA': "large_string" * 100
+        }
+    ]
     with beam.Pipeline() as p:
-      _ = (
+      failed_rows = (
           p
-          | beam.Create([{
-              'columnA': 'value1'
-          }, {
-              'columnA': 'value2'
-          }])
+          | beam.Create(rows)
           | WriteToBigQuery(
-              table='project:dataset.table',
+              table=table,
               method='STREAMING_INSERTS',
               create_disposition='CREATE_NEVER',
               schema='columnA:STRING'))
 
+      expected_failed_rows = [(table, rows[2])]
+      assert_that(failed_rows.failed_rows, equal_to(expected_failed_rows))
     self.assertEqual(2, mock_insert.call_count)
 
   @parameterized.expand([
@@ -1216,6 +1227,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.start_bundle()
     fn.process(('project-id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
     fn.process(('project-id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
+    fn.finish_bundle()
     # InsertRows called as batch size is hit
     self.assertTrue(client.insert_rows_json.called)
 

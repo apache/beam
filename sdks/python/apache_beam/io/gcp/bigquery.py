@@ -462,12 +462,12 @@ of retries.
 """
 MAX_INSERT_RETRIES = 10000
 """
-The maximum payload size of rows for a BigQuery insert_rows_json() request.
+The maximum byte size for a BigQuery legacy streaming insert payload.
 
-Actual limit is 10MB, but setting to 9MB to make room for request overhead:
-https://cloud.google.com/bigquery/quotas#streaming_inserts
+Note: The actual limit is 10MB, but we set it to 9MB to make room for request
+overhead: https://cloud.google.com/bigquery/quotas#streaming_inserts
 """
-MAX_INSERT_PAYLOAD_SIZE = 9 * 1024 * 1024
+MAX_INSERT_PAYLOAD_SIZE = 9 << 20
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -1510,19 +1510,37 @@ class BigQueryWriteFn(DoFn):
     if not self.with_batched_input:
       row_and_insert_id = element[1]
       row_byte_size = get_deep_size(row_and_insert_id)
+
+      # send large rows that exceed BigQuery insert limits to DLQ
       if row_byte_size >= MAX_INSERT_PAYLOAD_SIZE:
-        _LOGGER.warning(
-            "Received very large row (%sMB) that may cause an insert error. "
-            "Please keep rows under 10MB.", row_byte_size)
+        row_mb_size = row_byte_size / 1_000_000
+        error = (
+            f"Received very large row ({row_mb_size}MB) that exceeds "
+            "BigQuery inserts quota. Please keep each row under 9MB.")
+        _LOGGER.warning(error + " Sending row to dead-letter-queue.")
+        return [
+            pvalue.TaggedOutput(
+                BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+                GlobalWindows.windowed_value(
+                    (destination, row_and_insert_id[0], error))),
+            pvalue.TaggedOutput(
+                BigQueryWriteFn.FAILED_ROWS,
+                GlobalWindows.windowed_value(
+                    (destination, row_and_insert_id[0])))
+        ]
 
-      destination_row_buffer = self._rows_buffer[destination]
-      # first check if adding this row exceeds our limits
-      if (len(destination_row_buffer) >= self._max_batch_size or
-          (get_deep_size(destination_row_buffer) +
-           get_deep_size(row_and_insert_id)) >= MAX_INSERT_PAYLOAD_SIZE):
-        return self._flush_batch(destination)
+      buffer_byte_size_with_row = (
+        row_byte_size if not self._rows_buffer[destination] else
+        get_deep_size(self._rows_buffer[destination]) + row_byte_size)
 
-      destination_row_buffer.append(row_and_insert_id)
+      # Flush current batch first if adding this row will exceed our limits
+      if ((MAX_INSERT_PAYLOAD_SIZE < buffer_byte_size_with_row) or
+          len(self._rows_buffer[destination]) >= self._max_batch_size):
+        flushed_batch = self._flush_batch(destination)
+        self._rows_buffer[destination].append(row_and_insert_id)
+        return flushed_batch
+
+      self._rows_buffer[destination].append(row_and_insert_id)
       self._total_buffered_rows += 1
       if self._total_buffered_rows >= self._max_buffered_rows:
         return self._flush_all_batches()
@@ -1554,7 +1572,6 @@ class BigQueryWriteFn(DoFn):
     # Flush the current batch of rows to BigQuery.
     rows_and_insert_ids = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
-
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
