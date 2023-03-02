@@ -1,3 +1,4 @@
+#!/bin/bash
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
@@ -18,19 +19,19 @@
 # Usage
 # ./generate_build_metadata.sh <build_commit_hash> <build_commit_seconds_since_epoch>
 
-FILE=$(realpath "$(dirname $0)/../lib/src/build_metadata.g.dart")
+FILE=$(realpath "$(dirname "$0")/../lib/src/build_metadata.g.dart")
 
-cat > $FILE << EOF
+cat > "$FILE" << EOF
 // GENERATED CODE - DO NOT MODIFY BY HAND
 //
 // This file is generated during deployment to contain data about the commit.
 // The copy of this file stored in the repository is for development purpose
 // so the project can be started locally.
-// Keep these constants `null` in the repository.
+// Keep these constants \`null\` in the repository.
 EOF
 
-echo "const buildCommitHash = '$1';" >> $FILE
-echo "const buildCommitSecondsSinceEpoch = $2;" >> $FILE
+echo "const buildCommitHash = '$1';" >> "$FILE"
+echo "const buildCommitSecondsSinceEpoch = $2;" >> "$FILE"
 
 echo "Written $FILE:"
-cat $FILE
+cat "$FILE"
