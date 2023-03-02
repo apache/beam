@@ -21,5 +21,4 @@ variable "project_id" {
 
 variable "service_account_id" {
   description = "The name of Service Account to run Cloud Function"
-  default = "tourofbeam-cloudfunction-sa"
 }
