@@ -797,6 +797,7 @@ Here’s an email template; please adjust as you see fit.
     * Go artifacts and documentation are available at pkg.go.dev [9]
     * Validation sheet with a tab for 1.2.3 release to help with validation [10].
     * Docker images published to Docker Hub [11].
+    * PR to run tests against release branch [12].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -816,6 +817,7 @@ Here’s an email template; please adjust as you see fit.
     [9] https://pkg.go.dev/github.com/apache/beam/sdks/v2@v1.2.3-RC3/go/pkg/beam
     [10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
     [11] https://hub.docker.com/search?q=apache%2Fbeam&type=image
+    [12] https://github.com/apache/beam/pull/...
 
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote.
 There’s no need to wait 72 hours.
