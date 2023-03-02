@@ -163,8 +163,7 @@ class BigtableConfigTranslator {
 
   private static void configureChannelPool(
       StubSettings.Builder<?, ?> stubSettings, BigtableConfig config) {
-    if (config.getChannelCount() != null
-        && stubSettings.getTransportChannelProvider() instanceof InstantiatingGrpcChannelProvider) {
+    if (config.getChannelCount() != null) {
       InstantiatingGrpcChannelProvider grpcChannelProvider =
           (InstantiatingGrpcChannelProvider) stubSettings.getTransportChannelProvider();
       stubSettings.setTransportChannelProvider(
@@ -197,12 +196,12 @@ class BigtableConfigTranslator {
           Duration.ofMillis(writeOptions.getOperationTimeout().getMillis()));
     }
 
-    if (writeOptions.getBatchElements() != null) {
-      batchingSettings.setElementCountThreshold(writeOptions.getBatchElements());
+    if (writeOptions.getMaxElementsPerBatch() != null) {
+      batchingSettings.setElementCountThreshold(writeOptions.getMaxElementsPerBatch());
     }
 
-    if (writeOptions.getBatchBytes() != null) {
-      batchingSettings.setRequestByteThreshold(writeOptions.getBatchBytes());
+    if (writeOptions.getMaxBytesPerBatch() != null) {
+      batchingSettings.setRequestByteThreshold(writeOptions.getMaxBytesPerBatch());
     }
 
     FlowControlSettings.Builder flowControlSettings =
@@ -364,8 +363,8 @@ class BigtableConfigTranslator {
     builder.setOperationTimeout(
         org.joda.time.Duration.millis(options.getCallOptionsConfig().getMutateRpcTimeoutMs()));
     // configure batch size
-    builder.setBatchElements(options.getBulkOptions().getBulkMaxRowKeyCount());
-    builder.setBatchBytes(options.getBulkOptions().getBulkMaxRequestSize());
+    builder.setMaxElementsPerBatch(options.getBulkOptions().getBulkMaxRowKeyCount());
+    builder.setMaxBytesPerBatch(options.getBulkOptions().getBulkMaxRequestSize());
     builder.setMaxOutstandingElements(
         options.getBulkOptions().getMaxInflightRpcs()
             * (long) options.getBulkOptions().getBulkMaxRowKeyCount());

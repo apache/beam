@@ -905,30 +905,30 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with batch element size. After this many elements are
-     * accumulated, they will be wrapped up in a batch and sent to Bigtable.
+     * Returns a new {@link BigtableIO.Write} with the max elements a batch can have. After this
+     * many elements are accumulated, they will be wrapped up in a batch and sent to Bigtable.
      *
      * <p>Does not modify this object.
      */
-    public Write withBatchElements(long size) {
-      checkArgument(size > 0, "batch element size must be positive");
+    public Write withMaxElementsPerBatch(long size) {
+      checkArgument(size > 0, "max elements per batch size must be positive");
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setBatchElements(size).build())
+          .setBigtableWriteOptions(options.toBuilder().setMaxElementsPerBatch(size).build())
           .build();
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} with batch bytes size. After this many bytes are
-     * accumulated, the elements will be wrapped up in a batch and sent to Bigtable.
+     * Returns a new {@link BigtableIO.Write} with the max bytes a batch can have. After this many
+     * bytes are accumulated, the elements will be wrapped up in a batch and sent to Bigtable.
      *
      * <p>Does not modify this object.
      */
-    public Write withBatchBytes(long size) {
-      checkArgument(size > 0, "batch byte size must be positive");
+    public Write withMaxBytesPerBatch(long size) {
+      checkArgument(size > 0, "max bytes per batch size must be positive");
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setBatchBytes(size).build())
+          .setBigtableWriteOptions(options.toBuilder().setMaxBytesPerBatch(size).build())
           .build();
     }
 
@@ -1201,10 +1201,10 @@ public class BigtableIO {
         BigtableReadOptions readOptions,
         @Nullable Long estimatedSizeBytes) {
       this.factory = factory;
+      this.configId = configId;
       this.config = config;
       this.readOptions = readOptions;
       this.estimatedSizeBytes = estimatedSizeBytes;
-      this.configId = configId;
     }
 
     @Override

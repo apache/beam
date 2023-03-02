@@ -133,15 +133,15 @@ public class BigtableConfigTranslatorTest {
 
     assertNotNull(writeOptions.getAttemptTimeout());
     assertNotNull(writeOptions.getOperationTimeout());
-    assertNotNull(writeOptions.getBatchBytes());
-    assertNotNull(writeOptions.getBatchElements());
+    assertNotNull(writeOptions.getMaxBytesPerBatch());
+    assertNotNull(writeOptions.getMaxElementsPerBatch());
     assertNotNull(writeOptions.getMaxOutstandingElements());
     assertNotNull(writeOptions.getMaxOutstandingBytes());
 
     assertEquals(org.joda.time.Duration.millis(200), writeOptions.getAttemptTimeout());
     assertEquals(org.joda.time.Duration.millis(2000), writeOptions.getOperationTimeout());
-    assertEquals(20, (long) writeOptions.getBatchBytes());
-    assertEquals(100, (long) writeOptions.getBatchElements());
+    assertEquals(20, (long) writeOptions.getMaxBytesPerBatch());
+    assertEquals(100, (long) writeOptions.getMaxElementsPerBatch());
     assertEquals(5 * 100, (long) writeOptions.getMaxOutstandingElements());
     assertEquals(5 * 20, (long) writeOptions.getMaxOutstandingBytes());
   }
@@ -195,8 +195,8 @@ public class BigtableConfigTranslatorTest {
             .setTableId(ValueProvider.StaticValueProvider.of("table"))
             .setAttemptTimeout(org.joda.time.Duration.millis(101))
             .setOperationTimeout(org.joda.time.Duration.millis(1001))
-            .setBatchElements(105)
-            .setBatchBytes(102)
+            .setMaxElementsPerBatch(105)
+            .setMaxBytesPerBatch(102)
             .setMaxOutstandingElements(10001)
             .setMaxOutstandingBytes(100001)
             .build();

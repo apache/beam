@@ -42,11 +42,11 @@ abstract class BigtableWriteOptions implements Serializable {
   /** Returns the operation timeout for writes. */
   abstract @Nullable Duration getOperationTimeout();
 
-  /** Returns the number of elements of a batch. */
-  abstract @Nullable Long getBatchElements();
+  /** Returns the max number of elements of a batch. */
+  abstract @Nullable Long getMaxElementsPerBatch();
 
-  /** Returns the number of bytes of a batch. */
-  abstract @Nullable Long getBatchBytes();
+  /** Returns the max number of bytes of a batch. */
+  abstract @Nullable Long getMaxBytesPerBatch();
 
   /** Returns the max number of concurrent elements allowed before enforcing flow control. */
   abstract @Nullable Long getMaxOutstandingElements();
@@ -69,9 +69,9 @@ abstract class BigtableWriteOptions implements Serializable {
 
     abstract Builder setOperationTimeout(Duration timeout);
 
-    abstract Builder setBatchElements(long size);
+    abstract Builder setMaxElementsPerBatch(long size);
 
-    abstract Builder setBatchBytes(long bytes);
+    abstract Builder setMaxBytesPerBatch(long bytes);
 
     abstract Builder setMaxOutstandingElements(long count);
 
@@ -94,10 +94,11 @@ abstract class BigtableWriteOptions implements Serializable {
             DisplayData.item("operationTimeout", getOperationTimeout())
                 .withLabel("Write Operation Timeout"))
         .addIfNotNull(
-            DisplayData.item("batchElements", getBatchElements())
+            DisplayData.item("maxElementsPerBatch", getMaxElementsPerBatch())
                 .withLabel("Write batch element count"))
         .addIfNotNull(
-            DisplayData.item("batchBytes", getBatchBytes()).withLabel("Write batch byte size"))
+            DisplayData.item("maxBytesPerBatch", getMaxBytesPerBatch())
+                .withLabel("Write batch byte size"))
         .addIfNotNull(
             DisplayData.item("maxOutstandingElements", getMaxOutstandingElements())
                 .withLabel("Write max outstanding elements"))
