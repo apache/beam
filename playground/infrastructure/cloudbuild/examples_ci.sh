@@ -131,6 +131,15 @@ else
 fi
 LogOutput "Docker tag for containers: $DOCKERTAG"
 
+LogOutput "git fetch -all"
+git fetch -all # > /dev/null
+LogOutput "git checkout $COMMIT"
+git checkout $COMMIT
+if [ $? -ne 0 ]; then
+   LogOutput "Can't checkout to $COMMIT. Exiting script"
+   exit 1 
+fi
+
 diff_log=$(git diff --name-only $DIFF_BASE...$COMMIT)
 diff=($(echo "$diff_log" | tr '\n' ' '))
 LogOutput "Discovered changes introduced by $COMMIT relative to $DIFF_BASE in files:
@@ -177,7 +186,8 @@ do
     # Special cases for Python and Java
     if [ "$sdk" == "python" ]
     then
-        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG"
+        # Build fails without docker-pull-licenses=true in Cloud Build
+        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG -Pdocker-pull-licenses=true"
         LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
         sdk_tag=$DOCKERTAG
         ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true
@@ -186,11 +196,6 @@ do
             LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
             continue
         fi
-    # elif [ "$sdk" == "java" ]
-    # then
-        # Java is built from released base image instead of current commit
-        # docker_options="-Psdk-tag=${BEAM_VERSION} -Pdocker-tag=$DOCKERTAG"
-    #     sdk_tag=${BEAM_VERSION}
     fi
 
     LogOutput "Buidling a container for $sdk runner"
