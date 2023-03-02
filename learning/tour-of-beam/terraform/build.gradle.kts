@@ -334,6 +334,15 @@ tasks.register("InitBackend") {
 
 }
 
+tasks.register("DestroyBackend") {
+    group = "backend-destroy"
+    val getRouterHost = tasks.getByName("getRouterHost")
+    val terraformDestroy = tasks.getByName("terraformDestroy")
+    dependsOn(getRouterHost)
+    dependsOn(terraformDestroy)
+    terraformDestroy.mustRunAfter(getRouterHost)
+}
+
 tasks.register("InitFrontend") {
     group = "frontend-deploy"
     val prepareConfig = tasks.getByName("prepareConfig")
