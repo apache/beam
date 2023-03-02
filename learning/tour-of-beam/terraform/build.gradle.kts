@@ -34,7 +34,6 @@ tasks.register<TerraformTask>("terraformInit") {
         var environment = project.property("project_environment") as String
         args(
                 "init",
-                "-migrate-state",
                 "-backend-config=./environment/$environment/state.tfbackend",
                 "-var=environment=$environment",
                 if (file("./environment/$environment/terraform.tfvars").exists()) {
