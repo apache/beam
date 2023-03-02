@@ -62,7 +62,7 @@ kubectl get all --namespace strimzi
 
 ## 4. Acquire kafka host and port.
 
-After all kafka cluster resources are created, you can run the 
+After all kafka cluster resources are created, you can run the
 following command to find the kafka host and port.
 
 ```
