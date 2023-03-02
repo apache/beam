@@ -32,7 +32,7 @@ var (
 
 func init() {
 	ctx = context.Background()
-	client, err := datastore.NewClient(ctx, "")
+	client, err := datastore.NewClient(ctx, "", datastore.WithNamespace("PG-stg3"))
 	if err != nil {
 		log.Fatalf("new datastore client: %v", err)
 	}
