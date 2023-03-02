@@ -64,8 +64,9 @@ You can create multiple types of transforms using the RunInference API: the API 
 | Task | Example |
 | ------- | ---------------|
 | I want to use the RunInference transform | [Modify a Python pipeline to use an ML model](/documentation/sdks/python-machine-learning/#modify-a-python-pipeline-to-use-an-ml-model) |
-| I want to use RunInference with PyTorch | [Use RunInference with PyTorch](//documentation/transforms/python/elementwise/runinference-pytorch/) |
-| I want to use RunInference with Sklearn | [Use RunInference with Sklearn](//documentation/transforms/python/elementwise/runinference-sklearn/) |:
+| I want to use RunInference with PyTorch | [Use RunInference with PyTorch](/documentation/transforms/python/elementwise/runinference-pytorch/) |
+| I want to use RunInference with Sklearn | [Use RunInference with Sklearn](/documentation/transforms/python/elementwise/runinference-sklearn/) |
+| I want to use pre-trained models (PyTorch, Scikit-learn, or TensorFlow) | [Use pre-trained models](/documentation/ml/about-ml/#use-pre-trained-models) |:
 {{< /table >}}
 
 ### Prediction and inference examples
