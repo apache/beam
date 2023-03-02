@@ -56,7 +56,7 @@ tasks {
         }
         args(
             "init", "-migrate-state",
-            "-input=true -auto-approve",
+            "-auto-approve",
             "-backend-config=./environment/$environment/state.tfbackend",
             "-var=environment=$environment",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
