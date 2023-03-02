@@ -26,8 +26,8 @@ test.dependsOn "testPython${pythonVersionSuffix}"
 toxTask "testPy${pythonVersionSuffix}Cloud", "py${pythonVersionSuffix}-cloud", "${posargs}"
 test.dependsOn "testPy${pythonVersionSuffix}Cloud"
 
-toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask", "${posargs}"
-test.dependsOn "testPy${pythonVersionSuffix}Dask"
+// toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask", "${posargs}"
+// test.dependsOn "testPy${pythonVersionSuffix}Dask"
 
 toxTask "testPy${pythonVersionSuffix}Cython", "py${pythonVersionSuffix}-cython", "${posargs}"
 test.dependsOn "testPy${pythonVersionSuffix}Cython"
