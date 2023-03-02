@@ -68,28 +68,21 @@ tasks {
     }
     /* refresh Infrastucture for remote state */
     register<TerraformTask>("terraformRef") {
-        mustRunAfter(":playground:terraform:terraformInit")
-        var project_id = "unknown"
         var environment = "unknown"
-        var region = "unknown"
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
         args(
             "refresh",
             "-lock=false",
-            "-var=project_id=$project_id",
+            "-backend-config=./environment/$environment/state.tfbackend",
             "-var=environment=$environment",
-            "-var=region=$region",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
             } else {
                 "-no-color"
             }
-        )
+    )
     }
 
     /* deploy all App */
