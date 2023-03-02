@@ -45,6 +45,17 @@ resource "google_cloudfunctions_function" "cloud_function" {
 
 }
 
+# Wait for the Google Cloud Functions to be created
+resource "null_resource" "wait_for_cloud_functions" {
+  for_each = toset(var.entry_point_names)
+
+  depends_on = [google_cloudfunctions_function.cloud_function]
+
+  provisioner "local-exec" {
+    command = "until gcloud functions describe ${var.environment}_${each.key} --project=${var.project_id} --region=${var.region} --format='value(status)' | grep -q 'READY'; do sleep 1; done"
+  }
+}
+
 # Create IAM entry so all users can invoke the function
 resource "google_cloudfunctions_function_iam_member" "invoker" {
   count          = length(google_cloudfunctions_function.cloud_function)
