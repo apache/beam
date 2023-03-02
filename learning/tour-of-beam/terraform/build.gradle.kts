@@ -76,6 +76,7 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
                     "-no-color"
                 }
         )
+    tasks.getByName("uploadLearningMaterials").mustRunAfter(this)
 
     }
 
