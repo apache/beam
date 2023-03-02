@@ -1530,8 +1530,8 @@ class BigQueryWriteFn(DoFn):
         ]
 
       buffer_byte_size_with_row = (
-        row_byte_size if not self._rows_buffer[destination] else
-        get_deep_size(self._rows_buffer[destination]) + row_byte_size)
+          row_byte_size if not self._rows_buffer[destination] else
+          get_deep_size(self._rows_buffer[destination]) + row_byte_size)
 
       # Flush current batch first if adding this row will exceed our limits
       if ((MAX_INSERT_PAYLOAD_SIZE < buffer_byte_size_with_row) or
