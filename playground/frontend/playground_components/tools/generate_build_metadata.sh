@@ -16,24 +16,24 @@
 #  under the License.
 
 # Run this from the playground_components project root
-FILE='lib/src/build_metadata.g.dart'
+FILE=$(realpath "$(realpath $(dirname $0))/../lib/src/build_metadata.g.dart")
 
-echo '// GENERATED CODE - DO NOT MODIFY BY HAND' > $FILE
-echo '' >> $FILE
+cat > $FILE << EOF
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// This file is generated during deployment to contain data about the commit.
+// The copy of this file stored in the repository is for development purpose
+// so the project can be started locally.
+// It is safe to commit changes here everytime you run code generation.
+EOF
 
-echo '// This file is generated during deployment to contain data about the commit.' >> $FILE
-echo '// The copy of this file stored in the repository is for development purpose' >> $FILE
-echo '// so the project can be started locally.' >> $FILE
-echo '// It is safe to commit changes here everytime you run code generation.' >> $FILE
-
-echo -n 'const buildCommitHash = ' >> $FILE
+printf 'const buildCommitHash = ' >> $FILE
 git rev-parse --sq HEAD >> $FILE
 echo ';' >> $FILE
 
-echo -n 'const buildCommitSecondsSinceEpoch = ' >> $FILE
+printf 'const buildCommitSecondsSinceEpoch = ' >> $FILE
 git show -s --format=%ct HEAD >> $FILE
 echo ';' >> $FILE
 
-echo 'Written'
-realpath $FILE
+echo "Written $FILE:"
 cat $FILE
