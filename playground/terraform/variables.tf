@@ -37,7 +37,7 @@ variable "region" {
 
 variable "gke_machine_type" {
   description = "Node pool machine types"
-  default     = "c2-standard-16"
+  default     = "e2-standard-8"
 }
 
 variable "gke_name" {
