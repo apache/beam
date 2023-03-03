@@ -43,7 +43,7 @@ public abstract class SpannerConfig implements Serializable {
   // A default host name for batch traffic.
   private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
   // Deadline for Commit API call.
-  private static final Duration DEFAULT_COMMIT_DEADLINE = Duration.standardSeconds(15);
+  private static final Duration DEFAULT_COMMIT_DEADLINE = Duration.standardSeconds(60);
   // Total allowable backoff time.
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
   // A default priority for batch traffic.
