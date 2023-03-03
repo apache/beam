@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - splittable-dofn
-  
+id: splittable-dofn
+name: Splittable doFn
+complexity: ADVANCED
+taskName: splittable-dofn
