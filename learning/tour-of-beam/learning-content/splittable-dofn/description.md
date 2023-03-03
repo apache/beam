@@ -69,7 +69,7 @@ To implement `Splittable DoFn` in the Java SDK, we need to create a class with a
 * `@SplitRestriction` is a method-level annotation in Apache Beam that is used in `Splittable DoFn` to indicate a method that splits a restriction into multiple sub-restrictions for parallel processing.
 ```
 static class SplitLinesFn extends DoFn<String, KV<Long, String>> {
-        
+
         @ProcessElement
         public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
             ...
