@@ -45,6 +45,7 @@ class TestDataflowRunner(DataflowRunner):
     on_success_matcher = test_options.on_success_matcher
     wait_duration = test_options.wait_until_finish_duration
     is_streaming = options.view_as(StandardOptions).streaming
+    _LOGGER.setLevel(logging.INFO)
 
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
     # send this option to remote executors.
