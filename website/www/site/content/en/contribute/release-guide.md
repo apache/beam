@@ -859,8 +859,6 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
      * Start a new terminal to run python xlang Java kafka validation with Dataflow Runner.
      * Start a new terminal to run python xlang Java sql validation with Dataflow Runner.
 
-Note: The xlang validations require the Kubernetes Engine Admin role.
-
 * **Tasks you need to do manually**
   1. Check whether validations succeed by following console output instructions.
   1. Terminate streaming jobs and java injector.
