@@ -17,8 +17,9 @@
 
 """Script for mass-commenting Jenkins test triggers on a Beam PR."""
 
-import socket
 import requests
+import socket
+import time
 
 # This list can be found by querying the Jenkins API, see BEAM-13951
 COMMENTS_TO_ADD = [
@@ -56,7 +57,6 @@ COMMENTS_TO_ADD = [
     "Run Java Examples_Flink",
     "Run Java Examples_Spark",
     "Run Java Flink PortableValidatesRunner Streaming",
-    "Run Java Portability examples on Dataflow with Java 11",
     "Run Java PostCommit",
     "Run Java PreCommit",
     "Run Java Samza PortableValidatesRunner",
@@ -223,6 +223,8 @@ def postComments(accessToken, subjectId):
 
   for commentBody in COMMENTS_TO_ADD:
     jsonData = fetchGHData(accessToken, subjectId, commentBody)
+    # Space out comments 30 seconds apart to avoid overwhelming Jenkins
+    time.sleep(30)
     print(jsonData)
 
 
