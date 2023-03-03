@@ -66,6 +66,30 @@ variable "repository_id" {
   default     = "playground-repository"
 }
 
+#IAM
+variable "service_account_id" {
+  description = "Service account ID"
+  default     = "beam-playground"
+}
+
+#Network
+variable "ip-address-name" {
+  description = "Static IP address name"
+  default     = "pg-static-ip"
+}
+
+variable "subnetwork_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc-sub"
+}
+
+#AppEngine Flag
+variable "app_engine_flag" {
+  description = "AppEngine enabled"
+  type        = bool
+  default     = true
+}
+
 #Redis
 
 variable "redis_version" {

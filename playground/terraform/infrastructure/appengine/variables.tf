@@ -36,3 +36,8 @@ variable "location_id_us" {
   description = "Location of App"
   default = "us-central"
 }
+
+variable "feature_flag" {
+  type    = bool
+  default = true
+}

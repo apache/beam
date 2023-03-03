@@ -25,6 +25,7 @@ module "infrastructure" {
   network_region                = var.region
   redis_region                  = var.region
   location                      = var.location
+  service_account_id            = var.service_account_id
   #Artifact Registry
   repository_id                 = var.repository_id
   repository_location           = var.region
@@ -36,11 +37,16 @@ module "infrastructure" {
   redis_memory_size_gb          = var.redis_memory_size_gb
   #NETWORK
   network_name                  = var.network_name
+  ip-address-name               = var.ip-address-name
+  subnetwork_name               = var.subnetwork_name
   #GKE
   gke_machine_type              = var.gke_machine_type
   gke_name                      = var.gke_name
   gke_location                  = var.location
   service_account               = var.service_account
+  app_engine_flag               = var.app_engine_flag
+  min_count                     = var.min_count
+  max_count                     = var.max_count
 }
 
 module "applications" {

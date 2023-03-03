@@ -73,6 +73,7 @@ module "gke" {
 module "ip_address" {
   source          = "./ip_address"
   depends_on      = [module.setup, module.api_enable]
+  ip-address-name = var.ip-address-name
 }
 
 module "appengine" {
@@ -80,6 +81,7 @@ module "appengine" {
  source             = "./appengine"
  project_id         = var.project_id
  region             = var.region
+ feature_flag       = var.app_engine_flag
 }
 
 module "api_enable" {
