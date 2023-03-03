@@ -35,6 +35,7 @@ on:
         required: true
 env:
   BEAM_VERSION: 2.44.0
+permissions: read-all
 jobs:
   check_has_examples:
     name: pre-check

@@ -18,6 +18,8 @@ on:
   issues:
     types: [opened]
 
+permissions: read-all
+
 jobs:
   label:
     runs-on: ubuntu-latest

@@ -66,6 +66,7 @@ env:
   USER_GCP_ZONE: us-central1-a
   APACHE_CONTENTS_REPO: ${{github.event.inputs.APACHE_CONTENTS_REPO}}
   FIXED_WINDOW_DURATION: 20
+permissions: read-all
 jobs:
   python_release_candidate:
     runs-on: [self-hosted, ubuntu-20.04]

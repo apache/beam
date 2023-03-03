@@ -19,6 +19,7 @@ on:
   workflow_dispatch:
 # Concurrency group for all deployment ops
 concurrency: playground_production
+permissions: read-all
 jobs:
   deploy_examples:
     strategy:

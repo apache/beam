@@ -17,6 +17,7 @@ name: Mark issue as triaged when assigned
 on:
   issues:
     types: [assigned]
+permissions: read-all
 jobs:
   assign:
     permissions:

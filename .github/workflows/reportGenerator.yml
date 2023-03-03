@@ -21,6 +21,8 @@ on:
   - cron: "0 10 * * 1-5"
   workflow_dispatch:
 
+permissions: read-all
+
 jobs:
   assign:
     name: Generate issue report

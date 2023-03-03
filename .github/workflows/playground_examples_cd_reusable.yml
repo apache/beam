@@ -33,6 +33,8 @@ on:
       sa_key_content:
         required: true
 
+permissions: read-all
+
 jobs:
   cd:
     name: CD ${{ inputs.sdk }} ${{ inputs.origin }}

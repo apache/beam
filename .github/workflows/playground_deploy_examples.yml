@@ -26,6 +26,7 @@ env:
   HELM_APP_NAME: playground-backend
   SUBDIRS: "./learning/katas ./examples ./sdks"
   ORIGIN: PG_EXAMPLES
+permissions: read-all
 jobs:
   check_examples:
     name: Check examples

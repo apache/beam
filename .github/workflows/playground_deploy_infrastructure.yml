@@ -16,6 +16,7 @@
 name: New environment creation
 on:
   workflow_dispatch:
+permissions: read-all
 jobs:
   Infrastructure_deployment:
     runs-on: ubuntu-latest

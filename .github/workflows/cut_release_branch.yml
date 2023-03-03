@@ -31,8 +31,12 @@ on:
         description: Next release version
         required: true
 
+permissions: read-all
+
 jobs:
   update_master:
+    permissions:
+      contents: write  # for Git to git push
     runs-on: [self-hosted, ubuntu-20.04]
     env:
       MASTER_BRANCH: master
@@ -66,6 +70,8 @@ jobs:
           git push origin ${MASTER_BRANCH}
 
   update_release_branch:
+    permissions:
+      contents: write  # for Git to git push
     needs: update_master
     runs-on: [self-hosted, ubuntu-20.04]
     env:

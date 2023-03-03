@@ -27,7 +27,7 @@ on:
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
-  
+permissions: read-all  
 jobs:
   build_playground_backend_docker_image:
     name: Build Playground Backend App

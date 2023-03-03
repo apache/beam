@@ -23,6 +23,8 @@ on:
   schedule:
     - cron: '5 22 * * *'
 
+permissions: read-all
+
 jobs:
   python_run_change_point_analysis:
     name: Run Change Point Analysis.

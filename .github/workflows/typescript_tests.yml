@@ -35,6 +35,9 @@ on:
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
+
+permissions: read-all
+
 jobs:
   typescript_unit_tests:
     name: 'TypeScript Unit Tests'

@@ -29,6 +29,7 @@ on:
         required: true
 env:
   WORKING_BRANCH: postcommit_validation_pr
+permissions: read-all
 jobs:
   verify_release:
     runs-on: [self-hosted, ubuntu-20.04]

@@ -17,6 +17,8 @@ name: Assign or close an issue
 on: 
   issue_comment:
 
+permissions: read-all
+
 jobs:
   assign:
     permissions:

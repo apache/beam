@@ -32,8 +32,12 @@ on:
         required: true
         default: https://github.com/apache/beam.git
 
+permissions: read-all
+
 jobs:
   start_snapshot_build:
+    permissions:
+      contents: write  # for Git to git push
     runs-on: [self-hosted, ubuntu-20.04]
     env:
       REMOTE_NAME: remote_repo

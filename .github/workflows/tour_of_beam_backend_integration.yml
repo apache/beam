@@ -61,6 +61,7 @@ env:
   PORT_POST_USER_CODE: 8806
   PORT_POST_DELETE_PROGRESS: 8807
 
+permissions: read-all
 
 jobs:
   integration:

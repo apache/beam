@@ -25,6 +25,8 @@ on:
       - "Python tests"
     types: ['requested']
 
+permissions: read-all
+
 jobs:
   cancel-duplicate-workflow-runs:
     permissions:

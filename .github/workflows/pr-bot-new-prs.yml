@@ -21,6 +21,8 @@ on:
   - cron: '0,30 * * * *'
   workflow_dispatch:
 
+permissions: read-all
+
 jobs:
   process-prs:
     permissions:

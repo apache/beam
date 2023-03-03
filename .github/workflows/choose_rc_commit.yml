@@ -46,8 +46,12 @@ on:
         required: false
         default: no
 
+permissions: read-all
+
 jobs:
   choose_rc_commit:
+    permissions:
+      contents: write # for Git to git push
     runs-on: [self-hosted, ubuntu-20.04]
     env:
       RC_TAG: v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}
