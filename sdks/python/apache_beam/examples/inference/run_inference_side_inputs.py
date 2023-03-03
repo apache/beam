@@ -96,12 +96,12 @@ def run(argv=None, save_main_session=True):
   options.view_as(SetupOptions).save_main_session = save_main_session
 
   class GetModel(beam.DoFn):
-    def process(self, element) -> Iterable[base.ModelMetdata]:
+    def process(self, element) -> Iterable[base.ModelMetadata]:
       if time.time() > mid_ts:
-        yield base.ModelMetdata(
+        yield base.ModelMetadata(
             model_id='model_add.pkl', model_name='model_add')
       else:
-        yield base.ModelMetdata(
+        yield base.ModelMetadata(
             model_id='model_sub.pkl', model_name='model_sub')
 
   class _EmitSingletonSideInput(beam.DoFn):

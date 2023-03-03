@@ -28,7 +28,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion.RecordBatchRowIterator;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 
 class BigQueryStorageArrowReader implements BigQueryStorageReader {

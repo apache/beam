@@ -181,13 +181,27 @@ ext.deleteFilesByRegExp = { re ->
 }
 
 tasks.register("integrationTest") {
+  dependsOn("integrationTest_initial_urls")
   dependsOn("integrationTest_standalone_change_example_sdk_run")
+  dependsOn("integrationTest_standalone_default_examples")
   dependsOn("integrationTest_standalone_miscellaneous_ui")
+}
+
+tasks.register("integrationTest_initial_urls") {
+  doLast {
+    runIntegrationTest("initial_urls", "/")
+  }
 }
 
 tasks.register("integrationTest_standalone_change_example_sdk_run") {
   doLast {
     runIntegrationTest("standalone_change_example_sdk_run", "/")
+  }
+}
+
+tasks.register("integrationTest_standalone_default_examples") {
+  doLast {
+    runIntegrationTest("standalone_default_examples", "/")
   }
 }
 
@@ -198,6 +212,9 @@ tasks.register("integrationTest_standalone_miscellaneous_ui") {
 }
 
 void runIntegrationTest(String path, String url) {
+  // Run with -PdeviceId=web-server for headless tests.
+  String deviceId = project.hasProperty("deviceId") ? project.deviceId : "chrome"
+
   exec {
     executable("flutter")
     args(
@@ -205,7 +222,7 @@ void runIntegrationTest(String path, String url) {
       "--driver=test_driver/integration_test.dart",
       "--target=integration_test/${path}_test.dart",
       "--web-launch-url='$url'",
-      "--device-id=chrome",
+      "--device-id=$deviceId",
     )
   }
 }

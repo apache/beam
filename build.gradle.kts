@@ -242,6 +242,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:flink:1.14:job-server:build")
   dependsOn(":runners:flink:1.15:build")
   dependsOn(":runners:flink:1.15:job-server:build")
+  dependsOn(":runners:flink:1.16:build")
+  dependsOn(":runners:flink:1.16:job-server:build")
   dependsOn(":runners:google-cloud-dataflow-java:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples:build")
@@ -254,8 +256,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:samza:build")
   dependsOn(":runners:samza:job-server:build")
-  dependsOn(":runners:spark:2:build")
-  dependsOn(":runners:spark:2:job-server:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
@@ -265,6 +265,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:expansion-service:build")
   dependsOn(":sdks:java:expansion-service:app:build")
   dependsOn(":sdks:java:extensions:arrow:build")
+  dependsOn(":sdks:java:extensions:avro:build")
   dependsOn(":sdks:java:extensions:euphoria:build")
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:build")
   dependsOn(":sdks:java:extensions:jackson:build")
@@ -317,6 +318,36 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:container:java8:docker")
 }
 
+// a precommit task build multiple IOs (except those splitting into single jobs)
+tasks.register("javaioPreCommit") {
+  dependsOn(":sdks:java:io:amqp:build")
+  dependsOn(":sdks:java:io:cassandra:build")
+  dependsOn(":sdks:java:io:cdap:build")
+  dependsOn(":sdks:java:io:clickhouse:build")
+  dependsOn(":sdks:java:io:debezium:expansion-service:build")
+  dependsOn(":sdks:java:io:debezium:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build")
+  dependsOn(":sdks:java:io:elasticsearch:build")
+  dependsOn(":sdks:java:io:hbase:build")
+  dependsOn(":sdks:java:io:hcatalog:build")
+  dependsOn(":sdks:java:io:influxdb:build")
+  dependsOn(":sdks:java:io:jms:build")
+  dependsOn(":sdks:java:io:kudu:build")
+  dependsOn(":sdks:java:io:mqtt:build")
+  dependsOn(":sdks:java:io:neo4j:build")
+  dependsOn(":sdks:java:io:rabbitmq:build")
+  dependsOn(":sdks:java:io:redis:build")
+  dependsOn(":sdks:java:io:singlestore:build")
+  dependsOn(":sdks:java:io:solr:build")
+  dependsOn(":sdks:java:io:splunk:build")
+  dependsOn(":sdks:java:io:thrift:build")
+  dependsOn(":sdks:java:io:tika:build")
+}
+
 tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:runBasicExample")
   dependsOn(":sdks:java:extensions:sql:runPojoExample")
@@ -340,7 +371,7 @@ tasks.register("javaPostCommitSickbay") {
   dependsOn(":runners:flink:1.13:validatesRunnerSickbay")
   dependsOn(":runners:flink:1.14:validatesRunnerSickbay")
   dependsOn(":runners:flink:1.15:validatesRunnerSickbay")
-  dependsOn(":runners:spark:2:job-server:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.16:validatesRunnerSickbay")
   dependsOn(":runners:spark:3:job-server:validatesRunnerSickbay")
   dependsOn(":runners:direct-java:validatesRunnerSickbay")
   dependsOn(":runners:portability:java:validatesRunnerSickbay")
@@ -353,7 +384,6 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
-  dependsOn(":runners:spark:2:hadoopVersionsTest")
   dependsOn(":runners:spark:3:hadoopVersionsTest")
 }
 
@@ -454,7 +484,6 @@ tasks.register("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
   dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:direct:py37:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py37:mongodbioIT")
   dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
   dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
@@ -548,7 +577,6 @@ tasks.register("typescriptPreCommit") {
 }
 
 tasks.register("pushAllDockerImages") {
-  dependsOn(":runners:spark:2:job-server:container:dockerPush")
   dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")

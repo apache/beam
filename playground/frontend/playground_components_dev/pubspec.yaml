@@ -21,13 +21,15 @@ version: 0.0.1
 publish_to: none
 
 environment:
-  sdk: '>=2.18.1 <4.0.0'
-  flutter: '>=3.3.2'
+  sdk: '>=2.19.2 <4.0.0'
+  flutter: '>=3.7.3'
 
 dependencies:
+  app_state: ^0.9.0
   flutter: { sdk: flutter }
-  flutter_code_editor: ^0.2.5
+  flutter_code_editor: ^0.2.9
   flutter_test: { sdk: flutter }
+  get_it: ^7.2.0
   highlight: ^0.7.0
   http: ^0.13.5
   playground_components: { path: ../playground_components }

@@ -21,10 +21,12 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
 
 // Allows transient fields to be intialized later
 @SuppressWarnings("initialization.fields.uninitialized")
+@Internal
 public class DaoFactory implements Serializable {
   private static final long serialVersionUID = 3732208768248394205L;
 
