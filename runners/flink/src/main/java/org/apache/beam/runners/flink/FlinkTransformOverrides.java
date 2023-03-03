@@ -36,7 +36,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 class FlinkTransformOverrides {
   static List<PTransformOverride> getDefaultOverrides(FlinkPipelineOptions options) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
-    if (options.isStreaming()) {
+    if (options.isStreaming() || options.getUseDataStreamForBatch()) {
       builder
           .add(
               PTransformOverride.of(

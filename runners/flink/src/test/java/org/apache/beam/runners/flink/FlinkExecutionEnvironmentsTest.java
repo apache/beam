@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
@@ -43,17 +45,36 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link FlinkExecutionEnvironments}. */
+@RunWith(Parameterized.class)
 public class FlinkExecutionEnvironmentsTest {
 
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
+  @Parameterized.Parameter
+  public boolean useDataStreamForBatch;
+
+  @Parameterized.Parameters(name = "UseDataStreamForBatch = {0}")
+  public static Collection<Object[]> useDataStreamForBatchJobValues() {
+    return Arrays.asList(new Object[][] {
+        {false}, {true}
+    });
+  }
+
+  private FlinkPipelineOptions getDefaultPipelineOptions() {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setUseDataStreamForBatch(useDataStreamForBatch);
+    return options;
+  }
+
   @Test
   public void shouldSetParallelismBatch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setParallelism(42);
 
@@ -65,7 +86,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldSetParallelismStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setParallelism(42);
 
@@ -78,7 +99,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldSetMaxParallelismStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setMaxParallelism(42);
 
@@ -93,7 +114,7 @@ public class FlinkExecutionEnvironmentsTest {
   public void shouldInferParallelismFromEnvironmentBatch() throws IOException {
     String flinkConfDir = extractFlinkConfig();
 
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("host:80");
 
@@ -109,7 +130,7 @@ public class FlinkExecutionEnvironmentsTest {
   public void shouldInferParallelismFromEnvironmentStreaming() throws IOException {
     String confDir = extractFlinkConfig();
 
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("host:80");
 
@@ -123,7 +144,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldFallbackToDefaultParallelismBatch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("host:80");
 
@@ -135,7 +156,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldFallbackToDefaultParallelismStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("host:80");
 
@@ -148,7 +169,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void useDefaultParallelismFromContextBatch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
 
     ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
@@ -160,7 +181,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void useDefaultParallelismFromContextStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
 
     StreamExecutionEnvironment sev =
@@ -173,7 +194,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldParsePortForRemoteEnvironmentBatch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
     options.setFlinkMaster("host:1234");
 
@@ -185,7 +206,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldParsePortForRemoteEnvironmentStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
     options.setFlinkMaster("host:1234");
 
@@ -198,7 +219,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldAllowPortOmissionForRemoteEnvironmentBatch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
     options.setFlinkMaster("host");
 
@@ -210,7 +231,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldAllowPortOmissionForRemoteEnvironmentStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
     options.setFlinkMaster("host");
 
@@ -223,7 +244,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldTreatAutoAndEmptyHostTheSameBatch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
 
     ExecutionEnvironment sev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
@@ -237,7 +258,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldTreatAutoAndEmptyHostTheSameStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
 
     StreamExecutionEnvironment sev =
@@ -253,7 +274,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldDetectMalformedPortBatch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
     options.setFlinkMaster("host:p0rt");
 
@@ -265,7 +286,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldDetectMalformedPortStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
     options.setFlinkMaster("host:p0rt");
 
@@ -277,7 +298,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldSupportIPv4Batch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
 
     options.setFlinkMaster("192.168.1.1:1234");
@@ -291,7 +312,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldSupportIPv4Streaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
 
     options.setFlinkMaster("192.168.1.1:1234");
@@ -305,7 +326,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldSupportIPv6Batch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
 
     options.setFlinkMaster("[FE80:CD00:0000:0CDE:1257:0000:211E:729C]:1234");
@@ -320,7 +341,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldSupportIPv6Streaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
 
     options.setFlinkMaster("[FE80:CD00:0000:0CDE:1257:0000:211E:729C]:1234");
@@ -336,7 +357,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldRemoveHttpProtocolFromHostBatch() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
 
     for (String flinkMaster :
@@ -352,7 +373,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldRemoveHttpProtocolFromHostStreaming() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
 
     for (String flinkMaster :
@@ -376,7 +397,7 @@ public class FlinkExecutionEnvironmentsTest {
   @Test
   public void shouldAutoSetIdleSourcesFlagWithoutCheckpointing() {
     // Checkpointing disabled, shut down sources immediately
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     assertThat(options.getShutdownSourcesAfterIdleMs(), is(0L));
   }
@@ -384,7 +405,7 @@ public class FlinkExecutionEnvironmentsTest {
   @Test
   public void shouldAutoSetIdleSourcesFlagWithCheckpointing() {
     // Checkpointing is enabled, never shut down sources
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setCheckpointingInterval(1000L);
     FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     assertThat(options.getShutdownSourcesAfterIdleMs(), is(Long.MAX_VALUE));
@@ -393,7 +414,7 @@ public class FlinkExecutionEnvironmentsTest {
   @Test
   public void shouldAcceptExplicitlySetIdleSourcesFlagWithoutCheckpointing() {
     // Checkpointing disabled, accept flag
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setShutdownSourcesAfterIdleMs(42L);
     FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     assertThat(options.getShutdownSourcesAfterIdleMs(), is(42L));
@@ -402,7 +423,7 @@ public class FlinkExecutionEnvironmentsTest {
   @Test
   public void shouldAcceptExplicitlySetIdleSourcesFlagWithCheckpointing() {
     // Checkpointing enable, still accept flag
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setCheckpointingInterval(1000L);
     options.setShutdownSourcesAfterIdleMs(42L);
     FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
@@ -412,7 +433,7 @@ public class FlinkExecutionEnvironmentsTest {
   @Test
   public void shouldSetSavepointRestoreForRemoteStreaming() {
     String path = "fakePath";
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("host:80");
     options.setSavepointPath(path);
@@ -426,7 +447,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldFailOnUnknownStateBackend() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setStreaming(true);
     options.setStateBackend("unknown");
     options.setStateBackendStoragePath("/path");
@@ -439,7 +460,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldFailOnNoStoragePathProvided() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setStreaming(true);
     options.setStateBackend("unknown");
 
@@ -451,7 +472,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldCreateFileSystemStateBackend() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setStreaming(true);
     options.setStateBackend("fileSystem");
     options.setStateBackendStoragePath(temporaryFolder.getRoot().toURI().toString());
@@ -464,7 +485,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldCreateRocksDbStateBackend() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setStreaming(true);
     options.setStateBackend("rocksDB");
     options.setStateBackendStoragePath(temporaryFolder.getRoot().toURI().toString());

@@ -156,7 +156,7 @@ public class FlinkStreamingPipelineTranslatorTest {
   private JobGraph getStatefulParDoAfterCombineChainingJobGraph(boolean stablePartitioning) {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     final FlinkStreamingPipelineTranslator translator =
-        new FlinkStreamingPipelineTranslator(env, PipelineOptionsFactory.create());
+        new FlinkStreamingPipelineTranslator(env, PipelineOptionsFactory.create(), true);
     final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     pipelineOptions.setRunner(FlinkRunner.class);
     final Pipeline pipeline = Pipeline.create(pipelineOptions);
@@ -188,7 +188,7 @@ public class FlinkStreamingPipelineTranslatorTest {
   private JobGraph getStatefulParDoAfterGroupByKeyChainingJobGraph(boolean stablePartitioning) {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     final FlinkStreamingPipelineTranslator translator =
-        new FlinkStreamingPipelineTranslator(env, PipelineOptionsFactory.create());
+        new FlinkStreamingPipelineTranslator(env, PipelineOptionsFactory.create(), true);
     final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     pipelineOptions.setRunner(FlinkRunner.class);
     final Pipeline pipeline = Pipeline.create(pipelineOptions);
