@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * Configuration for reading from BigQuery.
  *
- * <p>This class is meant to be used with {@link BigQuerySchemaTransformReadProvider}.
+ * <p>This class is meant to be used with {@link BigQueryReadSchemaTransformProvider}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -39,17 +39,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 })
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class BigQuerySchemaTransformReadConfiguration {
+public abstract class BigQueryReadSchemaTransformConfiguration {
 
-  /** Instantiates a {@link BigQuerySchemaTransformReadConfiguration.Builder}. */
+  /** Instantiates a {@link BigQueryReadSchemaTransformConfiguration.Builder}. */
   public static Builder builder() {
-    return new AutoValue_BigQuerySchemaTransformReadConfiguration.Builder();
+    return new AutoValue_BigQueryReadSchemaTransformConfiguration.Builder();
   }
 
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQuerySchemaTransformReadConfiguration> TYPE_DESCRIPTOR =
-      TypeDescriptor.of(BigQuerySchemaTransformReadConfiguration.class);
-  private static final SerializableFunction<BigQuerySchemaTransformReadConfiguration, Row>
+  private static final TypeDescriptor<BigQueryReadSchemaTransformConfiguration> TYPE_DESCRIPTOR =
+      TypeDescriptor.of(BigQueryReadSchemaTransformConfiguration.class);
+  private static final SerializableFunction<BigQueryReadSchemaTransformConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   /** Serializes configuration to a {@link Row}. */
@@ -94,7 +94,7 @@ public abstract class BigQuerySchemaTransformReadConfiguration {
     /** Enables BigQuery's Standard SQL dialect when reading from a query. */
     public abstract Builder setUseStandardSql(Boolean value);
 
-    /** Builds the {@link BigQuerySchemaTransformReadConfiguration} configuration. */
-    public abstract BigQuerySchemaTransformReadConfiguration build();
+    /** Builds the {@link BigQueryReadSchemaTransformConfiguration} configuration. */
+    public abstract BigQueryReadSchemaTransformConfiguration build();
   }
 }

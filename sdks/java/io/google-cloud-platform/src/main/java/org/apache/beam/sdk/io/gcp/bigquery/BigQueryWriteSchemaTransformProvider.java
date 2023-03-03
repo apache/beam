@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -45,7 +47,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery write jobs configured
- * using {@link BigQuerySchemaTransformWriteConfiguration}.
+ * using {@link BigQueryWriteSchemaTransformConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -56,28 +58,29 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 })
 @Internal
 @Experimental(Kind.SCHEMAS)
-public class BigQuerySchemaTransformWriteProvider
-    extends TypedSchemaTransformProvider<BigQuerySchemaTransformWriteConfiguration> {
+@AutoService(SchemaTransformProvider.class)
+public class BigQueryWriteSchemaTransformProvider
+    extends TypedSchemaTransformProvider<BigQueryWriteSchemaTransformConfiguration> {
 
-  private static final String API = "bigquery";
+  private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:bigquery_write:v1";
   static final String INPUT_TAG = "INPUT";
 
   /** Returns the expected class of the configuration. */
   @Override
-  protected Class<BigQuerySchemaTransformWriteConfiguration> configurationClass() {
-    return BigQuerySchemaTransformWriteConfiguration.class;
+  protected Class<BigQueryWriteSchemaTransformConfiguration> configurationClass() {
+    return BigQueryWriteSchemaTransformConfiguration.class;
   }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQuerySchemaTransformWriteConfiguration configuration) {
+  protected SchemaTransform from(BigQueryWriteSchemaTransformConfiguration configuration) {
     return new BigQueryWriteSchemaTransform(configuration);
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return String.format("%s:write", API);
+    return IDENTIFIER;
   }
 
   /**
@@ -100,12 +103,12 @@ public class BigQuerySchemaTransformWriteProvider
 
   /**
    * A {@link SchemaTransform} that performs {@link BigQueryIO.Write}s based on a {@link
-   * BigQuerySchemaTransformWriteConfiguration}.
+   * BigQueryWriteSchemaTransformConfiguration}.
    */
   private static class BigQueryWriteSchemaTransform implements SchemaTransform {
-    private final BigQuerySchemaTransformWriteConfiguration configuration;
+    private final BigQueryWriteSchemaTransformConfiguration configuration;
 
-    BigQueryWriteSchemaTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
+    BigQueryWriteSchemaTransform(BigQueryWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
@@ -121,17 +124,17 @@ public class BigQuerySchemaTransformWriteProvider
 
   /**
    * An implementation of {@link PTransform} for BigQuery write jobs configured using {@link
-   * BigQuerySchemaTransformWriteConfiguration}.
+   * BigQueryWriteSchemaTransformConfiguration}.
    */
   static class PCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
 
-    private final BigQuerySchemaTransformWriteConfiguration configuration;
+    private final BigQueryWriteSchemaTransformConfiguration configuration;
 
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
+    PCollectionRowTupleTransform(BigQueryWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
