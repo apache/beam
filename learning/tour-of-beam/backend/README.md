@@ -124,6 +124,7 @@ done
 3. Set environment variables:
 - TOB_MOCK: set to 1 to deliver mock responses from samples/api
 - DATASTORE_PROJECT_ID: Google Cloud PROJECT_ID
+- DATASTORE_NAMESPACE: Datastore namespace to use
 - GOOGLE_PROJECT_ID: Google Cloud PROJECT_ID (consumed by Firebase Admin SDK)
 - GOOGLE_APPLICATION_CREDENTIALS: path to json auth key
 - TOB_LEARNING_ROOT: path the content tree root
