@@ -272,7 +272,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       Schema inputSchema = inputRows.getSchema();
       WriteResult result =
           inputRows
-              .apply("element-count", ParDo.of(new ElementCounterFn("element-counter")))
+              .apply(
+                  "element-count", ParDo.of(new ElementCounterFn("BigQuery-write-element-counter")))
               .setRowSchema(inputSchema)
               .apply(write);
 
@@ -298,7 +299,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       PCollection<Row> errorOutput =
           errorRows
-              .apply("error-count", ParDo.of(new ElementCounterFn("error-counter")))
+              .apply("error-count", ParDo.of(new ElementCounterFn("BigQuery-write-error-counter")))
               .setRowSchema(errorSchema);
 
       return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorOutput);
