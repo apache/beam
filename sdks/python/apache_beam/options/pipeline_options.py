@@ -1463,7 +1463,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15']
+  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15', '1.16']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -1535,9 +1535,8 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--spark_version',
         default='3',
-        choices=['3', '2'],
-        help='Spark major version to use. '
-        'Note, Spark 2 support is deprecated')
+        choices=['3'],
+        help='Spark major version to use.')
 
 
 class TestOptions(PipelineOptions):

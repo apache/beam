@@ -1,6 +1,6 @@
 {
   "name": "apache-beam",
-  "version": "2.45.0-SNAPSHOT",
+  "version": "2.47.0-SNAPSHOT",
   "devDependencies": {
     "@google-cloud/bigquery": "^5.12.0",
     "@types/mocha": "^9.0.0",
@@ -28,6 +28,7 @@
     "pretest": "npm run build",
     "test": "mocha dist/test dist/test/docs",
     "codecovTest": "istanbul cover mocha dist/test --reporter lcovonly -- -R spec && codecov",
+    "predocs": "npm run build",
     "docs": "typedoc",
     "prettier": "prettier --write src/",
     "prettier-check": "prettier --check src/",

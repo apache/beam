@@ -69,6 +69,10 @@ class CommonJobProperties {
         extensions {
           wipeOutWorkspace()
           relativeTargetDirectory(checkoutDir)
+          cloneOptions {
+            shallow()
+            noTags()
+          }
           if (!allowRemotePoll) {
             disableRemotePoll()
           }

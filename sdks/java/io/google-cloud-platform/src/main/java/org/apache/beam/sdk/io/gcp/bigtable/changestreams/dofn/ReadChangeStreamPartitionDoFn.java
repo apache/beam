@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 // Allows for readChangeStreamPartitionAction setup
 @SuppressWarnings({"initialization.fields.uninitialized", "UnusedVariable"})
+@Internal
 @UnboundedPerElement
 public class ReadChangeStreamPartitionDoFn
     extends DoFn<PartitionRecord, KV<ByteString, ChangeStreamMutation>> {

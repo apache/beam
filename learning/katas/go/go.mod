@@ -20,7 +20,6 @@ go 1.14
 require (
 	github.com/apache/beam/sdks/v2 v2.40.0
 	github.com/google/go-cmp v0.5.8
-	golang.org/x/net v0.0.0-20220812174116-3211cb980234 // indirect
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
+	golang.org/x/net v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20220815135757-37a418bb8959 // indirect
 )

@@ -67,6 +67,10 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("fetchSize", FieldType.INT16)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
         .addNullableField("autosharding", FieldType.BOOLEAN)
+        // Partitioning support. If you specify a partition column we will use that instead of
+        // readQuery
+        .addNullableField("partitionColumn", FieldType.STRING)
+        .addNullableField("partitions", FieldType.INT16)
         .build();
   }
 
@@ -110,26 +114,49 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PBegin, PCollection<Row>>() {
         @Override
         public PCollection<Row> expand(PBegin input) {
-          @Nullable String readQuery = config.getString("readQuery");
-          if (readQuery == null) {
-            readQuery = String.format("SELECT * FROM %s", location);
-          }
 
-          JdbcIO.ReadRows readRows =
-              JdbcIO.readRows()
-                  .withDataSourceConfiguration(getDataSourceConfiguration())
-                  .withQuery(readQuery);
+          // If we define a partition column we need to go a different route
+          @Nullable
+          String partitionColumn =
+              config.getSchema().hasField("partitionColumn")
+                  ? config.getString("partitionColumn")
+                  : null;
+          if (partitionColumn != null) {
+            JdbcIO.ReadWithPartitions<Row, ?> readRows =
+                JdbcIO.<Row>readWithPartitions()
+                    .withDataSourceConfiguration(getDataSourceConfiguration())
+                    .withTable(location)
+                    .withPartitionColumn(partitionColumn)
+                    .withRowOutput();
+            @Nullable Short partitions = config.getInt16("partitions");
+            if (partitions != null) {
+              readRows = readRows.withNumPartitions(partitions);
+            }
+            return input.apply(readRows);
+          } else {
 
-          @Nullable Short fetchSize = config.getInt16("fetchSize");
-          if (fetchSize != null) {
-            readRows = readRows.withFetchSize(fetchSize);
-          }
+            @Nullable String readQuery = config.getString("readQuery");
+            if (readQuery == null) {
+              readQuery = String.format("SELECT * FROM %s", location);
+            }
 
-          @Nullable Boolean outputParallelization = config.getBoolean("outputParallelization");
-          if (outputParallelization != null) {
-            readRows = readRows.withOutputParallelization(outputParallelization);
+            JdbcIO.ReadRows readRows =
+                JdbcIO.readRows()
+                    .withDataSourceConfiguration(getDataSourceConfiguration())
+                    .withQuery(readQuery);
+
+            @Nullable Short fetchSize = config.getInt16("fetchSize");
+            if (fetchSize != null) {
+              readRows = readRows.withFetchSize(fetchSize);
+            }
+
+            @Nullable Boolean outputParallelization = config.getBoolean("outputParallelization");
+            if (outputParallelization != null) {
+              readRows = readRows.withOutputParallelization(outputParallelization);
+            }
+
+            return input.apply(readRows);
           }
-          return input.apply(readRows);
         }
       };
     }

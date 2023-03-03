@@ -39,7 +39,6 @@ import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -82,6 +81,7 @@ import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.storage.StorageLevel;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -343,8 +343,15 @@ public final class TransformTranslator {
                 vaCoder,
                 windowingStrategy);
 
+        FlatMapFunction<
+                SparkCombineFn.WindowedAccumulator<KV<K, InputT>, InputT, AccumT, ?>,
+                WindowedValue<OutputT>>
+            flatMapFunction =
+                windowedAccumulator ->
+                    sparkCombineFn.extractOutputStream(windowedAccumulator).iterator();
+
         JavaPairRDD<K, WindowedValue<OutputT>> kwvs =
-            SparkCompat.extractOutput(accumulatePerKey, sparkCombineFn);
+            accumulatePerKey.flatMapValues(flatMapFunction);
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             kwvs.map(new TranslationUtils.FromPairFunction())
                 .map(new TranslationUtils.ToKVByWindowInValueFunction<>());

@@ -19,7 +19,7 @@ version: '3'
 
 services:
   azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:3.20.1
+    image: mcr.microsoft.com/azure-storage/azurite:3.22.0
     command:
       - "azurite-blob"
       - "--blobHost"

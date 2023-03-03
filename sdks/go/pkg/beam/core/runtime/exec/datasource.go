@@ -196,7 +196,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		// Check if there's a continuation and return residuals
 		// Needs to be done immeadiately after processing to not lose the element.
 		if c := n.getProcessContinuation(); c != nil {
-			cp, err := n.checkpointThis(c)
+			cp, err := n.checkpointThis(ctx, c)
 			if err != nil {
 				// Errors during checkpointing should fail a bundle.
 				return nil, err
@@ -422,7 +422,7 @@ type Checkpoint struct {
 // splittable or has not returned a resuming continuation, the function returns an empty
 // SplitResult, a negative resumption time, and a false boolean to indicate that no split
 // occurred.
-func (n *DataSource) checkpointThis(pc sdf.ProcessContinuation) (*Checkpoint, error) {
+func (n *DataSource) checkpointThis(ctx context.Context, pc sdf.ProcessContinuation) (*Checkpoint, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
@@ -435,7 +435,7 @@ func (n *DataSource) checkpointThis(pc sdf.ProcessContinuation) (*Checkpoint, er
 	ow := su.GetOutputWatermark()
 
 	// Checkpointing is functionally a split at fraction 0.0
-	rs, err := su.Checkpoint()
+	rs, err := su.Checkpoint(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +530,7 @@ func (n *DataSource) Split(ctx context.Context, splits []int64, frac float64, bu
 	// Get the output watermark before splitting to avoid accidentally overestimating
 	ow := su.GetOutputWatermark()
 	// Otherwise, perform a sub-element split.
-	ps, rs, err := su.Split(fr)
+	ps, rs, err := su.Split(ctx, fr)
 	if err != nil {
 		return SplitResult{}, err
 	}
