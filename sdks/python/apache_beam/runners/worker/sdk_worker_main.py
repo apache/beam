@@ -334,6 +334,7 @@ def _load_main_session(semi_persistent_directory):
       # This can happen if the worker fails to download the main session.
       # Raise a fatal error and crash this worker, forcing a restart.
       if os.path.getsize(session_file) == 0:
+        # Potenitally transient error, unclear if still happening.
         raise LoadMainSessionException(
             'Session file found, but empty: %s. Functions defined in __main__ '
             '(interactive session) will almost certainly fail.' %
