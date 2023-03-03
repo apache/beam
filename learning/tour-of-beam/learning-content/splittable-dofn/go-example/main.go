@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-//   beam-playground:
+// beam-playground:
 //   name: splittable-dofn
 //   description: Splittable DoFn example
 //   multifile: false
