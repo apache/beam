@@ -34,7 +34,7 @@ class StaticCheckpointGenerator implements CheckpointGenerator {
   private final KinesisReaderCheckpoint checkpoint;
 
   public StaticCheckpointGenerator(KinesisReaderCheckpoint checkpoint) {
-    checkNotNull(checkpoint, "checkpoint");
+    checkNotNull(checkpoint);
     List<ShardCheckpoint> result = new ArrayList<>();
     checkpoint.forEach(result::add);
     this.checkpoint = new KinesisReaderCheckpoint(result);

@@ -255,10 +255,8 @@ class EFOShardSubscribersPool {
     if (noRecordsEvent.event.continuationSequenceNumber() == null
         && noRecordsEvent.event.hasChildShards()) {
       LOG.info("Processing re-shard signal {}", noRecordsEvent.event);
-      // FIXME pls use for loop
       List<String> successorShardsIds = computeSuccessorShardsIds(noRecordsEvent);
-      successorShardsIds.forEach(
-          successorShardId -> {
+      for (String successorShardId : successorShardsIds) {
             ShardCheckpoint newCheckpoint =
                 new ShardCheckpoint(
                     read.getStreamName(),
@@ -266,7 +264,8 @@ class EFOShardSubscribersPool {
                     new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
             state.computeIfAbsent(
                 successorShardId, id -> new ShardState(initShardSubscriber(newCheckpoint)));
-          });
+          }
+
       state.remove(noRecordsEvent.shardId);
     } else {
       shardState.update(noRecordsEvent);
@@ -295,14 +294,15 @@ class EFOShardSubscribersPool {
       if (childShard.parentShards().contains(records.shardId)) {
         if (childShard.parentShards().size() > 1) {
           // This is the case of merging two shards into one.
-          // when there are 2 parent shards, we only pick it up if
-          // its max shard equals to sender shard ID
-          String maxId = childShard.parentShards().stream().max(String::compareTo).get();
-          if (records.shardId.equals(maxId)) {
+          // When there are 2 parent shards, we only pick it up if
+          // its max shard equals to sender shard ID.
+          String maxParentId = childShard.parentShards().stream().max(String::compareTo).get();
+          if (records.shardId.equals(maxParentId)) {
             successorShardsIds.add(childShard.shardId());
           }
         } else {
-          // This is the case when shard is split
+          // This is the case when shard is split - we must add both
+          // and start subscriptions for them.
           successorShardsIds.add(childShard.shardId());
         }
       }
@@ -352,12 +352,11 @@ class EFOShardSubscribersPool {
     return new KinesisReaderCheckpoint(checkpoints);
   }
 
-  public boolean stop() {
+  public void stop() {
     LOG.info("Stopping pool {}", poolId);
     isStopped = true;
     state.forEach((shardId, st) -> st.subscriber.cancel());
     scheduler.shutdownNow(); // immediately discard all scheduled tasks
-    return true; // FIXME nothing to return here
   }
 
   /**
