@@ -414,6 +414,9 @@ class _MetricsCollector:
     # Model load latency in milliseconds.
     self._load_model_latency_milli_secs = beam.metrics.Metrics.distribution(
         namespace, prefix + 'load_model_latency_milli_secs')
+    # Number of times a model is loaded into memory.
+    self._num_model_loads = beam.metrics.Metrics.counter(
+        namespace, prefix + 'num_model_loads')
 
     # Metrics cache
     self._load_model_latency_milli_secs_cache = None
@@ -473,6 +476,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
       self._model_handler.update_model_path(side_input_model_path)
+      self._metrics_collector._num_model_loads.inc(1)
       model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
