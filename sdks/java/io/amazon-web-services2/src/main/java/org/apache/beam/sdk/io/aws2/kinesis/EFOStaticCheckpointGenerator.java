@@ -15,25 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
+package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisReaderCheckpoint;
-import org.apache.beam.sdk.io.aws2.kinesis.ShardCheckpoint;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 
 /**
- * Always returns injected checkpoint. Used when stored checkpoint exists. TODO: add validation to
- * check if stored checkpoint is "rotten"?
+ * Always returns injected checkpoint. Used when stored checkpoint exists.
+ *
+ * <p>TODO: add validation to check if stored checkpoint is "rotten"
+ *
+ * <p>TODO: refactor - it repeats {@link StaticCheckpointGenerator} but with {@link
+ * KinesisAsyncClient}
  */
-class StaticCheckpointGenerator implements CheckpointGenerator {
+class EFOStaticCheckpointGenerator implements EFOCheckpointGenerator {
 
   private final KinesisReaderCheckpoint checkpoint;
 
-  public StaticCheckpointGenerator(KinesisReaderCheckpoint checkpoint) {
+  EFOStaticCheckpointGenerator(KinesisReaderCheckpoint checkpoint) {
     checkNotNull(checkpoint);
     List<ShardCheckpoint> result = new ArrayList<>();
     checkpoint.forEach(result::add);

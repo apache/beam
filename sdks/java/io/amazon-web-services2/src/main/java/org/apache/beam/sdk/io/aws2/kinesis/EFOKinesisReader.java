@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
+package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
@@ -23,34 +23,29 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisReaderCheckpoint;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
-import org.apache.beam.sdk.io.aws2.kinesis.TransientKinesisException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 
-@SuppressWarnings("unused")
-public class KinesisEnhancedFanOutReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
+class EFOKinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(KinesisEnhancedFanOutReader.class);
+  private static final Logger LOG = LoggerFactory.getLogger(EFOKinesisReader.class);
 
   private final KinesisIO.Read spec;
   private final KinesisAsyncClient kinesis;
-  private final KinesisEnhancedFanOutSource source;
-  private final CheckpointGenerator checkpointGenerator;
+  private final EFOKinesisSource source;
+  private final EFOCheckpointGenerator checkpointGenerator;
 
   private @Nullable KinesisRecord currentRecord = null;
   private @Nullable EFOShardSubscribersPool shardSubscribersPool = null;
 
-  KinesisEnhancedFanOutReader(
+  EFOKinesisReader(
       KinesisIO.Read spec,
       KinesisAsyncClient kinesis,
-      CheckpointGenerator checkpointGenerator,
-      KinesisEnhancedFanOutSource source) {
+      EFOCheckpointGenerator checkpointGenerator,
+      EFOKinesisSource source) {
     this.spec = checkArgumentNotNull(spec);
     this.kinesis = checkArgumentNotNull(kinesis);
     this.checkpointGenerator = checkArgumentNotNull(checkpointGenerator);

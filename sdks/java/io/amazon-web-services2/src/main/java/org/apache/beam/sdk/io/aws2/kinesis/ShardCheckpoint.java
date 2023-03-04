@@ -47,7 +47,7 @@ import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class ShardCheckpoint implements Serializable {
+class ShardCheckpoint implements Serializable {
   /**
    * Extracted from org.apache.beam:beam-sdks-java-io-amazon-web-services2:2.46.0.
    *
@@ -206,14 +206,14 @@ public class ShardCheckpoint implements Serializable {
     return shardId;
   }
 
-  public StartingPosition toStartingPosition() {
+  StartingPosition toStartingPosition() {
     StartingPosition.Builder builder = StartingPosition.builder().type(shardIteratorType);
     switch (shardIteratorType) {
       case AT_TIMESTAMP:
-        return builder.timestamp(TimeUtil.toJava(checkNotNull(timestamp, "timestamp"))).build();
+        return builder.timestamp(TimeUtil.toJava(checkNotNull(timestamp))).build();
       case AT_SEQUENCE_NUMBER:
       case AFTER_SEQUENCE_NUMBER:
-        return builder.sequenceNumber(checkNotNull(sequenceNumber, "sequenceNumber")).build();
+        return builder.sequenceNumber(checkNotNull(sequenceNumber)).build();
 
       default:
         return builder.build();

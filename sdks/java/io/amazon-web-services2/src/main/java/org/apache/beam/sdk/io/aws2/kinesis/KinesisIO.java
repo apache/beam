@@ -52,7 +52,6 @@ import org.apache.beam.sdk.io.aws2.common.ObjectPool;
 import org.apache.beam.sdk.io.aws2.common.ObjectPool.ClientPool;
 import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisPartitioner.ExplicitPartitioner;
-import org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.KinesisEnhancedFanOutSource;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -281,13 +280,13 @@ public final class KinesisIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<KinesisRecord>> {
     private static final long serialVersionUID = 1L;
 
-    public abstract @Nullable String getStreamName();
+    abstract @Nullable String getStreamName();
 
-    public abstract @Nullable String getConsumerArn();
+    abstract @Nullable String getConsumerArn();
 
-    public abstract @Nullable StartingPoint getInitialPosition();
+    abstract @Nullable StartingPoint getInitialPosition();
 
-    public abstract @Nullable ClientConfiguration getClientConfiguration();
+    abstract @Nullable ClientConfiguration getClientConfiguration();
 
     abstract @Nullable AWSClientsProvider getAWSClientsProvider();
 
@@ -554,8 +553,7 @@ public final class KinesisIO {
       } else {
         AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
         ClientBuilderFactory builderFactory = ClientBuilderFactory.getFactory(awsOptions);
-        unbounded =
-            org.apache.beam.sdk.io.Read.from(new KinesisEnhancedFanOutSource(this, builderFactory));
+        unbounded = org.apache.beam.sdk.io.Read.from(new EFOKinesisSource(this, builderFactory));
       }
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;

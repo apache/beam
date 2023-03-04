@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
+package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -23,12 +23,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kinesis.model.ChildShard;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
 
-class RecordsGenerators {
+class EFORecordsGenerators {
   static Record createRecord(Integer sequenceNumber) {
     return Record.builder()
         .partitionKey("foo")
@@ -75,11 +76,37 @@ class RecordsGenerators {
         .build();
   }
 
+  static SubscribeToShardEvent[] eventsWithRecords(int startSeqNumber, int numRecords) {
+    List<SubscribeToShardEvent> events = new ArrayList<>();
+    for (int i = startSeqNumber; i < startSeqNumber + numRecords; i++) {
+      events.add(eventWithRecords(ImmutableList.of(createRecord(i))));
+    }
+    return events.toArray(new SubscribeToShardEvent[0]);
+  }
+
   static SubscribeToShardEvent eventWithRecords(int startSeqNumber, int numRecords) {
     List<Record> records = new ArrayList<>();
     for (int i = startSeqNumber; i < startSeqNumber + numRecords; i++) {
       records.add(createRecord(i));
     }
     return eventWithRecords(records);
+  }
+
+  static SubscribeToShardEvent eventWithAggRecords(int startSeqNumber, int numRecords) {
+    RecordsAggregator aggregator = new RecordsAggregator(1024, new org.joda.time.Instant());
+    for (int i = startSeqNumber; i < startSeqNumber + numRecords; i++) {
+      aggregator.addRecord("foo", null, String.valueOf(i).getBytes(UTF_8));
+    }
+
+    return SubscribeToShardEvent.builder()
+        .continuationSequenceNumber(String.valueOf(startSeqNumber))
+        .records(
+            Record.builder()
+                .approximateArrivalTimestamp(Instant.now())
+                .sequenceNumber(String.valueOf(startSeqNumber))
+                .partitionKey("foo")
+                .data(SdkBytes.fromByteArray(aggregator.toBytes()))
+                .build())
+        .build();
   }
 }

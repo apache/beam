@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 import software.amazon.awssdk.core.exception.SdkException;
 
 /** A transient exception thrown by Kinesis. */
-public class TransientKinesisException extends Exception {
+class TransientKinesisException extends Exception {
 
   public TransientKinesisException(String s, SdkException e) {
     super(s, e);

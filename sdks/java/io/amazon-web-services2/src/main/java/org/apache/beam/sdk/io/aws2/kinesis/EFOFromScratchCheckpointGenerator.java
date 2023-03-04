@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
+package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
@@ -24,40 +24,53 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
-import org.apache.beam.sdk.io.aws2.kinesis.ShardCheckpoint;
-import org.apache.beam.sdk.io.aws2.kinesis.StartingPoint;
-import org.apache.beam.sdk.io.aws2.kinesis.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
-import software.amazon.awssdk.services.kinesis.model.Shard;
 import software.amazon.awssdk.services.kinesis.model.ShardFilter;
 import software.amazon.awssdk.services.kinesis.model.ShardFilterType;
 
-public class ShardsListingUtils {
-  private static final Logger LOG = LoggerFactory.getLogger(ShardsListingUtils.class);
-  private static final int shardListingTimeoutMs = 10_000;
+/**
+ * Creates {@link KinesisReaderCheckpoint} when stored checkpoint is not available or outdated. List
+ * of shards is obtained from Kinesis. The result of calling {@link #generate(KinesisAsyncClient)}
+ * will depend on {@link StartingPoint} provided.
+ *
+ * <p>TODO: refactor - it repeats {@link DynamicCheckpointGenerator} but with {@link
+ * KinesisAsyncClient}
+ */
+class EFOFromScratchCheckpointGenerator implements EFOCheckpointGenerator {
 
-  /*
-   * Note that it returns inactive shards as well, and this is intentional:
-   * If consumer starts with AT_TIMESTAMP or at TRIM_HORIZON,
-   * we need to consume all backlog from closed shards too.
-   */
-  static List<Shard> getShardsAfterParent(
-      String parentShardId, KinesisIO.Read readSpec, KinesisAsyncClient kinesis) {
-    ListShardsRequest listShardsRequest =
-        ListShardsRequest.builder()
-            .streamName(checkArgumentNotNull(readSpec.getStreamName()))
-            .shardFilter(buildSingleShardFilter(parentShardId))
-            .build();
+  private static final Logger LOG =
+      LoggerFactory.getLogger(EFOFromScratchCheckpointGenerator.class);
+  private final KinesisIO.Read readSpec;
 
-    return tryListingShards(listShardsRequest, kinesis).shards();
+  EFOFromScratchCheckpointGenerator(KinesisIO.Read readSpec) {
+    this.readSpec = readSpec;
   }
 
-  static List<ShardCheckpoint> generateShardsCheckpoints(
+  @Override
+  public KinesisReaderCheckpoint generate(KinesisAsyncClient kinesis)
+      throws TransientKinesisException {
+    List<ShardCheckpoint> streamShards = generateShardsCheckpoints(readSpec, kinesis);
+
+    LOG.info(
+        "Creating a checkpoint with following shards {} at {}",
+        streamShards,
+        readSpec.getInitialPosition());
+    return new KinesisReaderCheckpoint(streamShards);
+  }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "Checkpoint generator for %s: %s", readSpec.getStreamName(), readSpec.getInitialPosition());
+  }
+
+  private static final int shardListingTimeoutMs = 10_000;
+
+  private static List<ShardCheckpoint> generateShardsCheckpoints(
       KinesisIO.Read readSpec, KinesisAsyncClient kinesis) {
     ListShardsRequest listShardsRequest =
         ListShardsRequest.builder()
@@ -79,9 +92,10 @@ public class ShardsListingUtils {
   private static ListShardsResponse tryListingShards(
       ListShardsRequest listShardsRequest, KinesisAsyncClient kinesis) {
     try {
+      LOG.info("Starting ListShardsRequest {}", listShardsRequest);
       ListShardsResponse response =
           kinesis.listShards(listShardsRequest).get(shardListingTimeoutMs, TimeUnit.MILLISECONDS);
-      LOG.debug("Shards found = {}", response.shards());
+      LOG.info("Shards found = {}", response.shards());
       return response;
     } catch (ExecutionException | InterruptedException | TimeoutException e) {
       LOG.error("Error listing shards {}", e.getMessage());
@@ -107,9 +121,5 @@ public class ShardsListingUtils {
       default:
         throw new IllegalStateException(String.format("Invalid config %s", readSpec));
     }
-  }
-
-  private static ShardFilter buildSingleShardFilter(String shardId) {
-    return ShardFilter.builder().shardId(shardId).type(ShardFilterType.AFTER_SHARD_ID).build();
   }
 }

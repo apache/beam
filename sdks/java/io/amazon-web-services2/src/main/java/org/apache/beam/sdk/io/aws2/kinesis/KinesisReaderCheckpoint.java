@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * covered by {@link KinesisReaderCheckpoint} may or may not be equal to set of all shards present
  * in the stream. This class is immutable.
  */
-public class KinesisReaderCheckpoint
+class KinesisReaderCheckpoint
     implements Iterable<ShardCheckpoint>, UnboundedSource.CheckpointMark, Serializable {
 
   /**

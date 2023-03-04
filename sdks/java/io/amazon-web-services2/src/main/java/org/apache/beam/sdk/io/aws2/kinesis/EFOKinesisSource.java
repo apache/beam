@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
+package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
@@ -26,45 +26,40 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisReaderCheckpoint;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecordCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.kinesis.common.KinesisClientUtil;
 
-public class KinesisEnhancedFanOutSource
-    extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoint> {
+class EFOKinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoint> {
 
   private final KinesisIO.Read readSpec;
-  private final CheckpointGenerator checkpointGenerator;
+  private final EFOCheckpointGenerator checkpointGenerator;
   private final ClientBuilderFactory builderFactory;
 
-  public KinesisEnhancedFanOutSource(KinesisIO.Read readSpec, ClientBuilderFactory builderFactory) {
-    this(readSpec, builderFactory, new FromScratchCheckpointGenerator(readSpec));
+  EFOKinesisSource(KinesisIO.Read readSpec, ClientBuilderFactory builderFactory) {
+    this(readSpec, builderFactory, new EFOFromScratchCheckpointGenerator(readSpec));
   }
 
-  private KinesisEnhancedFanOutSource(
+  private EFOKinesisSource(
       KinesisIO.Read readSpec,
       ClientBuilderFactory builderFactory,
-      CheckpointGenerator initialCheckpoint) {
+      EFOCheckpointGenerator initialCheckpoint) {
     this.readSpec = checkArgumentNotNull(readSpec);
     this.builderFactory = builderFactory;
     this.checkpointGenerator = checkArgumentNotNull(initialCheckpoint);
   }
 
   @Override
-  public List<KinesisEnhancedFanOutSource> split(int desiredNumSplits, PipelineOptions options)
+  public List<EFOKinesisSource> split(int desiredNumSplits, PipelineOptions options)
       throws Exception {
     try (KinesisAsyncClient kinesis = createClient()) {
       KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(kinesis);
-      List<KinesisEnhancedFanOutSource> sources = newArrayList();
+      List<EFOKinesisSource> sources = newArrayList();
       for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
         sources.add(
-            new KinesisEnhancedFanOutSource(
-                readSpec, builderFactory, new StaticCheckpointGenerator(partition)));
+            new EFOKinesisSource(
+                readSpec, builderFactory, new EFOStaticCheckpointGenerator(partition)));
       }
       return sources;
     }
@@ -74,13 +69,13 @@ public class KinesisEnhancedFanOutSource
   public UnboundedReader<KinesisRecord> createReader(
       PipelineOptions options, @Nullable KinesisReaderCheckpoint checkpointMark)
       throws IOException {
-    CheckpointGenerator checkpointGenerator = this.checkpointGenerator;
+    EFOCheckpointGenerator checkpointGenerator = this.checkpointGenerator;
     if (checkpointMark != null) {
-      checkpointGenerator = new StaticCheckpointGenerator(checkpointMark);
+      checkpointGenerator = new EFOStaticCheckpointGenerator(checkpointMark);
     }
 
-    KinesisEnhancedFanOutSource source = new KinesisEnhancedFanOutSource(readSpec, builderFactory);
-    return new KinesisEnhancedFanOutReader(readSpec, createClient(), checkpointGenerator, source);
+    EFOKinesisSource source = new EFOKinesisSource(readSpec, builderFactory);
+    return new EFOKinesisReader(readSpec, createClient(), checkpointGenerator, source);
   }
 
   @Override

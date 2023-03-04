@@ -15,20 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
+package org.apache.beam.sdk.io.aws2.kinesis;
 
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
+import static org.apache.beam.sdk.io.aws2.kinesis.EFORecordsGenerators.eventWithOutRecords;
+
+import java.util.ArrayList;
+import java.util.List;
+import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
+import software.amazon.awssdk.services.kinesis.model.ShardFilter;
+import software.amazon.awssdk.services.kinesis.model.ShardFilterType;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.awssdk.services.kinesis.model.StartingPosition;
+import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
-class Helpers {
-  public static KinesisIO.Read createReadSpec() {
+class EFOHelpers {
+  static KinesisIO.Read createReadSpec() {
     return KinesisIO.read()
         .withStreamName("stream-01")
         .withConsumerArn("consumer-01")
         .withInitialPositionInStream(InitialPositionInStream.LATEST);
+  }
+
+  static ListShardsRequest listLatest() {
+    return ListShardsRequest.builder()
+        .streamName("stream-01")
+        .shardFilter(ShardFilter.builder().type(ShardFilterType.AT_LATEST).build())
+        .build();
   }
 
   static SubscribeToShardRequest subscribeLatest(String shardId) {
@@ -57,5 +71,14 @@ class Helpers {
         .shardId(shardId)
         .startingPosition(StartingPosition.builder().type(ShardIteratorType.TRIM_HORIZON).build())
         .build();
+  }
+
+  static SubscribeToShardEvent[] eventsWithoutRecords(int numEvent, int startingSeqNum) {
+    List<SubscribeToShardEvent> events = new ArrayList<>();
+    for (int i = 0; i < numEvent; i++) {
+      events.add(eventWithOutRecords(startingSeqNum));
+      startingSeqNum++;
+    }
+    return events.toArray(new SubscribeToShardEvent[numEvent]);
   }
 }

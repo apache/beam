@@ -15,10 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.aws2.kinesis;
 
-/** Transforms for reading from Amazon Kinesis via Enhanced Fan-Out feature. */
-@Experimental(Kind.SOURCE_SINK)
-package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
+import java.io.Serializable;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+/**
+ * Used to generate checkpoint object on demand. How exactly the checkpoint is generated is up to
+ * implementing class.
+ *
+ * <p>TODO: refactor - it repeats {@link CheckpointGenerator} but with {@link KinesisAsyncClient}
+ */
+interface EFOCheckpointGenerator extends Serializable {
+  KinesisReaderCheckpoint generate(KinesisAsyncClient kinesis) throws TransientKinesisException;
+}

@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
+package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.EFOShardSubscriber.State.INITIALIZED;
-import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.EFOShardSubscriber.State.PAUSED;
-import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.EFOShardSubscriber.State.RUNNING;
-import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.EFOShardSubscriber.State.STOPPED;
+import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.INITIALIZED;
+import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.PAUSED;
+import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.RUNNING;
+import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.STOPPED;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -32,7 +32,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.reactivestreams.Subscriber;
@@ -64,11 +64,13 @@ class EFOShardSubscriber {
 
   // Shard id of this subscriber
   private final String shardId;
-  // Read configuration
+
   private final KinesisAsyncClient kinesis;
 
-  /** Internal subscriber state */
+  /** Internal subscriber state. */
   private volatile State state = INITIALIZED;
+
+  private @Nullable StartingPosition initialPosition = null;
 
   /**
    * Completes once this shard subscriber is done, either normally (stopped or shard is completely
@@ -134,23 +136,46 @@ class EFOShardSubscriber {
     this.reSubscriptionHandler =
         (Void unused, Throwable error) -> {
           eventsSubscriber.cancel();
+
           if (error != null && !isRetryable(error)) {
             done.completeExceptionally(error);
-          } else if (state != STOPPED) {
+            return;
+          }
+
+          if (error != null && isRetryable(error) && state != STOPPED) {
             String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
-            // FIXME must resubscribe from initial starting position if retryable error &&
-            // lastContinuationSequenceNumber == null
-            if (lastContinuationSequenceNumber == null) {
-              done.complete(null); // completely consumed this shard, done
-            } else if (error != null && inFlight.get() == IN_FLIGHT_LIMIT) {
+            if (inFlight.get() == IN_FLIGHT_LIMIT) {
               state = PAUSED;
             } else {
-              int delayMs = (error != null) ? onErrorCoolDownMs : 0;
-              pool.delayedTask(() -> internalReSubscribe(lastContinuationSequenceNumber), delayMs);
+              if (lastContinuationSequenceNumber != null) {
+                pool.delayedTask(
+                    () -> internalReSubscribe(lastContinuationSequenceNumber), onErrorCoolDownMs);
+              } else {
+                Preconditions.checkArgumentNotNull(initialPosition);
+                pool.delayedTask(() -> internalSubscribe(initialPosition), onErrorCoolDownMs);
+              }
             }
-          } else {
-            done.complete(null);
+            return;
           }
+
+          String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
+
+          // happy-path re-subscribe, subscription was complete by the SDK after 5 mins
+          if (error == null && state != STOPPED && lastContinuationSequenceNumber != null) {
+            pool.delayedTask(() -> internalReSubscribe(lastContinuationSequenceNumber), 0);
+            return;
+          }
+
+          // shard is fully consumed - re-shard happened
+          if (error == null && state != STOPPED && lastContinuationSequenceNumber == null) {
+            done.complete(null);
+            return;
+          }
+
+          LOG.warn(
+              "Unknown case which is likely a bug: state={} seqnum={}",
+              state,
+              lastContinuationSequenceNumber);
         };
   }
 
@@ -166,9 +191,9 @@ class EFOShardSubscriber {
    * @return {@link #done} to signal completion of this subscriber, normally (stopped or shard is
    *     completely consumed) or exceptionally due to a non retryable error.
    */
-  @SuppressWarnings("FutureReturnValueIgnored")
   CompletableFuture<Void> subscribe(StartingPosition position) {
     checkState(state == INITIALIZED, "Subscriber was already started");
+    initialPosition = position;
     return internalSubscribe(position);
   }
 

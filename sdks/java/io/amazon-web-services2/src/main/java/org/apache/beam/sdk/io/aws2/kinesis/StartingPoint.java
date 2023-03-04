@@ -33,7 +33,7 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class StartingPoint implements Serializable {
+class StartingPoint implements Serializable {
 
   private final InitialPositionInStream position;
   private final Instant timestamp;
