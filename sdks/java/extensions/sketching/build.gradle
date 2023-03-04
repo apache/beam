@@ -32,6 +32,7 @@ dependencies {
   implementation "com.tdunning:t-digest:$tdigest_version"
   testImplementation library.java.avro
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

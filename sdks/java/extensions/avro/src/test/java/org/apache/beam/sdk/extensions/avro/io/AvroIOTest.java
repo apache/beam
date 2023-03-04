@@ -118,6 +118,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -191,6 +192,8 @@ public class AvroIOTest implements Serializable {
     @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
     @Rule public transient ExpectedException expectedException = ExpectedException.none();
+
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
     @Parameterized.Parameters(name = "{index}: {0}")
     public static Collection<Object[]> params() {

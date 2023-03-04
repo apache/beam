@@ -95,6 +95,12 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
                   .add(
+                      new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpaceUtc"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampValueZoneRegion"))
+                  .add(
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
                           .setName("timestampValueSpaceMilli"))
@@ -133,6 +139,12 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
+                  .add(
+                      new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpaceUtc"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampValueZoneRegion"))
                   .add(
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
@@ -295,22 +307,36 @@ public class TableRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacemilli")
+                  .setName("timestampvaluespaceutc")
                   .setNumber(22)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacetrailingzero")
+                  .setName("timestampvaluezoneregion")
                   .setNumber(23)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("datetimevaluespace")
+                  .setName("timestampvaluespacemilli")
                   .setNumber(24)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluespacetrailingzero")
+                  .setNumber(25)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(26)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -460,22 +486,36 @@ public class TableRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacemilli")
+                  .setName("timestampvaluespaceutc")
                   .setNumber(21)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacetrailingzero")
+                  .setName("timestampvaluezoneregion")
                   .setNumber(22)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("datetimevaluespace")
+                  .setName("timestampvaluespacemilli")
                   .setNumber(23)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluespacetrailingzero")
+                  .setNumber(24)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(25)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -621,6 +661,8 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
                   new TableCell().setV("1234567"),
                   new TableCell().setV("1970-01-01 00:00:00.000343"),
+                  new TableCell().setV("1970-01-01 00:00:00.000343 UTC"),
+                  new TableCell().setV("1970-01-01 00:00:00.123456 America/New_York"),
                   new TableCell().setV("1970-01-01 00:00:00.123"),
                   new TableCell().setV("1970-01-01 00:00:00.1230"),
                   new TableCell().setV("2019-08-16 00:52:07.123456")));
@@ -650,6 +692,8 @@ public class TableRowToStorageApiProtoTest {
           .set("timestampValueLong", "1234567")
           // UTC time for backwards compatibility
           .set("timestampValueSpace", "1970-01-01 00:00:00.000343")
+          .set("timestampValueSpaceUtc", "1970-01-01 00:00:00.000343 UTC")
+          .set("timestampValueZoneRegion", "1970-01-01 00:00:00.123456 America/New_York")
           .set("timestampValueSpaceMilli", "1970-01-01 00:00:00.123")
           .set("timestampValueSpaceTrailingZero", "1970-01-01 00:00:00.1230")
           .set("datetimeValueSpace", "2019-08-16 00:52:07.123456");
@@ -686,6 +730,8 @@ public class TableRowToStorageApiProtoTest {
           .put("timestampisovalue", -3600000000L)
           .put("timestampvaluelong", 1234567000L)
           .put("timestampvaluespace", 343L)
+          .put("timestampvaluespaceutc", 343L)
+          .put("timestampvaluezoneregion", 18000123456L)
           .put("timestampvaluespacemilli", 123000L)
           .put("timestampvaluespacetrailingzero", 123000L)
           .put("datetimevaluespace", 142111881387172416L)
@@ -722,6 +768,8 @@ public class TableRowToStorageApiProtoTest {
           .put("timestampisovalue", -3600000000L)
           .put("timestampvaluelong", 1234567000L)
           .put("timestampvaluespace", 343L)
+          .put("timestampvaluespaceutc", 343L)
+          .put("timestampvaluezoneregion", 18000123456L)
           .put("timestampvaluespacemilli", 123000L)
           .put("timestampvaluespacetrailingzero", 123000L)
           .put("datetimevaluespace", 142111881387172416L)
