@@ -26,7 +26,7 @@ do
 done
 
 # This block sets default values for several environment variables to run CD script.
-export LOG_PATH=${LOG_PATH-"/dev/null 2>&1"}
+export LOG_PATH=${LOG_PATH-"/dev/null"}
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
 export STEP=${STEP-"CD"}
 export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
