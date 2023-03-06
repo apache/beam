@@ -738,7 +738,7 @@ class GoogleCloudOptions(PipelineOptions):
         default=None,
         help='Labels to be applied to this Dataflow job. '
         'Labels are key value pairs separated by = '
-        '(e.g. --label key=value).')
+        '(e.g. --label key=value). or --labels key1=value,key2=value2')
     parser.add_argument(
         '--update',
         default=False,
