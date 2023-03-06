@@ -228,7 +228,7 @@ func collectSdk(infopath string) (trees []tob.ContentTree, err error) {
 	if err != nil {
 		return trees, err
 	}
-	for sdk := range sdks {
+	for _, sdk := range sdks {
 		tree := tob.ContentTree{}
 		tree.Sdk = sdk
 		log.Printf("Found Sdk %v metadata at %v\n", sdk, infopath)
@@ -274,22 +274,26 @@ func CollectLearningTree(rootpath string) (trees []tob.ContentTree, err error) {
 }
 
 func isSupportedSdk(sdks []string, ctx *sdkContext, infopath string) (ok bool, err error) {
-	sdk, err := getSupportedSdk(sdks, infopath)
+	supportedSdks, err := getSupportedSdk(sdks, infopath)
 	if err != nil {
 		return false, err
 	}
-	_, ok = sdk[ctx.sdk]
-	return
+	for _, supportedSdk := range supportedSdks {
+		if ctx.sdk == supportedSdk {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
-func getSupportedSdk(sdk []string, infopath string) (map[tob.Sdk]bool, error) {
-	sdks := make(map[tob.Sdk]bool)
+func getSupportedSdk(sdk []string, infopath string) ([]tob.Sdk, error) {
+	sdks := make([]tob.Sdk, 0)
 	for _, s := range sdk {
 		curSdk := tob.ParseSdk(s)
 		if curSdk == tob.SDK_UNDEFINED {
 			return sdks, fmt.Errorf("unknown SDK at %v", infopath)
 		}
-		sdks[curSdk] = true
+		sdks = append(sdks, curSdk)
 	}
 
 	return sdks, nil
