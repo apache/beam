@@ -97,7 +97,7 @@ for sdk in $SDKS
 do
   export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
   python3 ci_cd.py \
-  --datastore-project ${PROJECT_ID} \
+  --datastore-project test-tob-deploy-001 \
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
   --origin ${ORIGIN} \
