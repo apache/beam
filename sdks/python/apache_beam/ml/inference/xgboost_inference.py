@@ -135,8 +135,7 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    # pylint: disable=useless-parent-delegation
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):  # pylint: disable=useless-parent-delegation
     """ Implementation of the ModelHandler interface for XGBoost
     using numpy arrays as input.
 
@@ -196,8 +195,7 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    # pylint: disable=useless-parent-delegation
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):  # pylint: disable=useless-parent-delegation
     """Implementation of the ModelHandler interface for XGBoost
     using pandas dataframes as input.
 
@@ -257,8 +255,7 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    # pylint: disable=useless-parent-delegation
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):  # pylint: disable=useless-parent-delegation
     """ Implementation of the ModelHandler interface for XGBoost
     using scipy matrices as input.
 
@@ -290,7 +287,7 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
     Args:
       batch: A sequence of examples as Scipy sparse matrices.
        The dimensions must match the dimensions of the data
-        used to train the model.
+       used to train the model.
       model: XGBoost booster or XBGModel (sklearn interface). Must implement
         predict(X). Where the parameter X is a SciPy sparse matrix.
       inference_args: Any additional arguments for an inference.
@@ -318,17 +315,16 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    # pylint: disable=useless-parent-delegation
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):  # pylint: disable=useless-parent-delegation
     """Implementation of the ModelHandler interface for XGBoost
     using datatable dataframes as input.
 
     Example Usage::
 
-    pcoll | RunInference(
-                XGBoostModelHandlerDatatable(
-                    model_class="XGBoost Model Class",
-                    model_state="my_model_state.json")))
+        pcoll | RunInference(
+                    XGBoostModelHandlerDatatable(
+                        model_class="XGBoost Model Class",
+                        model_state="my_model_state.json")))
 
     Args:
       model_class: class of the XGBoost model that defines the model
@@ -365,6 +361,6 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
   def get_num_bytes(self, batch: Sequence[datatable.Frame]) -> int:
     """
     Returns:
-        The number of bytes of data for a batch of Numpy arrays.
+      The number of bytes of data for a batch.
     """
     return sum(sys.getsizeof(element) for element in batch)
