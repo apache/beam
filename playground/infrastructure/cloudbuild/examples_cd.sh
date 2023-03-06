@@ -27,7 +27,7 @@ done
 
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
 export STEP=${STEP-"CD"}
-export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
+export SUBDIRS=${SUBDIRS-"/learning/katas /examples /sdks"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
 export PROJECT_ID=${PROJECT_ID}
 export SDK_CONFIG=${SDK_CONFIG-"$BEAM_ROOT_DIR/playground/sdks.yaml"}
