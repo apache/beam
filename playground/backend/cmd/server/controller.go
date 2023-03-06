@@ -15,7 +15,6 @@
 package main
 
 import (
-	"beam.apache.org/playground/backend/internal/emulators"
 	"context"
 	"errors"
 
@@ -29,6 +28,7 @@ import (
 	"beam.apache.org/playground/backend/internal/db"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/environment"
 	cerrors "beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/logger"
