@@ -35,7 +35,7 @@ export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
 export BEAM_USE_WEBGRPC=${BEAM_USE_WEBGRPC-"yes"}
 export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-"2"}
 export SDKS=${SDKS-"java python go"}
-export COMMIT=${COMMIT-"HEAD"}z
+export COMMIT=${COMMIT-"HEAD"}
 
 function LogOutput ()
 {
