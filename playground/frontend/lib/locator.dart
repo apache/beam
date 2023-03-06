@@ -35,15 +35,20 @@ Future<void> _initializeRepositories() async {
     for (final sdk in Sdk.known) sdk.id: getRunnerUrl(sdk),
   });
 
+  final codeClient = GrpcCodeClient(
+    url: routerUrl,
+    runnerUrlsById: runnerUrls,
+  );
+
+  GetIt.instance.registerSingleton<CodeClient>(codeClient);
   GetIt.instance.registerSingleton(CodeRepository(
-    client: GrpcCodeClient(
-      url: routerUrl,
-      runnerUrlsById: runnerUrls,
-    ),
+    client: codeClient,
   ));
 
+  final exampleClient = GrpcExampleClient(url: routerUrl);
+  GetIt.instance.registerSingleton<ExampleClient>(exampleClient);
   GetIt.instance.registerSingleton(ExampleRepository(
-    client: GrpcExampleClient(url: routerUrl),
+    client: exampleClient,
   ));
 }
 

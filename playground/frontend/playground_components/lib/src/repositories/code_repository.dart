@@ -35,11 +35,11 @@ const kProcessingStartedText = 'The processing has started\n';
 
 // TODO(alexeyinkin): Rename. This is not a repository but a higher level client.
 class CodeRepository {
-  final CodeClient client;
+  final CodeClient _client;
 
   CodeRepository({
-    required this.client,
-  });
+    required CodeClient client,
+  }) : _client = client;
 
   Stream<RunCodeResult> runCode(RunCodeRequest request) async* {
     try {
@@ -49,7 +49,7 @@ class CodeRepository {
       );
       yield initResult;
 
-      final runCodeResponse = await client.runCode(request);
+      final runCodeResponse = await _client.runCode(request);
       final pipelineUuid = runCodeResponse.pipelineUuid;
 
       yield* _checkPipelineExecution(
@@ -66,7 +66,7 @@ class CodeRepository {
   }
 
   Future<void> cancelExecution(String pipelineUuid) {
-    return client.cancelExecution(pipelineUuid);
+    return _client.cancelExecution(pipelineUuid);
   }
 
   Stream<RunCodeResult> _checkPipelineExecution(
@@ -75,7 +75,7 @@ class CodeRepository {
   }) async* {
     try {
       final statusResponse = await runWithRetry(
-        () => client.checkStatus(pipelineUuid),
+        () => _client.checkStatus(pipelineUuid),
       );
       final result = await _getPipelineResult(
         pipelineUuid,
@@ -111,7 +111,7 @@ class CodeRepository {
 
     switch (status) {
       case RunCodeStatus.compileError:
-        final compileOutput = await client.getCompileOutput(pipelineUuid);
+        final compileOutput = await _client.getCompileOutput(pipelineUuid);
         return RunCodeResult(
           pipelineUuid: pipelineUuid,
           status: status,
@@ -131,7 +131,7 @@ class CodeRepository {
         );
 
       case RunCodeStatus.runError:
-        final output = await client.getRunErrorOutput(pipelineUuid);
+        final output = await _client.getRunErrorOutput(pipelineUuid);
         return RunCodeResult(
           pipelineUuid: pipelineUuid,
           status: status,
@@ -141,7 +141,7 @@ class CodeRepository {
         );
 
       case RunCodeStatus.validationError:
-        final output = await client.getValidationErrorOutput(pipelineUuid);
+        final output = await _client.getValidationErrorOutput(pipelineUuid);
         return RunCodeResult(
           status: status,
           output: output.output,
@@ -150,7 +150,7 @@ class CodeRepository {
         );
 
       case RunCodeStatus.preparationError:
-        final output = await client.getPreparationErrorOutput(pipelineUuid);
+        final output = await _client.getPreparationErrorOutput(pipelineUuid);
         return RunCodeResult(
           status: status,
           output: output.output,
@@ -170,10 +170,10 @@ class CodeRepository {
 
       case RunCodeStatus.executing:
         final responses = await Future.wait([
-          client.getRunOutput(pipelineUuid),
-          client.getLogOutput(pipelineUuid),
+          _client.getRunOutput(pipelineUuid),
+          _client.getLogOutput(pipelineUuid),
           prevGraph.isEmpty
-              ? client.getGraphOutput(pipelineUuid)
+              ? _client.getGraphOutput(pipelineUuid)
               : Future.value(OutputResponse(output: prevGraph)),
         ]);
         final output = responses[0];
@@ -189,11 +189,11 @@ class CodeRepository {
 
       case RunCodeStatus.finished:
         final responses = await Future.wait([
-          client.getRunOutput(pipelineUuid),
-          client.getLogOutput(pipelineUuid),
-          client.getRunErrorOutput(pipelineUuid),
+          _client.getRunOutput(pipelineUuid),
+          _client.getLogOutput(pipelineUuid),
+          _client.getRunErrorOutput(pipelineUuid),
           prevGraph.isEmpty
-              ? client.getGraphOutput(pipelineUuid)
+              ? _client.getGraphOutput(pipelineUuid)
               : Future.value(OutputResponse(output: prevGraph)),
         ]);
         final output = responses[0];

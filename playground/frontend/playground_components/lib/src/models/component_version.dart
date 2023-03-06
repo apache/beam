@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// ignore_for_file: avoid_redundant_argument_values
+
 import '../build_metadata.g.dart' as frontend_build_metadata;
 
 class ComponentVersion {
@@ -32,8 +34,11 @@ class ComponentVersion {
   /// The version of the frontend.
   static final frontend = ComponentVersion(
     buildCommitHash: frontend_build_metadata.buildCommitHash,
-    dateTime: DateTime.fromMillisecondsSinceEpoch(
-      frontend_build_metadata.buildCommitSecondsSinceEpoch * 1000,
-    ),
+    dateTime: frontend_build_metadata.buildCommitSecondsSinceEpoch == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(
+            // ignore: avoid_dynamic_calls
+            frontend_build_metadata.buildCommitSecondsSinceEpoch * 1000,
+          ),
   );
 }

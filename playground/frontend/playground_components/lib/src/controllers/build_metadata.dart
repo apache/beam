@@ -24,8 +24,8 @@ import 'package:get_it/get_it.dart';
 import '../api/v1/api.pbgrpc.dart' show GetMetadataResponse;
 import '../models/component_version.dart';
 import '../models/sdk.dart';
-import '../repositories/code_repository.dart';
-import '../repositories/example_repository.dart';
+import '../repositories/code_client/code_client.dart';
+import '../repositories/example_client/example_client.dart';
 import '../repositories/get_metadata_response_grpc_extension.dart';
 
 /// Obtains versions from the backend.
@@ -44,8 +44,8 @@ class BuildMetadataController extends ChangeNotifier {
   }
 
   Future<void> _loadRouterVersion() async {
-    final repository = GetIt.instance.get<ExampleRepository>();
-    _routerVersionFuture = repository.client.getMetadata();
+    final client = GetIt.instance.get<ExampleClient>();
+    _routerVersionFuture = client.getMetadata();
 
     final metadata = await _routerVersionFuture!;
     _routerVersion = metadata.componentVersion;
@@ -62,8 +62,8 @@ class BuildMetadataController extends ChangeNotifier {
   }
 
   Future<void> _loadRunnerVersion(Sdk sdk) async {
-    final repository = GetIt.instance.get<CodeRepository>();
-    _runnerVersionFutures[sdk] = repository.client.getMetadata(sdk);
+    final client = GetIt.instance.get<CodeClient>();
+    _runnerVersionFutures[sdk] = client.getMetadata(sdk);
 
     final metadata = await _runnerVersionFutures[sdk]!;
     _runnerVersions[sdk] = metadata.componentVersion;

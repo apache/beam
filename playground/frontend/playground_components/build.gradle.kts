@@ -118,15 +118,6 @@ val deleteFilesByRegExp by extra(
   }
 )
 
-tasks.register("generateBuildMetadata") {
-  doLast {
-    exec {
-      executable("sh")
-      args("tools/generate_build_metadata.sh")
-    }
-  }
-}
-
 tasks.register("generateCode") {
   dependsOn("cleanFlutter")
   dependsOn("pubGet")
