@@ -77,7 +77,7 @@ extension WidgetTesterExtension on WidgetTester {
     return context.read<PlaygroundController>();
   }
 
-  Future<void> runShortcut(LogicalKeySet shortcut) async {
+  Future<void> runShortcut(BeamShortcut shortcut) async {
     final list = shortcut.keys.toList();
     for (final key in list) {
       await sendKeyDownEvent(key);

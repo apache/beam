@@ -79,13 +79,14 @@ class ShortcutsModal extends StatelessWidget {
       ),
       actions: [
         ElevatedButton(
-          style: ButtonStyle(
-            elevation: MaterialStateProperty.all<double>(0.0),
-            fixedSize: MaterialStateProperty.all<Size>(
-              const Size(kButtonWidth, kButtonHeight),
+          style: const ButtonStyle(
+            elevation: MaterialStatePropertyAll<double>(0.0),
+            fixedSize: MaterialStatePropertyAll<Size>(
+              Size(kButtonWidth, kButtonHeight),
             ),
-            shape: MaterialStateProperty.all<StadiumBorder>(
-              const StadiumBorder(),
+            padding: MaterialStatePropertyAll(EdgeInsets.only(bottom: 2)),
+            shape: MaterialStatePropertyAll<StadiumBorder>(
+              StadiumBorder(),
             ),
           ),
           onPressed: () => Navigator.of(context).pop(),
