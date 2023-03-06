@@ -36,13 +36,11 @@ class BuildMetadataController extends ChangeNotifier {
   final _runnerVersions = <Sdk, ComponentVersion>{};
   final _runnerVersionFutures = <Sdk, Future<GetMetadataResponse>>{};
 
-  /// Returns the router version and starts loading if it is not started yet.
-  ComponentVersion? get routerVersion {
+  Future<ComponentVersion> getRouterVersion() async {
     if (_routerVersionFuture == null) {
-      unawaited(_loadRouterVersion());
+      await _loadRouterVersion();
     }
-
-    return _routerVersion;
+    return _routerVersion!;
   }
 
   Future<void> _loadRouterVersion() async {
@@ -55,12 +53,12 @@ class BuildMetadataController extends ChangeNotifier {
   }
 
   /// Returns the runner version and starts loading if it is not started yet.
-  ComponentVersion? getRunnerVersion(Sdk sdk) {
+  Future<ComponentVersion> getRunnerVersion(Sdk sdk) async {
     if (!_runnerVersionFutures.containsKey(sdk)) {
-      unawaited(_loadRunnerVersion(sdk));
+      await _loadRunnerVersion(sdk);
     }
 
-    return _runnerVersions[sdk];
+    return _runnerVersions[sdk]!;
   }
 
   Future<void> _loadRunnerVersion(Sdk sdk) async {

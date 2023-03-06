@@ -26,6 +26,44 @@ const _routerNode = 'router';
 Future<Uri> getRouterUrl() => _getBackendUrl(_routerNode);
 Future<Uri> getRunnerUrl(Sdk sdk) => _getBackendUrl(sdk.id);
 
+/// Returns the URL for the backend [node].
+///
+/// Calls [_getBackendUrlOptions] for options.
+///
+/// If only one option exists, returns it.
+/// This ensures fast initialization in production.
+///
+/// If multiple options exist, each of them except the last one is probed
+/// with getMetadata() call. This results in slower initialization for
+/// custom stages but keeps the configuration simple.
+Future<Uri> _getBackendUrl(String node) async {
+  final urls = _getBackendUrlOptions(node);
+
+  if (urls.length == 1) {
+    return urls.first;
+  }
+
+  print('Probing multiple options for $node backend:');
+  urls.forEach(print);
+
+  final lastUrl = urls.removeLast();
+
+  for (final url in urls) {
+    try {
+      final client = GrpcExampleClient(url: url);
+      await client.getMetadata();
+      print('Using $url');
+      return url;
+    } on Exception catch (ex) {
+      print('$url failed');
+      print(ex);
+    }
+  }
+
+  print('Using $lastUrl');
+  return lastUrl;
+}
+
 /// Returns options for backend URLs for [node].
 ///
 /// If an override is given in [backendUrlOverrides], it is the only option.
@@ -72,41 +110,4 @@ List<Uri> _getBackendUrlOptions(String node) {
 /// Whether [url] does not match any pattern in [skipBackendUrls].
 bool _shouldAttemptUrl(String url) {
   return !skipBackendUrls.any((pattern) => pattern.allMatches(url).isNotEmpty);
-}
-
-/// Returns the URL for the backend [node].
-///
-/// Calls [_getBackendUrlOptions] for options.
-///
-/// If only one option exists, returns it.
-/// This ensures fast initialization in production.
-///
-/// If multiple options exist, each of them except the last one is probed
-/// with getMetadata() call. This results in slower initialization for
-/// custom stages but keeps the configuration simple.
-Future<Uri> _getBackendUrl(String node) async {
-  final urls = _getBackendUrlOptions(node);
-
-  if (urls.length == 1) {
-    return urls.first;
-  }
-
-  print('Probing multiple options for $node backend:');
-  urls.forEach(print);
-
-  final lastUrl = urls.removeLast();
-
-  for (final url in urls) {
-    try {
-      final client = GrpcExampleClient(url: url);
-      await client.getMetadata();
-      print('Using $url');
-      return url;
-    } catch (ex) {
-      print('$url failed');
-    }
-  }
-
-  print('Using $lastUrl');
-  return lastUrl;
 }

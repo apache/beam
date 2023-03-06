@@ -28,10 +28,10 @@ cat > "$FILE" << EOF
 // The copy of this file stored in the repository is for development purpose
 // so the project can be started locally.
 // Keep these constants \`null\` in the repository.
-EOF
 
-echo "const buildCommitHash = '$1';" >> "$FILE"
-echo "const buildCommitSecondsSinceEpoch = $2;" >> "$FILE"
+const buildCommitHash = '$1';
+const buildCommitSecondsSinceEpoch = $2;
+EOF
 
 echo "Written $FILE:"
 cat "$FILE"

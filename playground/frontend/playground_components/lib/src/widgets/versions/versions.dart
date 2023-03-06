@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:math';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
@@ -44,24 +46,25 @@ class VersionsWidget extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           //
           _ComponentVersionWidget(
-            ComponentVersion.frontend,
+            Future.value(ComponentVersion.frontend),
             title: 'widgets.versions.titles.frontend'.tr(),
           ),
 
           const SizedBox(height: BeamSizes.size10),
           _ComponentVersionWidget(
-            controller.routerVersion,
+            controller.getRouterVersion(), // ignore: discarded_futures
             title: 'widgets.versions.titles.router'.tr(),
           ),
 
           for (final sdk in sdks) ...[
             const SizedBox(height: BeamSizes.size10),
             _ComponentVersionWidget(
-              controller.getRunnerVersion(sdk),
+              controller.getRunnerVersion(sdk), // ignore: discarded_futures
               title: 'widgets.versions.titles.runner'.tr(
                 namedArgs: {
                   'sdk': sdk.title,
@@ -78,11 +81,11 @@ class VersionsWidget extends StatelessWidget {
 /// A line in [VersionsWidget].
 class _ComponentVersionWidget extends StatelessWidget {
   const _ComponentVersionWidget(
-    this.componentVersion, {
+    this.componentVersionFuture, {
     required this.title,
   });
 
-  final ComponentVersion? componentVersion;
+  final Future<ComponentVersion> componentVersionFuture;
   final String title;
 
   @override
@@ -92,42 +95,61 @@ class _ComponentVersionWidget extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(title),
-        ..._getContent(),
+        _getContent(),
       ],
     );
   }
 
-  List<Widget> _getContent() {
-    if (componentVersion == null) {
-      return const [LoadingIndicator()];
+  Widget _getContent() {
+    return FutureBuilder<ComponentVersion>(
+      future: componentVersionFuture,
+      builder: _getContentWithSnapshot,
+    );
+  }
+
+  Widget _getContentWithSnapshot(
+    BuildContext context,
+    AsyncSnapshot<ComponentVersion> snapshot,
+  ) {
+    final data = snapshot.data;
+
+    if (data == null) {
+      return const LoadingIndicator();
     }
 
-    return [
-      //
-      if (componentVersion?.beamSdkVersion != null)
-        const Text('widgets.versions.beam').tr(
-          namedArgs: {
-            'version': componentVersion!.beamSdkVersion!,
-          },
-        ),
+    final hash = data.buildCommitHash;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        //
+        if (data.beamSdkVersion != null)
+          const Text('widgets.versions.beam').tr(
+            namedArgs: {
+              'version': data.beamSdkVersion!,
+            },
+          ),
 
-      if (componentVersion?.buildCommitHash != null)
-        Link(
-          uri: _commitHashToUri(componentVersion!.buildCommitHash!),
-          builder: (context, followLink) {
-            return TextButton(
-              onPressed: followLink,
-              child: const Text('widgets.versions.commit').tr(
-                namedArgs: {
-                  'hash': componentVersion!.buildCommitHash!
-                      .substring(0, _commitHashLength),
-                  'date': _formatDate(componentVersion!.dateTime!),
-                },
-              ),
-            );
-          },
-        ),
-    ];
+        if (hash != null)
+          Link(
+            uri: _commitHashToUri(data.buildCommitHash!),
+            builder: (context, followLink) {
+              return TextButton(
+                onPressed: followLink,
+                child: const Text('widgets.versions.commit').tr(
+                  namedArgs: {
+                    'hash': hash.substring(
+                      0,
+                      min(_commitHashLength, hash.length),
+                    ),
+                    'date': _formatDate(data.dateTime!),
+                  },
+                ),
+              );
+            },
+          ),
+      ],
+    );
   }
 
   String _formatDate(DateTime dt) {
