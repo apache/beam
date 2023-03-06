@@ -135,7 +135,7 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):  # pylint: disable=useless-parent-delegation
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
     """ Implementation of the ModelHandler interface for XGBoost
     using numpy arrays as input.
 
@@ -154,7 +154,6 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
     """
-    super().__init__(model_class, model_state, inference_fn)
 
   def run_inference(
       self,
@@ -195,7 +194,7 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):  # pylint: disable=useless-parent-delegation
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
     """Implementation of the ModelHandler interface for XGBoost
     using pandas dataframes as input.
 
@@ -214,7 +213,6 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
     """
-    super().__init__(model_class, model_state, inference_fn)
 
   def run_inference(
       self,
@@ -255,7 +253,7 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):  # pylint: disable=useless-parent-delegation
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
     """ Implementation of the ModelHandler interface for XGBoost
     using scipy matrices as input.
 
@@ -274,7 +272,6 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
     """
-    super().__init__(model_class, model_state, inference_fn)
 
   def run_inference(
       self,
@@ -315,7 +312,7 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):  # pylint: disable=useless-parent-delegation
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
     """Implementation of the ModelHandler interface for XGBoost
     using datatable dataframes as input.
 
@@ -334,7 +331,6 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
     """
-    super().__init__(model_class, model_state, inference_fn)
 
   def run_inference(
       self,
