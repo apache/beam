@@ -105,18 +105,6 @@ ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
 apt install python3.8-venv > /dev/null
 pip install -r playground/infrastructure/requirements.txt > /dev/null
 
-export \
-ORIGIN=PG_EXAMPLES \
-STEP=CD \
-SUBDIRS="./learning/katas ./examples ./sdks" \
-GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
-BEAM_ROOT_DIR="../../" \
-SDK_CONFIG="../sdks.yaml" \
-BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
-BEAM_USE_WEBGRPC=yes \
-BEAM_CONCURRENCY=2 \
-sdks=("java" "python" "go")
-
 LogOutput "Running Examples deployment to ${DNS_NAME}"
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
