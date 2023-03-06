@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior.DO_
 import static org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior.ENTER_TRANSFORM;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
-import static org.apache.spark.storage.StorageLevel.MEMORY_ONLY;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -231,7 +230,6 @@ public abstract class PipelineTranslator {
     private final PipelineOptions options;
     private final Supplier<PipelineOptions> optionsSupplier;
     private final StorageLevel storageLevel;
-    private final boolean isMemoryOnly;
 
     private final Set<TranslationResult<?>> leaves;
 
@@ -244,7 +242,6 @@ public abstract class PipelineTranslator {
       this.options = options;
       this.optionsSupplier = new BroadcastOptions(sparkSession, options);
       this.storageLevel = StorageLevel.fromString(options.getStorageLevel());
-      this.isMemoryOnly = storageLevel.equals(MEMORY_ONLY());
       this.encoders = new HashMap<>();
       this.leaves = new HashSet<>();
     }
@@ -294,18 +291,9 @@ public abstract class PipelineTranslator {
       TranslationResult<T> result = getResult(pCollection);
       result.dataset = dataset;
 
-      if (!cache && isMemoryOnly) {
-        result.resetPlanComplexity(); // cached as RDD in memory which breaks linage
-      } else if (cache && result.usages() > 1) {
-        if (isMemoryOnly) {
-          // Cache as RDD in-memory only, this helps to also break linage of complex query plans.
-          LOG.info("Dataset {} will be cached in-memory as RDD for reuse.", result.name);
-          result.dataset = sparkSession.createDataset(dataset.rdd().persist(), dataset.encoder());
-          result.resetPlanComplexity();
-        } else {
-          LOG.info("Dataset {} will be cached for reuse.", result.name);
-          dataset.persist(storageLevel); // use NONE to disable
-        }
+      if (cache && result.usages() > 1) {
+        LOG.info("Dataset {} will be cached for reuse.", result.name);
+        dataset.persist(storageLevel); // use NONE to disable
       }
 
       if (result.estimatePlanComplexity() > PLAN_COMPLEXITY_THRESHOLD) {
