@@ -69,7 +69,6 @@ def default_xgboost_inference_fn(
 
 
 class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
-
   def __init__(
       self,
       model_class: Union[Callable[..., xgboost.Booster],
@@ -89,12 +88,12 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     for details
 
     Args:
-    model_class: class of the XGBoost model that defines the model
-      structure.
-    model_state: path to a json file that contains the model's
-      configuration.
-    inference_fn: the inference function to use during RunInference.
-      default=default_xgboost_inference_fn
+      model_class: class of the XGBoost model that defines the model
+        structure.
+      model_state: path to a json file that contains the model's
+        configuration.
+      inference_fn: the inference function to use during RunInference.
+        default=default_xgboost_inference_fn
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with XGBoost 1.6.0 and 1.7.0
@@ -131,32 +130,31 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
                                                    PredictionResult,
                                                    Union[xgboost.Booster,
                                                          xgboost.XGBModel]]):
-
   def __init__(
       self,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
       inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
+    # pylint: disable=useless-parent-delegation
     """ Implementation of the ModelHandler interface for XGBoost
-      using numpy arrays as input.
+    using numpy arrays as input.
 
-      Example Usage::
+    Example Usage::
 
         pcoll | RunInference(
                     XGBoostModelHandlerNumpy(
                         model_class="XGBoost Model Class",
                         model_state="my_model_state.json")))
 
-      Args:
+    Args:
       model_class: class of the XGBoost model that defines the model
         structure.
       model_state: path to a json file that contains the model's
         configuration.
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
-      """
-    # pylint: disable=useless-parent-delegation
+    """
     super().__init__(model_class, model_state, inference_fn)
 
   def run_inference(
@@ -167,25 +165,25 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of 2d numpy arrays.
 
-        Args:
-          batch: A sequence of examples as 2d numpy arrays. Each
-            row in an array is a single example. The dimensions
-            must match the dimensions of the data used to train
-            the model.
-          model: XGBoost booster or XBGModel (sklearn interface). Must
-            implement predict(X). Where the parameter X is a 2d numpy array.
-          inference_args: Any additional arguments for an inference.
+    Args:
+      batch: A sequence of examples as 2d numpy arrays. Each
+        row in an array is a single example. The dimensions
+        must match the dimensions of the data used to train
+        the model.
+      model: XGBoost booster or XBGModel (sklearn interface). Must
+        implement predict(X). Where the parameter X is a 2d numpy array.
+      inference_args: Any additional arguments for an inference.
 
-        Returns:
-          An Iterable of type PredictionResult.
-        """
+    Returns:
+      An Iterable of type PredictionResult.
+    """
     return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
     """
-        Returns:
-          The number of bytes of data for a batch.
-        """
+    Returns:
+      The number of bytes of data for a batch.
+    """
     return sum(sys.getsizeof(element) for element in batch)
 
 
@@ -193,32 +191,31 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
                                                     PredictionResult,
                                                     Union[xgboost.Booster,
                                                           xgboost.XGBModel]]):
-
   def __init__(
       self,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
       inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    """ Implementation of the ModelHandler interface for XGBoost
-      using pandas dataframes as input.
+    # pylint: disable=useless-parent-delegation
+    """Implementation of the ModelHandler interface for XGBoost
+    using pandas dataframes as input.
 
-      Example Usage::
+    Example Usage::
 
         pcoll | RunInference(
                     XGBoostModelHandlerPandas(
                         model_class="XGBoost Model Class",
                         model_state="my_model_state.json")))
 
-      Args:
+    Args:
       model_class: class of the XGBoost model that defines the model
         structure.
       model_state: path to a json file that contains the model's
         configuration.
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
-      """
-    # pylint: disable=useless-parent-delegation
+    """
     super().__init__(model_class, model_state, inference_fn)
 
   def run_inference(
@@ -229,25 +226,25 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of pandas dataframes.
 
-        Args:
-          batch: A sequence of examples as pandas dataframes. Each
-            row in a dataframe is a single example. The dimensions
-            must match the dimensions of the data used to train
-            the model.
-          model: XGBoost booster or XBGModel (sklearn interface). Must
-            implement predict(X). Where the parameter X is a pandas dataframe.
-          inference_args: Any additional arguments for an inference.
+    Args:
+      batch: A sequence of examples as pandas dataframes. Each
+        row in a dataframe is a single example. The dimensions
+        must match the dimensions of the data used to train
+        the model.
+      model: XGBoost booster or XBGModel (sklearn interface). Must
+        implement predict(X). Where the parameter X is a pandas dataframe.
+      inference_args: Any additional arguments for an inference.
 
-        Returns:
-          An Iterable of type PredictionResult.
-        """
+    Returns:
+      An Iterable of type PredictionResult.
+    """
     return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
-        Returns:
-            The number of bytes of data for a batch of Numpy arrays.
-        """
+    Returns:
+        The number of bytes of data for a batch of Numpy arrays.
+    """
     return sum(df.memory_usage(deep=True).sum() for df in batch)
 
 
@@ -255,32 +252,31 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
                                                    PredictionResult,
                                                    Union[xgboost.Booster,
                                                          xgboost.XGBModel]]):
-
   def __init__(
       self,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
       inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
+    # pylint: disable=useless-parent-delegation
     """ Implementation of the ModelHandler interface for XGBoost
-      using scipy matrices as input.
+    using scipy matrices as input.
 
-      Example Usage::
+    Example Usage::
 
         pcoll | RunInference(
                     XGBoostModelHandlerSciPy(
                         model_class="XGBoost Model Class",
                         model_state="my_model_state.json")))
 
-      Args:
+    Args:
       model_class: class of the XGBoost model that defines the model
         structure.
       model_state: path to a json file that contains the model's
         configuration.
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
-      """
-    # pylint: disable=useless-parent-delegation
+    """
     super().__init__(model_class, model_state, inference_fn)
 
   def run_inference(
@@ -291,24 +287,24 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of SciPy sparse matrices.
 
-        Args:
-          batch: A sequence of examples as Scipy sparse matrices.
-           The dimensions must match the dimensions of the data
-            used to train the model.
-          model: XGBoost booster or XBGModel (sklearn interface). Must implement
-            predict(X). Where the parameter X is a SciPy sparse matrix.
-          inference_args: Any additional arguments for an inference.
+    Args:
+      batch: A sequence of examples as Scipy sparse matrices.
+       The dimensions must match the dimensions of the data
+        used to train the model.
+      model: XGBoost booster or XBGModel (sklearn interface). Must implement
+        predict(X). Where the parameter X is a SciPy sparse matrix.
+      inference_args: Any additional arguments for an inference.
 
-        Returns:
-          An Iterable of type PredictionResult.
-        """
+    Returns:
+      An Iterable of type PredictionResult.
+    """
     return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[scipy.sparse.csr_matrix]) -> int:
     """
-        Returns:
-          The number of bytes of data for a batch.
-        """
+    Returns:
+      The number of bytes of data for a batch.
+    """
     return sum(sys.getsizeof(element) for element in batch)
 
 
@@ -317,32 +313,31 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
                                                        Union[xgboost.Booster,
                                                              xgboost.XGBModel]]
                                    ):
-
   def __init__(
       self,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
       inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    """ Implementation of the ModelHandler interface for XGBoost
-      using datatable dataframes as input.
+    # pylint: disable=useless-parent-delegation
+    """Implementation of the ModelHandler interface for XGBoost
+    using datatable dataframes as input.
 
-      Example Usage::
+    Example Usage::
 
-        pcoll | RunInference(
-                    XGBoostModelHandlerDatatable(
-                        model_class="XGBoost Model Class",
-                        model_state="my_model_state.json")))
+    pcoll | RunInference(
+                XGBoostModelHandlerDatatable(
+                    model_class="XGBoost Model Class",
+                    model_state="my_model_state.json")))
 
-      Args:
+    Args:
       model_class: class of the XGBoost model that defines the model
         structure.
       model_state: path to a json file that contains the model's
         configuration.
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
-      """
-    # pylint: disable=useless-parent-delegation
+    """
     super().__init__(model_class, model_state, inference_fn)
 
   def run_inference(
@@ -353,23 +348,23 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of datatable dataframe.
 
-        Args:
-          batch: A sequence of examples as datatable dataframes. Each
-            row in a dataframe is a single example. The dimensions
-            must match the dimensions of the data used to train
-            the model.
-          model: XGBoost booster or XBGModel (sklearn interface). Must implement
-            predict(X). Where the parameter X is a datatable dataframe.
-          inference_args: Any additional arguments for an inference.
+    Args:
+      batch: A sequence of examples as datatable dataframes. Each
+        row in a dataframe is a single example. The dimensions
+        must match the dimensions of the data used to train
+        the model.
+      model: XGBoost booster or XBGModel (sklearn interface). Must implement
+        predict(X). Where the parameter X is a datatable dataframe.
+      inference_args: Any additional arguments for an inference.
 
-        Returns:
-          An Iterable of type PredictionResult.
-        """
+    Returns:
+      An Iterable of type PredictionResult.
+    """
     return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[datatable.Frame]) -> int:
     """
-        Returns:
-            The number of bytes of data for a batch of Numpy arrays.
-        """
+    Returns:
+        The number of bytes of data for a batch of Numpy arrays.
+    """
     return sum(sys.getsizeof(element) for element in batch)
