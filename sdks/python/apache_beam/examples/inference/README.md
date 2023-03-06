@@ -590,6 +590,12 @@ To use this transform, you need to have sklearn installed. The dataset is loaded
 
 The following function allows you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in an pipeline using the `XGBoostModelHandler`.
 ```
+import xgboost
+
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+
+
 def _train_model(model_state_output_path: str = '/tmp/model.json', seed=999):
   """Function to train an XGBoost Classifier using the sklearn Iris dataset"""
   dataset = load_iris()
