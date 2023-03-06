@@ -34,7 +34,7 @@ on:
         type: string
         required: true
 env:
-  BEAM_VERSION: 2.43.0
+  BEAM_VERSION: 2.44.0
 jobs:
   check_has_examples:
     name: pre-check
@@ -154,11 +154,11 @@ jobs:
              fi
              if [ "$SDK" == "java" ]; then
                 # Java uses a fixed BEAM_VERSION
-                opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
+                opts="$opts -Psdk-tag=$BEAM_VERSION"
              fi
 
              # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
-             # TODO Java SDK doesn't, it uses 2.42.0, fix this
+             # TODO Java SDK doesn't, it uses 2.44.0, fix this
              ./gradlew -i playground:backend:containers:$SDK:docker $opts
 
       - name: Set docker image

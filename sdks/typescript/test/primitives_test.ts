@@ -28,7 +28,7 @@ import {
 import * as combiners from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
-import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
+import { directRunner } from "../src/apache_beam/runners/direct_runner";
 import { loopbackRunner } from "../src/apache_beam/runners/runner";
 import { Pipeline } from "../src/apache_beam/internal/pipeline";
 import { GlobalWindow } from "../src/apache_beam/values";
@@ -54,7 +54,11 @@ before(async function () {
 
 after(() => subprocessCache.stopAll());
 
-export function suite(runner: beam.Runner = new DirectRunner()) {
+function sortValues(kvs) {
+  return { key: kvs.key, value: [...kvs.value].sort() };
+}
+
+export function suite(runner: beam.Runner = directRunner()) {
   describe("testing.assertDeepEqual", function () {
     // The tests below won't catch failures if this doesn't fail.
     it("fails on bad assert", async function () {
@@ -186,7 +190,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
                 (kv, context) => {
                   return {
                     key: kv.key,
-                    value: kv.value,
+                    value: [...kv.value].sort(),
                     window_start_ms: context.window.lookup().start.low,
                     a: context.other,
                   };
@@ -212,6 +216,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
           .apply(beam.create(["apple", "apricot", "banana"]))
           .apply(beam.windowInto(windowings.globalWindows()))
           .apply(beam.groupBy((e: string) => e[0]))
+          .map(sortValues)
           .apply(
             testing.assertDeepEqual([
               { key: "a", value: ["apple", "apricot"] },
@@ -228,6 +233,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
           .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
           .apply(beam.windowInto(windowings.fixedWindows(10)))
           .apply(beam.groupBy((e: number) => ""))
+          .map(sortValues)
           .apply(
             testing.assertDeepEqual([
               { key: "", value: [1, 2, 3, 4, 5] },
@@ -244,7 +250,6 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
       var p = new Pipeline();
       var res = new beam.Root(p).apply(beam.impulse());
 
-      assert.equal(res.type, "pcollection");
       assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
     });
     it("runs a ParDo expansion", function () {
@@ -262,7 +267,6 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
         p.context.getPCollectionCoder(res),
         new GeneralObjectCoder()
       );
-      assert.equal(res.type, "pcollection");
     });
     // why doesn't map need types here?
     it("runs a GroupBy expansion", function () {

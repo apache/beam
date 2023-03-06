@@ -17,20 +17,15 @@
 
 """Script for mass-commenting Jenkins test triggers on a Beam PR."""
 
-import itertools
-import os
-import socket
-import sys
-import time
-import traceback
-import re
 import requests
-from datetime import datetime
+import socket
+import time
 
 # This list can be found by querying the Jenkins API, see BEAM-13951
 COMMENTS_TO_ADD = [
     "Run CommunityMetrics PreCommit",
     "Run Dataflow Runner Nexmark Tests",
+    "Run Dataflow Runner Tpcds Tests",
     "Run Dataflow Runner V2 Java 11 Nexmark Tests",
     "Run Dataflow Runner V2 Java 17 Nexmark Tests",
     "Run Dataflow Runner V2 Nexmark Tests",
@@ -45,6 +40,7 @@ COMMENTS_TO_ADD = [
     "Run Direct ValidatesRunner",
     "Run Flink Runner Nexmark Tests",
     "Run Flink ValidatesRunner Java 11",
+    "Run Flink Runner Tpcds Tests",
     "Run Flink ValidatesRunner",
     "Run Go Flink ValidatesRunner",
     "Run Go PostCommit",
@@ -70,11 +66,44 @@ COMMENTS_TO_ADD = [
     "Run Java examples on Dataflow Java 11",
     "Run Java examples on Dataflow Java 17",
     "Run Java examples on Dataflow with Java 11",
+    "Run Java_Amazon-Web-Services2_IO_Direct PreCommit",
+    "Run Java_Amazon-Web-Services_IO_Direct PreCommit",
+    "Run Java_Amqp_IO_Direct PreCommit",
+    "Run Java_Azure_IO_Direct PreCommit",
+    "Run Java_Cassandra_IO_Direct PreCommit",
+    "Run Java_Cdap_IO_Direct PreCommit",
+    "Run Java_Clickhouse_IO_Direct PreCommit",
+    "Run Java_Debezium_IO_Direct PreCommit",
+    "Run Java_ElasticSearch_IO_Direct PreCommit",
     "Run Java_Examples_Dataflow PreCommit",
     "Run Java_Examples_Dataflow_Java11 PreCommit",
     "Run Java_Examples_Dataflow_Java17 PreCommit",
+    "Run Java_GCP_IO_Direct PreCommit",
+    "Run Java_HBase_IO_Direct PreCommit",
+    "Run Java_HCatalog_IO_Direct PreCommit",
+    "Run Java_Hadoop_IO_Direct PreCommit",
+    "Run Java_InfluxDb_IO_Direct PreCommit",
+    "Run Java_JDBC_IO_Direct PreCommit",
+    "Run Java_Jms_IO_Direct PreCommit",
+    "Run Java_Kafka_IO_Direct PreCommit",
+    "Run Java_Kinesis_IO_Direct PreCommit",
+    "Run Java_Kudu_IO_Direct PreCommit",
+    "Run Java_MongoDb_IO_Direct PreCommit",
+    "Run Java_Mqtt_IO_Direct PreCommit",
+    "Run Java_Neo4j_IO_Direct PreCommit",
     "Run Java_PVR_Flink_Batch PreCommit",
     "Run Java_PVR_Flink_Docker PreCommit",
+    "Run Java_Parquet_IO_Direct PreCommit",
+    "Run Java_Pulsar_IO_Direct PreCommit",
+    "Run Java_RabbitMq_IO_Direct PreCommit",
+    "Run Java_Redis_IO_Direct PreCommit",
+    "Run Java_SingleStore_IO_Direct PreCommit",
+    "Run Java_Snowflake_IO_Direct PreCommit",
+    "Run Java_Solr_IO_Direct PreCommit",
+    "Run Java_Spark3_Versions PreCommit",
+    "Run Java_Splunk_IO_Direct PreCommit",
+    "Run Java_Thrift_IO_Direct PreCommit",
+    "Run Java_Tika_IO_Direct PreCommit",
     "Run Javadoc PostCommit",
     "Run Jpms Dataflow Java 11 PostCommit",
     "Run Jpms Dataflow Java 17 PostCommit",
@@ -82,6 +111,7 @@ COMMENTS_TO_ADD = [
     "Run Jpms Direct Java 17 PostCommit",
     "Run Jpms Flink Java 11 PostCommit",
     "Run Jpms Spark Java 11 PostCommit",
+    "Run Kotlin_Examples PreCommit",
     "Run PortableJar_Flink PostCommit",
     "Run PortableJar_Spark PostCommit",
     "Run Portable_Python PreCommit",
@@ -95,6 +125,7 @@ COMMENTS_TO_ADD = [
     "Run Python Dataflow V2 ValidatesRunner",
     "Run Python Dataflow ValidatesContainer",
     "Run Python Dataflow ValidatesRunner",
+    "Run Python Direct Runner Nexmark Tests",
     "Run Python Examples_Dataflow",
     "Run Python Examples_Direct",
     "Run Python Examples_Flink",
@@ -107,7 +138,13 @@ COMMENTS_TO_ADD = [
     "Run PythonDocs PreCommit",
     "Run PythonFormatter PreCommit",
     "Run PythonLint PreCommit",
+    "Run Python_Coverage PreCommit",
+    "Run Python_Dataframes PreCommit",
+    "Run Python_Examples PreCommit",
+    "Run Python_Integration PreCommit",
     "Run Python_PVR_Flink PreCommit",
+    "Run Python_Runners PreCommit",
+    "Run Python_Transforms PreCommit",
     "Run RAT PreCommit",
     "Run Release Gradle Build",
     "Run SQL PostCommit",
@@ -116,6 +153,7 @@ COMMENTS_TO_ADD = [
     "Run SQL_Java17 PreCommit",
     "Run Samza ValidatesRunner",
     "Run Spark Runner Nexmark Tests",
+    "Run Spark Runner Tpcds Tests",
     "Run Spark StructuredStreaming ValidatesRunner",
     "Run Spark ValidatesRunner Java 11",
     "Run Spark ValidatesRunner",
@@ -126,6 +164,7 @@ COMMENTS_TO_ADD = [
     "Run Whitespace PreCommit",
     "Run XVR_Direct PostCommit",
     "Run XVR_Flink PostCommit",
+    "Run XVR_GoUsingJava_Dataflow PostCommit",
     "Run XVR_JavaUsingPython_Dataflow PostCommit",
     "Run XVR_PythonUsingJavaSQL_Dataflow PostCommit",
     "Run XVR_PythonUsingJava_Dataflow PostCommit",
@@ -184,6 +223,8 @@ def postComments(accessToken, subjectId):
 
   for commentBody in COMMENTS_TO_ADD:
     jsonData = fetchGHData(accessToken, subjectId, commentBody)
+    # Space out comments 30 seconds apart to avoid overwhelming Jenkins
+    time.sleep(30)
     print(jsonData)
 
 

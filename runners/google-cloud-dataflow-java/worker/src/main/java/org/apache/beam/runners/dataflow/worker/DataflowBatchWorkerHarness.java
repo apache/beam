@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
@@ -63,6 +64,12 @@ public class DataflowBatchWorkerHarness {
             DataflowBatchWorkerHarness.class);
     DataflowBatchWorkerHarness batchHarness = new DataflowBatchWorkerHarness(pipelineOptions);
     DataflowWorkerHarnessHelper.configureLogging(pipelineOptions);
+
+    checkArgument(
+        !DataflowRunner.hasExperiment(pipelineOptions, "beam_fn_api"),
+        "%s cannot be main() class with beam_fn_api enabled",
+        DataflowBatchWorkerHarness.class.getSimpleName());
+
     JvmInitializers.runBeforeProcessing(pipelineOptions);
     batchHarness.run();
   }

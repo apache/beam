@@ -24,7 +24,7 @@ PROJECT=apache-beam-testing
 MAX_RESULT=1500
 BQ_DATASETS=`bq --project_id=$PROJECT ls --max_results=$MAX_RESULT | tail -n $MAX_RESULT | sed s/^[[:space:]]*/${PROJECT}:/`
 
-CLEANUP_DATASET_TEMPLATES=(beam_bigquery_samples_ beam_temp_dataset_ FHIR_store_ bq_query_schema_update_options_16 bq_query_to_table_16 bq_read_all_[a-z0-9]*)
+CLEANUP_DATASET_TEMPLATES=(beam_bigquery_samples_ beam_temp_dataset_ FHIR_store_ bq_query_schema_update_options_16 bq_query_to_table_16 '\:(bq_read_all_|combine_per_key_examples|filter_examples|hourly_team_score_|leader_board_|leaderboard_|game_stats_|python_|temp_dataset)[a-z_]*[0-9a-f]{12,}$')
 
 # A grace period of 5 days
 GRACE_PERIOD=$((`date +%s` - 24 * 3600 * 5))

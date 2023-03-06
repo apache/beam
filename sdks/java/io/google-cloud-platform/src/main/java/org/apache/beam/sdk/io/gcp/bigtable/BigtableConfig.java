@@ -21,10 +21,10 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.CredentialOptions;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -37,16 +37,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-abstract class BigtableConfig implements Serializable {
+@Internal
+public abstract class BigtableConfig implements Serializable {
 
   /** Returns the project id being written to. */
-  abstract @Nullable ValueProvider<String> getProjectId();
+  public abstract @Nullable ValueProvider<String> getProjectId();
 
   /** Returns the instance id being written to. */
-  abstract @Nullable ValueProvider<String> getInstanceId();
+  public abstract @Nullable ValueProvider<String> getInstanceId();
 
-  /** Returns the table being read from. */
-  abstract @Nullable ValueProvider<String> getTableId();
+  /** Returns the app profile being read from. */
+  public abstract @Nullable ValueProvider<String> getAppProfileId();
 
   /**
    * Returns the Google Cloud Bigtable instance being written to, and other parameters.
@@ -63,11 +64,20 @@ abstract class BigtableConfig implements Serializable {
   /** Weather validate that table exists before writing. */
   abstract boolean getValidate();
 
-  /** {@link BigtableService} used only for testing. */
-  abstract @Nullable BigtableService getBigtableService();
-
-  /** Bigtable emulator. Used only for testing. */
+  /** Bigtable emulator. */
   abstract @Nullable String getEmulatorHost();
+
+  /** User agent for this job. */
+  abstract @Nullable String getUserAgent();
+
+  /**
+   * Credentials for running the job. Use the default credentials in {@link GcpOptions} if it's not
+   * set.
+   */
+  abstract @Nullable CredentialFactory getCredentialFactory();
+
+  /** Get number of channels. */
+  abstract @Nullable Integer getChannelCount();
 
   abstract Builder toBuilder();
 
@@ -82,73 +92,71 @@ abstract class BigtableConfig implements Serializable {
 
     abstract Builder setInstanceId(ValueProvider<String> instanceId);
 
-    abstract Builder setTableId(ValueProvider<String> tableId);
+    abstract Builder setAppProfileId(ValueProvider<String> appProfileId);
 
-    /** @deprecated will be replaced by bigtable options configurator. */
+    /** @deprecated please set the options directly in BigtableIO. */
     @Deprecated
     abstract Builder setBigtableOptions(BigtableOptions options);
 
     abstract Builder setValidate(boolean validate);
 
+    /** @deprecated please set the options directly in BigtableIO. */
+    @Deprecated
     abstract Builder setBigtableOptionsConfigurator(
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> optionsConfigurator);
 
-    abstract Builder setBigtableService(BigtableService bigtableService);
-
     abstract Builder setEmulatorHost(String emulatorHost);
+
+    abstract Builder setUserAgent(String userAgent);
+
+    abstract Builder setCredentialFactory(CredentialFactory credentialFactory);
+
+    abstract Builder setChannelCount(int count);
 
     abstract BigtableConfig build();
   }
 
-  BigtableConfig withProjectId(ValueProvider<String> projectId) {
+  public BigtableConfig withProjectId(ValueProvider<String> projectId) {
     checkArgument(projectId != null, "Project Id of BigTable can not be null");
     return toBuilder().setProjectId(projectId).build();
   }
 
-  BigtableConfig withInstanceId(ValueProvider<String> instanceId) {
+  public BigtableConfig withInstanceId(ValueProvider<String> instanceId) {
     checkArgument(instanceId != null, "Instance Id of BigTable can not be null");
     return toBuilder().setInstanceId(instanceId).build();
   }
 
-  BigtableConfig withTableId(ValueProvider<String> tableId) {
-    checkArgument(tableId != null, "tableId can not be null");
-    return toBuilder().setTableId(tableId).build();
+  BigtableConfig withAppProfileId(ValueProvider<String> appProfileId) {
+    checkArgument(appProfileId != null, "App profile id can not be null");
+    return toBuilder().setAppProfileId(appProfileId).build();
   }
 
-  /** @deprecated will be replaced by bigtable options configurator. */
+  /** @deprecated please set the options directly in BigtableIO. */
   @Deprecated
-  BigtableConfig withBigtableOptions(BigtableOptions options) {
+  public BigtableConfig withBigtableOptions(BigtableOptions options) {
     checkArgument(options != null, "Bigtable options can not be null");
     return toBuilder().setBigtableOptions(options).build();
   }
 
-  BigtableConfig withBigtableOptionsConfigurator(
+  /** @deprecated please set the options directly in BigtableIO. */
+  @Deprecated
+  public BigtableConfig withBigtableOptionsConfigurator(
       SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
     checkArgument(configurator != null, "configurator can not be null");
     return toBuilder().setBigtableOptionsConfigurator(configurator).build();
   }
 
-  BigtableConfig withValidate(boolean isEnabled) {
+  public BigtableConfig withValidate(boolean isEnabled) {
     return toBuilder().setValidate(isEnabled).build();
   }
 
   @VisibleForTesting
-  BigtableConfig withBigtableService(BigtableService bigtableService) {
-    checkArgument(bigtableService != null, "bigtableService can not be null");
-    return toBuilder().setBigtableService(bigtableService).build();
-  }
-
-  @VisibleForTesting
-  BigtableConfig withEmulator(String emulatorHost) {
+  public BigtableConfig withEmulator(String emulatorHost) {
     checkArgument(emulatorHost != null, "emulatorHost can not be null");
     return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
   void validate() {
-    checkArgument(
-        getTableId() != null && (!getTableId().isAccessible() || !getTableId().get().isEmpty()),
-        "Could not obtain Bigtable table id");
-
     checkArgument(
         (getProjectId() != null
                 && (!getProjectId().isAccessible() || !getProjectId().get().isEmpty()))
@@ -172,8 +180,9 @@ abstract class BigtableConfig implements Serializable {
             DisplayData.item("projectId", getProjectId()).withLabel("Bigtable Project Id"))
         .addIfNotNull(
             DisplayData.item("instanceId", getInstanceId()).withLabel("Bigtable Instance Id"))
-        .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
-        .add(DisplayData.item("withValidation", getValidate()).withLabel("Check is table exists"));
+        .addIfNotNull(
+            DisplayData.item("appProfileId", getAppProfileId())
+                .withLabel("Bigtable App Profile Id"));
 
     if (getBigtableOptions() != null) {
       builder.add(
@@ -182,66 +191,10 @@ abstract class BigtableConfig implements Serializable {
     }
   }
 
-  /**
-   * Helper function that either returns the mock Bigtable service supplied by {@link
-   * #withBigtableService} or creates and returns an implementation that talks to {@code Cloud
-   * Bigtable}.
-   *
-   * <p>Also populate the credentials option from {@link GcpOptions#getGcpCredential()} if the
-   * default credentials are being used on {@link BigtableOptions}.
-   */
-  @VisibleForTesting
-  BigtableService getBigtableService(PipelineOptions pipelineOptions) {
-    if (getBigtableService() != null) {
-      return getBigtableService();
-    }
-
-    BigtableOptions.Builder bigtableOptions = effectiveUserProvidedBigtableOptions();
-
-    bigtableOptions.setUserAgent(pipelineOptions.getUserAgent());
-
-    if (bigtableOptions.build().getCredentialOptions().getCredentialType()
-        == CredentialOptions.CredentialType.DefaultCredentials) {
-      bigtableOptions.setCredentialOptions(
-          CredentialOptions.credential(pipelineOptions.as(GcpOptions.class).getGcpCredential()));
-    }
-
-    return new BigtableServiceImpl(bigtableOptions.build());
-  }
-
   boolean isDataAccessible() {
-    return getTableId().isAccessible()
-        && (getProjectId() == null || getProjectId().isAccessible())
-        && (getInstanceId() == null || getInstanceId().isAccessible());
-  }
-
-  private BigtableOptions.Builder effectiveUserProvidedBigtableOptions() {
-    BigtableOptions.Builder effectiveOptions =
-        getBigtableOptions() != null
-            ? getBigtableOptions().toBuilder()
-            : new BigtableOptions.Builder();
-
-    if (getBigtableOptionsConfigurator() != null) {
-      effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
-    }
-
-    // Default option that should be forced in most cases
-    effectiveOptions.setUseCachedDataPool(true);
-
-    if (getInstanceId() != null) {
-      effectiveOptions.setInstanceId(getInstanceId().get());
-    }
-
-    if (getProjectId() != null) {
-      effectiveOptions.setProjectId(getProjectId().get());
-    }
-
-    if (getEmulatorHost() != null) {
-      effectiveOptions.enableEmulator(getEmulatorHost());
-      effectiveOptions.setUseCachedDataPool(false);
-    }
-
-    return effectiveOptions;
+    return (getProjectId() == null || getProjectId().isAccessible())
+        && (getInstanceId() == null || getInstanceId().isAccessible())
+        && (getAppProfileId() == null || getAppProfileId().isAccessible());
   }
 
   @Override
@@ -249,13 +202,9 @@ abstract class BigtableConfig implements Serializable {
     return MoreObjects.toStringHelper(BigtableConfig.class)
         .add("projectId", getProjectId())
         .add("instanceId", getInstanceId())
-        .add("tableId", getTableId())
-        .add(
-            "bigtableOptionsConfigurator",
-            getBigtableOptionsConfigurator() == null
-                ? null
-                : getBigtableOptionsConfigurator().getClass().getName())
-        .add("options", getBigtableOptions())
+        .add("appProfileId", getAppProfileId())
+        .add("userAgent", getUserAgent())
+        .add("emulator", getEmulatorHost())
         .toString();
   }
 }

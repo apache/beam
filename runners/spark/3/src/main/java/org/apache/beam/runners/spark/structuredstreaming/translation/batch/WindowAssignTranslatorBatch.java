@@ -34,6 +34,10 @@ import org.joda.time.Instant;
 class WindowAssignTranslatorBatch<T>
     extends TransformTranslator<PCollection<T>, PCollection<T>, Window.Assign<T>> {
 
+  WindowAssignTranslatorBatch() {
+    super(0.05f);
+  }
+
   @Override
   public void translate(Window.Assign<T> transform, Context cxt) {
     WindowFn<T, ?> windowFn = transform.getWindowFn();

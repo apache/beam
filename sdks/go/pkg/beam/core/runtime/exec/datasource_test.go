@@ -631,7 +631,7 @@ type TestSplittableUnit struct {
 
 // Split checks the input fraction for correctness, but otherwise always returns
 // a successful split. The split elements are just copies of the original.
-func (n *TestSplittableUnit) Split(f float64) ([]*FullValue, []*FullValue, error) {
+func (n *TestSplittableUnit) Split(_ context.Context, f float64) ([]*FullValue, []*FullValue, error) {
 	if f > 1.0 || f < 0.0 {
 		return nil, nil, errors.Errorf("Error")
 	}
@@ -639,8 +639,8 @@ func (n *TestSplittableUnit) Split(f float64) ([]*FullValue, []*FullValue, error
 }
 
 // Checkpoint routes through the Split() function to satisfy the interface.
-func (n *TestSplittableUnit) Checkpoint() ([]*FullValue, error) {
-	_, r, err := n.Split(0.0)
+func (n *TestSplittableUnit) Checkpoint(ctx context.Context) ([]*FullValue, error) {
+	_, r, err := n.Split(ctx, 0.0)
 	return r, err
 }
 
@@ -876,13 +876,13 @@ func TestSplitHelper(t *testing.T) {
 
 func TestCheckpointing(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
-		cps, err := (&DataSource{}).checkpointThis(nil)
+		cps, err := (&DataSource{}).checkpointThis(context.Background(), nil)
 		if err != nil {
 			t.Fatalf("checkpointThis() = %v, %v", cps, err)
 		}
 	})
 	t.Run("Stop", func(t *testing.T) {
-		cps, err := (&DataSource{}).checkpointThis(sdf.StopProcessing())
+		cps, err := (&DataSource{}).checkpointThis(context.Background(), sdf.StopProcessing())
 		if err != nil {
 			t.Fatalf("checkpointThis() = %v, %v", cps, err)
 		}
@@ -899,7 +899,7 @@ func TestCheckpointing(t *testing.T) {
 				},
 			},
 		}
-		cp, err := root.checkpointThis(sdf.ResumeProcessingIn(time.Second * 13))
+		cp, err := root.checkpointThis(context.Background(), sdf.ResumeProcessingIn(time.Second*13))
 		if err != nil {
 			t.Fatalf("checkpointThis() = %v, %v, want nil", cp, err)
 		}

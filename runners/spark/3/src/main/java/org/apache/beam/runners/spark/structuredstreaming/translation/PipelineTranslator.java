@@ -24,8 +24,10 @@ import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -80,6 +82,12 @@ import scala.reflect.ClassTag;
 public abstract class PipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);
 
+  // Threshold to limit query plan complexity to avoid unnecessary planning overhead. Currently this
+  // is fairly low, Catalyst won't be able to optimize beyond ParDos anyways. Until there's
+  // dedicated support for schema transforms, there's little value of allowing more complex plans at
+  // this point.
+  private static final int PLAN_COMPLEXITY_THRESHOLD = 6;
+
   public static void replaceTransforms(Pipeline pipeline, StreamingOptions options) {
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(options.isStreaming()));
   }
@@ -129,12 +137,22 @@ public abstract class PipelineTranslator {
    */
   private static final class TranslationResult<T> implements EvaluationContext.NamedDataset<T> {
     private final String name;
+    private final float complexityFactor;
+    private float planComplexity = 0;
+
     private @MonotonicNonNull Dataset<WindowedValue<T>> dataset = null;
     private @MonotonicNonNull Broadcast<SideInputValues<T>> sideInputBroadcast = null;
-    private final Set<PTransform<?, ?>> dependentTransforms = new HashSet<>();
 
-    private TranslationResult(PCollection<?> pCol) {
+    // dependent downstream transforms (if empty this is a leaf)
+    private final Set<PTransform<?, ?>> dependentTransforms = new HashSet<>();
+    // upstream dependencies (requires inputs)
+    private final List<TranslationResult<?>> dependencies;
+
+    private TranslationResult(
+        PCollection<?> pCol, float complexityFactor, List<TranslationResult<?>> dependencies) {
       this.name = pCol.getName();
+      this.complexityFactor = complexityFactor;
+      this.dependencies = dependencies;
     }
 
     @Override
@@ -146,13 +164,37 @@ public abstract class PipelineTranslator {
     public @Nullable Dataset<WindowedValue<T>> dataset() {
       return dataset;
     }
+
+    private boolean isLeaf() {
+      return dependentTransforms.isEmpty();
+    }
+
+    private int usages() {
+      return dependentTransforms.size();
+    }
+
+    private void resetPlanComplexity() {
+      planComplexity = 1;
+    }
+
+    /** Estimate complexity of query plan by multiplying complexities of all dependencies. */
+    private float estimatePlanComplexity() {
+      if (planComplexity > 0) {
+        return planComplexity;
+      }
+      float complexity = 1 + complexityFactor;
+      for (TranslationResult<?> result : dependencies) {
+        complexity *= result.estimatePlanComplexity();
+      }
+      return (planComplexity = complexity);
+    }
   }
 
   /** Shared, mutable state during the translation of a pipeline and omitted afterwards. */
   public interface TranslationState extends EncoderProvider {
     <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection);
 
-    boolean isLeave(PCollection<?> pCollection);
+    boolean isLeaf(PCollection<?> pCollection);
 
     <T> void putDataset(
         PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache);
@@ -247,20 +289,28 @@ public abstract class PipelineTranslator {
     public <T> void putDataset(
         PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache) {
       TranslationResult<T> result = getResult(pCollection);
-      if (cache && result.dependentTransforms.size() > 1) {
-        LOG.info("Dataset {} will be cached.", result.name);
-        result.dataset = dataset.persist(storageLevel); // use NONE to disable
-      } else {
-        result.dataset = dataset;
-        if (result.dependentTransforms.isEmpty()) {
-          leaves.add(result);
-        }
+      result.dataset = dataset;
+
+      if (cache && result.usages() > 1) {
+        LOG.info("Dataset {} will be cached for reuse.", result.name);
+        dataset.persist(storageLevel); // use NONE to disable
+      }
+
+      if (result.estimatePlanComplexity() > PLAN_COMPLEXITY_THRESHOLD) {
+        // Break linage of dataset to limit planning overhead for complex query plans.
+        LOG.info("Breaking linage of dataset {} to limit complexity of query plan.", result.name);
+        result.dataset = sparkSession.createDataset(dataset.rdd(), dataset.encoder());
+        result.resetPlanComplexity();
+      }
+
+      if (result.isLeaf()) {
+        leaves.add(result);
       }
     }
 
     @Override
-    public boolean isLeave(PCollection<?> pCollection) {
-      return getResult(pCollection).dependentTransforms.isEmpty();
+    public boolean isLeaf(PCollection<?> pCollection) {
+      return getResult(pCollection).isLeaf();
     }
 
     @Override
@@ -325,14 +375,17 @@ public abstract class PipelineTranslator {
         Node node,
         PTransform<InT, OutT> transform,
         TransformTranslator<InT, OutT, PTransform<InT, OutT>> translator) {
-      // add new translation result for every output of `transform`
-      for (PCollection<?> pOut : node.getOutputs().values()) {
-        results.put(pOut, new TranslationResult<>(pOut));
-      }
-      // track `transform` as downstream dependency for every input
+      // Track `transform` as downstream dependency of every input and reversely
+      // every input is a dependency of each output of `transform`.
+      List<TranslationResult<?>> dependencies = new ArrayList<>(node.getInputs().size());
       for (Map.Entry<TupleTag<?>, PCollection<?>> entry : node.getInputs().entrySet()) {
         TranslationResult<?> input = checkStateNotNull(results.get(entry.getValue()));
+        dependencies.add(input);
         input.dependentTransforms.add(transform);
+      }
+      // add new translation result for every output of `transform`
+      for (PCollection<?> pOut : node.getOutputs().values()) {
+        results.put(pOut, new TranslationResult<>(pOut, translator.complexityFactor, dependencies));
       }
     }
   }

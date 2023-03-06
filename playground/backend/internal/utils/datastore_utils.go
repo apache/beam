@@ -17,7 +17,6 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -25,7 +24,6 @@ import (
 	"cloud.google.com/go/datastore"
 
 	"beam.apache.org/playground/backend/internal/constants"
-	"beam.apache.org/playground/backend/internal/logger"
 )
 
 func GetExampleKey(ctx context.Context, values ...interface{}) *datastore.Key {
@@ -61,15 +59,6 @@ func GetSnippetKey(ctx context.Context, values ...interface{}) *datastore.Key {
 func GetPCObjectKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	id := GetIDWithDelimiter(values...)
 	return getNameKey(ctx, constants.PCObjectKind, id, nil)
-}
-
-func GetExampleID(cloudPath string) (string, error) {
-	cloudPathParams := strings.Split(cloudPath, constants.CloudPathDelimiter)
-	if len(cloudPathParams) < 3 {
-		logger.Error("the wrong cloud path from a client")
-		return "", fmt.Errorf("cloud path doesn't have all options. The minimum size must be 3")
-	}
-	return GetIDWithDelimiter(cloudPathParams[0], cloudPathParams[2]), nil
 }
 
 func GetIDWithDelimiter(values ...interface{}) string {
