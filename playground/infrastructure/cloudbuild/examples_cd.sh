@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This loop reads the arguments passed to the script, parses them, and exports them as environment variables.
 for ARGUMENT in "$@"
 do
    KEY=$(echo $ARGUMENT | cut -f1 -d=)
@@ -24,6 +25,7 @@ do
    export "$KEY"="$VALUE"
 done
 
+# This block sets default values for several environment variables to run CD script.
 export LOG_PATH=${LOG_PATH-"/dev/null"}
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
 export STEP=${STEP-"CD"}
@@ -38,6 +40,7 @@ export SDKS=${SDKS-"java python go"}
 export COMMIT=${COMMIT-"HEAD"}
 export DNS_NAME=${DNS_NAME}
 
+# This function logs the given message to a file and outputs it to the console.
 function LogOutput ()
 {
     echo "$(date --utc '+%D %T') $1" >> $LOG_PATH
@@ -66,11 +69,6 @@ fi
 if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
-
-export STEP=CD
-export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
-export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
-export DNS_NAME=${DNS_NAME}
 
 LogOutput "Installing python and dependencies"
 # Install Python 3 and dependencies
