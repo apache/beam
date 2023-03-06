@@ -86,7 +86,7 @@ pip install --upgrade google-api-python-client > /dev/null
 python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
 apt install python3.8-venv > /dev/null
-pip install -r playground/infrastructure/requirements.txt > /dev/null
+pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null
 
 LogOutput "Running Examples deployment to ${DNS_NAME}"
 
