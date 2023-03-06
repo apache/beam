@@ -27,13 +27,13 @@ done
 
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
 export STEP=${STEP-"CD"}
-export SUBDIRS=${SUBDIRS-"/learning/katas /examples /sdks"}
+export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
 export PROJECT_ID=${PROJECT_ID}
 export SDK_CONFIG=${SDK_CONFIG-"$BEAM_ROOT_DIR/playground/sdks.yaml"}
-export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
+export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"}
 export BEAM_USE_WEBGRPC=${BEAM_USE_WEBGRPC-"yes"}
-export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-"2"}
+export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-2}
 export SDKS=${SDKS-"java python go"}
 export COMMIT=${COMMIT-"HEAD"}
 export DNS_NAME=${DNS_NAME}
@@ -56,7 +56,8 @@ LogOutput "Input variables:
             BEAM_CONCURRENCY=$BEAM_CONCURRENCY
             SDKS=$SDKS
             COMMIT=$COMMIT
-            DNS_NAME=$DNS_NAME"
+            DNS_NAME=$DNS_NAME
+            BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC"
 
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
