@@ -50,7 +50,7 @@ You can view the code on [GitHub](https://github.com/apache/beam/tree/master/sdk
 1. Locally on your machine:
 ```
 python main.py --runner DirectRunner \
-               --model_state_dict_path <local or remote path to state_dict>` \
+               --model_state_dict_path <local or remote path to state_dict> \
                --model_name t5-11b
 ```
 You need to have 45 GB of disk space available to run this example.
