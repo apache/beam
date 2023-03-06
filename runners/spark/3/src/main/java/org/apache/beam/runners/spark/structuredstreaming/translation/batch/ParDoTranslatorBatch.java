@@ -80,7 +80,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
       ClassTag.apply(Tuple2.class);
 
   ParDoTranslatorBatch() {
-    super(0.2f);
+    super(0);
   }
 
   @Override
