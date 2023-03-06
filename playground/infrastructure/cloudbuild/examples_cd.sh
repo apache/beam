@@ -44,7 +44,7 @@ export DNS_NAME=${DNS_NAME}
 function LogOutput ()
 {
     echo "$(date --utc '+%D %T') $1" >> $LOG_PATH
-    # CILOG keyword to simplify search over the global log
+    # CDLOG keyword to simplify search over the global log
     echo "CDLOG $(date --utc '+%D %T') $1"
 }
 
