@@ -26,7 +26,7 @@ do
 done
 
 # This block sets default values for several environment variables to run CD script.
-export LOG_PATH=${LOG_PATH-"/dev/null"}
+export LOG_PATH=${LOG_PATH-"/dev/null 2>&1"}
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
 export STEP=${STEP-"CD"}
 export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
@@ -74,22 +74,23 @@ LogOutput "Installing python and dependencies"
 # Install Python 3 and dependencies
 set -e  # Exit immediately if any command fails
 apt update > /dev/null 2>&1
+export DEBIAN_FRONTEND=noninteractive
+
 apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null 2>&1
-add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1
-apt update > /dev/null 2>&1
-apt install -y python3 python3-distutils python3-pip python3-venv > /dev/null 2>&1
-python3 -m pip install --upgrade pip google-api-python-client > /dev/null 2>&1
-ln -s /usr/bin/python3 /usr/bin/python > /dev/null 2>&1
+add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
+apt install -y python3.8 python3.8-distutils python3-pip > /dev/null 2>&1
+apt install --reinstall python3.8-distutils > /dev/null 2>&1
+pip install --upgrade google-api-python-client > /dev/null 2>&1
+python3.8 -m pip install pip --upgrade > /dev/null 2>&1
+ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
+apt install python3.8-venv > /dev/null 2>&1
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
-# Check if Python and pip commands are available
-if ! command -v python3 &> /dev/null; then
-    echo "Python 3 is not installed or not in PATH. Aborting."
-    exit 1
-fi
-if ! command -v pip &> /dev/null; then
-    echo "pip is not installed or not in PATH. Aborting."
-    exit 1
+if ! dpkg -l apt-transport-https ca-certificates software-properties-common curl unzip apt-utils python3 python3-distutils python3-pip python3-venv google-api-python-client > /dev/null 2>&1 ; then
+  LogOutput "Some packages failed to install.Exiting"
+  exit 1
+else
+  LogOutput "All packages have been installed"
 fi
 
 LogOutput "Running Examples deployment to ${DNS_NAME}"
@@ -98,11 +99,11 @@ LogOutput "Running Examples deployment to ${DNS_NAME}"
 cd $BEAM_ROOT_DIR/playground/infrastructure
 for sdk in $SDKS
 do
-  export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-  python3 ci_cd.py \
-  --datastore-project test-tob-deploy-001 \
-  --step ${STEP} \
-  --sdk SDK_"${sdk^^}" \
-  --origin ${ORIGIN} \
-  --subdirs ${SUBDIRS}
+    export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
+    python3 ci_cd.py \
+    --datastore-project test-tob-deploy-001 \
+    --step ${STEP} \
+    --sdk SDK_"${sdk^^}" \
+    --origin ${ORIGIN} \
+    --subdirs ${SUBDIRS}
 done
