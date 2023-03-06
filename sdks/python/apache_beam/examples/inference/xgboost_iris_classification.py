@@ -23,15 +23,15 @@ from typing import List
 from typing import Tuple
 from typing import Union
 
-import datatable
 import numpy
 import pandas
 import scipy
-import xgboost
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
 import apache_beam as beam
+import datatable
+import xgboost
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
