@@ -100,7 +100,7 @@ firebase login --no-localhost
 
 7. Run the following command from the top-level repository folder ("beam") to deploy the Tour of Beam Frontend infrastructure:
 ```
-./gradlew learning:tour-of-beam:terraform:InitFrontend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name" 
+./gradlew learning:tour-of-beam:terraform:InitFrontend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name"
 ```
 Where:
 - **project_environment** - environment name
