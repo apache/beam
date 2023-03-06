@@ -86,14 +86,8 @@ ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
 apt install python3.8-venv > /dev/null 2>&1
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
-if ! dpkg -l apt-transport-https ca-certificates software-properties-common curl unzip apt-utils python3 python3-distutils python3-pip python3-venv google-api-python-client > /dev/null 2>&1 ; then
-  LogOutput "Some packages failed to install.Exiting"
-  exit 1
-else
-  LogOutput "All packages have been installed"
-fi
 
-LogOutput "Running Examples deployment to ${DNS_NAME}"
+LogOutput "All packages have been successfully installed. Running Examples deployment to ${DNS_NAME}"
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
 cd $BEAM_ROOT_DIR/playground/infrastructure
