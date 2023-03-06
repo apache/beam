@@ -27,6 +27,7 @@ import static org.apache.spark.sql.functions.col;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -113,12 +115,10 @@ class ParDoTranslatorBatch<InputT, OutputT>
     MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
 
     TupleTag<OutputT> mainOut = transform.getMainOutputTag();
-    // Filter out unconsumed PCollections (except mainOut) to potentially avoid the costs of caching
-    // if not really beneficial.
+
+    // Filter out obsolete PCollections to only cache when absolutely necessary
     Map<TupleTag<?>, PCollection<?>> outputs =
-        Maps.filterEntries(
-            cxt.getOutputs(),
-            e -> e != null && (e.getKey().equals(mainOut) || !cxt.isLeaf(e.getValue())));
+        skipObsoleteOutputs(cxt.getOutputs(), mainOut, transform.getAdditionalOutputTags(), cxt);
 
     if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.
@@ -166,6 +166,36 @@ class ParDoTranslatorBatch<InputT, OutputT>
           inputDs.mapPartitions(doFnMapper, cxt.windowedEncoder(output.getCoder()));
 
       cxt.putDataset(output, mainDS);
+    }
+  }
+
+  /**
+   * Filter out obsolete, unused output tags except for {@code mainTag}.
+   *
+   * <p>This can help to avoid unnecessary caching in case of multiple outputs if only {@code
+   * mainTag} is consumed.
+   */
+  private Map<TupleTag<?>, PCollection<?>> skipObsoleteOutputs(
+      Map<TupleTag<?>, PCollection<?>> outputs,
+      TupleTag<?> mainTag,
+      TupleTagList otherTags,
+      Context cxt) {
+    switch (outputs.size()) {
+      case 1:
+        return outputs; // always keep main output
+      case 2:
+        TupleTag<?> otherTag = otherTags.get(0);
+        return cxt.isLeaf(checkStateNotNull(outputs.get(otherTag)))
+            ? Collections.singletonMap(mainTag, checkStateNotNull(outputs.get(mainTag)))
+            : outputs;
+      default:
+        Map<TupleTag<?>, PCollection<?>> filtered = Maps.newHashMapWithExpectedSize(outputs.size());
+        for (Map.Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
+          if (e.getKey().equals(mainTag) || !cxt.isLeaf(e.getValue())) {
+            filtered.put(e.getKey(), e.getValue());
+          }
+        }
+        return filtered;
     }
   }
 
