@@ -73,7 +73,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
         PCollection<? extends InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
 
   ParDoTranslatorBatch() {
-    super(0.2f);
+    super(0);
   }
 
   @Override
