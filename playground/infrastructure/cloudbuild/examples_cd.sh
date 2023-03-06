@@ -94,7 +94,7 @@ LogOutput "Running Examples deployment to ${DNS_NAME}"
 for sdk in $SDKS
 do
   export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-  python3 ci_cd.py \
+  python3 /workspace/beam/playground/infrastructure/ci_cd.py \
   --datastore-project ${PROJECT_ID} \
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
