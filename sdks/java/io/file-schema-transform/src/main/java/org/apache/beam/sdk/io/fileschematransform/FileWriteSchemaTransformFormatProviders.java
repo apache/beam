@@ -23,12 +23,12 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.Providers;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -118,14 +118,14 @@ public final class FileWriteSchemaTransformFormatProviders {
     return write;
   }
 
-  private static Compression getCompression(FileWriteSchemaTransformConfiguration configuration) {
+  static Compression getCompression(FileWriteSchemaTransformConfiguration configuration) {
     // resolves Checker Framework incompatible argument for valueOf parameter
     Optional<String> compression = Optional.ofNullable(configuration.getCompression());
     checkState(compression.isPresent());
     return Compression.valueOf(compression.get());
   }
 
-  private static String getFilenameSuffix(FileWriteSchemaTransformConfiguration configuration) {
+  static String getFilenameSuffix(FileWriteSchemaTransformConfiguration configuration) {
     // resolves Checker Framework incompatible argument for parameter suffix of withSuffix
     Optional<String> suffix = Optional.ofNullable(configuration.getFilenameSuffix());
     checkState(suffix.isPresent());

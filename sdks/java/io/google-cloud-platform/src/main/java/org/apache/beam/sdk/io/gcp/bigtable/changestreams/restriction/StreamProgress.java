@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Position for {@link ReadChangeStreamPartitionProgressTracker}. This represents contains
@@ -29,6 +30,7 @@ import java.io.Serializable;
  * can contain a close stream message which represents an end to the stream and the DoFn needs to
  * stop.
  */
+@Internal
 public class StreamProgress implements Serializable {
   private static final long serialVersionUID = -5384329262726188695L;
 

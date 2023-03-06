@@ -377,7 +377,8 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
   # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-  cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
+  # TODO(https://github.com/apache/beam/issues/25649): Remove intermediate gen_protos step.
+  cd sdks/python && pip install -r build-requirements.txt && python gen_protos.py && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 
@@ -415,6 +416,7 @@ if [[ $confirmation = "y" ]]; then
   ln -s ${RELEASE} pydoc/current
 
   echo "............Copying generated typedoc into beam-site.........."
+  mkdir -p typedoc
   cp -r ${GENERATED_TYPEDOC} typedoc/${RELEASE}
   # Update current symlink to point to the latest release
   unlink typedoc/current | true
@@ -448,4 +450,5 @@ if [[ $confirmation = "y" ]]; then
   echo "Finished v${RELEASE}-RC${RC_NUM} creation."
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}
+  rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}
 fi

@@ -392,7 +392,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     test_pipeline = TestPipeline()
     side_input = (
         test_pipeline | "CreateDummySideInput" >> beam.Create(
-            [base.ModelMetdata(1, 1), base.ModelMetdata(2, 2)])
+            [base.ModelMetadata(1, 1), base.ModelMetadata(2, 2)])
         | "ApplySideInputWindow" >> beam.WindowInto(
             window.GlobalWindows(),
             trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
@@ -440,15 +440,19 @@ class RunInferenceBaseTest(unittest.TestCase):
         first_ts + 22,
     ])
 
-    sample_side_input_elements = [(
-        first_ts + 8,
-        base.ModelMetdata(
-            model_id='fake_model_id_1', model_name='fake_model_id_1')),
-                                  (
-                                      first_ts + 15,
-                                      base.ModelMetdata(
-                                          model_id='fake_model_id_2',
-                                          model_name='fake_model_id_2'))]
+    sample_side_input_elements = [
+        (first_ts + 1, base.ModelMetadata(model_id='', model_name='')),
+        # if model_id is empty string, we use the default model
+        # handler model URI.
+        (
+            first_ts + 8,
+            base.ModelMetadata(
+                model_id='fake_model_id_1', model_name='fake_model_id_1')),
+        (
+            first_ts + 15,
+            base.ModelMetadata(
+                model_id='fake_model_id_2', model_name='fake_model_id_2'))
+    ]
 
     model_handler = FakeModelHandlerReturnsPredictionResult()
 

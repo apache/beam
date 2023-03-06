@@ -28,5 +28,7 @@ abstract class ExampleLoadingDescriptor with EquatableMixin {
 
   final ExampleViewOptions viewOptions;
 
+  ExampleLoadingDescriptor copyWithoutViewOptions();
+
   Map<String, dynamic> toJson();
 }

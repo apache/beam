@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -43,6 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * StreamProgress, it will fail, and stop. The residual will be scheduled on a new DoFn to resume
  * the work from the previous StreamProgress
  */
+@Internal
 public class ReadChangeStreamPartitionProgressTracker
     extends RestrictionTracker<StreamProgress, StreamProgress> {
   StreamProgress streamProgress;

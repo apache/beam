@@ -22,13 +22,8 @@
 // TODO: https://github.com/apache/beam/issues/24200
 
 const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-    'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
-const String kApiJavaClientURL =
-    'https://backend-java-beta-dot-apache-beam-testing.appspot.com';
-const String kApiGoClientURL =
-    'https://backend-go-beta-dot-apache-beam-testing.appspot.com';
-const String kApiPythonClientURL =
-    'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
-const String kApiScioClientURL =
-    'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';
+const String kApiClientURL = 'https://router.play-dev.beam.apache.org';
+const String kApiJavaClientURL = 'https://java.play-dev.beam.apache.org';
+const String kApiGoClientURL = 'https://go.play-dev.beam.apache.org';
+const String kApiPythonClientURL = 'https://python.play-dev.beam.apache.org';
+const String kApiScioClientURL = 'https://scio.play-dev.beam.apache.org';

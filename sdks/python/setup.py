@@ -140,7 +140,7 @@ except ImportError:
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
-  pyarrow_dependency = 'pyarrow>=0.15.1,<10.0.0'
+  pyarrow_dependency = 'pyarrow>=3.0.0,<10.0.0'
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -246,7 +246,9 @@ if __name__ == '__main__':
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.22.0',
-        'numpy>=1.14.3,<1.23.0',
+        # numpy can have breaking changes in minor versions.
+        # Use a strict upper bound.
+        'numpy>=1.14.3,<1.25.0',   # Update build-requirements.txt as well.
         'objsize>=0.6.1,<0.7.0',
         'pymongo>=3.8.0,<4.0.0',
         'proto-plus>=1.7.1,<2',
@@ -268,12 +270,13 @@ if __name__ == '__main__':
               'Sphinx>=1.5.2,<2.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
-              'docutils==0.17.1'
+              'docutils==0.17.1',
+              'pandas<2.0.0',
           ],
           'test': [
             'freezegun>=0.3.12',
             'joblib>=1.0.1',
-            'mock>=1.0.1,<3.0.0',
+            'mock>=1.0.1,<6.0.0',
             'pandas<2.0.0',
             'parameterized>=0.7.1,<0.9.0',
             'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
@@ -324,7 +327,7 @@ if __name__ == '__main__':
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,<6.1.13',
+            'jupyter-client>=6.1.11,<8.0.3',
             'timeloop>=1.0.2,<2',
           ],
           'interactive_test': [
@@ -343,15 +346,12 @@ if __name__ == '__main__':
             'azure-core >=1.7.0',
             'azure-identity >=1.12.0',
           ],
-        #(TODO): Some tests using Pandas implicitly calls inspect.stack()
-        # with python 3.10 leading to incorrect stacktrace.
-        # This can be removed once dill is updated to version > 0.3.5.1
-        # Issue: https://github.com/apache/beam/issues/23566
+        # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
         # Exclude 1.5.0 and 1.5.1 because of
         # https://github.com/pandas-dev/pandas/issues/45725
           'dataframe': [
-            'pandas>=1.0,<1.6,!=1.5.0,!=1.5.1;python_version<"3.10"',
-            'pandas>=1.4.3,<1.6,!=1.5.0,!=1.5.1;python_version>="3.10"'
+            'pandas<1.4.0;python_version=="3.7"',
+            'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
           ],
           'dask': [
             'dask >= 2022.6',
