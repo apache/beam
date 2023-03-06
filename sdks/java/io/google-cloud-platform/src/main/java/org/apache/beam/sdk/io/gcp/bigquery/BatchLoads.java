@@ -865,6 +865,8 @@ class BatchLoads<DestinationT, ElementT>
         new TupleTag<>("successfulInserts"),
         successfulWrites,
         null,
+        null,
+        null,
         null);
   }
 

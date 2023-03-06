@@ -452,6 +452,13 @@ public class GroupIntoBatches<K, InputT>
       this.prefetchFrequency = ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
     }
 
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      // This is required since flush is sometimes called from processElement. This is safe because a watermark hold
+      // will always be set using timer.withOutputTimestamp.
+      return Duration.millis(Long.MAX_VALUE);
+    }
+
     @ProcessElement
     public void processElement(
         @TimerId(END_OF_BUFFERING_ID) Timer bufferingTimer,
@@ -618,7 +625,8 @@ public class GroupIntoBatches<K, InputT>
       Iterable<InputT> values = batch.read();
       // When the timer fires, batch state might be empty
       if (!Iterables.isEmpty(values)) {
-        receiver.output(KV.of(key, values));
+        receiver.outputWithTimestamp(
+            KV.of(key, values), Instant.ofEpochMilli(minBufferedTs.read()));
       }
       clearState(batch, storedBatchSize, storedBatchSizeBytes, timerTs, minBufferedTs);
     }

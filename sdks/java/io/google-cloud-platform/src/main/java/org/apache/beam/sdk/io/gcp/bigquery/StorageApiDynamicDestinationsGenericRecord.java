@@ -68,11 +68,11 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
     @Override
     @SuppressWarnings("nullness")
-    public StorageApiWritePayload toMessage(T element) {
+    public StorageApiWritePayload toMessage(T element) throws Exception {
       Message msg =
           AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
               descriptor, toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)));
-      return new AutoValue_StorageApiWritePayload(msg.toByteArray(), null);
+      return StorageApiWritePayload.of(msg.toByteArray(), null);
     }
 
     @Override
