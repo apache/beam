@@ -95,10 +95,11 @@ func NewEnvironment(networkEnvs NetworkEnvs, beamEnvs BeamEnvs, appEnvs Applicat
 // GetApplicationEnvsFromOsEnvs returns ApplicationEnvs.
 // Lookups in os environment variables and tries to take values for all (exclude working dir) ApplicationEnvs parameters.
 // In case some value doesn't exist sets default values:
-// 	- pipeline execution timeout: 10 minutes
-//	- cache expiration time: 15 minutes
-//	- type of cache: local
-//	- cache address: localhost:6379
+//   - pipeline execution timeout: 10 minutes
+//   - cache expiration time: 15 minutes
+//   - type of cache: local
+//   - cache address: localhost:6379
+//
 // If os environment variables don't contain a value for app working dir - returns error.
 func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	pipelineExecuteTimeout := getEnvAsDuration(pipelineExecuteTimeoutKey, defaultPipelineExecuteTimeout, "couldn't convert provided pipeline execute timeout. Using default %s\n")
@@ -121,8 +122,8 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 // GetNetworkEnvsFromOsEnvs returns NetworkEnvs.
 // Lookups in os environment variables and takes values for ip and port.
 // In case some value doesn't exist sets default values:
-//  - ip:	localhost
-//  - port: 8080
+//   - ip:	localhost
+//   - port: 8080
 func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 	ip := getEnv(serverIpKey, defaultIp)
 	port := defaultPort

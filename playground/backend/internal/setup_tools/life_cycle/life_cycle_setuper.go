@@ -126,6 +126,7 @@ func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uui
 
 // prepareJavaFiles prepares file for Java environment.
 // Copy log config file from /path/to/workingDir to /path/to/workingDir/pipelinesFolder/{pipelineId}
+//
 //	and update this file according to pipeline.
 func prepareJavaFiles(lc *fs_tool.LifeCycle, workingDir string, pipelineId uuid.UUID) error {
 	err := lc.CopyFile(javaLogConfigFileName, workingDir, lc.Paths.AbsoluteBaseFolderPath)
