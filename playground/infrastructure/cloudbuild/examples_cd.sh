@@ -75,7 +75,6 @@ LogOutput "Input variables:
             COMMIT=$COMMIT
             DNS_NAME=$DNS_NAME"
 
-# Assigning constant values
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
     export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin/:/usr/bin:/sbin:/bin"
