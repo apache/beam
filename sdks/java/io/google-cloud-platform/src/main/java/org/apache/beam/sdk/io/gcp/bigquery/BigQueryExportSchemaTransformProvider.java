@@ -39,7 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery read jobs configured using
- * {@link BigQueryReadSchemaTransformConfiguration}.
+ * {@link BigQueryExportSchemaTransformConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -51,22 +51,23 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 @Internal
 @Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
-public class BigQueryReadSchemaTransformProvider
-    extends TypedSchemaTransformProvider<BigQueryReadSchemaTransformConfiguration> {
+public class BigQueryExportSchemaTransformProvider
+    extends TypedSchemaTransformProvider<BigQueryExportSchemaTransformConfiguration> {
 
-  private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:bigquery_read:v1";
+  private static final String IDENTIFIER =
+      "beam:schematransform:org.apache.beam:bigquery_export_read:v1";
   private static final String OUTPUT_TAG = "OUTPUT";
 
   /** Returns the expected class of the configuration. */
   @Override
-  protected Class<BigQueryReadSchemaTransformConfiguration> configurationClass() {
-    return BigQueryReadSchemaTransformConfiguration.class;
+  protected Class<BigQueryExportSchemaTransformConfiguration> configurationClass() {
+    return BigQueryExportSchemaTransformConfiguration.class;
   }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQueryReadSchemaTransformConfiguration configuration) {
-    return new BigQueryReadSchemaTransform(configuration);
+  protected SchemaTransform from(BigQueryExportSchemaTransformConfiguration configuration) {
+    return new BigQueryExportSchemaTransform(configuration);
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
@@ -95,12 +96,12 @@ public class BigQueryReadSchemaTransformProvider
 
   /**
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
-   * BigQueryReadSchemaTransformConfiguration}.
+   * BigQueryExportSchemaTransformConfiguration}.
    */
-  private static class BigQueryReadSchemaTransform implements SchemaTransform {
-    private final BigQueryReadSchemaTransformConfiguration configuration;
+  private static class BigQueryExportSchemaTransform implements SchemaTransform {
+    private final BigQueryExportSchemaTransformConfiguration configuration;
 
-    BigQueryReadSchemaTransform(BigQueryReadSchemaTransformConfiguration configuration) {
+    BigQueryExportSchemaTransform(BigQueryExportSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
@@ -113,17 +114,17 @@ public class BigQueryReadSchemaTransformProvider
 
   /**
    * An implementation of {@link PTransform} for BigQuery read jobs configured using {@link
-   * BigQueryReadSchemaTransformConfiguration}.
+   * BigQueryExportSchemaTransformConfiguration}.
    */
   static class PCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
 
-    private final BigQueryReadSchemaTransformConfiguration configuration;
+    private final BigQueryExportSchemaTransformConfiguration configuration;
 
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQueryReadSchemaTransformConfiguration configuration) {
+    PCollectionRowTupleTransform(BigQueryExportSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 

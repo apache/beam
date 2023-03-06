@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryWriteSchemaTransformProvider.INPUT_TAG;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryFileLoadsWriteSchemaTransformProvider.INPUT_TAG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
@@ -31,9 +31,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryFileLoadsWriteSchemaTransformProvider.PCollectionRowTupleTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryWriteSchemaTransformProvider.PCollectionRowTupleTransform;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -59,9 +59,9 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test for {@link BigQueryWriteSchemaTransformProvider}. */
+/** Test for {@link BigQueryFileLoadsWriteSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
-public class BigQueryWriteSchemaTransformProviderTest {
+public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
 
   private static final String PROJECT = "fakeproject";
   private static final String DATASET = "fakedataset";
@@ -109,9 +109,9 @@ public class BigQueryWriteSchemaTransformProviderTest {
 
   @Test
   public void testLoad() throws IOException, InterruptedException {
-    SchemaTransformProvider provider = new BigQueryWriteSchemaTransformProvider();
-    BigQueryWriteSchemaTransformConfiguration configuration =
-        BigQueryWriteSchemaTransformConfiguration.builder()
+    SchemaTransformProvider provider = new BigQueryFileLoadsWriteSchemaTransformProvider();
+    BigQueryFileLoadsSchemaTransformConfiguration configuration =
+        BigQueryFileLoadsSchemaTransformConfiguration.builder()
             .setTableSpec(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))
             .setWriteDisposition(WriteDisposition.WRITE_TRUNCATE.name())
             .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name())
@@ -134,29 +134,29 @@ public class BigQueryWriteSchemaTransformProviderTest {
 
   @Test
   public void testValidatePipelineOptions() {
-    List<Pair<BigQueryWriteSchemaTransformConfiguration.Builder, Class<? extends Exception>>>
+    List<Pair<BigQueryFileLoadsSchemaTransformConfiguration.Builder, Class<? extends Exception>>>
         cases =
             Arrays.asList(
                 Pair.of(
-                    BigQueryWriteSchemaTransformConfiguration.builder()
+                    BigQueryFileLoadsSchemaTransformConfiguration.builder()
                         .setTableSpec("project.doesnot.exist")
                         .setCreateDisposition(CreateDisposition.CREATE_NEVER.name())
                         .setWriteDisposition(WriteDisposition.WRITE_APPEND.name()),
                     InvalidConfigurationException.class),
                 Pair.of(
-                    BigQueryWriteSchemaTransformConfiguration.builder()
+                    BigQueryFileLoadsSchemaTransformConfiguration.builder()
                         .setTableSpec(String.format("%s.%s.%s", PROJECT, DATASET, "doesnotexist"))
                         .setCreateDisposition(CreateDisposition.CREATE_NEVER.name())
                         .setWriteDisposition(WriteDisposition.WRITE_EMPTY.name()),
                     InvalidConfigurationException.class),
                 Pair.of(
-                    BigQueryWriteSchemaTransformConfiguration.builder()
+                    BigQueryFileLoadsSchemaTransformConfiguration.builder()
                         .setTableSpec("project.doesnot.exist")
                         .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name())
                         .setWriteDisposition(WriteDisposition.WRITE_APPEND.name()),
                     null));
-    for (Pair<BigQueryWriteSchemaTransformConfiguration.Builder, Class<? extends Exception>> caze :
-        cases) {
+    for (Pair<BigQueryFileLoadsSchemaTransformConfiguration.Builder, Class<? extends Exception>>
+        caze : cases) {
       PCollectionRowTupleTransform transform = transformFrom(caze.getLeft().build());
       if (caze.getRight() != null) {
         assertThrows(caze.getRight(), () -> transform.validate(p.getOptions()));
@@ -168,11 +168,11 @@ public class BigQueryWriteSchemaTransformProviderTest {
 
   @Test
   public void testToWrite() {
-    List<Pair<BigQueryWriteSchemaTransformConfiguration.Builder, BigQueryIO.Write<TableRow>>>
+    List<Pair<BigQueryFileLoadsSchemaTransformConfiguration.Builder, BigQueryIO.Write<TableRow>>>
         cases =
             Arrays.asList(
                 Pair.of(
-                    BigQueryWriteSchemaTransformConfiguration.builder()
+                    BigQueryFileLoadsSchemaTransformConfiguration.builder()
                         .setTableSpec(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))
                         .setCreateDisposition(CreateDisposition.CREATE_NEVER.name())
                         .setWriteDisposition(WriteDisposition.WRITE_EMPTY.name()),
@@ -182,7 +182,7 @@ public class BigQueryWriteSchemaTransformProviderTest {
                         .withWriteDisposition(WriteDisposition.WRITE_EMPTY)
                         .withSchema(TABLE_SCHEMA)),
                 Pair.of(
-                    BigQueryWriteSchemaTransformConfiguration.builder()
+                    BigQueryFileLoadsSchemaTransformConfiguration.builder()
                         .setTableSpec(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))
                         .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name())
                         .setWriteDisposition(WriteDisposition.WRITE_TRUNCATE.name()),
@@ -191,8 +191,8 @@ public class BigQueryWriteSchemaTransformProviderTest {
                         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
                         .withSchema(TABLE_SCHEMA)));
-    for (Pair<BigQueryWriteSchemaTransformConfiguration.Builder, BigQueryIO.Write<TableRow>> caze :
-        cases) {
+    for (Pair<BigQueryFileLoadsSchemaTransformConfiguration.Builder, BigQueryIO.Write<TableRow>>
+        caze : cases) {
       PCollectionRowTupleTransform transform = transformFrom(caze.getLeft().build());
       Map<Identifier, Item> gotDisplayData = DisplayData.from(transform.toWrite(SCHEMA)).asMap();
       Map<Identifier, Item> wantDisplayData = DisplayData.from(caze.getRight()).asMap();
@@ -231,7 +231,7 @@ public class BigQueryWriteSchemaTransformProviderTest {
 
     PCollectionRowTupleTransform transform =
         transformFrom(
-            BigQueryWriteSchemaTransformConfiguration.builder()
+            BigQueryFileLoadsSchemaTransformConfiguration.builder()
                 .setTableSpec(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))
                 .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name())
                 .setWriteDisposition(WriteDisposition.WRITE_APPEND.name())
@@ -247,8 +247,8 @@ public class BigQueryWriteSchemaTransformProviderTest {
   }
 
   private PCollectionRowTupleTransform transformFrom(
-      BigQueryWriteSchemaTransformConfiguration configuration) {
-    SchemaTransformProvider provider = new BigQueryWriteSchemaTransformProvider();
+      BigQueryFileLoadsSchemaTransformConfiguration configuration) {
+    SchemaTransformProvider provider = new BigQueryFileLoadsWriteSchemaTransformProvider();
     PCollectionRowTupleTransform transform =
         (PCollectionRowTupleTransform) provider.from(configuration.toBeamRow()).buildTransform();
 

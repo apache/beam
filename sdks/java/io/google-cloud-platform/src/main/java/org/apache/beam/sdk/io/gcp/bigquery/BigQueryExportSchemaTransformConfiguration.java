@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * Configuration for reading from BigQuery.
  *
- * <p>This class is meant to be used with {@link BigQueryReadSchemaTransformProvider}.
+ * <p>This class is meant to be used with {@link BigQueryExportSchemaTransformProvider}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -39,17 +39,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 })
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class BigQueryReadSchemaTransformConfiguration {
+public abstract class BigQueryExportSchemaTransformConfiguration {
 
-  /** Instantiates a {@link BigQueryReadSchemaTransformConfiguration.Builder}. */
+  /** Instantiates a {@link BigQueryExportSchemaTransformConfiguration.Builder}. */
   public static Builder builder() {
-    return new AutoValue_BigQueryReadSchemaTransformConfiguration.Builder();
+    return new AutoValue_BigQueryExportSchemaTransformConfiguration.Builder();
   }
 
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQueryReadSchemaTransformConfiguration> TYPE_DESCRIPTOR =
-      TypeDescriptor.of(BigQueryReadSchemaTransformConfiguration.class);
-  private static final SerializableFunction<BigQueryReadSchemaTransformConfiguration, Row>
+  private static final TypeDescriptor<BigQueryExportSchemaTransformConfiguration> TYPE_DESCRIPTOR =
+      TypeDescriptor.of(BigQueryExportSchemaTransformConfiguration.class);
+  private static final SerializableFunction<BigQueryExportSchemaTransformConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   /** Serializes configuration to a {@link Row}. */
@@ -94,7 +94,7 @@ public abstract class BigQueryReadSchemaTransformConfiguration {
     /** Enables BigQuery's Standard SQL dialect when reading from a query. */
     public abstract Builder setUseStandardSql(Boolean value);
 
-    /** Builds the {@link BigQueryReadSchemaTransformConfiguration} configuration. */
-    public abstract BigQueryReadSchemaTransformConfiguration build();
+    /** Builds the {@link BigQueryExportSchemaTransformConfiguration} configuration. */
+    public abstract BigQueryExportSchemaTransformConfiguration build();
   }
 }
