@@ -27,7 +27,7 @@ done
 
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
 export STEP=${STEP-"CD"}
-export SUBDIRS=${SUBDIRS-"learning/katas examples sdks"}
+export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
 export PROJECT_ID=${PROJECT_ID}
 export SDK_CONFIG=${SDK_CONFIG-"$BEAM_ROOT_DIR/playground/sdks.yaml"}
@@ -92,10 +92,11 @@ pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev
 LogOutput "Running Examples deployment to ${DNS_NAME}"
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
+cd $BEAM_ROOT_DIR/playground/infrastructure
 for sdk in $SDKS
 do
   export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-  python3 /workspace/beam/playground/infrastructure/ci_cd.py \
+  python3 ci_cd.py \
   --datastore-project ${PROJECT_ID} \
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
