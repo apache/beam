@@ -33,6 +33,7 @@ import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,6 +46,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -183,7 +185,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           try {
             task.run();
           } catch (Exception e) {
-            System.err.println("Exception happened while executing async task. Ignoring: " + e);
+            String msg =
+                e.toString()
+                    + "\n"
+                    + Arrays.stream(e.getStackTrace())
+                        .map(StackTraceElement::toString)
+                        .collect(Collectors.joining("\n"));
+            System.err.println("Exception happened while executing async task. Ignoring: " + msg);
           }
         });
   }
