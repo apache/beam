@@ -922,9 +922,9 @@ func Test_validateStep(t *testing.T) {
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
 			_ = lc.CreateSourceCodeFiles(sources)
-			executor := validateStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.validationResults)
+			err = validateStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.validationResults)
 			got := syncMapLen(tt.args.validationResults)
-			if executor != nil && !reflect.DeepEqual(got, tt.want) {
+			if err != nil && !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("validateStep() = %d, want %d", got, tt.want)
 			}
 		})
@@ -1008,7 +1008,7 @@ func Test_prepareStep(t *testing.T) {
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
 			_ = lc.CreateSourceCodeFiles(sources)
-			prepareStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.validationResults, nil)
+			_ = prepareStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.validationResults, nil)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if status != tt.expectedStatus {
 				t.Errorf("prepareStep: got status = %v, want %v", status, tt.expectedStatus)
@@ -1091,7 +1091,7 @@ func Test_compileStep(t *testing.T) {
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
 			_ = lc.CreateSourceCodeFiles(sources)
-			compileStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.isUnitTest)
+			_ = compileStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.isUnitTest)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if status != tt.expectedStatus {
 				t.Errorf("compileStep: got status = %v, want %v", status, tt.expectedStatus)
@@ -1194,7 +1194,7 @@ func Test_runStep(t *testing.T) {
 				sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
 				_ = lc.CreateSourceCodeFiles(sources)
 			}
-			runStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.isUnitTest, tt.args.sdkEnv, tt.args.pipelineOptions)
+			_ = runStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.isUnitTest, tt.args.sdkEnv, tt.args.pipelineOptions)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if status != tt.expectedStatus {
 				t.Errorf("runStep() got status = %v, want %v", status, tt.expectedStatus)

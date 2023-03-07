@@ -165,7 +165,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 		if processingErr != nil {
 			return processingErr
 		}
-		return fmt.Errorf("run error: %s", runError)
+		return fmt.Errorf("run error: %s", runError.String())
 	}
 	// Run step is finished and code is executed
 	err = processRunSuccess(pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
@@ -412,16 +412,16 @@ func reconcileBackgroundTask(pipelineLifeCycleCtx context.Context, pipelineId uu
 		switch contextErr {
 		case context.DeadlineExceeded:
 			if err := finishByTimeout(pipelineId, cacheService); err != nil {
-				return false, fmt.Errorf("%s: error during context timeout processing: %s", pipelineId, err.Error())
+				return false, fmt.Errorf("error during context timeout processing: %s", err.Error())
 			}
-			return false, fmt.Errorf("%s: code processing context timeout", pipelineId)
+			return false, fmt.Errorf("code processing context timeout")
 		case context.Canceled:
 			if err := processCancel(cacheService, pipelineId); err != nil {
-				return false, fmt.Errorf("%s: error during cancellation processing: %s", pipelineId, err.Error())
+				return false, fmt.Errorf("error during cancellation processing: %s", err.Error())
 			}
-			return false, fmt.Errorf("%s: code processing was canceled", pipelineId)
+			return false, fmt.Errorf("code processing was canceled")
 		default:
-			return false, fmt.Errorf("%s: code processing cancelled: %s", pipelineId, contextErr.Error())
+			return false, fmt.Errorf("code processing cancelled: %s", contextErr.Error())
 		}
 	case ok := <-successChannel:
 		return ok, nil
