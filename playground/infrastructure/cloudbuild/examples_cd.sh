@@ -99,4 +99,23 @@ do
     --sdk SDK_"${sdk^^}" \
     --origin ${ORIGIN} \
     --subdirs ${SUBDIRS}
+    if [ $? -eq 0 ]
+        then
+            LogOutput "Examples for $sdk SDK have been successfully deployed."
+            eval "ci_${sdk}_passed"='True'
+        else
+            LogOutput "Examples deployment for $sdk SDK has failed."
+        fi
 done
+
+for sdk in $SDKS
+do
+    result=$(eval echo '$'"cd_${sdk}_passed")
+    if [ "$result" != "True" ]; then
+        LogOutput "At least one of the SDK has failed to deploy. Please check the Cloud Build logs."
+        exit 1
+    elif [ "$result" == "True" ]; then
+        LogOutput "CD script successfully completed. Please see the ${DNS_NAME} to validate the examples."
+    fi
+done
+exit 0
