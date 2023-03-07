@@ -87,7 +87,7 @@ func TestSetToCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := SetToCache(tt.args.ctx, tt.args.cacheService, tt.args.key, tt.args.subKey, tt.args.value); (err != nil) != tt.wantErr {
+			if err := SetToCache(tt.args.cacheService, tt.args.key, tt.args.subKey, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("SetToCache() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.checkFunc() {
