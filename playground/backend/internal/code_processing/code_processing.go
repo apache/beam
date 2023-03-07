@@ -72,8 +72,9 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	executor := prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, lc.GetPreparerParameters())
-	if executor == nil {
+	err = prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, lc.GetPreparerParameters())
+	if err != nil {
+		logger.Errorf("%s: error during preparation step: %s", pipelineId, err.Error())
 		return
 	}
 
@@ -81,7 +82,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
 	isUnitTest := validateIsUnitTest.(bool)
 
-	executor = compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
+	executor := compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
 	if executor == nil {
 		return
 	}
@@ -199,12 +200,14 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	return &executor
 }
 
-func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map, prepareParams map[string]string) *executors.Executor {
+func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map, prepareParams map[string]string) error {
 	errorChannel, successChannel := createStatusChannels()
 	executorBuilder, err := builder.Preparer(paths, sdkEnv, validationResults, prepareParams)
 	if err != nil {
-		_ = processSetupError(err, pipelineId, cacheService)
-		return nil
+		if processingErr := processSetupError(err, pipelineId, cacheService); processingErr != nil {
+			return processingErr
+		}
+		return err
 	}
 	executor := executorBuilder.Build()
 	logger.Infof("%s: Prepare() ...\n", pipelineId)
@@ -214,19 +217,22 @@ func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	// Start of the monitoring of background tasks (prepare function/cancellation/timeout)
 	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 	if err != nil {
-		return nil
+		return err
 	}
 	if !ok {
 		err := <-errorChannel
 		// Prepare step is finished, but code couldn't be prepared (some error during prepare step)
-		_ = processErrorWithSavingOutput(err, []byte(err.Error()), pipelineId, cache.PreparationOutput, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
-		return nil
+		processingErr := processErrorWithSavingOutput(err, []byte(err.Error()), pipelineId, cache.PreparationOutput, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
+		if processingErr != nil {
+			return processingErr
+		}
+		return err
 	}
 	// Prepare step is finished and code is prepared
 	if err := processSuccess(pipelineId, cacheService, "Prepare", pb.Status_STATUS_COMPILING); err != nil {
-		return nil
+		return err
 	}
-	return &executor
+	return nil
 }
 
 func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map) error {
