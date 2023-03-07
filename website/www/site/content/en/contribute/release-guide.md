@@ -1120,7 +1120,7 @@ Here’s an email template; please adjust as you see fit.
 ### Checklist to proceed to the next step
 
 1. Issues identified during vote have been resolved, with fixes committed to the release branch.
-2. All issues tagged with `Fix-Version` for the current release should be closed.
+2. All issues in the current release's milestone should be closed.
 3. Community votes to release the proposed candidate, with at least three approving PMC votes.
 
 
