@@ -71,6 +71,8 @@ from apache_beam.typehints.typehints import visit_inner_types
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
+from itertools import dropwhile
+
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.io import iobase
@@ -1387,9 +1389,40 @@ class CallableWrapperPartitionFn(PartitionFn):
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
+def _get_function_body_without_inners(func):
+  source_lines = inspect.getsourcelines(func)[0]
+  source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
+  def_line = next(source_lines).strip()
+  if def_line.startswith("def ") and def_line.endswith(":"):
+    first_line = next(source_lines)
+    indentation = len(first_line) - len(first_line.lstrip())
+    final_lines = [first_line[indentation:]]
+
+    skip_inner_def = False
+    if first_line[indentation:].startswith("def "):
+      skip_inner_def = True
+    for line in source_lines:
+      line_indentation = len(line) - len(line.lstrip())
+
+      if line[indentation:].startswith("def "):
+        skip_inner_def = True
+        continue
+
+      if skip_inner_def and line_indentation == indentation:
+        skip_inner_def = False
+
+      if skip_inner_def and line_indentation > indentation:
+        continue
+      final_lines.append(line[indentation:])
+
+    return "".join(final_lines)
+  else:
+    return def_line.rsplit(":")[-1].strip()
+
+
 def _check_fn_use_yield_and_return(fn):
-  source_code = inspect.getsource(fn)
-  return " yield " in source_code and " return " in source_code
+  source_code = _get_function_body_without_inners(fn)
+  return "yield " in source_code and "return " in source_code
 
 
 class ParDo(PTransformWithSideInputs):

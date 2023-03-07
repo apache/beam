@@ -31,7 +31,10 @@ class TestDoFn1(beam.DoFn):
 
 class TestDoFn2(beam.DoFn):
   def process(self, element):
-    return element
+    def inner_func(x):
+      yield x
+
+    return inner_func(element)
 
 
 class TestDoFn3(beam.DoFn):
