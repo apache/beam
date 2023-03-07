@@ -1,0 +1,7 @@
+sdk:
+  - Java
+id: challenge21
+name: Challenge Name
+complexity: BASIC
+taskName: ChallengeTask
+solutionName: ChallengeSolution

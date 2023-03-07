@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG java_version
-FROM openjdk:${java_version}-bullseye
+FROM eclipse-temurin:${java_version}
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 ARG pull_licenses
@@ -27,11 +27,6 @@ ADD target/jcl-over-slf4j.jar /opt/apache/beam/jars/
 ADD target/log4j-over-slf4j.jar /opt/apache/beam/jars/
 ADD target/log4j-to-slf4j.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
-
-# Required to run cross-language pipelines with KafkaIO
-# TODO May be removed once custom environments are supported
-ADD target/beam-sdks-java-io-kafka.jar /opt/apache/beam/jars/
-ADD target/kafka-clients.jar /opt/apache/beam/jars/
 
 # Required to use jamm as a javaagent to get accurate object size measuring
 # COPY fails if file is not found, so use a wildcard for open-module-agent.jar

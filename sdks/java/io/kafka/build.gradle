@@ -59,6 +59,7 @@ dependencies {
   provided library.java.jackson_dataformat_csv
   permitUnusedDeclared library.java.jackson_dataformat_csv
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:avro")
   implementation project(":runners:core-construction-java")
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
@@ -70,7 +71,7 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
-  implementation "org.springframework:spring-expression:5.3.18"
+  implementation "org.springframework:spring-expression:5.3.25"
   implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
     // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
@@ -90,6 +91,7 @@ dependencies {
   provided library.java.everit_json_schema
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
+  testImplementation project(":sdks:java:extensions:avro")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   // For testing Cross-language transforms
@@ -148,9 +150,12 @@ kafkaVersions.each {kv ->
 
     filter {
       excludeTestsMatching "*InStreaming"
-      if (!(kv.key in sdfKafkaVersions)) excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3 and kafka sdf does not appear to work for kafka versions <2.0.1
-      if (!(kv.key in sdfKafkaVersions)) excludeTestsMatching "*SDFResumesCorrectly" //Kafka SDF does not work for kafka versions <2.0.1
-      if (!(kv.key in sdfKafkaVersions)) excludeTestsMatching "*StopReadingFunction" //Kafka SDF does not work for kafka versions <2.0.1
+      if (!(kv.key in sdfKafkaVersions)) {
+        excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3 and kafka sdf does not appear to work for kafka versions <2.0.1
+        excludeTestsMatching "*SDFResumesCorrectly" //Kafka SDF does not work for kafka versions <2.0.1
+        excludeTestsMatching "*StopReadingFunction" //Kafka SDF does not work for kafka versions <2.0.1
+        excludeTestsMatching "*WatermarkUpdateWithSparseMessages" //Kafka SDF does not work for kafka versions <2.0.1
+      }
     }
   }
 }

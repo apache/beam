@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -38,13 +39,16 @@ type mongoDBFn struct {
 }
 
 func (fn *mongoDBFn) Setup(ctx context.Context) error {
-	client, err := newClient(ctx, fn.URI)
-	if err != nil {
-		return err
+	if fn.client == nil {
+		client, err := newClient(ctx, fn.URI)
+		if err != nil {
+			return err
+		}
+
+		fn.client = client
 	}
 
-	fn.client = client
-	fn.collection = client.Database(fn.Database).Collection(fn.Collection)
+	fn.collection = fn.client.Database(fn.Database).Collection(fn.Collection)
 
 	return nil
 }
@@ -70,4 +74,28 @@ func (fn *mongoDBFn) Teardown(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type documentID struct {
+	ID any `bson:"_id"`
+}
+
+func findID(
+	ctx context.Context,
+	collection *mongo.Collection,
+	filter any,
+	order int,
+	skip int64,
+) (any, error) {
+	opts := options.FindOne().
+		SetProjection(bson.M{"_id": 1}).
+		SetSort(bson.M{"_id": order}).
+		SetSkip(skip)
+
+	var docID documentID
+	if err := collection.FindOne(ctx, filter, opts).Decode(&docID); err != nil {
+		return nil, err
+	}
+
+	return docID.ID, nil
 }

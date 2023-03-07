@@ -1,0 +1,56 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.io.fileschematransform'
+)
+
+description = "Apache Beam :: SDKs :: Java :: IO :: File Schema Transform"
+ext.summary = "Defines transforms for File reading and writing support with Schema Transform"
+
+// Don't pull in newer versions of the checker framework from dependencies.
+// TODO(BEAM-11125) Remove this when Beam upgrades to newest checker framework version.
+configurations.implementation {
+    resolutionStrategy {
+        force library.java.checker_qual
+    }
+}
+
+def parquet_version = "1.12.0"
+
+dependencies {
+    implementation library.java.avro
+    implementation library.java.commons_csv
+    implementation library.java.jaxb_api
+    implementation library.java.joda_time
+    implementation library.java.vendored_guava_26_0_jre
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":sdks:java:extensions:avro")
+    implementation project(path: ":sdks:java:io:csv")
+    implementation project(path: ":sdks:java:io:parquet")
+    implementation "org.apache.parquet:parquet-common:$parquet_version"
+    implementation project(path: ":sdks:java:io:xml")
+
+    testImplementation library.java.junit
+    testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:parquet")
+    testImplementation project(path: ":sdks:java:io:xml")
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}

@@ -333,7 +333,7 @@ class UpdateDestinationSchema(beam.DoFn):
   regardless of whether data is loaded directly to the destination table or
   loaded into temporary tables before being copied into the destination.
 
-  This tranform takes as input a (destination, job_reference) pair where the
+  This transform takes as input a (destination, job_reference) pair where the
   job_reference refers to a completed load job into a temporary table.
 
   This transform emits (destination, job_reference) pairs where the
@@ -1093,7 +1093,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             schema_mod_job_name_pcv))
 
-    if self.create_disposition == 'WRITE_TRUNCATE':
+    if self.write_disposition == 'WRITE_TRUNCATE':
       # All loads going to the same table must be processed together so that
       # the truncation happens only once. See BEAM-24535.
       finished_temp_tables_load_job_ids_list_pc = (

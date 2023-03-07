@@ -37,8 +37,14 @@ public interface ChangeStreamTestPipelineOptions extends IOTestPipelineOptions, 
   void setInstanceId(String value);
 
   @Description("Database ID prefix to write to in Spanner")
-  @Default.String("changestream")
+  @Default.String("cstest_primary")
   String getDatabaseId();
 
   void setDatabaseId(String value);
+
+  @Description("Metadata database ID prefix to write to in Spanner")
+  @Default.String("cstest_metadata")
+  String getMetadataDatabaseId();
+
+  void setMetadataDatabaseId(String value);
 }

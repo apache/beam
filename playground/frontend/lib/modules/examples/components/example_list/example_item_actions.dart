@@ -25,7 +25,7 @@ import 'package:provider/provider.dart';
 import '../../../../src/assets/assets.gen.dart';
 import '../../models/popover_state.dart';
 import '../description_popover/description_popover_button.dart';
-import '../multifile_popover/multifile_popover_button.dart';
+import '../multi_file_icon.dart';
 
 class ExampleItemActions extends StatelessWidget {
   final ExampleBase example;
@@ -39,23 +39,14 @@ class ExampleItemActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        if (example.isMultiFile) multifilePopover,
-        if (example.usesEmulatedData) const _EmulatedDataIcon(),
+        if (example.isMultiFile) const _IconWrapper(MultiFileIcon()),
+        if (example.usesEmulatedData) const _IconWrapper(_EmulatedDataIcon()),
         if (example.complexity != null)
-          ComplexityWidget(complexity: example.complexity!),
+          _IconWrapper(ComplexityWidget(complexity: example.complexity!)),
         descriptionPopover,
       ],
     );
   }
-
-  Widget get multifilePopover => MultifilePopoverButton(
-        parentContext: parentContext,
-        example: example,
-        followerAnchor: Alignment.topLeft,
-        targetAnchor: Alignment.topRight,
-        onOpen: () => _setPopoverOpen(parentContext, true),
-        onClose: () => _setPopoverOpen(parentContext, false),
-      );
 
   Widget get descriptionPopover => DescriptionPopoverButton(
         parentContext: parentContext,
@@ -76,14 +67,31 @@ class _EmulatedDataIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: Tooltip(
-        message: 'intents.playground.usesEmulatedData'.tr(),
-        child: SvgPicture.asset(
-          Assets.streaming,
-          color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
-        ),
+    return Tooltip(
+      message: 'intents.playground.usesEmulatedData'.tr(),
+      child: SvgPicture.asset(
+        Assets.streaming,
+        color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
+      ),
+    );
+  }
+}
+
+/// A wrapper of a standard size for icons in the example list.
+class _IconWrapper extends StatelessWidget {
+  const _IconWrapper(this.child);
+
+  final Widget child;
+
+  static const double _iconSize = 30;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _iconSize,
+      width: _iconSize,
+      child: Center(
+        child: child,
       ),
     );
   }

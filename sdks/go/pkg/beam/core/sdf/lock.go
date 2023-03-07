@@ -15,7 +15,10 @@
 
 package sdf
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 // NewLockRTracker creates a LockRTracker initialized with the specified
 // restriction tracker as its underlying restriction tracker.
@@ -91,4 +94,8 @@ func (rt *LockRTracker) IsBounded() bool {
 		return tracker.IsBounded()
 	}
 	return true
+}
+
+func (rt *LockRTracker) String() string {
+	return fmt.Sprintf("LockRTracker(%v)", rt.Rt)
 }

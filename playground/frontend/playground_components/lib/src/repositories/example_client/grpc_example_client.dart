@@ -23,6 +23,7 @@ import '../../api/v1/api.pbgrpc.dart' as grpc;
 import '../../models/category_with_examples.dart';
 import '../../models/example_base.dart';
 import '../../models/sdk.dart';
+import '../../models/snippet_file.dart';
 import '../complexity_grpc_extension.dart';
 import '../dataset_grpc_extension.dart';
 import '../models/get_default_precompiled_object_request.dart';
@@ -36,7 +37,7 @@ import '../models/get_snippet_response.dart';
 import '../models/output_response.dart';
 import '../models/save_snippet_request.dart';
 import '../models/save_snippet_response.dart';
-import '../models/shared_file.dart';
+import '../models/snippet_file_grpc_extension.dart';
 import '../sdk_grpc_extension.dart';
 import 'example_client.dart';
 
@@ -119,7 +120,9 @@ class GrpcExampleClient implements ExampleClient {
       ),
     );
 
-    return GetPrecompiledObjectCodeResponse(code: response.code);
+    return GetPrecompiledObjectCodeResponse(
+      files: response.files.map((f) => f.model).toList(growable: false),
+    );
   }
 
   @override
@@ -327,46 +330,50 @@ class GrpcExampleClient implements ExampleClient {
     return ExampleBase(
       complexity: example.complexity.model,
       contextLine: example.contextLine,
-      datasets: example.datasets.map((e) => e.model).toList(growable: false),
       description: example.description,
+      datasets: example.datasets.map((e) => e.model).toList(growable: false),
       isMultiFile: example.multifile,
-      link: example.link,
       name: example.name,
       path: example.cloudPath,
       pipelineOptions: example.pipelineOptions,
       sdk: sdk,
       tags: example.tags,
       type: _exampleTypeFromString(example.type),
+      urlNotebook: example.urlNotebook,
+      urlVcs: example.urlVcs,
     );
   }
 
-  List<SharedFile> _convertToSharedFileList(
+  List<SnippetFile> _convertToSharedFileList(
     List<grpc.SnippetFile> snippetFileList,
   ) {
-    final sharedFilesList = <SharedFile>[];
+    final sharedFilesList = <SnippetFile>[];
 
     for (final item in snippetFileList) {
-      sharedFilesList.add(SharedFile(
-        code: item.content,
-        isMain: item.isMain,
-        name: item.name,
-      ));
+      sharedFilesList.add(
+        SnippetFile(
+          content: item.content,
+          isMain: item.isMain,
+          name: item.name,
+        ),
+      );
     }
 
     return sharedFilesList;
   }
 
   List<grpc.SnippetFile> _convertToSnippetFileList(
-    List<SharedFile> sharedFilesList,
+    List<SnippetFile> sharedFilesList,
   ) {
     final snippetFileList = <grpc.SnippetFile>[];
 
     for (final item in sharedFilesList) {
       snippetFileList.add(
-        grpc.SnippetFile()
-          ..name = item.name
-          ..isMain = true
-          ..content = item.code,
+        grpc.SnippetFile(
+          content: item.content,
+          isMain: true,
+          name: item.name,
+        ),
       );
     }
 

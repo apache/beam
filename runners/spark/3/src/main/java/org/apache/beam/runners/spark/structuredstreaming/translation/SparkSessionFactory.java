@@ -17,17 +17,22 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
+import static org.apache.commons.lang3.ArrayUtils.EMPTY_STRING_ARRAY;
+import static org.apache.commons.lang3.StringUtils.substringBetween;
+import static org.apache.commons.lang3.math.NumberUtils.toInt;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.AvroGenericCoder;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -74,6 +79,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoRegistrator;
 import org.apache.spark.serializer.KryoSerializer;
@@ -87,6 +94,24 @@ public class SparkSessionFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkSessionFactory.class);
 
+  // Patterns to exclude local JRE and certain artifact (groups) in Maven and Gradle cache.
+  private static final Collection<String> SPARK_JAR_EXCLUDES =
+      Lists.newArrayList(
+          "jre/lib/ext/",
+          "/org/slf4j/",
+          "/org.slf4j/",
+          "/log4j/",
+          "/io/dropwizard/metrics/",
+          "/io.dropwizard.metrics/",
+          "/org/apache/spark/",
+          "/org.apache.spark/",
+          "/org/apache/hadoop/",
+          "/org.apache.hadoop/",
+          "/org/scala-lang/",
+          "/org.scala-lang/",
+          "/com.esotericsoftware/kryo-shaded",
+          "/com/esotericsoftware/kryo-shaded");
+
   /**
    * Gets active {@link SparkSession} or creates one using {@link
    * SparkStructuredStreamingPipelineOptions}.
@@ -95,24 +120,39 @@ public class SparkSessionFactory {
     if (options.getUseActiveSparkSession()) {
       return SparkSession.active();
     }
-    return sessionBuilder(options.getSparkMaster(), options.getAppName(), options.getFilesToStage())
-        .getOrCreate();
+    return sessionBuilder(options.getSparkMaster(), options).getOrCreate();
   }
 
   /** Creates Spark session builder with some optimizations for local mode, e.g. in tests. */
   public static SparkSession.Builder sessionBuilder(String master) {
-    return sessionBuilder(master, null, null);
+    return sessionBuilder(master, null);
   }
 
   private static SparkSession.Builder sessionBuilder(
-      String master, @Nullable String appName, @Nullable List<String> jars) {
-    SparkConf sparkConf = new SparkConf();
-    sparkConf.setMaster(master);
-    if (appName != null) {
-      sparkConf.setAppName(appName);
-    }
-    if (jars != null && !jars.isEmpty()) {
-      sparkConf.setJars(jars.toArray(new String[0]));
+      String master, @Nullable SparkStructuredStreamingPipelineOptions options) {
+
+    SparkConf sparkConf = new SparkConf().setIfMissing("spark.master", master);
+    master = sparkConf.get("spark.master"); // use effective master in the remainder of this method
+
+    if (options != null) {
+      if (options.getAppName() != null) {
+        sparkConf.setAppName(options.getAppName());
+      }
+
+      if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
+        // Append the files to stage provided by the user to `spark.jars`.
+        PipelineResources.prepareFilesForStaging(options);
+        String[] filesToStage = filterFilesToStage(options, Collections.emptyList());
+        String[] jars = getSparkJars(sparkConf);
+        sparkConf.setJars(jars.length > 0 ? ArrayUtils.addAll(jars, filesToStage) : filesToStage);
+      } else if (!sparkConf.contains("spark.jars") && !master.startsWith("local[")) {
+        // Stage classpath if `spark.jars` not set and not in local mode.
+        PipelineResources.prepareFilesForStaging(options);
+        // Set `spark.jars`, exclude JRE libs and jars causing conflicts using `userClassPathFirst`.
+        sparkConf.setJars(filterFilesToStage(options, SPARK_JAR_EXCLUDES));
+        // Enable `userClassPathFirst` to prevent issues with guava, jackson and others.
+        sparkConf.setIfMissing("spark.executor.userClassPathFirst", "true");
+      }
     }
 
     // Set to 'org.apache.spark.serializer.JavaSerializer' via system property to disable Kryo
@@ -130,17 +170,33 @@ public class SparkSessionFactory {
     // mode, so try to align with value of "sparkMaster" option in this case.
     // We should not overwrite this value (or any user-defined spark configuration value) if the
     // user has already configured it.
-    if (master != null
-        && !master.equals("local[*]")
-        && master.startsWith("local[")
-        && System.getProperty("spark.sql.shuffle.partitions") == null) {
-      int numPartitions =
-          Integer.parseInt(master.substring("local[".length(), master.length() - 1));
-      if (numPartitions > 0) {
-        sparkConf.set("spark.sql.shuffle.partitions", String.valueOf(numPartitions));
-      }
+    int partitions = localNumPartitions(master);
+    if (partitions > 0) {
+      sparkConf.setIfMissing("spark.sql.shuffle.partitions", Integer.toString(partitions));
     }
+
     return SparkSession.builder().config(sparkConf);
+  }
+
+  @SuppressWarnings({"return", "toarray.nullable.elements", "methodref.receiver"}) // safe to ignore
+  private static String[] filterFilesToStage(
+      SparkStructuredStreamingPipelineOptions opts, Collection<String> excludes) {
+    Collection<String> files = opts.getFilesToStage();
+    if (files == null || files.isEmpty()) {
+      return EMPTY_STRING_ARRAY;
+    }
+    if (!excludes.isEmpty()) {
+      files = Collections2.filter(files, f -> !excludes.stream().anyMatch(f::contains));
+    }
+    return files.toArray(EMPTY_STRING_ARRAY);
+  }
+
+  private static String[] getSparkJars(SparkConf conf) {
+    return conf.contains("spark.jars") ? conf.get("spark.jars").split(",") : EMPTY_STRING_ARRAY;
+  }
+
+  private static int localNumPartitions(String master) {
+    return master.startsWith("local[") ? toInt(substringBetween(master, "local[", "]")) : 0;
   }
 
   /**
@@ -169,9 +225,11 @@ public class SparkSessionFactory {
       kryo.register(SideInputValues.ByWindow.class);
       kryo.register(SideInputValues.Global.class);
 
+      // avro coders
+      tryToRegister(kryo, "org.apache.beam.sdk.extensions.avro.coders.AvroCoder");
+      tryToRegister(kryo, "org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder");
+
       // standard coders of org.apache.beam.sdk.coders
-      kryo.register(AvroCoder.class);
-      kryo.register(AvroGenericCoder.class);
       kryo.register(BigDecimalCoder.class);
       kryo.register(BigEndianIntegerCoder.class);
       kryo.register(BigEndianLongCoder.class);
@@ -224,6 +282,14 @@ public class SparkSessionFactory {
       kryo.register(CoGbkResultSchema.class);
       kryo.register(TupleTag.class);
       kryo.register(TupleTagList.class);
+    }
+
+    private void tryToRegister(Kryo kryo, String className) {
+      try {
+        kryo.register(Class.forName(className));
+      } catch (ClassNotFoundException e) {
+        LOG.info("Class {}} was not found on classpath", className);
+      }
     }
   }
 }

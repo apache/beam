@@ -18,6 +18,7 @@
 package org.apache.beam.io.debezium;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import org.apache.beam.sdk.schemas.Schema;
 import org.hamcrest.Matchers;
@@ -54,5 +55,15 @@ public class KafkaConnectSchemaTest {
             Schema.Field.nullable(
                 "childrenAndAge",
                 Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32))));
+  }
+
+  @Test
+  public void testTimestampRequired() {
+    org.apache.kafka.connect.source.SourceRecord record = SourceRecordJsonTest.buildSourceRecord();
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class, () -> KafkaConnectUtils.debeziumRecordInstant(record));
+    assertThat(e.getMessage(), Matchers.containsString("Should be STRUCT with ts_ms field"));
   }
 }

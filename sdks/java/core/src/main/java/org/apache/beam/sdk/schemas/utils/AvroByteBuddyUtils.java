@@ -48,11 +48,19 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
+/**
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.schemas.utils.AvroByteBuddyUtils</code> instead of this
+ *     one.
+ */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
+@Deprecated
 class AvroByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 

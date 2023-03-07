@@ -32,6 +32,7 @@ from typing import Tuple
 import numpy as np
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils.annotations import experimental
@@ -121,7 +122,16 @@ class TensorRTEngine:
     self.outputs = []
     self.gpu_allocations = []
     self.cpu_allocations = []
-    """Setup I/O bindings."""
+
+    # TODO(https://github.com/NVIDIA/TensorRT/issues/2557):
+    # Clean up when fixed upstream.
+    try:
+      _ = np.bool  # type: ignore
+    except AttributeError:
+      # numpy >= 1.24.0
+      np.bool = np.bool_  # type: ignore
+
+    # Setup I/O bindings.
     for i in range(self.engine.num_bindings):
       name = self.engine.get_binding_name(i)
       dtype = self.engine.get_binding_dtype(i)
@@ -204,11 +214,11 @@ def _default_tensorRT_inference_fn(
               stream))
     _assign_or_fail(cuda.cuStreamSynchronize(stream))
 
-    return [
-        PredictionResult(
-            x, [prediction[idx] for prediction in cpu_allocations]) for idx,
-        x in enumerate(batch)
-    ]
+    predictions = []
+    for idx in range(len(batch)):
+      predictions.append([prediction[idx] for prediction in cpu_allocations])
+
+    return utils._convert_to_result(batch, predictions)
 
 
 @experimental(extra_message="No backwards-compatibility guarantees.")
@@ -310,4 +320,4 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """
     Returns a namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferenceTensorRT'
+    return 'BeamML_TensorRT'

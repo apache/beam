@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.CloudRegionOrZone;
 import com.google.cloud.pubsublite.ProjectId;
@@ -25,13 +26,14 @@ import com.google.cloud.pubsublite.SubscriptionPath;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -45,6 +47,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
+@AutoService(SchemaTransformProvider.class)
 public class PubsubLiteReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         PubsubLiteReadSchemaTransformProvider.PubsubLiteReadSchemaTransformConfiguration> {
