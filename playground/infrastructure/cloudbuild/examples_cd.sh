@@ -114,7 +114,7 @@ do
     if [ "$result" != "True" ]; then
         LogOutput "At least one of the SDK has failed to deploy. Please check the Cloud Build logs."
         exit 1
-    elif [ "$result" == "True" ]; then
+    else
         LogOutput "CD script successfully completed. Please see the ${DNS_NAME} to validate the examples."
     fi
 done
