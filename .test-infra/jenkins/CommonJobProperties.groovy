@@ -193,7 +193,7 @@ class CommonJobProperties {
     context.switches("-Dorg.gradle.vfs.watch=false")
 
     // Include dependency licenses when build docker images on Jenkins, see https://s.apache.org/zt68q
-    context.switches("-Pdocker-pull-licenses")
+    // context.switches("-Pdocker-pull-licenses")
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
