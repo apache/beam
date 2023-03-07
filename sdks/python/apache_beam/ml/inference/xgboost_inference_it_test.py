@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import os
 import logging
+import os
 import uuid
 
 try:
@@ -86,7 +86,7 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'numpy_single_batch.txt'])
-    model_state_path = '/tmp/model.json'
+    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
         'output': output_file,
@@ -119,7 +119,7 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'pandas_single_batch.txt'])
-    model_state_path = '/tmp/model.json'
+    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
         'output': output_file,
@@ -152,7 +152,7 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'scipy_single_batch.txt'])
-    model_state_path = '/tmp/model.json'
+    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
         'output': output_file,
@@ -185,7 +185,7 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'datatable_single_batch.txt'])
-    model_state_path = '/tmp/model.json'
+    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
         'output': output_file,
@@ -218,7 +218,7 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'numpy_multi_batch.txt'])
-    model_state_path = '/tmp/model.json'
+    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
         'output': output_file,
@@ -251,7 +251,7 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'pandas_multi_batch.txt'])
-    model_state_path = '/tmp/model.json'
+    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
         'output': output_file,
@@ -284,7 +284,7 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'scipy_multi_batch.txt'])
-    model_state_path = '/tmp/model.json'
+    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
         'output': output_file,
@@ -317,7 +317,7 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'datatable_multi_batch.txt'])
-    model_state_path = '/tmp/model.json'
+    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
         'output': output_file,
