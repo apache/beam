@@ -29,6 +29,7 @@ const kButtonBorderRadius = 24.0;
 const kButtonWidth = 120.0;
 const kButtonHeight = 40.0;
 const kDialogPadding = 40.0;
+const kShortcutModalMaxWidth = 800.0;
 
 class ShortcutsModal extends StatelessWidget {
   final PlaygroundController playgroundController;
@@ -48,6 +49,7 @@ class ShortcutsModal extends StatelessWidget {
         left: kDialogPadding,
       ),
       contentPadding: const EdgeInsets.all(kDialogPadding),
+      insetPadding: _buildDialogPadding(context),
       actionsPadding: const EdgeInsets.only(
         bottom: kDialogPadding,
         right: kDialogPadding,
@@ -93,6 +95,15 @@ class ShortcutsModal extends StatelessWidget {
           child: Text(appLocale.close),
         ),
       ],
+    );
+  }
+
+  EdgeInsets _buildDialogPadding(BuildContext context) {
+    return EdgeInsets.symmetric(
+      horizontal: MediaQuery.of(context).size.width >
+              kShortcutModalMaxWidth + kDialogPadding * 2
+          ? (MediaQuery.of(context).size.width - kShortcutModalMaxWidth) / 2.0
+          : kDialogPadding,
     );
   }
 }

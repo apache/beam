@@ -34,7 +34,7 @@ class BeamShortcut {
     required this.createAction,
   });
 
-  static const _metaKeyName = 'CMD/CTRL';
+  static const _metaKeyName = 'Command';
   static const _glue = ' + ';
 
   String get title {

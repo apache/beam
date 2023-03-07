@@ -28,7 +28,7 @@ void main() {
       test(
         'Title builds correctly',
         () {
-          const meta = 'CMD/CTRL';
+          const meta = 'Command';
           final shortcutsAndTitles = {
             //
             _buildShortcut([
@@ -53,6 +53,13 @@ void main() {
               LogicalKeyboardKey.shift,
               LogicalKeyboardKey.keyS,
             ]): '$meta + Alt + Shift + S',
+
+            _buildShortcut([
+              LogicalKeyboardKey.control,
+              LogicalKeyboardKey.alt,
+              LogicalKeyboardKey.shift,
+              LogicalKeyboardKey.keyS,
+            ]): 'Control + Alt + Shift + S',
           };
 
           for (final entry in shortcutsAndTitles.entries) {
