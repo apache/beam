@@ -1552,7 +1552,8 @@ public class DatastoreV1 {
       } else if (m.hasUpdate()) {
         return m.getUpdate().getKey();
       } else {
-        throw new IllegalArgumentException(String.format("Mutation %s is not valid.", m));
+        LOG.warning("Mutation %s does not have an operation type set.", m);
+        return "";
       }
     }
 
