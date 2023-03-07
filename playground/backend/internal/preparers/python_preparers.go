@@ -46,17 +46,17 @@ func GetPythonPreparers(builder *PreparersBuilder, isUnitTest bool) {
 	}
 }
 
-//PythonPreparersBuilder facet of PreparersBuilder
+// PythonPreparersBuilder facet of PreparersBuilder
 type PythonPreparersBuilder struct {
 	PreparersBuilder
 }
 
-//PythonPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
+// PythonPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
 func (builder *PreparersBuilder) PythonPreparers() *PythonPreparersBuilder {
 	return &PythonPreparersBuilder{*builder}
 }
 
-//WithLogHandler adds code for logging
+// WithLogHandler adds code for logging
 func (builder *PythonPreparersBuilder) WithLogHandler() *PythonPreparersBuilder {
 	addLogHandler := Preparer{
 		Prepare: addCodeToFile,
@@ -66,7 +66,7 @@ func (builder *PythonPreparersBuilder) WithLogHandler() *PythonPreparersBuilder 
 	return builder
 }
 
-//WithGraphHandler adds code to save the graph
+// WithGraphHandler adds code to save the graph
 func (builder *PythonPreparersBuilder) WithGraphHandler() *PythonPreparersBuilder {
 	addGraphHandler := Preparer{
 		Prepare: addCodeToFile,
