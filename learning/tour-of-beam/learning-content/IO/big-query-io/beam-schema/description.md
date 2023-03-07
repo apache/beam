@@ -22,6 +22,10 @@ When you set `useBeamSchema` to false, Beam will use the native table schema of 
 Here is an example of how you might use the useBeamSchema method when reading data from a BigQuery table:
 
 ```
-p.apply("ReadFromBigQuery",
+pipeline.apply("ReadFromBigQuery",
     BigQueryIO.write().to("mydataset.outputtable").useBeamSchema())
 ```
+
+The `BigQueryIO.write()` method creates a `Write` transform that will write the data to a new BigQuery table. The `to()` method specifies the name of the output table, which in this case is "**mydataset.outputtable**".
+
+The `useBeamSchema()` method is called on the `Write` transform to use the schema of the `PCollection` elements as the schema of the output table.

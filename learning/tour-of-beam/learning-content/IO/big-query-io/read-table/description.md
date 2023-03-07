@@ -11,9 +11,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-### BigQuery reading table
+### Reading BigQuery table
 
-`BigQueryIO` allows you to read from a `BigQuery` table and read the results. By default, Beam invokes a `BigQuery` export request when you apply a BigQueryIO read transform. readTableRows returns a PCollection of BigQuery TableRow objects. Each element in the `PCollection` represents a single row in the table. `Integer` values in the `TableRow` objects are encoded as strings to match `BigQuery`’s exported JSON format. This method is convenient, but can be 2-3 times slower in performance compared to `read(SerializableFunction)`.
+`BigQueryIO` allows you to read from a `BigQuery` table and read the results. By default, Beam invokes a `BigQuery` export request when you apply a `BigQueryIO` read transform. In Java Beam SDK, readTableRows returns a `PCollection` of `BigQuery` `TableRow` objects. Each element in the `PCollection` represents a single row in the table.
+
+> `Integer` values in the `TableRow` objects are encoded as strings to match `BigQuery`’s exported JSON format. This method is convenient but has a performance impact. Alternatively, you can use `read(SerializableFunction)` method to avoid this.
 
 {{if (eq .Sdk "go")}}
 
@@ -21,20 +23,39 @@ limitations under the License.
 rows := bigqueryio.Read(s, bigquery.TableReference{ProjectID: projectID, DatasetID: datasetID, TableID: tableID})
 beam.ParDo0(s, &logOutput{}, rows)
 ```
+
+The `bigqueryio.Read()` method is called with a `bigquery.TableReference` object that specifies the project, dataset, and table IDs for the `BigQuery` table to read from.
+
+The `Read()` method returns a PCollection of `TableRow` objects, which represent the rows of data in the BigQuery table.
+
+The `ParDo()` method is called on the `PCollection` to apply a custom `DoFn` to each element in the collection. The `&logOutput{}` parameter specifies an instance of the `logOutput` struct to use as the `DoFn`.
+
+The `logOutput` struct is defined as a custom `DoFn` that implements the ProcessElement method. This method takes a single `TableRow` object as input and logs its contents using the `log.Printf()` function.
+
 {{end}}
 {{if (eq .Sdk "java")}}
 ```
- PCollection<MyData> rows =
+PCollection<MyData> rows =
         pipeline
             .apply(
                 "Read from BigQuery query",
                 BigQueryIO.readTableRows().from("tess-372508.fir.xasw")
 ```
+
+The `BigQueryIO.readTableRows()` method is called to create a `BigQueryIO.Read` transform that will read data from a `BigQuery` table.
+
+The `.from()` method is called on the `Read` transform to specify the name of the `BigQuery` table to read from. In this example, the table is named **tess-372508.fir.xasw**.
+
+The `Read` transform returns a `PCollection` of `TableRow` objects, which represent the rows of data in the `BigQuery` table
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-pipeline
+p
   | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec) \
   | beam.Map(lambda elem: elem['max_temperature'])
 ```
+
+The `beam.io.ReadFromBigQuery()` method is called to create a `Read` transform that will read data from a `BigQuery` table. The `table_spec` parameter specifies the name of the `BigQuery` table to read from, along with any other configuration options such as **project ID**, **dataset ID**, or **query**.
+
+The Read transform returns a `PCollection` of dict objects, where each dictionary represents a single row of data in the `BigQuery` table.
 {{end}}

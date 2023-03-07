@@ -80,7 +80,7 @@ public class Task {
                 .apply("WriteToBigQuery", BigQueryIO.write()
                         .to("mydataset.outputtable")
                         .useBeamSchema());
-*/
+        */
         pipeline.run();
     }
 

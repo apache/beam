@@ -11,9 +11,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-### BigQuery reading with query
+### Reading BigQuery query results
 
-`BigQueryIO` allows you to read from a `BigQuery` table and read the results. By default, Beam invokes a `BigQuery` export request when you apply a BigQueryIO read transform. readTableRows returns a PCollection of BigQuery TableRow objects. Each element in the `PCollection` represents a single row in the table. `Integer` values in the `TableRow` objects are encoded as strings to match `BigQuery`’s exported JSON format. This method is convenient, but can be 2-3 times slower in performance compared to `read(SerializableFunction)`.
+Apache Beam's `BigQueryIO` connector allows you to read data from `BigQuery` tables and use it as a source for your data pipeline. The `BigQueryIO.Read()` method is used to read data from a `BigQuery` table based on a **SQL query**.
+The `BigQueryIO.Read()` method reads data from a `BigQuery` table in parallel by automatically splitting the query into smaller pieces and running each piece in a separate `BigQuery` job. This can improve performance for large tables, but can also increase the cost of running your pipeline.
 
 {{if (eq .Sdk "go")}}
 ```
