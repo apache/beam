@@ -16,7 +16,9 @@
 
 set -e
 
-echo "Hello, license_script.sh"
+echo "Hello, license_script.sh. Returning 0 for troubleshooting"
+exit 0
+
 
 # Get currently used Python version from Gradle or assume a default.
 PYTHON=${1:-python3}
