@@ -89,10 +89,13 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 
 	// Run/RunTest
-	runStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, isUnitTest, sdkEnv, pipelineOptions)
+	err = runStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, isUnitTest, sdkEnv, pipelineOptions)
+	if err != nil {
+		logger.Errorf("%s: error during run step: %s", pipelineId, err.Error())
+	}
 }
 
-func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, isUnitTest bool, sdkEnv *environment.BeamEnvs, pipelineOptions string) {
+func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, isUnitTest bool, sdkEnv *environment.BeamEnvs, pipelineOptions string) error {
 	errorChannel, successChannel := createStatusChannels()
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
@@ -105,8 +108,10 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 		executorBuilder, err = builder.Runner(ctx, paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
 	}
 	if err != nil {
-		_ = processSetupError(err, pipelineId, cacheService)
-		return
+		if processingErr := processSetupError(err, pipelineId, cacheService); processingErr != nil {
+			return processingErr
+		}
+		return err
 	}
 
 	executor := executorBuilder.Build()
@@ -136,7 +141,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	// Start of the monitoring of background tasks (run step/cancellation/timeout)
 	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 	if err != nil {
-		return
+		return err
 	}
 	if !ok {
 		// If unit test has some error then error output is placed as RunOutput
@@ -156,11 +161,18 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 			}
 			runError.Write(errData)
 		}
-		_ = processRunError(errorChannel, runError.Bytes(), pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
-		return
+		processingErr := processRunError(errorChannel, runError.Bytes(), pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
+		if processingErr != nil {
+			return processingErr
+		}
+		return fmt.Errorf("run error: %s", runError)
 	}
 	// Run step is finished and code is executed
-	_ = processRunSuccess(pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
+	err = processRunSuccess(pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool) error {
