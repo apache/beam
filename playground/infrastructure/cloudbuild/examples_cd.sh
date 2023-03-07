@@ -86,7 +86,7 @@ ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
 apt install python3.8-venv > /dev/null 2>&1
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
-LogOutput "All packages and dependencies have been successfully installed. Starting Playground examples Deployment to ${DNS_NAME}."
+LogOutput "All packages and dependencies have been successfully installed. Starting Playground examples Deployment to https://${DNS_NAME}."
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
 cd $BEAM_ROOT_DIR/playground/infrastructure
@@ -114,8 +114,6 @@ do
     if [ "$result" != "True" ]; then
         LogOutput "At least one of the SDK has failed to deploy. Please check the Cloud Build logs."
         exit 1
-    else
-        LogOutput "CD script successfully completed. Please see the ${DNS_NAME} to validate the examples."
     fi
 done
 exit 0
