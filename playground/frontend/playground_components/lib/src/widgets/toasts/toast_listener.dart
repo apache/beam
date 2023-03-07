@@ -27,6 +27,7 @@ import '../../models/toast.dart';
 import '../../services/toast_notifier.dart';
 import 'toast.dart';
 
+/// Turns events from [ToastNotifier] into floating [ToastWidget]s.
 class ToastListenerWidget extends StatefulWidget {
   final Widget child;
 

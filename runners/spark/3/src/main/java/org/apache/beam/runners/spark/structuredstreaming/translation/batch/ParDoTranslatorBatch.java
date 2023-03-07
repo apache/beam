@@ -23,17 +23,18 @@ import static org.apache.beam.runners.spark.structuredstreaming.translation.util
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.spark.sql.functions.col;
-import static org.apache.spark.storage.StorageLevel.MEMORY_ONLY;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
@@ -48,16 +49,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.TypedColumn;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
 import scala.collection.TraversableOnce;
-import scala.reflect.ClassTag;
 
 /**
  * Translator for {@link ParDo.MultiOutput} based on {@link DoFnRunners#simpleRunner}.
@@ -72,11 +72,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
     extends TransformTranslator<
         PCollection<? extends InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
 
-  private static final ClassTag<WindowedValue<Object>> WINDOWED_VALUE_CTAG =
-      ClassTag.apply(WindowedValue.class);
-
-  private static final ClassTag<Tuple2<Integer, WindowedValue<Object>>> TUPLE2_CTAG =
-      ClassTag.apply(Tuple2.class);
+  ParDoTranslatorBatch() {
+    super(0);
+  }
 
   @Override
   public boolean canTranslate(ParDo.MultiOutput<InputT, OutputT> transform) {
@@ -114,14 +112,13 @@ class ParDoTranslatorBatch<InputT, OutputT>
     Dataset<WindowedValue<InputT>> inputDs = cxt.getDataset(input);
     SideInputReader sideInputReader =
         createSideInputReader(transform.getSideInputs().values(), cxt);
+    MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
 
     TupleTag<OutputT> mainOut = transform.getMainOutputTag();
-    // Filter out unconsumed PCollections (except mainOut) to potentially avoid the costs of caching
-    // if not really beneficial.
+
+    // Filter out obsolete PCollections to only cache when absolutely necessary
     Map<TupleTag<?>, PCollection<?>> outputs =
-        Maps.filterEntries(
-            cxt.getOutputs(),
-            e -> e != null && (e.getKey().equals(mainOut) || !cxt.isLeave(e.getValue())));
+        skipObsoleteOutputs(cxt.getOutputs(), mainOut, transform.getAdditionalOutputTags(), cxt);
 
     if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.
@@ -135,63 +132,70 @@ class ParDoTranslatorBatch<InputT, OutputT>
               cxt.getOptionsSupplier(),
               input,
               sideInputReader,
+              metrics,
               tagColIdx);
 
       // FIXME What's the strategy to unpersist Datasets / RDDs?
 
       SparkCommonPipelineOptions opts = cxt.getOptions().as(SparkCommonPipelineOptions.class);
       StorageLevel storageLevel = StorageLevel.fromString(opts.getStorageLevel());
-      // If using storage level MEMORY_ONLY, it's best to persist the dataset as RDD to avoid any
-      // serialization / use of encoders. Persisting a Dataset, even if using a "deserialized"
-      // storage level, involves converting the data to the internal representation (InternalRow)
-      // by use of an encoder.
-      // For any other storage level, persist as Dataset, so we can select columns by TupleTag
-      // individually without restoring the entire row.
-      // In both cases caching of the outputs in the translation context is disabled to avoid
-      // caching the same data twice.
-      if (MEMORY_ONLY().equals(storageLevel)) {
 
-        RDD<Tuple2<Integer, WindowedValue<Object>>> allTagsRDD =
-            inputDs.rdd().mapPartitions(doFnMapper, false, TUPLE2_CTAG);
-        allTagsRDD.persist();
+      // Persist as wide rows with one column per TupleTag to support different schemas
+      Dataset<Tuple2<Integer, WindowedValue<Object>>> allTagsDS =
+          inputDs.mapPartitions(doFnMapper, oneOfEncoder(encoders));
+      allTagsDS.persist(storageLevel);
 
-        // divide into separate output datasets per tag
-        for (TupleTag<?> tag : outputs.keySet()) {
-          int colIdx = checkStateNotNull(tagColIdx.get(tag.getId()), "Unknown tag");
-          RDD<WindowedValue<Object>> rddByTag =
-              allTagsRDD.flatMap(selectByColumnIdx(colIdx), WINDOWED_VALUE_CTAG);
-          cxt.putDataset(
-              cxt.getOutput((TupleTag) tag),
-              cxt.getSparkSession().createDataset(rddByTag, encoders.get(colIdx)),
-              false);
-        }
-      } else {
-        // Persist as wide rows with one column per TupleTag to support different schemas
-        Dataset<Tuple2<Integer, WindowedValue<Object>>> allTagsDS =
-            inputDs.mapPartitions(doFnMapper, oneOfEncoder(encoders));
-        allTagsDS.persist(storageLevel);
+      // divide into separate output datasets per tag
+      for (TupleTag<?> tag : outputs.keySet()) {
+        int colIdx = checkStateNotNull(tagColIdx.get(tag.getId()), "Unknown tag");
+        // Resolve specific column matching the tuple tag (by id)
+        TypedColumn<Tuple2<Integer, WindowedValue<Object>>, WindowedValue<Object>> col =
+            (TypedColumn) col(Integer.toString(colIdx)).as(encoders.get(colIdx));
 
-        // divide into separate output datasets per tag
-        for (TupleTag<?> tag : outputs.keySet()) {
-          int colIdx = checkStateNotNull(tagColIdx.get(tag.getId()), "Unknown tag");
-          // Resolve specific column matching the tuple tag (by id)
-          TypedColumn<Tuple2<Integer, WindowedValue<Object>>, WindowedValue<Object>> col =
-              (TypedColumn) col(Integer.toString(colIdx)).as(encoders.get(colIdx));
-
-          cxt.putDataset(
-              cxt.getOutput((TupleTag) tag), allTagsDS.filter(col.isNotNull()).select(col), false);
-        }
+        // Caching of the returned outputs is disabled to avoid caching the same data twice.
+        cxt.putDataset(
+            cxt.getOutput((TupleTag) tag), allTagsDS.filter(col.isNotNull()).select(col), false);
       }
     } else {
       PCollection<OutputT> output = cxt.getOutput(mainOut);
       DoFnPartitionIteratorFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
           DoFnPartitionIteratorFactory.singleOutput(
-              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader);
+              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader, metrics);
 
       Dataset<WindowedValue<OutputT>> mainDS =
           inputDs.mapPartitions(doFnMapper, cxt.windowedEncoder(output.getCoder()));
 
       cxt.putDataset(output, mainDS);
+    }
+  }
+
+  /**
+   * Filter out obsolete, unused output tags except for {@code mainTag}.
+   *
+   * <p>This can help to avoid unnecessary caching in case of multiple outputs if only {@code
+   * mainTag} is consumed.
+   */
+  private Map<TupleTag<?>, PCollection<?>> skipObsoleteOutputs(
+      Map<TupleTag<?>, PCollection<?>> outputs,
+      TupleTag<?> mainTag,
+      TupleTagList otherTags,
+      Context cxt) {
+    switch (outputs.size()) {
+      case 1:
+        return outputs; // always keep main output
+      case 2:
+        TupleTag<?> otherTag = otherTags.get(0);
+        return cxt.isLeaf(checkStateNotNull(outputs.get(otherTag)))
+            ? Collections.singletonMap(mainTag, checkStateNotNull(outputs.get(mainTag)))
+            : outputs;
+      default:
+        Map<TupleTag<?>, PCollection<?>> filtered = Maps.newHashMapWithExpectedSize(outputs.size());
+        for (Map.Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
+          if (e.getKey().equals(mainTag) || !cxt.isLeaf(e.getValue())) {
+            filtered.put(e.getKey(), e.getValue());
+          }
+        }
+        return filtered;
     }
   }
 

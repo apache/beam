@@ -739,7 +739,7 @@ all major features and bug fixes, and all known issues.
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-1. Website pull request proposed to list the [release](https://beam.apache.org/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
+1. Website pull request proposed to list the [release](/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
 1. Docker images are published to [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags: {RELEASE_VERSION}_rc{RC_NUM}.
 
 You can (optionally) also do additional verification by:
@@ -793,7 +793,7 @@ Here’s an email template; please adjust as you see fit.
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
-    For guidelines on how to try the release in your projects, check out our blog post at https://beam.apache.org/blog/validate-beam-release/.
+    For guidelines on how to try the release in your projects, check out our blog post at /blog/validate-beam-release/.
 
     Thanks,
     Release Manager
@@ -1192,6 +1192,10 @@ Note this script reads the release notes from the blog post, so you should make 
 
 After running the script, the release notes should be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
+### Mark the version as released in GitHub
+
+In GitHub, in the [milestone page](https://github.com/apache/beam/milestones), click close on the current release.
+
 ### PMC-Only Finalization
 There are a few release finalization tasks that only PMC members have permissions to do.
 Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
@@ -1202,10 +1206,6 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
-
-#### Mark the version as released in GitHub
-
-In GitHub, in the [milestone page](https://github.com/apache/beam/milestones), click close on the current release.
 
 #### Recordkeeping with ASF
 

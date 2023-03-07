@@ -23,7 +23,7 @@ into a second model. This page explains how multi-model pipelines work and gives
 you need to know to build one.
 
 Before reading this section, it is recommended that you become familiar with the information in
-the [Pipeline development lifecycle](https://beam.apache.org/documentation/pipelines/design-your-pipeline/).
+the [Pipeline development lifecycle](/documentation/pipelines/design-your-pipeline/).
 
 ## How to build a Multi-model pipeline with Beam
 
@@ -33,7 +33,7 @@ all of those steps together by encapsulating them in a single Apache Beam Direct
 resilient and scalable end-to-end machine learning systems.
 
 To deploy your machine learning model in an Apache Beam pipeline, use
-the [`RunInferenceAPI`](https://beam.apache.org/documentation/sdks/python-machine-learning/), which
+the [`RunInferenceAPI`](/documentation/sdks/python-machine-learning/), which
 facilitates the integration of your model as a `PTransform` step in your DAG. Composing
 multiple `RunInference` transforms within a single DAG makes it possible to build a pipeline that consists
 of multiple ML models. In this way, Apache Beam supports the development of complex ML systems.
@@ -72,7 +72,7 @@ model_b_predictions = userset_b_traffic | RunInference(<model_handler_B>)
 
 Where `beam.partition` is used to split the data source into 50/50 split partitions. For more
 information about data partitioning,
-see [Partition](https://beam.apache.org/documentation/transforms/python/elementwise/partition/).
+see [Partition](/documentation/transforms/python/elementwise/partition/).
 
 ### Cascade Pattern
 

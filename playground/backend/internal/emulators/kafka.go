@@ -16,10 +16,14 @@
 package emulators
 
 import (
+	"beam.apache.org/playground/backend/internal/logger"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -31,10 +35,9 @@ import (
 )
 
 const (
-	brokerCount        = 1
 	addressSeperator   = ":"
 	pauseDuration      = 100 * time.Millisecond
-	globalDuration     = 2 * time.Second
+	globalDuration     = 120 * time.Second
 	bootstrapServerKey = "bootstrap.servers"
 	networkType        = "tcp"
 	jsonExt            = ".json"
@@ -42,21 +45,68 @@ const (
 )
 
 type KafkaMockCluster struct {
-	cluster *kafka.MockCluster
-	host    string
-	port    string
+	cmd                *exec.Cmd
+	host               string
+	port               string
+	preparerParameters map[string]string
 }
 
-func NewKafkaMockCluster() (*KafkaMockCluster, error) {
-	cluster, err := kafka.NewMockCluster(brokerCount)
+func NewKafkaMockCluster(emulatorExecutablePath string) (*KafkaMockCluster, error) {
+	cmd := exec.Command("java", "-jar", emulatorExecutablePath)
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
-	bootstrapServers := cluster.BootstrapServers()
-	bootstrapServersArr := strings.Split(bootstrapServers, addressSeperator)
-	if len(bootstrapServersArr) != 2 {
-		return nil, errors.New("wrong bootstrap server value")
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
 	}
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			logger.Infof("Emulator: %s", scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			logger.Errorf("Failed to read stderr: %s", err.Error())
+		}
+	}()
+
+	const host = "127.0.0.1"
+	var port string
+
+	stdoutScanner := bufio.NewScanner(stdout)
+
+	stdoutScanner.Scan()
+	line := stdoutScanner.Text()
+	if err := stdoutScanner.Err(); err != nil {
+		if cmd.ProcessState != nil && !cmd.ProcessState.Exited() {
+			if killErr := cmd.Process.Kill(); killErr != nil {
+				logger.Errorf("failed to kill emulator: %s", killErr.Error())
+				return nil, killErr
+			}
+		}
+		return nil, err
+	}
+	_, err = fmt.Sscanf(line, "Port: %s", &port)
+	if err != nil {
+		if cmd.ProcessState != nil && !cmd.ProcessState.Exited() {
+			if killErr := cmd.Process.Kill(); killErr != nil {
+				logger.Errorf("failed to kill emulator: %s", killErr.Error())
+				return nil, killErr
+			}
+		}
+		return nil, err
+	}
+
+	bootstrapServersArr := []string{host, port}
+	bootstrapServers := fmt.Sprintf("%s%s%s", host, addressSeperator, port)
 
 	workTicker := time.NewTicker(pauseDuration)
 	globalTicker := time.NewTicker(globalDuration)
@@ -65,9 +115,10 @@ func NewKafkaMockCluster() (*KafkaMockCluster, error) {
 		case <-workTicker.C:
 			if _, err = net.DialTimeout(networkType, bootstrapServers, pauseDuration); err == nil {
 				return &KafkaMockCluster{
-					cluster: cluster,
-					host:    bootstrapServersArr[0],
-					port:    bootstrapServersArr[1]}, nil
+					cmd:                cmd,
+					host:               bootstrapServersArr[0],
+					port:               bootstrapServersArr[1],
+					preparerParameters: make(map[string]string)}, nil
 			}
 		case <-globalTicker.C:
 			return nil, errors.New("timeout while a mock cluster is starting")
@@ -76,8 +127,17 @@ func NewKafkaMockCluster() (*KafkaMockCluster, error) {
 }
 
 func (kmc *KafkaMockCluster) Stop() {
-	if kmc.cluster != nil {
-		kmc.cluster.Close()
+	logger.Infof("Stopping Kafka emulator")
+	if kmc.cmd != nil {
+		err := kmc.cmd.Process.Signal(os.Interrupt)
+		if err != nil {
+			logger.Errorf("Failed to send Interrupt signal to process %d: %v", kmc.cmd.Process.Pid, err)
+			return
+		}
+		_, err = kmc.cmd.Process.Wait()
+		if err != nil {
+			logger.Errorf("Failed to wait for process %d: %v", kmc.cmd.Process.Pid, err)
+		}
 	}
 }
 
@@ -91,6 +151,7 @@ type KafkaProducer struct {
 }
 
 func NewKafkaProducer(cluster *KafkaMockCluster) (*KafkaProducer, error) {
+	logger.Infof("Kafka server: %s", cluster.GetAddress())
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
 		bootstrapServerKey: cluster.GetAddress(),
 		"acks":             "all",
@@ -134,10 +195,14 @@ func produce(entries []map[string]interface{}, kp *KafkaProducer, topic *string)
 			return errors.New("failed to produce data to a topic")
 		}
 		e := <-kp.producer.Events()
-		m := e.(*kafka.Message)
-
-		if m.TopicPartition.Error != nil {
-			return fmt.Errorf("delivery failed: %v", m.TopicPartition.Error)
+		if m, ok := e.(*kafka.Message); ok {
+			if m.TopicPartition.Error != nil {
+				return fmt.Errorf("delivery failed: %v", m.TopicPartition.Error)
+			}
+		} else if err, ok := e.(kafka.Error); ok {
+			return fmt.Errorf("producer error: %v", err)
+		} else {
+			return fmt.Errorf("unknown event: %s", e.String())
 		}
 	}
 
@@ -178,4 +243,8 @@ func unmarshallDatasets(dataset *DatasetDTO) ([]map[string]interface{}, error) {
 		return nil, errors.New("wrong dataset extension")
 	}
 	return entries, nil
+}
+
+func (kmc *KafkaMockCluster) GetPreparerParameters() map[string]string {
+	return kmc.preparerParameters
 }

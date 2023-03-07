@@ -25,22 +25,22 @@ void main() {
   group('ContentExampleLoadingDescriptor', () {
     test('defaults', () {
       const descriptorWithDefaults = ContentExampleLoadingDescriptor(
-        content: 'abc',
+        files: [SnippetFile(content: 'abc', isMain: true)],
         sdk: Sdk.go,
       );
 
-      final parsed = ContentExampleLoadingDescriptor.tryParse(
-        descriptorWithDefaults.toJson(),
-      );
+      final map = descriptorWithDefaults.toJson();
+      final parsed = ContentExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed, descriptorWithDefaults);
     });
 
     const descriptor = ContentExampleLoadingDescriptor(
       complexity: Complexity.advanced,
-      content: 'abc',
+      files: [SnippetFile(content: 'abc', isMain: true)],
       name: 'name',
       sdk: Sdk.go,
+      viewOptions: viewOptions,
     );
 
     test('toJson -> tryParse', () {
@@ -50,11 +50,16 @@ void main() {
       expect(parsed, descriptor);
     });
 
-    test('parses viewOptions', () {
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = ContentExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed?.viewOptions, viewOptions);
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        ContentExampleLoadingDescriptor(
+          complexity: descriptor.complexity,
+          files: descriptor.files,
+          name: descriptor.name,
+          sdk: descriptor.sdk,
+        ),
+      );
     });
   });
 }

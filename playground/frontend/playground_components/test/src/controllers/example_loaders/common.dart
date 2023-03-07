@@ -17,7 +17,6 @@
  */
 
 import 'package:playground_components/playground_components.dart';
-
 import 'package:playground_components/src/controllers/example_loaders/example_loader.dart';
 import 'package:playground_components/src/controllers/example_loaders/example_loader_factory.dart';
 
@@ -34,6 +33,9 @@ class TestExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   List<Object?> get props => [sdk, succeed];
 
   @override
+  ExampleLoadingDescriptor copyWithoutViewOptions() => this;
+
+  @override
   Map<String, dynamic> toJson() => throw UnimplementedError();
 }
 
@@ -47,10 +49,10 @@ class TestExampleLoader extends ExampleLoader {
       : example = descriptor.sdk == null
             ? null
             : Example(
+                files: [SnippetFile(content: descriptor.sdk!.id, isMain: true)],
                 name: descriptor.sdk!.id,
                 path: descriptor.sdk!.id,
                 sdk: descriptor.sdk!,
-                source: descriptor.sdk!.id,
                 type: ExampleType.example,
               );
 

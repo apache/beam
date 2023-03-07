@@ -149,7 +149,7 @@ type parquetWriteFn struct {
 	Filename string `json:"filename"`
 }
 
-func (a *parquetWriteFn) ProcessElement(ctx context.Context, _ int, iter func(*any) bool) error {
+func (a *parquetWriteFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
 	fs, err := filesystem.New(ctx, a.Filename)
 	if err != nil {
 		return err
@@ -167,7 +167,7 @@ func (a *parquetWriteFn) ProcessElement(ctx context.Context, _ int, iter func(*a
 		return err
 	}
 
-	val := reflect.New(a.Type.T).Interface()
+	var val beam.X
 	for iter(&val) {
 		if err := pw.Write(val); err != nil {
 			return err

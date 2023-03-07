@@ -27,16 +27,21 @@ environment:
   flutter: '>=3.3.2'
 
 dependencies:
-  app_state: ^0.8.1
+  app_state: ^0.9.0
   collection: ^1.16.0
   easy_localization: ^3.0.1
   easy_localization_ext: ^0.1.0
   easy_localization_loader: ^1.0.0
+  equatable: ^2.0.5
+  firebase_auth: ^4.1.1
+  firebase_auth_platform_interface: ^6.11.7
+  firebase_core: ^2.1.1
   flutter: { sdk: flutter }
   flutter_markdown: ^0.6.12
   flutter_svg: ^1.0.3
   get_it: ^7.2.0
   google_fonts: ^3.0.1
+  google_sign_in: ^5.4.2
   http: ^0.13.5
   json_annotation: ^4.7.0
   markdown: ^6.0.1
@@ -48,7 +53,6 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.2.0
-  equatable: ^2.0.5
   flutter_gen_runner: ^4.3.0
   flutter_test: { sdk: flutter }
   integration_test: { sdk: flutter }

@@ -27,6 +27,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -80,7 +81,7 @@ func main() {
 func run(ctx context.Context) error {
 	p, s := beam.NewPipelineWithRoot()
 
-	in := beam.Create(s, "Ada", "Lovelace", "World", "Beam", "Senior López")
+	in := beam.Create(s, "Ada", "Lovelace", "World", "Beam", "Senior López", "Random unicorn emoji 🦄")
 
 	out := beam.ParDo(s, &embeddedWasmFn{}, in)
 
@@ -114,14 +115,14 @@ func (fn *embeddedWasmFn) Setup(ctx context.Context) error {
 	// log to the console.
 	_, err := fn.r.NewHostModuleBuilder("env").
 		NewFunctionBuilder().WithFunc(logString).Export("log").
-		Instantiate(ctx, fn.r)
+		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to instantiate host module: %w", err)
 	}
 
 	// Instantiate a WebAssembly module that imports the "log" function defined
 	// in "env" and exports "memory" and functions we'll use in this example.
-	fn.mod, err = fn.r.InstantiateModuleFromBinary(ctx, greetWasm)
+	fn.mod, err = fn.r.Instantiate(ctx, greetWasm)
 	if err != nil {
 		return fmt.Errorf("failed to instantiate wasm module: %v", err)
 	}
@@ -155,9 +156,9 @@ func (fn *embeddedWasmFn) ProcessElement(ctx context.Context, s string) (string,
 	defer fn.deallocate.Call(ctx, ptr, size)
 
 	// The pointer is a linear memory offset, which is where we write the value of the DoFn's input element s.
-	if !fn.mod.Memory().Write(ctx, uint32(ptr), []byte(s)) {
+	if !fn.mod.Memory().Write(uint32(ptr), []byte(s)) {
 		return "", fmt.Errorf("Memory.Write(%d, %d) out of range of memory size %d",
-			ptr, size, fn.mod.Memory().Size(ctx))
+			ptr, size, fn.mod.Memory().Size())
 	}
 
 	// Finally, we get the greeting message "Hello" concatenated to the DoFn's input element s.
@@ -171,10 +172,10 @@ func (fn *embeddedWasmFn) ProcessElement(ctx context.Context, s string) (string,
 	defer fn.deallocate.Call(ctx, uint64(resultPtr), uint64(resultSize))
 
 	// The pointer is a linear memory offset, which is where we wrote the results of the string concatenation.
-	bytes, ok := fn.mod.Memory().Read(ctx, resultPtr, resultSize)
+	bytes, ok := fn.mod.Memory().Read(resultPtr, resultSize)
 	if !ok {
 		return "", fmt.Errorf("Memory.Read(%d, %d) out of range of memory size %d",
-			resultPtr, resultSize, fn.mod.Memory().Size(ctx))
+			resultPtr, resultSize, fn.mod.Memory().Size())
 	}
 
 	// bytes contains our final result that we emit into the output PCollection
@@ -193,7 +194,7 @@ func (fn *embeddedWasmFn) Teardown(ctx context.Context) error {
 
 // logString is an exported function to the wasm module that logs to console output.
 func logString(ctx context.Context, m api.Module, offset, byteCount uint32) {
-	buf, ok := m.Memory().Read(ctx, offset, byteCount)
+	buf, ok := m.Memory().Read(offset, byteCount)
 	if !ok {
 		log.Fatalf(ctx, "Memory.Read(%d, %d) out of range", offset, byteCount)
 	}

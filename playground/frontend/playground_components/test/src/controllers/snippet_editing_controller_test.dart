@@ -23,6 +23,7 @@ import 'package:playground_components/src/controllers/snippet_editing_controller
 import 'package:playground_components/src/enums/complexity.dart';
 import 'package:playground_components/src/models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import 'package:playground_components/src/models/sdk.dart';
+import 'package:playground_components/src/models/snippet_file.dart';
 import 'package:playground_components/src/playground_components.dart';
 
 import '../common/descriptors.dart';
@@ -34,52 +35,54 @@ void main() async {
   int notified = 0;
   late SnippetEditingController controller;
 
-  setUp((){
+  setUp(() {
     notified = 0;
     controller = SnippetEditingController(sdk: Sdk.python);
     controller.addListener(() => notified++);
   });
 
   group('SnippetEditingController.', () {
-    group('Changes.', (){
-      test('Unchanged initially', (){
+    group('Changes.', () {
+      test('Unchanged initially', () {
         expect(controller.isChanged, false);
         expect(notified, 0);
       });
 
       test('Unchanged after setting an example', () {
-        controller.setExample(exampleMock1);
+        controller.setExample(examplePython1);
 
         expect(controller.isChanged, false);
         expect(notified, 1);
       });
 
       test('Changes when changing code, notifies once', () {
-        controller.setExample(exampleMock1);
-        controller.codeController.text = exampleMock1.source;
+        controller.setExample(examplePython1);
+        controller.fileControllers.first.codeController.text =
+            examplePython1.files.first.content;
 
         expect(controller.isChanged, false);
         expect(notified, 1);
 
-        controller.codeController.text = 'changed';
+        controller.fileControllers.first.codeController.text = 'changed';
 
         expect(controller.isChanged, true);
         expect(notified, 2);
 
-        controller.codeController.text = 'changed2';
+        controller.fileControllers.first.codeController.text = 'changed2';
 
         expect(controller.isChanged, true);
         expect(notified, 2);
 
-        controller.codeController.text = exampleMock1.source;
+        controller.fileControllers.first.codeController.text =
+            examplePython1.files.first.content;
 
         expect(controller.isChanged, false);
         expect(notified, 3);
       });
 
       test('Changes when changing pipelineOptions, notifies once', () {
-        controller.setExample(exampleGoPipelineOptions);
-        controller.pipelineOptions = exampleGoPipelineOptions.pipelineOptions;
+        controller.setExample(exampleGo5PipelineOptions);
+        controller.pipelineOptions = exampleGo5PipelineOptions.pipelineOptions;
 
         expect(controller.isChanged, false);
         expect(notified, 1);
@@ -94,17 +97,64 @@ void main() async {
         expect(controller.isChanged, true);
         expect(notified, 2);
 
-        controller.pipelineOptions = exampleGoPipelineOptions.pipelineOptions;
+        controller.pipelineOptions = exampleGo5PipelineOptions.pipelineOptions;
 
         expect(controller.isChanged, false);
         expect(notified, 3);
       });
     });
 
+    group('Files.', () {
+      test('activeFileController, activateFileControllerByName', () {
+        expect(controller.activeFileController, null);
+
+        controller.setExample(exampleGo4Multifile);
+
+        expect(
+          controller.activeFileController?.getFile().content,
+          exampleGo4Multifile.files[1].content,
+        );
+
+        controller.activateFileControllerByName(
+          exampleGo4Multifile.files[0].name,
+        );
+        expect(
+          controller.activeFileController?.getFile().content,
+          exampleGo4Multifile.files[0].content,
+        );
+
+        controller.activateFileControllerByName('nonexistent');
+        expect(controller.activeFileController, null);
+      });
+
+      test('getFileControllerByName', () {
+        controller.setExample(exampleGo4Multifile);
+
+        expect(
+          controller
+              .getFileControllerByName(exampleGo4Multifile.files[0].name)
+              ?.savedFile
+              .content,
+          exampleGo4Multifile.files[0].content,
+        );
+        expect(
+          controller
+              .getFileControllerByName(exampleGo4Multifile.files[1].name)
+              ?.savedFile
+              .content,
+          exampleGo4Multifile.files[1].content,
+        );
+        expect(
+          controller.getFileControllerByName('nonexistent'),
+          null,
+        );
+      });
+    });
+
     group('Descriptors.', () {
       test('Returns the original descriptor if unchanged', () {
         controller.setExample(
-          exampleMock1,
+          examplePython1,
           descriptor: standardDescriptor1,
         );
 
@@ -115,32 +165,33 @@ void main() async {
 
       test('Returns a ContentExampleLoadingDescriptor if changed', () {
         controller.setExample(
-          exampleMock1,
+          examplePython1,
           descriptor: standardDescriptor1,
         );
 
-        controller.codeController.value = const TextEditingValue(text: 'ex4');
+        controller.fileControllers.first.codeController.value =
+            const TextEditingValue(text: 'ex4');
         final descriptor = controller.getLoadingDescriptor();
 
         const expected = ContentExampleLoadingDescriptor(
-          content: 'ex4',
-          sdk: Sdk.python,
-          name: 'Example X1',
           complexity: Complexity.basic,
+          files: [SnippetFile(content: 'ex4', isMain: true, name: '')],
+          name: 'Example X1',
+          sdk: Sdk.python,
         );
 
         expect(descriptor, expected);
       });
 
       test('Returns a ContentExampleLoadingDescriptor if no descriptor', () {
-        controller.setExample(exampleMock1, descriptor: null);
+        controller.setExample(examplePython1, descriptor: null);
 
-        controller.setExample(exampleMock2, descriptor: null);
+        controller.setExample(examplePython2, descriptor: null);
         final descriptor = controller.getLoadingDescriptor();
 
         const expected = ContentExampleLoadingDescriptor(
           complexity: Complexity.basic,
-          content: 'ex2',
+          files: [SnippetFile(content: 'ex2', isMain: true, name: '')],
           name: 'Kata',
           sdk: Sdk.python,
         );

@@ -20,70 +20,82 @@ import 'package:playground_components/src/enums/complexity.dart';
 import 'package:playground_components/src/models/example.dart';
 import 'package:playground_components/src/models/example_base.dart';
 import 'package:playground_components/src/models/sdk.dart';
+import 'package:playground_components/src/models/snippet_file.dart';
 
-const exampleMock1 = Example(
-  sdk: Sdk.python,
-  source: 'ex1',
+const examplePython1 = Example(
+  complexity: Complexity.basic,
+  description: 'description',
+  files: [SnippetFile(content: 'ex1', isMain: true)],
   name: 'Example X1',
+  path: 'SDK_PYTHON/Category/Name1',
+  sdk: Sdk.python,
   tags: ['tag1'],
   type: ExampleType.example,
-  description: 'description',
-  path: 'SDK_PYTHON/Category/Name1',
-  complexity: Complexity.basic,
 );
 
-const exampleMock2 = Example(
-  sdk: Sdk.python,
-  source: 'ex2',
+const examplePython2 = Example(
+  complexity: Complexity.basic,
+  description: 'description',
+  files: [SnippetFile(content: 'ex2', isMain: true)],
   name: 'Kata',
+  path: 'SDK_PYTHON/Category/Name2',
+  sdk: Sdk.python,
   tags: ['tag2'],
   type: ExampleType.kata,
-  description: 'description',
-  path: 'SDK_PYTHON/Category/Name2',
-  complexity: Complexity.basic,
 );
 
-const exampleWithoutSourceMock = ExampleBase(
-  sdk: Sdk.python,
-  name: 'Test example',
-  type: ExampleType.example,
-  description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
+const exampleBasePython3 = ExampleBase(
   complexity: Complexity.basic,
+  description: 'description',
+  name: 'Test example',
+  path: 'SDK_PYTHON/Category/Name',
+  sdk: Sdk.python,
+  type: ExampleType.example,
 );
 
-const exampleWithAllAdditionsMock = Example(
-  sdk: Sdk.python,
-  name: 'Test example',
-  type: ExampleType.example,
+const examplePython3 = Example(
+  complexity: Complexity.basic,
   description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
-  source: 'test outputs',
+  files: [SnippetFile(content: 'test source', isMain: true)],
+  graph: 'test graph',
+  logs: 'test logs',
+  name: 'Test example',
   outputs: 'test outputs',
-  logs: 'test outputs',
-  graph: 'test outputs',
-  complexity: Complexity.basic,
+  path: 'SDK_PYTHON/Category/Name',
+  sdk: Sdk.python,
+  type: ExampleType.example,
 );
 
-const exampleGoPipelineOptions = Example(
+const exampleGo4Multifile = Example(
+  files: [
+    SnippetFile(content: 'go1', isMain: false, name: '1'),
+    SnippetFile(content: 'go2', isMain: true, name: '2'),
+  ],
+  name: 'exampleGo4Multifile',
+  sdk: Sdk.go,
+  type: ExampleType.example,
+  path: 'SDK_GO/Category/exampleGo4Multifile',
+);
+
+const exampleGo5PipelineOptions = Example(
   description: 'description',
-  graph: 'test outputs',
-  logs: 'test outputs',
+  files: [SnippetFile(content: 'test source', isMain: true)],
+  graph: 'test graph',
+  logs: 'test logs',
   name: 'Test example',
   outputs: 'test outputs',
   path: 'SDK_PYTHON/Category/Name',
   pipelineOptions: 'pipeline options',
   sdk: Sdk.go,
-  source: 'test outputs',
   type: ExampleType.example,
 );
 
-const exampleMockGo = Example(
-  sdk: Sdk.go,
-  source: 'ex1',
-  name: 'Example',
-  type: ExampleType.example,
-  description: 'description',
-  path: 'SDK_GO/Category/Name',
+const exampleGo6 = Example(
   complexity: Complexity.medium,
+  description: 'description',
+  name: 'Example',
+  files: [SnippetFile(content: 'ex6', isMain: true)],
+  path: 'SDK_GO/Category/Name',
+  sdk: Sdk.go,
+  type: ExampleType.example,
 );

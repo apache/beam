@@ -62,6 +62,8 @@ def create_test_example(create_test_tag):
             filepath="MOCK_FILEPATH",
             code="MOCK_CODE",
             output="MOCK_OUTPUT",
+            logs="MOCK_LOGS",
+            graph="MOCK_GRAPH",
             url_vcs="https://github.com/proj/MOCK_LINK",
             context_line=132,
         )

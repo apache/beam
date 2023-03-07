@@ -131,6 +131,10 @@ type Tracker struct {
 	err       error
 }
 
+func (tracker *Tracker) String() string {
+	return fmt.Sprintf("[%v,%v) c: %v, a.: %v, stopped: %v, err: %v", tracker.rest.Start, tracker.rest.End, tracker.claimed, tracker.attempted, tracker.stopped, tracker.err)
+}
+
 // NewTracker is a constructor for an Tracker given a start and end range.
 func NewTracker(rest Restriction) *Tracker {
 	return &Tracker{

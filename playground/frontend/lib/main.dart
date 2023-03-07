@@ -30,7 +30,6 @@ import 'package:url_strategy/url_strategy.dart';
 import 'l10n/l10n.dart';
 import 'locator.dart';
 import 'playground_app.dart';
-import 'router/route_information_parser.dart';
 
 void main() async {
   FlutterIssue106664Workaround.instance.apply();
@@ -42,8 +41,8 @@ void main() async {
 
   // Router API specific initialization.
   final pageStack = GetIt.instance.get<PageStack>();
-  final routerDelegate = PageStackRouterDelegate(pageStack);
-  final routeInformationParser = PlaygroundRouteInformationParser();
+  final routerDelegate = BeamRouterDelegate(pageStack);
+  final parser = GetIt.instance.get<PageStackRouteInformationParser>();
   final backButtonDispatcher = PageStackBackButtonDispatcher(pageStack);
 
   await findSystemLocale();
@@ -60,7 +59,7 @@ void main() async {
       child: PlaygroundApp(
         backButtonDispatcher: backButtonDispatcher,
         routerDelegate: routerDelegate,
-        routeInformationParser: routeInformationParser,
+        routeInformationParser: parser,
       ),
     ),
   );

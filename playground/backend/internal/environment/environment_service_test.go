@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"org.junit.runner.JUnitCore\"\n  ]\n}"
+	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-parameters\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"org.junit.runner.JUnitCore\"\n  ]\n}"
 	goConfig         = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"test_cmd\": \"go\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ],\n  \"test_args\": [\n    \"test\",\n    \"-v\"\n  ]\n}\n"
 	pythonConfig     = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"test_cmd\": \"pytest\",\n  \"compile_args\": [],\n  \"run_args\": [],\n  \"test_args\": []\n}\n"
 	scioConfig       = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"sbt\",\n  \"test_cmd\": \"sbt\",\n  \"compile_args\": [],\n  \"run_args\": [\n    \"runMain\"\n  ],\n  \"test_args\": []\n}\n"
@@ -71,7 +71,7 @@ func setup() error {
 	}
 	executorConfig = NewExecutorConfig(
 		"javac", "java", "java",
-		[]string{"-d", "bin", "-classpath", jars},
+		[]string{"-d", "bin", "-parameters", "-classpath", jars},
 		[]string{"-cp", "bin:" + jars},
 		[]string{"-cp", "bin:" + jars, "org.junit.runner.JUnitCore"},
 	)
@@ -105,7 +105,7 @@ func TestNewEnvironment(t *testing.T) {
 		{name: "Create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
-			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 		}},
 	}
 	for _, tt := range tests {
@@ -113,7 +113,7 @@ func TestNewEnvironment(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
-				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout)); !reflect.DeepEqual(got, tt.want) {
+				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
 		})
@@ -224,7 +224,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "Working dir is provided",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", launchSiteKey: defaultLaunchSite, projectIdKey: defaultProjectId},
 		},
@@ -235,25 +235,25 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the correct value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, convertedTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, convertedTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", cacheKeyExpirationTimeKey: hour},
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the incorrect value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", cacheKeyExpirationTimeKey: "1"},
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the correct value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, convertedTime, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, convertedTime, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", pipelineExecuteTimeoutKey: hour},
 		},
 		{
 			name:      "PipelineExecuteTimeoutKey is set with the incorrect value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", pipelineExecuteTimeoutKey: "1"},
 		},
@@ -323,7 +323,7 @@ func Test_getConfigFromJson(t *testing.T) {
 		{
 			name:    "Get object from json",
 			args:    args{filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
-			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}),
+			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-parameters", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}),
 			wantErr: false,
 		},
 		{

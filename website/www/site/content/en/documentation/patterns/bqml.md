@@ -60,7 +60,7 @@ bq extract -m bqml_tutorial.sample_model gs://some/gcs/path
 
 ## Create an Apache Beam transform that uses your BigQuery ML model
 
-In this section we will construct an Apache Beam pipeline that will use the BigQuery ML model we just created and exported. The model can be served using Google Cloud AI Platform Prediction - for this please refer to the [AI Platform patterns](https://beam.apache.org/documentation/patterns/ai-platform/). In this case, we'll be illustrating how to use the tfx_bsl library to do local predictions (on your Apache Beam workers).
+In this section we will construct an Apache Beam pipeline that will use the BigQuery ML model we just created and exported. The model can be served using Google Cloud AI Platform Prediction - for this please refer to the [AI Platform patterns](/documentation/patterns/ai-platform/). In this case, we'll be illustrating how to use the tfx_bsl library to do local predictions (on your Apache Beam workers).
 
 First, the model needs to be downloaded to a local directory where you will be developing the rest of your pipeline (e.g. to `serving_dir/sample_model/1`).
 

@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -46,7 +47,7 @@ import (
 )
 
 const (
-	javaConfig      = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaConfig      = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-parameters\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
 	pythonConfig    = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"compile_args\": [],\n  \"run_args\": []\n}"
 	goConfig        = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
 	pipelinesFolder = "executable_files"
@@ -305,7 +306,7 @@ func Test_Process(t *testing.T) {
 					cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
 				}(tt.args.ctx, tt.args.pipelineId)
 			}
-			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions, nil, nil)
+			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if !reflect.DeepEqual(status, tt.expectedStatus) {
@@ -626,10 +627,18 @@ func Test_getRunOrTestCmd(t *testing.T) {
 			want: wantTestExec,
 		},
 	}
+
+	execComparer := cmp.Comparer(func(a exec.Cmd, b exec.Cmd) bool {
+		return a.Path == b.Path &&
+			cmp.Equal(a.Args, b.Args) &&
+			cmp.Equal(a.Env, b.Env) &&
+			a.Dir == b.Dir
+	})
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getExecuteCmd(tt.args.isUnitTest, tt.args.executor, tt.args.ctxWithTimeout); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getExecuteCmd() = %v, want %v", got, tt.want)
+			if got := getExecuteCmd(tt.args.isUnitTest, tt.args.executor, tt.args.ctxWithTimeout); !cmp.Equal(got, tt.want, execComparer) {
+				t.Errorf("getExecuteCmd() = '%v', want '%v', diff = %v", got, tt.want, cmp.Diff(got, tt.want, execComparer))
 			}
 		})
 	}
@@ -727,7 +736,7 @@ func Benchmark_ProcessJava(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "", nil, nil)
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
 	}
 }
 
@@ -757,7 +766,7 @@ func Benchmark_ProcessPython(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions, nil, nil)
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions)
 	}
 }
 
@@ -787,7 +796,7 @@ func Benchmark_ProcessGo(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "", nil, nil)
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
 	}
 }
 

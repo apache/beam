@@ -72,11 +72,14 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
   protected final Map<String, PCollectionView<?>> sideInputs;
   protected final SideInputReader sideInputReader;
 
+  private final MetricsAccumulator metrics;
+
   private DoFnPartitionIteratorFactory(
       AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, FnOutT>> appliedPT,
       Supplier<PipelineOptions> options,
       PCollection<InT> input,
-      SideInputReader sideInputReader) {
+      SideInputReader sideInputReader,
+      MetricsAccumulator metrics) {
     this.stepName = appliedPT.getFullName();
     this.doFn = appliedPT.getTransform().getFn();
     this.doFnSchema = ParDoTranslation.getSchemaInformation(appliedPT);
@@ -88,6 +91,7 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
     this.outputCoders = outputCoders(appliedPT.getOutputs());
     this.sideInputs = appliedPT.getTransform().getSideInputs();
     this.sideInputReader = sideInputReader;
+    this.metrics = metrics;
   }
 
   /**
@@ -98,8 +102,9 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
       AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, OutT>> appliedPT,
       Supplier<PipelineOptions> options,
       PCollection<InT> input,
-      SideInputReader sideInputReader) {
-    return new SingleOut<>(appliedPT, options, input, sideInputReader);
+      SideInputReader sideInputReader,
+      MetricsAccumulator metrics) {
+    return new SingleOut<>(appliedPT, options, input, sideInputReader, metrics);
   }
 
   /**
@@ -113,8 +118,9 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
           Supplier<PipelineOptions> options,
           PCollection<InT> input,
           SideInputReader sideInputReader,
+          MetricsAccumulator metrics,
           Map<String, Integer> tagColIdx) {
-    return new MultiOut<>(appliedPT, options, input, sideInputReader, tagColIdx);
+    return new MultiOut<>(appliedPT, options, input, sideInputReader, metrics, tagColIdx);
   }
 
   @Override
@@ -137,8 +143,9 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
         AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, OutT>> appliedPT,
         Supplier<PipelineOptions> options,
         PCollection<InT> input,
-        SideInputReader sideInputReader) {
-      super(appliedPT, options, input, sideInputReader);
+        SideInputReader sideInputReader,
+        MetricsAccumulator metrics) {
+      super(appliedPT, options, input, sideInputReader, metrics);
     }
 
     @Override
@@ -170,8 +177,9 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
         Supplier<PipelineOptions> options,
         PCollection<InT> input,
         SideInputReader sideInputReader,
+        MetricsAccumulator metrics,
         Map<String, Integer> tagColIdx) {
-      super(appliedPT, options, input, sideInputReader);
+      super(appliedPT, options, input, sideInputReader, metrics);
       this.tagColIdx = tagColIdx;
     }
 
@@ -246,7 +254,7 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
   private DoFnRunner<InT, FnOutT> simpleRunner(Deque<OutT> buffer) {
     return DoFnRunners.simpleRunner(
         options.get(),
-        (DoFn<InT, FnOutT>) doFn,
+        doFn,
         CachedSideInputReader.of(sideInputReader, sideInputs.values()),
         outputManager(buffer),
         mainOutput,
@@ -260,7 +268,7 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
   }
 
   private DoFnRunner<InT, FnOutT> metricsRunner(DoFnRunner<InT, FnOutT> runner) {
-    return new DoFnRunnerWithMetrics<>(stepName, runner, MetricsAccumulator.getInstance());
+    return new DoFnRunnerWithMetrics<>(stepName, runner, metrics);
   }
 
   private static Map<TupleTag<?>, Coder<?>> outputCoders(Map<TupleTag<?>, PCollection<?>> outputs) {

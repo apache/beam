@@ -35,6 +35,11 @@ if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
   exit 1
 fi
 
+# strip leading/trailing quotes from posargs because it can get double quoted as its passed through.
+posargs=$(sed -e 's/^"//' -e 's/"$//' -e "s/'$//" -e "s/^'//" <<<$posargs)
+echo "pytest_args: $pytest_args"
+echo "posargs: $posargs"
+
 # Run with pytest-xdist and without.
 pytest -o junit_suite_name=${envname} \
   --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 ${pytest_args} --pyargs ${posargs}
@@ -43,7 +48,12 @@ pytest -o junit_suite_name=${envname}_no_xdist \
   --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' ${pytest_args} --pyargs ${posargs}
 status2=$?
 
-# Exit with error if one of the statuses has an error that's not 5 (no tests run).
+# Exit with error if no tests were run in either suite (status code 5).
+if [[ $status1 == 5 && $status2 == 5 ]]; then
+  exit $status1
+fi
+
+# Exit with error if one of the statuses has an error that's not 5.
 if [[ $status1 != 0 && $status1 != 5 ]]; then
   exit $status1
 fi

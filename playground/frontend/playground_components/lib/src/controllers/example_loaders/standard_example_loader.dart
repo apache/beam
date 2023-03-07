@@ -51,16 +51,23 @@ class StandardExampleLoader extends ExampleLoader {
   }
 
   Future<void> _load() async {
-    final example = await _loadExampleBase();
+    try {
+      final example = await _loadExampleBase();
 
-    if (example == null) {
-      _completer.completeError('Example not found: $descriptor');
+      if (example == null) {
+        _completer.completeError(Exception('Example not found: $descriptor'));
+        return;
+      }
+
+      _completer.complete(
+        exampleCache.loadExampleInfo(example),
+      );
+
+      // ignore: avoid_catches_without_on_clauses
+    } catch (ex, trace) {
+      _completer.completeError(ex, trace);
       return;
     }
-
-    _completer.complete(
-      exampleCache.loadExampleInfo(example),
-    );
   }
 
   Future<ExampleBase?> _loadExampleBase() async {

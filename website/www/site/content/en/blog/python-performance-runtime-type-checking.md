@@ -150,5 +150,5 @@ And that's much more actionable for an investigation :)
 Go play with the new `performance_runtime_type_check` feature!
 
 It's in an experimental state so please
-[let us know](https://beam.apache.org/community/contact-us/)
+[let us know](/community/contact-us/)
 if you encounter any issues.

@@ -75,6 +75,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
@@ -123,6 +124,7 @@ import org.joda.time.ReadableInstant;
  *   RECORD      <-----> ROW
  *   UNION       <-----> LogicalType(OneOfType)
  *   LogicalTypes.Date              <-----> LogicalType(DATE)
+ *                                  <------ LogicalType(urn="beam:logical_type:date:v1")
  *   LogicalTypes.TimestampMillis   <-----> DATETIME
  *   LogicalTypes.Decimal           <-----> DECIMAL
  * </pre>
@@ -150,9 +152,13 @@ public class AvroUtils {
   }
 
   // Unwrap an AVRO schema into the base type an whether it is nullable.
-  static class TypeWithNullability {
+  public static class TypeWithNullability {
     public final org.apache.avro.Schema type;
     public final boolean nullable;
+
+    public static TypeWithNullability create(org.apache.avro.Schema avroSchema) {
+      return new TypeWithNullability(avroSchema);
+    }
 
     TypeWithNullability(org.apache.avro.Schema avroSchema) {
       if (avroSchema.getType() == Type.UNION) {
@@ -181,6 +187,14 @@ public class AvroUtils {
         type = avroSchema;
         nullable = false;
       }
+    }
+
+    public Boolean isNullable() {
+      return nullable;
+    }
+
+    public org.apache.avro.Schema getType() {
+      return type;
     }
   }
 
@@ -967,7 +981,7 @@ public class AvroUtils {
                   oneOfType.getOneOfSchema().getFields().stream()
                       .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
                       .collect(Collectors.toList()));
-        } else if ("DATE".equals(identifier)) {
+        } else if ("DATE".equals(identifier) || SqlTypes.DATE.getIdentifier().equals(identifier)) {
           baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
         } else if ("TIME".equals(identifier)) {
           baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
@@ -1095,7 +1109,11 @@ public class AvroUtils {
                 oneOfValue.getValue());
           }
         } else if ("DATE".equals(identifier)) {
+          // "Date" is backed by joda.time.Instant
           return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
+        } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+          // portable SqlTypes.DATE is backed by java.time.LocalDate
+          return ((java.time.LocalDate) value).toEpochDay();
         } else if ("TIME".equals(identifier)) {
           return (int) ((Instant) value).getMillis();
         } else {
@@ -1175,6 +1193,8 @@ public class AvroUtils {
         if (value instanceof ReadableInstant) {
           int epochDays = Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
           return convertDateStrict(epochDays, fieldType);
+        } else if (value instanceof java.time.LocalDate) {
+          return convertDateStrict((int) ((java.time.LocalDate) value).toEpochDay(), fieldType);
         } else {
           return convertDateStrict((Integer) value, fieldType);
         }

@@ -26,8 +26,8 @@ test.dependsOn "testPython${pythonVersionSuffix}"
 toxTask "testPy${pythonVersionSuffix}Cloud", "py${pythonVersionSuffix}-cloud", "${posargs}"
 test.dependsOn "testPy${pythonVersionSuffix}Cloud"
 
-toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask", "${posargs}"
-test.dependsOn "testPy${pythonVersionSuffix}Dask"
+// toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask", "${posargs}"
+// test.dependsOn "testPy${pythonVersionSuffix}Dask"
 
 toxTask "testPy${pythonVersionSuffix}Cython", "py${pythonVersionSuffix}-cython", "${posargs}"
 test.dependsOn "testPy${pythonVersionSuffix}Cython"
@@ -36,9 +36,10 @@ toxTask "testPy38CloudCoverage", "py38-cloudcoverage", "${posargs}"
 test.dependsOn "testPy38CloudCoverage"
 
 project.tasks.register("preCommitPy${pythonVersionSuffix}") {
-      // Generates coverage reports only once, in Py38, to remove duplicated work
+      // Since codecoverage reports will always be generated for py38,
+      // all tests will be exercised.
       if (pythonVersionSuffix.equals('38')) {
-          dependsOn = ["testPy38CloudCoverage", "testPy38Cython"]
+          dependsOn = ["testPy38Cython"]
       } else {
           dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
       }

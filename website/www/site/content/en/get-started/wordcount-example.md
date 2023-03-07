@@ -400,7 +400,7 @@ python -m apache_beam.examples.wordcount --input /path/to/inputfile \
 
 {{< runner flinkCluster >}}
 # Running Beam Python on a distributed Flink cluster requires additional configuration.
-# See https://beam.apache.org/documentation/runners/flink/ for more information.
+# See /documentation/runners/flink/ for more information.
 {{< /runner >}}
 
 {{< runner spark >}}

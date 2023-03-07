@@ -93,6 +93,7 @@ Prerequisites:
  - set environment variables:
    * PROJECT_ID: GCP id
    * REGION: the region, "us-central1" fe
+   * DATASTORE_NAMESPACE: datastore namespace, "Playground" namespace will be used if variable is not set
    * PLAYGROUND_ROUTER_HOST: router serving Playground Router GRPC API
 
 __To discover Router host:__
@@ -117,13 +118,14 @@ for endpoint in getSdkList getContentTree getUnitContent getUserProgress postUni
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http \
-  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID,PLAYGROUND_ROUTER_HOST=$PLAYGROUND_ROUTER_HOST"
+  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE,GOOGLE_PROJECT_ID=$PROJECT_ID,PLAYGROUND_ROUTER_HOST=$PLAYGROUND_ROUTER_HOST"
 done
 
 ```
 3. Set environment variables:
 - TOB_MOCK: set to 1 to deliver mock responses from samples/api
 - DATASTORE_PROJECT_ID: Google Cloud PROJECT_ID
+- DATASTORE_NAMESPACE: Datastore namespace to use
 - GOOGLE_PROJECT_ID: Google Cloud PROJECT_ID (consumed by Firebase Admin SDK)
 - GOOGLE_APPLICATION_CREDENTIALS: path to json auth key
 - TOB_LEARNING_ROOT: path the content tree root

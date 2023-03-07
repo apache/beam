@@ -57,7 +57,7 @@ type Root interface {
 
 	// Process processes the entire source, notably emitting elements to
 	// downstream nodes.
-	Process(ctx context.Context) error
+	Process(ctx context.Context) ([]*Checkpoint, error)
 }
 
 // ElementProcessor presents a component that can process an element.

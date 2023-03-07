@@ -137,9 +137,10 @@ func main() {
 	cp := []string{
 		filepath.Join(jarsDir, "slf4j-api.jar"),
 		filepath.Join(jarsDir, "slf4j-jdk14.jar"),
+		filepath.Join(jarsDir, "jcl-over-slf4j.jar"),
+		filepath.Join(jarsDir, "log4j-over-slf4j.jar"),
+		filepath.Join(jarsDir, "log4j-to-slf4j.jar"),
 		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
-		filepath.Join(jarsDir, "beam-sdks-java-io-kafka.jar"),
-		filepath.Join(jarsDir, "kafka-clients.jar"),
 	}
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")

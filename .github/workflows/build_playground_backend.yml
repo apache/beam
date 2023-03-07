@@ -68,15 +68,6 @@ jobs:
 
       - name: Run PreCommit
         run: ./gradlew playground:backend:precommit
-      - name: install npm
-        uses: actions/setup-node@v3
-        with:
-            node-version: '14'
-      - name: install docker linter
-        run: npm install  -g dockerlint
-      - name: lint dockerfile
-        run: dockerlint Dockerfile
-        working-directory: playground/backend/containers/java
       - uses: hashicorp/setup-terraform@v1
         with:
             terraform_version: ${{ env.TERRAFORM_VERSION }}

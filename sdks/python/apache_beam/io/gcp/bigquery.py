@@ -1641,6 +1641,7 @@ class _StreamToBigQuery(PTransform):
       ignore_insert_ids,
       ignore_unknown_columns,
       with_auto_sharding,
+      num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       test_client=None,
       max_retries=None):
     self.table_reference = table_reference
@@ -1658,6 +1659,7 @@ class _StreamToBigQuery(PTransform):
     self.ignore_insert_ids = ignore_insert_ids
     self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
+    self._num_streaming_keys = num_streaming_keys
     self.max_retries = max_retries or MAX_INSERT_RETRIES
 
   class InsertIdPrefixFn(DoFn):
@@ -1690,7 +1692,7 @@ class _StreamToBigQuery(PTransform):
     def _add_random_shard(element):
       key = element[0]
       value = element[1]
-      return ((key, random.randint(0, DEFAULT_SHARDS_PER_DESTINATION)), value)
+      return ((key, random.randint(0, self._num_streaming_keys)), value)
 
     def _restore_table_ref(sharded_table_ref_elems_kv):
       sharded_table_ref = sharded_table_ref_elems_kv[0]
@@ -1782,7 +1784,8 @@ class WriteToBigQuery(PTransform):
       # when the feature is mature.
       with_auto_sharding=False,
       ignore_unknown_columns=False,
-      load_job_project_id=None):
+      load_job_project_id=None,
+      num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1927,6 +1930,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       load_job_project_id: Specifies an alternate GCP project id to use for
         billingBatch File Loads. By default, the project id of the table is
         used.
+      num_streaming_keys: The number of shards per destination when writing via
+        streaming inserts.
     """
     self._table = table
     self._dataset = dataset
@@ -1962,6 +1967,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
     self.load_job_project_id = load_job_project_id
+    self._num_streaming_keys = num_streaming_keys
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2024,7 +2030,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           ignore_insert_ids=self._ignore_insert_ids,
           ignore_unknown_columns=self._ignore_unknown_columns,
           with_auto_sharding=self.with_auto_sharding,
-          test_client=self.test_client)
+          test_client=self.test_client,
+          num_streaming_keys=self._num_streaming_keys)
 
       return WriteResult(
           method=WriteToBigQuery.Method.STREAMING_INSERTS,

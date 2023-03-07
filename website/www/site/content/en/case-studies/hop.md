@@ -125,7 +125,7 @@ Hop’s [Neo4j plugin](https://hop.apache.org/manual/latest/technology/neo4j/ind
 stores logging and execution lineage of Apache Beam pipelines in the Neo4j graph database and
 enables users to query this information for more details, such as quickly jump to the place where an
 error occurred. The combination of Apache Hop
-transforms, [Apache Beam built-in I/Os](https://beam.apache.org/documentation/io/built-in/), and
+transforms, [Apache Beam built-in I/Os](/documentation/io/built-in/), and
 Apache Beam-powered data processing opens up new horizons for more sinks and sources and custom use
 cases.
 

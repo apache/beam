@@ -30,23 +30,23 @@ If you have additional material that you would like to see here, please let us k
 
 ### Quickstart
 
-*   **[Java Quickstart](https://beam.apache.org/get-started/quickstart-java/)** - How to set up and run a WordCount pipeline on the Java SDK.
-*   **[Python Quickstart](https://beam.apache.org/get-started/quickstart-py/)** - How to set up and run a WordCount pipeline on the Python SDK.
-*   **[Go Quickstart](https://beam.apache.org/get-started/quickstart-go/)** - How to set up and run a WordCount pipeline on the Go SDK.
+*   **[Java Quickstart](/get-started/quickstart-java/)** - How to set up and run a WordCount pipeline on the Java SDK.
+*   **[Python Quickstart](/get-started/quickstart-py/)** - How to set up and run a WordCount pipeline on the Python SDK.
+*   **[Go Quickstart](/get-started/quickstart-go/)** - How to set up and run a WordCount pipeline on the Go SDK.
 *   **[Java Development Environment](https://medium.com/google-cloud/setting-up-a-java-development-environment-for-apache-beam-on-google-cloud-platform-ec0c6c9fbb39)** - Setting up a Java development environment for Apache Beam using IntelliJ and Maven.
 *   **[Python Development Environment](https://medium.com/google-cloud/python-development-environments-for-apache-beam-on-google-cloud-platform-b6f276b344df)** - Setting up a Python development environment for Apache Beam using PyCharm.
 
 ### Learning the Basics
 
-*   **[WordCount](https://beam.apache.org/get-started/wordcount-example/)** - Walks you through the code of a simple WordCount pipeline. This is a very basic pipeline intended to show the most basic concepts of data processing. WordCount is the "Hello World" for data processing.
-*   **[Mobile Gaming](https://beam.apache.org/get-started/mobile-gaming-example/)** - Introduces how to consider time while processing data, user defined transforms, windowing, filtering data, streaming pipelines, triggers, and session analysis. This is a great place to start once you get the hang of WordCount.
+*   **[WordCount](/get-started/wordcount-example/)** - Walks you through the code of a simple WordCount pipeline. This is a very basic pipeline intended to show the most basic concepts of data processing. WordCount is the "Hello World" for data processing.
+*   **[Mobile Gaming](/get-started/mobile-gaming-example/)** - Introduces how to consider time while processing data, user defined transforms, windowing, filtering data, streaming pipelines, triggers, and session analysis. This is a great place to start once you get the hang of WordCount.
 
 ### Fundamentals
 
-*   **[Programming Guide](https://beam.apache.org/documentation/programming-guide/)** - The Programming Guide contains more in-depth information on most topics in the Apache Beam SDK. These include descriptions on how everything works as well as code snippets to see how to use every part. This can be used as a reference guidebook.
+*   **[Programming Guide](/documentation/programming-guide/)** - The Programming Guide contains more in-depth information on most topics in the Apache Beam SDK. These include descriptions on how everything works as well as code snippets to see how to use every part. This can be used as a reference guidebook.
 *   **[The world beyond batch: Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101)** - Covers some basic background information, terminology, time domains, batch processing, and streaming.
 *   **[The world beyond batch: Streaming 102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102)** - Tour of the unified batch and streaming programming model in Beam, alongside with an example to explain many of the concepts.
-*   **[Apache Beam Execution Model](https://beam.apache.org/documentation/runtime/model)** - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.
+*   **[Apache Beam Execution Model](/documentation/runtime/model)** - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.
 
 ### Common Patterns
 
@@ -76,8 +76,8 @@ If you have additional material that you would like to see here, please let us k
 ### Advanced Concepts
 
 *   **[Running on AppEngine](https://amygdala.github.io/dataflow/app_engine/2017/10/24/gae_dataflow.html)** - Use a Dataflow template to launch a pipeline from Google AppEngine, and how to run the pipeline periodically via a cron job.
-*   **[Stateful Processing](https://beam.apache.org/blog/2017/02/13/stateful-processing.html)** - Learn how to access a persistent mutable state while processing input elements, this allows for _side effects_ in a `DoFn`. This can be used for arbitrary-but-consistent index assignment, if you want to assign a unique incrementing index to each incoming element where order doesn't matter.
-*   **[Timely and Stateful Processing](https://beam.apache.org/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
+*   **[Stateful Processing](/blog/2017/02/13/stateful-processing.html)** - Learn how to access a persistent mutable state while processing input elements, this allows for _side effects_ in a `DoFn`. This can be used for arbitrary-but-consistent index assignment, if you want to assign a unique incrementing index to each incoming element where order doesn't matter.
+*   **[Timely and Stateful Processing](/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
 *   **[Running External Libraries](https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads)** - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.
 
 ## Books {#books}
@@ -148,20 +148,20 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 
 * [Beam Playground](https://play.beam.apache.org) is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
     You can try the available Apache Beam examples at [Beam Playground](https://play.beam.apache.org).
-* Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog [here](https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples).
+* Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog [here](/get-started/try-beam-playground/#how-to-add-new-examples).
 
 ## API Reference {#api-reference}
 
-*   **[Java API Reference](https://beam.apache.org/documentation/sdks/javadoc/)** - Official API Reference for the Java SDK.
-*   **[Python API Reference](https://beam.apache.org/documentation/sdks/pydoc/)** - Official API Reference for the Python SDK.
+*   **[Java API Reference](/documentation/sdks/javadoc/)** - Official API Reference for the Java SDK.
+*   **[Python API Reference](/documentation/sdks/pydoc/)** - Official API Reference for the Python SDK.
 *   **[Go API Reference](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam)** - Official API Reference for the Go SDK.
 
 ## Feedback and Suggestions {#feedback-and-suggestions}
 
-We are open for feedback and suggestions, you can find different ways to reach out to the community in the [Contact Us](https://beam.apache.org/community/contact-us/) page.
+We are open for feedback and suggestions, you can find different ways to reach out to the community in the [Contact Us](/community/contact-us/) page.
 
 If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://github.com/apache/beam/issues/new/choose).
 
 ## How to Contribute {#how-to-contribute}
 
-We welcome contributions from everyone! To learn more on how to contribute, check our [Contribution Guide](https://beam.apache.org/contribute/).
+We welcome contributions from everyone! To learn more on how to contribute, check our [Contribution Guide](/contribute/).
