@@ -41,7 +41,7 @@ void main() {
 }
 
 Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
-  //The source of truth of loaded sdks
+  // The source of truth of loaded sdks.
   final sdkCache = GetIt.instance.get<SdkCache>();
 
   final sdks = sdkCache.getSdks();
