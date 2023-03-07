@@ -1553,7 +1553,7 @@ public class DatastoreV1 {
         return m.getUpdate().getKey();
       } else {
         LOG.warning("Mutation %s does not have an operation type set.", m);
-        return "";
+        return Entity.getDefaultInstance().getKey();
       }
     }
 
