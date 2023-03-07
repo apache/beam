@@ -54,10 +54,9 @@ jobs:
 
       - name: 'Install Dependencies'
         run: |
-          cd playground/frontend/playground_components && flutter pub get && cd ..
-          cd playground_components_dev && flutter pub get && cd ..
-          flutter pub get && cd ../../
-          cd learning/tour-of-beam/frontend && flutter pub get
+          cd playground/frontend/playground_components && flutter pub get && cd -
+          cd playground/frontend/playground_components_dev && flutter pub get && cd -
+          cd learning/tour-of-beam/frontend && flutter pub get && cd -
 
 #      - name: 'Formatting'
 #        run: dart format --output=none --set-exit-if-changed .
