@@ -33,7 +33,7 @@ mypy-protobuf==1.18
 protobuf==3.19.4;python_version=="3.10" and sys_platform=="darwin"
 
 # Avoid https://github.com/pypa/virtualenv/issues/2006
-distlib==0.3.1
+distlib==0.3.6
 
 # Numpy headers
 numpy>=1.14.3,<1.25
