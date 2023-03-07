@@ -1387,6 +1387,11 @@ class CallableWrapperPartitionFn(PartitionFn):
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
+def _check_fn_use_yield_and_return(fn):
+  source_code = inspect.getsource(fn)
+  return " yield " in source_code and " return " in source_code
+
+
 class ParDo(PTransformWithSideInputs):
   """A :class:`ParDo` transform.
 
@@ -1426,6 +1431,12 @@ class ParDo(PTransformWithSideInputs):
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
+
+    # DoFn.process cannot allow both return and yield
+    if _check_fn_use_yield_and_return(self.fn.process):
+      raise RuntimeError(
+          'The yield and return statements in the process method '
+          f'of {self.fn.__class__ } can not be mixed.')
 
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
