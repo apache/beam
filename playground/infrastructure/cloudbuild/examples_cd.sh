@@ -86,7 +86,7 @@ ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
 apt install python3.8-venv > /dev/null 2>&1
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
-LogOutput "All packages and dependencies have been successfully installed. Starting Playground examples Deployment to ${DNS_NAME}"
+LogOutput "All packages and dependencies have been successfully installed. Starting Playground examples Deployment to ${DNS_NAME}."
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
 cd $BEAM_ROOT_DIR/playground/infrastructure
