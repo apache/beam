@@ -20,8 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
-import com.google.bigtable.v2.SampleRowKeysResponse;
-import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -30,6 +29,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Duration;
 
 /** An interface for real or fake implementations of Cloud Bigtable. */
 interface BigtableService extends Serializable {
@@ -72,24 +72,17 @@ interface BigtableService extends Serializable {
     boolean advance() throws IOException;
 
     /**
-     * Closes the reader.
-     *
-     * @throws IOException if there is an error.
-     */
-    void close() throws IOException;
-
-    /**
      * Returns the last row read by a successful start() or advance(), or throws if there is no
      * current row because the last such call was unsuccessful.
      */
     Row getCurrentRow() throws NoSuchElementException;
+
+    // Workaround for ReadRows requests which requires to pass the timeouts in
+    // ApiContext. Can be removed later once it's fixed in Veneer.
+    Duration getAttemptTimeout();
+
+    Duration getOperationTimeout();
   }
-
-  /** Returns the BigtableOptions used to configure this BigtableService. */
-  BigtableOptions getBigtableOptions();
-
-  /** Returns {@code true} if the table with the give name exists. */
-  boolean tableExists(String tableId) throws IOException;
 
   /** Returns a {@link Reader} that will read from the specified source. */
   Reader createReader(BigtableSource source) throws IOException;
@@ -101,5 +94,7 @@ interface BigtableService extends Serializable {
    * Returns a set of row keys sampled from the underlying table. These contain information about
    * the distribution of keys within the table.
    */
-  List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException;
+  List<KeyOffset> getSampleRowKeys(BigtableSource source) throws IOException;
+
+  void close();
 }
