@@ -82,8 +82,9 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
 	isUnitTest := validateIsUnitTest.(bool)
 
-	executor := compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
-	if executor == nil {
+	err = compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
+	if err != nil {
+		logger.Errorf("%s: error during compilation step: %s", pipelineId, err.Error())
 		return
 	}
 
@@ -162,13 +163,12 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	_ = processRunSuccess(pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 }
 
-func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool) *executors.Executor {
+func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool) error {
 	errorChannel, successChannel := createStatusChannels()
-	var executor = executors.Executor{}
 	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_SCIO || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
 		if err := processCompileSuccess([]byte(""), pipelineId, cacheService); err != nil {
-			return nil
+			return err
 		}
 	} else { // in case of Java, Go (not unit test), Scala - need compile step
 		executorBuilder, err := builder.Compiler(paths, sdkEnv)
@@ -186,18 +186,21 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
 		ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 		if err != nil {
-			return nil
+			return err
 		}
 		if !ok { // Compile step is finished, but code couldn't be compiled (some typos for example)
 			err := <-errorChannel
-			_ = processErrorWithSavingOutput(err, compileError.Bytes(), pipelineId, cache.CompileOutput, cacheService, "Compile", pb.Status_STATUS_COMPILE_ERROR)
-			return nil
+			processingErr := processErrorWithSavingOutput(err, compileError.Bytes(), pipelineId, cache.CompileOutput, cacheService, "Compile", pb.Status_STATUS_COMPILE_ERROR)
+			if processingErr != nil {
+				return processingErr
+			}
+			return err
 		} // Compile step is finished and code is compiled
 		if err := processCompileSuccess(compileOutput.Bytes(), pipelineId, cacheService); err != nil {
-			return nil
+			return err
 		}
 	}
-	return &executor
+	return nil
 }
 
 func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map, prepareParams map[string]string) error {
