@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -158,7 +156,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              getClassLoadingStrategy(clazz))
+              ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -210,7 +208,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              getClassLoadingStrategy(clazz))
+              ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -301,7 +299,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(field.getDeclaringClass().getClassLoader()),
-              getClassLoadingStrategy(field.getDeclaringClass()))
+              ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -381,7 +379,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(field.getDeclaringClass().getClassLoader()),
-              getClassLoadingStrategy(field.getDeclaringClass()))
+              ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

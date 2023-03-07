@@ -30,7 +30,6 @@ import (
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
-	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/executors"
@@ -56,11 +55,11 @@ const (
 // - In case of run step is failed saves playground.Status_STATUS_RUN_ERROR as cache.Status and run logs as cache.RunError into cache.
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
-func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string, mockCluster emulators.EmulatorMockCluster, prepareParams map[string]string) {
+func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string) {
 	pipelineLifeCycleCtx, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
-		DeleteResources(pipelineId, lc, mockCluster)
+		DeleteResources(pipelineId, lc)
 	}(lc)
 
 	cancelChannel := make(chan bool, 1)
@@ -74,7 +73,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel, prepareParams)
+	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel, lc.GetPreparerParameters())
 	if executor == nil {
 		return
 	}
@@ -504,14 +503,12 @@ func writeLogsToCache(ctx context.Context, cacheService cache.Cache, logFilePath
 }
 
 // DeleteResources removes all prepared resources for received LifeCycle
-func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle, mockCluster emulators.EmulatorMockCluster) {
+func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 	logger.Infof("%s: DeleteResources() ...\n", pipelineId)
 	if err := lc.DeleteFolders(); err != nil {
 		logger.Error("%s: DeleteResources(): %s\n", pipelineId, err.Error())
 	}
-	if mockCluster != nil {
-		mockCluster.Stop()
-	}
+	lc.StopEmulators()
 	logger.Infof("%s: DeleteResources() complete\n", pipelineId)
 	logger.Infof("%s: complete\n", pipelineId)
 

@@ -77,7 +77,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values 
 		return err
 	}
 	if err := n.enc.Encode(value, &b); err != nil {
-		return errors.WithContextf(err, "encoding element %v with coder %v", value, n.enc)
+		return errors.WithContextf(err, "encoding element %v with coder %v", value, n.Coder)
 	}
 	byteCount, err := n.w.Write(b.Bytes())
 	if err != nil {

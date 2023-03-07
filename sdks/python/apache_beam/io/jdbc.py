@@ -88,6 +88,8 @@
 
 import typing
 
+import numpy as np
+
 from apache_beam.coders import RowCoder
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -113,19 +115,16 @@ JdbcConfigSchema = typing.NamedTuple(
 
 Config = typing.NamedTuple(
     'Config',
-    [
-        ('driver_class_name', str),
-        ('jdbc_url', str),
-        ('username', str),
-        ('password', str),
-        ('connection_properties', typing.Optional[str]),
-        ('connection_init_sqls', typing.Optional[typing.List[str]]),
-        ('read_query', typing.Optional[str]),
-        ('write_statement', typing.Optional[str]),
-        ('fetch_size', typing.Optional[int]),
-        ('output_parallelization', typing.Optional[bool]),
-        ('autosharding', typing.Optional[bool]),
-    ],
+    [('driver_class_name', str), ('jdbc_url', str), ('username', str),
+     ('password', str), ('connection_properties', typing.Optional[str]),
+     ('connection_init_sqls', typing.Optional[typing.List[str]]),
+     ('read_query', typing.Optional[str]),
+     ('write_statement', typing.Optional[str]),
+     ('fetch_size', typing.Optional[int]),
+     ('output_parallelization', typing.Optional[bool]),
+     ('autosharding', typing.Optional[bool]),
+     ('partition_column', typing.Optional[str]),
+     ('partitions', typing.Optional[np.int16])],
 )
 
 DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
@@ -226,7 +225,8 @@ class WriteToJdbc(ExternalTransform):
                             fetch_size=None,
                             output_parallelization=None,
                             autosharding=autosharding,
-                        ))),
+                            partitions=None,
+                            partition_column=None))),
         ),
         expansion_service or default_io_expansion_service(classpath),
     )
@@ -273,6 +273,8 @@ class ReadFromJdbc(ExternalTransform):
       query=None,
       output_parallelization=None,
       fetch_size=None,
+      partition_column=None,
+      partitions=None,
       connection_properties=None,
       connection_init_sqls=None,
       expansion_service=None,
@@ -288,6 +290,10 @@ class ReadFromJdbc(ExternalTransform):
     :param query: sql query to be executed
     :param output_parallelization: is output parallelization on
     :param fetch_size: how many rows to fetch
+    :param partition_column: enable partitioned reads by splitting on this
+                             column
+    :param partitions: override the default number of splits when using
+                       partition_column
     :param connection_properties: properties of the jdbc connection
                                   passed as string with format
                                   [propertyName=property;]*
@@ -324,7 +330,8 @@ class ReadFromJdbc(ExternalTransform):
                             fetch_size=fetch_size,
                             output_parallelization=output_parallelization,
                             autosharding=None,
-                        ))),
+                            partition_column=partition_column,
+                            partitions=partitions))),
         ),
         expansion_service or default_io_expansion_service(classpath),
     )
