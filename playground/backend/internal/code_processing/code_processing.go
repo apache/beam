@@ -62,18 +62,16 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		DeleteResources(pipelineId, lc)
 	}(lc)
 
-	cancelChannel := make(chan bool, 1)
-
 	var validationResults sync.Map
 
-	go cancelCheck(pipelineLifeCycleCtx, pipelineId, cancelChannel, cacheService)
+	go cancelCheck(pipelineLifeCycleCtx, pipelineId, finishCtxFunc, cacheService)
 
-	executor := validateStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, cancelChannel)
+	executor := validateStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults)
 	if executor == nil {
 		return
 	}
 
-	executor = prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, cancelChannel, lc.GetPreparerParameters())
+	executor = prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, lc.GetPreparerParameters())
 	if executor == nil {
 		return
 	}
@@ -82,16 +80,16 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
 	isUnitTest := validateIsUnitTest.(bool)
 
-	executor = compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest, cancelChannel)
+	executor = compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
 	if executor == nil {
 		return
 	}
 
 	// Run/RunTest
-	runStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, isUnitTest, sdkEnv, pipelineOptions, cancelChannel)
+	runStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, isUnitTest, sdkEnv, pipelineOptions)
 }
 
-func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, isUnitTest bool, sdkEnv *environment.BeamEnvs, pipelineOptions string, cancelChannel chan bool) {
+func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, isUnitTest bool, sdkEnv *environment.BeamEnvs, pipelineOptions string) {
 	errorChannel, successChannel := createStatusChannels()
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
@@ -133,7 +131,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	}
 
 	// Start of the monitoring of background tasks (run step/cancellation/timeout)
-	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 	if err != nil {
 		return
 	}
@@ -162,7 +160,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	_ = processRunSuccess(pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 }
 
-func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool, cancelChannel chan bool) *executors.Executor {
+func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool) *executors.Executor {
 	errorChannel, successChannel := createStatusChannels()
 	var executor = executors.Executor{}
 	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
@@ -184,7 +182,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
 
 		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
-		ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, cancelChannel, successChannel)
+		ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 		if err != nil {
 			return nil
 		}
@@ -200,7 +198,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	return &executor
 }
 
-func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map, cancelChannel chan bool, prepareParams map[string]string) *executors.Executor {
+func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map, prepareParams map[string]string) *executors.Executor {
 	errorChannel, successChannel := createStatusChannels()
 	executorBuilder, err := builder.Preparer(paths, sdkEnv, validationResults, prepareParams)
 	if err != nil {
@@ -213,7 +211,7 @@ func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	go prepareFunc(successChannel, errorChannel, validationResults)
 
 	// Start of the monitoring of background tasks (prepare function/cancellation/timeout)
-	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 	if err != nil {
 		return nil
 	}
@@ -230,7 +228,7 @@ func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	return &executor
 }
 
-func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map, cancelChannel chan bool) *executors.Executor {
+func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map) *executors.Executor {
 	errorChannel, successChannel := createStatusChannels()
 	executorBuilder, err := builder.Validator(paths, sdkEnv)
 	if err != nil {
@@ -243,7 +241,7 @@ func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.
 	go validateFunc(successChannel, errorChannel, validationResults)
 
 	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
-	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 	if err != nil {
 		return nil
 	}
@@ -379,14 +377,24 @@ func runCmdWithOutput(cmd *exec.Cmd, stdOutput io.Writer, stdError io.Writer, su
 // If cmd operation (Validate/Prepare/Compile/Run/RunTest) finishes successfully but with some error
 //
 //	during step processing - returns false.
-func reconcileBackgroundTask(pipelineLifeCycleCtx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool) (bool, error) {
+func reconcileBackgroundTask(pipelineLifeCycleCtx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, successChannel chan bool) (bool, error) {
 	select {
 	case <-pipelineLifeCycleCtx.Done():
-		_ = finishByTimeout(pipelineId, cacheService)
-		return false, fmt.Errorf("%s: context was done", pipelineId)
-	case <-cancelChannel:
-		_ = processCancel(cacheService, pipelineId)
-		return false, fmt.Errorf("%s: code processing was canceled", pipelineId)
+		contextErr := pipelineLifeCycleCtx.Err()
+		switch contextErr {
+		case context.DeadlineExceeded:
+			if err := finishByTimeout(pipelineId, cacheService); err != nil {
+				return false, fmt.Errorf("%s: error during context timeout processing: %s", pipelineId, err.Error())
+			}
+			return false, fmt.Errorf("%s: code processing context timeout", pipelineId)
+		case context.Canceled:
+			if err := processCancel(cacheService, pipelineId); err != nil {
+				return false, fmt.Errorf("%s: error during cancellation processing: %s", pipelineId, err.Error())
+			}
+			return false, fmt.Errorf("%s: code processing was canceled", pipelineId)
+		default:
+			return false, fmt.Errorf("%s: code processing cancelled: %s", pipelineId, contextErr.Error())
+		}
 	case ok := <-successChannel:
 		return ok, nil
 	}
@@ -396,7 +404,7 @@ func reconcileBackgroundTask(pipelineLifeCycleCtx context.Context, pipelineId uu
 // If cancel flag doesn't exist in cache continue working.
 // If context is done it means that the code processing was finished (successfully/with error/timeout). Return.
 // If cancel flag exists, and it is true it means that the code processing was canceled. Set true to cancelChannel and return.
-func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan bool, cacheService cache.Cache) {
+func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelFunc context.CancelFunc, cacheService cache.Cache) {
 	ticker := time.NewTicker(pauseDuration)
 	for {
 		select {
@@ -409,7 +417,7 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 				logger.Errorf("%s: Error during getting value from the cache: %s", pipelineId, err.Error())
 			}
 			if cancel.(bool) {
-				cancelChannel <- true
+				cancelFunc()
 				return
 			}
 		}
@@ -527,10 +535,15 @@ func processErrorWithSavingOutput(err error, errorOutput []byte, pipelineId uuid
 	logger.Errorf("%s: %s(): err: %s, output: %s\n", pipelineId, errorTitle, err.Error(), errorOutput)
 
 	if err := utils.SetToCache(cacheService, pipelineId, subKey, fmt.Sprintf("error: %s\noutput: %s", err.Error(), errorOutput)); err != nil {
+		logger.Errorf("%s: failed to save error message to cache: %s", pipelineId, err.Error())
 		return err
 	}
 
-	return utils.SetToCache(cacheService, pipelineId, cache.Status, newStatus)
+	if err = utils.SetToCache(cacheService, pipelineId, cache.Status, newStatus); err != nil {
+		logger.Errorf("%s: failed to save status to cache: %s", pipelineId, err.Error())
+		return err
+	}
+	return nil
 }
 
 // processRunError processes error received during processing run step.
