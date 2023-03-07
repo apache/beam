@@ -134,6 +134,21 @@ task("benchmark") {
   dependsOn(":playground:backend:benchmarkCodeProcessing")
 }
 
+task("checkFormat") {
+  doLast {
+    val stdout = java.io.ByteArrayOutputStream()
+
+    exec {
+      executable("gofmt")
+      args("-l", "-e", "-d", ".")
+      standardOutput = stdout
+    }
+    if (stdout.size() > 0) {
+      println(stdout.toString())
+      throw GradleException("gofmt check indicates that there are unformatted files")
+    }
+  }
+}
 
 task("installLinter") {
   doLast {
@@ -156,6 +171,7 @@ task("runLint") {
 
 task("precommit") {
   dependsOn(":playground:backend:runLint")
+  dependsOn(":playground:backend:checkFormat")
   dependsOn(":playground:backend:tidy")
   dependsOn(":playground:backend:test")
   dependsOn(":playground:backend:benchmark")
