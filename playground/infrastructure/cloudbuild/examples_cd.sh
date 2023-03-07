@@ -102,7 +102,7 @@ do
     if [ $? -eq 0 ]
         then
             LogOutput "Examples for $sdk SDK have been successfully deployed."
-            eval "ci_${sdk}_passed"='True'
+            eval "cd_${sdk}_passed"='True'
         else
             LogOutput "Examples deployment for $sdk SDK has failed."
         fi
