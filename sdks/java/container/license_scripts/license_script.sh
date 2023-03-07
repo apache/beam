@@ -16,6 +16,8 @@
 
 set -e
 
+echo "Hello, license_script.sh"
+
 # Get currently used Python version from Gradle or assume a default.
 PYTHON=${1:-python3}
 SCRIPT_DIR="${PWD}/license_scripts"
