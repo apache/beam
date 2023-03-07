@@ -66,12 +66,13 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	go cancelCheck(pipelineLifeCycleCtx, pipelineId, finishCtxFunc, cacheService)
 
-	executor := validateStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults)
-	if executor == nil {
+	err := validateStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults)
+	if err != nil {
+		logger.Errorf("%s: error during validation step: %s", pipelineId, err.Error())
 		return
 	}
 
-	executor = prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, lc.GetPreparerParameters())
+	executor := prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, lc.GetPreparerParameters())
 	if executor == nil {
 		return
 	}
@@ -228,12 +229,14 @@ func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	return &executor
 }
 
-func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map) *executors.Executor {
+func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map) error {
 	errorChannel, successChannel := createStatusChannels()
 	executorBuilder, err := builder.Validator(paths, sdkEnv)
 	if err != nil {
-		_ = processSetupError(err, pipelineId, cacheService)
-		return nil
+		if processingError := processSetupError(err, pipelineId, cacheService); processingError != nil {
+			return processingError
+		}
+		return err
 	}
 	executor := executorBuilder.Build()
 	logger.Infof("%s: Validate() ...\n", pipelineId)
@@ -243,20 +246,23 @@ func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.
 	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
 	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 	if err != nil {
-		return nil
+		return err
 	}
 	if !ok {
 		err := <-errorChannel
 		// Validate step is finished, but code isn't valid
-		_ = processErrorWithSavingOutput(err, []byte(err.Error()), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
-		return nil
+		processingErr := processErrorWithSavingOutput(err, []byte(err.Error()), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
+		if processingErr != nil {
+			return processingErr
+		}
+		return err
 	}
 
 	// Validate step is finished and code is valid
 	if err := processSuccess(pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
-		return nil
+		return err
 	}
-	return &executor
+	return err
 }
 
 func createStatusChannels() (chan error, chan bool) {
@@ -279,6 +285,7 @@ func getExecuteCmd(isUnitTest bool, executor *executors.Executor, ctxWithTimeout
 func processSetupError(err error, pipelineId uuid.UUID, cacheService cache.Cache) error {
 	logger.Errorf("%s: error during setup builder: %s\n", pipelineId, err.Error())
 	if err = utils.SetToCache(cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR); err != nil {
+		logger.Errorf("%s: error during saving error message: %s", pipelineId, err)
 		return err
 	}
 	return nil
