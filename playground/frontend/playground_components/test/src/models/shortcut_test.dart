@@ -23,7 +23,7 @@ import 'package:playground_components/playground_components.dart';
 
 void main() {
   group(
-    'BeamShortcut test. ',
+    'BeamShortcut test.',
     () {
       test(
         'Title builds correctly',
