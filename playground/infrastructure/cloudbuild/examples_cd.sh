@@ -90,13 +90,13 @@ LogOutput "All packages and dependencies have been successfully installed. Start
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
 cd $BEAM_ROOT_DIR/playground/infrastructure
-#for GO in $SDKS
-#do
-export SERVER_ADDRESS=https://GO.${DNS_NAME}
-python3 ci_cd.py \
---datastore-project $PROJECT_ID \
---step ${STEP} \
---sdk SDK_GO \
---origin ${ORIGIN} \
---subdirs ${SUBDIRS}
-#done
+for sdk in $SDKS
+do
+    export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
+    python3 ci_cd.py \
+    --datastore-project ${PROJECT_ID} \
+    --step ${STEP} \
+    --sdk SDK_"${sdk^^}" \
+    --origin ${ORIGIN} \
+    --subdirs ${SUBDIRS}
+done
