@@ -946,11 +946,6 @@ public class WindmillStateInternalsTest {
         .and(Matchers.hasProperty("value", Matchers.equalTo(value)));
   }
 
-  private static CombinableMatcher<Object> multimapEntryMatcher(String key, Integer value) {
-    return Matchers.both(Matchers.hasProperty("key", Matchers.equalTo(key)))
-        .and(Matchers.hasProperty("value", Matchers.equalTo(value)));
-  }
-
   @Test
   public void testMultimapEntriesAndKeysMergeLocalAdd() throws IOException {
     final String tag = "multimap";
