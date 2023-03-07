@@ -339,6 +339,9 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * The Go SDK now requires Go 1.19 to build. ([#25545](https://github.com/apache/beam/pull/25545))
 * The Go SDK now has an initial native Go implementation of a portable Beam Runner called Prism. ([#24789](https://github.com/apache/beam/pull/24789))
   * For more details and current state see https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism.
+* Add `UseDataStreamForBatch` pipeline option to the Flink runner. When it is set to true, Flink runner will run batch
+  jobs executed with DataStream API. By default the option is set to false, so the batch jobs are still executed
+  with DataSet API.
 
 ## Breaking Changes
 
