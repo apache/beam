@@ -52,6 +52,7 @@ import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistra
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
+import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -164,6 +165,7 @@ public class ProcessBundleHandler {
   private final Cache<Object, Object> processWideCache;
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
   private final Set<String> runnerCapabilities;
+  private final @Nullable DataSampler dataSampler;
 
   public ProcessBundleHandler(
       PipelineOptions options,
@@ -174,7 +176,8 @@ public class ProcessBundleHandler {
       FinalizeBundleHandler finalizeBundleHandler,
       ShortIdMap shortIds,
       ExecutionStateSampler executionStateSampler,
-      Cache<Object, Object> processWideCache) {
+      Cache<Object, Object> processWideCache,
+      @Nullable DataSampler dataSampler) {
     this(
         options,
         runnerCapabilities,
@@ -186,7 +189,8 @@ public class ProcessBundleHandler {
         executionStateSampler,
         REGISTERED_RUNNER_FACTORIES,
         processWideCache,
-        new BundleProcessorCache());
+        new BundleProcessorCache(),
+        dataSampler);
   }
 
   @VisibleForTesting
@@ -201,7 +205,8 @@ public class ProcessBundleHandler {
       ExecutionStateSampler executionStateSampler,
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap,
       Cache<Object, Object> processWideCache,
-      BundleProcessorCache bundleProcessorCache) {
+      BundleProcessorCache bundleProcessorCache,
+      @Nullable DataSampler dataSampler) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
@@ -218,6 +223,7 @@ public class ProcessBundleHandler {
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
     this.processWideCache = processWideCache;
     this.bundleProcessorCache = bundleProcessorCache;
+    this.dataSampler = dataSampler;
   }
 
   private void createRunnerAndConsumersForPTransformRecursively(
@@ -771,7 +777,11 @@ public class ProcessBundleHandler {
     bundleProgressReporterAndRegistrar.register(stateTracker);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
-            stateTracker, shortIds, bundleProgressReporterAndRegistrar, bundleDescriptor);
+            stateTracker,
+            shortIds,
+            bundleProgressReporterAndRegistrar,
+            bundleDescriptor,
+            dataSampler);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =

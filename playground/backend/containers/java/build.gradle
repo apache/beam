@@ -19,6 +19,7 @@
 
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'base'
+apply plugin: 'java'
 apply from: "$project.rootDir/playground/backend/containers/git-functions.gradle"
 applyDockerNature()
 
@@ -34,7 +35,15 @@ dependencies {
    dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
 }
 
+task copyKafkaEmulator(type: Copy) {
+   dependsOn(":playground:kafka-emulator:distTar")
+   from project(":playground:kafka-emulator").buildDir.path + "/distributions/kafka-emulator.tar"
+   into 'build/kafka-emulator/'
+}
+
 task copyDockerfileDependencies(type: Copy) {
+   dependsOn("copyKafkaEmulator")
+
    copy {
       from '../../../backend/'
       into 'build/src'
