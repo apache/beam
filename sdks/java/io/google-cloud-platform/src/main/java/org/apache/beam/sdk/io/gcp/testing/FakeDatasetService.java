@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.testing;
 
-import static org.junit.Assert.assertEquals;
-
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.core.ApiFuture;
@@ -502,7 +500,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       }
 
       if (insertIdList != null) {
-        assertEquals(rowList.size(), insertIdList.size());
+        Preconditions.checkArgument(rowList.size() == insertIdList.size());
       }
 
       long dataSize = 0;

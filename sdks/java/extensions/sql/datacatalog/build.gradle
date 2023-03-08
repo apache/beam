@@ -48,7 +48,7 @@ dependencies {
   testImplementation project(":sdks:java:extensions:sql")
   testImplementation project(":sdks:java:extensions:sql:zetasql")
   testImplementation project(":runners:direct-java")
-  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
   testImplementation library.java.google_api_services_bigquery
   testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_simple

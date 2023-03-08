@@ -82,8 +82,6 @@ dependencies {
   implementation library.java.google_cloud_datastore_v1_proto_client
   implementation library.java.google_cloud_firestore
   implementation library.java.google_cloud_pubsublite
-  // GCP PubSub client is used in TestPubSub
-  implementation library.java.google_cloud_pubsub
   implementation library.java.google_cloud_spanner
   implementation library.java.google_code_gson
   implementation library.java.google_http_client
@@ -117,15 +115,12 @@ dependencies {
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
   implementation library.java.guava
   implementation library.java.http_client
-  provided library.java.hamcrest
-  permitUnusedDeclared library.java.hamcrest // BEAM-11761
   implementation library.java.http_core
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
   implementation library.java.jackson_datatype_joda
   implementation library.java.jackson_datatype_jsr310
   implementation library.java.joda_time
-  provided library.java.junit
   implementation library.java.netty_handler
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
@@ -150,7 +145,6 @@ dependencies {
   implementation 'com.google.http-client:google-http-client-gson:1.41.2'
   implementation "org.threeten:threetenbp:1.4.4"
 
-  testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
@@ -158,11 +152,15 @@ dependencies {
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation library.java.arrow_memory_netty
+  testImplementation library.java.google_cloud_pubsub
+  testImplementation library.java.google_cloud_spanner_test
+  testImplementation library.java.hamcrest
+  testImplementation library.java.joda_time
+  testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito
-  testImplementation library.java.joda_time
-  testImplementation library.java.google_cloud_spanner_test
   testImplementation library.java.google_cloud_bigtable_emulator
   testRuntimeOnly library.java.slf4j_jdk14
   // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
