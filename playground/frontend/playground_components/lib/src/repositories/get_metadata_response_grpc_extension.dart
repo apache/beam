@@ -24,6 +24,8 @@ extension MetadataResponseGrpcExtension on GetMetadataResponse {
     return ComponentVersion(
       // If a string is optional in protobuf, for some reason it becomes
       // a non-nullable Dart string with '' as the default value.
+      // This can be deleted if this lands:
+      //  https://github.com/google/protobuf.dart/issues/523
       beamSdkVersion: beamSdkVersion == '' ? null : beamSdkVersion,
       buildCommitHash: buildCommitHash,
       dateTime: DateTime.fromMillisecondsSinceEpoch(
