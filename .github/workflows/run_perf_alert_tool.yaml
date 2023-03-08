@@ -51,7 +51,7 @@ jobs:
       - name: Install signal-processing-algorithms
         run: pip install signal-processing-algorithms
       - name: Install pandas, yaml, requests
-        run: pip install pandas PyYAML requests
+        run: pip install pandas==1.3.3 PyYAML requests
       - name: Run Change Point Analysis.
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
