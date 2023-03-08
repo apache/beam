@@ -40,12 +40,12 @@
   translation: "Media"
 - id: footer-events
   translation: "Events/Meetups"
+- id: footer-contact-us
+  translation: "Contact Us"
 - id: footer-resources
   translation: "Resources"
 - id: footer-blog
   translation: "Blog"
-- id: footer-contact-us
-  translation: "Contact Us"
 - id: footer-github
   translation: "GitHub"
 - id: footer-apache
