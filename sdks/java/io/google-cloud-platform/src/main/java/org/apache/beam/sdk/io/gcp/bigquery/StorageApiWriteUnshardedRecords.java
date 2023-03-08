@@ -138,7 +138,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     + Arrays.stream(e.getStackTrace())
                         .map(StackTraceElement::toString)
                         .collect(Collectors.joining("\n"));
-            System.err.println("Exception happened while executing async task. Ignoring: " + msg);
+            LOG.error("Exception happened while executing async task. Ignoring: " + msg);
           }
         });
   }

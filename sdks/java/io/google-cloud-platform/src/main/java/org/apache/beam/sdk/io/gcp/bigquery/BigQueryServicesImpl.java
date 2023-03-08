@@ -1371,6 +1371,11 @@ class BigQueryServicesImpl implements BigQueryServices {
         }
 
         @Override
+        public String toString() {
+          return "StreamWriter for: " + streamWriter.getStreamName();
+        }
+
+        @Override
         public void pin() {
           synchronized (this) {
             Preconditions.checkState(!closed);

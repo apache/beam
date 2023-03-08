@@ -165,6 +165,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               (RemovalNotification<ShardedKey<?>, AppendClientInfo> removal) -> {
                 final @Nullable AppendClientInfo appendClientInfo = removal.getValue();
                 if (appendClientInfo != null) {
+                  LOG.warn("closing AppendClientInfo for key " + removal.getKey());
                   appendClientInfo.close();
                 }
               })
@@ -191,7 +192,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     + Arrays.stream(e.getStackTrace())
                         .map(StackTraceElement::toString)
                         .collect(Collectors.joining("\n"));
-            System.err.println("Exception happened while executing async task. Ignoring: " + msg);
+            LOG.error("Exception happened while executing async task. Ignoring: " + msg);
           }
         });
   }
@@ -339,6 +340,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         if (stream == null || "".equals(stream)) {
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
           stream = datasetService.createWriteStream(tableId, Type.BUFFERED).getName();
+          LOG.warn("Created stream " + stream);
           streamName.write(stream);
           streamOffset.write(0L);
           streamsCreated.inc();
@@ -433,6 +435,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                             runAsyncIgnoreFailure(
                                 closeWriterExecutor,
                                 () -> {
+                                  LOG.warn("Closing " + client);
                                   // Remove the pin that is "owned" by the cache.
                                   client.unpin();
                                   client.close();
