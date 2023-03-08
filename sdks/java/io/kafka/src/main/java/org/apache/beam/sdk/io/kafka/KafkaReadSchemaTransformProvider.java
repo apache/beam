@@ -18,7 +18,10 @@
 package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.service.AutoService;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -121,21 +124,23 @@ public class KafkaReadSchemaTransformProvider
             Objects.equals(configuration.getFormat(), "JSON")
                 ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
                 : AvroUtils.getAvroBytesToRowFunction(beamSchema);
+        Map<String, Object> consumerConfigs = configuration.getConsumerConfigUpdates() == null ?
+                new HashMap<>() : new HashMap<>(configuration.getConsumerConfigUpdates());
+        consumerConfigs.putAll(ImmutableMap.of(
+                ConsumerConfig.GROUP_ID_CONFIG,
+                "kafka-read-provider-" + groupId,
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                true,
+                ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+                100,
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                autoOffsetReset));
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
           @Override
           public PCollectionRowTuple expand(PCollectionRowTuple input) {
             KafkaIO.Read<byte[], byte[]> kafkaRead =
                 KafkaIO.readBytes()
-                    .withConsumerConfigUpdates(
-                        ImmutableMap.of(
-                            ConsumerConfig.GROUP_ID_CONFIG,
-                            "kafka-read-provider-" + groupId,
-                            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
-                            true,
-                            ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
-                            100,
-                            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-                            autoOffsetReset))
+                    .withConsumerConfigUpdates(consumerConfigs)
                     .withTopic(configuration.getTopic())
                     .withBootstrapServers(configuration.getBootstrapServers());
             if (isTest) {
