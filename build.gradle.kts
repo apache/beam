@@ -318,6 +318,36 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:container:java8:docker")
 }
 
+// a precommit task build multiple IOs (except those splitting into single jobs)
+tasks.register("javaioPreCommit") {
+  dependsOn(":sdks:java:io:amqp:build")
+  dependsOn(":sdks:java:io:cassandra:build")
+  dependsOn(":sdks:java:io:cdap:build")
+  dependsOn(":sdks:java:io:clickhouse:build")
+  dependsOn(":sdks:java:io:debezium:expansion-service:build")
+  dependsOn(":sdks:java:io:debezium:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build")
+  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build")
+  dependsOn(":sdks:java:io:elasticsearch:build")
+  dependsOn(":sdks:java:io:hbase:build")
+  dependsOn(":sdks:java:io:hcatalog:build")
+  dependsOn(":sdks:java:io:influxdb:build")
+  dependsOn(":sdks:java:io:jms:build")
+  dependsOn(":sdks:java:io:kudu:build")
+  dependsOn(":sdks:java:io:mqtt:build")
+  dependsOn(":sdks:java:io:neo4j:build")
+  dependsOn(":sdks:java:io:rabbitmq:build")
+  dependsOn(":sdks:java:io:redis:build")
+  dependsOn(":sdks:java:io:singlestore:build")
+  dependsOn(":sdks:java:io:solr:build")
+  dependsOn(":sdks:java:io:splunk:build")
+  dependsOn(":sdks:java:io:thrift:build")
+  dependsOn(":sdks:java:io:tika:build")
+}
+
 tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:runBasicExample")
   dependsOn(":sdks:java:extensions:sql:runPojoExample")

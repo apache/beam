@@ -1339,6 +1339,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName)
+              .setExecutorProvider(
+                  FixedExecutorProvider.create(
+                      options.as(ExecutorOptions.class).getScheduledExecutorService()))
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
               .setEnableConnectionPool(useConnectionPool)
@@ -1358,7 +1361,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         public void close() throws Exception {
           boolean closeWriter;
           synchronized (this) {
-            Preconditions.checkState(!closed);
+            Preconditions.checkState(!closed, "Called close on already closed client");
             closed = true;
             closeWriter = (pins == 0);
           }
@@ -1379,7 +1382,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         public void unpin() throws Exception {
           boolean closeWriter;
           synchronized (this) {
-            Preconditions.checkState(pins > 0);
+            Preconditions.checkState(pins > 0, "Tried to unpin when pins==0");
             --pins;
             closeWriter = (pins == 0) && closed;
           }

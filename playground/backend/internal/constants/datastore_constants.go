@@ -15,7 +15,7 @@
 
 package constants
 
-//Cloud Datastore constants
+// Cloud Datastore constants
 const (
 	Namespace             = "Playground"
 	DatastoreNamespaceKey = "DATASTORE_NAMESPACE"

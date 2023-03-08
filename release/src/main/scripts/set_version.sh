@@ -97,4 +97,5 @@ if [[ "$GIT_ADD" == yes ]] ; then
   git add sdks/python/apache_beam/version.py
   git add sdks/go/pkg/beam/core/core.go
   git add runners/google-cloud-dataflow-java/build.gradle
+  git add sdks/typescript/package.json
 fi

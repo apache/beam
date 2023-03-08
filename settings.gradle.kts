@@ -74,6 +74,7 @@ include(":playground:backend:containers:python")
 include(":playground:backend:containers:router")
 include(":playground:backend:containers:scio")
 include(":playground:terraform")
+include(":playground:kafka-emulator")
 
 include(":learning:tour-of-beam:frontend")
 
@@ -276,3 +277,4 @@ include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
+include("com.google.api.gax.batching")
