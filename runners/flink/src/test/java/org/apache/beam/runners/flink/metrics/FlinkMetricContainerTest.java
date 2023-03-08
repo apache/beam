@@ -37,7 +37,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
-import org.apache.beam.runners.flink.metrics.FlinkMetricContainer.FlinkDistributionGauge;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainerBase.FlinkDistributionGauge;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;

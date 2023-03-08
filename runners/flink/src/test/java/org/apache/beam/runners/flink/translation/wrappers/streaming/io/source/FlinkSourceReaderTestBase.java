@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestCountingSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.eventtime.Watermark;
@@ -40,6 +42,7 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.metrics.Counter;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -192,6 +195,31 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
       pollAndValidate(reader, splits, false);
     }
     assertEquals(numRecordsPerSplit * numSplits, testMetricGroup.numRecordsInCounter.getCount());
+  }
+
+  @Test
+  public void testMetricsContainer() throws Exception {
+    ManuallyTriggeredScheduledExecutorService executor =
+        new ManuallyTriggeredScheduledExecutorService();
+    SourceTestCompat.TestMetricGroup testMetricGroup = new SourceTestCompat.TestMetricGroup();
+    try (SourceReader<OutputT, FlinkSourceSplit<KV<Integer, Integer>>> reader =
+        createReader(executor, 0L, null, testMetricGroup)) {
+      reader.start();
+
+      List<FlinkSourceSplit<KV<Integer, Integer>>> splits = createSplits(2, 10, 0);
+      reader.addSplits(splits);
+      RecordsValidatingOutput validatingOutput = new RecordsValidatingOutput(splits);
+
+      // Need to poll once to create all the readers.
+      reader.pollNext(validatingOutput);
+      Counter advanceCounter =
+          testMetricGroup.registeredCounter.get(
+              TestCountingSource.CountingSourceReader.ADVANCE_COUNTER_NAMESPACE
+                  + "."
+                  + TestCountingSource.CountingSourceReader.ADVANCE_COUNTER_NAME);
+      assertNotNull(advanceCounter);
+      assertTrue("The reader should have advanced.", advanceCounter.getCount() > 0);
+    }
   }
 
   // --------------- abstract methods ---------------

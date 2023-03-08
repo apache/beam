@@ -39,6 +39,8 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainerWithoutAccumulator;
+import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.compat.FlinkSourceCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -87,6 +89,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
   protected final SourceReaderContext context;
   private final ScheduledExecutorService executor;
 
+  protected final ReaderInvocationUtil<T, Source.Reader<T>> invocationUtil;
   protected final Counter numRecordsInCounter;
   protected final long idleTimeoutMs;
   private final CompletableFuture<Void> idleTimeoutFuture;
@@ -96,10 +99,12 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
   private boolean noMoreSplits;
 
   protected FlinkSourceReaderBase(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       @Nullable Function<OutputT, Long> timestampExtractor) {
     this(
+        stepName,
         Executors.newSingleThreadScheduledExecutor(
             r -> new Thread(r, "FlinkSource-Executor-Thread-" + context.getIndexOfSubtask())),
         context,
@@ -108,6 +113,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
   }
 
   protected FlinkSourceReaderBase(
+      String stepName,
       ScheduledExecutorService executor,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
@@ -126,6 +132,9 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     // TODO: Remove the casting and use SourceReaderMetricGroup after minimum FLink version is
     // upgraded to 1.14 and above.
     this.numRecordsInCounter = FlinkSourceCompat.getNumRecordsInCounter(context);
+    FlinkMetricContainerWithoutAccumulator metricsContainer =
+        new FlinkMetricContainerWithoutAccumulator(context.metricGroup());
+    this.invocationUtil = new ReaderInvocationUtil<>(stepName, pipelineOptions, metricsContainer);
   }
 
   @Override
@@ -368,10 +377,10 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
 
     public boolean startOrAdvance() throws IOException {
       if (started) {
-        return reader.advance();
+        return invocationUtil.invokeAdvance(reader);
       } else {
         started = true;
-        return reader.start();
+        return invocationUtil.invokeStart(reader);
       }
     }
 
