@@ -1,0 +1,4 @@
+org.apache.beam.sdk.options.DefaultPipelineOptionsRegistrar
+org.apache.beam.sdk.options.ManualDockerEnvironmentOptions$Options
+org.apache.beam.sdk.options.RemoteEnvironmentOptions$Options
+org.apache.beam.sdk.transforms.resourcehints.ResourceHintsOptions$Options

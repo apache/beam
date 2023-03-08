@@ -1,0 +1,65 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing endpoints containing a service.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.pipeline.v1;
+
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1;pipeline_v1";
+option java_package = "org.apache.beam.model.pipeline.v1";
+option java_outer_classname = "Endpoints";
+
+// A description of how to connect to a Beam API endpoint.
+message ApiServiceDescriptor {
+  // (Required) The URL to connect to.
+  string url = 1;
+
+  // (Optional) The method for authentication. If unspecified, access to the
+  // url is already being performed in a trusted context (e.g. localhost,
+  // private network).
+  AuthenticationSpec authentication = 2;
+}
+
+message AuthenticationSpec {
+  // (Required) A URN that describes the accompanying payload.
+  // For any URN that is not recognized (by whomever is inspecting
+  // it) the parameter payload should be treated as opaque and
+  // passed as-is.
+  string urn = 1;
+
+  // (Optional) The data specifying any parameters to the URN. If
+  // the URN does not require any arguments, this may be omitted.
+  bytes payload = 2;
+}
+
+// TODO: Add authentication specifications as needed.
+//message StandardAuthenticationSpecs {
+//  enum Enum {
+//    OAUTH2_CLIENT_CREDENTIALS_GRANT = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:authentication:oauth2_client_credentials_grant:v1"];
+//  }
+//}
+//
+//message OAuth2ClientCredentialsGrantPayload {
+//  // (Required) The URL to submit a "client_credentials" grant type request for
+//  // an OAuth access token which will be used as a bearer token for requests.
+//  string url = 1;
+//}

@@ -1,0 +1,19 @@
+<!-- Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+ 
+      http://www.apache.org/licenses/LICENSE-2.0
+ 
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. -->
+
+<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M6 0C2.68629 0 0 2.68629 0 6C0 9.31371 2.68629 12 6 12C9.31371 12 12 9.31371 12 6C12 2.68629 9.31371 0 6 0ZM9.41421 5C9.80474 4.60948 9.80474 3.97631 9.41421 3.58579C9.02369 3.19526 8.39052 3.19526 8 3.58579L5 6.58579L4 5.58583C3.60947 5.19531 2.97631 5.19531 2.58579 5.58583C2.19526 5.97636 2.19526 6.60952 2.58579 7.00005L4.29289 8.70711C4.68342 9.09763 5.31658 9.09763 5.70711 8.70711L9.41421 5Z" fill="#37AC66"/>
+</svg>

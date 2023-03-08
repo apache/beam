@@ -1,0 +1,11 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+GetUserProgressResponse _$GetUserProgressResponseFromJson(
+        Map<String, dynamic> json) =>
+    GetUserProgressResponse(
+      units: (json['units'] as List<dynamic>)
+          .map((e) => UnitProgressModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
