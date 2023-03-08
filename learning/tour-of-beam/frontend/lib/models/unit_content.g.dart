@@ -17,3 +17,4 @@ UnitContentModel _$UnitContentModelFromJson(Map<String, dynamic> json) =>
           (json['hints'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               [],
     );
+    
