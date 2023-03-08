@@ -74,6 +74,7 @@ include(":playground:backend:containers:python")
 include(":playground:backend:containers:router")
 include(":playground:backend:containers:scio")
 include(":playground:terraform")
+include(":playground:kafka-emulator")
 
 include(":learning:tour-of-beam:frontend")
 
@@ -101,6 +102,10 @@ include(":runners:flink:1.14:job-server-container")
 include(":runners:flink:1.15")
 include(":runners:flink:1.15:job-server")
 include(":runners:flink:1.15:job-server-container")
+// Flink 1.16
+include(":runners:flink:1.16")
+include(":runners:flink:1.16:job-server")
+include(":runners:flink:1.16:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
@@ -275,3 +280,4 @@ include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
+include("com.google.api.gax.batching")
