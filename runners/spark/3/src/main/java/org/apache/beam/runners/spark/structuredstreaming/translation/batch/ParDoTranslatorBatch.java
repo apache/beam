@@ -170,15 +170,15 @@ class ParDoTranslatorBatch<InputT, OutputT>
    * An unresolved {@link ParDo} translation that can be fused with previous / following ParDos for
    * better performance.
    */
-  private static class UnresolvedParDo<InT, OutT> implements UnresolvedTranslation<InT, OutT> {
+  private static class UnresolvedParDo<InT, T> implements UnresolvedTranslation<InT, T> {
     private final PCollection<InT> input;
-    private final DoFnRunnerFactory<InT, OutT> doFnFact;
-    private final Supplier<Encoder<WindowedValue<OutT>>> encoder;
+    private final DoFnRunnerFactory<InT, T> doFnFact;
+    private final Supplier<Encoder<WindowedValue<T>>> encoder;
 
     UnresolvedParDo(
         PCollection<InT> input,
-        DoFnRunnerFactory<InT, OutT> doFnFact,
-        Supplier<Encoder<WindowedValue<OutT>>> encoder) {
+        DoFnRunnerFactory<InT, T> doFnFact,
+        Supplier<Encoder<WindowedValue<T>>> encoder) {
       this.input = input;
       this.doFnFact = doFnFact;
       this.encoder = encoder;
@@ -190,16 +190,16 @@ class ParDoTranslatorBatch<InputT, OutputT>
     }
 
     @Override
-    public <Out2T> UnresolvedTranslation<InT, Out2T> fuse(UnresolvedTranslation<OutT, Out2T> next) {
-      UnresolvedParDo<OutT, Out2T> nextParDo = (UnresolvedParDo<OutT, Out2T>) next;
+    public <T2> UnresolvedTranslation<InT, T2> fuse(UnresolvedTranslation<T, T2> next) {
+      UnresolvedParDo<T, T2> nextParDo = (UnresolvedParDo<T, T2>) next;
       return new UnresolvedParDo<>(input, doFnFact.fuse(nextParDo.doFnFact), nextParDo.encoder);
     }
 
     @Override
-    public Dataset<WindowedValue<OutT>> resolve(
+    public Dataset<WindowedValue<T>> resolve(
         Supplier<PipelineOptions> options, Dataset<WindowedValue<InT>> input) {
       MetricsAccumulator metrics = MetricsAccumulator.getInstance(input.sparkSession());
-      DoFnPartitionIteratorFactory<InT, ?, WindowedValue<OutT>> doFnMapper =
+      DoFnPartitionIteratorFactory<InT, ?, WindowedValue<T>> doFnMapper =
           DoFnPartitionIteratorFactory.singleOutput(options, metrics, doFnFact);
       return input.mapPartitions(doFnMapper, encoder.get());
     }

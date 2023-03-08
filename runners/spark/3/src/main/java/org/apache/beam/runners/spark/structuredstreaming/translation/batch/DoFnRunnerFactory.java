@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -41,22 +44,18 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 import scala.Serializable;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Factory to create a {@link DoFnRunner}. The factory supports fusing multiple {@link DoFnRunner
  * runners} into a single one.
  */
-abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
+abstract class DoFnRunnerFactory<InT, T> implements Serializable {
 
-  interface DoFnRunnerWithTeardown<InT, OutT> extends DoFnRunner<InT, OutT> {
+  interface DoFnRunnerWithTeardown<InT, T> extends DoFnRunner<InT, T> {
     void teardown();
   }
 
@@ -66,17 +65,17 @@ abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
    * <p>Both, {@link org.apache.beam.sdk.transforms.reflect.DoFnInvoker#invokeSetup setup} and
    * {@link DoFnRunner#startBundle()} are already invoked by the factory.
    */
-  abstract DoFnRunnerWithTeardown<InT, OutT> create(
+  abstract DoFnRunnerWithTeardown<InT, T> create(
       PipelineOptions options, MetricsAccumulator metrics, OutputManager output);
 
   /**
    * Fuses the factory for the following {@link DoFnRunner} into a single factory that processes
    * both DoFns in a single step.
    */
-  abstract <Out2T> DoFnRunnerFactory<InT, Out2T> fuse(DoFnRunnerFactory<OutT, Out2T> next);
+  abstract <T2> DoFnRunnerFactory<InT, T2> fuse(DoFnRunnerFactory<T, T2> next);
 
-  static <InT, OutT> DoFnRunnerFactory<InT, OutT> simple(
-      AppliedPTransform<PCollection<? extends InT>, ?, ParDo.MultiOutput<InT, OutT>> appliedPT,
+  static <InT, T> DoFnRunnerFactory<InT, T> simple(
+      AppliedPTransform<PCollection<? extends InT>, ?, ParDo.MultiOutput<InT, T>> appliedPT,
       PCollection<InT> input,
       SideInputReader sideInputReader,
       boolean filterMainOutput) {
@@ -87,13 +86,13 @@ abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
    * Factory creating a {@link org.apache.beam.runners.core.SimpleDoFnRunner SimpleRunner} with
    * metrics support.
    */
-  private static class SimpleRunnerFactory<InT, OutT> extends DoFnRunnerFactory<InT, OutT> {
+  private static class SimpleRunnerFactory<InT, T> extends DoFnRunnerFactory<InT, T> {
     private final String stepName;
-    private final DoFn<InT, OutT> doFn;
+    private final DoFn<InT, T> doFn;
     private final DoFnSchemaInformation doFnSchema;
     private final Coder<InT> coder;
     private final WindowingStrategy<?, ?> windowingStrategy;
-    private final TupleTag<OutT> mainOutput;
+    private final TupleTag<T> mainOutput;
     private final List<TupleTag<?>> additionalOutputs;
     private final Map<TupleTag<?>, Coder<?>> outputCoders;
     private final Map<String, PCollectionView<?>> sideInputs;
@@ -101,7 +100,7 @@ abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
     private final boolean filterMainOutput;
 
     SimpleRunnerFactory(
-        AppliedPTransform<PCollection<? extends InT>, ?, ParDo.MultiOutput<InT, OutT>> appliedPT,
+        AppliedPTransform<PCollection<? extends InT>, ?, ParDo.MultiOutput<InT, T>> appliedPT,
         PCollection<InT> input,
         SideInputReader sideInputReader,
         boolean filterMainOutput) {
@@ -119,14 +118,14 @@ abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
     }
 
     @Override
-    <Out2T> DoFnRunnerFactory<InT, Out2T> fuse(DoFnRunnerFactory<OutT, Out2T> next) {
+    <T2> DoFnRunnerFactory<InT, T2> fuse(DoFnRunnerFactory<T, T2> next) {
       return new FusedRunnerFactory<>(Lists.newArrayList(this, next));
     }
 
     @Override
-    DoFnRunnerWithTeardown<InT, OutT> create(
+    DoFnRunnerWithTeardown<InT, T> create(
         PipelineOptions options, MetricsAccumulator metrics, OutputManager output) {
-      DoFnRunner<InT, OutT> simpleRunner =
+      DoFnRunner<InT, T> simpleRunner =
           DoFnRunners.simpleRunner(
               options,
               doFn,
@@ -140,7 +139,7 @@ abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
               windowingStrategy,
               doFnSchema,
               sideInputs);
-      DoFnRunnerWithTeardown<InT, OutT> runner =
+      DoFnRunnerWithTeardown<InT, T> runner =
           new DoFnRunnerWithMetrics<>(stepName, simpleRunner, metrics);
       // Invoke setup and then startBundle before returning the runner
       DoFnInvokers.tryInvokeSetupFor(doFn, options);
@@ -196,7 +195,7 @@ abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
    * Factory that produces a fused runner consisting of multiple chained {@link DoFn DoFns}. Outputs
    * are directly forwarded to the next runner without buffering inbetween.
    */
-  private static class FusedRunnerFactory<InT, OutT> extends DoFnRunnerFactory<InT, OutT> {
+  private static class FusedRunnerFactory<InT, T> extends DoFnRunnerFactory<InT, T> {
     private final List<DoFnRunnerFactory<?, ?>> factories;
 
     FusedRunnerFactory(List<DoFnRunnerFactory<?, ?>> factories) {
@@ -204,18 +203,18 @@ abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
     }
 
     @Override
-    DoFnRunnerWithTeardown<InT, OutT> create(
+    DoFnRunnerWithTeardown<InT, T> create(
         PipelineOptions options, MetricsAccumulator metrics, OutputManager output) {
       return new FusedRunner<>(options, metrics, output, factories);
     }
 
     @Override
-    <Out2T> DoFnRunnerFactory<InT, Out2T> fuse(DoFnRunnerFactory<OutT, Out2T> next) {
+    <T2> DoFnRunnerFactory<InT, T2> fuse(DoFnRunnerFactory<T, T2> next) {
       factories.add(next);
-      return (DoFnRunnerFactory<InT, Out2T>) this;
+      return (DoFnRunnerFactory<InT, T2>) this;
     }
 
-    private static class FusedRunner<InT, OutT> implements DoFnRunnerWithTeardown<InT, OutT> {
+    private static class FusedRunner<InT, T> implements DoFnRunnerWithTeardown<InT, T> {
       final DoFnRunnerWithTeardown<?, ?>[] runners;
 
       FusedRunner(
@@ -282,7 +281,7 @@ abstract class DoFnRunnerFactory<InT, OutT> implements Serializable {
       }
 
       @Override
-      public DoFn<InT, OutT> getFn() {
+      public DoFn<InT, T> getFn() {
         throw new UnsupportedOperationException();
       }
 

@@ -198,12 +198,12 @@ public abstract class PipelineTranslator {
    * <p>An unresolved translation can - in certain cases - be fused together with following
    * transforms. Currently this is only the case for ParDos with linear linage.
    */
-  public interface UnresolvedTranslation<InT, OutT> {
+  public interface UnresolvedTranslation<InT, T> {
     PCollection<InT> getInput();
 
-    <Out2T> UnresolvedTranslation<InT, Out2T> fuse(UnresolvedTranslation<OutT, Out2T> next);
+    <T2> UnresolvedTranslation<InT, T2> fuse(UnresolvedTranslation<T, T2> next);
 
-    Dataset<WindowedValue<OutT>> resolve(
+    Dataset<WindowedValue<T>> resolve(
         Supplier<PipelineOptions> options, Dataset<WindowedValue<InT>> input);
   }
 
