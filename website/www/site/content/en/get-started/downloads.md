@@ -106,8 +106,8 @@ Official [source code download](https://downloads.apache.org/beam/2.46.0/apache-
 
 ### 2.45.0 (2023-02-15)
 Official [source code download](https://archive.apache.org/dist/beam/2.45.0/apache-beam-2.45.0-source-release.zip).
-[SHA-512](https://archive.apache.org/dist/beam/2.43.0/apache-beam-2.45.0-source-release.zip.sha512).
-[signature](https://archive.apache.org/dist/beam/2.43.0/apache-beam-2.45.0-source-release.zip.asc).
+[SHA-512](https://archive.apache.org/dist/beam/2.45.0/apache-beam-2.45.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.45.0/apache-beam-2.45.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.45.0)
 [Blog post](/blog/beam-2.45.0).
