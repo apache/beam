@@ -1176,7 +1176,7 @@ cd beam-starter-go&lt;/code>&lt;/pre>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>go run main.go --inputText=&amp;#34;Greetings&amp;#34;&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>go run main.go --input-text=&amp;#34;Greetings&amp;#34;&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>The output is similar to the following:&lt;/p>
