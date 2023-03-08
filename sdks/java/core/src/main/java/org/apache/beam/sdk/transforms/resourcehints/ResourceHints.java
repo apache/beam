@@ -32,6 +32,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Pipeline authors can use resource hints to provide additional information to runners about the
@@ -42,6 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Interpretation of hints is provided by Beam runners.
  */
 public class ResourceHints {
+  private static final Logger LOG = LoggerFactory.getLogger(ResourceHints.class);
   private static final String MIN_RAM_URN = "beam:resources:min_ram_bytes:v1";
   private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
 
@@ -207,8 +210,19 @@ public class ResourceHints {
     }
   }
 
-  /** Sets desired minimal available RAM size to have in transform's execution environment. */
+  /**
+   * Sets desired minimal available RAM size to have in transform's execution environment.
+   *
+   * @param ramBytes specifies a positive RAM size in bytes.
+   */
   public ResourceHints withMinRam(long ramBytes) {
+    if (ramBytes <= 0L) {
+      LOG.error(
+          "Encountered invalid non-positive minimum ram hint value {}.\n"
+              + "The value is ignored. In the future, this will throw an IllegalArgumentException.",
+          ramBytes);
+      return this;
+    }
     return withHint(MIN_RAM_URN, new BytesHint(ramBytes));
   }
 
