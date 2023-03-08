@@ -1,2 +1,0 @@
-org.apache.beam.sdk.schemas.io.payloads.AvroPayloadSerializerProvider
-org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider

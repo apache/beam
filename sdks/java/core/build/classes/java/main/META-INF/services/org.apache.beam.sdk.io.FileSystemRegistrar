@@ -1,2 +1,0 @@
-org.apache.beam.sdk.io.ClassLoaderFileSystem$ClassLoaderFileSystemRegistrar
-org.apache.beam.sdk.io.LocalFileSystemRegistrar
