@@ -47,7 +47,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery write jobs configured
- * using {@link BigQueryFileLoadsSchemaTransformConfiguration}.
+ * using {@link BigQueryFileLoadsWriteSchemaTransformConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -60,7 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 @Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryFileLoadsWriteSchemaTransformProvider
-    extends TypedSchemaTransformProvider<BigQueryFileLoadsSchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<BigQueryFileLoadsWriteSchemaTransformConfiguration> {
 
   private static final String IDENTIFIER =
       "beam:schematransform:org.apache.beam:bigquery_fileloads_write:v1";
@@ -68,13 +68,13 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
 
   /** Returns the expected class of the configuration. */
   @Override
-  protected Class<BigQueryFileLoadsSchemaTransformConfiguration> configurationClass() {
-    return BigQueryFileLoadsSchemaTransformConfiguration.class;
+  protected Class<BigQueryFileLoadsWriteSchemaTransformConfiguration> configurationClass() {
+    return BigQueryFileLoadsWriteSchemaTransformConfiguration.class;
   }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQueryFileLoadsSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
     return new BigQueryWriteSchemaTransform(configuration);
   }
 
@@ -104,12 +104,12 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
 
   /**
    * A {@link SchemaTransform} that performs {@link BigQueryIO.Write}s based on a {@link
-   * BigQueryFileLoadsSchemaTransformConfiguration}.
+   * BigQueryFileLoadsWriteSchemaTransformConfiguration}.
    */
   private static class BigQueryWriteSchemaTransform implements SchemaTransform {
-    private final BigQueryFileLoadsSchemaTransformConfiguration configuration;
+    private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
 
-    BigQueryWriteSchemaTransform(BigQueryFileLoadsSchemaTransformConfiguration configuration) {
+    BigQueryWriteSchemaTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
@@ -125,17 +125,17 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
 
   /**
    * An implementation of {@link PTransform} for BigQuery write jobs configured using {@link
-   * BigQueryFileLoadsSchemaTransformConfiguration}.
+   * BigQueryFileLoadsWriteSchemaTransformConfiguration}.
    */
   static class PCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
 
-    private final BigQueryFileLoadsSchemaTransformConfiguration configuration;
+    private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
 
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQueryFileLoadsSchemaTransformConfiguration configuration) {
+    PCollectionRowTupleTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 

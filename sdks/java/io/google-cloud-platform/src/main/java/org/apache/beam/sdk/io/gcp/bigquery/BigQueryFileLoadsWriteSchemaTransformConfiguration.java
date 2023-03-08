@@ -35,17 +35,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class BigQueryFileLoadsSchemaTransformConfiguration {
+public abstract class BigQueryFileLoadsWriteSchemaTransformConfiguration {
 
-  /** Instantiates a {@link BigQueryFileLoadsSchemaTransformConfiguration.Builder}. */
+  /** Instantiates a {@link BigQueryFileLoadsWriteSchemaTransformConfiguration.Builder}. */
   public static Builder builder() {
-    return new AutoValue_BigQueryFileLoadsSchemaTransformConfiguration.Builder();
+    return new AutoValue_BigQueryFileLoadsWriteSchemaTransformConfiguration.Builder();
   }
 
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQueryFileLoadsSchemaTransformConfiguration>
-      TYPE_DESCRIPTOR = TypeDescriptor.of(BigQueryFileLoadsSchemaTransformConfiguration.class);
-  private static final SerializableFunction<BigQueryFileLoadsSchemaTransformConfiguration, Row>
+  private static final TypeDescriptor<BigQueryFileLoadsWriteSchemaTransformConfiguration>
+      TYPE_DESCRIPTOR = TypeDescriptor.of(BigQueryFileLoadsWriteSchemaTransformConfiguration.class);
+  private static final SerializableFunction<BigQueryFileLoadsWriteSchemaTransformConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   /**
@@ -80,7 +80,7 @@ public abstract class BigQueryFileLoadsSchemaTransformConfiguration {
     /** Specifies what to do with existing data in the table, in case the table already exists. */
     public abstract Builder setWriteDisposition(String value);
 
-    /** Builds the {@link BigQueryFileLoadsSchemaTransformConfiguration} configuration. */
-    public abstract BigQueryFileLoadsSchemaTransformConfiguration build();
+    /** Builds the {@link BigQueryFileLoadsWriteSchemaTransformConfiguration} configuration. */
+    public abstract BigQueryFileLoadsWriteSchemaTransformConfiguration build();
   }
 }
