@@ -95,6 +95,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNot
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -127,6 +128,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
+  private static final Set<StreamAppendClient> appendClientsToClose = Sets.newConcurrentHashSet();
 
   // Context passed into RetryManager for each call.
   class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
@@ -431,15 +433,18 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         // Make sure that the client is always closed in a different thread
                         // to
                         // avoid blocking.
-                        client ->
-                            runAsyncIgnoreFailure(
-                                closeWriterExecutor,
-                                () -> {
-                                  LOG.warn("Closing " + client);
-                                  // Remove the pin that is "owned" by the cache.
-                                  client.unpin();
-                                  client.close();
-                                }))
+                        client -> {
+                          appendClientsToClose.add(client);
+                          runAsyncIgnoreFailure(
+                              closeWriterExecutor,
+                              () -> {
+                                LOG.warn("Closing " + client);
+                                // Remove the pin that is "owned" by the cache.
+                                client.unpin();
+                                client.close();
+                                appendClientsToClose.remove(client);
+                              });
+                        })
                     .withAppendClient(datasetService, getOrCreateStream, false);
             // This pin is "owned" by the cache.
             Preconditions.checkStateNotNull(info.getStreamAppendClient()).pin();
