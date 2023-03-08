@@ -85,7 +85,7 @@ gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` 
 
 5. Run the following command from the top-level repository folder ("beam") to deploy the Tour of Beam Backend infrastructure:
 ```
-./gradlew learning:tour-of-beam:terraform:InitBackend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id"
+./gradlew learning:tour-of-beam:terraform:InitBackend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id" -Pgcloud_account=`gcloud config get-value core/account`
 ```
 Where:
 - **project_environment** - environment name

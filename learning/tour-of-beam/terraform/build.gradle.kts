@@ -63,12 +63,14 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
         group = "backend-deploy"
         var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
         var environment = project.property("project_environment") as String
+        var gcloud_account = project.property("gcloud_account") as String
         args(
                 "apply",
                 "-auto-approve",
                 "-lock=false",
                 "-parallelism=3",
                 "-var=pg_router_host=$pg_router_host",
+                "-var=gcloud_init_account=$gcloud_account",
                 "-var=environment=$environment",
                 if (file("./environment/$environment/terraform.tfvars").exists()) {
                     "-var-file=./environment/$environment/terraform.tfvars"
@@ -83,12 +85,14 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
 tasks.register<TerraformTask>("terraformDestroy") {
     var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
     var environment = project.property("project_environment") as String
+    var gcloud_account = project.property("gcloud_account") as String
     args(
             "destroy",
             "-auto-approve",
             "-lock=false",
             "-var=pg_router_host=$pg_router_host",
             "-var=environment=$environment",
+            "-var=gcloud_init_account=$gcloud_account",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
             } else {

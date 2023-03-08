@@ -19,12 +19,12 @@ module "setup" {
   source = "./setup"
   project_id = var.project_id
   service_account_id = var.service_account_id
+  gcloud_init_account = var.gcloud_init_account
   depends_on = [module.api_enable]
 }
 
 module "functions_buckets" {
   source = "./functions_buckets"
-  # project_id = var.project_id
   region      = var.region
   cloudfunctions_bucket = var.cloudfunctions_bucket
   depends_on = [module.setup, module.api_enable]
