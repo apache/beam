@@ -47,6 +47,7 @@ class TestDoFn3(beam.DoFn):
 
 class CreateTest(unittest.TestCase):
   def test_dofn_with_yield_and_return(self):
+    assert beam.ParDo(sum)
     assert beam.ParDo(TestDoFn1())
     assert beam.ParDo(TestDoFn2())
     with self.assertRaises(RuntimeError) as e:

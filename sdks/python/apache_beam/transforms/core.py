@@ -1421,6 +1421,8 @@ def _get_function_body_without_inners(func):
 
 
 def _check_fn_use_yield_and_return(fn):
+  if isinstance(fn, types.BuiltinFunctionType):
+    return False
   source_code = _get_function_body_without_inners(fn)
   return "yield " in source_code and "return " in source_code
 
