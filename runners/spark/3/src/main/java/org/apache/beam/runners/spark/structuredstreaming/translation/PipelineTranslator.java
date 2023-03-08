@@ -135,15 +135,15 @@ public abstract class PipelineTranslator {
    * The correspondence of a {@link PCollection} as result of translating a {@link PTransform}
    * including additional metadata (such as name and dependents).
    */
-  private static final class TranslationResult<IntT, OutT>
-      implements EvaluationContext.NamedDataset<OutT> {
+  private static final class TranslationResult<IntT, T>
+      implements EvaluationContext.NamedDataset<T> {
     private final String name;
     private final float complexityFactor;
     private float planComplexity = 0;
 
-    private @MonotonicNonNull Dataset<WindowedValue<OutT>> dataset = null;
-    private @MonotonicNonNull Broadcast<SideInputValues<OutT>> sideInputBroadcast = null;
-    private @Nullable UnresolvedTranslation<IntT, OutT> unresolved = null;
+    private @MonotonicNonNull Dataset<WindowedValue<T>> dataset = null;
+    private @MonotonicNonNull Broadcast<SideInputValues<T>> sideInputBroadcast = null;
+    private @Nullable UnresolvedTranslation<IntT, T> unresolved = null;
 
     // dependent downstream transforms (if empty this is a leaf)
     private final Set<PTransform<?, ?>> dependentTransforms = new HashSet<>();
@@ -163,7 +163,7 @@ public abstract class PipelineTranslator {
     }
 
     @Override
-    public @Nullable Dataset<WindowedValue<OutT>> dataset() {
+    public @Nullable Dataset<WindowedValue<T>> dataset() {
       return dataset;
     }
 
@@ -296,8 +296,8 @@ public abstract class PipelineTranslator {
       return enc;
     }
 
-    private <IntT, OutT> TranslationResult<IntT, OutT> getResult(PCollection<OutT> pCollection) {
-      return (TranslationResult<IntT, OutT>) checkStateNotNull(translationResults.get(pCollection));
+    private <IntT, T> TranslationResult<IntT, T> getResult(PCollection<T> pCollection) {
+      return (TranslationResult<IntT, T>) checkStateNotNull(translationResults.get(pCollection));
     }
 
     @Override
@@ -328,9 +328,8 @@ public abstract class PipelineTranslator {
       }
     }
 
-    private <InT, OutT> Dataset<WindowedValue<OutT>> getOrResolve(
-        TranslationResult<InT, OutT> result) {
-      UnresolvedTranslation<InT, OutT> unresolved = result.unresolved;
+    private <InT, T> Dataset<WindowedValue<T>> getOrResolve(TranslationResult<InT, T> result) {
+      UnresolvedTranslation<InT, T> unresolved = result.unresolved;
       if (unresolved != null) {
         result.dataset = unresolved.resolve(optionsSupplier, getDataset(unresolved.getInput()));
         result.unresolved = null;
@@ -339,11 +338,11 @@ public abstract class PipelineTranslator {
     }
 
     @Override
-    public <InT, OutT> void putUnresolved(
-        PCollection<OutT> out, UnresolvedTranslation<InT, OutT> unresolved) {
+    public <InT, T> void putUnresolved(
+        PCollection<T> out, UnresolvedTranslation<InT, T> unresolved) {
       // For simplicity, pretend InT is the same
       TranslationResult<InT, InT> translIn = getResult(unresolved.getInput());
-      TranslationResult<InT, OutT> translOut = getResult(out);
+      TranslationResult<InT, T> translOut = getResult(out);
       // Fuse with previous unresolved translation if necessary
       UnresolvedTranslation<InT, InT> unresolvedIn = translIn.unresolved;
       translOut.unresolved = unresolvedIn != null ? unresolvedIn.fuse(unresolved) : unresolved;
