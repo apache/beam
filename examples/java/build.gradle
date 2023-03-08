@@ -96,7 +96,7 @@ dependencies {
   implementation "com.fasterxml.jackson.core:jackson-annotations:2.14.1"
   implementation "com.fasterxml.jackson.core:jackson-core:2.14.1"
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:extensions:ml")
   testImplementation library.java.google_cloud_bigquery
   testImplementation library.java.hamcrest
