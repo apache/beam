@@ -160,8 +160,8 @@ public abstract class TransformTranslator<
     }
 
     @Override
-    public <T1, T2> void putUnresolved(
-        PCollection<T2> out, UnresolvedTranslation<T1, T2> unresolved) {
+    public <InputT, T> void putUnresolved(
+        PCollection<T> out, UnresolvedTranslation<InputT, T> unresolved) {
       state.putUnresolved(out, unresolved);
     }
 
