@@ -1,0 +1,117 @@
+/*
+ *  Licensed to the Apache Software Foundation (ASF) under one
+ *  or more contributor license agreements.  See the NOTICE file
+ *  distributed with this work for additional information
+ *  regarding copyright ownership.  The ASF licenses this file
+ *  to you under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+buildscript {
+  ext {
+    beamVersion = '2.38.0'
+    guavaVersion = '31.0.1-jre'
+    jodaTimeVersion = '2.10.10'
+    slf4jVersion = '1.7.30'
+    log4jSlf4jImpl = '2.17.1'
+
+    assertjVersion = '3.22.0'
+    hamcrestVersion = '2.1'
+    junitVersion = '4.13.1'
+  }
+
+  repositories {
+    mavenCentral()
+  }
+}
+
+def printOutput(def output) {
+  return tasks.create("printOutput") {
+    for (line in output.toString().readLines()) {
+      println "#educational_plugin" + line
+    }
+  }
+}
+
+subprojects {
+  apply plugin: 'application'
+  apply plugin: 'java'
+
+  sourceCompatibility = 1.8
+
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    implementation "org.apache.beam:beam-sdks-java-core:$beamVersion"
+    runtimeOnly "org.apache.beam:beam-runners-direct-java:$beamVersion"
+
+    implementation "joda-time:joda-time:$jodaTimeVersion"
+    implementation "org.slf4j:slf4j-api:$slf4jVersion"
+    implementation "org.apache.logging.log4j:log4j-slf4j-impl:$log4jSlf4jImpl"
+    implementation "com.google.guava:guava:$guavaVersion"
+
+    testImplementation "junit:junit:$junitVersion"
+    testImplementation "org.hamcrest:hamcrest:$hamcrestVersion"
+    testImplementation "org.assertj:assertj-core:$assertjVersion"
+  }
+
+  sourceSets {
+    main {
+      java.srcDir 'src'
+      resources.srcDir 'resources'
+    }
+    test {
+      java.srcDir 'test'
+    }
+  }
+
+  mainClassName = project.hasProperty("mainClass") ? project.getProperty("mainClass") : ""
+
+  test {
+    outputs.upToDateWhen { false }
+    afterTest { TestDescriptor test, TestResult result ->
+      if (result.resultType == TestResult.ResultType.FAILURE) {
+        def message = result.exception?.message ?: "Wrong answer"
+        def lines = message.readLines()
+        println "#educational_plugin FAILED + " + lines[0]
+        lines[1..-1].forEach { line ->
+          println "#educational_plugin" + line
+        }
+        // we need this to separate output of different tests
+        println()
+      }
+    }
+  }
+
+  def runOutput = new ByteArrayOutputStream()
+  tasks.run.setStandardOutput(runOutput)
+  tasks.run.doLast { printOutput(runOutput) }
+}
+
+project(':util') {
+  dependencies {
+    implementation "junit:junit:$junitVersion"
+  }
+}
+
+configure(subprojects.findAll { it.name != 'util' }) {
+  dependencies {
+    implementation project(':util').sourceSets.main.output
+    testImplementation project(':util').sourceSets.test.output
+  }
+}
+
+wrapper {
+  gradleVersion = '5.0'
+}

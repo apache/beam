@@ -1,0 +1,12 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+GetContentTreeResponse _$GetContentTreeResponseFromJson(
+        Map<String, dynamic> json) =>
+    GetContentTreeResponse(
+      sdkId: json['sdkId'] as String,
+      modules: (json['modules'] as List<dynamic>)
+          .map((e) => ModuleResponseModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );

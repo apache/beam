@@ -1,0 +1,1 @@
+ build\\web\\favicon.ico build\\web\\index.html build\\web\\manifest.json:  C:\\Users\\Ruslan\\Desktop\\beam\\learning\\tour-of-beam\\frontend\\web\\favicon.ico C:\\Users\\Ruslan\\Desktop\\beam\\learning\\tour-of-beam\\frontend\\web\\index.html C:\\Users\\Ruslan\\Desktop\\beam\\learning\\tour-of-beam\\frontend\\web\\manifest.json

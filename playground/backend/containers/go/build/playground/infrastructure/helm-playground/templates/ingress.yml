@@ -1,0 +1,88 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-playground
+  annotations: 
+     kubernetes.io/ingress.global-static-ip-name: {{ .Values.static_ip_name }}
+     networking.gke.io/managed-certificates: {{ .Values.project_id }}
+     networking.gke.io/v1beta1.FrontendConfig: pg-frontend
+     ingress.kubernetes.io/enable-cors: "true"
+  labels:
+     app: playground-go
+spec:
+  rules:
+  - host: "go.{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-go
+            port:
+              number: {{ .Values.service.port }}
+  - host: "java.{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-java
+            port:
+              number: {{ .Values.service.port }}
+  - host: "python.{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-python
+            port:
+              number: {{ .Values.service.port }}
+  - host: "router.{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-router
+            port:
+              number: {{ .Values.service.port }}
+  - host: "scio.{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-scio
+            port:
+              number: {{ .Values.service.port }}
+  - host: "{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-frontend
+            port:
+              number: {{ .Values.service.port }}

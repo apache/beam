@@ -1,0 +1,10 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+GetSdksResponse _$GetSdksResponseFromJson(Map<String, dynamic> json) =>
+    GetSdksResponse(
+      sdks: (json['sdks'] as List<dynamic>)
+          .map((e) => Sdk.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
