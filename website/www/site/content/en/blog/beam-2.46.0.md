@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.46.0"
-date:   YYYY-MM-DD H:MM:00 Z - TODO
+date:   2023-03-08 13:00:00 -0500
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.46.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2460-2023-01-13) for this release. - TODO - update this anchor
+See the [download page](/get-started/downloads/#2460-2023-03-08) for this release.
 
 <!--more-->
 
