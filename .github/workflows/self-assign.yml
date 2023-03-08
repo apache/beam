@@ -1,0 +1,151 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Assign or close an issue
+on: 
+  issue_comment:
+
+jobs:
+  assign:
+    permissions:
+      issues: write
+    name: Take or close an issue
+    if: ${{ !github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/github-script@v6
+      with:
+        script: |
+          const body = context.payload.comment.body.replace( /\r\n/g, " " ).replace( /\n/g, " " ).split(' ');
+          console.log(body);
+          for (let i = 0; i < body.length; i++) {
+            const bodyString = body[i].toLowerCase();
+            if (bodyString == '.take-issue') {
+              console.log(`Assigining issue to ${context.payload.comment.user.login}`);
+              github.rest.issues.addAssignees({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                assignees: [context.payload.comment.user.login]
+              });
+              github.rest.issues.removeLabel({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'awaiting triage'
+              });
+            } else if (bodyString == '.close-issue') {
+              console.log('Closing issue');
+              if (i + 1 < body.length && body[i+1].toLowerCase() == 'not_planned') {
+                github.rest.issues.update({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'closed',
+                  state_reason: 'not_planned'
+                });
+              } else {
+                github.rest.issues.update({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'closed'
+                });
+              }
+            } else if (bodyString == '.reopen-issue') {
+                console.log('Reopening issue');
+                github.rest.issues.update({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open'
+                });
+            } else if (bodyString == '.set-labels' || bodyString == '.add-labels' || bodyString == '.remove-labels') {
+              console.log('Updating labels');
+              if (i + 1 >= body.length) {
+                console.log(`Invalid input ${body}`);
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: '.<update>-labels command detected, but no labels provided.'
+                });
+                return;
+              } else {
+                const labelsInRepo = (await github.paginate(github.rest.issues.listLabelsForRepo, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                })).map(l => l.name);
+                let j = i+1;
+                let partsToConsider = body[j];
+                while ((partsToConsider.match(/'/g) || []).length % 2 == 1) {
+                  j++;
+                  if (j >= body.length) {
+                    console.log(`Invalid input ${body}`);
+                    github.rest.issues.createComment({
+                      issue_number: context.issue.number,
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      body: '.<update>-labels command detected with mismatched set of \' quotes'
+                    });
+                    return;
+                  }
+                  partsToConsider += ' ' + body[j];
+                }
+                const labelsToActionOn = partsToConsider.split(',').map(l => l.replaceAll('\'', ''));
+                for (label of labelsToActionOn) {
+                  if (labelsInRepo.indexOf(label) < 0) {
+                    console.log(`Invalid label ${body}`);
+                    github.rest.issues.createComment({
+                      issue_number: context.issue.number,
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      body: `Label ${label} cannot be managed because it does not exist in the repo. Please check your spelling.`
+                    });
+                    return;
+                  }
+                }
+                
+                if (bodyString == '.set-labels') {
+                  console.log(`Setting labels to ${labelsToActionOn}`);
+                  github.rest.issues.setLabels({
+                    issue_number: context.issue.number,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    labels: labelsToActionOn
+                  });
+                } else if (bodyString == '.add-labels') {
+                  console.log(`Adding labels ${labelsToActionOn}`);
+                  github.rest.issues.addLabels({
+                    issue_number: context.issue.number,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    labels: labelsToActionOn
+                  });
+                } else if (bodyString == '.remove-labels') {
+                  console.log(`Removing labels ${labelsToActionOn}`);
+                  // There's no true removeLabels command, we'll remove them one by one
+                  for (const label of labelsToActionOn) {
+                    github.rest.issues.removeLabel({
+                      issue_number: context.issue.number,
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      name: label
+                    });
+                  }
+                }
+              }
+            }
+          }
