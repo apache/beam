@@ -18,8 +18,6 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.oneOfEncoder;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.emptyList;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.listOf;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.spark.sql.functions.col;
@@ -38,7 +36,6 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumula
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
-import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -57,7 +54,6 @@ import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.TypedColumn;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
-import scala.collection.TraversableOnce;
 
 /**
  * Translator for {@link ParDo.MultiOutput} based on {@link DoFnRunners#simpleRunner}.
@@ -197,10 +193,6 @@ class ParDoTranslatorBatch<InputT, OutputT>
         }
         return filtered;
     }
-  }
-
-  static <T> Fun1<Tuple2<Integer, T>, TraversableOnce<T>> selectByColumnIdx(int idx) {
-    return t -> idx == t._1 ? listOf(t._2) : emptyList();
   }
 
   private Map<String, Integer> tagsColumnIndex(Collection<TupleTag<?>> tags) {
