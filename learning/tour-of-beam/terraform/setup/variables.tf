@@ -22,3 +22,7 @@ variable "project_id" {
 variable "service_account_id" {
   description = "The name of Service Account to run Cloud Function"
 }
+
+variable "gcloud_init_account" {
+  description = "User Account ID logged in with gcloud init command (e.g. username@domain.com)"
+}

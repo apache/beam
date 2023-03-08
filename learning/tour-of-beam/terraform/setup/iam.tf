@@ -31,19 +31,11 @@ resource "google_project_iam_member" "terraform_service_account_roles" {
   project = var.project_id
 }
 
-data "external" "gcloud_account" {
-  program = ["gcloud", "config", "get-value", "core/account"]
-}
-
-variable "gcloud_account" {
-  default = data.external.gcloud_account.result
-}
-
 resource "google_project_iam_member" "gcloud_user_required_roles" {
   for_each = toset([
     "roles/cloudfunctions.admin", "roles/firebase.admin"
   ])
   role    = each.key
-  member  = "user:${var.gcloud_account}"
+  member  = "user:${var.gcloud_init_account}"
   project = var.project_id
 }
