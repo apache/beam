@@ -15,10 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
+data "external" "gcloud_account" {
+  program = ["gcloud", "config", "get-value", "core/account"]
+}
+
 variable "project_id" {
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }
 
 variable "service_account_id" {
   description = "The name of Service Account to run Cloud Function"
+}
+
+variable "gcloud_account" {
+  default = data.external.gcloud_account.result
 }
