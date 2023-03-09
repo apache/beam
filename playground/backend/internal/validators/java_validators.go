@@ -36,17 +36,18 @@ func GetJavaValidator(filepath string) Validator {
 	return javaValidator{filepath: filepath}
 }
 
-func (v javaValidator) Validate() (map[string]bool, error) {
-	var result = make(map[string]bool)
-	var err error
+func (v javaValidator) Validate() (ValidationResult, error) {
+	var result = ValidationResult{}
 
-	if result["Valid path"], err = fs_tool.CheckPathIsValid(v.filepath, javaExtension); err != nil {
+	isPathValid, err := fs_tool.CheckPathIsValid(v.filepath, javaExtension)
+	result.IsValidPath = resultFromBool(isPathValid)
+	if err != nil {
 		return result, err
 	}
-	if result[UnitTestValidatorName], err = checkIsUnitTestJava(v.filepath, javaExtension); err != nil {
+	if result.IsUnitTest, err = checkIsUnitTestJava(v.filepath); err != nil {
 		return result, err
 	}
-	if result[KatasValidatorName], err = checkIsKataJava(v.filepath, javaExtension); err != nil {
+	if result.IsKatas, err = checkIsKataJava(v.filepath); err != nil {
 		return result, err
 	}
 
@@ -54,31 +55,29 @@ func (v javaValidator) Validate() (map[string]bool, error) {
 }
 
 // checkIsUnitTestJava checks if the pipeline is a UnitTest
-func checkIsUnitTestJava(args ...interface{}) (bool, error) {
-	ok, err := checkPipelineType(append(args, javaUnitTestPattern)...)
+func checkIsUnitTestJava(filePath string) (ValidatorResult, error) {
+	ok, err := checkPipelineType(filePath, javaUnitTestPattern)
 	if err != nil {
-		return false, err
+		return Error, err
 	}
 	return ok, nil
 }
 
 // checkIsKataJava checks if the pipeline is a kata
-func checkIsKataJava(args ...interface{}) (bool, error) {
-	ok, err := checkPipelineType(append(args, javaKatasPattern)...)
+func checkIsKataJava(filePath string) (ValidatorResult, error) {
+	ok, err := checkPipelineType(filePath, javaKatasPattern)
 	if err != nil {
-		return false, err
+		return Error, err
 	}
 	return ok, nil
 }
 
-func checkPipelineType(args ...interface{}) (bool, error) {
-	filePath := args[0].(string)
-	pattern := args[2].(string)
+func checkPipelineType(filePath, pattern string) (ValidatorResult, error) {
 	code, err := os.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
-		return false, err
+		return Error, err
 	}
 	// check whether s contains substring unit test or katas
-	return strings.Contains(string(code), pattern), nil
+	return resultFromBool(strings.Contains(string(code), pattern)), nil
 }

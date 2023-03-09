@@ -863,27 +863,29 @@ func Test_validateStep(t *testing.T) {
 		pipelineId           uuid.UUID
 		sdkEnv               *environment.BeamEnvs
 		pipelineLifeCycleCtx context.Context
-		validationResults    *sync.Map
 		cancelChannel        chan bool
 	}
 	tests := []struct {
 		name string
 		args args
-		want int
+		want validators.ValidationResult
 		code string
 	}{
 		{
-			name: "Test validation step by checking number of validators",
+			name: "Test validation step by checking which validators ran (Java)",
 			args: args{
 				ctx:                  context.Background(),
 				cacheService:         cacheService,
 				pipelineId:           uuid.New(),
 				sdkEnv:               javaSdkEnv,
 				pipelineLifeCycleCtx: context.Background(),
-				validationResults:    &sync.Map{},
 				cancelChannel:        make(chan bool, 1),
 			},
-			want: 3,
+			want: validators.ValidationResult{
+				IsUnitTest:  validators.No,
+				IsKatas:     validators.No,
+				IsValidPath: validators.Yes,
+			},
 			code: helloWordJava,
 		},
 		{
@@ -894,10 +896,13 @@ func Test_validateStep(t *testing.T) {
 				pipelineId:           uuid.New(),
 				sdkEnv:               incorrectSdkEnv,
 				pipelineLifeCycleCtx: context.Background(),
-				validationResults:    &sync.Map{},
 				cancelChannel:        make(chan bool, 1),
 			},
-			want: 0,
+			want: validators.ValidationResult{
+				IsUnitTest:  validators.Unknown,
+				IsKatas:     validators.Unknown,
+				IsValidPath: validators.Unknown,
+			},
 			code: helloWordJava,
 		},
 	}
@@ -910,9 +915,8 @@ func Test_validateStep(t *testing.T) {
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
 			_ = lc.CreateSourceCodeFiles(sources)
-			executor := validateStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel)
-			got := syncMapLen(tt.args.validationResults)
-			if executor != nil && !reflect.DeepEqual(got, tt.want) {
+			got, _ := validateStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel)
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("validateStep() = %d, want %d", got, tt.want)
 			}
 		})
@@ -928,9 +932,10 @@ func Test_prepareStep(t *testing.T) {
 		ApacheBeamSdk:  pb.Sdk_SDK_UNSPECIFIED,
 		ExecutorConfig: nil,
 	}
-	validationResults := sync.Map{}
-	validationResults.Store(validators.UnitTestValidatorName, false)
-	validationResults.Store(validators.KatasValidatorName, false)
+	validationResults := validators.ValidationResult{
+		IsUnitTest: validators.No,
+		IsKatas:    validators.No,
+	}
 	pipelineLifeCycleCtx, _ := context.WithTimeout(context.Background(), 1)
 	type args struct {
 		ctx                  context.Context
@@ -938,7 +943,7 @@ func Test_prepareStep(t *testing.T) {
 		pipelineId           uuid.UUID
 		sdkEnv               *environment.BeamEnvs
 		pipelineLifeCycleCtx context.Context
-		validationResults    *sync.Map
+		validationResults    validators.ValidationResult
 		cancelChannel        chan bool
 	}
 	tests := []struct {
@@ -955,7 +960,7 @@ func Test_prepareStep(t *testing.T) {
 				pipelineId:           uuid.New(),
 				sdkEnv:               javaSdkEnv,
 				pipelineLifeCycleCtx: context.Background(),
-				validationResults:    &validationResults,
+				validationResults:    validationResults,
 				cancelChannel:        make(chan bool, 1),
 			},
 			code:           helloWordJava,
@@ -969,7 +974,7 @@ func Test_prepareStep(t *testing.T) {
 				pipelineId:           uuid.New(),
 				sdkEnv:               incorrectSdkEnv,
 				pipelineLifeCycleCtx: context.Background(),
-				validationResults:    &validationResults,
+				validationResults:    validationResults,
 				cancelChannel:        make(chan bool, 1),
 			},
 			code:           "",
@@ -983,7 +988,7 @@ func Test_prepareStep(t *testing.T) {
 				pipelineId:           uuid.New(),
 				sdkEnv:               javaSdkEnv,
 				pipelineLifeCycleCtx: pipelineLifeCycleCtx,
-				validationResults:    &validationResults,
+				validationResults:    validationResults,
 				cancelChannel:        make(chan bool, 1),
 			},
 			code:           "",

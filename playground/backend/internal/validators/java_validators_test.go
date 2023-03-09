@@ -29,40 +29,37 @@ const (
 )
 
 func TestCheckIsUnitTestJava(t *testing.T) {
-	testValidatorArgs := getValidatorsArgs(javaUnitTestFilePath, javaUnitTestPattern)
-	validatorArgs := getValidatorsArgs(javaCodePath, javaUnitTestPattern)
-
 	type args struct {
-		args []interface{}
+		filePath string
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    bool
+		want    ValidatorResult
 		wantErr bool
 	}{
 		{
 			// Test if code is unit test code
 			name: "Is unit test",
 			args: args{
-				testValidatorArgs,
+				javaUnitTestFilePath,
 			},
-			want:    true,
+			want:    Yes,
 			wantErr: false,
 		},
 		{
 			// Test if code is not unit test code
 			name: "Is not unit test",
 			args: args{
-				validatorArgs,
+				javaCodePath,
 			},
-			want:    false,
+			want:    No,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := checkIsUnitTestJava(tt.args.args...)
+			got, err := checkIsUnitTestJava(tt.args.filePath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("checkIsUnitTestJava error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -75,39 +72,37 @@ func TestCheckIsUnitTestJava(t *testing.T) {
 }
 
 func TestCheckIsKataJava(t *testing.T) {
-	testValidatorArgs := getValidatorsArgs(javaKataFilePath, javaKatasPattern)
-	validatorArgs := getValidatorsArgs(javaCodePath, javaKatasPattern)
 	type args struct {
-		args []interface{}
+		filePath string
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    bool
+		want    ValidatorResult
 		wantErr bool
 	}{
 		{
 			// Test if code is kata
 			name: "Is kata",
 			args: args{
-				testValidatorArgs,
+				javaKataFilePath,
 			},
-			want:    true,
+			want:    Yes,
 			wantErr: false,
 		},
 		{
 			// Test if code is not kata
 			name: "Is not kata",
 			args: args{
-				validatorArgs,
+				javaCodePath,
 			},
-			want:    false,
+			want:    No,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := checkIsKataJava(tt.args.args...)
+			got, err := checkIsKataJava(tt.args.filePath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("checkIsKataJava() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -117,12 +112,4 @@ func TestCheckIsKataJava(t *testing.T) {
 			}
 		})
 	}
-}
-
-// getValidatorsArgs returns array of received arguments for validators
-func getValidatorsArgs(args ...interface{}) []interface{} {
-	preparedArgs := make([]interface{}, 3)
-	preparedArgs[0] = args[0]
-	preparedArgs[2] = args[1]
-	return preparedArgs
 }

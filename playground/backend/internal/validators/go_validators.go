@@ -31,21 +31,21 @@ func GetGoValidator(filepath string) Validator {
 	return goValidator{filepath: filepath}
 }
 
-func (v goValidator) Validate() (map[string]bool, error) {
-	var result = make(map[string]bool)
+func (v goValidator) Validate() (ValidationResult, error) {
+	var result = ValidationResult{}
 	var err error
-	if result[UnitTestValidatorName], err = CheckIsUnitTestGo(v.filepath); err != nil {
+	if result.IsUnitTest, err = CheckIsUnitTestGo(v.filepath); err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func CheckIsUnitTestGo(filepath string) (bool, error) {
+func CheckIsUnitTestGo(filepath string) (ValidatorResult, error) {
 	code, err := os.ReadFile(filepath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filepath, err.Error())
-		return false, err
+		return Error, err
 	}
 	// check whether Go code is unit test code
-	return strings.Contains(string(code), goUnitTestPattern), nil
+	return resultFromBool(strings.Contains(string(code), goUnitTestPattern)), nil
 }

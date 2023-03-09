@@ -51,7 +51,8 @@ func TestWrongExtension_Error(t *testing.T) {
 
 func TestCheckPathIsValid(t *testing.T) {
 	type args struct {
-		args []interface{}
+		filePath         string
+		correctExtension string
 	}
 	tests := []struct {
 		name    string
@@ -61,26 +62,26 @@ func TestCheckPathIsValid(t *testing.T) {
 	}{
 		{
 			name:    "File not exist",
-			args:    args{args: []interface{}{"filePath.txt", ".txt"}},
+			args:    args{filePath: "filePath.txt", correctExtension: ".txt"},
 			want:    false,
 			wantErr: true,
 		},
 		{
 			name:    "Incorrect extension",
-			args:    args{args: []interface{}{filepath.Join(sourceDir, fileName), JavaSourceFileExtension}},
+			args:    args{filePath: filepath.Join(sourceDir, fileName), correctExtension: JavaSourceFileExtension},
 			want:    false,
 			wantErr: true,
 		},
 		{
 			name:    "CheckPathIsValid worked successfully",
-			args:    args{args: []interface{}{filepath.Join(sourceDir, fileName), ".txt"}},
+			args:    args{filePath: filepath.Join(sourceDir, fileName), correctExtension: ".txt"},
 			want:    true,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CheckPathIsValid(tt.args.args...)
+			got, err := CheckPathIsValid(tt.args.filePath, tt.args.correctExtension)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CheckPathIsValid() error = %v, wantErr %v", err, tt.wantErr)
 				return

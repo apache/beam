@@ -25,8 +25,23 @@ const (
 	KatasValidatorName    = "Katas"
 )
 
+type ValidatorResult int
+
+const (
+	Unknown ValidatorResult = iota
+	No
+	Yes
+	Error
+)
+
+type ValidationResult struct {
+	IsUnitTest  ValidatorResult
+	IsKatas     ValidatorResult
+	IsValidPath ValidatorResult
+}
+
 type Validator interface {
-	Validate() (map[string]bool, error)
+	Validate() (ValidationResult, error)
 }
 
 func GetValidator(sdk pb.Sdk, filepath string) (Validator, error) {
@@ -42,4 +57,22 @@ func GetValidator(sdk pb.Sdk, filepath string) (Validator, error) {
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
+}
+
+func resultFromBool(val bool) ValidatorResult {
+	if val {
+		return Yes
+	} else {
+		return No
+	}
+}
+
+func (r ValidatorResult) ToBool() (bool, error) {
+	if r == Unknown {
+		return false, fmt.Errorf("result is unknown")
+	}
+	if r == Error {
+		return false, fmt.Errorf("result indicated error")
+	}
+	return r == Yes, nil
 }

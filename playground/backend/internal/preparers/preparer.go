@@ -16,11 +16,10 @@
 package preparers
 
 import (
-	"fmt"
-	"sync"
-
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/validators"
+	"fmt"
 )
 
 // Preparer is used to make preparations with file with code.
@@ -59,23 +58,25 @@ func (builder *PreparersBuilder) AddPreparer(newPreparer Preparer) {
 }
 
 // GetPreparers returns slice of preparers.Preparer according to sdk
-func GetPreparers(sdk pb.Sdk, filepath string, valResults *sync.Map, prepareParams map[string]string) (*[]Preparer, error) {
-	isUnitTest, ok := valResults.Load(validators.UnitTestValidatorName)
-	if !ok {
-		return nil, fmt.Errorf("GetPreparers:: No information about unit test validation result")
+func GetPreparers(sdk pb.Sdk, filepath string, valResults validators.ValidationResult, prepareParams map[string]string) (*[]Preparer, error) {
+	isUnitTest, err := valResults.IsUnitTest.ToBool()
+	if err != nil {
+		logger.Errorf("GetPreparers: No information whether example is a unit test or no: check whether the validation step had been ran correctly")
+		return nil, fmt.Errorf("GetPreparers: No information whether example is a unit test or no: %s", err)
 	}
 	builder := NewPreparersBuilder(filepath, prepareParams)
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		isKata, ok := valResults.Load(validators.KatasValidatorName)
-		if !ok {
-			return nil, fmt.Errorf("GetPreparers:: No information about katas validation result")
+		isKatas, err := valResults.IsKatas.ToBool()
+		if err != nil {
+			logger.Errorf("GetPreparers: No information about katas validation result: check whether the validation step had been ran correctly")
+			return nil, fmt.Errorf("GetPreparers:: No information about katas validation result: %s", err.Error())
 		}
-		GetJavaPreparers(builder, isUnitTest.(bool), isKata.(bool))
+		GetJavaPreparers(builder, isUnitTest, isKatas)
 	case pb.Sdk_SDK_GO:
-		GetGoPreparers(builder, isUnitTest.(bool))
+		GetGoPreparers(builder, isUnitTest)
 	case pb.Sdk_SDK_PYTHON:
-		GetPythonPreparers(builder, isUnitTest.(bool))
+		GetPythonPreparers(builder, isUnitTest)
 	case pb.Sdk_SDK_SCIO:
 		GetScioPreparers(builder)
 	default:

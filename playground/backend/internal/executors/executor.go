@@ -17,9 +17,9 @@ package executors
 
 import (
 	"beam.apache.org/playground/backend/internal/preparers"
+	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
-	"sync"
 )
 
 type ExecutionType string
@@ -47,8 +47,8 @@ type Executor struct {
 }
 
 // Prepare returns the function that applies all preparations of executor
-func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map) {
-	return func(doneCh chan bool, errCh chan error, validationResults *sync.Map) {
+func (ex *Executor) Prepare() func(chan bool, chan error, validators.ValidationResult) {
+	return func(doneCh chan bool, errCh chan error, validationResults validators.ValidationResult) {
 		for _, preparer := range ex.preparers {
 			preparer.Args = append(preparer.Args, validationResults)
 			err := preparer.Prepare(preparer.Args...)

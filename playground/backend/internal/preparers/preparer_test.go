@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sync"
 	"testing"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -82,15 +81,16 @@ func teardown() {
 func TestGetPreparers(t *testing.T) {
 	filepath := ""
 	prepareParams := make(map[string]string)
-	validationResults := sync.Map{}
-	validationResults.Store(validators.UnitTestValidatorName, false)
-	validationResults.Store(validators.KatasValidatorName, false)
+	validationResults := validators.ValidationResult{
+		IsUnitTest: validators.No,
+		IsKatas:    validators.No,
+	}
 
 	type args struct {
 		sdk           pb.Sdk
 		filepath      string
 		prepareParams map[string]string
-		valResults    *sync.Map
+		valResults    validators.ValidationResult
 	}
 	tests := []struct {
 		name    string
@@ -106,7 +106,7 @@ func TestGetPreparers(t *testing.T) {
 				sdk:           pb.Sdk_SDK_JAVA,
 				filepath:      filepath,
 				prepareParams: prepareParams,
-				valResults:    &validationResults,
+				valResults:    validationResults,
 			},
 			want: NewPreparersBuilder(filepath, prepareParams).
 				JavaPreparers().
@@ -125,7 +125,7 @@ func TestGetPreparers(t *testing.T) {
 				sdk:           pb.Sdk_SDK_PYTHON,
 				filepath:      filepath,
 				prepareParams: prepareParams,
-				valResults:    &validationResults,
+				valResults:    validationResults,
 			},
 			want: NewPreparersBuilder(filepath, prepareParams).
 				PythonPreparers().
@@ -143,7 +143,7 @@ func TestGetPreparers(t *testing.T) {
 				sdk:           pb.Sdk_SDK_GO,
 				filepath:      filepath,
 				prepareParams: prepareParams,
-				valResults:    &validationResults,
+				valResults:    validationResults,
 			},
 			want: NewPreparersBuilder(filepath, prepareParams).
 				GoPreparers().
@@ -160,7 +160,7 @@ func TestGetPreparers(t *testing.T) {
 				sdk:           pb.Sdk_SDK_SCIO,
 				filepath:      filepath,
 				prepareParams: prepareParams,
-				valResults:    &validationResults,
+				valResults:    validationResults,
 			},
 			want: NewPreparersBuilder(filepath, prepareParams).
 				ScioPreparers().
