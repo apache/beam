@@ -22,15 +22,18 @@ import '../models/component_version.dart';
 extension MetadataResponseGrpcExtension on GetMetadataResponse {
   ComponentVersion get componentVersion {
     return ComponentVersion(
-      // If a string is optional in protobuf, for some reason it becomes
-      // a non-nullable Dart string with '' as the default value.
-      // This can be deleted if this lands:
-      //  https://github.com/google/protobuf.dart/issues/523
       beamSdkVersion: beamSdkVersion == '' ? null : beamSdkVersion,
-      buildCommitHash: buildCommitHash,
-      dateTime: DateTime.fromMillisecondsSinceEpoch(
-        buildCommitTimestampSecondsSinceEpoch.toInt() * 1000,
-      ),
+      buildCommitHash: buildCommitHash == '' ? null : buildCommitHash,
+      dateTime: _getDateTime(),
     );
+  }
+
+  DateTime? _getDateTime() {
+    final seconds = buildCommitTimestampSecondsSinceEpoch.toInt();
+    if (seconds == 0) {
+      return null;
+    }
+
+    return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
   }
 }
