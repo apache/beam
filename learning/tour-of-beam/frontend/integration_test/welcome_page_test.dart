@@ -52,25 +52,27 @@ Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
     );
   }
 
+  // Until we select an SDK the dropdown is not shown.
   expect(
     find.sdkDropdown(),
     findsNothing,
   );
 
   var button = wt.widget<ElevatedButton>(find.startTourButton());
-  expect(button.onPressed, isNull);
+  expect(button.onPressed, isNull); // Verify it is disabled.
 
   await wt.tapAndSettle(find.outlinedButtonWithText(sdks[0].title));
 
   button = wt.widget<ElevatedButton>(find.startTourButton());
-  expect(button.onPressed, isNotNull);
+  expect(button.onPressed, isNotNull); // Verify it is enabled.
 
   await wt.tapAndSettle(find.sdkDropdown());
 
   for (final sdk in sdks) {
     expect(
       find.dropdownMenuItemWithText(sdk.title),
-      findsNWidgets(2), //DropdownButton widget peculiarity
+      // The current Flutter implementation builds 2 for some reason.
+      findsAtLeastNWidgets(1),
     );
   }
 
