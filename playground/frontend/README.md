@@ -47,6 +47,18 @@ flutter build web
 
 This produces `build/web` directory with static files. Deploy them to your web server.
 
+### Backend Lookup
+
+The file [playground_components/lib/src/constants/backend_urls.dart](playground_components/lib/src/constants/backend_urls.dart)
+is the location for backend-related constants.
+
+If the `backendUrlOverrides` map contains a URL for a server then only it will be attempted
+for the given container. This is useful for running backend locally.
+
+Otherwise following patterns are tried when looking up the backend servers:
+1. Prepending the frontend host with `router.`, `go.`, `java.`, `python.`, `scio.`.
+2. Prepending the the default production frontend URL with the same. 
+
 ### Docker
 
 The app is deployed to production as a Docker container.
