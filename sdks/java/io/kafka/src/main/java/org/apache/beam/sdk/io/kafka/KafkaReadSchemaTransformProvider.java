@@ -58,10 +58,14 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class KafkaReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<KafkaReadSchemaTransformConfiguration> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaReadSchemaTransformProvider.class);
 
   final Boolean isTest;
   final Integer testTimeoutSecs;
@@ -227,9 +231,12 @@ public class KafkaReadSchemaTransformProvider
         String configStr = (String) configValue;
         if (configStr.startsWith("gs://")) {
           try {
+            Path localFile = Files.createTempFile("", "");
+            LOG.info(
+                "Downloading {} into local filesystem ({})", configStr, localFile.toAbsolutePath());
+            // TODO(pabloem): Only copy if file does not exist.
             ReadableByteChannel channel =
                 FileSystems.open(FileSystems.match(configStr).metadata().get(0).resourceId());
-            Path localFile = Files.createTempFile(null, null);
             FileOutputStream outputStream = new FileOutputStream(localFile.toFile());
 
             // Create a WritableByteChannel to write data to the FileOutputStream
