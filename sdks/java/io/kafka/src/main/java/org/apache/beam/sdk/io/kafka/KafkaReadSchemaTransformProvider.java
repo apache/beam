@@ -231,10 +231,9 @@ public class KafkaReadSchemaTransformProvider
         String configStr = (String) configValue;
         if (configStr.startsWith("gs://")) {
           try {
-            Path localFile = Files.createTempFile("", "");
+            Path localFile = Files.createTempFile(null, null);
             LOG.info(
                 "Downloading {} into local filesystem ({})", configStr, localFile.toAbsolutePath());
-            // TODO(pabloem): Only copy if file does not exist.
             ReadableByteChannel channel =
                 FileSystems.open(FileSystems.match(configStr).metadata().get(0).resourceId());
             FileOutputStream outputStream = new FileOutputStream(localFile.toFile());
