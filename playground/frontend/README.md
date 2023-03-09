@@ -146,7 +146,7 @@ flutter format ./lib
 To delete all generated files and re-generate them again and then run tests:
 
 ```bash
-./gradlew :playground:frontend:playground_components::test
+./gradlew :playground:frontend:playground_components:test
 ./gradlew :playground:frontend:test
 ```
 
@@ -218,7 +218,7 @@ To add a new localization (using `fr` as an example):
 
 #### 1. Linking to a catalog example by path
 
-`https://play.beam.apache.org/?path=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax&sdk=java`
+`https://play.beam.apache.org/?path=SDK_JAVA_AggregationMax&sdk=java`
 
 Handled by `StandardExampleLoader`.
 
@@ -311,7 +311,7 @@ are allowed for loading single examples, for instance:
 [
    {
       "sdk": "java",
-      "path": "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"
+      "path": "SDK_JAVA_AggregationMax"
    },
    {
       "sdk": "go",
@@ -323,7 +323,7 @@ are allowed for loading single examples, for instance:
 
 Then pass it in`examples` query parameter like this:
 
-`https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"},{"sdk":"go","url":"https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go","readonly":"iam_get_role"}]`
+`https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA_AggregationMax"},{"sdk":"go","url":"https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go","readonly":"iam_get_role"}]`
 
 This starts with the Go example loaded from the URL.
 If SDK is then switched to Java, the `AggregationMax` catalog example is loaded for it.
@@ -348,7 +348,7 @@ Use the `<iframe>` tag to embed playground with any of the above URL patterns, f
 
 ```html
 <iframe
-  src="https://play-dev.beam.apache.org/embedded?path=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax&sdk=java"
+  src="https://play-dev.beam.apache.org/embedded?path=SDK_JAVA_AggregationMax&sdk=java"
   width="800px"
   height="500px"
   allow="clipboard-write"
