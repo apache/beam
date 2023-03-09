@@ -35,7 +35,7 @@ const (
 	serverIpKey                        = "SERVER_IP"
 	serverPortKey                      = "SERVER_PORT"
 	beamSdkKey                         = "BEAM_SDK"
-	beamVersionKey                = "BEAM_VERSION"
+	beamVersionKey                     = "BEAM_VERSION"
 	workingDirKey                      = "APP_WORK_DIR"
 	preparedModDirKey                  = "PREPARED_MOD_DIR"
 	numOfParallelJobsKey               = "NUM_PARALLEL_JOBS"
