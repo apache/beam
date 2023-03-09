@@ -20,4 +20,4 @@ include README.md
 include NOTICE
 include LICENSE
 include LICENSE.python
-recursive-include apache_beam/portability/api/ *_pb2.py
+recursive-include apache_beam/portability/api/ *
