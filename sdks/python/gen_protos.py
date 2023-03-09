@@ -470,6 +470,9 @@ def generate_proto_files(force=False):
   out_files = list(find_by_ext(PYTHON_OUTPUT_PATH, '_pb2.py'))
   print("****************************************")
   logging.info("PYTHON_OUTPUT_PATH: %s" % PYTHON_OUTPUT_PATH)
+  logging.info("Contents of Python output path %s " % os.listdir(PYTHON_OUTPUT_PATH))
+  for pp in os.walk(PYTHON_OUTPUT_PATH):
+    logging.info(pp)
   logging.info("PROTO PATHS TO find .proto" % BEAM_PROTO_PATHS)
   logging.info("out_files : %s" % out_files )
   logging.info("proto_files : %s" % proto_files)
