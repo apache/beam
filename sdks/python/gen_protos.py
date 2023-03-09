@@ -82,6 +82,9 @@ PROJECT_ROOT = clean_path(os.path.join(PYTHON_SDK_ROOT, '..', '..'))
 PYTHON_OUTPUT_PATH = os.path.join(
     PYTHON_SDK_ROOT, 'apache_beam', 'portability', 'api')
 
+for path in BEAM_PROTO_PATHS:
+  shutil.copytree(os.path.join(PROJECT_ROOT, path), os.path.join(PYTHON_OUTPUT_PATH, path))
+
 # logging.info(f"Python SDK ROOT : {PYTHON_SDK_ROOT}")
 # logging.info(f"Python SDK ROOT: {os.listdir(PYTHON_SDK_ROOT)}")
 # logging.info(f"Python output Path: {PYTHON_OUTPUT_PATH}")
@@ -457,7 +460,7 @@ def generate_proto_files(force=False):
   :param force: Whether to force a recompilation of the proto files.
   """
   proto_dirs = [
-      clean_path(os.path.join(PROJECT_ROOT, path)) for path in BEAM_PROTO_PATHS
+      clean_path(os.path.join(PROJECT_ROOT, PYTHON_OUTPUT_PATH, path)) for path in BEAM_PROTO_PATHS
   ]
   proto_files = [
       proto_file for d in proto_dirs for proto_file in find_by_ext(d, '.proto')
@@ -465,6 +468,8 @@ def generate_proto_files(force=False):
 
   out_files = list(find_by_ext(PYTHON_OUTPUT_PATH, '_pb2.py'))
   print("****************************************")
+  logging.info("PYTHON_OUTPUT_PATH: %s" % PYTHON_OUTPUT_PATH)
+  logging.info("PROTO PATHS TO find .proto" % BEAM_PROTO_PATHS)
   logging.info("out_files : %s" % out_files )
   logging.info("proto_files : %s" % proto_files)
   print("****************************************")
@@ -506,7 +511,7 @@ def generate_proto_files(force=False):
     LOG.info('Skipping proto regeneration: all files up to date')
     return
 
-  shutil.rmtree(PYTHON_OUTPUT_PATH, ignore_errors=True)
+  # shutil.rmtree(PYTHON_OUTPUT_PATH, ignore_errors=True)
   if not os.path.exists(PYTHON_OUTPUT_PATH):
     os.mkdir(PYTHON_OUTPUT_PATH)
 
@@ -566,4 +571,5 @@ def generate_proto_files(force=False):
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   generate_proto_files(force=True)
