@@ -1697,12 +1697,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   void maybeRecordPCollectionWithAutoSharding(PCollection<?> pcol) {
-    // Auto-sharding is only supported in Streaming Engine.
-    checkArgument(
-        options.isEnableStreamingEngine(),
-        "Runner determined sharding not available in Dataflow for GroupIntoBatches for"
-            + " non-Streaming-Engine jobs. In order to use runner determined sharding, please use"
-            + " --streaming --enable_streaming_engine");
     pCollectionsPreservedKeys.add(pcol);
     pcollectionsRequiringAutoSharding.add(pcol);
   }
