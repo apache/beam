@@ -33,17 +33,17 @@ const _eventNameParam = 'eventName';
 const _function = 'gtag';
 
 @internal
-GoogleAnalytics4Service createGoogleAnalytics4Service({
+BeamGoogleAnalytics4Service createGoogleAnalytics4Service({
   required String propertyId,
 }) =>
-    GoogleAnalytics4ServiceWeb(propertyId: propertyId);
+    BeamGoogleAnalytics4ServiceWeb(propertyId: propertyId);
 
 /// Submits data to a Google Analytics 4 property using JavaScript.
-class GoogleAnalytics4ServiceWeb extends GoogleAnalytics4Service {
+class BeamGoogleAnalytics4ServiceWeb extends BeamGoogleAnalytics4Service {
   final String propertyId;
   final _readyCompleter = Completer<void>();
 
-  GoogleAnalytics4ServiceWeb({
+  BeamGoogleAnalytics4ServiceWeb({
     required this.propertyId,
   }) : super.create() {
     _loadGoogleJs();

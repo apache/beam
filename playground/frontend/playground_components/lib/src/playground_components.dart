@@ -39,9 +39,9 @@ class PlaygroundComponents {
     await initializeServiceLocator();
   }
 
-  /// The global [AnalyticsService] instance.
-  static AnalyticsService get analyticsService =>
-      GetIt.instance.get<AnalyticsService>();
+  /// The global [BeamAnalyticsService] instance.
+  static BeamAnalyticsService get analyticsService =>
+      GetIt.instance.get<BeamAnalyticsService>();
 
   /// The global [ToastNotifier] instance that communicates notifications.
   static ToastNotifier get toastNotifier => GetIt.instance.get<ToastNotifier>();

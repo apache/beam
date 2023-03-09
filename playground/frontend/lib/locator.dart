@@ -67,10 +67,8 @@ void _initializeRouter() {
 void _initializeServices() {
   GetIt.instance.registerSingleton(WindowCloseNotifier());
 
-  final googleAnalyticsService = GoogleAnalytics4Service(
+  final analyticsService = BeamGoogleAnalytics4Service(
     propertyId: kAnalyticsUA,
   );
-  GetIt.instance.registerSingleton<AnalyticsService>(
-    googleAnalyticsService,
-  );
+  GetIt.instance.registerSingleton<BeamAnalyticsService>(analyticsService);
 }

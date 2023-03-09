@@ -16,6 +16,10 @@
  * limitations under the License.
  */
 
+/// Sharing format for analytics events.
+///
+/// TODO(alexeyinkin): Also use this as keys for the sharing popup tabs
+///  if getting to use enum_map.
 enum ShareFormat {
   /// Sharing a link to the standalone Playground.
   linkStandalone,

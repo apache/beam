@@ -25,7 +25,7 @@ import 'package:meta/meta.dart';
 import 'events/abstract.dart';
 
 /// Abstract class to submit analytics events.
-abstract class AnalyticsService {
+abstract class BeamAnalyticsService {
   AnalyticsEvent? _lastEvent;
   AnalyticsEvent? get lastEvent => _lastEvent;
 
@@ -42,11 +42,12 @@ abstract class AnalyticsService {
     _defaultEventParameters.addAll(newValue);
   }
 
-  static AnalyticsService get() {
-    return GetIt.instance.get<AnalyticsService>();
+  static BeamAnalyticsService get() {
+    return GetIt.instance.get<BeamAnalyticsService>();
   }
 
-  /// Sends [event] asynchronously without returning a [Future].
+  /// Sends [event] asynchronously without returning a [Future]
+  /// to avoid `discarded_futures` lint.
   void sendUnawaited(AnalyticsEvent event) {
     unawaited(_send(event));
   }

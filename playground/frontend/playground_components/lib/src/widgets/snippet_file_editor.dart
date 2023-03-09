@@ -141,7 +141,7 @@ class _SnippetFileEditorState extends State<SnippetFileEditor> {
       final snippet = widget.eventSnippetContext.originalSnippet;
 
       if (snippet != null) {
-        AnalyticsService.get().sendUnawaited(
+        BeamAnalyticsService.get().sendUnawaited(
           SnippetModifiedAnalyticsEvent(
             fileName: widget.controller.savedFile.name,
             sdk: widget.controller.sdk,

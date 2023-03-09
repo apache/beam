@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+/// Identifies the page in analytics events.
 enum PagesEnum {
   embeddedPlayground,
   standalonePlayground,
