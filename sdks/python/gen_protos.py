@@ -83,7 +83,8 @@ PYTHON_OUTPUT_PATH = os.path.join(
     PYTHON_SDK_ROOT, 'apache_beam', 'portability', 'api')
 
 for path in BEAM_PROTO_PATHS:
-  shutil.copytree(os.path.join(PROJECT_ROOT, path), os.path.join(PYTHON_OUTPUT_PATH, path))
+  if os.path.join(PROJECT_ROOT, path) and not os.path.exists(os.path.join(PYTHON_OUTPUT_PATH, path)):
+    shutil.copytree(os.path.join(PROJECT_ROOT, path), os.path.join(PYTHON_OUTPUT_PATH, path))
 
 # logging.info(f"Python SDK ROOT : {PYTHON_SDK_ROOT}")
 # logging.info(f"Python SDK ROOT: {os.listdir(PYTHON_SDK_ROOT)}")
@@ -480,7 +481,7 @@ def generate_proto_files(force=False):
     return
 
   elif not out_files and not proto_files:
-    model = os.path.join(PROJECT_ROOT, 'model')
+    model = os.path.join(os.path.join(PYTHON_SDK_ROOT, 'api'), 'model')
     if os.path.exists(model):
       error_msg = 'No proto files found in %s.' % proto_dirs
     else:
