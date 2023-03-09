@@ -187,10 +187,10 @@ do
     if [ "$sdk" == "python" ]
     then
         # Build fails without docker-pull-licenses=true in Cloud Build
-        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG -Pdocker-pull-licenses=true"
+        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG"
         LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
         sdk_tag=$DOCKERTAG
-        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG #-Pdocker-pull-licenses=true
+        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true
         if [ $? -ne 0 ]
         then
             LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
