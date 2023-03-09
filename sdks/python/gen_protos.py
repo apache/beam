@@ -463,6 +463,7 @@ def generate_proto_files(force=False):
   if out_files and not proto_files and not force:
     # We have out_files but no protos; assume they're up-to-date.
     # This is actually the common case (e.g. installation from an sdist).
+    generate_init_files_full(PYTHON_OUTPUT_PATH)
     LOG.info('No proto files; using existing generated files.')
     return
 
