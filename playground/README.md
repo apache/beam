@@ -36,7 +36,7 @@ The following requirements are needed for development, testing, and deploying.
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install)
 - [gcloud Beta Commands](https://cloud.google.com/sdk/gcloud/reference/components/install)
 - [Cloud Datastore Emulator](https://cloud.google.com/datastore/docs/tools/datastore-emulator)
-- [sbt](https://www.scala-sbt.org/)
+- [sbt](https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html)
 
 ### Google Cloud Shell Prerequisites Installation
 Google Cloud Shell already has most of the prerequisites installed. Only few tools need to be installed separately
