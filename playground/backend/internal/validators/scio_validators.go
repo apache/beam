@@ -27,17 +27,17 @@ func GetScioValidator(filepath string) Validator {
 	return scioValidator{filepath: filepath}
 }
 
-func (v scioValidator) Validate() (map[string]bool, error) {
-	var result = make(map[string]bool)
+func (v scioValidator) Validate() (ValidationResult, error) {
+	var result = ValidationResult{}
 	var err error
-	if result[UnitTestValidatorName], err = checkIsUnitTestScio(v.filepath, scalaExtension); err != nil {
+	if result.IsUnitTest, err = checkIsUnitTestScio(v.filepath, scalaExtension); err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
 // checkIsUnitTestScio checks if the pipeline is a UnitTest
-func checkIsUnitTestScio(args ...interface{}) (bool, error) {
-	return false, nil
+func checkIsUnitTestScio(args ...interface{}) (ValidatorResult, error) {
+	return No, nil
 	//TODO BEAM-13702
 }

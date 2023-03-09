@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -165,11 +164,12 @@ func teardown() error {
 }
 
 func TestPreparer(t *testing.T) {
-	validationResults := sync.Map{}
-	validationResults.Store(validators.UnitTestValidatorName, false)
-	validationResults.Store(validators.KatasValidatorName, false)
+	validationResults := validators.ValidationResult{
+		IsUnitTest: validators.No,
+		IsKatas:    validators.No,
+	}
 
-	pythonPrep, err := preparers.GetPreparers(pythonSdkEnv.ApacheBeamSdk, pythonPaths.AbsoluteSourceFilePath, &validationResults, nil)
+	pythonPrep, err := preparers.GetPreparers(pythonSdkEnv.ApacheBeamSdk, pythonPaths.AbsoluteSourceFilePath, validationResults, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -178,7 +178,7 @@ func TestPreparer(t *testing.T) {
 		WithPreparer().
 		WithSdkPreparers(pythonPrep)
 
-	goPrep, err := preparers.GetPreparers(goSdkEnv.ApacheBeamSdk, goPaths.AbsoluteSourceFilePath, &validationResults, nil)
+	goPrep, err := preparers.GetPreparers(goSdkEnv.ApacheBeamSdk, goPaths.AbsoluteSourceFilePath, validationResults, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -186,7 +186,7 @@ func TestPreparer(t *testing.T) {
 		WithPreparer().
 		WithSdkPreparers(goPrep)
 
-	javaPrep, err := preparers.GetPreparers(javaSdkEnv.ApacheBeamSdk, javaPaths.AbsoluteSourceFilePath, &validationResults, nil)
+	javaPrep, err := preparers.GetPreparers(javaSdkEnv.ApacheBeamSdk, javaPaths.AbsoluteSourceFilePath, validationResults, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -194,7 +194,7 @@ func TestPreparer(t *testing.T) {
 		WithPreparer().
 		WithSdkPreparers(javaPrep)
 
-	scioPrep, err := preparers.GetPreparers(scioSdkEnv.ApacheBeamSdk, scioPaths.AbsoluteSourceFilePath, &validationResults, nil)
+	scioPrep, err := preparers.GetPreparers(scioSdkEnv.ApacheBeamSdk, scioPaths.AbsoluteSourceFilePath, validationResults, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -208,7 +208,7 @@ func TestPreparer(t *testing.T) {
 		paths           fs_tool.LifeCyclePaths
 		pipelineOptions string
 		sdkEnv          *environment.BeamEnvs
-		valResults      *sync.Map
+		valResults      validators.ValidationResult
 	}
 	tests := []struct {
 		name    string
@@ -220,7 +220,7 @@ func TestPreparer(t *testing.T) {
 			// Test case with calling Setup with incorrect SDK.
 			// As a result, want to receive an error.
 			name:    "Incorrect sdk",
-			args:    args{*pythonPaths, pipelineOptions, wrongSdkEnv, &validationResults},
+			args:    args{*pythonPaths, pipelineOptions, wrongSdkEnv, validationResults},
 			want:    nil,
 			wantErr: true,
 		},
@@ -228,25 +228,25 @@ func TestPreparer(t *testing.T) {
 			// Test case with calling Setup with correct SDK.
 			// As a result, want to receive an expected preparer builder.
 			name:    "Test correct preparer builder with Python sdk",
-			args:    args{*pythonPaths, pipelineOptions, pythonSdkEnv, &validationResults},
+			args:    args{*pythonPaths, pipelineOptions, pythonSdkEnv, validationResults},
 			want:    &wantPythonExecutor.ExecutorBuilder,
 			wantErr: false,
 		},
 		{
 			name:    "Test correct preparer builder with Java sdk",
-			args:    args{*javaPaths, pipelineOptions, javaSdkEnv, &validationResults},
+			args:    args{*javaPaths, pipelineOptions, javaSdkEnv, validationResults},
 			want:    &wantJavaExecutor.ExecutorBuilder,
 			wantErr: false,
 		},
 		{
 			name:    "Test correct preparer builder with Go sdk",
-			args:    args{*goPaths, pipelineOptions, goSdkEnv, &validationResults},
+			args:    args{*goPaths, pipelineOptions, goSdkEnv, validationResults},
 			want:    &wantGoExecutor.ExecutorBuilder,
 			wantErr: false,
 		},
 		{
 			name:    "Test correct preparer builder with Scio sdk",
-			args:    args{*scioPaths, pipelineOptions, scioSdkEnv, &validationResults},
+			args:    args{*scioPaths, pipelineOptions, scioSdkEnv, validationResults},
 			want:    &wantScioExecutor.ExecutorBuilder,
 			wantErr: false,
 		},

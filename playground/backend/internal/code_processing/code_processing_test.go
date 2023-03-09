@@ -873,43 +873,45 @@ func Test_validateStep(t *testing.T) {
 		ExecutorConfig: nil,
 	}
 	type args struct {
-		ctx                  context.Context
-		cacheService         cache.Cache
-		pipelineId           uuid.UUID
-		sdkEnv               *environment.BeamEnvs
-		pipelineLifeCycleCtx context.Context
-		validationResults    *sync.Map
+		ctx          context.Context
+		cacheService cache.Cache
+		pipelineId   uuid.UUID
+		sdkEnv       *environment.BeamEnvs
 	}
 	tests := []struct {
 		name string
 		args args
-		want int
+		want validators.ValidationResult
 		code string
 	}{
 		{
-			name: "Test validation step by checking number of validators",
+			name: "Test validation step by checking which validators ran (Java)",
 			args: args{
-				ctx:                  context.Background(),
-				cacheService:         cacheService,
-				pipelineId:           uuid.New(),
-				sdkEnv:               javaSdkEnv,
-				pipelineLifeCycleCtx: context.Background(),
-				validationResults:    &sync.Map{},
+				ctx:          context.Background(),
+				cacheService: cacheService,
+				pipelineId:   uuid.New(),
+				sdkEnv:       javaSdkEnv,
 			},
-			want: 3,
+			want: validators.ValidationResult{
+				IsUnitTest:  validators.No,
+				IsKatas:     validators.No,
+				IsValidPath: validators.Yes,
+			},
 			code: helloWordJava,
 		},
 		{
 			name: "Test validation step with incorrect sdkEnv",
 			args: args{
-				ctx:                  context.Background(),
-				cacheService:         cacheService,
-				pipelineId:           uuid.New(),
-				sdkEnv:               incorrectSdkEnv,
-				pipelineLifeCycleCtx: context.Background(),
-				validationResults:    &sync.Map{},
+				ctx:          context.Background(),
+				cacheService: cacheService,
+				pipelineId:   uuid.New(),
+				sdkEnv:       incorrectSdkEnv,
 			},
-			want: 0,
+			want: validators.ValidationResult{
+				IsUnitTest:  validators.Unknown,
+				IsKatas:     validators.Unknown,
+				IsValidPath: validators.Unknown,
+			},
 			code: helloWordJava,
 		},
 	}
@@ -922,9 +924,8 @@ func Test_validateStep(t *testing.T) {
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
 			_ = lc.CreateSourceCodeFiles(sources)
-			err = validateStep(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.validationResults)
-			got := syncMapLen(tt.args.validationResults)
-			if err != nil && !reflect.DeepEqual(got, tt.want) {
+			got, _ := validateStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv)
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("validateStep() = %d, want %d", got, tt.want)
 			}
 		})
@@ -940,9 +941,10 @@ func Test_prepareStep(t *testing.T) {
 		ApacheBeamSdk:  pb.Sdk_SDK_UNSPECIFIED,
 		ExecutorConfig: nil,
 	}
-	validationResults := sync.Map{}
-	validationResults.Store(validators.UnitTestValidatorName, false)
-	validationResults.Store(validators.KatasValidatorName, false)
+	validationResults := validators.ValidationResult{
+		IsUnitTest: validators.No,
+		IsKatas:    validators.No,
+	}
 	pipelineLifeCycleCtx, cancel := context.WithTimeout(context.Background(), 1)
 	defer cancel()
 	type args struct {
@@ -951,7 +953,7 @@ func Test_prepareStep(t *testing.T) {
 		pipelineId           uuid.UUID
 		sdkEnv               *environment.BeamEnvs
 		pipelineLifeCycleCtx context.Context
-		validationResults    *sync.Map
+		validationResults    validators.ValidationResult
 	}
 	tests := []struct {
 		name           string
@@ -967,7 +969,7 @@ func Test_prepareStep(t *testing.T) {
 				pipelineId:           uuid.New(),
 				sdkEnv:               javaSdkEnv,
 				pipelineLifeCycleCtx: context.Background(),
-				validationResults:    &validationResults,
+				validationResults:    validationResults,
 			},
 			code:           helloWordJava,
 			expectedStatus: pb.Status_STATUS_COMPILING,
@@ -980,7 +982,7 @@ func Test_prepareStep(t *testing.T) {
 				pipelineId:           uuid.New(),
 				sdkEnv:               incorrectSdkEnv,
 				pipelineLifeCycleCtx: context.Background(),
-				validationResults:    &validationResults,
+				validationResults:    validationResults,
 			},
 			code:           "",
 			expectedStatus: pb.Status_STATUS_ERROR,
@@ -993,7 +995,7 @@ func Test_prepareStep(t *testing.T) {
 				pipelineId:           uuid.New(),
 				sdkEnv:               javaSdkEnv,
 				pipelineLifeCycleCtx: pipelineLifeCycleCtx,
-				validationResults:    &validationResults,
+				validationResults:    validationResults,
 			},
 			code:           "",
 			expectedStatus: pb.Status_STATUS_RUN_TIMEOUT,

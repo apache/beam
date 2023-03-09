@@ -19,7 +19,6 @@ import (
 	"context"
 	"os/exec"
 	"reflect"
-	"sync"
 	"testing"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -221,10 +220,11 @@ func TestExecutor_RunTest(t *testing.T) {
 }
 
 func TestExecutor_Prepare(t *testing.T) {
-	valResult := &sync.Map{}
+	valResult := validators.ValidationResult{
+		IsUnitTest: validators.No,
+		IsKatas:    validators.No,
+	}
 	prepareParams := make(map[string]string)
-	valResult.Store(validators.UnitTestValidatorName, false)
-	valResult.Store(validators.KatasValidatorName, false)
 	preparersArray, err := preparers.GetPreparers(pb.Sdk_SDK_JAVA, "./", valResult, prepareParams)
 	if err != nil {
 		panic(err)
@@ -237,7 +237,7 @@ func TestExecutor_Prepare(t *testing.T) {
 		preparers   []preparers.Preparer
 		boolChan    chan bool
 		errorChan   chan error
-		valResult   *sync.Map
+		valResult   validators.ValidationResult
 	}
 	tests := []struct {
 		name    string

@@ -25,43 +25,37 @@ const (
 )
 
 func TestCheckIsUnitTestPy(t *testing.T) {
-	unitTestValidatorArgs := make([]interface{}, 1)
-	unitTestValidatorArgs[0] = pyUnitTestFilePath
-	validatorArgs := make([]interface{}, 1)
-	validatorArgs[0] = pyCodeFilePath
-	argsWithoutRealFile := make([]interface{}, 1)
-	argsWithoutRealFile[0] = "fileNotExists.py"
 	type args struct {
-		args []interface{}
+		filePath string
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    bool
+		want    ValidatorResult
 		wantErr bool
 	}{
 		{
 			name:    "Check that file is a python unit test",
-			args:    args{args: unitTestValidatorArgs},
-			want:    true,
+			args:    args{filePath: pyUnitTestFilePath},
+			want:    Yes,
 			wantErr: false,
 		},
 		{
 			name:    "Check that file is not a python unit test",
-			args:    args{args: validatorArgs},
-			want:    false,
+			args:    args{filePath: pyCodeFilePath},
+			want:    No,
 			wantErr: false,
 		},
 		{
 			name:    "Error if file not exists",
-			args:    args{args: argsWithoutRealFile},
-			want:    false,
+			args:    args{filePath: "fileNotExists.py"},
+			want:    Error,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CheckIsUnitTestPy(tt.args.args...)
+			got, err := CheckIsUnitTestPy(tt.args.filePath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CheckIsUnitTestPy() error = %v, wantErr %v", err, tt.wantErr)
 				return

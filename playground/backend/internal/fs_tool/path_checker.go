@@ -46,9 +46,7 @@ func isCorrectExtension(filePath string, correctExtension string) bool {
 }
 
 // CheckPathIsValid checks that the file exists and has a correct extension
-func CheckPathIsValid(args ...interface{}) (bool, error) {
-	filePath := args[0].(string)
-	correctExtension := args[1].(string)
+func CheckPathIsValid(filePath, correctExtension string) (bool, error) {
 	notExists := isNotExist(filePath)
 	if notExists {
 		return false, fs.ErrNotExist

@@ -31,22 +31,21 @@ func GetPythonValidator(filepath string) Validator {
 	return pythonValidator{filepath: filepath}
 }
 
-func (v pythonValidator) Validate() (map[string]bool, error) {
-	var result = make(map[string]bool)
+func (v pythonValidator) Validate() (ValidationResult, error) {
+	var result = ValidationResult{}
 	var err error
-	if result[UnitTestValidatorName], err = CheckIsUnitTestPy(v.filepath); err != nil {
+	if result.IsUnitTest, err = CheckIsUnitTestPy(v.filepath); err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func CheckIsUnitTestPy(args ...interface{}) (bool, error) {
-	filePath := args[0].(string)
+func CheckIsUnitTestPy(filePath string) (ValidatorResult, error) {
 	code, err := os.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
-		return false, err
+		return Error, err
 	}
 	// check whether Python code is unit test code
-	return strings.Contains(string(code), pyUnitTestPattern), nil
+	return resultFromBool(strings.Contains(string(code), pyUnitTestPattern)), nil
 }

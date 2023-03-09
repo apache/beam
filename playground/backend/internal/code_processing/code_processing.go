@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -62,25 +61,21 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		DeleteResources(pipelineId, lc)
 	}(lc)
 
-	var validationResults sync.Map
-
 	go cancelCheck(pipelineLifeCycleCtx, pipelineId, finishCtxFunc, cacheService)
 
-	err := validateStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults)
+	validationResults, err := validateStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv)
 	if err != nil {
 		logger.Errorf("%s: error during validation step: %s", pipelineId, err.Error())
 		return
 	}
 
-	err = prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, lc.GetPreparerParameters())
+	err = prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, validationResults, lc.GetPreparerParameters())
 	if err != nil {
 		logger.Errorf("%s: error during preparation step: %s", pipelineId, err.Error())
 		return
 	}
 
-	// Check if is unit test
-	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
-	isUnitTest := validateIsUnitTest.(bool)
+	isUnitTest := validationResults.IsUnitTest == validators.Yes
 
 	err = compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
 	if err != nil {
@@ -215,7 +210,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	return nil
 }
 
-func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map, prepareParams map[string]string) error {
+func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults validators.ValidationResult, prepareParams map[string]string) error {
 	errorChannel, successChannel := createStatusChannels()
 	executorBuilder, err := builder.Preparer(paths, sdkEnv, validationResults, prepareParams)
 	if err != nil {
@@ -250,7 +245,7 @@ func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	return nil
 }
 
-func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults *sync.Map) error {
+func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs) (validators.ValidationResult, error) {
 	errorChannel, successChannel := createStatusChannels()
 
 	logger.Infof("%s: Validate() ...\n", pipelineId)
@@ -258,21 +253,20 @@ func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.
 	validator, err := validators.GetValidator(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath)
 	if err != nil {
 		if processingError := processSetupError(err, pipelineId, cacheService); processingError != nil {
-			return processingError
+			return validators.ValidationResult{}, processingError
 		}
-		return err
+	return validators.ValidationResult{}, err
 	}
 
+	var validationResult validators.ValidationResult
+
 	go func() {
-		result, err := validator.Validate()
+		var err error
+		validationResult, err = validator.Validate()
 		if err != nil {
 			errorChannel <- err
 			successChannel <- false
 			return
-		}
-
-		for key, value := range result {
-			validationResults.Store(key, value)
 		}
 
 		successChannel <- true
@@ -281,23 +275,23 @@ func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.
 	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
 	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 	if err != nil {
-		return err
+		return validationResult, err
 	}
 	if !ok {
 		err := <-errorChannel
 		// Validate step is finished, but code isn't valid
 		processingErr := processErrorWithSavingOutput(err, []byte(err.Error()), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		if processingErr != nil {
-			return processingErr
+			return validators.ValidationResult{}, processingErr
 		}
-		return err
+		return validationResult, err
 	}
 
 	// Validate step is finished and code is valid
 	if err := processSuccess(pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
-		return err
+		return validationResult, err
 	}
-	return nil
+	return validationResult, nil
 }
 
 func createStatusChannels() (chan error, chan bool) {
