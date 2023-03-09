@@ -83,7 +83,7 @@ PYTHON_OUTPUT_PATH = os.path.join(
     PYTHON_SDK_ROOT, 'apache_beam', 'portability', 'api')
 
 for path in BEAM_PROTO_PATHS:
-  if os.path.join(PROJECT_ROOT, path) and not os.path.exists(os.path.join(PYTHON_OUTPUT_PATH, path)):
+  if os.path.exists(os.path.join(PROJECT_ROOT, path)) and not os.path.exists(os.path.join(PYTHON_OUTPUT_PATH, path)):
     shutil.copytree(os.path.join(PROJECT_ROOT, path), os.path.join(PYTHON_OUTPUT_PATH, path))
 
 # logging.info(f"Python SDK ROOT : {PYTHON_SDK_ROOT}")
