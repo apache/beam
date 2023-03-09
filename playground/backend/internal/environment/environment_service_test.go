@@ -104,7 +104,7 @@ func TestNewEnvironment(t *testing.T) {
 	}{
 		{name: "Create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
+			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, 0),
 			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 		}},
 	}
@@ -112,7 +112,7 @@ func TestNewEnvironment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
+				*NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, 0),
 				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
@@ -131,25 +131,25 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "Not specified beam sdk key in os envs",
-			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, nil, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{},
 			wantErr:   false,
 		},
 		{
 			name:      "Default beam envs",
-			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "Specific sdk key in os envs",
-			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "Wrong sdk key in os envs",
-			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, nil, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_J"},
 			wantErr:   false,
 		},
@@ -394,7 +394,7 @@ func TestConfigureBeamEnvs(t *testing.T) {
 		{
 			name:      "BeamSdkKey set to GO sdk",
 			args:      args{workingDir: workingDir},
-			want:      NewBeamEnvs(pb.Sdk_SDK_GO, goExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_GO, defaultBeamVersion, goExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_GO", preparedModDirKey: modDir},
 		},
@@ -407,31 +407,31 @@ func TestConfigureBeamEnvs(t *testing.T) {
 		},
 		{
 			name:      "BeamSdkKey set to Python sdk",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON"},
 		},
 		{
 			name:      "BeamSdkKey set to SCIO sdk",
-			want:      NewBeamEnvs(pb.Sdk_SDK_SCIO, scioExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_SCIO, defaultBeamVersion, scioExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_SCIO"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with a positive number",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, 1),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, 1),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "1"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with a negative number",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "-1"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with incorrect value",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "incorrectValue"},
 		},

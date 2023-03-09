@@ -54,6 +54,7 @@ const (
 	defaultIp                          = "localhost"
 	defaultPort                        = 8080
 	defaultSdk                         = pb.Sdk_SDK_JAVA
+	defaultBeamVersion                 = "<unknown>"
 	defaultBeamJarsPath                = "/opt/apache/beam/jars/*"
 	defaultDatasetsPath                = "/opt/playground/backend/datasets"
 	defaultKafkaEmulatorExecutablePath = "/opt/playground/backend/kafka-emulator/beam-playground-kafka-emulator.jar"
@@ -154,12 +155,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
 	numOfParallelJobs := getEnvAsInt(numOfParallelJobsKey, defaultNumOfParallelJobs)
 
-	beamVersion := func() *string {
-		if version, ok := os.LookupEnv(beamVersionKey); ok {
-			return &version
-		}
-		return nil
-	}()
+	beamVersion := getEnv(beamVersionKey, defaultBeamVersion)
 
 	if value, present := os.LookupEnv(beamSdkKey); present {
 

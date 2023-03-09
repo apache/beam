@@ -320,9 +320,9 @@ message GetMetadataRequest {}
 // GetMetadataResponse contains metadata about the runner
 message GetMetadataResponse {
   string runner_sdk = 1;
-  optional string build_commit_hash = 2;
-  optional int64 build_commit_timestamp_seconds_since_epoch = 3;
-  optional string beam_sdk_version = 4;
+  string build_commit_hash = 2;
+  int64 build_commit_timestamp_seconds_since_epoch = 3;
+  string beam_sdk_version = 4;
 }
 
 service PlaygroundService {
