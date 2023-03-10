@@ -27,6 +27,10 @@ variable "service_account_id" {
   description = "The name of Service Account to run Cloud Function"
 }
 
+locals {
+  gcloud_account = trim(data.external.gcloud_account.result)
+}
+
 variable "gcloud_account" {
-  default = data.external.gcloud_account.result
+  default = local.gcloud_account
 }
