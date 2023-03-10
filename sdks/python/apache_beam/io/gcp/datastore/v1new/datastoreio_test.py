@@ -50,7 +50,7 @@ except ImportError:
 
 
 # used for internal testing only
-class FakeByteSize():
+class FakeMessage:
   def __init__(self, entity, key):
     self.entity = entity
     self.key = key
@@ -77,7 +77,7 @@ class FakeMutation(object):
     """
     self.entity = entity
     self.key = key
-    self._pb = FakeByteSize(entity, key)
+    self._pb = FakeMessage(entity, key)
 
 
 class FakeBatch(object):
