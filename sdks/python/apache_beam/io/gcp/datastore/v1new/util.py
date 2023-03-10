@@ -137,7 +137,3 @@ class DynamicBatchSizer(object):
       num_mutations: int, number of mutations contained in the RPC.
     """
     self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)
-
-
-def extract_byte_size(proto_message):
-  return proto_message._pb.ByteSize()

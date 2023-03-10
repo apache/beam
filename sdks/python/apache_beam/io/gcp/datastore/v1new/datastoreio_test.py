@@ -50,16 +50,16 @@ except ImportError:
 
 
 # used for internal testing only
-class ByteSize():
+class FakeByteSize():
   def __init__(self, entity, key):
     self.entity = entity
     self.key = key
 
   def ByteSize(self):
     if self.entity is not None:
-      return util.extract_byte_size(helpers.entity_to_protobuf(self.entity))
+      return helpers.entity_to_protobuf(self.entity)._pb.ByteSize()
     else:
-      return util.extract_byte_size(self.key.to_protobuf())
+      return self.key.to_protobuf()._pb.ByteSize()
 
 
 # used for internal testing only
@@ -77,7 +77,7 @@ class FakeMutation(object):
     """
     self.entity = entity
     self.key = key
-    self._pb = ByteSize(entity, key)
+    self._pb = FakeByteSize(entity, key)
 
 
 class FakeBatch(object):
