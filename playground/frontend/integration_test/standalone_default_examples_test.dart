@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
@@ -42,8 +43,8 @@ void main() {
       }
 
       await _expectExample(example, wt);
-      await _runCached(example, wt);
-      await _runReal(example, wt);
+      await wt.runExpectCached(example);
+      await wt.modifyRunExpectReal(example);
     }
   });
 }
@@ -63,33 +64,5 @@ Future<void> _expectExample(ExampleDescriptor example, WidgetTester wt) async {
   }
 
   expect(find.resultTab(), findsOneWidget);
-  expect(wt.findOutputTabController().index, 0);
-}
-
-Future<void> _runCached(ExampleDescriptor example, WidgetTester wt) async {
-  await wt.runExpectCached();
-  _expectOutput(example, wt);
-}
-
-Future<void> _runReal(ExampleDescriptor example, WidgetTester wt) async {
-  // Add a character into the first comment.
-  // This relies on that the position 10 is inside a license comment.
-  final controller = wt.findOneCodeController();
-  final text = controller.fullText;
-  controller.fullText = text.substring(0, 10) + '+' + text.substring(10);
-
-  await wt.runExpectReal();
-  _expectOutput(example, wt);
-}
-
-void _expectOutput(ExampleDescriptor example, WidgetTester wt) {
-  if (example.outputTail != null) {
-    expectOutputEndsWith(example.outputTail, wt);
-  } else if (example.outputContains != null) {
-    for (final str in example.outputContains!) {
-      expectOutputContains(str, wt);
-    }
-  } else {
-    throw AssertionError('No pattern to check example output: ${example.path}');
-  }
+  expect(wt.findOutputTabController().currentKey, OutputTabEnum.result);
 }

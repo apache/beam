@@ -24,7 +24,7 @@ const goMinimalWordCount = ExampleDescriptor(
   //
   'MinimalWordCount',
   contextLine1Based: 69,
-  dbPath: 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+  dbPath: 'SDK_GO_MinimalWordCount',
   path: '/sdks/go/examples/minimal_wordcount/minimal_wordcount.go',
   sdk: Sdk.go,
 
