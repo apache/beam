@@ -342,8 +342,7 @@ project.tasks.register("inferencePostCommitIT") {
   'torchInferenceTest',
   'sklearnInferenceTest',
   'tfxInferenceTest',
-  'tensorflowInferenceTest'
-  'tfxInferenceTest',
+  'tensorflowInferenceTest',
   'xgboostInferenceTest'
   ]
 }
