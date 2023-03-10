@@ -92,11 +92,11 @@ def AnnotateText(
   https://cloud.google.com/natural-language/docs.
 
   Args:
-    pcoll (:class:`~apache_beam.pvalue.PCollection`): An input PCollection
-            of :class:`Document` objects.
-
-    features: A dictionary of natural language operations to be performed
-      on given text in the following format::
+    pcoll (:class:`~apache_beam.pvalue.PCollection`): An input PCollection of
+      :class:`Document` objects.
+    features (`Union[Mapping[str, bool], types.AnnotateTextRequest.Features]`):
+      A dictionary of natural language operations to be performed on given
+      text in the following format::
       {'extact_syntax'=True, 'extract_entities'=True}
 
     timeout (`Optional[float]`): The amount of time, in seconds, to wait
