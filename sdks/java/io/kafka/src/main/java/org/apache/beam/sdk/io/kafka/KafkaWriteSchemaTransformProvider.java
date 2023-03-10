@@ -30,6 +30,7 @@ import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -52,7 +53,9 @@ public class KafkaWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration> {
 
-  public static final Set<String> SUPPORTED_FORMATS = Sets.newHashSet("JSON", "AVRO");
+  public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
+  public static final Set<String> SUPPORTED_FORMATS =
+      Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<KafkaWriteSchemaTransformConfiguration>
@@ -139,12 +142,25 @@ public class KafkaWriteSchemaTransformProvider
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class KafkaWriteSchemaTransformConfiguration implements Serializable {
+    @SchemaFieldDescription(
+        "The encoding format for the data stored in Kafka. Valid options are: "
+            + SUPPORTED_FORMATS_STR)
     public abstract String getFormat();
 
     public abstract String getTopic();
 
+    @SchemaFieldDescription(
+        "A list of host/port pairs to use for establishing the initial connection to the"
+            + " Kafka cluster. The client will make use of all servers irrespective of which servers are specified"
+            + " here for bootstrapping—this list only impacts the initial hosts used to discover the full set"
+            + " of servers. | Format: host1:port1,host2:port2,...")
     public abstract String getBootstrapServers();
 
+    @SchemaFieldDescription(
+        "A list of key-value pairs that act as configuration parameters for Kafka producers."
+            + " Most of these configurations will not be needed, but if you need to customize your Kafka producer,"
+            + " you may use this. See a detailed list:"
+            + " https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html")
     @Nullable
     public abstract Map<String, String> getProducerConfigUpdates();
 

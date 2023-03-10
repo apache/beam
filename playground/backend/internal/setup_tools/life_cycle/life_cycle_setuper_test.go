@@ -16,6 +16,7 @@
 package life_cycle
 
 import (
+	"beam.apache.org/playground/backend/internal/emulators"
 	"fmt"
 	"io/fs"
 	"os"
@@ -331,7 +332,7 @@ func TestSetup(t *testing.T) {
 			}
 
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.args.code, IsMain: true}}
-			got, err := Setup(tt.args.sdk, sources, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder, tt.args.preparedModDir, nil)
+			got, err := Setup(tt.args.sdk, sources, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder, tt.args.preparedModDir, emulators.EmulatorConfiguration{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Setup() error = %v, wantErr %v", err, tt.wantErr)
 				return
