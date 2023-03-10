@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:grpc/grpc.dart';
 
 import '../../api/iis_workaround_channel.dart';
@@ -81,8 +82,11 @@ class GrpcCodeClient implements CodeClient {
 
   @override
   Future<void> cancelExecution(String pipelineUuid) {
-    return _runSafely(() =>
-        _defaultClient.cancel(grpc.CancelRequest(pipelineUuid: pipelineUuid)));
+    return _runSafely(
+      () => _defaultClient.cancel(
+        grpc.CancelRequest(pipelineUuid: pipelineUuid),
+      ),
+    );
   }
 
   @override
@@ -200,6 +204,11 @@ class GrpcCodeClient implements CodeClient {
     try {
       return await invoke();
     } on GrpcError catch (error) {
+      // Internet unavailable issue also returns unknown code error, 
+      // so message was overwritten.
+      if (error.code == StatusCode.unknown) {
+        throw RunCodeError(message: 'errors.unknownError'.tr());
+      }
       throw RunCodeError(message: error.message);
     } on Exception catch (_) {
       throw const RunCodeError();

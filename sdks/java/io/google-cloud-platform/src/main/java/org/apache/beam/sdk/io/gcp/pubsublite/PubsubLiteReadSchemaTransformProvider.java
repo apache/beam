@@ -26,11 +26,13 @@ import com.google.cloud.pubsublite.SubscriptionPath;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -52,6 +55,10 @@ public class PubsubLiteReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         PubsubLiteReadSchemaTransformProvider.PubsubLiteReadSchemaTransformConfiguration> {
 
+  public static final String VALID_FORMATS_STR = "AVRO,JSON";
+  public static final Set<String> VALID_DATA_FORMATS =
+      Sets.newHashSet(VALID_FORMATS_STR.split(","));
+
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteReadSchemaTransformConfiguration>
       configurationClass() {
@@ -61,13 +68,19 @@ public class PubsubLiteReadSchemaTransformProvider
   @Override
   public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       PubsubLiteReadSchemaTransformConfiguration configuration) {
+    if (!VALID_DATA_FORMATS.contains(configuration.getFormat())) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Format %s not supported. Only supported formats are %s",
+              configuration.getFormat(), VALID_FORMATS_STR));
+    }
     final Schema beamSchema =
-        Objects.equals(configuration.getDataFormat(), "JSON")
+        Objects.equals(configuration.getFormat(), "JSON")
             ? JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema())
             : AvroUtils.toBeamSchema(
                 new org.apache.avro.Schema.Parser().parse(configuration.getSchema()));
     final SerializableFunction<byte[], Row> valueMapper =
-        Objects.equals(configuration.getDataFormat(), "JSON")
+        Objects.equals(configuration.getFormat(), "JSON")
             ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
             : AvroUtils.getAvroBytesToRowFunction(beamSchema);
     return new SchemaTransform() {
@@ -137,14 +150,29 @@ public class PubsubLiteReadSchemaTransformProvider
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class PubsubLiteReadSchemaTransformConfiguration {
-    public abstract String getDataFormat();
+    @SchemaFieldDescription(
+        "The encoding format for the data stored in Pubsub Lite. Valid options are: "
+            + VALID_FORMATS_STR)
+    public abstract String getFormat();
 
+    @SchemaFieldDescription(
+        "The schema in which the data is encoded in the Kafka topic. "
+            + "For AVRO data, this is a schema defined with AVRO schema syntax "
+            + "(https://avro.apache.org/docs/1.10.2/spec.html#schemas). "
+            + "For JSON data, this is a schema defined with JSON-schema syntax (https://json-schema.org/).")
     public abstract String getSchema();
 
+    @SchemaFieldDescription(
+        "The GCP project where the Pubsub Lite reservation resides. This can be a "
+            + "project number of a project ID.")
     public abstract @Nullable String getProject();
 
+    @SchemaFieldDescription(
+        "The name of the subscription to consume data. This will be concatenated with "
+            + "the project and location parameters to build a full subscription path.")
     public abstract String getSubscriptionName();
 
+    @SchemaFieldDescription("The region or zone where the Pubsub Lite reservation resides.")
     public abstract String getLocation();
 
     public static Builder builder() {
@@ -154,7 +182,7 @@ public class PubsubLiteReadSchemaTransformProvider
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setDataFormat(String dataFormat);
+      public abstract Builder setFormat(String format);
 
       public abstract Builder setSchema(String schema);
 
