@@ -63,12 +63,9 @@ def tryParseTaxiRideCost(line,index):
 
 
 with beam.Pipeline() as p:
-
   input = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv')
   | beam.ParDo(ExtractTaxiRideCostFn()))
 
-  (input
-  | 'Log above cost' >> Output(prefix='Above pCollection values:'))
+  (input | 'Log above cost' >> Output(prefix='Above pCollection values:'))
 
-  (input
-  | 'Log below cost' >> Output(prefix='Below pCollection values:'))
+  (input | 'Log below cost' >> Output(prefix='Below pCollection values:'))

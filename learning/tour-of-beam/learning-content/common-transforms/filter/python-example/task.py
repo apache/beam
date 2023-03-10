@@ -46,8 +46,6 @@ class Output(beam.PTransform):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
 with beam.Pipeline() as p:
-
-  # List of elements
   (p | beam.Create(range(1, 11))
   # The elements filtered with the beam.Filter()
    | beam.Filter(lambda num: num % 2 == 0)

@@ -46,7 +46,6 @@ class Output(beam.PTransform):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
 with beam.Pipeline() as p:
-
   (p | beam.Create(range(1, 11))
   # beam.combiners.Top.Largest(5) to return the larger than [5] from `PCollection`.
    | beam.combiners.Top.Largest(5)

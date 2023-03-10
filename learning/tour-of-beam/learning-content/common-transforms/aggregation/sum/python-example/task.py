@@ -46,7 +46,6 @@ class Output(beam.PTransform):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
 with beam.Pipeline() as p:
-
   (p | beam.Create(range(1, 11))
   # beam.CombineGlobally(sum) to return the sum of numbers from `PCollection`.
    | beam.CombineGlobally(sum)

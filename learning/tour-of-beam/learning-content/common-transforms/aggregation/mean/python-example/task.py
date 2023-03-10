@@ -46,7 +46,6 @@ class Output(beam.PTransform):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
 with beam.Pipeline() as p:
-
   (p | beam.Create(range(1, 11))
   # beam.combiners.Mean.Globally() to return the mean of numbers from `PCollection`.
    | beam.combiners.Mean.Globally()

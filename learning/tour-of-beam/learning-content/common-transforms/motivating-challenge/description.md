@@ -12,7 +12,7 @@ limitations under the License.
 
 ### Common Transforms motivating challenge
 
-You are provided with a `PCollection` from the array of taxi order prices in a csv file. Your task is to find how many orders are below $15 and above. Return it as a map structure (key-value), make `above` or `below` the key, and the sum of all orders - the value.Although there are many ways to do this, try using another transformation presented in this module.
+You are provided with a PCollection created from the array of taxi order prices in a csv file. Your task is to find how many orders are below $15 and how many are equal to or above $15. Return it as a map structure (key-value), make above or below the key, and the total dollar value (sum) of orders - the value. Although there are many ways to do this, try using another transformation presented in this module.
 
 Here is a small list of fields and an example record from this dataset:
 

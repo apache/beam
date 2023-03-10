@@ -128,13 +128,7 @@ static PCollection<KV<Integer, Double>> applyTransform(PCollection<KV<Integer, I
 `beam.combiners.Mean.Globally()` returns mean from `PCCollection`. If you replace the `integers input` with this `map input` and replace `beam.combiners.Mean.Globally()` on `beam.combiners.Mean.PerKey()` it will output the mean by key :
 
 ```
-beam.Create([
-    (1, 36),
-    (2, 91),
-    (3, 33),
-    (3, 11),
-    (4, 67),
-]) | beam.combiners.Mean.PerKey()
+p | beam.Create([(1, 36),(2, 91),(3, 33),(3, 11),(4, 67),]) | beam.combiners.Mean.PerKey()
 ```
 {{end}}
 

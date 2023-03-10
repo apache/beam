@@ -85,10 +85,8 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   min_element = (
-      p
-      | 'Create numbers' >> beam.Create([3, 4, 1, 2])
-      | 'Get min value' >>
-      beam.CombineGlobally(lambda elements: min(elements or [-1]))
+      p | 'Create numbers' >> beam.Create([3, 4, 1, 2])
+      | 'Get min value' >> beam.CombineGlobally(lambda elements: min(elements or [-1]))
       | beam.Map(print))
 ```
 
@@ -106,15 +104,13 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   elements_with_min_value_per_key = (
-      p
-      | 'Create produce' >> beam.Create([
+      p | 'Create produce' >> beam.Create([
           ('🥕', 3),
           ('🥕', 2),
           ('🍆', 1),
           ('🍅', 4),
           ('🍅', 5),
-          ('🍅', 3),
-      ])
+          ('🍅', 3),])
       | 'Get min value per key' >> beam.CombinePerKey(min)
       | beam.Map(print))
 ```
@@ -177,13 +173,7 @@ static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, 
 `Top.Smallest` returns smaller numbers from `PCollection` than specified in the function argument. If you replace the `integers input` with this `map input` and replace `beam.combiners.Top.Smallest(5)` with `beam.CombinePerKey(min)` it will output the minimum numbers by key :
 
 ```
-beam.Create([
-    (1, 36),
-    (2, 91),
-    (3, 33),
-    (3, 11),
-    (4, 67),
-]) | beam.CombinePerKey(min)
+p | beam.Create([(1, 36),(2, 91),(3, 33),(3, 11),(4, 67),]) | beam.CombinePerKey(min)
 ```
 {{end}}
 

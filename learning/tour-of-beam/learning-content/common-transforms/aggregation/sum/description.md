@@ -83,8 +83,7 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   total = (
-      p
-      | 'Create numbers' >> beam.Create([3, 4, 1, 2])
+      p | 'Create numbers' >> beam.Create([3, 4, 1, 2])
       | 'Sum values' >> beam.CombineGlobally(sum)
       | beam.Map(print))
 ```
@@ -104,15 +103,13 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   totals_per_key = (
-      p
-      | 'Create produce' >> beam.Create([
+      p | 'Create produce' >> beam.Create([
           ('🥕', 3),
           ('🥕', 2),
           ('🍆', 1),
           ('🍅', 4),
           ('🍅', 5),
-          ('🍅', 3),
-      ])
+          ('🍅', 3),])
       | 'Sum values per key' >> beam.CombinePerKey(sum)
       | beam.Map(print))
 ```
@@ -175,13 +172,7 @@ static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, 
 `beam.CombineGlobally(sum)` returns sum from `PCCollection`. If you replace the `integers input` with this `map input` and replace `beam.CombineGlobally(sum)` with `beam.CombinePerKey(sum)` it will output the sum by key :
 
 ```
-beam.Create([
-    (1, 36),
-    (2, 91),
-    (3, 33),
-    (3, 11),
-    (4, 67),
-]) | beam.CombinePerKey(sum)
+p | beam.Create([(1, 36),(2, 91),(3, 33),(3, 11),(4, 67),]) | beam.CombinePerKey(sum)
 ```
 {{end}}
 

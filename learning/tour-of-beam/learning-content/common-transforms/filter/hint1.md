@@ -70,7 +70,7 @@ static PCollection<String> applyTransform(PCollection<String> input) {
   | Output(prefix='PCollection filtered value: '))
 ```
 
-For split word you can use:
+For SplitWords() you can use:
 
 ```
 class SplitWords(beam.DoFn):

@@ -45,7 +45,6 @@ class Output(beam.PTransform):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
 with beam.Pipeline() as p:
-
   (p | beam.Create(range(1, 11))
    # beam.combiners.Count.Globally() to return the count of numbers from `PCollection`.
    | beam.combiners.Count.Globally()

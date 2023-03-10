@@ -46,7 +46,6 @@ class Output(beam.PTransform):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
 with beam.Pipeline() as p:
-
   (p | beam.Create(['apple', 'banana', 'cherry', 'durian', 'guava', 'melon'])
    # The WithKeys return Map which key will be first letter word and value word
    | beam.WithKeys(lambda word: word[0:1])

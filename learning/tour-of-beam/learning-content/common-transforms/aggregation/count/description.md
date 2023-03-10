@@ -118,9 +118,7 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   total_elements = (
-      p
-      | 'Create plants' >> beam.Create(
-          ['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
+      p | 'Create plants' >> beam.Create(['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
       | 'Count all elements' >> beam.combiners.Count.Globally()
       | beam.Map(print))
 ```
@@ -140,8 +138,7 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   total_elements_per_keys = (
-      p
-      | 'Create plants' >> beam.Create([
+      p | 'Create plants' >> beam.Create([
           ('spring', '🍓'),
           ('spring', '🥕'),
           ('summer', '🥕'),
@@ -151,8 +148,7 @@ with beam.Pipeline() as p:
           ('spring', '🍅'),
           ('summer', '🍅'),
           ('fall', '🍅'),
-          ('summer', '🌽'),
-      ])
+          ('summer', '🌽'),])
       | 'Count elements per key' >> beam.combiners.Count.PerKey()
       | beam.Map(print))
 ```
@@ -175,9 +171,7 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   total_unique_elements = (
-      p
-      | 'Create produce' >> beam.Create(
-          ['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
+      p | 'Create produce' >> beam.Create(['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
       | 'Count unique elements' >> beam.combiners.Count.PerElement()
       | beam.Map(print))
 ```
@@ -199,13 +193,8 @@ You can find the full code of this example in the playground window, which you c
 `Count.globally` returns the number of integers from the `PCollection`. If you replace the `integers input` with this `map input` and replace `beam.combiners.Count.Globally` with `beam.combiners.Count.PerKey` it will output the count numbers by key :
 
 ```
-beam.Create([
-    (1, 36),
-    (2, 91),
-    (3, 33),
-    (3, 11),
-    (4, 67),
-]) | beam.combiners.Count.PerKey()
+p | beam.Create([(1, 36), (2, 91), (3, 33), (3, 11), (4, 67),]) 
+  | beam.combiners.Count.PerKey()
 ```
 
 `Count` transforms work with strings too! Can you change the example to count the number of words in a given sentence and how often each word occurs?
@@ -213,9 +202,8 @@ beam.Create([
 Count how many words are repeated with `Count`:
 
 ```
-  (p | beam.Create(["To be, or not to be: that is the question:Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune,Or to take arms against a sea of troubles,And by opposing end them. To die: to sleep"])
-  | beam.ParDo(SplitWords())
-  | beam.combiners.Count.PerElement()
+p | beam.Create(["To be, or not to be: that is the question: Whether 'tis nobler in the mind to suffer, the slings and arrows of outrageous fortune, or to take arms against a sea of troubles, and by opposing end them. To die: to sleep"])
+  | beam.ParDo(SplitWords()) | beam.combiners.Count.PerElement() 
   | Output(prefix='PCollection filtered value: '))
 ```
 

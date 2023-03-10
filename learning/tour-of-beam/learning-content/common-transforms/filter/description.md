@@ -112,8 +112,7 @@ def is_perennial(plant):
 
 with beam.Pipeline() as p:
   perennials = (
-      p
-      | 'Gardening plants' >> beam.Create([
+      p | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
           },
@@ -151,8 +150,7 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   perennials = (
-      p
-      | 'Gardening plants' >> beam.Create([
+      p | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
           },
@@ -196,8 +194,7 @@ def has_duration(plant, duration):
 
 with beam.Pipeline() as p:
   perennials = (
-      p
-      | 'Gardening plants' >> beam.Create([
+      p | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
           },
@@ -239,8 +236,7 @@ with beam.Pipeline() as p:
   perennial = p | 'Perennial' >> beam.Create(['perennial'])
 
   perennials = (
-      pipeline
-      | 'Gardening plants' >> beam.Create([
+      p | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
           },
@@ -288,8 +284,7 @@ with beam.Pipeline() as p:
   ])
 
   valid_plants = (
-      pipeline
-      | 'Gardening plants' >> beam.Create([
+      p | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
           },
@@ -338,8 +333,7 @@ with beam.Pipeline() as p:
   ])
 
   perennials = (
-      pipeline
-      | 'Gardening plants' >> beam.Create([
+      p | 'Gardening plants' >> beam.Create([
           {
               'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
           },

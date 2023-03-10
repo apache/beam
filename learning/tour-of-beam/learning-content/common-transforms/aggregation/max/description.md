@@ -65,6 +65,7 @@ PCollection<KV<String, Integer>> input = pipeline.apply(
               KV.of("🍅", 4),
               KV.of("🍅", 5),
               KV.of("🍅", 3)));
+
 PCollection<KV<String, Integer>> maxPerKey = input.apply(Max.integersPerKey());
 ```
 
@@ -87,10 +88,8 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   max_element = (
-      p
-      | 'Create numbers' >> beam.Create([3, 4, 1, 2])
-      | 'Get max value' >>
-      beam.CombineGlobally(lambda elements: max(elements or [None]))
+      p | 'Create numbers' >> beam.Create([3, 4, 1, 2])
+      | 'Get max value' >> beam.CombineGlobally(lambda elements: max(elements or [None]))
       | beam.Map(print))
 ```
 
@@ -109,15 +108,13 @@ import apache_beam as beam
 
 with beam.Pipeline() as p:
   elements_with_max_value_per_key = (
-      p
-      | 'Create produce' >> beam.Create([
+      p | 'Create produce' >> beam.Create([
           ('🥕', 3),
           ('🥕', 2),
           ('🍆', 1),
           ('🍅', 4),
           ('🍅', 5),
-          ('🍅', 3),
-      ])
+          ('🍅', 3),])
       | 'Get max value per key' >> beam.CombinePerKey(max)
       | beam.Map(print))
 ```
