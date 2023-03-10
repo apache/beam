@@ -144,13 +144,13 @@ else:
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
-  try:
+  # try:
     # pylint: disable=wrong-import-position
     import gen_protos
     gen_protos.generate_proto_files()
 
-  except ImportError:
-    warnings.warn("Could not import gen_protos, skipping proto generation.")
+  # except ImportError:
+  #   warnings.warn("Could not import gen_protos, skipping proto generation.")
 
 
 def get_portability_package_data():
