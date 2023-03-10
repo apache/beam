@@ -20,6 +20,8 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../../models/event_context.dart';
 
+/// The base class for Tour of Beam events that adds [TobEventContext]
+/// to [AnalyticsEvent].
 abstract class AnalyticsEventWithTobContext extends AnalyticsEvent {
   const AnalyticsEventWithTobContext({
     required this.tobContext,

@@ -20,7 +20,7 @@ import 'package:equatable/equatable.dart';
 
 const _none = 'none';
 
-/// Basic information of the Tour of Beam state to augment analytics events.
+/// Basic information of the Tour of Beam app state to augment analytics events.
 class TobEventContext with EquatableMixin {
   const TobEventContext({
     required this.sdkId,

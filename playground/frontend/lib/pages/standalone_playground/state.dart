@@ -88,6 +88,7 @@ class StandalonePlaygroundNotifier extends ChangeNotifier
         : descriptor;
   }
 
+  /// Cancels a possible run and frees other resources.
   @override
   Future<void> dispose() async {
     playgroundController.codeRunner.cancelRun();

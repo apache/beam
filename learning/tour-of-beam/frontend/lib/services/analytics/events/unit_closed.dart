@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// A unit is closed either by navigating away or by closing the app.
 class UnitClosedTobAnalyticsEvent extends AnalyticsEventWithTobContext {
   const UnitClosedTobAnalyticsEvent({
     required super.tobContext,

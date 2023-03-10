@@ -21,6 +21,8 @@ import 'dart:html'; // ignore: avoid_web_libraries_in_flutter
 import 'package:flutter/foundation.dart';
 
 /// Notifies when the browser window is being closed.
+///
+/// Use this to cancel a possible run to save backend resources.
 class WindowCloseNotifier extends ChangeNotifier {
   WindowCloseNotifier() {
     window.onBeforeUnload.listen((_) {

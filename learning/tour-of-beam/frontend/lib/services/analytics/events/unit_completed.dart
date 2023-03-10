@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// A unit is marked completed with a button.
 class UnitCompletedTobAnalyticsEvent extends AnalyticsEventWithTobContext {
   const UnitCompletedTobAnalyticsEvent({
     required super.tobContext,

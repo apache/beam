@@ -19,6 +19,7 @@
 import 'abstract.dart';
 import 'constants.dart';
 
+/// A unit is opened.
 class UnitOpenedTobAnalyticsEvent extends AnalyticsEventWithTobContext {
   const UnitOpenedTobAnalyticsEvent({
     required super.tobContext,

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+/// Sent as an analytics feedback events.
 enum FeedbackRating {
   positive,
   negative,
