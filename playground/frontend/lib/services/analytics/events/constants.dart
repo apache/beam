@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+/// Constants for event names.
 class PlaygroundAnalyticsEvents {
   static const loaded = 'loaded';
   static const newExample = 'new_example';
@@ -25,6 +26,7 @@ class PlaygroundAnalyticsEvents {
   static const snippetSelected = 'snippet_selected';
 }
 
+/// Constants for event parameters.
 class PlaygroundEventParams {
   static const shareFormat = 'shareFormat';
 }
