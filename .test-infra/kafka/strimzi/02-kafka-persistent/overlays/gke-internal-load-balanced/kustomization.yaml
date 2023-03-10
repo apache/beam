@@ -21,6 +21,6 @@
 namespace: strimzi
 
 resources:
-- ../../base
+- ../../base/v0.33.2
 patchesStrategicMerge:
 - listeners.yaml

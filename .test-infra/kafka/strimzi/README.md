@@ -76,7 +76,7 @@ internally load balanced kafka cluster through the
 overlay.
 
 ```
-kubectl apply -f 02-kafka-persistent/overlays/gke-internal-load-balanced
+kubectl apply -k 02-kafka-persistent/overlays/gke-internal-load-balanced
 ```
 
 You can watch while all the resources are created.

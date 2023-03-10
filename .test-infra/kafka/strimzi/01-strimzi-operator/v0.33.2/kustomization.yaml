@@ -16,8 +16,6 @@
 #
 
 # Installs the strimzi operator in your kubernetes cluster.
-namespace: strimzi
-
 resources:
 - 010-ServiceAccount-strimzi-cluster-operator.yaml
 - 020-ClusterRole-strimzi-cluster-operator-role.yaml

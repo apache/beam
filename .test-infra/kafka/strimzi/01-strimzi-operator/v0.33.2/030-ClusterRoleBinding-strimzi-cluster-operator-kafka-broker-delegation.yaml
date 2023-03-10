@@ -26,7 +26,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: myproject
+    namespace: strimzi
 roleRef:
   kind: ClusterRole
   name: strimzi-kafka-broker
