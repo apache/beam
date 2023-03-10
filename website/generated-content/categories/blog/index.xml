@@ -1,4 +1,144 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 15 Feb 2023 09:00:00 -0700</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.45.0</title><link>/blog/beam-2.45.0/</link><pubDate>Wed, 15 Feb 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.45.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 10 Mar 2023 13:00:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.46.0</title><link>/blog/beam-2.46.0/</link><pubDate>Fri, 10 Mar 2023 13:00:00 -0500</pubDate><guid>/blog/beam-2.46.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.46.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2460-2023-03-10">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.46.0, check out the &lt;a href="https://github.com/apache/beam/milestone/9?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Java SDK containers migrated to &lt;a href="https://hub.docker.com/_/eclipse-temurin">Eclipse Temurin&lt;/a>
+as a base. This change migrates away from the deprecated &lt;a href="https://hub.docker.com/_/openjdk">OpenJDK&lt;/a>
+container. Eclipse Temurin is currently based upon Ubuntu 22.04 while the OpenJDK
+container was based upon Debian 11.&lt;/li>
+&lt;li>RunInference PTransform will accept model paths as SideInputs in Python SDK. (&lt;a href="https://github.com/apache/beam/issues/24042">#24042&lt;/a>)&lt;/li>
+&lt;li>RunInference supports ONNX runtime in Python SDK (&lt;a href="https://github.com/apache/beam/issues/22972">#22972&lt;/a>)&lt;/li>
+&lt;li>Tensorflow Model Handler for RunInference in Python SDK (&lt;a href="https://github.com/apache/beam/issues/25366">#25366&lt;/a>)&lt;/li>
+&lt;li>Java SDK modules migrated to use &lt;code>:sdks:java:extensions:avro&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/24748">#24748&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Added in JmsIO a retry policy for failed publications (Java) (&lt;a href="https://github.com/apache/beam/issues/24971">#24971&lt;/a>).&lt;/li>
+&lt;li>Support for &lt;code>LZMA&lt;/code> compression/decompression of text files added to the Python SDK (&lt;a href="https://github.com/apache/beam/issues/25316">#25316&lt;/a>)&lt;/li>
+&lt;li>Added ReadFrom/WriteTo Csv/Json as top-level transforms to the Python SDK.&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Add UDF metrics support for Samza portable mode.&lt;/li>
+&lt;li>Option for SparkRunner to avoid the need of SDF output to fit in memory (&lt;a href="https://github.com/apache/beam/issues/23852">#23852&lt;/a>).
+This helps e.g. with ParquetIO reads. Turn the feature on by adding experiment &lt;code>use_bounded_concurrent_output_for_sdf&lt;/code>.&lt;/li>
+&lt;li>Add &lt;code>WatchFilePattern&lt;/code> transform, which can be used as a side input to the RunInference PTransfrom to watch for model updates using a file pattern. (&lt;a href="https://github.com/apache/beam/issues/24042">#24042&lt;/a>)&lt;/li>
+&lt;li>Add support for loading TorchScript models with &lt;code>PytorchModelHandler&lt;/code>. The TorchScript model path can be
+passed to PytorchModelHandler using &lt;code>torch_script_model_path=&amp;lt;path_to_model&amp;gt;&lt;/code>. (&lt;a href="https://github.com/apache/beam/pull/25321">#25321&lt;/a>)&lt;/li>
+&lt;li>The Go SDK now requires Go 1.19 to build. (&lt;a href="https://github.com/apache/beam/pull/25545">#25545&lt;/a>)&lt;/li>
+&lt;li>The Go SDK now has an initial native Go implementation of a portable Beam Runner called Prism. (&lt;a href="https://github.com/apache/beam/pull/24789">#24789&lt;/a>)
+&lt;ul>
+&lt;li>For more details and current state see &lt;a href="https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism">https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>The deprecated SparkRunner for Spark 2 (see &lt;a href="#2410---2022-08-23">2.41.0&lt;/a>) was removed (&lt;a href="https://github.com/apache/beam/pull/25263">#25263&lt;/a>).&lt;/li>
+&lt;li>Python&amp;rsquo;s BatchElements performs more aggressive batching in some cases,
+capping at 10 second rather than 1 second batches by default and excluding
+fixed cost in this computation to better handle cases where the fixed cost
+is larger than a single second. To get the old behavior, one can pass
+&lt;code>target_batch_duration_secs_including_fixed_cost=1&lt;/code> to BatchElements.&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>Avro related classes are deprecated in module &lt;code>beam-sdks-java-core&lt;/code> and will be eventually removed. Please, migrate to a new module &lt;code>beam-sdks-java-extensions-avro&lt;/code> instead by importing the classes from &lt;code>org.apache.beam.sdk.extensions.avro&lt;/code> package.
+For the sake of migration simplicity, the relative package path and the whole class hierarchy of Avro related classes in new module is preserved the same as it was before.
+For example, import &lt;code>org.apache.beam.sdk.extensions.avro.coders.AvroCoder&lt;/code> class instead of&lt;code>org.apache.beam.sdk.coders.AvroCoder&lt;/code>. (&lt;a href="https://github.com/apache/beam/issues/24749">#24749&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.46.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alan Zhang&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Amrane Ait Zeouay&lt;/p>
+&lt;p>Anand Inguva&lt;/p>
+&lt;p>Andrew Pilloud&lt;/p>
+&lt;p>Brian Hulette&lt;/p>
+&lt;p>Bruno Volpato&lt;/p>
+&lt;p>Byron Ellis&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Darkhan Nausharipov&lt;/p>
+&lt;p>David Katz&lt;/p>
+&lt;p>Dmitry Repin&lt;/p>
+&lt;p>Doug Judd&lt;/p>
+&lt;p>Egbert van der Wal&lt;/p>
+&lt;p>Elizaveta Lomteva&lt;/p>
+&lt;p>Evan Galpin&lt;/p>
+&lt;p>Herman Mak&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jan Lukavský&lt;/p>
+&lt;p>Johanna Öjeling&lt;/p>
+&lt;p>John Casey&lt;/p>
+&lt;p>Jozef Vilcek&lt;/p>
+&lt;p>Junhao Liu&lt;/p>
+&lt;p>Juta Staes&lt;/p>
+&lt;p>Katie Liu&lt;/p>
+&lt;p>Kiley Sok&lt;/p>
+&lt;p>Liam Miller-Cushon&lt;/p>
+&lt;p>Luke Cwik&lt;/p>
+&lt;p>Moritz Mack&lt;/p>
+&lt;p>Ning Kang&lt;/p>
+&lt;p>Oleh Borysevych&lt;/p>
+&lt;p>Pablo E&lt;/p>
+&lt;p>Pablo Estrada&lt;/p>
+&lt;p>Reuven Lax&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Ruslan Altynnikov&lt;/p>
+&lt;p>Ryan Zhang&lt;/p>
+&lt;p>Sam Rohde&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Sam sam&lt;/p>
+&lt;p>Sergei Lilichenko&lt;/p>
+&lt;p>Shivam&lt;/p>
+&lt;p>Shubham Krishna&lt;/p>
+&lt;p>Theodore Ni&lt;/p>
+&lt;p>Timur Sultanov&lt;/p>
+&lt;p>Tony Tang&lt;/p>
+&lt;p>Vachan&lt;/p>
+&lt;p>Veronica Wasson&lt;/p>
+&lt;p>Vincent Devillers&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>William Ross Morrow&lt;/p>
+&lt;p>Xinyu Liu&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>ZhengLin Li&lt;/p>
+&lt;p>Ziqi Ma&lt;/p>
+&lt;p>ahmedabu98&lt;/p>
+&lt;p>alexeyinkin&lt;/p>
+&lt;p>aliftadvantage&lt;/p>
+&lt;p>bullet03&lt;/p>
+&lt;p>dannikay&lt;/p>
+&lt;p>darshan-sj&lt;/p>
+&lt;p>dependabot[bot]&lt;/p>
+&lt;p>johnjcasey&lt;/p>
+&lt;p>kamrankoupayi&lt;/p>
+&lt;p>kileys&lt;/p>
+&lt;p>liferoad&lt;/p>
+&lt;p>nancyxu123&lt;/p>
+&lt;p>nickuncaged1201&lt;/p>
+&lt;p>pablo rodriguez defino&lt;/p>
+&lt;p>tvalentyn&lt;/p>
+&lt;p>xqhu&lt;/p></description></item><item><title>Blog: Apache Beam 2.45.0</title><link>/blog/beam-2.45.0/</link><pubDate>Wed, 15 Feb 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.45.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5359,65 +5499,4 @@ Salman Raza, Sam Rohde, Saul Chavez, Shoaib, Shoaib Zafar, Slava Chernyak, Tanay
 Thinh Ha, Thomas Weise, Tianzi Cai, Tim van der Lippe, Tomer Zeltzer, Tudor Marian,
 Udi Meiri, Valentyn Tymofieiev, Yichi Zhang, Yifan Zou, Yueyang Qiu, gxercavins,
 jesusrv1103, lostluck, matt-darwin, mrociorg, ostrokach, parahul, rahul8383, rosetn,
-sunjincheng121, the1plummie, ttanay, tvalentyn, venn001, yoshiki.obata, Łukasz Gajowy&lt;/p></description></item><item><title>Blog: Google Summer of Code '19</title><link>/blog/gsoc-19/</link><pubDate>Wed, 04 Sep 2019 00:00:01 -0800</pubDate><guid>/blog/gsoc-19/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Google Summer of Code was an amazing learning experience for me.
-I contributed to open source, learned about Apache Beam’s internals and worked with the best engineers in the world.&lt;/p>
-&lt;h2 id="motivation">Motivation&lt;/h2>
-&lt;p>Two of my friends had participated in GSoC in 2018. I was intrigued by their experience.
-The idea of working on open-source software that could potentially be used by developers across the world, while being mentored by the best people in a field was exciting!
-So, I decided to give Google Summer of Code a shot this year.&lt;/p>
-&lt;h2 id="what-is-google-summer-of-code">What is Google Summer of Code?&lt;/h2>
-&lt;p>&lt;a href="https://summerofcode.withgoogle.com/">Google Summer of Code&lt;/a> is a global program hosted by Google focused on introducing students to open source software development.
-Students work on a 3 month programming project with an open source organization during their break from university.&lt;/p>
-&lt;h2 id="why-apache-beam">Why Apache Beam?&lt;/h2>
-&lt;p>While interning at &lt;a href="https://atlan.com/">Atlan&lt;/a>, I discovered the field of Data Engineering. I found the challenges and the discussions of the engineers there interesting. While researching for my internship project, I came across the Streaming Systems book. It introduced me to the unified model of Apache Beam for Batch and Streaming Systems, which I was fascinated by.
-I wanted to explore Data Engineering, so for GSoC, I wanted to work on a project in that field. Towards the end of my internship, I started contributing to Apache Airflow(very cool project) and Apache Beam, hoping one of them would participate in GSoC. I got lucky!&lt;/p>
-&lt;p>&lt;a href="https://youtu.be/U2eWLb-LD44">Also, Spotify’s Discover Weekly uses Apache Beam!&lt;/a>&lt;/p>
-&lt;h2 id="preparation">Preparation&lt;/h2>
-&lt;p>I had already read the &lt;a href="http://streamingsystems.net/">Streaming Systems book&lt;/a>. So, I had an idea of the concepts that Beam is built on, but had never actually used Beam.
-Before actually submitting a proposal, I went through a bunch of resources to make sure I had a concrete understanding of Beam.
-I read the &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Streaming 101&lt;/a> and &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming 102&lt;/a> blogs by Tyler Akidau. They are the perfect introduction to Beam’s unified model for Batch and Streaming.
-In addition, I watched all Beam talks on YouTube. You can find them on the &lt;a href="/get-started/resources/videos-and-podcasts/">Beam Website&lt;/a>.
-Beam has really good documentation. The &lt;a href="/documentation/programming-guide/">Programming Guide&lt;/a> lays out all of Beam’s concepts really well. &lt;a href="/documentation/runtime/model">Beam’s execution model&lt;/a> is also documented well and is a must-read to understand how Beam processes data.
-&lt;a href="https://www.waitingforcode.com/apache-beam">waitingforcode.com&lt;/a> also has good blog posts about Beam concepts.
-To get a better sense of the Beam codebase, I played around with it and worked on some PRs to understand Beam better and got familiar with the test suite and workflows.&lt;/p>
-&lt;h2 id="gsoc-journey">GSoC Journey&lt;/h2>
-&lt;p>GSoC has 2 phases. The first is the Community Bonding period in which students get familiar with the project and the community. The other is the actual Coding Period in which students work on their projects. Since the Coding Period has three evaluations spaced out by a month, I divided my project into three parts focusing on the implementation, tests, and documentation or improvements.&lt;/p>
-&lt;h3 id="project">Project&lt;/h3>
-&lt;p>My project(&lt;a href="https://issues.apache.org/jira/browse/BEAM-6611">BEAM-6611&lt;/a>) added support for File Loads method of inserting data into BigQuery for streaming pipelines. It builds on PR - &lt;a href="https://github.com/apache/beam/pull/7655">#7655&lt;/a> for &lt;a href="https://issues.apache.org/jira/browse/BEAM-6553">BEAM-6553&lt;/a> that added support in the Python SDK for writing to BigQuery using File Loads method for Batch pipelines. Streaming pipelines with non-default Windowing, Triggering and Accumulation mode can write data to BigQuery using file loads method. In case of failure, the pipeline will fail atomically. This means that each record will be loaded into BigQuery at-most-once.
-You can find my proposal &lt;a href="https://docs.google.com/document/d/15Peyd3Z_wu5rvGWw8lMLpZuTyyreM_JOAEFFWvF97YY/edit?usp=sharing">here&lt;/a>.&lt;/p>
-&lt;h3 id="community-bonding">Community Bonding&lt;/h3>
-&lt;p>When GSoC started, my semester end exams had not yet finished. As a result, I couldn’t get much done. I worked on three PTransforms for the Python SDK - Latest, WithKeys and Reify.&lt;/p>
-&lt;h3 id="coding-period-i">Coding Period I&lt;/h3>
-&lt;p>In this period, I wrote some Integration Tests for the BigQuery sink using Streaming Inserts in streaming mode. I worked on a failing integration test for my project. I also finished the implementation of my project. But, one PostCommit test didn’t pass. I realized that the matcher for the Integration Test that queried BigQuery for the results was intended to be used in Batch mode. So, I wrote a version of the matcher to work in streaming mode.&lt;/p>
-&lt;h3 id="coding-period-ii">Coding Period II&lt;/h3>
-&lt;p>Even after I had added the matcher for streaming mode, the PostComit tests did not pass. A test was being run even though it was not specified. I isolated the failure to a &lt;a href="https://nose.readthedocs.io/en/latest/doc_tests/test_multiprocess/multiprocess.html#other-differences-in-test-running">limitation&lt;/a> of the multiprocess plugin for &lt;a href="https://nose.readthedocs.io/en/latest/">nose(a Python test framework)&lt;/a> due to which it found more tests than had been specified. It took me a while to figure this out. In this period, changes for my project got merged.
-I also worked on small issues related to testing.&lt;/p>
-&lt;p>This period was marked by a few exciting events:&lt;/p>
-&lt;ul>
-&lt;li>Ending up in the top #100 contributors to apache/beam.&lt;/li>
-&lt;li>My first ever PR Review on an open source project.&lt;/li>
-&lt;/ul>
-&lt;p>&lt;img src="https://pbs.twimg.com/media/D_XNSC-UIAUmswG?format=png&amp;name=small" alt="Weird flex but ok" />&lt;/p>
-&lt;h3 id="coding-period-iii">Coding Period III&lt;/h3>
-&lt;p>This was the final coding period before the program ended. Since my project was merged earlier than expected, my mentor suggested another issue(&lt;a href="https://issues.apache.org/jira/browse/BEAM-7742">BEAM-7742&lt;/a>) in the same area - BigQueryIO, that I found interesting. So, I worked on partitioning written files in BigQuery to ensure that all load jobs triggered adhere to the load job size limitations specified for BigQuery.
-While working on my project, I was using a pipeline that uses PubSub as a source and BigQuery as a sink to validate my changes. My mentor suggested we add them to the Beam test suite as it would be the ultimate test for BigQueryIO. I also worked on adding this test to Beam.&lt;/p>
-&lt;p>You can find the list of PRs I worked on &lt;a href="https://github.com/apache/beam/pulls?utf8=%E2%9C%93&amp;amp;q=is%3Apr+author%3Attanay">here&lt;/a>.&lt;/p>
-&lt;h2 id="conclusion">Conclusion&lt;/h2>
-&lt;p>GSoC has been a lesson in discipline and goal-setting for me. Deciding what I wanted to work on and how much I wanted to get done each week was an important lesson.
-I had never worked remotely, so this was a new experience. Although I struggled with it initially, I appreciate the flexibility that it comes with.
-I also had a lot of fun learning about Apache Beam’s internals, and other tools in the same ecosystem.
-This was also the first time I had written code with a test-first approach.&lt;/p>
-&lt;p>I thank my mentor - Pablo Estrada, Apache Beam, The Apache Software Foundation and Google Summer of Code for this opportunity. I am also grateful to my mentor for helping me with everything I needed and more, and the Apache Beam community for being supportive and encouraging.&lt;/p>
-&lt;p>With the right effort, perseverance, conviction, and a plan, anything is possible. Anything.&lt;/p></description></item></channel></rss>
+sunjincheng121, the1plummie, ttanay, tvalentyn, venn001, yoshiki.obata, Łukasz Gajowy&lt;/p></description></item></channel></rss>
