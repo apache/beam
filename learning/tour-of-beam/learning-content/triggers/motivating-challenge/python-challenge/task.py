@@ -67,7 +67,6 @@ def tryParseTaxiRideCost(line,index):
 
 
 with beam.Pipeline() as p:
-
   (p | beam.io.ReadFromText('gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv') \
      | beam.ParDo(ExtractTaxiRideCostFn()) \
      | 'Log words' >> Output())

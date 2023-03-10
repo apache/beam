@@ -54,5 +54,5 @@ with beam.Pipeline() as p:
      | 'window' >>  beam.WindowInto(FixedWindows(2),
                                                 trigger=trigger.AfterWatermark(early=trigger.AfterCount(2)),
                                                 accumulation_mode=trigger.AccumulationMode.DISCARDING,
-                                                timestamp_combiner=trigger.TimestampCombiner.OUTPUT_AT_EOW) \
+                                                timestamp_combiner=trigger.TimestampCombiner.OUTPUT_AT_EOW)
      | 'Log words' >> Output())

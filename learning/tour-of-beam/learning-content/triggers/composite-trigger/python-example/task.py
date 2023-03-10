@@ -61,5 +61,5 @@ with beam.Pipeline() as p:
   (p | beam.Create(['Hello Beam','It`s trigger'])
      | 'window' >>  beam.WindowInto(FixedWindows(2),
                                                 trigger=composite_trigger ,
-                                                accumulation_mode=trigger.AccumulationMode.DISCARDING) \
+                                                accumulation_mode=trigger.AccumulationMode.DISCARDING)
      | 'Log words' >> Output())

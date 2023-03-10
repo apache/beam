@@ -67,7 +67,7 @@ def tryParseTaxiRideCost(line,index):
 
 
 with beam.Pipeline() as p1:
-  data_driven_trigger =  trigger.AfterEach(trigger.AfterCount(10))
+  data_driven_trigger = trigger.AfterEach(trigger.AfterCount(10))
   processing_time_trigger = trigger.AfterProcessingTime(60)
 
   composite_trigger = trigger.AfterAll(data_driven_trigger,processing_time_trigger)

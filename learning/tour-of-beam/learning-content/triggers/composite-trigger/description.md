@@ -64,8 +64,7 @@ Trigger trigger = AfterFirst.of(
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-input
-      | 'WindowIntoFixedWindows' >> beam.WindowInto(beam.window.FixedWindows(10))
+input | 'WindowIntoFixedWindows' >> beam.WindowInto(beam.window.FixedWindows(10))
       | 'CountAndProcessTimeTrigger' >> beam.Trigger(
             AfterFirst.of(
                 AfterCount(100),

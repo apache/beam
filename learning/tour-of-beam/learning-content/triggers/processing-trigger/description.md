@@ -44,9 +44,9 @@ PCollection<String> windowed = input.apply(window.triggering(trigger).withAllowe
 {{if (eq .Sdk "python")}}
 ```
 (p | beam.Create(['Hello Beam','It`s trigger'])
-     | 'window' >>  beam.WindowInto(FixedWindows(2),
+   | 'window' >>  beam.WindowInto(FixedWindows(2),
                                                 trigger=trigger.AfterProcessingTime(1),
                                                 accumulation_mode=trigger.AccumulationMode.DISCARDING) \
-     | ...)
+   | ...)
 ```
 {{end}}
