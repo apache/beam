@@ -83,6 +83,7 @@ class StandalonePlaygroundScreen extends StatelessWidget {
                             sdk: newSdk,
                           ),
                         );
+                        notifier.playgroundController.setSdk(newSdk);
                       },
                     ),
                     if (snippetController != null)
