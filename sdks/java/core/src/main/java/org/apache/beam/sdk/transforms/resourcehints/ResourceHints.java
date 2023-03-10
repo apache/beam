@@ -213,20 +213,23 @@ public class ResourceHints {
   /**
    * Sets desired minimal available RAM size to have in transform's execution environment.
    *
-   * @param ramBytes specifies a positive RAM size in bytes. A number greater than 1G
-   *     (1_000_000_000L) is typical.
+   * @param ramBytes specifies a positive RAM size in bytes. A number greater than 2G
+   *     (Integer.MAX_VALUE) is typical.
    */
   public ResourceHints withMinRam(long ramBytes) {
     if (ramBytes <= 0L) {
       // TODO(yathu) ignore invalid value as of Beam v2.47.0. throw error in future version.
       LOG.error(
           "Encountered invalid non-positive minimum ram hint value {}.\n"
-              + "The value is ignored. In the future, this will throw an IllegalArgumentException.",
+              + "Likely cause is an (overflowing) int expression is passed in. "
+              + "The value is ignored. In the future, The method will require an object Long type "
+              + "and throw an IllegalArgumentException for invalid values.",
           ramBytes);
       return this;
-    } else if (ramBytes < 1_000_000_000L) {
+    } else if (ramBytes <= Integer.MAX_VALUE) {
       LOG.warn(
-          "Minimum available RAM size ({}) is set too small. This could cause out-of-memory and other issues.",
+          "Minimum available RAM size ({}) is set too small.\n"
+              + "Likely cause is an (overflowing) int expression is passed in.",
           ramBytes);
     }
     return withHint(MIN_RAM_URN, new BytesHint(ramBytes));
