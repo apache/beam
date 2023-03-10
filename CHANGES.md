@@ -68,7 +68,6 @@
 
 ## Breaking Changes
 
-* Python SDK now does not allow mixing the yield and return statements in `DoFn.process()` ([#22969](https://github.com/apache/beam/issues/22969)). `yield` is recommended for emitting elements and `yield from` for iterators.
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations

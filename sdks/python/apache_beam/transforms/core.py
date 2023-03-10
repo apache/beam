@@ -141,6 +141,7 @@ class DoFnProcessContext(DoFnContext):
       for this element.
       Not used by the pipeline code.
   """
+
   def __init__(self, label, element=None, state=None):
     """Initialize a processing context object with an element and state.
 
@@ -182,6 +183,7 @@ class ProcessContinuation(object):
   If produced, indicates that there is more work to be done for the current
   input element.
   """
+
   def __init__(self, resume_delay=0):
     """Initializes a ProcessContinuation object.
 
@@ -254,6 +256,7 @@ class RestrictionProvider(object):
   be invoked with a single parameter of type ``Timestamp`` or as an integer that
   gives the watermark in number of seconds.
   """
+
   def create_tracker(self, restriction):
     # type: (...) -> iobase.RestrictionTracker
 
@@ -419,6 +422,7 @@ class WatermarkEstimatorProvider(object):
   or, if no WatermarkEstimatorProvider is provided, the DoFn itself must
   be a WatermarkEstimatorProvider.
   """
+
   def initial_estimator_state(self, element, restriction):
     """Returns the initial state of the WatermarkEstimator with given element
     and restriction.
@@ -438,6 +442,7 @@ class WatermarkEstimatorProvider(object):
 
 class _DoFnParam(object):
   """DoFn parameter."""
+
   def __init__(self, param_id):
     self.param_id = param_id
 
@@ -455,6 +460,7 @@ class _DoFnParam(object):
 
 class _RestrictionDoFnParam(_DoFnParam):
   """Restriction Provider DoFn parameter."""
+
   def __init__(self, restriction_provider=None):
     # type: (typing.Optional[RestrictionProvider]) -> None
     if (restriction_provider is not None and
@@ -468,6 +474,7 @@ class _RestrictionDoFnParam(_DoFnParam):
 
 class _StateDoFnParam(_DoFnParam):
   """State DoFn parameter."""
+
   def __init__(self, state_spec):
     # type: (StateSpec) -> None
     if not isinstance(state_spec, StateSpec):
@@ -478,6 +485,7 @@ class _StateDoFnParam(_DoFnParam):
 
 class _TimerDoFnParam(_DoFnParam):
   """Timer DoFn parameter."""
+
   def __init__(self, timer_spec):
     # type: (TimerSpec) -> None
     if not isinstance(timer_spec, TimerSpec):
@@ -488,6 +496,7 @@ class _TimerDoFnParam(_DoFnParam):
 
 class _BundleFinalizerParam(_DoFnParam):
   """Bundle Finalization DoFn parameter."""
+
   def __init__(self):
     self._callbacks = []
     self.param_id = "FinalizeBundle"
@@ -515,6 +524,7 @@ class _BundleFinalizerParam(_DoFnParam):
 
 class _WatermarkEstimatorParam(_DoFnParam):
   """WatermarkEstimator DoFn parameter."""
+
   def __init__(
       self,
       watermark_estimator_provider: typing.
@@ -581,6 +591,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def unbounded_per_element():
     """A decorator on process fn specifying that the fn performs an unbounded
     amount of work per input element."""
+
     def wrapper(process_fn):
       process_fn.unbounded_per_element = True
       return process_fn
@@ -914,6 +925,7 @@ class CallableWrapperDoFn(DoFn):
   The purpose of this class is to conveniently wrap simple functions and use
   them in transforms.
   """
+
   def __init__(self, fn, fullargspec=None):
     """Initializes a CallableWrapperDoFn object wrapping a callable.
 
@@ -1008,6 +1020,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   **apply** will be called with an empty list at expansion time to get the
   default value.
   """
+
   def default_label(self):
     return self.__class__.__name__
 
@@ -1174,6 +1187,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
 class _ReiterableChain(object):
   """Like itertools.chain, but allowing re-iteration."""
+
   def __init__(self, iterables):
     self.iterables = iterables
 
@@ -1306,6 +1320,7 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
   This is identical to its parent, but avoids accepting and passing *args
   and **kwargs for efficiency as they are known to be empty.
   """
+
   def create_accumulator(self):
     return []
 
@@ -1340,6 +1355,7 @@ class PartitionFn(WithTypeHints):
   A PartitionFn specifies how individual values in a PCollection will be placed
   into separate partitions, indexed by an integer.
   """
+
   def default_label(self):
     return self.__class__.__name__
 
@@ -1367,6 +1383,7 @@ class CallableWrapperPartitionFn(PartitionFn):
 
   Instances of this class wrap simple functions for use in Partition operations.
   """
+
   def __init__(self, fn):
     """Initializes a PartitionFn object wrapping a callable.
 
@@ -1424,7 +1441,16 @@ def _check_fn_use_yield_and_return(fn):
     return False
   try:
     source_code = _get_function_body_without_inners(fn)
-    return "yield " in source_code and "return " in source_code
+    has_yield = False
+    has_return = False
+    for line in source_code.split("\n"):
+      if line.lstrip().startswith("yield"):
+        has_yield = True
+      if line.lstrip().startswith("return"):
+        has_return = True
+      if has_yield and has_return:
+        return True
+    return False
   except TypeError:
     return False
 
@@ -1460,6 +1486,7 @@ class ParDo(PTransformWithSideInputs):
   replaced by values from the :class:`~apache_beam.pvalue.PCollection` in the
   exact positions where they appear in the argument lists.
   """
+
   def __init__(self, fn, *args, **kwargs):
     super().__init__(fn, *args, **kwargs)
     # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
@@ -1471,9 +1498,12 @@ class ParDo(PTransformWithSideInputs):
 
     # DoFn.process cannot allow both return and yield
     if _check_fn_use_yield_and_return(self.fn.process):
-      raise RuntimeError(
+      _LOGGER.warning(
           'The yield and return statements in the process method '
-          f'of {self.fn.__class__ } can not be mixed.')
+          f'of {self.fn.__class__ } can not be mixed.'
+          'We recommend to use `yield` for emitting individual '
+          ' elements and `yield from` for emitting the content '
+          'of entire iterables.')
 
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
@@ -1800,6 +1830,7 @@ class ParDo(PTransformWithSideInputs):
 
 
 class _MultiParDo(PTransform):
+
   def __init__(self, do_transform, tags, main_tag, allow_unknown_tags=None):
     super().__init__(do_transform.label)
     self._do_transform = do_transform
@@ -1821,8 +1852,10 @@ class DoFnInfo(object):
   """This class represents the state in the ParDoPayload's function spec,
   which is the actual DoFn together with some data required for invoking it.
   """
+
   @staticmethod
   def register_stateless_dofn(urn):
+
     def wrapper(cls):
       StatelessDoFnInfo.REGISTERED_DOFNS[urn] = cls
       cls._stateless_dofn_urn = urn
@@ -1857,6 +1890,7 @@ class DoFnInfo(object):
 
 
 class PickledDoFnInfo(DoFnInfo):
+
   def __init__(self, serialized_data):
     self._serialized_data = serialized_data
 
@@ -2127,6 +2161,7 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
 class _ExceptionHandlingWrapper(ptransform.PTransform):
   """Implementation of ParDo.with_exception_handling."""
+
   def __init__(
       self,
       fn,
@@ -2166,6 +2201,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     if self._threshold < 1.0:
 
       class MaybeWindow(ptransform.PTransform):
+
         @staticmethod
         def expand(pcoll):
           if self._threshold_windowing:
@@ -2194,6 +2230,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
 
 class _ExceptionHandlingWrapperDoFn(DoFn):
+
   def __init__(self, fn, dead_letter_tag, exc_class, partial):
     self._fn = fn
     self._dead_letter_tag = dead_letter_tag
@@ -2227,6 +2264,7 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
 class _SubprocessDoFn(DoFn):
   """Process method run in a subprocess, turning hard crashes into exceptions.
   """
+
   def __init__(self, fn):
     self._fn = fn
     self._serialized_fn = pickler.dumps(fn)
@@ -2467,6 +2505,7 @@ class CombineGlobally(PTransform):
     return self._clone(as_view=True)
 
   def expand(self, pcoll):
+
     def add_input_types(transform):
       type_hints = self.get_type_hints()
       if type_hints.input_types:
@@ -2551,6 +2590,7 @@ class CombineGlobally(PTransform):
 
 @DoFnInfo.register_stateless_dofn(python_urns.KEY_WITH_NONE_DOFN)
 class _KeyWithNone(DoFn):
+
   def process(self, v):
     yield None, v
 
@@ -2574,6 +2614,7 @@ class CombinePerKey(PTransformWithSideInputs):
   Returns:
     A PObject holding the result of the combine operation.
   """
+
   def with_hot_key_fanout(self, fanout):
     """A per-key combine operation like self but with two levels of aggregation.
 
@@ -2671,6 +2712,7 @@ class CombinePerKey(PTransformWithSideInputs):
 
 # TODO(robertwb): Rename to CombineGroupedValues?
 class CombineValues(PTransformWithSideInputs):
+
   def make_fn(self, fn, has_side_inputs):
     return CombineFn.maybe_from_callable(fn, has_side_inputs)
 
@@ -2711,6 +2753,7 @@ class CombineValues(PTransformWithSideInputs):
 
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
+
   def __init__(
       self,
       input_pcoll_type,
@@ -2773,6 +2816,7 @@ class CombineValuesDoFn(DoFn):
 
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
+
   def __init__(
       self,
       combine_fn,  # type: CombineFn
@@ -2801,6 +2845,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
 
     class SplitHotCold(DoFn):
+
       def start_bundle(self):
         # Spreading a hot key across all possible sub-keys for all bundles
         # would defeat the goal of not overwhelming downstream reducers
@@ -2819,6 +2864,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           yield pvalue.TaggedOutput('hot', ((self._nonce % fanout, key), value))
 
     class PreCombineFn(CombineFn):
+
       @staticmethod
       def extract_output(accumulator):
         # Boolean indicates this is an accumulator.
@@ -2832,6 +2878,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       teardown = combine_fn.teardown
 
     class PostCombineFn(CombineFn):
+
       @staticmethod
       def add_input(accumulator, element):
         is_accumulator, value = element
@@ -2878,7 +2925,9 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
+
   class ReifyWindows(DoFn):
+
     def process(
         self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
       try:
@@ -2987,11 +3036,12 @@ class GroupBy(PTransform):
   The GroupBy operation can be made into an aggregating operation by invoking
   its `aggregate_field` method.
   """
+
   def __init__(
       self,
       *fields,  # type: typing.Union[str, typing.Callable]
       **kwargs  # type: typing.Union[str, typing.Callable]
-    ):
+  ):
     if len(fields) == 1 and not kwargs:
       self._force_tuple_keys = False
       name = fields[0] if isinstance(fields[0], str) else 'key'
@@ -3014,7 +3064,7 @@ class GroupBy(PTransform):
       field,  # type: typing.Union[str, typing.Callable]
       combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
-    ):
+  ):
     """Returns a grouping operation that also aggregates grouped values.
 
     Args:
@@ -3093,6 +3143,7 @@ def _unpickle_dynamic_named_tuple(type_name, field_names, values):
 
 
 class _GroupAndAggregate(PTransform):
+
   def __init__(self, grouping, aggregations):
     self._grouping = grouping
     self._aggregations = aggregations
@@ -3102,7 +3153,7 @@ class _GroupAndAggregate(PTransform):
       field,  # type: typing.Union[str, typing.Callable]
       combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
-      ):
+  ):
     field = _expr_to_callable(field, 0)
     return _GroupAndAggregate(
         self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
@@ -3144,10 +3195,12 @@ class Select(PTransform):
 
       pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
-  def __init__(self,
-               *args,  # type: typing.Union[str, typing.Callable]
-               **kwargs  # type: typing.Union[str, typing.Callable]
-               ):
+
+  def __init__(
+      self,
+      *args,  # type: typing.Union[str, typing.Callable]
+      **kwargs  # type: typing.Union[str, typing.Callable]
+  ):
     self._fields = [(
         expr if isinstance(expr, str) else 'arg%02d' % ix,
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
@@ -3185,8 +3238,10 @@ class Partition(PTransformWithSideInputs):
   The result of this PTransform is a simple list of the output PCollections
   representing each of n partitions, in order.
   """
+
   class ApplyPartitionFnFn(DoFn):
     """A DoFn that applies a PartitionFn."""
+
     def process(self, element, partitionfn, n, *args, **kwargs):
       partition = partitionfn.partition_for(element, n, *args, **kwargs)
       if not 0 <= partition < n:
@@ -3209,14 +3264,16 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-  def __init__(self,
-               windowfn,  # type: WindowFn
-               triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
-               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
-               allowed_lateness=0, # type: typing.Union[int, float]
-               environment_id=None, # type: typing.Optional[str]
-               ):
+
+  def __init__(
+      self,
+      windowfn,  # type: WindowFn
+      triggerfn=None,  # type: typing.Optional[TriggerFn]
+      accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
+      timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
+      allowed_lateness=0,  # type: typing.Union[int, float]
+      environment_id=None,  # type: typing.Optional[str]
+  ):
     """Class representing the window strategy.
 
     Args:
@@ -3338,8 +3395,10 @@ class WindowInto(ParDo):
   element with the same input value and timestamp, with its new set of windows
   determined by the windowing function.
   """
+
   class WindowIntoFn(DoFn):
     """A DoFn that applies a WindowInto operation."""
+
     def __init__(self, windowing):
       # type: (Windowing) -> None
       self.windowing = windowing
@@ -3447,6 +3506,7 @@ class Flatten(PTransform):
       if there's a chance there may be none), this argument is the only way to
       provide pipeline information and should be considered mandatory.
   """
+
   def __init__(self, **kwargs):
     super().__init__()
     self.pipeline = kwargs.pop(
@@ -3488,6 +3548,7 @@ PTransform.register_urn(
 
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
+
   def __init__(self, values, reshuffle=True):
     """Initializes a Create transform.
 
@@ -3542,6 +3603,7 @@ class Create(PTransform):
     # transforms (e.g. Write).
 
     class MaybeReshuffle(PTransform):
+
       def expand(self, pcoll):
         if len(serialized_values) > 1 and reshuffle:
           from apache_beam.transforms.util import Reshuffle
@@ -3580,6 +3642,7 @@ class Create(PTransform):
 @typehints.with_output_types(bytes)
 class Impulse(PTransform):
   """Impulse primitive."""
+
   def expand(self, pbegin):
     if not isinstance(pbegin, pvalue.PBegin):
       raise TypeError(
