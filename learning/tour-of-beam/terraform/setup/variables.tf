@@ -16,7 +16,7 @@
 # under the License.
 
 data "external" "gcloud_account" {
-  program = ["gcloud", "config", "get-value", "core/account"]
+  program = ["gcloud", "config", "get-value", "core/account", "--format=json"]
 }
 
 variable "project_id" {
