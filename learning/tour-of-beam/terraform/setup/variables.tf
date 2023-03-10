@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+variable "gcloud_account" {}
+
 data "external" "gcloud_account" {
   program = ["gcloud", "config", "get-value", "core/account"]
 }
@@ -32,5 +34,5 @@ locals {
 }
 
 variable "gcloud_account" {
-  default = data.external.gcloud_account.result
+  default = local.gcloud_account
 }
