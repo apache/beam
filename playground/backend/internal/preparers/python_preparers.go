@@ -34,53 +34,34 @@ const (
 	runPipelinePattern      = `^(\s*).*%s.run\(\)`
 )
 
-// GetPythonPreparers returns preparation methods that should be applied to Python code
-func GetPythonPreparers(builder *PreparersBuilder, isUnitTest bool) {
-	builder.
-		PythonPreparers().
-		WithLogHandler()
-	if !isUnitTest {
-		builder.
-			PythonPreparers().
-			WithGraphHandler()
+type pythonPreparer struct {
+	preparer
+	isUnitTest bool
+}
+
+func GetPythonPreparer(filePath string, isUnitTest bool) Preparer {
+	return pythonPreparer{
+		preparer: preparer{
+			filePath: filePath,
+		},
+		isUnitTest: isUnitTest,
 	}
 }
 
-// PythonPreparersBuilder facet of PreparersBuilder
-type PythonPreparersBuilder struct {
-	PreparersBuilder
-}
-
-// PythonPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
-func (builder *PreparersBuilder) PythonPreparers() *PythonPreparersBuilder {
-	return &PythonPreparersBuilder{*builder}
-}
-
-// WithLogHandler adds code for logging
-func (builder *PythonPreparersBuilder) WithLogHandler() *PythonPreparersBuilder {
-	addLogHandler := Preparer{
-		Prepare: addCodeToFile,
-		Args:    []interface{}{builder.filePath, saveLogs},
+func (p pythonPreparer) Prepare() error {
+	if err := addCodeToFile(p.filePath, saveLogs); err != nil {
+		return err
 	}
-	builder.AddPreparer(addLogHandler)
-	return builder
-}
-
-// WithGraphHandler adds code to save the graph
-func (builder *PythonPreparersBuilder) WithGraphHandler() *PythonPreparersBuilder {
-	addGraphHandler := Preparer{
-		Prepare: addCodeToFile,
-		Args:    []interface{}{builder.filePath, saveGraph},
+	if !p.isUnitTest {
+		if err := addCodeToFile(p.filePath, saveGraph); err != nil {
+			return err
+		}
 	}
-	builder.AddPreparer(addGraphHandler)
-	return builder
+	return nil
 }
 
 // addCodeToFile processes file by filePath and adds additional code
-func addCodeToFile(args ...interface{}) error {
-	filePath := args[0].(string)
-	methodToAddCode := args[1].(func(*os.File, *os.File) error)
-
+func addCodeToFile(filePath string, methodToAddCode func(*os.File, *os.File) error) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		logger.Errorf("Preparation: Error during open file: %s, err: %s\n", filePath, err.Error())

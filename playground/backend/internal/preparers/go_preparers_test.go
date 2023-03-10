@@ -16,53 +16,53 @@
 package preparers
 
 import (
-	"fmt"
-	"reflect"
+	"github.com/google/go-cmp/cmp"
 	"testing"
 )
 
-// getPreparedArgs returns array of received arguments
-func getPreparedArgs(args ...interface{}) []interface{} {
-	preparedArgs := make([]interface{}, len(args))
-	for i := range preparedArgs {
-		preparedArgs[i] = args[i]
-	}
-	return preparedArgs
-}
-
 func TestGetGoPreparers(t *testing.T) {
+	const filePath = "testfile.go"
 	type args struct {
-		filePath      string
-		prepareParams map[string]string
+		filePath   string
+		isUnitTest bool
 	}
 	tests := []struct {
 		name string
 		args args
-		want *[]Preparer
+		want goPreparer
 	}{
 		{
 			// getting the expected preparer
 			name: "Get expected preparer",
-			args: args{filePath: "", prepareParams: make(map[string]string)},
-			want: &[]Preparer{{Prepare: formatCode, Args: nil}, {Prepare: changeGoTestFileName, Args: nil}},
+			args: args{filePath: filePath, isUnitTest: false},
+			want: goPreparer{
+				preparer:   preparer{filePath: filePath},
+				isUnitTest: false,
+			},
+		},
+		{
+			// getting the expected preparer
+			name: "Get expected preparer",
+			args: args{filePath: filePath, isUnitTest: true},
+			want: goPreparer{
+				preparer:   preparer{filePath: filePath},
+				isUnitTest: true,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
-			GetGoPreparers(builder, true)
-			if got := builder.Build().GetPreparers(); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
-				t.Errorf("GetGoPreparers() = %v, want %v", got, tt.want)
+			got := GetGoPreparer(tt.args.filePath, tt.args.isUnitTest)
+			if !cmp.Equal(got, tt.want, cmp.AllowUnexported(goPreparer{}, preparer{})) {
+				t.Errorf("GetGoPreparers() diff = %s", cmp.Diff(got, tt.want, cmp.AllowUnexported(goPreparer{}, preparer{})))
 			}
 		})
 	}
 }
 
 func Test_formatCode(t *testing.T) {
-	preparedArgs1 := getPreparedArgs(correctGoFile)
-	preparedArgs2 := getPreparedArgs(incorrectGoFile)
 	type args struct {
-		args []interface{}
+		filePath string
 	}
 	tests := []struct {
 		name    string
@@ -72,19 +72,19 @@ func Test_formatCode(t *testing.T) {
 		{
 			// formatting code that does not contain errors
 			name:    "File without errors",
-			args:    args{preparedArgs1},
+			args:    args{correctGoFile},
 			wantErr: false,
 		},
 		{
 			// formatting code that contain errors
 			name:    "File with errors",
-			args:    args{preparedArgs2},
+			args:    args{incorrectGoFile},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := formatCode(tt.args.args...); (err != nil) != tt.wantErr {
+			if err := formatCode(tt.args.filePath); (err != nil) != tt.wantErr {
 				t.Errorf("formatCode() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

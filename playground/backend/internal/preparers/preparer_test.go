@@ -1,9 +1,10 @@
 package preparers
 
 import (
+	"beam.apache.org/playground/backend/internal/emulators"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"os"
-	"reflect"
 	"testing"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -80,76 +81,61 @@ func teardown() {
 
 func TestGetPreparers(t *testing.T) {
 	filepath := ""
-	prepareParams := make(map[string]string)
 	validationResults := validators.ValidationResult{
 		IsUnitTest: validators.No,
 		IsKatas:    validators.No,
+	}
+	emulatorParameters := &emulators.EmulatorParameters{
+		BootstrapServer: "",
+		TopicName:       "",
 	}
 
 	type args struct {
 		sdk           pb.Sdk
 		filepath      string
-		prepareParams map[string]string
+		prepareParams *emulators.EmulatorParameters
 		valResults    validators.ValidationResult
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    *[]Preparer
+		want    Preparer
 		wantErr bool
 	}{
 		{
 			// Test case with calling GetPreparers method with Java sdk.
-			// As a result, want to receive 3 preparers
-			name: "Get Java preparers",
+			name: "Get Java preparer",
 			args: args{
 				sdk:           pb.Sdk_SDK_JAVA,
 				filepath:      filepath,
-				prepareParams: prepareParams,
+				prepareParams: emulatorParameters,
 				valResults:    validationResults,
 			},
-			want: NewPreparersBuilder(filepath, prepareParams).
-				JavaPreparers().
-				WithPublicClassRemover().
-				WithPackageChanger().
-				WithGraphHandler().
-				Build().
-				GetPreparers(),
+			want:    GetJavaPreparer(filepath, false, false, emulatorParameters),
 			wantErr: false,
 		},
 		{
 			// Test case with calling GetPreparers method with Python sdk.
-			// As a result, want to receive 2 preparers
-			name: "Get Python Preparers",
+			name: "Get Python Preparer",
 			args: args{
 				sdk:           pb.Sdk_SDK_PYTHON,
 				filepath:      filepath,
-				prepareParams: prepareParams,
+				prepareParams: emulatorParameters,
 				valResults:    validationResults,
 			},
-			want: NewPreparersBuilder(filepath, prepareParams).
-				PythonPreparers().
-				WithLogHandler().
-				WithGraphHandler().
-				Build().
-				GetPreparers(),
+			want:    GetPythonPreparer(filepath, false),
 			wantErr: false,
 		},
 		{
 			// Test case with calling GetPreparers method with Go sdk.
-			// As a result, want to receive 1 preparer
 			name: "Get Go preparer",
 			args: args{
 				sdk:           pb.Sdk_SDK_GO,
 				filepath:      filepath,
-				prepareParams: prepareParams,
+				prepareParams: emulatorParameters,
 				valResults:    validationResults,
 			},
-			want: NewPreparersBuilder(filepath, prepareParams).
-				GoPreparers().
-				WithCodeFormatter().
-				Build().
-				GetPreparers(),
+			want:    GetGoPreparer(filepath, false),
 			wantErr: false,
 		},
 		{
@@ -159,16 +145,10 @@ func TestGetPreparers(t *testing.T) {
 			args: args{
 				sdk:           pb.Sdk_SDK_SCIO,
 				filepath:      filepath,
-				prepareParams: prepareParams,
+				prepareParams: emulatorParameters,
 				valResults:    validationResults,
 			},
-			want: NewPreparersBuilder(filepath, prepareParams).
-				ScioPreparers().
-				WithPackageRemover().
-				WithImportRemover().
-				WithFileNameChanger().
-				Build().
-				GetPreparers(),
+			want:    GetScioPreparer(filepath),
 			wantErr: false,
 		},
 	}
@@ -179,8 +159,8 @@ func TestGetPreparers(t *testing.T) {
 				t.Errorf("GetPreparers() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(len(*got), len(*tt.want)) {
-				t.Errorf("GetPreparers() got = %v, want %v", len(*got), len(*tt.want))
+			if !cmp.Equal(got, tt.want, cmp.AllowUnexported(javaPreparer{}, pythonPreparer{}, goPreparer{}, scioPreparer{}, preparer{})) {
+				t.Errorf("GetPreparers() diff = %s", cmp.Diff(got, tt.want, cmp.AllowUnexported(javaPreparer{}, pythonPreparer{}, goPreparer{}, scioPreparer{}, preparer{})))
 			}
 		})
 	}

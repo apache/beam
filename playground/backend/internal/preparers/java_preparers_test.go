@@ -16,6 +16,8 @@
 package preparers
 
 import (
+	"beam.apache.org/playground/backend/internal/emulators"
+	"github.com/google/go-cmp/cmp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,7 +46,9 @@ func Test_replace(t *testing.T) {
 	_ = lc.CreateSourceCodeFiles(sources)
 
 	type args struct {
-		args []interface{}
+		filePath   string
+		pattern    string
+		newPattern string
 	}
 	tests := []struct {
 		name     string
@@ -54,31 +58,31 @@ func Test_replace(t *testing.T) {
 	}{
 		{
 			name:    "File doesn't exist",
-			args:    args{[]interface{}{"someFile.java", classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
+			args:    args{"someFile.java", classWithPublicModifierPattern, classWithoutPublicModifierPattern},
 			wantErr: true,
 		},
 		{
 			// Test that file with public class loses 'public' modifier
 			name:     "File with public class",
-			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
+			args:     args{lc.Paths.AbsoluteSourceFilePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
 			wantCode: codeWithoutPublicClass,
 			wantErr:  false,
 		},
 		{
 			// Test that file with defined package changes to import dependencies from this package
 			name:     "File with package",
-			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, packagePattern, importStringPattern}},
+			args:     args{lc.Paths.AbsoluteSourceFilePath, packagePattern, importStringPattern},
 			wantCode: codeWithImportedPackage,
 			wantErr:  false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := replace(tt.args.args...); (err != nil) != tt.wantErr {
+			if err := replace(tt.args.filePath, tt.args.pattern, tt.args.newPattern); (err != nil) != tt.wantErr {
 				t.Errorf("removePublicClassModifier() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				data, err := os.ReadFile(tt.args.args[0].(string))
+				data, err := os.ReadFile(tt.args.filePath)
 				if err != nil {
 					t.Errorf("removePublicClassModifier() unexpected error = %v", err)
 				}
@@ -91,39 +95,59 @@ func Test_replace(t *testing.T) {
 }
 
 func TestGetJavaPreparers(t *testing.T) {
+	emulatorParameters := &emulators.EmulatorParameters{
+		BootstrapServer: "",
+		TopicName:       "",
+	}
 	type args struct {
 		filePath      string
-		prepareParams map[string]string
+		prepareParams *emulators.EmulatorParameters
 		isUnitTest    bool
 		isKata        bool
 	}
 	tests := []struct {
 		name string
 		args args
-		want int
+		want javaPreparer
 	}{
 		{
-			name: "Test number of preparers for code",
-			args: args{"MOCK_FILEPATH", make(map[string]string), false, false},
-			want: 3,
+			name: "Test preparer for code",
+			args: args{"MOCK_FILEPATH", emulatorParameters, false, false},
+			want: javaPreparer{
+				preparer: preparer{
+					filePath: "MOCK_FILEPATH",
+				},
+				isKata:     false,
+				isUnitTest: false,
+				parameters: emulatorParameters,
+			},
 		},
 		{
-			name: "Test number of preparers for unit test",
-			args: args{"MOCK_FILEPATH", make(map[string]string), true, false},
-			want: 2,
+			name: "Test preparer for unit test",
+			args: args{"MOCK_FILEPATH", emulatorParameters, true, false},
+			want: javaPreparer{
+				preparer:   preparer{filePath: "MOCK_FILEPATH"},
+				isKata:     false,
+				isUnitTest: true,
+				parameters: emulatorParameters,
+			},
 		},
 		{
-			name: "Test number of preparers for kata",
-			args: args{"MOCK_FILEPATH", make(map[string]string), false, true},
-			want: 3,
+			name: "Test preparer for kata",
+			args: args{"MOCK_FILEPATH", emulatorParameters, false, true},
+			want: javaPreparer{
+				preparer:   preparer{filePath: "MOCK_FILEPATH"},
+				isKata:     true,
+				isUnitTest: false,
+				parameters: emulatorParameters,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
-			GetJavaPreparers(builder, tt.args.isUnitTest, tt.args.isKata)
-			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
-				t.Errorf("GetJavaPreparation() returns %v Preparers, want %v", len(*got), tt.want)
+			got := GetJavaPreparer(tt.args.filePath, tt.args.isUnitTest, tt.args.isKata, tt.args.prepareParams)
+			if !cmp.Equal(got, tt.want, cmp.AllowUnexported(javaPreparer{}, preparer{})) {
+				t.Errorf("GetJavaPreparation() diff = %s", cmp.Diff(got, tt.want, cmp.AllowUnexported(javaPreparer{}, preparer{})))
 			}
 		})
 	}

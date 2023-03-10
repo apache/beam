@@ -16,14 +16,13 @@
 package preparers
 
 import (
+	"beam.apache.org/playground/backend/internal/emulators"
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 
-	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
 )
@@ -47,98 +46,86 @@ const (
 		"%s.run"
 )
 
-// JavaPreparersBuilder facet of PreparersBuilder
-type JavaPreparersBuilder struct {
-	PreparersBuilder
+type javaPreparer struct {
+	preparer
+	isKata     bool
+	isUnitTest bool
+	parameters *emulators.EmulatorParameters
 }
 
-// JavaPreparers chains to type *PreparersBuilder and returns a *JavaPreparersBuilder
-func (builder *PreparersBuilder) JavaPreparers() *JavaPreparersBuilder {
-	return &JavaPreparersBuilder{*builder}
+func GetJavaPreparer(filePath string, isUnitTest bool, isKata bool, parameters *emulators.EmulatorParameters) Preparer {
+	return javaPreparer{
+		preparer: preparer{
+			filePath: filePath,
+		},
+		isKata:     isKata,
+		isUnitTest: isUnitTest,
+		parameters: parameters,
+	}
 }
 
-// WithPublicClassRemover adds preparer to remove public class
-func (builder *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuilder {
-	removePublicClassPreparer := Preparer{
-		Prepare: removePublicClassModifier,
-		Args:    []interface{}{builder.filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
-	}
-	builder.AddPreparer(removePublicClassPreparer)
-	return builder
-}
+func (p javaPreparer) Prepare() error {
+	if !p.isUnitTest && !p.isKata {
+		if err := removePublicClassModifier(p.filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern); err != nil {
+			return err
+		}
 
-// WithPackageChanger adds preparer to change package
-func (builder *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder {
-	changePackagePreparer := Preparer{
-		Prepare: replace,
-		Args:    []interface{}{builder.filePath, packagePattern, importStringPattern},
-	}
-	builder.AddPreparer(changePackagePreparer)
-	return builder
-}
+		// Replace 'package' with 'import'
+		if err := replace(p.filePath, packagePattern, importStringPattern); err != nil {
+			return err
+		}
 
-// WithPackageRemover adds preparer to remove package
-func (builder *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder {
-	removePackagePreparer := Preparer{
-		Prepare: replace,
-		Args:    []interface{}{builder.filePath, packagePattern, newLinePattern},
-	}
-	builder.AddPreparer(removePackagePreparer)
-	return builder
-}
+		if err := addCodeToSaveGraph(p.filePath); err != nil {
+			return err
+		}
 
-// WithFileNameChanger adds preparer to remove package
-func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
-	unitTestFileNameChanger := Preparer{
-		Prepare: utils.ChangeTestFileName,
-		Args:    []interface{}{builder.filePath, javaPublicClassNamePattern},
+		if p.parameters != nil {
+			// Replace bootstrap server address placeholder
+			if err := replace(p.filePath, bootstrapServerPattern, p.parameters.BootstrapServer); err != nil {
+				return err
+			}
+			// Replace topic name
+			if err := replace(p.filePath, topicNamePattern, p.parameters.TopicName); err != nil {
+				return err
+			}
+		}
 	}
-	builder.AddPreparer(unitTestFileNameChanger)
-	return builder
-}
+	if p.isUnitTest {
+		// Replace 'package' with 'import'
+		if err := replace(p.filePath, packagePattern, importStringPattern); err != nil {
+			return err
+		}
+		// Rename test file to match class name
+		if err := utils.ChangeTestFileName(p.filePath, javaPublicClassNamePattern); err != nil {
+			return err
+		}
+	}
+	if p.isKata {
+		if err := removePublicClassModifier(p.filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern); err != nil {
+			return err
+		}
 
-// WithGraphHandler adds code to save the graph
-func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
-	graphCodeAdder := Preparer{
-		Prepare: addCodeToSaveGraph,
-		Args:    []interface{}{builder.filePath},
-	}
-	builder.AddPreparer(graphCodeAdder)
-	return builder
-}
+		// Remove 'package' line
+		if err := replace(p.filePath, packagePattern, newLinePattern); err != nil {
+			return err
+		}
 
-// WithBootstrapServersChanger adds preparer to replace tokens in the example source to correct values
-func (builder *JavaPreparersBuilder) WithBootstrapServersChanger() *JavaPreparersBuilder {
-	if len(builder.params) == 0 {
-		return builder
-	}
-	bootstrapServerVal, ok := builder.params[constants.BootstrapServerKey]
-	if !ok {
-		return builder
-	}
-	bootstrapServersChanger := Preparer{
-		Prepare: replace,
-		Args:    []interface{}{builder.filePath, bootstrapServerPattern, bootstrapServerVal},
-	}
-	builder.AddPreparer(bootstrapServersChanger)
-	return builder
-}
+		if err := addCodeToSaveGraph(p.filePath); err != nil {
+			return err
+		}
 
-// WithTopicNameChanger adds preparer to replace tokens in the example source to correct values
-func (builder *JavaPreparersBuilder) WithTopicNameChanger() *JavaPreparersBuilder {
-	if len(builder.params) == 0 {
-		return builder
+		if p.parameters != nil {
+			// Replace bootstrap server address placeholder
+			if err := replace(p.filePath, bootstrapServerPattern, p.parameters.BootstrapServer); err != nil {
+				return err
+			}
+			// Replace topic name
+			if err := replace(p.filePath, topicNamePattern, p.parameters.TopicName); err != nil {
+				return err
+			}
+		}
 	}
-	topicNameVal, ok := builder.params[constants.TopicNameKey]
-	if !ok {
-		return builder
-	}
-	topicNameChanger := Preparer{
-		Prepare: replace,
-		Args:    []interface{}{builder.filePath, topicNamePattern, topicNameVal},
-	}
-	builder.AddPreparer(topicNameChanger)
-	return builder
+	return nil
 }
 
 func addCodeToSaveGraph(args ...interface{}) error {
@@ -156,35 +143,10 @@ func addCodeToSaveGraph(args ...interface{}) error {
 	return nil
 }
 
-// GetJavaPreparers returns preparation methods that should be applied to Java code
-func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
-	if !isUnitTest && !isKata {
-		builder.JavaPreparers().
-			WithPublicClassRemover().
-			WithPackageChanger().
-			WithGraphHandler().
-			WithBootstrapServersChanger().
-			WithTopicNameChanger()
-	}
-	if isUnitTest {
-		builder.JavaPreparers().
-			WithPackageChanger().
-			WithFileNameChanger()
-	}
-	if isKata {
-		builder.JavaPreparers().
-			WithPublicClassRemover().
-			WithPackageRemover().
-			WithGraphHandler().
-			WithBootstrapServersChanger().
-			WithTopicNameChanger()
-	}
-}
-
 // findPipelineObjectName finds name of pipeline in JAVA code when pipeline creates
 func findPipelineObjectName(filepath string) (string, error) {
 	reg := regexp.MustCompile(pipelineNamePattern)
-	b, err := ioutil.ReadFile(filepath)
+	b, err := os.ReadFile(filepath)
 	if err != nil {
 		return "", err
 	}
@@ -198,11 +160,7 @@ func findPipelineObjectName(filepath string) (string, error) {
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern
-func replace(args ...interface{}) error {
-	filePath := args[0].(string)
-	pattern := args[1].(string)
-	newPattern := args[2].(string)
-
+func replace(filePath, pattern, newPattern string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		logger.Errorf("Preparation: Error during open file: %s, err: %s\n", filePath, err.Error())
@@ -232,8 +190,8 @@ func replace(args ...interface{}) error {
 	return nil
 }
 
-func removePublicClassModifier(args ...interface{}) error {
-	err := replace(args...)
+func removePublicClassModifier(filePath, pattern, newPattern string) error {
+	err := replace(filePath, pattern, newPattern)
 	return err
 }
 

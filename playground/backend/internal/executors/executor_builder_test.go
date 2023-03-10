@@ -117,38 +117,6 @@ func TestExecutorBuilder_WithRunner(t *testing.T) {
 	}
 }
 
-func TestExecutorBuilder_WithPreparer(t *testing.T) {
-	type fields struct {
-		actions []handler
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   *PreparerBuilder
-	}{
-		{
-			name:   "Get PreparerBuilder with prepared actions",
-			fields: fields{actions: handlers},
-			want:   &PreparerBuilder{ExecutorBuilder{actions: handlers}},
-		},
-		{
-			name:   "Get PreparerBuilder with empty actions",
-			fields: fields{actions: []handler{}},
-			want:   &PreparerBuilder{ExecutorBuilder{actions: []handler{}}},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := &ExecutorBuilder{
-				actions: tt.fields.actions,
-			}
-			if got := b.WithPreparer(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("WithPreparer() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestExecutorBuilder_WithTestRunner(t *testing.T) {
 	type fields struct {
 		actions []handler
@@ -199,7 +167,6 @@ func TestExecutorBuilder_Build(t *testing.T) {
 				compileArgs: CmdConfiguration{},
 				runArgs:     CmdConfiguration{pipelineOptions: []string{pipelineOptions}},
 				testArgs:    CmdConfiguration{},
-				preparers:   nil,
 			},
 		},
 	}

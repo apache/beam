@@ -16,6 +16,8 @@
 package code_processing
 
 import (
+	"beam.apache.org/playground/backend/internal/emulators"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"bytes"
 	"context"
 	"fmt"
@@ -69,7 +71,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	err = prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, validationResults, lc.GetPreparerParameters())
+	err = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, validationResults, lc.GetEmulatorParameters())
 	if err != nil {
 		logger.Errorf("%s: error during preparation step: %s", pipelineId, err.Error())
 		return
@@ -210,19 +212,25 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	return nil
 }
 
-func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults validators.ValidationResult, prepareParams map[string]string) error {
+func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, validationResults validators.ValidationResult, prepareParams *emulators.EmulatorParameters) error {
 	errorChannel, successChannel := createStatusChannels()
-	executorBuilder, err := builder.Preparer(paths, sdkEnv, validationResults, prepareParams)
+	sdk := sdkEnv.ApacheBeamSdk
+	preparer, err := preparers.GetPreparers(sdk, paths.AbsoluteSourceFilePath, validationResults, prepareParams)
 	if err != nil {
 		if processingErr := processSetupError(err, pipelineId, cacheService); processingErr != nil {
 			return processingErr
 		}
 		return err
 	}
-	executor := executorBuilder.Build()
-	logger.Infof("%s: Prepare() ...\n", pipelineId)
-	prepareFunc := executor.Prepare()
-	go prepareFunc(successChannel, errorChannel, validationResults)
+	go func() {
+		if err := preparer.Prepare(); err != nil {
+			errorChannel <- err
+			successChannel <- false
+			return
+		}
+
+		successChannel <- true
+	}()
 
 	// Start of the monitoring of background tasks (prepare function/cancellation/timeout)
 	ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
@@ -255,7 +263,7 @@ func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.
 		if processingError := processSetupError(err, pipelineId, cacheService); processingError != nil {
 			return validators.ValidationResult{}, processingError
 		}
-	return validators.ValidationResult{}, err
+		return validators.ValidationResult{}, err
 	}
 
 	var validationResult validators.ValidationResult

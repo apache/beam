@@ -17,54 +17,28 @@ package preparers
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 )
 
 // Preparer is used to make preparations with file with code.
-type Preparer struct {
-	Prepare func(args ...interface{}) error
-	Args    []interface{}
+type Preparer interface {
+	Prepare() error
 }
 
-type Preparers struct {
-	functions *[]Preparer
-}
-
-func (preparers *Preparers) GetPreparers() *[]Preparer {
-	return preparers.functions
-}
-
-// PreparersBuilder struct
-type PreparersBuilder struct {
-	preparers *Preparers
-	filePath  string
-	params    map[string]string
-}
-
-// NewPreparersBuilder constructor for PreparersBuilder
-func NewPreparersBuilder(filePath string, params map[string]string) *PreparersBuilder {
-	return &PreparersBuilder{preparers: &Preparers{functions: &[]Preparer{}}, filePath: filePath, params: params}
-}
-
-// Build builds preparers from PreparersBuilder
-func (builder *PreparersBuilder) Build() *Preparers {
-	return builder.preparers
-}
-
-func (builder *PreparersBuilder) AddPreparer(newPreparer Preparer) {
-	*builder.preparers.functions = append(*builder.preparers.functions, newPreparer)
+type preparer struct {
+	filePath string
 }
 
 // GetPreparers returns slice of preparers.Preparer according to sdk
-func GetPreparers(sdk pb.Sdk, filepath string, valResults validators.ValidationResult, prepareParams map[string]string) (*[]Preparer, error) {
+func GetPreparers(sdk pb.Sdk, filepath string, valResults validators.ValidationResult, prepareParams *emulators.EmulatorParameters) (Preparer, error) {
 	isUnitTest, err := valResults.IsUnitTest.ToBool()
 	if err != nil {
 		logger.Errorf("GetPreparers: No information whether example is a unit test or no: check whether the validation step had been ran correctly")
 		return nil, fmt.Errorf("GetPreparers: No information whether example is a unit test or no: %s", err)
 	}
-	builder := NewPreparersBuilder(filepath, prepareParams)
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
 		isKatas, err := valResults.IsKatas.ToBool()
@@ -72,15 +46,14 @@ func GetPreparers(sdk pb.Sdk, filepath string, valResults validators.ValidationR
 			logger.Errorf("GetPreparers: No information about katas validation result: check whether the validation step had been ran correctly")
 			return nil, fmt.Errorf("GetPreparers:: No information about katas validation result: %s", err.Error())
 		}
-		GetJavaPreparers(builder, isUnitTest, isKatas)
+		return GetJavaPreparer(filepath, isUnitTest, isKatas, prepareParams), nil
 	case pb.Sdk_SDK_GO:
-		GetGoPreparers(builder, isUnitTest)
+		return GetGoPreparer(filepath, isUnitTest), nil
 	case pb.Sdk_SDK_PYTHON:
-		GetPythonPreparers(builder, isUnitTest)
+		return GetPythonPreparer(filepath, isUnitTest), nil
 	case pb.Sdk_SDK_SCIO:
-		GetScioPreparers(builder)
+		return GetScioPreparer(filepath), nil
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
-	return builder.Build().GetPreparers(), nil
 }

@@ -24,50 +24,30 @@ const (
 	emptyStr                   = ""
 )
 
-// ScioPreparersBuilder facet of PreparersBuilder
-type ScioPreparersBuilder struct {
-	PreparersBuilder
+type scioPreparer struct {
+	preparer
 }
 
-// ScioPreparers chains to type *PreparersBuilder and returns a *ScioPreparersBuilder
-func (builder *PreparersBuilder) ScioPreparers() *ScioPreparersBuilder {
-	return &ScioPreparersBuilder{*builder}
-}
-
-// WithFileNameChanger adds preparer to change source code file name
-func (builder *ScioPreparersBuilder) WithFileNameChanger() *ScioPreparersBuilder {
-	changeNamePreparer := Preparer{
-		Prepare: utils.ChangeTestFileName,
-		Args:    []interface{}{builder.filePath, scioPublicClassNamePattern},
+func GetScioPreparer(filePath string) Preparer {
+	return scioPreparer{
+		preparer{
+			filePath: filePath,
+		},
 	}
-	builder.AddPreparer(changeNamePreparer)
-	return builder
 }
 
-// WithPackageRemover adds preparer to remove package from the code
-func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder {
-	removePackagePreparer := Preparer{
-		Prepare: replace,
-		Args:    []interface{}{builder.filePath, scioPackagePattern, ""},
+func (p scioPreparer) Prepare() error {
+	// Remove 'package' string
+	if err := replace(p.filePath, scioPackagePattern, ""); err != nil {
+		return err
 	}
-	builder.AddPreparer(removePackagePreparer)
-	return builder
-}
-
-// WithImportRemover adds preparer to remove examples import from the code
-func (builder *ScioPreparersBuilder) WithImportRemover() *ScioPreparersBuilder {
-	removeImportPreparer := Preparer{
-		Prepare: replace,
-		Args:    []interface{}{builder.filePath, scioExampleImport, emptyStr},
+	// Remove imports
+	if err := replace(p.filePath, scioExampleImport, emptyStr); err != nil {
+		return err
 	}
-	builder.AddPreparer(removeImportPreparer)
-	return builder
-}
-
-// GetScioPreparers returns preparation methods that should be applied to Scio code
-func GetScioPreparers(builder *PreparersBuilder) {
-	builder.ScioPreparers().
-		WithPackageRemover().
-		WithImportRemover().
-		WithFileNameChanger()
+	// Rename file to match main file name
+	if err := utils.ChangeTestFileName(p.filePath, scioPublicClassNamePattern); err != nil {
+		return err
+	}
+	return nil
 }

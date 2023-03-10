@@ -31,8 +31,6 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
-	"beam.apache.org/playground/backend/internal/preparers"
-	"beam.apache.org/playground/backend/internal/validators"
 )
 
 const emptyFolder = "emptyFolder"
@@ -161,112 +159,6 @@ func teardown() error {
 		return err
 	}
 	return nil
-}
-
-func TestPreparer(t *testing.T) {
-	validationResults := validators.ValidationResult{
-		IsUnitTest: validators.No,
-		IsKatas:    validators.No,
-	}
-
-	pythonPrep, err := preparers.GetPreparers(pythonSdkEnv.ApacheBeamSdk, pythonPaths.AbsoluteSourceFilePath, validationResults, nil)
-	if err != nil {
-		panic(err)
-	}
-	pipelineOptions := ""
-	wantPythonExecutor := executors.NewExecutorBuilder().
-		WithPreparer().
-		WithSdkPreparers(pythonPrep)
-
-	goPrep, err := preparers.GetPreparers(goSdkEnv.ApacheBeamSdk, goPaths.AbsoluteSourceFilePath, validationResults, nil)
-	if err != nil {
-		panic(err)
-	}
-	wantGoExecutor := executors.NewExecutorBuilder().
-		WithPreparer().
-		WithSdkPreparers(goPrep)
-
-	javaPrep, err := preparers.GetPreparers(javaSdkEnv.ApacheBeamSdk, javaPaths.AbsoluteSourceFilePath, validationResults, nil)
-	if err != nil {
-		panic(err)
-	}
-	wantJavaExecutor := executors.NewExecutorBuilder().
-		WithPreparer().
-		WithSdkPreparers(javaPrep)
-
-	scioPrep, err := preparers.GetPreparers(scioSdkEnv.ApacheBeamSdk, scioPaths.AbsoluteSourceFilePath, validationResults, nil)
-	if err != nil {
-		panic(err)
-	}
-	wantScioExecutor := executors.NewExecutorBuilder().
-		WithPreparer().
-		WithSdkPreparers(scioPrep)
-
-	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, "", pythonSdkEnv.ExecutorConfig, "", 0)
-
-	type args struct {
-		paths           fs_tool.LifeCyclePaths
-		pipelineOptions string
-		sdkEnv          *environment.BeamEnvs
-		valResults      validators.ValidationResult
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *executors.ExecutorBuilder
-		wantErr bool
-	}{
-		{
-			// Test case with calling Setup with incorrect SDK.
-			// As a result, want to receive an error.
-			name:    "Incorrect sdk",
-			args:    args{*pythonPaths, pipelineOptions, wrongSdkEnv, validationResults},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			// Test case with calling Setup with correct SDK.
-			// As a result, want to receive an expected preparer builder.
-			name:    "Test correct preparer builder with Python sdk",
-			args:    args{*pythonPaths, pipelineOptions, pythonSdkEnv, validationResults},
-			want:    &wantPythonExecutor.ExecutorBuilder,
-			wantErr: false,
-		},
-		{
-			name:    "Test correct preparer builder with Java sdk",
-			args:    args{*javaPaths, pipelineOptions, javaSdkEnv, validationResults},
-			want:    &wantJavaExecutor.ExecutorBuilder,
-			wantErr: false,
-		},
-		{
-			name:    "Test correct preparer builder with Go sdk",
-			args:    args{*goPaths, pipelineOptions, goSdkEnv, validationResults},
-			want:    &wantGoExecutor.ExecutorBuilder,
-			wantErr: false,
-		},
-		{
-			name:    "Test correct preparer builder with Scio sdk",
-			args:    args{*scioPaths, pipelineOptions, scioSdkEnv, validationResults},
-			want:    &wantScioExecutor.ExecutorBuilder,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := Preparer(&tt.args.paths, tt.args.sdkEnv, tt.args.valResults, nil)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Preparer() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if err != nil && !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Preparer() got = %v, want %v", got, tt.want)
-				return
-			}
-			if err == nil && !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
-				t.Errorf("Preparer() got = %v, want %v", got.Build(), tt.want.Build())
-			}
-		})
-	}
 }
 
 func TestCompiler(t *testing.T) {

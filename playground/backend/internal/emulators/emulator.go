@@ -16,19 +16,24 @@
 package emulators
 
 import (
+	"beam.apache.org/playground/backend/internal/constants"
 	"errors"
 	"os"
 	"path"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 )
+
+type EmulatorParameters struct {
+	BootstrapServer string
+	TopicName       string
+}
 
 type EmulatorMockCluster interface {
 	Stop()
 	GetAddress() string
-	GetPreparerParameters() map[string]string
+	GetPreparerParameters() *EmulatorParameters
 }
 
 type EmulatorProducer interface {
@@ -81,12 +86,9 @@ func PrepareMockClusters(configuration EmulatorConfiguration) ([]EmulatorMockClu
 				kafkaMockCluster.Stop()
 				return nil, err
 			}
-			for _, dataset := range datasets {
-				for k, v := range dataset.Options {
-					kafkaMockCluster.preparerParameters[k] = v
-				}
-			}
-			kafkaMockCluster.preparerParameters[constants.BootstrapServerKey] = kafkaMockCluster.GetAddress()
+
+			kafkaMockCluster.preparerParameters.TopicName = datasets[0].Options[constants.TopicNameKey] // TODO: handle multiple topics?
+			kafkaMockCluster.preparerParameters.BootstrapServer = kafkaMockCluster.GetAddress()
 		default:
 			return nil, errors.New("unsupported emulator type")
 		}

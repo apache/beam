@@ -173,9 +173,7 @@ func CreateTempFile(originalFilePath string) (*os.File, error) {
 	return os.Create(tmpFilePath)
 }
 
-func ChangeTestFileName(args ...interface{}) error {
-	filePath := args[0].(string)
-	publicClassNamePattern := args[1].(string)
+func ChangeTestFileName(filePath, publicClassNamePattern string) error {
 	className, err := GetPublicClassName(filePath, publicClassNamePattern)
 	if err != nil {
 		return err

@@ -48,7 +48,7 @@ type KafkaMockCluster struct {
 	cmd                *exec.Cmd
 	host               string
 	port               string
-	preparerParameters map[string]string
+	preparerParameters *EmulatorParameters
 }
 
 func NewKafkaMockCluster(emulatorExecutablePath string) (*KafkaMockCluster, error) {
@@ -118,7 +118,7 @@ func NewKafkaMockCluster(emulatorExecutablePath string) (*KafkaMockCluster, erro
 					cmd:                cmd,
 					host:               bootstrapServersArr[0],
 					port:               bootstrapServersArr[1],
-					preparerParameters: make(map[string]string)}, nil
+					preparerParameters: &EmulatorParameters{}}, nil
 			}
 		case <-globalTicker.C:
 			return nil, errors.New("timeout while a mock cluster is starting")
@@ -245,6 +245,6 @@ func unmarshallDatasets(dataset *DatasetDTO) ([]map[string]interface{}, error) {
 	return entries, nil
 }
 
-func (kmc *KafkaMockCluster) GetPreparerParameters() map[string]string {
+func (kmc *KafkaMockCluster) GetPreparerParameters() *EmulatorParameters {
 	return kmc.preparerParameters
 }

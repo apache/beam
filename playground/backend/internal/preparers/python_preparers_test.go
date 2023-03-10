@@ -17,6 +17,7 @@ package preparers
 
 import (
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -27,26 +28,28 @@ import (
 
 func TestGetPythonPreparers(t *testing.T) {
 	type args struct {
-		filePath      string
-		prepareParams map[string]string
+		filePath   string
+		isUnitTest bool
 	}
 	tests := []struct {
 		name string
 		args args
-		want int
+		want pythonPreparer
 	}{
 		{
 			name: "Get number of python preparers",
-			args: args{"MOCK_FILEPATH", make(map[string]string)},
-			want: 2,
+			args: args{"MOCK_FILEPATH", false},
+			want: pythonPreparer{
+				preparer:   preparer{filePath: "MOCK_FILEPATH"},
+				isUnitTest: false,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
-			GetPythonPreparers(builder, false)
-			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
-				t.Errorf("GetPythonPreparers() returns %v Preparers, want %v", len(*got), tt.want)
+			got := GetPythonPreparer(tt.args.filePath, tt.args.isUnitTest)
+			if !cmp.Equal(got, tt.want, cmp.AllowUnexported(pythonPreparer{}, preparer{})) {
+				t.Errorf("GetPythonPreparers() diff = %s", cmp.Diff(got, tt.want, cmp.AllowUnexported(pythonPreparer{}, preparer{})))
 			}
 		})
 	}
@@ -56,7 +59,8 @@ func Test_addCodeToFile(t *testing.T) {
 	wantCode := "import logging\nlogging.basicConfig(\n    level=logging.INFO,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n" + pyCode
 
 	type args struct {
-		args []interface{}
+		filePath        string
+		methodToAddCode func(*os.File, *os.File) error
 	}
 	tests := []struct {
 		name     string
@@ -68,25 +72,25 @@ func Test_addCodeToFile(t *testing.T) {
 			// Call addCodeToFile method if the file doesn't exist.
 			// As a result, want to receive error
 			name:    "File doesn't exist",
-			args:    args{[]interface{}{incorrectPyFile, saveLogs}},
+			args:    args{incorrectPyFile, saveLogs},
 			wantErr: true,
 		},
 		{
 			// Call addCodeToFile method when file exists.
 			// As a result, want to receive an updated code
 			name:     "Original file exists",
-			args:     args{[]interface{}{correctPyFile, saveLogs}},
+			args:     args{correctPyFile, saveLogs},
 			wantCode: wantCode,
 			wantErr:  false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := addCodeToFile(tt.args.args...); (err != nil) != tt.wantErr {
+			if err := addCodeToFile(tt.args.filePath, tt.args.methodToAddCode); (err != nil) != tt.wantErr {
 				t.Errorf("addToCode() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				data, err := os.ReadFile(tt.args.args[0].(string))
+				data, err := os.ReadFile(tt.args.filePath)
 				if err != nil {
 					t.Errorf("addToCode() unexpected error = %v", err)
 				}

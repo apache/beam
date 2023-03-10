@@ -30,49 +30,34 @@ const (
 	sep     = "."
 )
 
-// GoPreparersBuilder facet of PreparersBuilder
-type GoPreparersBuilder struct {
-	PreparersBuilder
+type goPreparer struct {
+	preparer
+	isUnitTest bool
 }
 
-// GoPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
-func (builder *PreparersBuilder) GoPreparers() *GoPreparersBuilder {
-	return &GoPreparersBuilder{*builder}
-}
-
-// WithCodeFormatter adds code formatter preparer
-func (builder *GoPreparersBuilder) WithCodeFormatter() *GoPreparersBuilder {
-	formatCodePreparer := Preparer{
-		Prepare: formatCode,
-		Args:    []interface{}{builder.filePath},
+func GetGoPreparer(filePath string, isUnitTest bool) Preparer {
+	return goPreparer{
+		preparer: preparer{
+			filePath: filePath,
+		},
+		isUnitTest: isUnitTest,
 	}
-	builder.AddPreparer(formatCodePreparer)
-	return builder
 }
 
-// WithFileNameChanger adds preparer to change file name
-func (builder *GoPreparersBuilder) WithFileNameChanger() *GoPreparersBuilder {
-	changeTestFileName := Preparer{
-		Prepare: changeGoTestFileName,
-		Args:    []interface{}{builder.filePath},
+func (p goPreparer) Prepare() error {
+	if err := formatCode(p.filePath); err != nil {
+		return err
 	}
-	builder.AddPreparer(changeTestFileName)
-	return builder
-}
-
-// GetGoPreparers returns reparation methods that should be applied to Go code
-func GetGoPreparers(builder *PreparersBuilder, isUnitTest bool) {
-	builder.
-		GoPreparers().
-		WithCodeFormatter()
-	if isUnitTest {
-		builder.GoPreparers().WithFileNameChanger()
+	if p.isUnitTest {
+		if err := changeGoTestFileName(p.filePath); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // formatCode formats go code
-func formatCode(args ...interface{}) error {
-	filePath := args[0].(string)
+func formatCode(filePath string) error {
 	cmd := exec.Command(goName, fmtArgs, filepath.Base(filePath))
 	cmd.Dir = filepath.Dir(filePath)
 	stdout, err := cmd.CombinedOutput()
@@ -82,8 +67,7 @@ func formatCode(args ...interface{}) error {
 	return nil
 }
 
-func changeGoTestFileName(args ...interface{}) error {
-	filePath := args[0].(string)
+func changeGoTestFileName(filePath string) error {
 	testFileName := fmt.Sprintf("%s_test.%s", strings.Split(filePath, sep)[0], goName)
 	err := os.Rename(filePath, testFileName)
 	if err != nil {

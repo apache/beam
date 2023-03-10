@@ -21,8 +21,6 @@ import (
 	"reflect"
 	"testing"
 
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/validators"
 )
 
@@ -83,7 +81,6 @@ func TestExecutor_Run(t *testing.T) {
 		runArgs     CmdConfiguration
 		testArgs    CmdConfiguration
 		validators  []validators.Validator
-		preparers   []preparers.Preparer
 	}
 	tests := []struct {
 		name   string
@@ -151,7 +148,6 @@ func TestExecutor_Run(t *testing.T) {
 				compileArgs: tt.fields.compileArgs,
 				runArgs:     tt.fields.runArgs,
 				testArgs:    tt.fields.testArgs,
-				preparers:   tt.fields.preparers,
 			}
 			if got := ex.Run(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("WithRunner() = %v, want %v", got, tt.want)
@@ -166,7 +162,6 @@ func TestExecutor_RunTest(t *testing.T) {
 		runArgs     CmdConfiguration
 		testArgs    CmdConfiguration
 		validators  []validators.Validator
-		preparers   []preparers.Preparer
 	}
 	type args struct {
 		ctx context.Context
@@ -210,83 +205,9 @@ func TestExecutor_RunTest(t *testing.T) {
 				compileArgs: tt.fields.compileArgs,
 				runArgs:     tt.fields.runArgs,
 				testArgs:    tt.fields.testArgs,
-				preparers:   tt.fields.preparers,
 			}
 			if got := ex.RunTest(tt.args.ctx); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("RunTest() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestExecutor_Prepare(t *testing.T) {
-	valResult := validators.ValidationResult{
-		IsUnitTest: validators.No,
-		IsKatas:    validators.No,
-	}
-	prepareParams := make(map[string]string)
-	preparersArray, err := preparers.GetPreparers(pb.Sdk_SDK_JAVA, "./", valResult, prepareParams)
-	if err != nil {
-		panic(err)
-	}
-	type fields struct {
-		compileArgs CmdConfiguration
-		runArgs     CmdConfiguration
-		testArgs    CmdConfiguration
-		validators  []validators.Validator
-		preparers   []preparers.Preparer
-		boolChan    chan bool
-		errorChan   chan error
-		valResult   validators.ValidationResult
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    bool
-		wantErr bool
-	}{
-		{
-			name: "Test Prepare method with prepared preparers",
-			fields: fields{
-				preparers: *preparersArray,
-				boolChan:  make(chan bool),
-				errorChan: make(chan error),
-				valResult: valResult,
-			},
-			want:    false,
-			wantErr: true,
-		},
-		{
-			name: "Test Prepare method without preparers",
-			fields: fields{
-				preparers: nil,
-				boolChan:  make(chan bool),
-				errorChan: make(chan error),
-				valResult: valResult,
-			},
-			want:    true,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ex := &Executor{
-				compileArgs: tt.fields.compileArgs,
-				runArgs:     tt.fields.runArgs,
-				testArgs:    tt.fields.testArgs,
-				preparers:   tt.fields.preparers,
-			}
-			prepareFunc := ex.Prepare()
-			go prepareFunc(tt.fields.boolChan, tt.fields.errorChan, tt.fields.valResult)
-			if tt.wantErr {
-				err := <-tt.fields.errorChan
-				if (err != nil) != tt.wantErr {
-					t.Errorf("Prepare() error = %v, wantErr %v", err, tt.wantErr)
-				}
-			}
-			got := <-tt.fields.boolChan
-			if got != tt.want {
-				t.Errorf("Prepare() = %v, want %v", got, tt.want)
 			}
 		})
 	}

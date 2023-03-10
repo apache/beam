@@ -15,32 +15,33 @@
 
 package preparers
 
-import "testing"
+import (
+	"github.com/google/go-cmp/cmp"
+	"testing"
+)
 
 func TestGetScioPreparers(t *testing.T) {
 	type args struct {
-		filePath      string
-		prepareParams map[string]string
+		filePath string
 	}
 	tests := []struct {
 		name string
 		args args
-		want int
+		want scioPreparer
 	}{
 		{
 			// Test case with calling GetScioPreparers method.
 			// As a result, want to receive slice of preparers with len = 3
 			name: "Get scio preparers",
-			args: args{"MOCK_FILEPATH", make(map[string]string)},
-			want: 3,
+			args: args{"MOCK_FILEPATH"},
+			want: scioPreparer{preparer{filePath: "MOCK_FILEPATH"}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
-			GetScioPreparers(builder)
-			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
-				t.Errorf("GetScioPreparers() returns %v Preparers, want %v", len(*got), tt.want)
+			got := GetScioPreparer(tt.args.filePath)
+			if !cmp.Equal(got, tt.want, cmp.AllowUnexported(scioPreparer{}, preparer{})) {
+				t.Errorf("GetScioPreparers() diff = %s", cmp.Diff(got, tt.want, cmp.AllowUnexported(scioPreparer{}, preparer{})))
 			}
 		})
 	}
