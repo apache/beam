@@ -130,31 +130,24 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
                                                    PredictionResult,
                                                    Union[xgboost.Booster,
                                                          xgboost.XGBModel]]):
-  def __init__(
-      self,
-      model_class: Union[Callable[..., xgboost.Booster],
-                         Callable[..., xgboost.XGBModel]],
-      model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    """ Implementation of the ModelHandler interface for XGBoost
-    using numpy arrays as input.
+  """Implementation of the ModelHandler interface for XGBoost
+  using numpy arrays as input.
 
-    Example Usage::
+  Example Usage::
 
-        pcoll | RunInference(
-                    XGBoostModelHandlerNumpy(
-                        model_class="XGBoost Model Class",
-                        model_state="my_model_state.json")))
+      pcoll | RunInference(
+                  XGBoostModelHandlerNumpy(
+                      model_class="XGBoost Model Class",
+                      model_state="my_model_state.json")))
 
-    Args:
-      model_class: class of the XGBoost model that defines the model
-        structure.
-      model_state: path to a json file that contains the model's
-        configuration.
-      inference_fn: the inference function to use during RunInference.
-        default=default_xgboost_inference_fn
-    """
-
+  Args:
+    model_class: class of the XGBoost model that defines the model
+      structure.
+    model_state: path to a json file that contains the model's
+      configuration.
+    inference_fn: the inference function to use during RunInference.
+      default=default_xgboost_inference_fn
+  """
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
@@ -189,31 +182,24 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
                                                     PredictionResult,
                                                     Union[xgboost.Booster,
                                                           xgboost.XGBModel]]):
-  def __init__(
-      self,
-      model_class: Union[Callable[..., xgboost.Booster],
-                         Callable[..., xgboost.XGBModel]],
-      model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    """Implementation of the ModelHandler interface for XGBoost
-    using pandas dataframes as input.
+  """Implementation of the ModelHandler interface for XGBoost
+  using pandas dataframes as input.
 
-    Example Usage::
+  Example Usage::
 
-        pcoll | RunInference(
-                    XGBoostModelHandlerPandas(
-                        model_class="XGBoost Model Class",
-                        model_state="my_model_state.json")))
+      pcoll | RunInference(
+                  XGBoostModelHandlerPandas(
+                      model_class="XGBoost Model Class",
+                      model_state="my_model_state.json")))
 
-    Args:
-      model_class: class of the XGBoost model that defines the model
-        structure.
-      model_state: path to a json file that contains the model's
-        configuration.
-      inference_fn: the inference function to use during RunInference.
-        default=default_xgboost_inference_fn
-    """
-
+  Args:
+    model_class: class of the XGBoost model that defines the model
+      structure.
+    model_state: path to a json file that contains the model's
+      configuration.
+    inference_fn: the inference function to use during RunInference.
+      default=default_xgboost_inference_fn
+  """
   def run_inference(
       self,
       batch: Sequence[pandas.DataFrame],
@@ -248,31 +234,24 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
                                                    PredictionResult,
                                                    Union[xgboost.Booster,
                                                          xgboost.XGBModel]]):
-  def __init__(
-      self,
-      model_class: Union[Callable[..., xgboost.Booster],
-                         Callable[..., xgboost.XGBModel]],
-      model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    """ Implementation of the ModelHandler interface for XGBoost
-    using scipy matrices as input.
+  """ Implementation of the ModelHandler interface for XGBoost
+  using scipy matrices as input.
 
-    Example Usage::
+  Example Usage::
 
-        pcoll | RunInference(
-                    XGBoostModelHandlerSciPy(
-                        model_class="XGBoost Model Class",
-                        model_state="my_model_state.json")))
+      pcoll | RunInference(
+                  XGBoostModelHandlerSciPy(
+                      model_class="XGBoost Model Class",
+                      model_state="my_model_state.json")))
 
-    Args:
-      model_class: class of the XGBoost model that defines the model
-        structure.
-      model_state: path to a json file that contains the model's
-        configuration.
-      inference_fn: the inference function to use during RunInference.
-        default=default_xgboost_inference_fn
-    """
-
+  Args:
+    model_class: class of the XGBoost model that defines the model
+      structure.
+    model_state: path to a json file that contains the model's
+      configuration.
+    inference_fn: the inference function to use during RunInference.
+      default=default_xgboost_inference_fn
+  """
   def run_inference(
       self,
       batch: Sequence[scipy.sparse.csr_matrix],
@@ -307,31 +286,24 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
                                                        Union[xgboost.Booster,
                                                              xgboost.XGBModel]]
                                    ):
-  def __init__(
-      self,
-      model_class: Union[Callable[..., xgboost.Booster],
-                         Callable[..., xgboost.XGBModel]],
-      model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
-    """Implementation of the ModelHandler interface for XGBoost
-    using datatable dataframes as input.
+  """Implementation of the ModelHandler interface for XGBoost
+  using datatable dataframes as input.
 
-    Example Usage::
+  Example Usage::
 
-        pcoll | RunInference(
-                    XGBoostModelHandlerDatatable(
-                        model_class="XGBoost Model Class",
-                        model_state="my_model_state.json")))
+      pcoll | RunInference(
+                  XGBoostModelHandlerDatatable(
+                      model_class="XGBoost Model Class",
+                      model_state="my_model_state.json")))
 
-    Args:
-      model_class: class of the XGBoost model that defines the model
-        structure.
-      model_state: path to a json file that contains the model's
-        configuration.
-      inference_fn: the inference function to use during RunInference.
-        default=default_xgboost_inference_fn
-    """
-
+  Args:
+    model_class: class of the XGBoost model that defines the model
+      structure.
+    model_state: path to a json file that contains the model's
+      configuration.
+    inference_fn: the inference function to use during RunInference.
+      default=default_xgboost_inference_fn
+  """
   def run_inference(
       self,
       batch: Sequence[datatable.Frame],
