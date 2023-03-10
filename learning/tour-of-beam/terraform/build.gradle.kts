@@ -63,9 +63,9 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
         group = "backend-deploy"
         var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
         var environment = project.property("project_environment") as
-        val gcloudAccount = project.exec {
-            commandLine("gcloud", "config", "get-value", "core/account")
-        }.standardOutput.toString().trim()
+        val command = listOf("gcloud", "config", "get-value", "core/account")
+        val process = ProcessBuilder(command).start()
+        val gcloudAccount = process.inputStream.bufferedReader().readText().trim()
         args(
                 "apply",
                 "-auto-approve",
