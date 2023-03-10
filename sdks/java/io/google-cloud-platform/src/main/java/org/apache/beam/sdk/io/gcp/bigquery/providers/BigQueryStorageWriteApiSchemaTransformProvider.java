@@ -82,8 +82,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   private static final Duration DEFAULT_TRIGGERING_FREQUENCY =
       Duration.standardSeconds(DEFAULT_TRIGGER_FREQUENCY_SECS);
   private static final String INPUT_ROWS_TAG = "input";
-  private static final String FAILED_ROWS_TAG = "failed_rows";
-  private static final String FAILED_ROWS_WITH_ERRORS_TAG = "failed_rows_with_errors";
+  private static final String FAILED_ROWS_TAG = "FailedRows";
+  private static final String FAILED_ROWS_WITH_ERRORS_TAG = "FailedRowsWithErrors";
 
   @Override
   protected Class<BigQueryStorageWriteApiSchemaTransformConfiguration> configurationClass() {
@@ -347,12 +347,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                                   .build()))
               .setRowSchema(errorSchema);
 
-      PCollection<Row> errorOutput =
+      PCollection<Row> failedRowsOutput =
           failedRows
               .apply("error-count", ParDo.of(new ElementCounterFn("BigQuery-write-error-counter")))
-              .setRowSchema(errorSchema);
+              .setRowSchema(rowSchema);
 
-      return PCollectionRowTuple.of(FAILED_ROWS_TAG, failedRowsOutput)
+      return PCollectionRowTuple.of(FAILED_ROWS_TAG, errorOutput)
           .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors);
     }
 

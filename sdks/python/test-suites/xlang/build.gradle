@@ -55,5 +55,10 @@ def gcpXlangCommon = new CrossLanguageTaskCommon().tap {
 }
 xlangTasks.add(gcpXlangCommon)
 
+// ******** Java _____ expansion service ********
+// Create a new CrossLanguageTaskCommon() object for the specified expansion service and add it to xlangTasks
+
+// ******** Java _____ expansion service ********
+// Create a new CrossLanguageTaskCommon() object for the specified expansion service and add it to xlangTasks
 
 ext.xlangTasks = xlangTasks

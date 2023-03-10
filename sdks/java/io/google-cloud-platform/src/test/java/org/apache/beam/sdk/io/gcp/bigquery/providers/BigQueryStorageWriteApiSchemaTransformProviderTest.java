@@ -148,7 +148,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
       return false;
     }
     for (int i = 0; i < expectedRows.size(); i++) {
-      // Actual rows may come back disordered. For each TableRow, find its "number" column value
+      // Actual rows may come back out of order. For each TableRow, find its "number" column value
       // and match it to the index of the expected row.
       TableRow actualRow = actualRows.get(i);
       Row expectedRow = expectedRows.get(Integer.parseInt(actualRow.get("number").toString()) - 1);
@@ -234,7 +234,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     fakeDatasetService.setShouldFailRow(shouldFailRow);
 
     PCollectionRowTuple result = runWithConfig(config, totalRows);
-    PCollection<Row> failedRows = result.get("failed_rows");
+    PCollection<Row> failedRows = result.get("FailedRows");
 
     PAssert.that(failedRows).containsInAnyOrder(expectedFailedRows);
     p.run().waitUntilFinish();

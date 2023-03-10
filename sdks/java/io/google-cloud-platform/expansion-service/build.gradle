@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
@@ -45,25 +43,4 @@ task runExpansionService (type: JavaExec) {
     mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
     classpath = sourceSets.test.runtimeClasspath
     args = [project.findProperty("constructionService.port") ?: "8097"]
-}
-
-task buildTestExpansionServiceJar(type: ShadowJar) {
-    archiveAppendix = "testExpansionService"
-    // Use zip64 mode to avoid "Archive contains more than 65535 entries".
-    zip64 = true
-    mergeServiceFiles()
-    manifest {
-        attributes(
-                'Main-Class': 'org.apache.beam.sdk.expansion.service.ExpansionService'
-        )
-    }
-    exclude "META-INF/INDEX.LIST"
-    exclude "META-INF/*.SF"
-    exclude "META-INF/*.DSA"
-    exclude "META-INF/*.RSA"
-    configurations = [
-            project.configurations.testRuntimeClasspath
-    ]
-    from sourceSets.main.output
-    from sourceSets.test.output
 }
