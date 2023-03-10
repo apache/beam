@@ -19,6 +19,7 @@ module "setup" {
   source = "./setup"
   project_id = var.project_id
   service_account_id = var.service_account_id
+  gcloud_init_account = var.gcloud_init_account
   depends_on = [module.api_enable]
 }
 
