@@ -65,7 +65,6 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
         var environment = project.property("project_environment") as
         val gcloudAccount = project.exec {
             commandLine("gcloud", "config", "get-value", "core/account")
-            standardOutput = ByteArrayOutputStream()
         }.standardOutput.toString().trim()
         args(
                 "apply",
