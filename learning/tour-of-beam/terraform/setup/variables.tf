@@ -32,5 +32,5 @@ locals {
 }
 
 variable "gcloud_account" {
-  default = local.gcloud_account
+  default = data.external.gcloud_account.result
 }
