@@ -54,6 +54,7 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 dart pub global activate protoc_plugin
 npm install -g @bufbuild/buf
 ```
+
 #### sbt
 ```shell
 echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
@@ -62,11 +63,6 @@ curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89
 sudo chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
 sudo apt-get update
 sudo apt-get install sbt
-```
-### Additional tools
-Google Cloud shell machines do not have `netcat` and `lsof` preinstalled. Install them using:
-```shell
-sudo apt install netcat lsof
 ```
 
 # Available Gradle Tasks
