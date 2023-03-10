@@ -28,10 +28,7 @@ class BeamRunShortcut extends BeamShortcut {
   BeamRunShortcut({
     required this.onInvoke,
   }) : super(
-          shortcuts: LogicalKeySet(
-            LogicalKeyboardKey.meta,
-            LogicalKeyboardKey.enter,
-          ),
+          shortcuts: keySet,
           actionIntent: const RunIntent(),
           createAction: (BuildContext context) => CallbackAction(
             onInvoke: (_) {
@@ -40,4 +37,9 @@ class BeamRunShortcut extends BeamShortcut {
             },
           ),
         );
+
+  static final keySet = LogicalKeySet(
+    LogicalKeyboardKey.meta,
+    LogicalKeyboardKey.enter,
+  );
 }

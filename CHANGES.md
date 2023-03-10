@@ -50,36 +50,24 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.46.0] - Unreleased
+# [2.47.0] - Unreleased
 
 ## Highlights
 
-* RunInference PTransform will accept model paths as SideInputs in Python SDK. ([#24042](https://github.com/apache/beam/issues/24042))
-* RunInference supports ONNX runtime in Python SDK ([#22972](https://github.com/apache/beam/issues/22972))
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Added in JmsIO a retry policy for failed publications (Java) ([#24971](https://github.com/apache/beam/issues/24971)).
-* Support for `LZMA` compression/decompression of text files added to the Python SDK ([#25316](https://github.com/apache/beam/issues/25316))
 
 ## New Features / Improvements
 
-* Add UDF metrics support for Samza portable mode.
-* Option for SparkRunner to avoid the need of SDF output to fit in memory ([#23852](https://github.com/apache/beam/issues/23852)).
-  This helps e.g. with ParquetIO reads. Turn the feature on by adding experiment `use_bounded_concurrent_output_for_sdf`.
-* Add `WatchFilePattern` transform, which can be used as a side input to the RunInference PTransfrom to watch for model updates using a file pattern. ([#24042](https://github.com/apache/beam/issues/24042))
-* Add support for loading TorchScript models with `PytorchModelHandler`. The TorchScript model path can be
-  passed to PytorchModelHandler using `torch_script_model_path=<path_to_model>`. ([#25321](https://github.com/apache/beam/pull/25321))
+* The Flink runner now supports Flink 1.16.x ([#25046](https://github.com/apache/beam/issues/25046)).
 
 ## Breaking Changes
 
-* The deprecated SparkRunner for Spark 2 (see [2.41.0](#2410---2022-08-23)) was removed ([#25263](https://github.com/apache/beam/pull/25263)).
-* Python's BatchElements performs more aggressive batching in some cases,
-  capping at 10 second rather than 1 second batches by default and excluding
-  fixed cost in this computation to better handle cases where the fixed cost
-  is larger than a single second. To get the old behavior, one can pass
-  `target_batch_duration_secs_including_fixed_cost=1` to BatchElements.
+* If a main session fails to load, the pipeline will now fail at worker startup. ([#25401](https://github.com/apache/beam/issues/25401)).
 
 ## Deprecations
 
@@ -93,12 +81,61 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.45.0] - 2023-02-15
+# [2.46.0] - Unreleased
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Java SDK containers migrated to [Eclipse Temurin](https://hub.docker.com/_/eclipse-temurin)
+  as a base. This change migrates away from the deprecated [OpenJDK](https://hub.docker.com/_/openjdk)
+  container. Eclipse Temurin is currently based upon Ubuntu 22.04 while the OpenJDK
+  container was based upon Debian 11.
+* RunInference PTransform will accept model paths as SideInputs in Python SDK. ([#24042](https://github.com/apache/beam/issues/24042))
+* RunInference supports ONNX runtime in Python SDK ([#22972](https://github.com/apache/beam/issues/22972))
+* Tensorflow Model Handler for RunInference in Python SDK ([#25366](https://github.com/apache/beam/issues/25366))
+* Java SDK modules migrated to use `:sdks:java:extensions:avro` ([#24748](https://github.com/apache/beam/issues/24748))
+
+## I/Os
+
+* Added in JmsIO a retry policy for failed publications (Java) ([#24971](https://github.com/apache/beam/issues/24971)).
+* Support for `LZMA` compression/decompression of text files added to the Python SDK ([#25316](https://github.com/apache/beam/issues/25316))
+* Added ReadFrom/WriteTo Csv/Json as top-level transforms to the Python SDK.
+
+## New Features / Improvements
+
+* Add UDF metrics support for Samza portable mode.
+* Option for SparkRunner to avoid the need of SDF output to fit in memory ([#23852](https://github.com/apache/beam/issues/23852)).
+  This helps e.g. with ParquetIO reads. Turn the feature on by adding experiment `use_bounded_concurrent_output_for_sdf`.
+* Add `WatchFilePattern` transform, which can be used as a side input to the RunInference PTransfrom to watch for model updates using a file pattern. ([#24042](https://github.com/apache/beam/issues/24042))
+* Add support for loading TorchScript models with `PytorchModelHandler`. The TorchScript model path can be
+  passed to PytorchModelHandler using `torch_script_model_path=<path_to_model>`. ([#25321](https://github.com/apache/beam/pull/25321))
+* The Go SDK now requires Go 1.19 to build. ([#25545](https://github.com/apache/beam/pull/25545))
+* The Go SDK now has an initial native Go implementation of a portable Beam Runner called Prism. ([#24789](https://github.com/apache/beam/pull/24789))
+  * For more details and current state see https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism.
+
+## Breaking Changes
+
+* The deprecated SparkRunner for Spark 2 (see [2.41.0](#2410---2022-08-23)) was removed ([#25263](https://github.com/apache/beam/pull/25263)).
+* Python's BatchElements performs more aggressive batching in some cases,
+  capping at 10 second rather than 1 second batches by default and excluding
+  fixed cost in this computation to better handle cases where the fixed cost
+  is larger than a single second. To get the old behavior, one can pass
+  `target_batch_duration_secs_including_fixed_cost=1` to BatchElements.
+
+## Deprecations
+
+* Avro related classes are deprecated in module `beam-sdks-java-core` and will be eventually removed. Please, migrate to a new module `beam-sdks-java-extensions-avro` instead by importing the classes from `org.apache.beam.sdk.extensions.avro` package.
+  For the sake of migration simplicity, the relative package path and the whole class hierarchy of Avro related classes in new module is preserved the same as it was before.
+  For example, import `org.apache.beam.sdk.extensions.avro.coders.AvroCoder` class instead of`org.apache.beam.sdk.coders.AvroCoder`. ([#24749](https://github.com/apache/beam/issues/24749)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.45.0] - 2023-02-15
 
 ## I/Os
 
@@ -129,11 +166,6 @@
 * Fixed Python BigQuery Batch Load write may truncate valid data when deposition sets to WRITE_TRUNCATE and incoming data is large (Python) ([#24623](https://github.com/apache/beam/issues/24535)).
 
 # [2.44.0] - 2023-01-12
-
-## Highlights
-
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
 ## I/Os
 

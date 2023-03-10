@@ -29,6 +29,7 @@ export 'src/controllers/window_close_notifier/window_close_notifier.dart';
 
 export 'src/enums/complexity.dart';
 export 'src/enums/feedback_rating.dart';
+export 'src/enums/output_tab.dart';
 
 export 'src/models/category_with_examples.dart';
 export 'src/models/dataset.dart';
@@ -81,6 +82,7 @@ export 'src/services/symbols/loaders/yaml.dart';
 export 'src/theme/switch_notifier.dart';
 export 'src/theme/theme.dart';
 
+export 'src/util/logical_keyboard_key.dart';
 export 'src/util/pipeline_options.dart';
 export 'src/util/string.dart';
 
@@ -93,9 +95,7 @@ export 'src/widgets/loading_error.dart';
 export 'src/widgets/loading_indicator.dart';
 export 'src/widgets/logo.dart';
 export 'src/widgets/output/output.dart';
-export 'src/widgets/output/output_area.dart';
 export 'src/widgets/output/output_tab.dart';
-export 'src/widgets/output/output_tabs.dart';
 export 'src/widgets/overlay/body.dart';
 export 'src/widgets/overlay/dismissible.dart';
 export 'src/widgets/overlay/opener.dart';
@@ -106,6 +106,7 @@ export 'src/widgets/shortcuts_manager.dart';
 export 'src/widgets/snippet_editor.dart';
 export 'src/widgets/split_view.dart';
 export 'src/widgets/tab_header.dart';
+export 'src/widgets/tabs/tab_bar.dart';
 export 'src/widgets/toasts/toast_listener.dart';
 export 'src/widgets/toggle_theme_button.dart';
 export 'src/widgets/toggle_theme_icon_button.dart';

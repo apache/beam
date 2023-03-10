@@ -109,26 +109,34 @@ type ApplicationEnvs struct {
 	// propertyPath is the application properties path
 	propertyPath string
 
+	// kafkaEmulatorExecutablePath is the path to Kafka emulator executable file
+	kafkaEmulatorExecutablePath string
+
+	// datasetsPath is the datasets path used for Kafka examples
+	datasetsPath string
+
 	// cacheRequestTimeout is timeout to request data from cache
 	cacheRequestTimeout time.Duration
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
 func NewApplicationEnvs(
-	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath string,
+	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, kafkaEmulatorExecutablePath, datasetsPath string,
 	cacheEnvs *CacheEnvs,
 	pipelineExecuteTimeout, cacheRequestTimeout time.Duration,
 ) *ApplicationEnvs {
 	return &ApplicationEnvs{
-		workingDir:             workingDir,
-		cacheEnvs:              cacheEnvs,
-		pipelineExecuteTimeout: pipelineExecuteTimeout,
-		launchSite:             launchSite,
-		projectId:              projectId,
-		pipelinesFolder:        pipelinesFolder,
-		sdkConfigPath:          sdkConfigPath,
-		propertyPath:           propertyPath,
-		cacheRequestTimeout:    cacheRequestTimeout,
+		workingDir:                  workingDir,
+		cacheEnvs:                   cacheEnvs,
+		pipelineExecuteTimeout:      pipelineExecuteTimeout,
+		launchSite:                  launchSite,
+		projectId:                   projectId,
+		pipelinesFolder:             pipelinesFolder,
+		sdkConfigPath:               sdkConfigPath,
+		propertyPath:                propertyPath,
+		datasetsPath:                datasetsPath,
+		kafkaEmulatorExecutablePath: kafkaEmulatorExecutablePath,
+		cacheRequestTimeout:         cacheRequestTimeout,
 	}
 }
 
@@ -185,4 +193,13 @@ func (ae *ApplicationEnvs) SetSchemaVersion(schemaVersion string) {
 // CacheRequestTimeout returns timeout to request data from cache
 func (ae *ApplicationEnvs) CacheRequestTimeout() time.Duration {
 	return ae.cacheRequestTimeout
+}
+
+// DatasetsPath returns paths to datasets used for Kafka examples
+func (ae *ApplicationEnvs) DatasetsPath() string {
+	return ae.datasetsPath
+}
+
+func (ae *ApplicationEnvs) KafkaExecutablePath() string {
+	return ae.kafkaEmulatorExecutablePath
 }

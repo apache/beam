@@ -138,7 +138,7 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
     end_time = time.time()
 
-    metrics_table = 'cloudml_benchmark_criteo_10GB'
+    metrics_table = 'cloudml_benchmark_criteo_fixed_workers_10GB'
 
     _publish_metrics(
         pipeline=test_pipeline,
