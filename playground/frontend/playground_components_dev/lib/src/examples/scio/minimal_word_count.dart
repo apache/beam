@@ -24,7 +24,7 @@ import 'common.dart';
 const scioMinimalWordCount = ExampleDescriptor(
   //
   'MinimalWordCount',
-  dbPath: 'SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+  dbPath: 'SDK_SCIO_MinimalWordCount',
   path:
       '/scio-examples/src/main/scala/com/spotify/scio/examples/MinimalWordCount.scala',
   repositoryAndRef: 'spotify/scio/$spotifyScioRef',

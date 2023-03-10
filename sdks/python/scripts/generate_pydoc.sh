@@ -253,10 +253,11 @@ EOF
 # Build the documentation using sphinx
 # Reference: http://www.sphinx-doc.org/en/stable/man/sphinx-build.html
 # Note we cut out warnings from apache_beam.dataframe, this package uses pandas
-# documentation verbatim.
+# documentation verbatim, as do some of the textio transforms.
 python $(type -p sphinx-build) -v -a -E -q target/docs/source \
   target/docs/_build -c target/docs/source \
   2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | grep -E -v 'apache_beam\.io\.textio\.(ReadFrom|WriteTo)(Csv|Json).*WARNING:' \
   2>&1 | tee "target/docs/sphinx-build.log"
 
 # Fail if there are errors or warnings in docs
@@ -269,6 +270,7 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
   2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | grep -E -v 'apache_beam\.io\.textio\.(ReadFrom|WriteTo)(Csv|Json).*WARNING:' \
   2>&1 | tee "target/docs/sphinx-doctest.log"
 
 # Fail if there are errors or warnings in docs
