@@ -69,9 +69,10 @@ class _MoreActionsState extends State<MoreActions> {
               onTap: () {
                 AnalyticsService.get(context).trackOpenShortcutsModal();
                 BeamDialog.show(
-                  title: Text(appLocale.shortcuts),
+                  actions: [BeamCloseButton()],
                   context: context,
-                  child: ShortcutsModalContent(
+                  title: Text(appLocale.shortcuts),
+                  child: ShortcutsDialogContent(
                     playgroundController: widget.playgroundController,
                   ),
                 );

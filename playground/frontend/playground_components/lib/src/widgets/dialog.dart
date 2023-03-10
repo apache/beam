@@ -34,21 +34,23 @@ class BeamDialog extends StatelessWidget {
     required Widget child,
     required BuildContext context,
     Widget? title,
+    List<Widget> actions = const [],
   }) async {
     await showDialog<void>(
       context: context,
       builder: (BuildContext context) => BeamDialog(
         child: AlertDialog(
-          title: title,
-          content: child,
-          titlePadding: const EdgeInsets.only(
-            top: kDialogPadding,
-            left: kDialogPadding,
-          ),
-          contentPadding: const EdgeInsets.all(kDialogPadding),
+          actions: actions,
           actionsPadding: const EdgeInsets.only(
             bottom: kDialogPadding,
             right: kDialogPadding,
+          ),
+          content: child,
+          contentPadding: const EdgeInsets.all(kDialogPadding),
+          title: title,
+          titlePadding: const EdgeInsets.only(
+            top: kDialogPadding,
+            left: kDialogPadding,
           ),
         ),
       ),

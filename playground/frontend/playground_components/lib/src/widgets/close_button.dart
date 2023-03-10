@@ -16,39 +16,28 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import 'intents.dart';
+class BeamCloseButton extends StatelessWidget {
+  static const kWidth = 120.0;
+  static const kHeight = 40.0;
 
-class BeamShortcut {
-  //Additional List property required for determinated displaying keys
-  //in shortcut dialog.  
-  final List<LogicalKeyboardKey> keys;
-  LogicalKeySet get keySet => LogicalKeySet.fromSet(keys.toSet());
-  
-  final BeamIntent actionIntent;
-  final CallbackAction Function(BuildContext) createAction;
-
-  BeamShortcut({
-    required this.keys,
-    required this.actionIntent,
-    required this.createAction,
-  });
-
-  static const _metaKeyName = 'Command';
-  static const _glue = ' + ';
-
-  String get title {
-    return keys
-        .map(_getKeyDisplayName)
-        .join(_glue);
-  }
-
-  String _getKeyDisplayName(LogicalKeyboardKey e) {
-    if (e.keyId == LogicalKeyboardKey.meta.keyId) {
-      return _metaKeyName;
-    }
-    return e.keyLabel;
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: const ButtonStyle(
+        elevation: MaterialStatePropertyAll<double>(0),
+        fixedSize: MaterialStatePropertyAll<Size>(
+          Size(kWidth, kHeight),
+        ),
+        shape: MaterialStatePropertyAll<StadiumBorder>(
+          StadiumBorder(),
+        ),
+        padding: MaterialStatePropertyAll(EdgeInsets.only(bottom: 2)),
+      ),
+      onPressed: () => Navigator.of(context).pop(),
+      child: const Text('widgets.closeButton.label').tr(),
+    );
   }
 }

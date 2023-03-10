@@ -117,6 +117,6 @@ extension CommonFindersExtension on CommonFinders {
   }
 
   Finder shortcutsModal() {
-    return byType(ShortcutsModalContent);
+    return byType(ShortcutsDialogContent);
   }
 }

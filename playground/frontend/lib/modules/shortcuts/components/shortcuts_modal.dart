@@ -24,12 +24,11 @@ import 'package:playground/modules/shortcuts/components/shortcut_row.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 import 'package:playground_components/playground_components.dart';
 
-class ShortcutsModalContent extends StatelessWidget {
+class ShortcutsDialogContent extends StatelessWidget {
   static const _kModalMaxWidth = 400.0;
   static const _kShortcutsMaxWidth = 200.0;
 
-  const ShortcutsModalContent({
-    super.key,
+  const ShortcutsDialogContent({
     required this.playgroundController,
   });
 
@@ -40,7 +39,6 @@ class ShortcutsModalContent extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: _kModalMaxWidth),
       child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.start,
         runSpacing: kXlSpacing,
         children: [
           ...[
