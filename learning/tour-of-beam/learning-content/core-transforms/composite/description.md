@@ -158,7 +158,7 @@ It applies the Beam SDK library transform `Count` on the `PCollection` of words,
 @beam.ptransform_fn
 def CountWords(input):
   return (
-      # Convert lines of text into individual words. 
+      # Convert lines of text into individual words.
       input | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
       # Count the number of times each word occurs.
       | beam.combiners.Count.PerElement()
