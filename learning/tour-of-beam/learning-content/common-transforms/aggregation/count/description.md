@@ -193,7 +193,7 @@ You can find the full code of this example in the playground window, which you c
 `Count.globally` returns the number of integers from the `PCollection`. If you replace the `integers input` with this `map input` and replace `beam.combiners.Count.Globally` with `beam.combiners.Count.PerKey` it will output the count numbers by key :
 
 ```
-p | beam.Create([(1, 36), (2, 91), (3, 33), (3, 11), (4, 67),]) 
+p | beam.Create([(1, 36), (2, 91), (3, 33), (3, 11), (4, 67),])
   | beam.combiners.Count.PerKey()
 ```
 
