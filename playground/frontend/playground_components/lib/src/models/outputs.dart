@@ -16,6 +16,12 @@
  * limitations under the License.
  */
 
+enum OutputType {
+  all,
+  log,
+  output,
+}
+
 class Outputs {
   final String output;
   final String graph;

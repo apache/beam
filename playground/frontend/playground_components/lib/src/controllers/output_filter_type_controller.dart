@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-import 'package:enum_map/enum_map.dart';
+import 'package:flutter/material.dart';
 
-part 'output_tab.g.dart';
+import '../../playground_components.dart';
 
-@unmodifiableEnumMap
-enum OutputTabEnum {
-  result,
-  graph,
+class OutputFilterTypeController extends ChangeNotifier {
+  OutputType outputFilterType = OutputType.all;
+
+  void setOutputFilterType(OutputType type) {
+    outputFilterType = type;
+    notifyListeners();
+  }
 }

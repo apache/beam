@@ -1542,27 +1542,12 @@ public class DatastoreV1 {
       }
     }
 
-    private static com.google.datastore.v1.Key getKey(Mutation m) {
-      if (m.hasUpsert()) {
-        return m.getUpsert().getKey();
-      } else if (m.hasInsert()) {
-        return m.getInsert().getKey();
-      } else if (m.hasDelete()) {
-        return m.getDelete();
-      } else if (m.hasUpdate()) {
-        return m.getUpdate().getKey();
-      } else {
-        LOG.warn("Mutation {} does not have an operation type set.", m);
-        return Entity.getDefaultInstance().getKey();
-      }
-    }
-
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Mutation mutation = c.element();
-      int size = mutation.getSerializedSize();
+      Mutation write = c.element();
+      int size = write.getSerializedSize();
 
-      if (!uniqueMutationKeys.add(getKey(mutation))) {
+      if (!uniqueMutationKeys.add(write.getUpsert().getKey())) {
         flushBatch();
       }
 

@@ -32,7 +32,7 @@ class NewExampleIntent extends BeamIntent {
 
 final kClearOutputShortcut = BeamShortcut(
   shortcuts: LogicalKeySet(
-    LogicalKeyboardKeyExtension.metaOrControl,
+    LogicalKeyboardKey.meta,
     LogicalKeyboardKey.keyB,
   ),
   actionIntent: const ClearOutputIntent(),
@@ -46,7 +46,7 @@ final kClearOutputShortcut = BeamShortcut(
 
 final kNewExampleShortcut = BeamShortcut(
   shortcuts: LogicalKeySet(
-    LogicalKeyboardKeyExtension.metaOrControl,
+    LogicalKeyboardKey.meta,
     LogicalKeyboardKey.keyM,
   ),
   actionIntent: const NewExampleIntent(),

@@ -67,14 +67,11 @@ class _EmulatedDataIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {},
-      child: Tooltip(
-        message: 'intents.playground.usesEmulatedData'.tr(),
-        child: SvgPicture.asset(
-          Assets.streaming,
-          color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
-        ),
+    return Tooltip(
+      message: 'intents.playground.usesEmulatedData'.tr(),
+      child: SvgPicture.asset(
+        Assets.streaming,
+        color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
       ),
     );
   }

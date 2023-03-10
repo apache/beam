@@ -19,9 +19,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
-import '../../constants/sizes.dart';
-import '../../controllers/playground_controller.dart';
-import '../../enums/result_filter.dart';
+import 'package:playground_components/playground_components.dart';
+
 import 'result_filter_bubble.dart';
 
 const kPopoverWidth = 240.0;
@@ -53,24 +52,26 @@ class ResultFilterPopover extends StatelessWidget {
                     vertical: BeamSizes.size4,
                   ),
                   child: AnimatedBuilder(
-                    animation: playgroundController.resultFilterController,
-                    builder: (context, child) {
-                      final groupValue = playgroundController
-                          .resultFilterController.value;
-
-                      return Row(
-                        children: [
-                          for (final value in ResultFilterEnum.values)
-                            ResultFilterBubble(
-                              groupValue: groupValue,
-                              onChanged: playgroundController
-                                  .resultFilterController.setValue,
-                              title: 'widgets.output.filter.${value.name}'.tr(),
-                              value: value,
-                            ),
-                        ],
-                      );
-                    },
+                    animation: playgroundController.outputTypeController,
+                    builder: (context, child) => Row(
+                      children: [
+                        ResultFilterBubble(
+                          playgroundController: playgroundController,
+                          type: OutputType.all,
+                          name: 'widgets.output.filter.all'.tr(),
+                        ),
+                        ResultFilterBubble(
+                          playgroundController: playgroundController,
+                          type: OutputType.log,
+                          name: 'widgets.output.filter.log'.tr(),
+                        ),
+                        ResultFilterBubble(
+                          playgroundController: playgroundController,
+                          type: OutputType.output,
+                          name: 'widgets.output.filter.output'.tr(),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

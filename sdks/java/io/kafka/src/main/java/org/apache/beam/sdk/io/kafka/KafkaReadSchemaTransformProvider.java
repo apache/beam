@@ -18,9 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.service.AutoService;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -40,8 +38,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -109,26 +106,19 @@ public class KafkaReadSchemaTransformProvider
       final String inputSchema = configuration.getSchema();
       final Integer groupId = configuration.hashCode() % Integer.MAX_VALUE;
       final String autoOffsetReset =
-          MoreObjects.firstNonNull(configuration.getAutoOffsetResetConfig(), "latest");
-
-      Map<String, Object> consumerConfigs =
-          new HashMap<>(
-              MoreObjects.firstNonNull(configuration.getConsumerConfigUpdates(), new HashMap<>()));
-      consumerConfigs.put(ConsumerConfig.GROUP_ID_CONFIG, "kafka-read-provider-" + groupId);
-      consumerConfigs.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
-      consumerConfigs.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 100);
-      consumerConfigs.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
-
-      if (inputSchema != null && !inputSchema.isEmpty()) {
-        assert Strings.isNullOrEmpty(configuration.getConfluentSchemaRegistryUrl())
+          configuration.getAutoOffsetResetConfig() == null
+              ? "latest"
+              : configuration.getAutoOffsetResetConfig();
+      if (inputSchema != null) {
+        assert configuration.getConfluentSchemaRegistryUrl() == null
             : "To read from Kafka, a schema must be provided directly or though Confluent "
                 + "Schema Registry, but not both.";
         final Schema beamSchema =
-            Objects.equals(configuration.getFormat(), "JSON")
+            Objects.equals(configuration.getDataFormat(), "JSON")
                 ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
                 : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
         SerializableFunction<byte[], Row> valueMapper =
-            Objects.equals(configuration.getFormat(), "JSON")
+            Objects.equals(configuration.getDataFormat(), "JSON")
                 ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
                 : AvroUtils.getAvroBytesToRowFunction(beamSchema);
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
@@ -136,7 +126,16 @@ public class KafkaReadSchemaTransformProvider
           public PCollectionRowTuple expand(PCollectionRowTuple input) {
             KafkaIO.Read<byte[], byte[]> kafkaRead =
                 KafkaIO.readBytes()
-                    .withConsumerConfigUpdates(consumerConfigs)
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(
+                            ConsumerConfig.GROUP_ID_CONFIG,
+                            "kafka-read-provider-" + groupId,
+                            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                            true,
+                            ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+                            100,
+                            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                            autoOffsetReset))
                     .withTopic(configuration.getTopic())
                     .withBootstrapServers(configuration.getBootstrapServers());
             if (isTest) {
@@ -154,9 +153,6 @@ public class KafkaReadSchemaTransformProvider
           }
         };
       } else {
-        assert !Strings.isNullOrEmpty(configuration.getConfluentSchemaRegistryUrl())
-            : "To read from Kafka, a schema must be provided directly or though Confluent "
-                + "Schema Registry. Neither seems to have been provided.";
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
           @Override
           public PCollectionRowTuple expand(PCollectionRowTuple input) {
@@ -172,7 +168,16 @@ public class KafkaReadSchemaTransformProvider
                 KafkaIO.<byte[], GenericRecord>read()
                     .withTopic(configuration.getTopic())
                     .withBootstrapServers(configuration.getBootstrapServers())
-                    .withConsumerConfigUpdates(consumerConfigs)
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(
+                            ConsumerConfig.GROUP_ID_CONFIG,
+                            "kafka-read-provider-" + groupId,
+                            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                            true,
+                            ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+                            100,
+                            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                            autoOffsetReset))
                     .withKeyDeserializer(ByteArrayDeserializer.class)
                     .withValueDeserializer(
                         ConfluentSchemaRegistryDeserializerProvider.of(

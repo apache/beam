@@ -33,8 +33,3 @@ class ResetIntent extends BeamIntent {
 class RunIntent extends BeamIntent {
   const RunIntent() : super(slug: 'intents.playground.run');
 }
-
-class ShowSuggestionsIntent extends BeamIntent {
-  const ShowSuggestionsIntent()
-      : super(slug: 'intents.playground.showSuggestions');
-}

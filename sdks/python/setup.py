@@ -336,7 +336,7 @@ if __name__ == '__main__':
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<112',
+            'chromedriver-binary>=100,<111',
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<8',
           ],
@@ -350,7 +350,7 @@ if __name__ == '__main__':
         # Exclude 1.5.0 and 1.5.1 because of
         # https://github.com/pandas-dev/pandas/issues/45725
           'dataframe': [
-            'pandas<1.6.0;python_version=="3.7"',
+            'pandas<1.4.0;python_version=="3.7"',
             'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
           ],
           'dask': [

@@ -16,43 +16,94 @@
  * limitations under the License.
  */
 
+import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
 
 import '../../constants/sizes.dart';
-import '../unread/marker.dart';
+import '../../controllers/playground_controller.dart';
+import 'result_filter_popover.dart';
 
-const _horizontalPadding = BeamSizes.size8;
+class OutputTab extends StatefulWidget {
+  final PlaygroundController playgroundController;
+  final String name;
+  final bool isSelected;
 
-class OutputTab extends StatelessWidget {
+  /// Used to check if an update marker should be added on the tab
+  final String maxPossibleContent;
+  final bool hasFilter;
+
   const OutputTab({
-    required this.isUnread,
-    required this.title,
-    this.trailing,
+    super.key,
+    required this.playgroundController,
+    required this.name,
+    required this.isSelected,
+    required this.maxPossibleContent,
+    this.hasFilter = false,
   });
 
-  final bool isUnread;
-  final String title;
-  final Widget? trailing;
+  @override
+  State<OutputTab> createState() => _OutputTabState();
+}
+
+class _OutputTabState extends State<OutputTab> {
+  bool hasNewContent = false;
+
+  @override
+  void didUpdateWidget(OutputTab oldWidget) {
+    if (widget.isSelected && hasNewContent) {
+      setState(() {
+        hasNewContent = false;
+      });
+    } else if (!widget.isSelected &&
+        widget.maxPossibleContent.isNotEmpty &&
+        oldWidget.maxPossibleContent != widget.maxPossibleContent) {
+      setState(() {
+        hasNewContent = true;
+      });
+    }
+    super.didUpdateWidget(oldWidget);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+
     return Tab(
       child: Wrap(
+        direction: Axis.horizontal,
         alignment: WrapAlignment.center,
         spacing: BeamSizes.size8,
         children: [
-          const SizedBox(width: _horizontalPadding),
-          Text(title),
-          if (trailing != null) trailing!,
-          SizedBox(
-            width: _horizontalPadding,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              child: isUnread
-                  ? const UnreadMarkerWidget()
-                  : const Opacity(opacity: 0, child: UnreadMarkerWidget()),
+          Text(widget.name),
+          widget.hasFilter
+              ? GestureDetector(
+                  onTap: () {
+                    showAlignedDialog(
+                      context: context,
+                      builder: (dialogContext) => ResultFilterPopover(
+                        playgroundController: widget.playgroundController,
+                      ),
+                      followerAnchor: Alignment.topLeft,
+                      targetAnchor: Alignment.topLeft,
+                      barrierColor: Colors.transparent,
+                    );
+                  },
+                  child: Icon(
+                    Icons.filter_alt_outlined,
+                    size: BeamIconSizes.small,
+                    color: themeData.primaryColor,
+                  ),
+                )
+              : const SizedBox(),
+          if (hasNewContent)
+            Container(
+              width: BeamIconSizes.xs,
+              height: BeamIconSizes.xs,
+              decoration: BoxDecoration(
+                color: themeData.primaryColor,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -122,7 +122,7 @@ class SnippetFileEditingController extends ChangeNotifier {
   }
 
   void reset() {
-    codeController.fullText = savedFile.content;
+    codeController.text = savedFile.content;
   }
 
   void _onSymbolsNotifierChanged() {
