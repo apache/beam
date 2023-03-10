@@ -28,5 +28,5 @@ variable "service_account_id" {
 }
 
 locals {
-  gcloud_account = trim(data.external.gcloud_account.result)
+  gcloud_account = data.external.gcloud_account.result
 }
