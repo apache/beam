@@ -26,6 +26,7 @@ import '../../../models/unit.dart';
 import '../../../repositories/client/client.dart';
 import '../../../services/analytics/events/unit_completed.dart';
 
+/// The state object for the [unit] being currently open.
 class UnitController extends ChangeNotifier {
   final UnitModel unit;
   final Sdk sdk;

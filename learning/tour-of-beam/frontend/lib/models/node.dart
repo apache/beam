@@ -22,6 +22,7 @@ import 'group.dart';
 import 'parent_node.dart';
 import 'unit.dart';
 
+/// The data class for any Tour of Beam node of a content tree.
 abstract class NodeModel {
   final String id;
   final String title;
