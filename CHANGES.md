@@ -64,6 +64,7 @@
 ## New Features / Improvements
 
 * The Flink runner now supports Flink 1.16.x ([#25046](https://github.com/apache/beam/issues/25046)).
+* The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
 
 ## Breaking Changes
 
