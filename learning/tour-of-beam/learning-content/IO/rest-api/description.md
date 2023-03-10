@@ -92,8 +92,7 @@ weatherData.apply(
 {{if (eq .Sdk "python")}}
 ```
 fictional_characters_view = beam.pvalue.AsDict(
-    pipeline | 'CreateCharacters' >> beam.Create([('Yoda', True),
-                                                  ('Obi Wan Kenobi', True)]))
+    pipeline | 'CreateCharacters' >> beam.Create([('Yoda', True),('Obi Wan Kenobi', True)]))
 
 def table_fn(element, fictional_characters):
   if element in fictional_characters:

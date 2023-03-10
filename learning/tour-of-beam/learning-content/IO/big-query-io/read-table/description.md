@@ -50,9 +50,7 @@ The `Read` transform returns a `PCollection` of `TableRow` objects, which repres
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-p
-  | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec) \
-  | beam.Map(lambda elem: elem['max_temperature'])
+p | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec) | beam.Map(lambda elem: elem['max_temperature'])
 ```
 
 The `beam.io.ReadFromBigQuery()` method is called to create a `Read` transform that will read data from a `BigQuery` table. The `table_spec` parameter specifies the name of the `BigQuery` table to read from, along with any other configuration options such as **project ID**, **dataset ID**, or **query**.

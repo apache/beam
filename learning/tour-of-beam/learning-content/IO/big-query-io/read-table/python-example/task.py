@@ -46,10 +46,9 @@ def run(argv=None):
     pipeline_options.view_as(SetupOptions).save_main_session = True
 
     with beam.Pipeline(options=pipeline_options) as p:
-      (p
-            #| 'ReadTable' >> beam.io.ReadFromBigQuery(table='project-id.dataset.table')
-            # Each row is a dictionary where the keys are the BigQuery columns
-            #| beam.Map(lambda elem: elem['field'])
+      (p #| 'ReadTable' >> beam.io.ReadFromBigQuery(table='project-id.dataset.table')
+         # Each row is a dictionary where the keys are the BigQuery columns
+         #| beam.Map(lambda elem: elem['field'])
        )
 
 
