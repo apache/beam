@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "gcloud_account" {}
-
 data "external" "gcloud_account" {
   program = ["gcloud", "config", "get-value", "core/account"]
 }
@@ -31,8 +29,4 @@ variable "service_account_id" {
 
 locals {
   gcloud_account = trim(data.external.gcloud_account.result)
-}
-
-variable "gcloud_account" {
-  default = local.gcloud_account
 }

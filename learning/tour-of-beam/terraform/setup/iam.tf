@@ -36,6 +36,6 @@ resource "google_project_iam_member" "gcloud_user_required_roles" {
     "roles/cloudfunctions.admin", "roles/firebase.admin"
   ])
   role    = each.key
-  member  = "user:${var.gcloud_account}"
+  member  = "user:${local.gcloud_account}"
   project = var.project_id
 }
