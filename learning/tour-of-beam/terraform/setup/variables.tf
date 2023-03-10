@@ -15,10 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-data "external" "gcloud_account" {
-  program = ["sh", "-c", "gcloud auth list --format=json | jq -r '.[].account' | head -n1"]
-}
-
 variable "project_id" {
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }
@@ -27,6 +23,6 @@ variable "service_account_id" {
   description = "The name of Service Account to run Cloud Function"
 }
 
-locals {
-  gcloud_account = data.external.gcloud_account.result
+variable "gcloud_init_account" {
+  description = "User Account ID logged in with gcloud init command (e.g. username@domain.com)"
 }
