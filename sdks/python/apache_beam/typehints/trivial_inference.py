@@ -30,7 +30,6 @@ import sys
 import traceback
 import types
 from functools import reduce
-from inspect import isfunction
 
 from apache_beam import pvalue
 from apache_beam.typehints import Any
