@@ -140,19 +140,4 @@ class DynamicBatchSizer(object):
 
 
 def extract_byte_size(proto_message):
-  """
-    Gets the byte size from a google.protobuf or proto-plus message
-
-    google-cloud-datastore moved from using protobuf to using
-    proto-plus messages.
-    protobuf object has attribute ByteSize() but proto.Message() objects
-    don't. Workaround:
-    https://github.com/googleapis/proto-plus-python/issues/163
-    """
-  if hasattr(proto_message, "ByteSize"):
-    # google.protobuf message
-    return proto_message.ByteSize()
-  if hasattr(type(proto_message), "pb"):
-    # proto-plus message
-    return type(proto_message).pb(proto_message).ByteSize()
-  return NotImplementedError
+  return proto_message._pb.ByteSize()

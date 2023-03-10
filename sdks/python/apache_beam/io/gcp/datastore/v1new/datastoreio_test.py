@@ -49,8 +49,20 @@ except ImportError:
   client = None
 
 
-# TODO(https://github.com/apache/beam/issues/25625)
-# remove this FakeMutation and replace it with proto.Message class.
+# used for internal testing only
+class ByteSize():
+  def __init__(self, entity, key):
+    self.entity = entity
+    self.key = key
+
+  def ByteSize(self):
+    if self.entity is not None:
+      return util.extract_byte_size(helpers.entity_to_protobuf(self.entity))
+    else:
+      return util.extract_byte_size(self.key.to_protobuf())
+
+
+# used for internal testing only
 class FakeMutation(object):
   def __init__(self, entity=None, key=None):
     """Fake mutation request object.
@@ -65,12 +77,7 @@ class FakeMutation(object):
     """
     self.entity = entity
     self.key = key
-
-  def ByteSize(self):
-    if self.entity is not None:
-      return util.extract_byte_size(helpers.entity_to_protobuf(self.entity))
-    else:
-      return util.extract_byte_size(self.key.to_protobuf())
+    self._pb = ByteSize(entity, key)
 
 
 class FakeBatch(object):
