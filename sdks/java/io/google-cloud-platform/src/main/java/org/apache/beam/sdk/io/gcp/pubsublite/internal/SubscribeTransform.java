@@ -80,9 +80,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
           .newSubscriber(
               messages ->
                   consumer.accept(
-                      messages.stream()
-                          .map(message -> message.toProto())
-                          .collect(Collectors.toList())));
+                      messages.stream().map(message -> message).collect(Collectors.toList())));
     } catch (Throwable t) {
       throw toCanonical(t).underlying;
     }
