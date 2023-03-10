@@ -43,9 +43,8 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
 
 merged = (
-    (pcoll1, pcoll2, pcoll3)
     # A list of tuples can be "piped" directly into a Flatten transform.
-    | beam.Flatten())
+    (pcoll1, pcoll2, pcoll3) | beam.Flatten())
 ```
 {{end}}
 
@@ -97,9 +96,7 @@ input1 = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/coun
 input2 = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/counts-00001-of-00003')
    | beam.ParDo(ExtractFn()))
 
-merged = (
-    (input1, input2)
-    | beam.Flatten())
+merged = ((input1, input2) | beam.Flatten())
 ```
 {{end}}
 

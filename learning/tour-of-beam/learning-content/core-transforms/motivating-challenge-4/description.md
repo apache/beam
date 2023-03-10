@@ -9,7 +9,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-### Common Transforms motivating challenge
+### Core Transforms motivating challenge-4
 
 You need to group the words so that the key is the first letter and the value is an array of words. This can be achieved with `CombineFn`.
 {{if (eq .Sdk "go")}}

@@ -45,16 +45,11 @@ class Output(beam.PTransform):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
 with beam.Pipeline() as p:
+  # List of elements start with a
+  wordsStartingWithA = p | 'Words starting with A' >> beam.Create(['apple', 'ant', 'arrow'])
 
-    # List of elements start with a
-  wordsStartingWithA = \
-        p | 'Words starting with A' >> beam.Create(['apple', 'ant', 'arrow'])
+  # List of elements start with b
+  wordsStartingWithB = p | 'Words starting with B' >> beam.Create(['ball', 'book', 'bow'])
 
-    # List of elements start with b
-  wordsStartingWithB = \
-        p | 'Words starting with B' >> beam.Create(['ball', 'book', 'bow'])
-
-  ((wordsStartingWithA, wordsStartingWithB)
-    # Accept two PCollection data types are the same combines and returns one PCollection
-     | beam.Flatten()
-     | Output())
+  # Accept two PCollection data types are the same combines and returns one PCollection
+  ((wordsStartingWithA, wordsStartingWithB) | beam.Flatten() | Output())

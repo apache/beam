@@ -144,26 +144,18 @@ While `ParDo` always produces a main output `PCollection` (as the return value f
 
 
 results = (
-    input
-    | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x').with_outputs(
-        'above_cutoff_lengths',
-        'marked strings',
-        main='below_cutoff_strings'))
-below = results.below_cutoff_strings
-above = results.above_cutoff_lengths
-marked = results['marked strings']  # indexing works as well
+  input | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x').with_outputs('above_cutoff_lengths','marked strings',main='below_cutoff_strings'))
+  below = results.below_cutoff_strings
+  above = results.above_cutoff_lengths
+  marked = results['marked strings']  # indexing works as well
 
 
 # The result is also iterable, ordered in the same order that the tags were passed to with_outputs(),
 # the main tag (if specified) first.
 
 
-below, above, marked = (input
-                        | beam.ParDo(
-                            ProcessWords(), cutoff_length=2, marker='x')
-                        .with_outputs('above_cutoff_lengths',
-                                      'marked strings',
-                                      main='below_cutoff_strings'))
+below, above, marked = (input | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x')
+                                .with_outputs('above_cutoff_lengths','marked strings',main='below_cutoff_strings'))
 ```
 
 ### Emitting to multiple outputs in your DoFn

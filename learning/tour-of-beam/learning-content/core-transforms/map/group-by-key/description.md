@@ -154,8 +154,7 @@ If the keys are duplicated, groupByKey collects data and the values will be stor
 ```
 class ApplyTransform(PTransform):
     def expand(self, input):
-        return (input
-                | 'Lowercase' >> util.Map(lambda word, count: (word.lower(), count))
+        return (input | 'Lowercase' >> util.Map(lambda word, count: (word.lower(), count))
                 | 'GroupByKey' >> util.GroupByKey())
 ```
 {{end}}

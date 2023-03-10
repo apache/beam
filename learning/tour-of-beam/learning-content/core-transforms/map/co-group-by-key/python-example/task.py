@@ -46,7 +46,6 @@ class Output(beam.PTransform):
 
 
 class WordsAlphabet:
-
     def __init__(self, alphabet, fruit, country):
         self.alphabet = alphabet
         self.fruit = fruit
@@ -73,10 +72,8 @@ def apply_transforms(fruits, countries):
 
 
 with beam.Pipeline() as p:
-
   fruits = p | 'Fruits' >> beam.Create(['apple', 'banana', 'cherry'])
   countries = p | 'Countries' >> beam.Create(['australia', 'brazil', 'canada'])
 
-  (apply_transforms(fruits, countries)
-   | Output())
+  (apply_transforms(fruits, countries) | Output())
 

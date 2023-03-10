@@ -47,9 +47,9 @@ PCollection<KV<String, Integer>> output = input.apply(Combine.perKey(new SumInte
 {{if (eq .Sdk "python")}}
 ```
 with beam.Pipeline() as p:
-        input_data = [('a', 1), ('b', 2), ('a', 3), ('c', 4), ('b', 5)]
-        input_pcoll = p | beam.Create(input_data)
-        output_pcoll = input_pcoll | CombinePerKey(SumInts())
+  input_data = [('a', 1), ('b', 2), ('a', 3), ('c', 4), ('b', 5)]
+  input_pcoll = p | beam.Create(input_data)
+  output_pcoll = input_pcoll | CombinePerKey(SumInts())
 ```
 {{end}}
 ### Playground exercise
@@ -118,15 +118,14 @@ class ConcatString(combiners.CombineFn):
     def extract_output(self, accumulator):
         return accumulator
 
-input = (p
-         | 'Create Cities To Time KV' >> beam.Create([
+input = (p | 'Create Cities To Time KV' >> beam.Create([
                  ('a', 'apple'),
                  ('o', 'orange'),
                  ('a', 'avocado'),
                  ('l', 'lemon'),
-                 ('l', 'limes')
-             ])
+                 ('l', 'limes')])
 )
+
 output = input | 'Combine Per Key' >> CombinePerKey(ConcatString())
 ```
 {{end}}

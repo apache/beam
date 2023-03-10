@@ -92,8 +92,7 @@ The following code sample shows how to override expand for the ComputeWordLength
 
 {{if (eq .Sdk "java")}}
 ```
-  static class ComputeWordLengths
-      extends PTransform<PCollection<String>, PCollection<Integer>> {
+  static class ComputeWordLengths extends PTransform<PCollection<String>, PCollection<Integer>> {
     @Override
     public PCollection<Integer> expand(PCollection<String>) {
       ...
@@ -159,9 +158,8 @@ It applies the Beam SDK library transform `Count` on the `PCollection` of words,
 @beam.ptransform_fn
 def CountWords(input):
   return (
-      input
-      # Convert lines of text into individual words.
-      | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
+      # Convert lines of text into individual words. 
+      input | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
       # Count the number of times each word occurs.
       | beam.combiners.Count.PerElement()
       # Format each word and count into a printable string.
@@ -257,8 +255,7 @@ words = input | 'ExtractWords' >> beam.FlatMap(lambda line: [word for word in li
 You can use other transformations you can replace `Count` with `Filter` to output words starting with **p**:
 
 ```
-filtered = (input
-            | 'ExtractNonSpaceCharacters' >> beam.FlatMap(lambda line: [word for word in line.split() if word])
+filtered = (input | 'ExtractNonSpaceCharacters' >> beam.FlatMap(lambda line: [word for word in line.split() if word])
             | 'FilterByPrefix' >> beam.Filter(lambda word: word.startswith('p')))
 ```
 {{end}}

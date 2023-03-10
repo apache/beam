@@ -125,8 +125,7 @@ def filter_using_length(word, lower_bound, upper_bound=float('inf')):
 
 # Construct a deferred side input.
 avg_word_len = (
-    words
-    | beam.Map(len)
+    words | beam.Map(len)
     | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
 
 # Call with explicit side inputs.

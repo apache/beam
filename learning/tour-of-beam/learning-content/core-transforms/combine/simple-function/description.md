@@ -101,7 +101,6 @@ def concat(strings):
     return total
 
 with beam.Pipeline() as p:
-
   (p | beam.Create(["quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"])
      | beam.CombineGlobally(concat)
      | LogElements())

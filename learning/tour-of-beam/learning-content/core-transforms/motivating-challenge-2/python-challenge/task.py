@@ -46,7 +46,6 @@ class Output(beam.PTransform):
 
 
 with beam.Pipeline() as p:
-
   # FlatMap with split
   # Map by index
   # Combine sum

@@ -9,6 +9,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-### Common Transforms motivating challenge
+### Core Transforms motivating challenge-1
 
 You are given the works of Shakespeare "kinglear" it will be divided into words and filtered. You need to divide these words into 3 portions. The first words that consist of capital letters. The second words that begin with a capital letter. The third is all lowercase letters. And count each element. Translate the first and second elements of the array to lowercase, combine the resulting collections and group them by key

@@ -25,8 +25,7 @@ static PCollection<String> applyTransform(PCollection<String> input) {
 {{if (eq .Sdk "python")}}
 ```
 with beam.Pipeline() as p:
-
-    (p | beam.Create(['Apache Beam', 'Unified Batch and Streaming'])
+  (p | beam.Create(['Apache Beam', 'Unified Batch and Streaming'])
      | beam.FlatMap(lambda sentence: sentence.split())
      | LogElements())
 ```
@@ -52,9 +51,9 @@ PCollection<String> splitWords = input.apply(
 {{if (eq .Sdk "python")}}
 ```
 words_with_counts = p | 'Create words with counts' >> beam.Create([
-    ('Hello', 1), ('World', 2), ('How', 3), ('are', 4), ('you', 5)])
+  ('Hello', 1), ('World', 2), ('How', 3), ('are', 4), ('you', 5)])
 
 split_words = words_with_counts | 'Split words' >> beam.FlatMap(
-    lambda word_with_count: [word_with_count[0]] * word_with_count[1])
+  lambda word_with_count: [word_with_count[0]] * word_with_count[1])
 ```
 {{end}}

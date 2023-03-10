@@ -58,7 +58,6 @@ class StartWithLetter(beam.DoFn):
             yield element
 
 class ExtractAndCountWord(beam.PTransform):
-
     def expand(self, pcoll):
         return (pcoll
                 | beam.ParDo(StartWithLetter('i'))
@@ -67,7 +66,6 @@ class ExtractAndCountWord(beam.PTransform):
                 )
 
 class ProcessNumbersDoFn(beam.DoFn):
-
     def process(self, element):
         if element.startswith('I'):
             yield element
@@ -82,7 +80,6 @@ class EnrichCountryDoFn(beam.DoFn):
 
 
 with beam.Pipeline() as p:
-
   results = (p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
             | beam.combiners.Sample.FixedSizeGlobally(100) \
             | beam.FlatMap(lambda line: line) \

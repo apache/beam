@@ -52,9 +52,7 @@ def partition_fn(number, num_partitions):
 
 
 with beam.Pipeline() as p:
-
-  results = \
-        (p | beam.Create([1, 2, 3, 4, 5, 100, 110, 150, 250])
+  results = (p | beam.Create([1, 2, 3, 4, 5, 100, 110, 150, 250])
         # Accepts PCollection and returns the PCollection array
          | beam.Partition(partition_fn, 2))
 

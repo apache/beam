@@ -231,7 +231,6 @@ PCollection<KV<String,String>> fruitsPCollection = pipeline.apply("Friuts",
 Change `WordsAlphabet` to `ProductWeight`:
 ```
 static class ProductWeight {
-
         private String country;
         private String fruit;
         private Integer productWeight;
@@ -249,7 +248,6 @@ static class ProductWeight {
 The union takes place through the keys:
 ```
 static PCollection<String> applyTransform(PCollection<String> fruits, PCollection<String> countries) {
-
         TupleTag<String> fruitsTag = new TupleTag<>();
         TupleTag<String> productWeightTag = new TupleTag<>();
 

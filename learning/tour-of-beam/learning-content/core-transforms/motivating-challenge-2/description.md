@@ -9,6 +9,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-### Common Transforms motivating challenge
+### Core Transforms motivating challenge-2
 
 You are given a file with repeated words and the counted number you need to separate by colons. Remove the extra spaces next to the number. `Combine` by key the values should be combined(+)

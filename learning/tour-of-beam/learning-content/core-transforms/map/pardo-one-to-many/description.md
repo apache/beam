@@ -31,7 +31,6 @@ func tokenizeFn(input string, emit func(out string)) {
 ```
 static PCollection<String> applyTransform(PCollection<String> input) {
         return input.apply(ParDo.of(new DoFn<String, String>() {
-
             @ProcessElement
             public void processElement(@Element String sentence, OutputReceiver<String> out) {
                 // Divided sentences into words
@@ -51,12 +50,10 @@ static PCollection<String> applyTransform(PCollection<String> input) {
 {{if (eq .Sdk "python")}}
 ```
 class BreakIntoWordsDoFn(beam.DoFn):
-
     def process(self, element):
         return element.split()
 
 with beam.Pipeline() as p:
-
   (p | beam.Create(['Hello Beam', 'It is awesome'])
      | beam.ParDo(BreakIntoWordsDoFn())
      | LogElements())

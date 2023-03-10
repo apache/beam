@@ -313,7 +313,6 @@ In addition to the element, Beam will populate other parameters to your DoFn’s
 import apache_beam as beam
 
 class ProcessRecord(beam.DoFn):
-
   def process(self, element, timestamp=beam.DoFn.TimestampParam):
      # access timestamp of element.
      pass
@@ -325,7 +324,6 @@ class ProcessRecord(beam.DoFn):
 import apache_beam as beam
 
 class ProcessRecord(beam.DoFn):
-
   def process(self, element, window=beam.DoFn.WindowParam):
      # access window e.g. window.end.micros
      pass
@@ -337,7 +335,6 @@ class ProcessRecord(beam.DoFn):
 import apache_beam as beam
 
 class ProcessRecord(beam.DoFn):
-
   def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
      # access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing
      pass
@@ -348,7 +345,6 @@ class ProcessRecord(beam.DoFn):
 ```
 class StatefulDoFn(beam.DoFn):
   """An example stateful DoFn with state and timer"""
-
   BUFFER_STATE_1 = BagStateSpec('buffer1', beam.BytesCoder())
   BUFFER_STATE_2 = BagStateSpec('buffer2', beam.VarIntCoder())
   WATERMARK_TIMER = TimerSpec('watermark_timer', TimeDomain.WATERMARK)

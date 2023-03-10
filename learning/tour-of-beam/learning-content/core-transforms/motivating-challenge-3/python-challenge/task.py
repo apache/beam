@@ -69,7 +69,6 @@ class EnrichCountryDoFn(beam.DoFn):
 
 
 with beam.Pipeline() as p:
-
   # ExtractAndCountWord
   # ParDo ProcessNumbersDoFn with tags
   # Result by tags compare with EnrichCountryDoFn

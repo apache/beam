@@ -62,8 +62,7 @@ class EnrichCountryDoFn(beam.DoFn):
 
 
 with beam.Pipeline() as p:
-
-    # List of elements
+  # List of elements
   cities_to_countries = {
         'Beijing': 'China',
         'London': 'United Kingdom',
