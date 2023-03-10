@@ -250,7 +250,7 @@ if __name__ == '__main__':
         # Use a strict upper bound.
         'numpy>=1.14.3,<1.25.0',   # Update build-requirements.txt as well.
         'objsize>=0.6.1,<0.7.0',
-        'pymongo>=3.8.0,<5.0.0',
+        'pymongo>=4.0.0,<5.0.0',
         'proto-plus>=1.7.1,<2',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
