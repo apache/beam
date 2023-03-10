@@ -62,8 +62,7 @@ class MyFileSource(beam.DoFn):
 
 
 with beam.Pipeline() as p:
-  lines = (p
-             | 'Create' >> beam.Create(["Lorem Ipsum is simply dummy text of the printing and typesetting industry. "
+  lines = (p | 'Create' >> beam.Create(["Lorem Ipsum is simply dummy text of the printing and typesetting industry. "
                                         "Lorem Ipsum has been the industry's standard dummy text ever since the "
                                         "1500s, when an unknown printer took a galley of type and scrambled it to "
                                         "make a type specimen book. It has survived not only five centuries, "
@@ -72,5 +71,4 @@ with beam.Pipeline() as p:
                                         "sheets containing Lorem Ipsum passages, and more recently with desktop "
                                         "publishing software like Aldus PageMaker including versions of Lorem Ipsum."])
              | beam.ParDo(MyFileSource())
-             | 'Print' >> beam.Map(print)
-             )
+             | 'Print' >> beam.Map(print))
