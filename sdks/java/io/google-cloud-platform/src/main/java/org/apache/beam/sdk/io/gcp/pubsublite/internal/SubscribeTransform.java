@@ -78,9 +78,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
       return new SubscriberAssembler(options, partition)
           .getSubscriberFactory(initialOffset)
           .newSubscriber(
-              messages ->
-                  consumer.accept(
-                      messages.stream().map(message -> message).collect(Collectors.toList())));
+              messages -> consumer.accept(messages.stream().collect(Collectors.toList())));
     } catch (Throwable t) {
       throw toCanonical(t).underlying;
     }
