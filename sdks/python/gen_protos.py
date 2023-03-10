@@ -552,10 +552,11 @@ def generate_proto_files(force=False):
       f.writelines(lines)
 
   generate_init_files_lite(PYTHON_OUTPUT_PATH)
-  for proto_package in proto_packages:
-    generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
+  with PythonPath(grpcio_install_loc):
+    for proto_package in proto_packages:
+      generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
 
-  generate_init_files_full(PYTHON_OUTPUT_PATH)
+    generate_init_files_full(PYTHON_OUTPUT_PATH)
 
 
 if __name__ == '__main__':
