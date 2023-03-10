@@ -18,43 +18,28 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_row.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 import 'package:playground_components/playground_components.dart';
 
-const kButtonBorderRadius = 24.0;
-const kButtonWidth = 120.0;
-const kButtonHeight = 40.0;
-const kDialogPadding = 40.0;
-const kShortcutModalMaxWidth = 800.0;
+class ShortcutsModalContent extends StatelessWidget {
+  static const _kModalMaxWidth = 400.0;
+  static const _kShortcutsMaxWidth = 200.0;
 
-class ShortcutsModal extends StatelessWidget {
-  final PlaygroundController playgroundController;
-
-  const ShortcutsModal({
+  const ShortcutsModalContent({
+    super.key,
     required this.playgroundController,
   });
 
+  final PlaygroundController playgroundController;
+
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
-
-    return AlertDialog(
-      title: Text(appLocale.shortcuts),
-      titlePadding: const EdgeInsets.only(
-        top: kDialogPadding,
-        left: kDialogPadding,
-      ),
-      contentPadding: const EdgeInsets.all(kDialogPadding),
-      insetPadding: _buildDialogPadding(context),
-      actionsPadding: const EdgeInsets.only(
-        bottom: kDialogPadding,
-        right: kDialogPadding,
-      ),
-      content: Wrap(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _kModalMaxWidth),
+      child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.start,
         runSpacing: kXlSpacing,
         children: [
@@ -65,10 +50,12 @@ class ShortcutsModal extends StatelessWidget {
             (shortcut) => Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(child: ShortcutRow(shortcut: shortcut)),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _kShortcutsMaxWidth),
+                  child: ShortcutRow(shortcut: shortcut),
+                ),
                 const SizedBox(width: kMdSpacing),
                 Expanded(
-                  flex: 3,
                   child: Text(
                     shortcut.actionIntent.slug.tr(),
                     style: const TextStyle(fontWeight: kBoldWeight),
@@ -79,31 +66,6 @@ class ShortcutsModal extends StatelessWidget {
           )
         ],
       ),
-      actions: [
-        ElevatedButton(
-          style: const ButtonStyle(
-            elevation: MaterialStatePropertyAll<double>(0.0),
-            fixedSize: MaterialStatePropertyAll<Size>(
-              Size(kButtonWidth, kButtonHeight),
-            ),
-            padding: MaterialStatePropertyAll(EdgeInsets.only(bottom: 2)),
-            shape: MaterialStatePropertyAll<StadiumBorder>(
-              StadiumBorder(),
-            ),
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(appLocale.close),
-        ),
-      ],
-    );
-  }
-
-  EdgeInsets _buildDialogPadding(BuildContext context) {
-    return EdgeInsets.symmetric(
-      horizontal: MediaQuery.of(context).size.width >
-              kShortcutModalMaxWidth + kDialogPadding * 2
-          ? (MediaQuery.of(context).size.width - kShortcutModalMaxWidth) / 2.0
-          : kDialogPadding,
     );
   }
 }
