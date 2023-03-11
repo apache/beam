@@ -153,6 +153,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation library.java.arrow_memory_netty
+  // GCP PubSub client is used in TestPubSub
   testImplementation library.java.google_cloud_pubsub
   testImplementation library.java.google_cloud_spanner_test
   testImplementation library.java.hamcrest
