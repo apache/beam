@@ -85,11 +85,75 @@ You can watch while all the resources are created.
 kubectl get all --namespace strimzi
 ```
 
-## 4. Acquire kafka host and port.
+#### Test Kafka connection on local machine
+After all kafka cluster resources are created, you will want to validate the
+Kafka instance running on the kubernetes cluster.
+
+In either of the commands you need to port forward the internal load
+balancer service:
+
+```
+kubectl port-forward --namespace strimzi $(kubectl get pod --namespace strimzi --selector="strimzi.io/cluster=beam-testing-cluster,strimzi.io/kind=Kafka,strimzi.io/name=beam-testing-cluster-kafka" --output jsonpath='{.items[0].metadata.name}') 9094:9094
+```
+
+##### Simple telnet
+
+In a new terminal after submitting the `kubectl port-forward` command above:
+
+```
+curl -v telnet://localhost:9094
+```
+
+You should see:
+```
+*   Trying 127.0.0.1:9094...
+* Connected to localhost (127.0.0.1) port 9094 (#0)
+```
+
+##### Use kcat
+
+See https://github.com/edenhill/kcat for instructions how to install `kcat`.
+
+```
+kcat -L -b localhost:9094
+```
+
+You should see something that looks like the following:
+```
+Metadata for all topics (from broker -1: localhost:9094/bootstrap):
+ 3 brokers:
+  broker 0 at 10.128.0.12:9094 (controller)
+  broker 2 at 10.128.0.13:9094
+  broker 1 at 10.128.0.11:9094
+```
+
+#### Use with KafkaIO on Dataflow
 
 After all kafka cluster resources are created, you can run the
 following command to find the kafka host and port.
 
 ```
 kubectl get svc beam-testing-cluster-kafka-external-bootstrap --namespace strimzi
+```
+
+You should see something like the following:
+
+```
+NAME                                            TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+beam-testing-cluster-kafka-external-bootstrap   LoadBalancer   10.167.128.247   10.128.0.14   9094:31331/TCP   86m
+```
+
+Take note of the `EXTERNAL_IP` and `PORT`.  In the above example, we see
+`10.128.0.14:9094`.  This is the bootstrap server.
+
+Therefore, in the context of KafkaIO:
+
+```
+KafkaIO.read().withBootstrapServers("10.128.0.14:9094")
+```
+
+or
+
+```
+KafkaIO.write().withBootstrapServers("10.128.0.14:9094")
 ```

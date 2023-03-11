@@ -20,9 +20,9 @@
 # Overview
 
 This [kustomization](https://kubectl.docs.kubernetes.io/) installs the
-strimzi kafka persistent cluster and are redistributed from its source:
+strimzi kafka persistent cluster and redistributed from its source:
 https://github.com/strimzi/strimzi-kafka-operator/blob/main/examples/kafka/kafka-persistent.yaml
-Directories containing the operator manifests are named according to the
-version release.
+The directories within [base](./base) contain the operator manifests and
+are named according to the version release.
 
 See [.test-infra/kafka/strimzi](../README.md) for requirements and usage.
