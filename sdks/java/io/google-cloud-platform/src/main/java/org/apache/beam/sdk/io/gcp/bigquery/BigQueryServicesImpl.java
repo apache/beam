@@ -1338,7 +1338,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               .build();
 
       StreamWriter streamWriter =
-          StreamWriter.newBuilder(streamName)
+          StreamWriter.newBuilder(streamName, newWriteClient)
               .setExecutorProvider(
                   FixedExecutorProvider.create(
                       options.as(ExecutorOptions.class).getScheduledExecutorService()))
