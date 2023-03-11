@@ -65,6 +65,10 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 		return nil, fmt.Errorf("error listing object keys: %v", err)
 	}
 
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
 	uris := make([]string, len(keys))
 	for i, key := range keys {
 		uris[i] = makeURI(bucket, key)
