@@ -19,8 +19,9 @@
 # pytype: skip-file
 
 import logging
-import pytest
 import unittest
+
+import pytest
 
 import apache_beam as beam
 
