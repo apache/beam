@@ -53,13 +53,13 @@ the working directory [.test-infra/kafka-strimzi](.).
 
 ## 1. Install the strimzi operator.
 
-To preview the kustomization prior to appyling.
+First install the strimzi operator:
 
 ```
 kubectl apply -k 01-strimzi-operator
 ```
 
-Wait until completion before proceeding to the next step.
+**IMPORTANT: Wait until completion before proceeding to the next step:**
 
 ```
  kubectl get deploy strimzi-cluster-operator --namespace strimzi -w
