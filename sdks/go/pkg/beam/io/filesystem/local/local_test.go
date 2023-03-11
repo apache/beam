@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestLocal_FilesystemNew(t *testing.T) {
@@ -130,6 +131,24 @@ func TestLocal_util(t *testing.T) {
 	}
 	if got, want := string(data), string(gotData); got != want {
 		t.Errorf("filesystem.Read() = %v, want %v", got, want)
+	}
+}
+
+func TestLocal_listNoMatches(t *testing.T) {
+	ctx := context.Background()
+	fs := &fs{}
+
+	dir := t.TempDir()
+	glob := filepath.Join(dir, "foo*")
+
+	got, err := fs.List(ctx, glob)
+	if err != nil {
+		t.Fatalf("List(%q) error = %v, want nil", glob, err)
+	}
+
+	want := []string(nil)
+	if !cmp.Equal(got, want) {
+		t.Errorf("List(%q) = %v, want %v", glob, got, want)
 	}
 }
 
