@@ -70,6 +70,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Test fixtures in beam-sdk-io-google-cloud-dataplatform (TestBigQuery, BigQueryMatcher, TestPubSub, TestPubSubSignal) are moved to the test scope and will no longer be shipped with releases (Java) ([#25806](https://github.com/apache/beam/issues/25806)).
 
 ## Deprecations
 
