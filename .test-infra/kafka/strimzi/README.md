@@ -27,7 +27,8 @@ for more details on how Kustomize works with Kubernetes.
 
 # Requirements
 
-See [requirements](../README.md) for details on requirements.
+- Connection to a kubernetes cluster (See: [.test-infra/terraform/google-cloud-platform/google-kubernetes-engine/google-kubernetes-engine](../../terraform/google-cloud-platform/google-kubernetes-engine) in this repository)
+- [kubectl](https://kubernetes.io/docs/reference/kubectl/) cli
 
 # Preview kustomization
 
@@ -66,7 +67,7 @@ Wait until completion before proceeding to the next step.
 
 ## 3. Create the kafka cluster.
 
-The kafka cluster specifics relies on kustomize overlays.
+A specific kafka cluster installation relies on kustomize overlays.
 
 ### GKE internal load balanced kafka cluster
 
