@@ -13,39 +13,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package s3
+package fsx
 
-import (
-	"errors"
-	"fmt"
-	"net/url"
-)
+import "testing"
 
-// parseURI deconstructs the S3 uri in the format 's3://bucket/key' to (bucket, key)
-func parseURI(uri string) (string, string, error) {
-	parsed, err := url.Parse(uri)
-	if err != nil {
-		return "", "", err
+func TestGetPrefix(t *testing.T) {
+	tests := []struct {
+		name       string
+		keyPattern string
+		want       string
+	}{
+		{
+			name:       "Key pattern with wildcards",
+			keyPattern: "path/**/*.json",
+			want:       "path/",
+		},
+		{
+			name:       "Key pattern without wildcards",
+			keyPattern: "path/file.json",
+			want:       "path/file.json",
+		},
 	}
 
-	if parsed.Scheme != "s3" {
-		return "", "", errors.New("scheme must be 's3'")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetPrefix(tt.keyPattern); got != tt.want {
+				t.Errorf("GetPrefix() = %v, want %v", got, tt.want)
+			}
+		})
 	}
-
-	bucket := parsed.Host
-	if bucket == "" {
-		return "", "", errors.New("bucket must not be empty")
-	}
-
-	var key string
-	if parsed.Path != "" {
-		key = parsed.Path[1:]
-	}
-
-	return bucket, key, nil
-}
-
-// makeURI constructs an S3 uri from the bucket and key to the format 's3://bucket/key'
-func makeURI(bucket string, key string) string {
-	return fmt.Sprintf("s3://%s/%s", bucket, key)
 }

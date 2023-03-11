@@ -13,39 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package s3
+// Package fsx contains utilities for working with filesystems.
+package fsx
 
-import (
-	"errors"
-	"fmt"
-	"net/url"
-)
+import "strings"
 
-// parseURI deconstructs the S3 uri in the format 's3://bucket/key' to (bucket, key)
-func parseURI(uri string) (string, string, error) {
-	parsed, err := url.Parse(uri)
-	if err != nil {
-		return "", "", err
+// GetPrefix returns the prefix of the key pattern before the first wildcard, if any.
+func GetPrefix(keyPattern string) string {
+	if index := strings.Index(keyPattern, "*"); index >= 0 {
+		return keyPattern[:index]
 	}
-
-	if parsed.Scheme != "s3" {
-		return "", "", errors.New("scheme must be 's3'")
-	}
-
-	bucket := parsed.Host
-	if bucket == "" {
-		return "", "", errors.New("bucket must not be empty")
-	}
-
-	var key string
-	if parsed.Path != "" {
-		key = parsed.Path[1:]
-	}
-
-	return bucket, key, nil
-}
-
-// makeURI constructs an S3 uri from the bucket and key to the format 's3://bucket/key'
-func makeURI(bucket string, key string) string {
-	return fmt.Sprintf("s3://%s/%s", bucket, key)
+	return keyPattern
 }

@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/fsx"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -78,7 +79,7 @@ func (f *fs) listObjectKeys(
 	bucket string,
 	keyPattern string,
 ) ([]string, error) {
-	prefix := getPrefix(keyPattern)
+	prefix := fsx.GetPrefix(keyPattern)
 	params := &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucket),
 		Prefix: aws.String(prefix),
