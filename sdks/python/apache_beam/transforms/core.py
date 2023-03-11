@@ -1482,10 +1482,11 @@ class ParDo(PTransformWithSideInputs):
     if _check_fn_use_yield_and_return(self.fn.process):
       _LOGGER.warning(
           'The yield and return statements in the process method '
-          f'of {self.fn.__class__ } can not be mixed.'
+          'of %s can not be mixed.'
           'We recommend to use `yield` for emitting individual '
           ' elements and `yield from` for emitting the content '
-          'of entire iterables.')
+          'of entire iterables.',
+          self.fn.__class__)
 
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
