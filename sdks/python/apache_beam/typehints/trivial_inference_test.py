@@ -299,7 +299,7 @@ class TrivialInferenceTest(unittest.TestCase):
         return x
 
     self.assertReturnType(int, lambda: A().m(3))
-    #self.assertReturnType(float, lambda: A.m(A(), 3.0))
+    self.assertReturnType(float, lambda: A.m(A(), 3.0))
 
   def testCallFunctionOnAny(self):
     # Tests inference when CALL_FUNCTION/CALL_METHOD's function argument is Any.
