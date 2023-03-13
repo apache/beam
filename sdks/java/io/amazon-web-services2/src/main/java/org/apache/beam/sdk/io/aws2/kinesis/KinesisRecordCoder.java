@@ -30,7 +30,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.joda.time.Instant;
 
 /** A {@link Coder} for {@link KinesisRecord}. */
-public class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
+class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
 
   private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
   private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
