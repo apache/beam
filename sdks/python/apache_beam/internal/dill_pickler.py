@@ -230,11 +230,16 @@ def dumps(o, enable_trace=True, use_zlib=False):
     try:
       s = dill.dumps(o, byref=settings['dill_byref'])
     except Exception:  # pylint: disable=broad-except
-      if enable_trace:
-        dill._dill._trace(True)  # pylint: disable=protected-access
-        s = dill.dumps(o, byref=settings['dill_byref'])
-      else:
-        raise
+      try:
+        # TODO: Investigate why recurse should be used.
+        # https://github.com/uqfoundation/dill/issues/482#issuecomment-1139017499
+        s = dill.dumps(o, byref=settings['dill_byref'], recurse=True)
+      except Exception:  # pylint: disable=broad-except
+        if enable_trace:
+          dill._dill._trace(True)  # pylint: disable=protected-access
+          s = dill.dumps(o, byref=settings['dill_byref'])
+        else:
+          raise
     finally:
       dill._dill._trace(False)  # pylint: disable=protected-access
 
