@@ -195,7 +195,6 @@ def convert_collections_to_typing(typ):
 
   Returns:
     type: The corresponding typing object.
-  
   """
   if hasattr(typ, '__iter__'):
     print("here")
