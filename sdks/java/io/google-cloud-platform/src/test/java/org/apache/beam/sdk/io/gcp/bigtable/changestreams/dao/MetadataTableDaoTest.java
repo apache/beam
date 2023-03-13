@@ -32,6 +32,7 @@ import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
+import java.util.ArrayList;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
 import org.joda.time.Instant;
@@ -85,6 +86,46 @@ public class MetadataTableDaoTest {
   }
 
   @Test
+  public void testStreamPartitionRowKeyConversion() throws InvalidProtocolBufferException {
+    ByteStringRange rowRange = ByteStringRange.create("a", "b");
+    ByteString rowKey = metadataTableDao.convertPartitionToStreamPartitionRowKey(rowRange);
+    assertEquals(rowRange, metadataTableDao.convertStreamPartitionRowKeyToPartition(rowKey));
+  }
+
+  @Test
+  public void testStreamPartitionRowKeyConversionWithIllegalUtf8()
+      throws InvalidProtocolBufferException {
+    // Test that the conversion is able to handle non-utf8 values.
+    byte[] nonUtf8Bytes = {(byte) 0b10001100};
+    ByteString nonUtf8RowKey = ByteString.copyFrom(nonUtf8Bytes);
+    ByteStringRange rowRange = ByteStringRange.create(nonUtf8RowKey, nonUtf8RowKey);
+    ByteString rowKey = metadataTableDao.convertPartitionToStreamPartitionRowKey(rowRange);
+    assertEquals(rowRange, metadataTableDao.convertStreamPartitionRowKeyToPartition(rowKey));
+  }
+
+  @Test
+  public void testReadStreamPartitionsWithWatermark() throws InvalidProtocolBufferException {
+    ByteStringRange partitionWithWatermark = ByteStringRange.create("a", "");
+    Instant watermark = Instant.now();
+    metadataTableDao.updateWatermark(partitionWithWatermark, watermark, null);
+
+    // This should only return rows where the watermark has been set, not rows that have been locked
+    // but have not yet set the first watermark
+    ServerStream<Row> rowsWithWatermark =
+        metadataTableDao.readFromMdTableStreamPartitionsWithWatermark();
+    ArrayList<Row> metadataRows = new ArrayList<>();
+    for (Row row : rowsWithWatermark) {
+      metadataRows.add(row);
+    }
+    assertEquals(1, metadataRows.size());
+    Instant metadataWatermark = MetadataTableEncoder.parseWatermarkFromRow(metadataRows.get(0));
+    assertEquals(watermark, metadataWatermark);
+    ByteStringRange rowKeyResponse =
+        metadataTableDao.convertStreamPartitionRowKeyToPartition(metadataRows.get(0).getKey());
+    assertEquals(partitionWithWatermark, rowKeyResponse);
+  }
+
+  @Test
   public void testNewPartitionsWriteRead() throws InvalidProtocolBufferException {
     // This test a split of ["", "") to ["", "a") and ["a", "")
     ByteStringRange parentPartition = ByteStringRange.create("", "");
@@ -122,6 +163,36 @@ public class MetadataTableDaoTest {
     assertTrue(matchedPartition1);
     assertTrue(matchedPartition2);
     assertEquals(2, rowsCount);
+  }
+
+  @Test
+  public void testUpdateAndReadWatermark() throws InvalidProtocolBufferException {
+    ByteStringRange partition1 = ByteStringRange.create("a", "b");
+    Instant watermark1 = Instant.now();
+    metadataTableDao.updateWatermark(partition1, watermark1, null);
+    ByteStringRange partition2 = ByteStringRange.create("b", "c");
+    Instant watermark2 = Instant.now();
+    metadataTableDao.updateWatermark(partition2, watermark2, null);
+
+    ServerStream<Row> rows = metadataTableDao.readFromMdTableStreamPartitionsWithWatermark();
+    int rowsCount = 0;
+    boolean matchedPartition1 = false;
+    boolean matchedPartition2 = false;
+    for (Row row : rows) {
+      rowsCount++;
+      ByteStringRange partition =
+          metadataTableDao.convertStreamPartitionRowKeyToPartition(row.getKey());
+      if (partition.equals(partition1)) {
+        assertEquals(watermark1, MetadataTableEncoder.parseWatermarkFromRow(row));
+        matchedPartition1 = true;
+      } else if (partition.equals(partition2)) {
+        assertEquals(watermark2, MetadataTableEncoder.parseWatermarkFromRow(row));
+        matchedPartition2 = true;
+      }
+    }
+    assertEquals(2, rowsCount);
+    assertTrue(matchedPartition1);
+    assertTrue(matchedPartition2);
   }
 
   @Test
