@@ -138,7 +138,6 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
 
   def _setup_pipeline(self):
     options = PipelineOptions(self.pipeline.get_full_options_as_args())
-    options.view_as(SetupOptions).save_main_session = True
     options.view_as(StandardOptions).streaming = True
     self.pipeline = TestPipeline(options=options)
 
@@ -201,7 +200,6 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
     extra_opts = {
         'on_success_matcher': all_of(pubsub_msg_verifier),
         'streaming': True,
-        'save_main_session': True
     }
     args = self.pipeline.get_full_options_as_args(**extra_opts)
     self.pipeline = TestPipeline(options=PipelineOptions(args))
