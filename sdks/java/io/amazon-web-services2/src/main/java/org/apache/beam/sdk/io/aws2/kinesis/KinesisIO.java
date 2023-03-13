@@ -92,6 +92,8 @@ import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.Shard;
+import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
+import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 /**
@@ -146,6 +148,29 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * <p>You may provide a custom rate limit policy using {@link
  * Read#withCustomRateLimitPolicy(RateLimitPolicyFactory)}. This requires implementing {@link
  * RateLimitPolicy} with a corresponding {@link RateLimitPolicyFactory}.
+ *
+ * <h4>Enhanced Fan-Out</h4>
+ *
+ * Kinesis IO supports Consumers with Dedicated Throughput (Enhanced Fan-Out, EFO). This type of
+ * consumer doesn't have to contend with other consumers that are receiving data from the stream.
+ *
+ * <p>More details can be found here: <a
+ * href="https://docs.aws.amazon.com/streams/latest/dev/enhanced-consumers.html">Consumers with
+ * Dedicated Throughput</a>
+ *
+ * <p>To configure the IO with EFO enabled, add {@link KinesisIO.Read#withConsumerArn(String)}
+ * config:
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withConsumerArn("arn:aws:kinesis:..."))
+ * }</pre>
+ *
+ * <p><b>NOTE:</b> When EFO is enabled, {@link RateLimitPolicy} does not apply. Depending on the
+ * downstream processing performance, the EFO consumer will back-pressure internally. Otherwise, it
+ * receives records from shards as fast as the downstream keeps up.
  *
  * <h3>Writing to Kinesis</h3>
  *
@@ -341,7 +366,26 @@ public final class KinesisIO {
       return toBuilder().setStreamName(streamName).build();
     }
 
-    /** Specify reading with Enhanced Fan-Out via registered consumer ARN. */
+    /**
+     * Specify reading with Enhanced Fan-Out (EFO) via registered consumer ARN.
+     *
+     * <p>More details can be found here: <a
+     * href="https://docs.aws.amazon.com/streams/latest/dev/enhanced-consumers.html">Consumers with
+     * Dedicated Throughput</a>
+     *
+     * <p>Setting this means the {@link KinesisIO.Read} will use {@link KinesisAsyncClient} API for
+     * all operations.
+     *
+     * <p>{@link KinesisIO.Read} with and without EFO rely on the same mechanisms for keeping track
+     * of consumer's progress. Stopping a non-EFO consumer, switching it to EFO and back <b>does
+     * not</b> cause state incompatibility of {@link KinesisIO.Read}.
+     *
+     * <p>It is recommended to adjust runner's settings to prevent it from re-starting a EFO
+     * consumer faster than once per ~ 10 seconds. Internal calls to {@link
+     * KinesisAsyncClient#subscribeToShard(SubscribeToShardRequest,
+     * SubscribeToShardResponseHandler)} may throw ResourceInUseException otherwise, which will
+     * cause a crash loop.
+     */
     public Read withConsumerArn(String consumerArn) {
       return toBuilder().setConsumerArn(consumerArn).build();
     }
