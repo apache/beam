@@ -765,4 +765,7 @@ public class HBaseIO {
       private transient BufferedMutator mutator;
     }
   }
+
+
+  // TODO: add public static class for RowMutationsIO
 }
