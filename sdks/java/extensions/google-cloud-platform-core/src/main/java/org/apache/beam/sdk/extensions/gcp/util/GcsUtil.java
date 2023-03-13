@@ -933,7 +933,8 @@ public class GcsUtil {
           throw new FileNotFoundException(
               String.format(
                   "Rewrite from %s to %s has failed. Either source or sink not found. "
-                      + "Failed with error: %s", from.toString(), to.toString(), e.getMessage()));
+                      + "Failed with error: %s",
+                  from.toString(), to.toString(), e.getMessage()));
         }
       } else if (e.getCode() == 403
           && e.getErrors().size() == 1
