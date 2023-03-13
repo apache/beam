@@ -19,10 +19,10 @@
 
 # pytype: skip-file
 
+import collections.abc
 import sys
 import typing
 import unittest
-import collections.abc
 
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_builtin_to_typing
