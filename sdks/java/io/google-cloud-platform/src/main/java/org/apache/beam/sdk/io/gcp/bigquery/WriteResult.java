@@ -209,6 +209,7 @@ public final class WriteResult implements POutput {
   /**
    * Return any rows that persistently fail to insert when using a storage-api method. For example:
    * rows with values that do not match the BigQuery schema or rows that are too large to insert.
+   * This collection is in the global window.
    */
   public PCollection<BigQueryStorageApiInsertError> getFailedStorageApiInserts() {
     Preconditions.checkStateNotNull(

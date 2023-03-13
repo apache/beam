@@ -491,7 +491,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           }
           for (int i = 0; i < inserts.getSerializedRowsCount(); ++i) {
             ByteString rowBytes = inserts.getSerializedRows(i);
-            org.joda.time.Instant timestamps = insertTimestamps.get(i);
+            org.joda.time.Instant timestamp = insertTimestamps.get(i);
             TableRow failedRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
                     DynamicMessage.parseFrom(
@@ -499,7 +499,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             failedRowsReceiver.outputWithTimestamp(
                 new BigQueryStorageApiInsertError(
                     failedRow, "Row payload too large. Maximum size " + maxRequestSize),
-                timestamps);
+                timestamp);
           }
           return 0;
         }
