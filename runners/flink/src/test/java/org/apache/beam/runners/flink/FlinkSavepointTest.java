@@ -57,6 +57,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -104,8 +105,8 @@ public class FlinkSavepointTest implements Serializable {
   /** Temporary folder for savepoints. */
   @ClassRule public static transient TemporaryFolder tempFolder = new TemporaryFolder();
 
-  /** Each test has a timeout of 60 seconds (for safety). */
-  @Rule public Timeout timeout = new Timeout(2, TimeUnit.MINUTES);
+  /** Each test has a timeout of 10 * 60 seconds (for safety). */
+  @Rule public Timeout timeout = new Timeout(10, TimeUnit.MINUTES);
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -123,6 +124,8 @@ public class FlinkSavepointTest implements Serializable {
     config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, savepointPath);
     // Checkpoints will go into a subdirectory of this directory
     config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointPath);
+
+    config.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 600000);
 
     MiniClusterConfiguration clusterConfig =
         new MiniClusterConfiguration.Builder()

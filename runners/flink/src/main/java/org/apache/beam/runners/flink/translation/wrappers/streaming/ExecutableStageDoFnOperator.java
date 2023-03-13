@@ -1050,13 +1050,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         // close blocks until all results are received
         remoteBundle.close();
         emitResults();
+        remoteBundle = null;
       } catch (Exception e) {
         if (e.getCause() instanceof StatusRuntimeException) {
           throw new RuntimeException("SDK Harness connection lost.", e);
         }
         throw new RuntimeException("Failed to finish remote bundle", e);
-      } finally {
-        remoteBundle = null;
       }
     }
 

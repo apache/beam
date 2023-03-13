@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -34,7 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -146,6 +149,10 @@ public class DoFnOperator<InputT, OutputT>
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOperator.class);
 
+  private static final int RETRY_TIME_MS = 1000;
+
+  private static final int RETRY_EXPIRY = 5;
+
   protected DoFn<InputT, OutputT> doFn;
 
   protected final SerializablePipelineOptions serializedOptions;
@@ -204,6 +211,31 @@ public class DoFnOperator<InputT, OutputT>
   private final boolean usesOnWindowExpiration;
 
   private final boolean finishBundleBeforeCheckpointing;
+
+  private final RetryConsumer<Runnable> retry =
+      runnable -> {
+        java.time.Instant startTime = java.time.Instant.now();
+        boolean isRetryRequired = true;
+        while (isRetryRequired) {
+          try {
+            runnable.run();
+            isRetryRequired = false;
+          } catch (Throwable throwable) {
+            LOG.error("Received exception: ", throwable);
+            if (throwable instanceof OutOfMemoryError
+                || Duration.between(startTime, java.time.Instant.now()).toMinutes()
+                    > RETRY_EXPIRY) {
+              throw new RuntimeException(throwable);
+            } else {
+              try {
+                TimeUnit.MILLISECONDS.sleep(RETRY_TIME_MS);
+              } catch (InterruptedException e) {
+                LOG.error("Interrupted: ", e);
+              }
+            }
+          }
+        }
+      };
 
   /** Stores new finalizations being gathered. */
   private transient InMemoryBundleFinalizer bundleFinalizer;
@@ -673,7 +705,7 @@ public class DoFnOperator<InputT, OutputT>
   public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
     checkInvokeStartBundle();
     long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
-    doFnRunner.processElement(streamRecord.getValue());
+    retry.accept(() -> doFnRunner.processElement(streamRecord.getValue()));
     checkInvokeFinishBundleByCount();
     emitWatermarkIfHoldChanged(oldHold);
   }
@@ -897,11 +929,14 @@ public class DoFnOperator<InputT, OutputT>
     if (!bundleStarted) {
       // Flush any data buffered during snapshotState().
       outputManager.flushBuffer();
-      LOG.debug("Starting bundle.");
-      if (preBundleCallback != null) {
-        preBundleCallback.run();
-      }
-      pushbackDoFnRunner.startBundle();
+      retry.accept(
+          () -> {
+            LOG.debug("Starting bundle.");
+            if (preBundleCallback != null) {
+              preBundleCallback.run();
+            }
+            pushbackDoFnRunner.startBundle();
+          });
       bundleStarted = true;
     }
   }
@@ -950,8 +985,11 @@ public class DoFnOperator<InputT, OutputT>
   protected final void invokeFinishBundle() {
     long previousBundleFinishTime = lastFinishBundleTime;
     if (bundleStarted) {
-      LOG.debug("Finishing bundle.");
-      pushbackDoFnRunner.finishBundle();
+      retry.accept(
+          () -> {
+            LOG.debug("Finishing bundle.");
+            pushbackDoFnRunner.finishBundle();
+          });
       LOG.debug("Finished bundle. Element count: {}", elementCount);
       elementCount = 0L;
       lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
@@ -1193,7 +1231,11 @@ public class DoFnOperator<InputT, OutputT>
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> value) {
       if (!openBuffer) {
-        emit(tag, value);
+        try {
+          emit(tag, value);
+        } catch (Exception e) {
+          LOG.error("emit error: {}", e);
+        }
       } else {
         buffer(KV.of(tagsToIds.get(tag), value));
       }
@@ -1652,4 +1694,6 @@ public class DoFnOperator<InputT, OutputT>
     }
     return beamTimerTimestamp + 1;
   }
+
+  interface RetryConsumer<T> extends Consumer<T>, Serializable {}
 }

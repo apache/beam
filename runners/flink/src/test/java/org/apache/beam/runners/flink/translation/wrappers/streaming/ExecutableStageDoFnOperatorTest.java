@@ -117,6 +117,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.hamcrest.core.IsInstanceOf;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -222,6 +223,7 @@ public class ExecutableStageDoFnOperatorTest {
 
   @Test
   public void sdkErrorsSurfaceOnClose() throws Exception {
+
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
@@ -246,7 +248,9 @@ public class ExecutableStageDoFnOperatorTest {
 
     Exception expected = new RuntimeException(new Exception());
     doThrow(expected).when(bundle).close();
-    thrown.expectCause(is(expected));
+
+    thrown.expectCause(IsInstanceOf.<Throwable>instanceOf(RuntimeException.class));
+    thrown.expectMessage("Failed to finish remote bundle");
 
     operator.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow(0)));
     testHarness.close();
