@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:playground_components_dev/playground_components_dev.dart';
 
 import '../common/common_finders.dart';
 
@@ -59,12 +60,11 @@ Future<void> _checkEnjoyingAndSendFeedback(WidgetTester wt) async {
   final lastEvent = PlaygroundComponents.analyticsService.lastEvent;
   expect(
     lastEvent,
-    const FeedbackFormSentAnalyticsEvent(
+    FeedbackFormSentAnalyticsEvent(
       snippetContext: EventSnippetContext(
-        // TODO: Replace with values from the example object when merged https://github.com/apache/beam/pull/25034
-        originalSnippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+        originalSnippet: javaMinimalWordCount.dbPath,
         sdk: Sdk.java,
-        snippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+        snippet: javaMinimalWordCount.dbPath,
       ),
       rating: FeedbackRating.positive,
       text: text,
@@ -92,12 +92,11 @@ Future<void> _checkNotEnjoyingAndSendFeedback(WidgetTester wt) async {
   final lastEvent = PlaygroundComponents.analyticsService.lastEvent;
   expect(
     lastEvent,
-    const FeedbackFormSentAnalyticsEvent(
+    FeedbackFormSentAnalyticsEvent(
       snippetContext: EventSnippetContext(
-        // TODO: Replace with values from the example object when merged https://github.com/apache/beam/pull/25034
-        originalSnippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+        originalSnippet: javaMinimalWordCount.dbPath,
         sdk: Sdk.java,
-        snippet: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+        snippet: javaMinimalWordCount.dbPath,
       ),
       rating: FeedbackRating.negative,
       text: text,
