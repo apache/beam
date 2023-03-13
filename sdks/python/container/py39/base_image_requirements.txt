@@ -37,6 +37,7 @@ cryptography==39.0.2
 Cython==0.29.33
 deprecation==2.1.0
 dill==0.3.1.1
+dnspython==2.3.0
 docker==6.0.1
 docopt==0.6.2
 exceptiongroup==1.1.0
@@ -112,7 +113,7 @@ pyasn1-modules==0.2.8
 pycparser==2.21
 pydot==1.4.2
 PyHamcrest==1.10.1
-pymongo==3.13.0
+pymongo==4.3.3
 PyMySQL==1.0.2
 pyparsing==3.0.9
 pytest==7.2.2

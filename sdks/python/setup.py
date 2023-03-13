@@ -240,7 +240,7 @@ if __name__ == '__main__':
         # Use a strict upper bound.
         'numpy>=1.14.3,<1.25.0',   # Update build-requirements.txt as well.
         'objsize>=0.6.1,<0.7.0',
-        'pymongo>=3.8.0,<4.0.0',
+        'pymongo>=3.8.0,<5.0.0',
         'proto-plus>=1.7.1,<2',
         # use a tighter upper bound in protobuf dependency
         # to make sure the minor version at job submission
@@ -323,7 +323,7 @@ if __name__ == '__main__':
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,<8.0.3',
+            'jupyter-client>=6.1.11,!=6.1.13,<8.0.4',
             'timeloop>=1.0.2,<2',
           ],
           'interactive_test': [
