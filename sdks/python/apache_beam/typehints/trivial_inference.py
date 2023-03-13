@@ -379,11 +379,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   # EXTENDED_ARGs.
   ofs_table = {}  # offset -> instruction
   if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
-    disInts = dis.get_instructions(f, show_caches=True)
+    dis_ints = dis.get_instructions(f, show_caches=True)
   else:
-    disInts = dis.get_instructions(f)
+    dis_ints = dis.get_instructions(f)
 
-  for instruction in disInts:
+  for instruction in dis_ints:
     ofs_table[instruction.offset] = instruction
 
   # Python 3.6+: 1 byte opcode + 1 byte arg (2 bytes, arg may be ignored).
@@ -420,10 +420,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         elif op in dis.hasname:
           if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
             # Pre-emptively bit-shift so the print doesn't go out of index
-            printArg = arg >> 1
+            print_arg = arg >> 1
           else:
-            printArg = arg
-          print('(' + co.co_names[printArg] + ')', end=' ')
+            print_arg = arg
+          print('(' + co.co_names[print_arg] + ')', end=' ')
         elif op in dis.hasjrel:
           print('(to ' + repr(pc + (arg * jump_multiplier)) + ')', end=' ')
         elif op in dis.haslocal:
@@ -435,10 +435,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
             free = co.co_cellvars + co.co_freevars
           # From 3.11 on the arg is no longer offset by len(co_varnames)
           # so we adjust it back
-          printArg = arg
+          print_arg = arg
           if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
-            printArg = arg - len(co.co_varnames)
-          print('(' + free[printArg] + ')', end=' ')
+            print_arg = arg - len(co.co_varnames)
+          print('(' + free[print_arg] + ')', end=' ')
 
     # Actually emulate the op.
     if state is None and states[start] is None:
@@ -526,7 +526,6 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           from apache_beam.pvalue import Row
           if state.stack[-pop_count].value == Row:
             fields = state.kw_names
-            print(fields)
             return_type = row_type.RowTypeConstraint.from_fields(
                 list(
                     zip(fields,
