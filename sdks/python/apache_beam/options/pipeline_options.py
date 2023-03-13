@@ -131,7 +131,9 @@ class _BeamArgumentParser(argparse.ArgumentParser):
   def error(self, message):
     if message.startswith('ambiguous option: '):
       return
-    _LOGGER.error("check if user-defined flags collide with dataflow options.")
+    _LOGGER.error((
+        "check if user-defined flags collide with dataflow options: %",
+        (message)))
     super().error(message)
 
 
