@@ -18,6 +18,8 @@
 
 import CommonJobProperties as commonJobProperties
 import PrecommitJobBuilder
+import static PythonTestProperties.LOWEST_SUPPORTED as lowestSupported
+import static PythonTestProperties.HIGHEST_SUPPORTED as highestSupported
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
@@ -40,15 +42,17 @@ builder.build {
   // Due to BEAM-7993, run multiple Python version of portable precommit
   // tests in parallel could lead python3 container crash. We manually
   // config gradle steps here to run tests in sequential.
+  lowestSupported = lowestSupported.replace('.', '')
+  highestSupported = highestSupported.replace('.', '')
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:portable:py37:preCommitPy37')
+      tasks(':sdks:python:test-suites:portable:py${lowestSupported}:preCommitPy${lowestSupported}')
       commonJobProperties.setGradleSwitches(delegate)
     }
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:portable:py310:preCommitPy310')
+      tasks(':sdks:python:test-suites:portable:${highestSupported}:preCommitPy${highestSupported}')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

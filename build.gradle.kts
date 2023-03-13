@@ -456,6 +456,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -473,6 +474,7 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
+  dependsOn(":sdks:python:container:py311:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
@@ -523,6 +525,13 @@ tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
 }
 
+tasks.register("python311PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py311:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py311:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
+}
+
 task("python37SickbayPostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
 }
@@ -537,14 +546,14 @@ task("python39SickbayPostCommit") {
 
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
-  dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
