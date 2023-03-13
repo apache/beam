@@ -454,7 +454,8 @@ public class GroupIntoBatches<K, InputT>
 
     @Override
     public Duration getAllowedTimestampSkew() {
-      // This is required since flush is sometimes called from processElement. This is safe because a watermark hold
+      // This is required since flush is sometimes called from processElement. This is safe because
+      // a watermark hold
       // will always be set using timer.withOutputTimestamp.
       return Duration.millis(Long.MAX_VALUE);
     }
