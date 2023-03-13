@@ -43,7 +43,7 @@ def run(
 
     data = (
         pipeline
-        | read_csv('/Users/jaspervandenbossche/Documents/housing.csv')
+        | read_csv('/tmp/housing.csv')
     )
 
     features = ['longitude', 'latitude', 'median_income']
