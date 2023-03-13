@@ -308,7 +308,7 @@ if __name__ == '__main__':
             'google-cloud-bigquery>=1.6.0,<4',
             'google-cloud-bigquery-storage>=2.6.3,<2.17',
             'google-cloud-core>=0.28.1,<3',
-            'google-cloud-bigtable>=0.31.1,<2',
+            'google-cloud-bigtable>=0.31.1,<3',
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
