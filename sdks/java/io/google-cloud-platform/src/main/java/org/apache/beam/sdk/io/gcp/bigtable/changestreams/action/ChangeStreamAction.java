@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.nanosToInstant;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toJodaTime;
 
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
@@ -31,7 +31,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -113,7 +112,7 @@ public class ChangeStreamAction {
       boolean shouldDebug) {
     if (record instanceof Heartbeat) {
       Heartbeat heartbeat = (Heartbeat) record;
-      final Instant watermark = TimestampConverter.toInstant(heartbeat.getEstimatedLowWatermark());
+      final Instant watermark = toJodaTime(heartbeat.getEstimatedLowWatermark());
       StreamProgress streamProgress =
           new StreamProgress(heartbeat.getChangeStreamContinuationToken(), watermark);
       watermarkEstimator.setWatermark(watermark);
@@ -173,7 +172,7 @@ public class ChangeStreamAction {
       return Optional.of(DoFn.ProcessContinuation.resume());
     } else if (record instanceof ChangeStreamMutation) {
       ChangeStreamMutation changeStreamMutation = (ChangeStreamMutation) record;
-      final Instant watermark = nanosToInstant(changeStreamMutation.getEstimatedLowWatermark());
+      final Instant watermark = toJodaTime(changeStreamMutation.getEstimatedLowWatermark());
       watermarkEstimator.setWatermark(watermark);
       // Build a new StreamProgress with the continuation token to be claimed.
       ChangeStreamContinuationToken changeStreamContinuationToken =
@@ -199,7 +198,7 @@ public class ChangeStreamAction {
       } else if (changeStreamMutation.getType() == ChangeStreamMutation.MutationType.USER) {
         metrics.incChangeStreamMutationUserCounter();
       }
-      Instant delay = nanosToInstant(changeStreamMutation.getCommitTimestamp());
+      Instant delay = toJodaTime(changeStreamMutation.getCommitTimestamp());
       metrics.updateProcessingDelayFromCommitTimestamp(
           Instant.now().getMillis() - delay.getMillis());
 

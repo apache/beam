@@ -17,32 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
-import com.google.protobuf.util.Timestamps;
 import org.apache.beam.sdk.annotations.Internal;
-import org.joda.time.Instant;
 
 /** Convert between different Timestamp and Instant classes. */
 @Internal
 public class TimestampConverter {
-  public static Instant toInstant(com.google.cloud.Timestamp time) {
-    return Instant.ofEpochMilli(time.toDate().toInstant().toEpochMilli());
+
+  public static org.threeten.bp.Instant toThreetenInstant(org.joda.time.Instant jodaInstant) {
+    return org.threeten.bp.Instant.ofEpochMilli(jodaInstant.getMillis());
   }
 
-  public static Instant toInstant(com.google.protobuf.Timestamp time) {
-    long epochMilli =
-        java.time.Instant.ofEpochSecond(time.getSeconds(), time.getNanos()).toEpochMilli();
-    return Instant.ofEpochMilli(epochMilli);
-  }
-
-  public static com.google.protobuf.Timestamp toProtoTimestamp(Instant instant) {
-    return Timestamps.fromDate(instant.toDate());
-  }
-
-  public static Instant nanosToInstant(long nanos) {
-    return Instant.ofEpochMilli(nanos / 1_000_000);
-  }
-
-  public static long instantToNanos(Instant instant) {
-    return instant.getMillis() * 1_000_000;
+  public static org.joda.time.Instant toJodaTime(org.threeten.bp.Instant threetenInstant) {
+    return org.joda.time.Instant.ofEpochMilli(threetenInstant.toEpochMilli());
   }
 }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.instantToNanos;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toThreetenInstant;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -38,7 +38,6 @@ import com.google.rpc.Status;
 import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
@@ -80,7 +79,7 @@ public class ChangeStreamActionTest {
         ChangeStreamContinuationToken.create(ByteStringRange.create("a", "b"), "1234");
     Heartbeat mockHeartBeat = Mockito.mock(Heartbeat.class);
     Mockito.when(mockHeartBeat.getEstimatedLowWatermark())
-        .thenReturn(TimestampConverter.toProtoTimestamp(lowWatermark));
+        .thenReturn(toThreetenInstant(lowWatermark));
     Mockito.when(mockHeartBeat.getChangeStreamContinuationToken())
         .thenReturn(changeStreamContinuationToken);
 
@@ -100,7 +99,8 @@ public class ChangeStreamActionTest {
         ChangeStreamContinuationToken.create(ByteStringRange.create("a", "b"), "1234");
     CloseStream mockCloseStream = Mockito.mock(CloseStream.class);
     Status statusProto = Status.newBuilder().setCode(11).build();
-    Mockito.when(mockCloseStream.getStatus()).thenReturn(statusProto);
+    Mockito.when(mockCloseStream.getStatus())
+        .thenReturn(com.google.cloud.bigtable.common.Status.fromProto(statusProto));
     Mockito.when(mockCloseStream.getChangeStreamContinuationTokens())
         .thenReturn(Collections.singletonList(changeStreamContinuationToken));
 
@@ -124,10 +124,10 @@ public class ChangeStreamActionTest {
         ChangeStreamContinuationToken.create(ByteStringRange.create("", ""), "1234");
     ChangeStreamMutation changeStreamMutation = Mockito.mock(ChangeStreamMutation.class);
     Mockito.when(changeStreamMutation.getCommitTimestamp())
-        .thenReturn(instantToNanos(commitTimestamp));
+        .thenReturn(toThreetenInstant(commitTimestamp));
     Mockito.when(changeStreamMutation.getToken()).thenReturn("1234");
     Mockito.when(changeStreamMutation.getEstimatedLowWatermark())
-        .thenReturn(instantToNanos(lowWatermark));
+        .thenReturn(toThreetenInstant(lowWatermark));
     Mockito.when(changeStreamMutation.getType()).thenReturn(ChangeStreamMutation.MutationType.USER);
     KV<ByteString, ChangeStreamMutation> record =
         KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
@@ -155,10 +155,10 @@ public class ChangeStreamActionTest {
         ChangeStreamContinuationToken.create(ByteStringRange.create("", ""), "1234");
     ChangeStreamMutation changeStreamMutation = Mockito.mock(ChangeStreamMutation.class);
     Mockito.when(changeStreamMutation.getCommitTimestamp())
-        .thenReturn(instantToNanos(commitTimestamp));
+        .thenReturn(toThreetenInstant(commitTimestamp));
     Mockito.when(changeStreamMutation.getToken()).thenReturn("1234");
     Mockito.when(changeStreamMutation.getEstimatedLowWatermark())
-        .thenReturn(instantToNanos(lowWatermark));
+        .thenReturn(toThreetenInstant(lowWatermark));
     Mockito.when(changeStreamMutation.getType())
         .thenReturn(ChangeStreamMutation.MutationType.GARBAGE_COLLECTION);
     KV<ByteString, ChangeStreamMutation> record =

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.instantToNanos;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toThreetenInstant;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
@@ -86,13 +86,13 @@ public class ChangeStreamDao {
       query.continuationTokens(Collections.singletonList(currentToken));
     } else if (startTime != null) {
       // Check if tracker has Continuation Token
-      query.startTime(instantToNanos(startTime));
+      query.startTime(toThreetenInstant(startTime));
     } else if (changeStreamContinuationTokenList != null) {
       query.continuationTokens(changeStreamContinuationTokenList);
     } else {
       throw new IOException("Something went wrong");
     }
-    query.heartbeatDuration(java.time.Duration.ofSeconds(heartbeatDuration.getStandardSeconds()));
+    query.heartbeatDuration(org.threeten.bp.Duration.ofMillis(heartbeatDuration.getMillis()));
     if (shouldDebug) {
       LOG.info(
           "RCSP {} ReadChangeStreamRequest: {}",

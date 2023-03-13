@@ -141,7 +141,7 @@ public class ReadChangeStreamPartitionAction {
     // Process CloseStream if it exists
     CloseStream closeStream = tracker.currentRestriction().getCloseStream();
     if (closeStream != null) {
-      if (Status.fromProto(closeStream.getStatus()).getCode() != Status.Code.OUT_OF_RANGE) {
+      if (closeStream.getStatus().getCode() != Status.Code.OUT_OF_RANGE) {
         LOG.error(
             "RCSP {}: Reached unexpected terminal state: {}",
             formatByteStringRange(partitionRecord.getPartition()),

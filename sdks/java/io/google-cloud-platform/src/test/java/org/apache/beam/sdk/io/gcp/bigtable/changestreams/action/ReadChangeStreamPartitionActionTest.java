@@ -137,7 +137,8 @@ public class ReadChangeStreamPartitionActionTest {
   public void testCloseStreamTerminateOKStatus() throws IOException {
     CloseStream mockCloseStream = Mockito.mock(CloseStream.class);
     Status statusProto = Status.newBuilder().setCode(0).build();
-    Mockito.when(mockCloseStream.getStatus()).thenReturn(statusProto);
+    Mockito.when(mockCloseStream.getStatus())
+        .thenReturn(com.google.cloud.bigtable.common.Status.fromProto(statusProto));
     when(restriction.getCloseStream()).thenReturn(mockCloseStream);
     final DoFn.ProcessContinuation result =
         action.run(partitionRecord, tracker, receiver, watermarkEstimator);
@@ -156,7 +157,8 @@ public class ReadChangeStreamPartitionActionTest {
     // Out of Range code is 11.
     CloseStream mockCloseStream = Mockito.mock(CloseStream.class);
     Status statusProto = Status.newBuilder().setCode(10).build();
-    Mockito.when(mockCloseStream.getStatus()).thenReturn(statusProto);
+    Mockito.when(mockCloseStream.getStatus())
+        .thenReturn(com.google.cloud.bigtable.common.Status.fromProto(statusProto));
     when(restriction.getCloseStream()).thenReturn(mockCloseStream);
     final DoFn.ProcessContinuation result =
         action.run(partitionRecord, tracker, receiver, watermarkEstimator);
@@ -179,7 +181,8 @@ public class ReadChangeStreamPartitionActionTest {
 
     CloseStream mockCloseStream = Mockito.mock(CloseStream.class);
     Status statusProto = Status.newBuilder().setCode(11).build();
-    Mockito.when(mockCloseStream.getStatus()).thenReturn(statusProto);
+    Mockito.when(mockCloseStream.getStatus())
+        .thenReturn(com.google.cloud.bigtable.common.Status.fromProto(statusProto));
     Mockito.when(mockCloseStream.getChangeStreamContinuationTokens())
         .thenReturn(Arrays.asList(changeStreamContinuationToken1, changeStreamContinuationToken2));
 
