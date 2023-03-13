@@ -504,6 +504,9 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
   // TODO: https://github.com/apache/beam/issues/22651
+  // The default container uses Python 3.8. The goal here is to
+  // duild Docker images for TensorRT tests during run time for python versions
+  // other than 3.8 and add these tests in other python postcommit suites.
   dependsOn(":sdks:python:test-suites:dataflow:py38:inferencePostCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:inferencePostCommitIT")
 }
