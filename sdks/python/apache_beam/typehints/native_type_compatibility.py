@@ -197,7 +197,8 @@ def convert_collections_to_typing(typ):
     type: The corresponding typing object.
   
   """
-  if isinstance(typ, collections.abc.Iterable):
+  if hasattr(typ, '__iter__'):
+    print("here")
     if hasattr(typ, '__next__'):
       typ = typing.Iterator[typ.__args__]
     elif hasattr(typ, 'send') and hasattr(typ, 'throw'):
