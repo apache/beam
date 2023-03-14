@@ -378,5 +378,4 @@ if __name__ == '__main__':
       cmdclass={
           'mypy': mypy,
       },
-      include_package_data=True,
   )
