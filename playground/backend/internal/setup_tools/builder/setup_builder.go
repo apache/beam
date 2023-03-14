@@ -32,45 +32,6 @@ const (
 	javaLogConfigFilePlaceholder = "{logConfigFile}"
 )
 
-// Compiler return executor with set args for compiler
-func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
-	sdk := sdkEnv.ApacheBeamSdk
-	executorConfig := sdkEnv.ExecutorConfig
-	builder := executors.NewExecutorBuilder().
-		WithCompiler().
-		WithCommand(executorConfig.CompileCmd).
-		WithWorkingDir(paths.AbsoluteBaseFolderPath).
-		WithArgs(executorConfig.CompileArgs).
-		ExecutorBuilder
-
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		javaSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
-		if err != nil {
-			return nil, err
-		}
-		builder = builder.
-			WithCompiler().
-			WithFileNames(javaSources...).
-			ExecutorBuilder
-	case pb.Sdk_SDK_GO:
-		goSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
-		if err != nil {
-			return nil, err
-		}
-		builder = builder.
-			WithCompiler().
-			WithFileNames(goSources...).
-			ExecutorBuilder
-	default:
-		builder = builder.
-			WithCompiler().
-			WithFileNames(paths.AbsoluteSourceFilePath).
-			ExecutorBuilder
-	}
-	return &builder, nil
-}
-
 // Runner return executor with set args for runner
 func Runner(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
@@ -170,9 +131,4 @@ func replaceLogPlaceholder(paths *fs_tool.LifeCyclePaths, executorConfig *enviro
 		args = append(args, arg)
 	}
 	return args
-}
-
-// GetFirstFileFromFolder return a name of the first file in a specified folder
-func GetFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
-	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 }

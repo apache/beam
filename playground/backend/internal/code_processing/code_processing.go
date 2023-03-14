@@ -180,14 +180,11 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 			return err
 		}
 	} else { // in case of Java, Go (not unit test), Scala - need compile step
-		executorBuilder, err := builder.Compiler(paths, sdkEnv)
+		compileCmd, err := executors.GetCompileCmd(ctx, paths, sdkEnv)
 		if err != nil {
-			logger.Errorf("compileStep(): failed creating ExecutorBuilder = %v", executorBuilder)
+			logger.Errorf("%s: failed to get compile cmd: %s", pipelineId, err.Error())
 			return err
 		}
-		executor := executorBuilder.Build()
-		logger.Infof("%s: Compile() ...\n", pipelineId)
-		compileCmd := executor.Compile(ctx)
 		var compileError bytes.Buffer
 		var compileOutput bytes.Buffer
 		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)

@@ -53,38 +53,6 @@ func TestNewExecutorBuilder(t *testing.T) {
 	}
 }
 
-func TestExecutorBuilder_WithCompiler(t *testing.T) {
-	type fields struct {
-		actions []handler
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   *CompileBuilder
-	}{
-		{
-			name:   "Get CompileBuilder with prepared actions",
-			fields: fields{actions: handlers},
-			want:   &CompileBuilder{ExecutorBuilder{actions: handlers}},
-		},
-		{
-			name:   "Get CompileBuilder with empty actions",
-			fields: fields{actions: []handler{}},
-			want:   &CompileBuilder{ExecutorBuilder{actions: []handler{}}},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := &ExecutorBuilder{
-				actions: tt.fields.actions,
-			}
-			if got := b.WithCompiler(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("WithCompiler() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestExecutorBuilder_WithRunner(t *testing.T) {
 	type fields struct {
 		actions []handler

@@ -22,11 +22,6 @@ type ExecutorBuilder struct {
 	actions []handler
 }
 
-// CompileBuilder facet of ExecutorBuilder
-type CompileBuilder struct {
-	ExecutorBuilder
-}
-
 // RunBuilder facet of ExecutorBuilder
 type RunBuilder struct {
 	ExecutorBuilder
@@ -52,56 +47,14 @@ func NewExecutorBuilder() *ExecutorBuilder {
 	return &ExecutorBuilder{}
 }
 
-// WithCompiler - Lives chains to type *ExecutorBuilder and returns a *CompileBuilder
-func (b *ExecutorBuilder) WithCompiler() *CompileBuilder {
-	return &CompileBuilder{*b}
-}
-
 // WithRunner - Lives chains to type *ExecutorBuilder and returns a *CompileBuilder
 func (b *ExecutorBuilder) WithRunner() *RunBuilder {
 	return &RunBuilder{*b}
 }
 
-// WithValidator - Lives chains to type *ExecutorBuilder and returns a *CompileBuilder
-func (b *ExecutorBuilder) WithValidator() *ValidatorBuilder {
-	return &ValidatorBuilder{*b}
-}
-
 // WithTestRunner - Lives chains to type *ExecutorBuilder and returns a *UnitTestExecutorBuilder
 func (b *ExecutorBuilder) WithTestRunner() *UnitTestExecutorBuilder {
 	return &UnitTestExecutorBuilder{*b}
-}
-
-// WithCommand adds compile command to executor
-func (b *CompileBuilder) WithCommand(compileCmd string) *CompileBuilder {
-	b.actions = append(b.actions, func(e *Executor) {
-		e.compileArgs.commandName = compileCmd
-	})
-	return b
-}
-
-// WithWorkingDir adds dir path to executor
-func (b *CompileBuilder) WithWorkingDir(dir string) *CompileBuilder {
-	b.actions = append(b.actions, func(e *Executor) {
-		e.compileArgs.workingDir = dir
-	})
-	return b
-}
-
-// WithArgs adds compile args to executor
-func (b *CompileBuilder) WithArgs(compileArgs []string) *CompileBuilder {
-	b.actions = append(b.actions, func(e *Executor) {
-		e.compileArgs.commandArgs = compileArgs
-	})
-	return b
-}
-
-// WithFileNames adds file names to executor
-func (b *CompileBuilder) WithFileNames(fileNames ...string) *CompileBuilder {
-	b.actions = append(b.actions, func(e *Executor) {
-		e.compileArgs.fileNames = fileNames
-	})
-	return b
 }
 
 // WithExecutableFileNames adds file name to executor

@@ -16,8 +16,13 @@
 package executors
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/fs_tool"
 	"context"
+	"fmt"
 	"os/exec"
+	"path/filepath"
 )
 
 type ExecutionType string
@@ -43,13 +48,36 @@ type Executor struct {
 	testArgs    CmdConfiguration
 }
 
-// Compile prepares the Cmd for code compilation
+// GetCompileCmd prepares the Cmd for code compilation
 // Returns Cmd instance
-func (ex *Executor) Compile(ctx context.Context) *exec.Cmd {
-	args := append(ex.compileArgs.commandArgs, ex.compileArgs.fileNames...)
-	cmd := exec.CommandContext(ctx, ex.compileArgs.commandName, args...)
-	cmd.Dir = ex.compileArgs.workingDir
-	return cmd
+func GetCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
+	sdk := sdkEnv.ApacheBeamSdk
+	executorConfig := sdkEnv.ExecutorConfig
+
+	compileCmd := executorConfig.CompileCmd
+	workingDir := paths.AbsoluteBaseFolderPath
+	args := executorConfig.CompileArgs
+
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		javaSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, javaSources...)
+	case pb.Sdk_SDK_GO:
+		goSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, goSources...)
+	default:
+		args = append(args, paths.AbsoluteSourceFilePath)
+	}
+
+	cmd := exec.CommandContext(ctx, compileCmd, args...)
+	cmd.Dir = workingDir
+	return cmd, nil
 }
 
 // Run prepares the Cmd for execution of the code
@@ -74,4 +102,9 @@ func (ex *Executor) RunTest(ctx context.Context) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, ex.testArgs.commandName, args...)
 	cmd.Dir = ex.testArgs.workingDir
 	return cmd
+}
+
+// GetFirstFileFromFolder return a name of the first file in a specified folder
+func GetFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
+	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 }
