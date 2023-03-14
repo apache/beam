@@ -17,28 +17,24 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:playground_components_dev/playground_components_dev.dart';
 
-Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
-  final oldBrightness = wt.getBrightness();
-  final newBrightness =
-      oldBrightness == Brightness.light ? Brightness.dark : Brightness.light;
+import '../../theme/theme.dart';
 
-  await wt.toggleTheme();
-  expect(wt.getBrightness(), newBrightness);
-  expectLastAnalyticsEvent(
-    ThemeSetAnalyticsEvent(
-      brightness: newBrightness,
-    ),
-  );
+class BeamTextButton extends StatelessWidget {
+  const BeamTextButton({
+    required this.onPressed,
+    required this.title,
+  });
 
-  await wt.toggleTheme();
-  expect(wt.getBrightness(), oldBrightness);
-  expectLastAnalyticsEvent(
-    ThemeSetAnalyticsEvent(
-      brightness: oldBrightness,
-    ),
-  );
+  final VoidCallback onPressed;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      style: Theme.of(context).extension<BeamThemeExtension>()!.textButtonStyle,
+      onPressed: onPressed,
+      child: Text(title),
+    );
+  }
 }

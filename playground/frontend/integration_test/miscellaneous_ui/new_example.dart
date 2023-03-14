@@ -16,29 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground_components/playground_components.dart';
+import 'package:playground/modules/actions/components/new_example.dart';
+import 'package:playground/services/analytics/events/new_example.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
-Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
-  final oldBrightness = wt.getBrightness();
-  final newBrightness =
-      oldBrightness == Brightness.light ? Brightness.dark : Brightness.light;
+Future<void> checkNewExample(WidgetTester wt) async {
+  await wt.tapAndSettle(find.byType(NewExampleButton));
 
-  await wt.toggleTheme();
-  expect(wt.getBrightness(), newBrightness);
-  expectLastAnalyticsEvent(
-    ThemeSetAnalyticsEvent(
-      brightness: newBrightness,
-    ),
-  );
-
-  await wt.toggleTheme();
-  expect(wt.getBrightness(), oldBrightness);
-  expectLastAnalyticsEvent(
-    ThemeSetAnalyticsEvent(
-      brightness: oldBrightness,
-    ),
-  );
+  expectLastAnalyticsEvent(const NewExampleAnalyticsEvent());
 }

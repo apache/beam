@@ -34,6 +34,13 @@ class RunFinishedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   final EventTrigger trigger;
 
   @override
+  List<Object?> get props => [
+        ...super.props,
+        duration,
+        trigger,
+      ];
+
+  @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
         EventParams.runDurationInSeconds: duration.inSeconds,

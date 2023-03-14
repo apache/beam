@@ -30,10 +30,12 @@ import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
+  final PlaygroundController? playgroundController;
 
   const TobScaffold({
     super.key,
     required this.child,
+    this.playgroundController,
   });
 
   @override
@@ -54,7 +56,9 @@ class TobScaffold extends StatelessWidget {
       body: Column(
         children: [
           Expanded(child: child),
-          const Footer(),
+          Footer(
+            playgroundController: playgroundController,
+          ),
         ],
       ),
     );

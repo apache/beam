@@ -16,29 +16,14 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:playground_components_dev/playground_components_dev.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/widgets.dart';
 
-Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
-  final oldBrightness = wt.getBrightness();
-  final newBrightness =
-      oldBrightness == Brightness.light ? Brightness.dark : Brightness.light;
+class CopyrightWidget extends StatelessWidget {
+  const CopyrightWidget();
 
-  await wt.toggleTheme();
-  expect(wt.getBrightness(), newBrightness);
-  expectLastAnalyticsEvent(
-    ThemeSetAnalyticsEvent(
-      brightness: newBrightness,
-    ),
-  );
-
-  await wt.toggleTheme();
-  expect(wt.getBrightness(), oldBrightness);
-  expectLastAnalyticsEvent(
-    ThemeSetAnalyticsEvent(
-      brightness: oldBrightness,
-    ),
-  );
+  @override
+  Widget build(BuildContext context) {
+    return const Text('ui.copyright').tr();
+  }
 }

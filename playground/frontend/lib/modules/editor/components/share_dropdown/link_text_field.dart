@@ -45,7 +45,6 @@ class LinkTextField extends StatefulWidget {
 
 class _LinkTextFieldState extends State<LinkTextField> {
   final textEditingController = TextEditingController();
-  bool _isPressed = false;
 
   @override
   initState() {
@@ -72,7 +71,10 @@ class _LinkTextFieldState extends State<LinkTextField> {
                 maxHeight: _kTextFieldMaxHeight,
               ),
               border: InputBorder.none,
-              suffixIcon: _buildCopyButton(),
+              suffixIcon: CopyButton(
+                beforePressed: _submitEvent,
+                text: widget.text,
+              ),
             ),
             readOnly: true,
             style: TextStyle(
@@ -86,12 +88,40 @@ class _LinkTextFieldState extends State<LinkTextField> {
     );
   }
 
-  Widget _buildCopyButton() {
+  void _submitEvent() {
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      ShareableCopiedAnalyticsEvent(
+        shareFormat: widget.shareFormat,
+        snippetContext: widget.eventSnippetContext,
+      ),
+    );
+  }
+}
+
+class CopyButton extends StatefulWidget {
+  const CopyButton({
+    required this.beforePressed,
+    required this.text,
+  });
+
+  final VoidCallback beforePressed;
+  final String text;
+
+  @override
+  State<CopyButton> createState() => _CopyButtonState();
+}
+
+class _CopyButtonState extends State<CopyButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: () async {
-          await _copyLinkText();
+          widget.beforePressed();
+          await _copyText();
           setState(() {
             _isPressed = true;
           });
@@ -109,14 +139,12 @@ class _LinkTextFieldState extends State<LinkTextField> {
     );
   }
 
-  Future<void> _copyLinkText() async {
-    PlaygroundComponents.analyticsService.sendUnawaited(
-      ShareableCopiedAnalyticsEvent(
-        snippetContext: widget.eventSnippetContext,
-        shareFormat: widget.shareFormat,
-      ),
-    );
-
-    await Clipboard.setData(ClipboardData(text: widget.text));
+  Future<void> _copyText() async {
+    try {
+      await Clipboard.setData(ClipboardData(text: widget.text));
+    } on Exception catch (ex) {
+      print('Copy to clipboard failed: ${widget.text}'); // ignore: avoid_print
+      print(ex); // ignore: avoid_print
+    }
   }
 }

@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
@@ -45,12 +46,27 @@ void main() {
 Future<void> _runAndCancelExample(WidgetTester wt, Duration duration) async {
   await wt.tap(find.runOrCancelButton());
 
+  final playgroundController = wt.findPlaygroundController();
+  final eventSnippetContext = playgroundController.eventSnippetContext;
+  expectLastAnalyticsEvent(
+    RunStartedAnalyticsEvent(
+      snippetContext: eventSnippetContext,
+      trigger: EventTrigger.click,
+    ),
+  );
+
   await wt.pumpAndSettleNoException(timeout: duration);
   await wt.tapAndSettle(find.runOrCancelButton());
 
-  final playgroundController = wt.findPlaygroundController();
   expect(
     playgroundController.codeRunner.resultLogOutput,
     contains(kExecutionCancelledText),
   );
+
+  final event = PlaygroundComponents.analyticsService.lastEvent;
+  expect(event, isA<RunCancelledAnalyticsEvent>());
+
+  final cancelEvent = event! as RunCancelledAnalyticsEvent;
+  expect(cancelEvent.snippetContext, eventSnippetContext);
+  expect(cancelEvent.trigger, EventTrigger.click);
 }

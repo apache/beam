@@ -45,7 +45,7 @@ abstract class AnalyticsEventWithSnippetContext extends AnalyticsEvent {
     this.additionalParams = const {},
   });
 
-  final EventSnippetContext snippetContext;
+  final EventSnippetContext? snippetContext;
   final Map<String, dynamic> additionalParams;
 
   @override
@@ -58,7 +58,7 @@ abstract class AnalyticsEventWithSnippetContext extends AnalyticsEvent {
   Map<String, dynamic> toJson() {
     final map = {
       ...super.toJson(),
-      ...snippetContext.toJson(),
+      ...?snippetContext?.toJson(),
       ...additionalParams,
     };
     return map;

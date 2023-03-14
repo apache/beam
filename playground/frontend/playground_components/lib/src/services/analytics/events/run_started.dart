@@ -32,6 +32,12 @@ class RunStartedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   final EventTrigger trigger;
 
   @override
+  List<Object?> get props => [
+        ...super.props,
+        trigger,
+      ];
+
+  @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
         EventParams.trigger: trigger.name,

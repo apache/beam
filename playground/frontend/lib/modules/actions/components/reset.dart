@@ -20,8 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-class ResetAction extends StatelessWidget {
-  const ResetAction();
+class PlaygroundResetButton extends StatelessWidget {
+  const PlaygroundResetButton();
 
   @override
   Widget build(BuildContext context) {

@@ -26,11 +26,18 @@ class LoadedAnalyticsEvent extends AnalyticsEvent {
     required this.sdk,
     required this.snippet,
   }) : super(
-    name: PlaygroundAnalyticsEvents.loaded,
-  );
+          name: PlaygroundAnalyticsEvents.loaded,
+        );
 
   final Sdk? sdk;
   final String? snippet;
+
+  @override
+  List<Object?> get props => [
+        ...super.props,
+        sdk,
+        snippet,
+      ];
 
   @override
   Map<String, dynamic> toJson() {

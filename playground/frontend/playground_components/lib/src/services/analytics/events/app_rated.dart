@@ -32,6 +32,12 @@ class AppRatedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   final FeedbackRating rating;
 
   @override
+  List<Object?> get props => [
+        ...super.props,
+        rating,
+      ];
+
+  @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
         EventParams.feedbackRating: rating.name,

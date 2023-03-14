@@ -33,6 +33,12 @@ class ThemeSetAnalyticsEvent extends AnalyticsEvent {
   final Brightness brightness;
 
   @override
+  List<Object?> get props => [
+        ...super.props,
+        brightness,
+      ];
+
+  @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
         EventParams.brightness: brightness.name,

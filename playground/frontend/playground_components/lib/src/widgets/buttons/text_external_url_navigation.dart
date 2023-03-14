@@ -16,28 +16,37 @@
  * limitations under the License.
  */
 
-import 'abstract.dart';
-import 'constants.dart';
+import 'dart:async';
 
-/// Clicked any external link that does not have a dedicated event.
-class ExternalUrlNavigatedAnalyticsEvent extends AnalyticsEvent {
-  const ExternalUrlNavigatedAnalyticsEvent({
+import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../services/analytics/analytics_service.dart';
+import '../../services/analytics/events/external_url_navigated.dart';
+import 'text.dart';
+
+/// A [BeamTextButton] that navigates [url] and fires
+/// an [ExternalUrlNavigatedAnalyticsEvent].
+class TextExternalUrlNavigationButton extends StatelessWidget {
+  const TextExternalUrlNavigationButton({
+    required this.title,
     required this.url,
-  }) : super(
-          name: BeamAnalyticsEvents.externalUrlNavigated,
-        );
+  });
 
+  final String title;
   final Uri url;
 
   @override
-  List<Object?> get props => [
-        ...super.props,
-        url,
-      ];
-
-  @override
-  Map<String, dynamic> toJson() => {
-        ...super.toJson(),
-        EventParams.destinationUrl: url.toString(),
-      };
+  Widget build(BuildContext context) {
+    return BeamTextButton(
+      onPressed: () {
+        GetIt.instance.get<BeamAnalyticsService>().sendUnawaited(
+          ExternalUrlNavigatedAnalyticsEvent(url: url),
+        );
+        unawaited(launchUrl(url));
+      },
+      title: title,
+    );
+  }
 }

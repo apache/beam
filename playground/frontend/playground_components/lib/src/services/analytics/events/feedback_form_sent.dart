@@ -36,6 +36,13 @@ class FeedbackFormSentAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   final String text;
 
   @override
+  List<Object?> get props => [
+        ...super.props,
+        rating,
+        text,
+      ];
+
+  @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
         EventParams.feedbackRating: rating.name,

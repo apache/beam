@@ -21,8 +21,11 @@ import 'package:integration_test/integration_test.dart';
 
 import 'common/common.dart';
 import 'miscellaneous_ui/description_test.dart';
-import 'miscellaneous_ui/enjoy_playground_test.dart';
+import 'miscellaneous_ui/external_url_navigation.dart';
+import 'miscellaneous_ui/feedback_test.dart';
+import 'miscellaneous_ui/new_example.dart';
 import 'miscellaneous_ui/output_placement_test.dart';
+import 'miscellaneous_ui/report_issue.dart';
 import 'miscellaneous_ui/resize_output_test.dart';
 import 'miscellaneous_ui/shortcuts_modal_test.dart';
 import 'miscellaneous_ui/toggle_brightness_mode_test.dart';
@@ -34,12 +37,15 @@ void main() {
     (WidgetTester wt) async {
       await init(wt);
 
-      await checkEnjoyPlayground(wt);
+      await checkFeedback(wt);
       await checkDescription(wt);
       await checkOutputPlacement(wt);
       await checkResizeOutput(wt);
       await checkShortcutsModal(wt);
       await checkToggleBrightnessMode(wt);
+      await checkReportIssue(wt);
+      await checkNewExample(wt);
+      await checkExternalUrlNavigation(wt);
     },
   );
 }

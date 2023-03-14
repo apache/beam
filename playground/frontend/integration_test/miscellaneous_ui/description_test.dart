@@ -24,8 +24,7 @@ import '../common/common.dart';
 import '../common/common_finders.dart';
 
 Future<void> checkDescription(WidgetTester wt) async {
-  await wt.tap(find.descriptionPopoverButton());
-  await wt.pumpAndSettle();
+  await wt.tapAndSettle(find.descriptionPopoverButton());
 
   expect(find.descriptionPopover(), findsOneWidget);
 

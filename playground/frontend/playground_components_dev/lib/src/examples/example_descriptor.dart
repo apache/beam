@@ -27,12 +27,12 @@ const _noGraphSdks = [Sdk.go, Sdk.scio];
 
 /// Describes an example for the purpose of integration tests.
 class ExampleDescriptor {
-  static const _schemaAndHost = 'https://raw.githubusercontent.com/';
+  static const _schemaAndHost = 'https://github.com';
+  static const _rawSchemaAndHost = 'https://raw.githubusercontent.com';
 
-  // static const _defaultRepositoryAndRef = 'apache/beam/master';
-  // If running before this is deployed, change to this:
-  static const _defaultRepositoryAndRef =
-      'akvelon/beam/issue24959_test-loading-url';
+  static const _defaultOwner = 'apache';
+  static const _defaultRepository = 'beam';
+  static const _defaultRef = 'master';
 
   const ExampleDescriptor(
     this.name, {
@@ -44,7 +44,9 @@ class ExampleDescriptor {
     this.foldedVisibleText,
     this.outputContains,
     this.outputTail,
-    this.repositoryAndRef = _defaultRepositoryAndRef,
+    this.owner = _defaultOwner,
+    this.repository = _defaultRepository,
+    this.ref = _defaultRef,
   });
 
   /// 1-based line index to set cursor to.
@@ -59,8 +61,15 @@ class ExampleDescriptor {
   /// File path relative to the repository root, starting with `/`.
   final String path;
 
-  /// The part in GitHub URL corresponding to repository and branch names.
-  final String repositoryAndRef;
+  /// The owner of the GitHub repository where this example code is stored.
+  final String owner;
+
+  /// The name of the GitHub repository where this example code is stored.
+  final String repository;
+
+  /// The branch name or commit hash of the GitHub repository
+  /// to use when fetching the code for this example.
+  final String ref;
 
   /// The SDK of this example.
   final Sdk sdk;
@@ -80,8 +89,20 @@ class ExampleDescriptor {
   /// Whether the example tab must be visible after running this example.
   bool get hasGraphTab => !_noGraphSdks.contains(sdk);
 
+  /// The basename of the main file with extension.
+  String get mainFileName => '$name${sdk.fileExtension}';
+
+  /// The URL to view the file with GitHub UI elements.
+  ///
+  /// Example:
+  /// https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java
+  String get url => '$_schemaAndHost/$owner/$repository/blob/$ref$path';
+
   /// The URL to view the file raw content on GitHub.
-  String get url => '$_schemaAndHost$repositoryAndRef$path';
+  ///
+  /// Example:
+  /// https://raw.githubusercontent.com/apache/beam/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java
+  String get rawUrl => '$_rawSchemaAndHost/$owner/$repository/$ref$path';
 
   /// The visible text in the code editor after required foldings.
   Future<String> getVisibleText() async {
@@ -92,7 +113,7 @@ class ExampleDescriptor {
 
   /// The full code of the example.
   Future<String> getFullText() async {
-    final response = await http.get(Uri.parse(url));
+    final response = await http.get(Uri.parse(rawUrl));
     return cutTagComments(response.body);
   }
 

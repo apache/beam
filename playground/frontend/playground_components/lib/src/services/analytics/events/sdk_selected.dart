@@ -31,6 +31,12 @@ class SdkSelectedAnalyticsEvent extends AnalyticsEvent {
   final Sdk sdk;
 
   @override
+  List<Object?> get props => [
+        ...super.props,
+        sdk,
+      ];
+
+  @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
         EventParams.sdk: sdk.id,

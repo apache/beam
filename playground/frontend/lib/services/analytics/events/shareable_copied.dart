@@ -33,10 +33,14 @@ class ShareableCopiedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   final ShareFormat shareFormat;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      PlaygroundEventParams.shareFormat: shareFormat.name,
-    };
-  }
+  List<Object?> get props => [
+        ...super.props,
+        shareFormat,
+      ];
+
+  @override
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        PlaygroundEventParams.shareFormat: shareFormat.name,
+      };
 }

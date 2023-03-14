@@ -22,7 +22,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../constants/links.dart';
 import '../../../modules/shortcuts/components/shortcuts_modal.dart';
 import '../../../services/analytics/events/shortcuts_clicked.dart';
 import '../../../src/assets/assets.gen.dart';
@@ -67,6 +66,7 @@ class _MoreActionsState extends State<MoreActions> {
               leading: SvgPicture.asset(Assets.shortcuts),
               title: Text(appLocale.shortcuts),
               onTap: () {
+                Navigator.of(context).pop();
                 PlaygroundComponents.analyticsService.sendUnawaited(
                   const ShortcutsClickedAnalyticsEvent(),
                 );
@@ -85,7 +85,7 @@ class _MoreActionsState extends State<MoreActions> {
             child: ListTile(
               leading: SvgPicture.asset(Assets.github),
               title: Text(appLocale.beamPlaygroundOnGithub),
-              onTap: () => _openLink(kBeamPlaygroundGithubLink, context),
+              onTap: () => _openLink(BeamLinks.playgroundGitHub, context),
             ),
           ),
           PopupMenuItem<HeaderAction>(
@@ -94,7 +94,7 @@ class _MoreActionsState extends State<MoreActions> {
             child: ListTile(
               leading: SvgPicture.asset(Assets.github),
               title: Text(appLocale.apacheBeamOnGithub),
-              onTap: () => _openLink(kApacheBeamGithubLink, context),
+              onTap: () => _openLink(BeamLinks.github, context),
             ),
           ),
           PopupMenuItem<HeaderAction>(
@@ -103,7 +103,7 @@ class _MoreActionsState extends State<MoreActions> {
             child: ListTile(
               leading: SvgPicture.asset(Assets.github),
               title: Text(appLocale.scioOnGithub),
-              onTap: () => _openLink(kScioGithubLink, context),
+              onTap: () => _openLink(BeamLinks.scioGitHub, context),
             ),
           ),
           const PopupMenuDivider(height: 16.0),
@@ -113,16 +113,16 @@ class _MoreActionsState extends State<MoreActions> {
             child: ListTile(
               leading: Image(image: AssetImage(Assets.beam.path)),
               title: Text(appLocale.toApacheBeamWebsite),
-              onTap: () => _openLink(kBeamWebsiteLink, context),
+              onTap: () => _openLink(BeamLinks.website, context),
             ),
           ),
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
-            value: HeaderAction.beamWebsite,
+            value: HeaderAction.aboutBeam,
             child: ListTile(
               leading: const Icon(Icons.info_outline),
               title: Text(appLocale.aboutApacheBeam),
-              onTap: () => _openLink(kAboutBeamLink, context),
+              onTap: () => _openLink(BeamLinks.about, context),
             ),
           ),
         ],
@@ -133,6 +133,7 @@ class _MoreActionsState extends State<MoreActions> {
   void _openLink(String link, BuildContext context) {
     final url = Uri.parse(link);
 
+    Navigator.of(context).pop();
     launchUrl(url);
     PlaygroundComponents.analyticsService.sendUnawaited(
       ExternalUrlNavigatedAnalyticsEvent(url: url),

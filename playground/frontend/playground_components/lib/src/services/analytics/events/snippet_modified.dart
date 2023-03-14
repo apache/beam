@@ -39,6 +39,15 @@ class SnippetModifiedAnalyticsEvent extends AnalyticsEvent {
   final String snippet;
 
   @override
+  List<Object?> get props => [
+        ...super.props,
+        additionalParams,
+        fileName,
+        sdk,
+        snippet,
+      ];
+
+  @override
   Map<String, dynamic> toJson() => {
         ...super.toJson(),
         EventParams.fileName: fileName,
