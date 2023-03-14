@@ -64,6 +64,7 @@ Playground uses `terraform.tfvars` located in `playground/terraform/environment/
 ```
 project_id           = "project_id"          #GCP Project ID
 network_name         = "network_name"        #GCP VPC Network Name for Playground deployment
+subnetwork_name      = "stg-playground-sub"  #GCP VPC Subnetwork Name for Playground deployment
 gke_name             = "playground-backend"  #Playground GKE Cluster name
 region               = "us-east1"            #Set the deployment region
 location             = "us-east1-b"          #Select the deployment location from available in the specified region
