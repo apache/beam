@@ -262,6 +262,18 @@ Use elements of the same size or resize the inputs. For computer vision applicat
 Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
 [BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform). For an example, see our [language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py).
 
+=## Compatible versions
+
+The following table describes how the `RunInference` Model Handlers versions are compatible with
+its dependency PyPI packages. This is determined by our testing framework,
+but other *untested* combinations may also work.
+
+apache_beam                                                               | Tensorflow | TFX   | PyTorch       | Scikit-learn | TensorRT | Onnx
+------------------------------------------------------------------------- |------------|-------|---------------|--------------|----------|--------|
+[GitHub master](https://github.com/apache/beam/blob/master/RELEASE.md)    | 2.40.0     | 1.12.0     | 6.0.0 | nightly (2.x) | 1.12.0       | 1.12.0   | 0.43.0 
+[GitHub master](https://github.com/apache/beam/blob/master/RELEASE.md)       | 2.40.0     | 1.12.0     | 6.0.0 | 2.11          | 1.12.0       | 1.12.0   | 0.43.0
+[
+
 ## Related links
 
 * [RunInference transforms](/documentation/transforms/python/elementwise/runinference)
