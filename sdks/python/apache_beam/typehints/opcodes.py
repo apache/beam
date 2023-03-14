@@ -433,6 +433,7 @@ def gen_start(state, arg):
 
 def load_closure(state, arg):
   # The arg is no longer offset by len(covar_names) as of 3.11
+  # See https://docs.python.org/3/library/dis.html#opcode-LOAD_CLOSURE
   if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
     arg -= len(state.co.co_varnames)
   state.stack.append(state.get_closure(arg))
@@ -440,6 +441,7 @@ def load_closure(state, arg):
 
 def load_deref(state, arg):
   # The arg is no longer offset by len(covar_names) as of 3.11
+  # See https://docs.python.org/3/library/dis.html#opcode-LOAD_DEREF
   if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
     arg -= len(state.co.co_varnames)
   state.stack.append(state.closure_type(arg))
@@ -451,6 +453,8 @@ def make_function(state, arg):
   # TODO(luke-zhu): Handle default argument types
   globals = state.f.__globals__  # Inherits globals from the current frame
   tos = state.stack[-1].value
+  # In Python 3.11 lambdas no longer have fully qualified names on the stack,
+  # so we check for this case (AKA the code is top of stack.)
   if isinstance(tos, types.CodeType):
     func_name = None
     func_code = tos

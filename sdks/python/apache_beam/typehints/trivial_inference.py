@@ -534,7 +534,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
             return_type = Any
         state.kw_names = None
       else:
-        # Catch lambdas not passing in arg values properly
+        # Handle lambdas always having an arg of 0 for CALL
+        # See https://github.com/python/cpython/issues/102403 for context.
         if pop_count == 1:
           while pop_count <= len(state.stack):
             if isinstance(state.stack[-pop_count], Const):
