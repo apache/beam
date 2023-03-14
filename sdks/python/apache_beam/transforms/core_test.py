@@ -61,20 +61,41 @@ class TestDoFn5(beam.DoFn):
     return my_yield
 
 
+class TestDoFn6(beam.DoFn):
+  """test the variable name containing return"""
+  def process(self, element):
+    return_test = element
+    yield return_test
+
+
+class TestDoFn7(beam.DoFn):
+  """test the variable name containing yield"""
+  def process(self, element):
+    yield_test = element
+    return yield_test
+
+
 class CreateTest(unittest.TestCase):
   @pytest.fixture(autouse=True)
   def inject_fixtures(self, caplog):
     self._caplog = caplog
 
   def test_dofn_with_yield_and_return(self):
-    assert beam.ParDo(sum)
-    assert beam.ParDo(TestDoFn1())
-    assert beam.ParDo(TestDoFn2())
-    assert beam.ParDo(TestDoFn4())
-    assert beam.ParDo(TestDoFn5())
+    warning_text = 'Using yield and return'
+
+    with self._caplog.at_level(logging.WARNING):
+      assert beam.ParDo(sum)
+      assert beam.ParDo(TestDoFn1())
+      assert beam.ParDo(TestDoFn2())
+      assert beam.ParDo(TestDoFn4())
+      assert beam.ParDo(TestDoFn5())
+      assert beam.ParDo(TestDoFn6())
+      assert beam.ParDo(TestDoFn7())
+      assert warning_text not in self._caplog.text
+
     with self._caplog.at_level(logging.WARNING):
       beam.ParDo(TestDoFn3())
-      assert 'The yield and return statements in' in self._caplog.text
+      assert warning_text in self._caplog.text
 
 
 if __name__ == '__main__':

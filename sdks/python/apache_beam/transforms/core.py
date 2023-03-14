@@ -1427,9 +1427,11 @@ def _check_fn_use_yield_and_return(fn):
     has_yield = False
     has_return = False
     for line in source_code.split("\n"):
-      if line.lstrip().startswith("yield"):
+      if line.lstrip().startswith("yield ") or line.lstrip().startswith(
+          "yield("):
         has_yield = True
-      if line.lstrip().startswith("return"):
+      if line.lstrip().startswith("return ") or line.lstrip().startswith(
+          "return("):
         has_return = True
       if has_yield and has_return:
         return True
@@ -1481,11 +1483,9 @@ class ParDo(PTransformWithSideInputs):
     # DoFn.process cannot allow both return and yield
     if _check_fn_use_yield_and_return(self.fn.process):
       _LOGGER.warning(
-          'The yield and return statements in the process method '
-          'of %s can not be mixed.'
-          'We recommend to use `yield` for emitting individual '
-          ' elements and `yield from` for emitting the content '
-          'of entire iterables.',
+          'Using yield and return in the process method '
+          'of %s can lead to unexpected behavior, see:'
+          'https://github.com/apache/beam/issues/22969.',
           self.fn.__class__)
 
     # Validate the DoFn by creating a DoFnSignature
