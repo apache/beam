@@ -147,16 +147,16 @@ REQUIRED_PACKAGES = [
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.20.0',
-    'numpy>=1.14.3,<1.21.0',
+    'numpy>=1.14.3,<1.23.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
-    'pyarrow>=0.15.1,<4.0.0',
+    'pyarrow>=0.15.1,<8.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
     'requests>=2.24.0,<3.0.0',
-    'typing-extensions>=3.7.0,<3.8.0',
+    'typing-extensions>=3.7.0',
     ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
