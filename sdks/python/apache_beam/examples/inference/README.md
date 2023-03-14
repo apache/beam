@@ -576,3 +576,70 @@ This writes the output to the `predictions.txt` with contents like:
 ...
 ```
 Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
+## Iris Classification
+
+[`xgboost_iris_classification.py.py`](./xgboost_iris_classification.py.py) contains an implementation for a RunInference pipeline that performs classification on tabular data from the [Iris Dataset](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html).
+
+The pipeline reads rows that contain the features of a given iris. The features are Sepal Length, Sepal Width, Petal Length and Petal Width. The pipeline passes those features to the XGBoost implementation of RunInference which writes the iris type predictions to a text file.
+
+### Dataset and model for language modeling
+
+To use this transform, you need to have sklearn installed. The dataset is loaded from using sklearn. The `_train_model` function can be used to train a simple classifier. The function outputs it's configuration in a file that can be loaded by the `XGBoostModelHandler`.
+
+### Training a simple classifier
+
+The following function allows you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in an pipeline using the `XGBoostModelHandler`.
+```
+import xgboost
+
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+
+
+def _train_model(model_state_output_path: str = '/tmp/model.json', seed=999):
+  """Function to train an XGBoost Classifier using the sklearn Iris dataset"""
+  dataset = load_iris()
+  x_train, _, y_train, _ = train_test_split(
+      dataset['data'], dataset['target'], test_size=.2, random_state=seed)
+  booster = xgboost.XGBClassifier(
+      n_estimators=2, max_depth=2, learning_rate=1, objective='binary:logistic')
+  booster.fit(x_train, y_train)
+  booster.save_model(model_state_output_path)
+  return booster
+```
+
+#### Running the Pipeline
+To run locally, use the following command:
+
+```
+python -m apache_beam.examples.inference.xgboost_iris_classification.py \
+  --input_type INPUT_TYPE \
+  --output OUTPUT_FILE \
+  -- model_state MODEL_STATE_JSON \
+  [--no_split|--split]
+```
+
+For example:
+
+```
+python -m apache_beam.examples.inference.xgboost_iris_classification.py \
+  --input_type numpy \
+  --output predictions.txt \
+  --model_state model_state.json \
+  --split
+```
+
+This writes the output to the `predictions.txt`. Each line contains the batch number and a list with all outputted class labels. There are 3 possible values for class labels: `0`, `1`, and `2`. When each batch contains a single elements the output look like this:
+```
+0,[1]
+1,[2]
+2,[1]
+3,[0]
+...
+```
+
+When all elements are in a single batch the output looks like this:
+```
+0,[1 1 1 0 0 0 0 1 2 0 0 2 0 2 1 2 2 2 2 0 0 0 0 2 2 0 2 2 2 1]
+
+```

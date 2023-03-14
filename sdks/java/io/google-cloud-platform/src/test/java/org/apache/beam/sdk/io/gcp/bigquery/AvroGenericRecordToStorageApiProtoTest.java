@@ -41,7 +41,7 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -365,8 +365,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
         .getFieldList()
         .forEach(
             p -> {
-              TypeWithNullability fieldSchema =
-                  TypeWithNullability.create(
+              AvroUtils.TypeWithNullability fieldSchema =
+                  AvroUtils.TypeWithNullability.create(
                       originalSchema.getField(nameMapping.get(p.getName())).schema());
               Label label =
                   fieldSchema.getType().getType() == Schema.Type.ARRAY

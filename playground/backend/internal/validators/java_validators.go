@@ -53,7 +53,7 @@ func GetJavaValidators(filePath string) *[]Validator {
 	return &validators
 }
 
-//checkIsUnitTestJava checks if the pipeline is a UnitTest
+// checkIsUnitTestJava checks if the pipeline is a UnitTest
 func checkIsUnitTestJava(args ...interface{}) (bool, error) {
 	ok, err := checkPipelineType(append(args, javaUnitTestPattern)...)
 	if err != nil {
@@ -62,7 +62,7 @@ func checkIsUnitTestJava(args ...interface{}) (bool, error) {
 	return ok, nil
 }
 
-//checkIsKataJava checks if the pipeline is a kata
+// checkIsKataJava checks if the pipeline is a kata
 func checkIsKataJava(args ...interface{}) (bool, error) {
 	ok, err := checkPipelineType(append(args, javaKatasPattern)...)
 	if err != nil {

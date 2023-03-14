@@ -30,7 +30,7 @@ const (
 	Test ExecutionType = "RunTest"
 )
 
-//CmdConfiguration for base cmd code execution
+// CmdConfiguration for base cmd code execution
 type CmdConfiguration struct {
 	fileName        string
 	workingDir      string

@@ -167,7 +167,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
                 .addNameFilter(
                     MetricNameFilter.named(
                         BigQueryStorageWriteApiPCollectionRowTupleTransform.class,
-                        "element-counter"))
+                        "BigQuery-write-element-counter"))
                 .build());
 
     Iterable<MetricResult<Long>> counters = metricResults.getCounters();
@@ -255,7 +255,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        BigQueryStorageWriteApiPCollectionRowTupleTransform.class, "error-counter"))
+                        BigQueryStorageWriteApiPCollectionRowTupleTransform.class,
+                        "BigQuery-write-error-counter"))
                 .build());
 
     Iterable<MetricResult<Long>> counters = metricResults.getCounters();
