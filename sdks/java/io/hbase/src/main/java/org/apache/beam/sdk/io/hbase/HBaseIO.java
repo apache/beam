@@ -154,6 +154,8 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table"));
  * }</pre>
  *
+ * // TODO: Add section on writing {@link RowMutations} to Hbase.
+ *
  * <h3>Experimental</h3>
  *
  * <p>The design of the API for HBaseIO is currently related to the BigtableIO one, it can evolve or
@@ -770,7 +772,6 @@ public class HBaseIO {
     }
   }
 
-
   public static WriteRowMutations writeRowMutations() {
     return new WriteRowMutations(null /* Configuration */, "");
   }
@@ -874,9 +875,7 @@ public class HBaseIO {
       }
 
       Object readResolve() {
-        return HBaseIO.writeRowMutations()
-            .withConfiguration(configuration)
-            .withTableId(tableId);
+        return HBaseIO.writeRowMutations().withConfiguration(configuration).withTableId(tableId);
       }
 
       private Configuration configuration;

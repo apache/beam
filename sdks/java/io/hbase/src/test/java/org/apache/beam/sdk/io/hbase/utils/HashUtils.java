@@ -1,17 +1,19 @@
 /*
- * Copyright (C) 2023 Google LLC
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.beam.sdk.io.hbase.utils;
 
@@ -30,8 +32,6 @@ import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.RowMutations;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Utility functions to help assert equality between mutation lists for testing purposes. */
 public class HashUtils {
@@ -48,7 +48,7 @@ public class HashUtils {
     if (rowMutationA == null || rowMutationB == null) {
       Assert.assertEquals(rowMutationA, rowMutationB);
     }
-    Assert.assertTrue(Bytes.equals(rowMutationA.getRow(),rowMutationB.getRow()));
+    Assert.assertTrue(Bytes.equals(rowMutationA.getRow(), rowMutationB.getRow()));
     Assert.assertEquals(
         hashMutationList(rowMutationA.getMutations()),
         hashMutationList(rowMutationB.getMutations()));
@@ -74,15 +74,15 @@ public class HashUtils {
         String mutationType = "";
         long ts = 0;
 
-        if (KeyValue.Type.codeToType(c.getTypeByte()).equals( KeyValue.Type.DeleteFamily)) {
+        if (KeyValue.Type.codeToType(c.getTypeByte()).equals(KeyValue.Type.DeleteFamily)) {
           // DeleteFamily has its timestamp created at runtime and cannot be compared with accuracy
           // during tests, so we remove the timestamp altogether.
           mutationType = "DELETE_FAMILY";
           ts = 0L;
-        } else if (KeyValue.Type.codeToType(c.getTypeByte()).equals( KeyValue.Type.DeleteColumn)) {
+        } else if (KeyValue.Type.codeToType(c.getTypeByte()).equals(KeyValue.Type.DeleteColumn)) {
           mutationType = "DELETE_COLUMN";
           ts = c.getTimestamp();
-        } else if (KeyValue.Type.codeToType(c.getTypeByte()).equals( KeyValue.Type.Put)) {
+        } else if (KeyValue.Type.codeToType(c.getTypeByte()).equals(KeyValue.Type.Put)) {
           mutationType = "PUT";
           ts = c.getTimestamp();
         } else {
@@ -119,7 +119,6 @@ public class HashUtils {
       extends PTransform<
           PCollection<KV<byte[], RowMutations>>, PCollection<KV<String, List<String>>>> {
 
-
     @Override
     public PCollection<KV<String, List<String>>> expand(
         PCollection<KV<byte[], RowMutations>> input) {
@@ -136,12 +135,14 @@ public class HashUtils {
     public void processElement(ProcessContext c) throws Exception {
       RowMutations rowMutations = c.element().getValue();
 
-      if (!Bytes.equals(c.element().getKey(),rowMutations.getRow())) {
+      if (!Bytes.equals(c.element().getKey(), rowMutations.getRow())) {
         throw new Exception("Hash error, KV rowkey is not the same as rowMutations rowkey");
       }
 
       c.output(
-          KV.of(Bytes.toString(rowMutations.getRow()), hashMutationList(rowMutations.getMutations())));
+          KV.of(
+              Bytes.toString(rowMutations.getRow()),
+              hashMutationList(rowMutations.getMutations())));
     }
   }
 }
