@@ -299,8 +299,9 @@ class SdkHarness(object):
         traceback_string = traceback.format_exc()
         print(traceback_string, file=sys.stderr)
         _LOGGER.error(
-            'Error processing instruction %s. Original traceback is\n%s\n',
+            'Error processing instruction %s on %s. Original traceback is\n%s\n',
             request.instruction_id,
+            self._worker_id,
             traceback_string)
         response = beam_fn_api_pb2.InstructionResponse(
             instruction_id=request.instruction_id, error=traceback_string)
@@ -859,6 +860,23 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 
   Caches the created channels by ``state descriptor url``.
   """
+
+  # retry config for ephemeral UNAVAILABLE error.
+  GRPC_RETRY_SERVICE_CONFIG = json.dumps({
+    "methodConfig": [{
+      "name": [{
+        "service": "org.apache.beam.model.fn_execution.v1.BeamFnState"
+      }],
+      "retryPolicy": {
+        "maxAttempts": 10,
+        "initialBackoff": "0.1s",
+        "maxBackoff": "5s",
+        "backoffMultiplier": 2,
+        "retryableStatusCodes": ["UNAVAILABLE"],
+      },
+    }]
+  })
+
   def __init__(self, state_cache, credentials=None):
     # type: (StateCache, Optional[grpc.ChannelCredentials]) -> None
     self._state_handler_cache = {}  # type: Dict[str, CachingStateHandler]
@@ -880,7 +898,10 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           # controlled in a layer above.
           options = [('grpc.max_receive_message_length', -1),
                      ('grpc.max_send_message_length', -1),
-                     ('grpc.service_config', _GRPC_SERVICE_CONFIG)]
+                     ('grpc.enable_retries', 1),
+                     ('grpc.service_config',
+                      GrpcStateHandlerFactory.GRPC_RETRY_SERVICE_CONFIG)
+                     ]
           if self._credentials is None:
             _LOGGER.info('Creating insecure state channel for %s.', url)
             grpc_channel = GRPCChannelFactory.insecure_channel(
