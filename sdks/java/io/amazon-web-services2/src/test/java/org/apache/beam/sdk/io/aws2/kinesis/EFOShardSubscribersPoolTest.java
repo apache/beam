@@ -21,7 +21,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOHelpers.createReadSpec;
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOHelpers.eventsWithoutRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.EFOHelpers.listLatest;
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOHelpers.subscribeAfterSeqNumber;
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOHelpers.subscribeLatest;
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOHelpers.subscribeTrimHorizon;
@@ -53,12 +52,14 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 
 public class EFOShardSubscribersPoolTest {
   private KinesisIO.Read readSpec;
+  private String consumerArn;
   private EFOStubbedKinesisAsyncClient kinesis;
   private EFOShardSubscribersPool pool;
 
   @Before
   public void setUp() {
     readSpec = createReadSpec();
+    consumerArn = "consumer-01";
   }
 
   @After
@@ -69,7 +70,7 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void poolReSubscribesAndReadsRecords() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(3));
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(3, 7));
     kinesis.stubSubscribeToShard("shard-000", eventsWithoutRecords(3, 10));
@@ -79,15 +80,13 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-001", eventsWithoutRecords(3, 8));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     List<KinesisRecord> actualRecords = waitForRecords(pool, 18);
     validateRecords(actualRecords);
     assertThat(waitForRecords(pool, 3).size()).isEqualTo(0); // nothing more is received
-
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
 
     assertThat(kinesis.subscribeRequestsSeen())
         .containsExactlyInAnyOrder(
@@ -115,7 +114,7 @@ public class EFOShardSubscribersPoolTest {
    */
   @Test
   public void poolReSubscribesAndReadsManyEvents() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(1, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(1);
     kinesis.stubSubscribeToShard("shard-000", eventsWithRecords(18, 300));
     kinesis.stubSubscribeToShard("shard-000", eventsWithoutRecords(3, 318));
 
@@ -123,14 +122,12 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-001", eventsWithoutRecords(3, 275));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     assertThat(waitForRecords(pool, 500).size()).isEqualTo(500);
     assertThat(waitForRecords(pool, 100).size()).isEqualTo(0); // nothing more is received
-
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
 
     assertThat(kinesis.subscribeRequestsSeen())
         .containsExactlyInAnyOrder(
@@ -151,21 +148,19 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void handlesAggregatedRecords() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000", eventWithAggRecords(12, 2));
     kinesis.stubSubscribeToShard("shard-000", eventsWithoutRecords(1, 13));
     kinesis.stubSubscribeToShard("shard-001", eventWithAggRecords(55, 3));
     kinesis.stubSubscribeToShard("shard-001", eventsWithoutRecords(1, 56));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     List<KinesisRecord> actualRecords = waitForRecords(pool, 5);
     assertThat(waitForRecords(pool, 10).size()).isEqualTo(0); // nothing more is received
-
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
     assertThat(actualRecords.size()).isEqualTo(5);
 
     assertThat(kinesis.subscribeRequestsSeen())
@@ -187,13 +182,11 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void doesNotIntroduceDuplicatesWithAggregatedRecordsCheckpoints() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000", eventWithAggRecords(12, 6));
 
-    KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
-
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    KinesisReaderCheckpoint initialCheckpoint = initialCheckpoint(ImmutableList.of("shard-000"));
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     List<KinesisRecord> actualRecords = waitForRecords(pool, 4);
     validateRecords(
@@ -206,11 +199,11 @@ public class EFOShardSubscribersPoolTest {
     pool.stop();
     kinesis.close();
 
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     // simulate re-consuming same content again
     kinesis.stubSubscribeToShard("shard-000", eventWithAggRecords(12, 6));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(checkpoint);
     List<KinesisRecord> recordsAfterReStart = waitForRecords(pool, 3);
 
@@ -235,19 +228,18 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void poolReSubscribesWhenNoRecordsCome() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000", eventsWithoutRecords(3, 31));
     kinesis.stubSubscribeToShard("shard-001", eventsWithoutRecords(3, 8));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     List<KinesisRecord> actualRecords = waitForRecords(pool, 1);
     assertEquals(0, actualRecords.size());
 
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
     assertThat(kinesis.subscribeRequestsSeen())
         .containsExactlyInAnyOrder(
             subscribeLatest("shard-000"),
@@ -267,7 +259,7 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void poolReSubscribesWhenRecoverableErrorOccurs() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis
         .stubSubscribeToShard("shard-000", eventWithRecords(3))
         .failWith(new ReadTimeoutException());
@@ -282,13 +274,12 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-001", eventsWithoutRecords(3, 8));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis, 1);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis, 1);
     pool.start(initialCheckpoint);
 
     assertThat(waitForRecords(pool, 25)).hasSize(18);
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
 
     assertThat(kinesis.subscribeRequestsSeen())
         .containsExactlyInAnyOrder(
@@ -320,7 +311,7 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void poolReSubscribesWhenManyRecoverableErrorsOccur() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(1, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(1);
 
     for (int i = 0; i < 250; i++) {
       kinesis
@@ -337,14 +328,13 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-001", eventsWithoutRecords(3, 583));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis, 1);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis, 1);
     pool.start(initialCheckpoint);
 
     assertThat(waitForRecords(pool, 500)).hasSize(500);
     assertThat(waitForRecords(pool, 50)).hasSize(0); // nothing else comes
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
     assertThat(kinesis.subscribeRequestsSeen().size()).isEqualTo(255);
 
     assertThat(pool.getCheckpointMark().iterator())
@@ -357,20 +347,17 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void poolReSubscribesFromInitialWhenRecoverableErrorOccursImmediately() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000").failWith(new ReadTimeoutException());
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(550, 3));
     kinesis.stubSubscribeToShard("shard-000", eventsWithoutRecords(1, 553));
 
-    KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
-
-    pool = new EFOShardSubscribersPool(readSpec, kinesis, 1);
+    KinesisReaderCheckpoint initialCheckpoint = initialCheckpoint(ImmutableList.of("shard-000"));
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis, 1);
     pool.start(initialCheckpoint);
 
     assertThat(waitForRecords(pool, 3)).hasSize(3);
     assertThat(waitForRecords(pool, 1)).isEmpty(); // no more records
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
 
     assertThat(kinesis.subscribeRequestsSeen())
         .containsExactlyInAnyOrder(
@@ -387,7 +374,7 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void poolFailsWhenNonRecoverableErrorOccurs() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(7));
 
     kinesis
@@ -399,15 +386,13 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-001", eventsWithoutRecords(3, 8));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     Throwable exception = assertThrows(IOException.class, () -> waitForRecords(pool, 20));
     assertEquals("java.lang.RuntimeException: Oh...", exception.getMessage());
     assertTrue(exception.getCause() instanceof RuntimeException);
-
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
 
     // Depending on the moment of shard-000 error catch, recorded sequence numbers
     // of events from shard-001 may differ. However, both shards' checkpoints
@@ -423,7 +408,7 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void poolFailsWhenConsumerDoesNotExist() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis
         .stubSubscribeToShard("shard-000", eventWithRecords(3))
         .failWith(
@@ -446,9 +431,9 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-001", eventsWithoutRecords(3, 8));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     Throwable exception = assertThrows(IOException.class, () -> waitForRecords(pool, 10));
     assertEquals("java.util.concurrent.CompletionException: Err ...", exception.getMessage());
@@ -457,13 +442,11 @@ public class EFOShardSubscribersPoolTest {
     assertEquals(
         "Consumer consumer-01 not found. (Service: Kinesis, Status Code: 0, Request ID: null)",
         cause.getMessage());
-
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
   }
 
   @Test
   public void poolHandlesShardUp() throws Exception {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(3));
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(3, 7));
     kinesis.stubSubscribeToShard("shard-000", eventsWithoutRecords(1, 10));
@@ -488,14 +471,13 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-004", eventsWithoutRecords(2, 5));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     List<KinesisRecord> actualRecords = waitForRecords(pool, 35);
     assertEquals(34, actualRecords.size());
 
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
     assertThat(kinesis.subscribeRequestsSeen())
         .containsExactlyInAnyOrder(
             subscribeLatest("shard-000"),
@@ -528,10 +510,7 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void poolHandlesShardDown() throws Exception {
-    kinesis =
-        new EFOStubbedKinesisAsyncClient(
-            10, ImmutableList.of("shard-000", "shard-001", "shard-002", "shard-003"));
-
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(3));
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(3, 7));
     kinesis.stubSubscribeToShard("shard-000", eventsWithoutRecords(1, 10));
@@ -564,14 +543,13 @@ public class EFOShardSubscribersPoolTest {
     kinesis.stubSubscribeToShard("shard-005", eventsWithoutRecords(3, 6));
 
     KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001", "shard-002", "shard-003"));
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     List<KinesisRecord> actualRecords = waitForRecords(pool, 38);
     assertEquals(37, actualRecords.size());
 
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
     assertThat(kinesis.subscribeRequestsSeen())
         .containsExactlyInAnyOrder(
             subscribeLatest("shard-000"),
@@ -604,13 +582,14 @@ public class EFOShardSubscribersPoolTest {
 
   @Test
   public void checkpointEqualsToInitStateIfNothingIsConsumed() throws TransientKinesisException {
-    kinesis = new EFOStubbedKinesisAsyncClient(10, ImmutableList.of("shard-000", "shard-001"));
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
     kinesis.stubSubscribeToShard("shard-000", eventWithRecords(1));
     kinesis.stubSubscribeToShard("shard-001", eventWithRecords(1));
-    KinesisReaderCheckpoint initialCheckpoint =
-        new EFOFromScratchCheckpointGenerator(readSpec).generate(kinesis);
 
-    pool = new EFOShardSubscribersPool(readSpec, kinesis);
+    KinesisReaderCheckpoint initialCheckpoint =
+        initialCheckpoint(ImmutableList.of("shard-000", "shard-001"));
+
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
     pool.start(initialCheckpoint);
     ShardCheckpoint[] expectedShardsCheckpoints = {
       new ShardCheckpoint(
@@ -621,7 +600,6 @@ public class EFOShardSubscribersPoolTest {
     assertThat(initialCheckpoint.iterator()).containsExactlyInAnyOrder(expectedShardsCheckpoints);
     assertThat(pool.getCheckpointMark().iterator())
         .containsExactlyInAnyOrder(expectedShardsCheckpoints);
-    assertThat(kinesis.listRequestsSeen()).containsExactlyInAnyOrder(listLatest());
   }
 
   static List<KinesisRecord> waitForRecords(EFOShardSubscribersPool pool, int recordsToWaitFor)
@@ -685,6 +663,16 @@ public class EFOShardSubscribersPoolTest {
     assertThat(subSequenceNumbers)
         .hasSize(expectedCnt)
         .containsExactlyInAnyOrder(expectedSubSequenceNumbers);
+  }
+
+  private KinesisReaderCheckpoint initialCheckpoint(List<String> shardIds) {
+    List<ShardCheckpoint> shardCheckpoints = new ArrayList<>();
+    for (String shardId : shardIds) {
+      shardCheckpoints.add(
+          new ShardCheckpoint(
+              "stream-01", shardId, new StartingPoint(InitialPositionInStream.LATEST)));
+    }
+    return new KinesisReaderCheckpoint(shardCheckpoints);
   }
 
   private static ByteBuffer fromStr(String str) {

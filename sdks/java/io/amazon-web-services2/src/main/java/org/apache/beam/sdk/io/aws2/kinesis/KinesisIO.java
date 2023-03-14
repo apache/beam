@@ -158,19 +158,82 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * href="https://docs.aws.amazon.com/streams/latest/dev/enhanced-consumers.html">Consumers with
  * Dedicated Throughput</a>
  *
- * <p>To configure the IO with EFO enabled, add {@link KinesisIO.Read#withConsumerArn(String)}
- * config:
+ * <p>Primary method of enabling EFO is setting {@link Read#withConsumerArn(String)}:
  *
  * <pre>{@code
  * p.apply(KinesisIO.read()
  *    .withStreamName("streamName")
  *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *    .withConsumerArn("arn:aws:kinesis:..."))
+ *    .withConsumerArn("arn:aws:kinesis:.../streamConsumer:12345678"))
  * }</pre>
  *
- * <p><b>NOTE:</b> When EFO is enabled, {@link RateLimitPolicy} does not apply. Depending on the
- * downstream processing performance, the EFO consumer will back-pressure internally. Otherwise, it
- * receives records from shards as fast as the downstream keeps up.
+ * <p>Alternatively, EFO can be enabled for one or more {@link Read} instances via pipeline options:
+ *
+ * <pre>{@code --kinesisIOConsumerArns{
+ *   "stream-01": "arn:aws:kinesis:...:stream/stream-01/consumer/consumer-01:1678576714",
+ *   "stream-02": "arn:aws:kinesis:...:stream/stream-02/consumer/my-consumer:1679576982",
+ *   ...
+ * }}</pre>
+ *
+ * <p>If set, pipeline options will overwrite {@link Read#withConsumerArn(String)} setting. Check
+ * {@link KinesisIOOptions} for more details.
+ *
+ * <p>Depending on the downstream processing performance, the EFO consumer will back-pressure
+ * internally.
+ *
+ * <p>Adjusting runner's settings is recommended - such that it does not (re)start EFO consumer(s)
+ * faster than once per ~ 10 seconds. Internal calls to {@link
+ * KinesisAsyncClient#subscribeToShard(SubscribeToShardRequest, SubscribeToShardResponseHandler)}
+ * may throw ResourceInUseException otherwise, which will cause a crash loop.
+ *
+ * <p>EFO source, when consuming from a stream with often re-sharding, may eventually get skewed
+ * load among runner workers: some may end up with no active shard subscriptions at all.
+ *
+ * <h5>Enhanced Fan-Out and KinesisIO state management</h5>
+ *
+ * <p>Different runners may behave differently when a Beam application is started from a persisted
+ * state. Examples of persisted state are:
+ *
+ * <ul>
+ *   <li><a href="https://cloud.google.com/dataflow/docs/guides/using-snapshots">GCP Dataflow
+ *       snapshots</a>
+ *   <li><a
+ *       href="https://nightlies.apache.org/flink/flink-docs-master/docs/ops/state/savepoints/">Flink
+ *       savepoints</a>
+ *   <li><a
+ *       href="https://docs.aws.amazon.com/kinesisanalytics/latest/java/how-fault-snapshot.html">Kinesis
+ *       Data Analytics snapshots</a>
+ * </ul>
+ *
+ * <p>Depending on their internals, runners may persist <b>entire</b> {@link Read} object inside the
+ * state, like Flink runner does. It means that, once enabled via {@link
+ * Read#withConsumerArn(String)} in Flink runner, as long as the Beam application starts from a
+ * savepoint, further changes to {@link Read#withConsumerArn(String)} won't take effect.
+ *
+ * <p>If your runner persists {@link Read} object, disabling / changing consumer ARN and restoring
+ * from persisted state can be done via {@link KinesisIOOptions#setKinesisIOConsumerArns(Map)}:
+ *
+ * <pre>{@code --kinesisIOConsumerArns={
+ *   "stream-01": " < new consumer ARN > ",  <- updated ARN
+ *   "stream-02": null,  <- disabling EFO
+ *   ...
+ * }}</pre>
+ *
+ * <p>EFO can be enabled / disabled any time without loosing consumer's positions in shards which
+ * were already checkpoint-ed. Consumer ARN for a given stream can be changed any time, too.
+ *
+ * <h5>Enhanced Fan-Out and other KinesisIO settings</h5>
+ *
+ * <p>When EFO is enabled, the following configurations are ignored:
+ *
+ * <ul>
+ *   <li>{@link Read#withMaxCapacityPerShard(Integer)}
+ *   <li>{@link Read#withRequestRecordsLimit(int)}
+ *   <li>{@link Read#withCustomRateLimitPolicy(RateLimitPolicyFactory)}
+ *   <li>{@link Read#withFixedDelayRateLimitPolicy()}
+ *   <li>{@link Read#withDynamicDelayRateLimitPolicy(Supplier)}
+ *   <li>{@link Read#withUpToDateThreshold(Duration)}
+ * </ul>
  *
  * <h3>Writing to Kinesis</h3>
  *
@@ -366,26 +429,7 @@ public final class KinesisIO {
       return toBuilder().setStreamName(streamName).build();
     }
 
-    /**
-     * Specify reading with Enhanced Fan-Out (EFO) via registered consumer ARN.
-     *
-     * <p>More details can be found here: <a
-     * href="https://docs.aws.amazon.com/streams/latest/dev/enhanced-consumers.html">Consumers with
-     * Dedicated Throughput</a>
-     *
-     * <p>Setting this means the {@link KinesisIO.Read} will use {@link KinesisAsyncClient} API for
-     * all operations.
-     *
-     * <p>{@link KinesisIO.Read} with and without EFO rely on the same mechanisms for keeping track
-     * of consumer's progress. Stopping a non-EFO consumer, switching it to EFO and back <b>does
-     * not</b> cause state incompatibility of {@link KinesisIO.Read}.
-     *
-     * <p>It is recommended to adjust runner's settings to prevent it from re-starting a EFO
-     * consumer faster than once per ~ 10 seconds. Internal calls to {@link
-     * KinesisAsyncClient#subscribeToShard(SubscribeToShardRequest,
-     * SubscribeToShardResponseHandler)} may throw ResourceInUseException otherwise, which will
-     * cause a crash loop.
-     */
+    /** Specify consumer ARN to enable Enhanced Fan-Out. */
     public Read withConsumerArn(String consumerArn) {
       return toBuilder().setConsumerArn(consumerArn).build();
     }
@@ -590,15 +634,8 @@ public final class KinesisIO {
         ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
       }
 
-      Unbounded<KinesisRecord> unbounded;
-
-      if (getConsumerArn() == null) {
-        unbounded = org.apache.beam.sdk.io.Read.from(new KinesisSource(this));
-      } else {
-        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-        ClientBuilderFactory builderFactory = ClientBuilderFactory.getFactory(awsOptions);
-        unbounded = org.apache.beam.sdk.io.Read.from(new EFOKinesisSource(this, builderFactory));
-      }
+      Unbounded<KinesisRecord> unbounded =
+          org.apache.beam.sdk.io.Read.from(new KinesisSource(this));
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
 

@@ -34,32 +34,34 @@ class EFOKinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(EFOKinesisReader.class);
 
   private final KinesisIO.Read spec;
+  private final String consumerArn;
   private final KinesisAsyncClient kinesis;
-  private final EFOKinesisSource source;
-  private final EFOCheckpointGenerator checkpointGenerator;
+  private final KinesisSource source;
+  private final KinesisReaderCheckpoint initCheckpoint;
 
   private @Nullable KinesisRecord currentRecord = null;
   private @Nullable EFOShardSubscribersPool shardSubscribersPool = null;
 
   EFOKinesisReader(
       KinesisIO.Read spec,
+      String consumerArn,
       KinesisAsyncClient kinesis,
-      EFOCheckpointGenerator checkpointGenerator,
-      EFOKinesisSource source) {
+      KinesisReaderCheckpoint initCheckpoint,
+      KinesisSource source) {
     this.spec = checkArgumentNotNull(spec);
+    this.consumerArn = checkArgumentNotNull(consumerArn);
     this.kinesis = checkArgumentNotNull(kinesis);
-    this.checkpointGenerator = checkArgumentNotNull(checkpointGenerator);
+    this.initCheckpoint = checkArgumentNotNull(initCheckpoint);
     this.source = source;
   }
 
   @Override
   @SuppressWarnings("dereference.of.nullable")
   public boolean start() throws IOException {
-    LOG.info("Starting reader using {}", checkpointGenerator);
+    LOG.info("Starting reader using {}", initCheckpoint);
     try {
       shardSubscribersPool = createPool();
-      KinesisReaderCheckpoint initialCheckpoint = checkpointGenerator.generate(kinesis);
-      shardSubscribersPool.start(initialCheckpoint);
+      shardSubscribersPool.start(initCheckpoint);
       return advance();
     } catch (TransientKinesisException e) {
       throw new IOException(e);
@@ -120,7 +122,7 @@ class EFOKinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   private EFOShardSubscribersPool createPool() throws TransientKinesisException {
-    return new EFOShardSubscribersPool(spec, kinesis);
+    return new EFOShardSubscribersPool(spec, consumerArn, kinesis);
   }
 
   private KinesisRecord getOrThrow() throws NoSuchElementException {

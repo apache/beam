@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -67,6 +68,7 @@ class EFOShardSubscribersPool {
   private final UUID poolId;
 
   private final KinesisIO.Read read;
+  private final String consumerArn;
   private final KinesisAsyncClient kinesis;
 
   /**
@@ -75,7 +77,7 @@ class EFOShardSubscribersPool {
   private final ConcurrentLinkedQueue<EventRecords> eventQueue = new ConcurrentLinkedQueue<>();
 
   /**
-   * State map of currently active shards that can be checkpointed.
+   * State map of currently active shards that can be checkpoint-ed.
    *
    * <p>This map may only be accessed and updated from within {@link #start}, {@link #getNextRecord}
    * and dependent {@link #onEventDone} to prevent race conditions.
@@ -118,20 +120,26 @@ class EFOShardSubscribersPool {
   // EventRecords iterator that is currently consumed
   @Nullable EventRecords current = null;
 
+  // FIXME: Add support for injected watermark policy - as in ShardRecordsIterator
   private final WatermarkPolicy latestRecordTimestampPolicy =
       WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
 
-  EFOShardSubscribersPool(KinesisIO.Read readSpec, KinesisAsyncClient kinesis) {
+  EFOShardSubscribersPool(KinesisIO.Read readSpec, String consumerArn, KinesisAsyncClient kinesis) {
     this.poolId = UUID.randomUUID();
     this.read = readSpec;
+    this.consumerArn = consumerArn;
     this.kinesis = kinesis;
     this.onErrorCoolDownMs = ON_ERROR_COOL_DOWN_MS_DEFAULT;
   }
 
   EFOShardSubscribersPool(
-      KinesisIO.Read readSpec, KinesisAsyncClient kinesis, int onErrorCoolDownMs) {
+      KinesisIO.Read readSpec,
+      String consumerArn,
+      KinesisAsyncClient kinesis,
+      int onErrorCoolDownMs) {
     this.poolId = UUID.randomUUID();
     this.read = readSpec;
+    this.consumerArn = consumerArn;
     this.kinesis = kinesis;
     this.onErrorCoolDownMs = onErrorCoolDownMs;
   }
@@ -142,12 +150,12 @@ class EFOShardSubscribersPool {
    *
    * <p>{@link EFOShardSubscriber}s with their respective state are tracked in {@link #state}.
    */
-  public void start(Iterable<ShardCheckpoint> checkpoints) {
+  void start(Iterable<ShardCheckpoint> checkpoints) {
     LOG.info(
         "Starting pool {} {} {}. Checkpoints = {}",
         poolId,
         read.getStreamName(),
-        read.getConsumerArn(),
+        consumerArn,
         checkpoints);
     for (ShardCheckpoint shardCheckpoint : checkpoints) {
       checkState(
@@ -180,8 +188,8 @@ class EFOShardSubscribersPool {
    *
    * <p>It polls the {@link #eventQueue} in a while loop to avoid returning null immediately if an
    * event without records arrived. There may be events with records after the {@link #current}, and
-   * it is better to poll again instead of having {@link KinesisReader#advance()} signalling false
-   * to Beam. Otherwise, Beam would poll again later, which would introduce unnecessary delay.
+   * it is better to poll again instead of having {@link EFOKinesisReader#advance()} signalling
+   * false to Beam. Otherwise, Beam would poll again later, which would introduce unnecessary delay.
    */
   @Nullable
   KinesisRecord getNextRecord() throws IOException {
@@ -267,7 +275,8 @@ class EFOShardSubscribersPool {
   @SuppressWarnings("FutureReturnValueIgnored")
   private EFOShardSubscriber initShardSubscriber(ShardCheckpoint cp) {
     EFOShardSubscriber subscriber =
-        new EFOShardSubscriber(this, cp.getShardId(), read, kinesis, onErrorCoolDownMs);
+        new EFOShardSubscriber(
+            this, cp.getShardId(), read, consumerArn, kinesis, onErrorCoolDownMs);
     StartingPosition startingPosition = cp.toStartingPosition();
     if (subscriptionError == null) {
       subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
@@ -309,12 +318,12 @@ class EFOShardSubscribersPool {
     eventQueue.offer(new EventRecords(shardId, event));
   }
 
-  public Instant getWatermark() {
+  Instant getWatermark() {
     return latestRecordTimestampPolicy.getWatermark();
   }
 
   /** This is assumed to be never called before {@link #start} is called. */
-  public KinesisReaderCheckpoint getCheckpointMark() {
+  KinesisReaderCheckpoint getCheckpointMark() {
     List<ShardCheckpoint> checkpoints = new ArrayList<>();
     for (ShardState shardState : state.values()) {
       checkpoints.add(shardState.toCheckpoint());
@@ -323,7 +332,7 @@ class EFOShardSubscribersPool {
     return new KinesisReaderCheckpoint(checkpoints);
   }
 
-  public void stop() {
+  void stop() {
     LOG.info("Stopping pool {}", poolId);
     isStopped = true;
     state.forEach((shardId, st) -> st.subscriber.cancel());
@@ -357,12 +366,12 @@ class EFOShardSubscribersPool {
     }
 
     void update(KinesisClientRecord r) {
-      sequenceNumber = r.sequenceNumber();
+      sequenceNumber = checkNotNull(r.sequenceNumber());
       subSequenceNumber = r.subSequenceNumber();
     }
 
     void update(EventRecords eventRecords) {
-      sequenceNumber = eventRecords.event.continuationSequenceNumber();
+      sequenceNumber = checkNotNull(eventRecords.event.continuationSequenceNumber());
       subSequenceNumber = 0L;
       subscriber.ackEvent();
     }
@@ -391,6 +400,10 @@ class EFOShardSubscribersPool {
       }
     }
 
+    /**
+     * FIXME: needed is-before semantic. Why {@link ShardReadersPool} did it like this? This
+     * currently allows 1 record duplicate.
+     */
     boolean recordWasNotCheckPointedYet(KinesisRecord r) {
       return initCheckpoint.isBeforeOrAt(r);
     }
@@ -408,7 +421,7 @@ class EFOShardSubscribersPool {
     SubscribeToShardEvent event;
     @MonotonicNonNull Iterator<KinesisClientRecord> delegate = null;
 
-    public EventRecords(String shardId, SubscribeToShardEvent event) {
+    EventRecords(String shardId, SubscribeToShardEvent event) {
       this.shardId = shardId;
       this.event = event;
     }

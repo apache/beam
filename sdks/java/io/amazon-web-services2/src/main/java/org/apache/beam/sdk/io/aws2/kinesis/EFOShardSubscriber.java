@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.INITI
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.PAUSED;
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.RUNNING;
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.STOPPED;
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -32,8 +31,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -70,7 +69,11 @@ class EFOShardSubscriber {
   /** Internal subscriber state. */
   private volatile State state = INITIALIZED;
 
-  private @Nullable StartingPosition initialPosition = null;
+  /**
+   * Kept only for cases when a subscription starts and then fails with a non-critical error, before
+   * any event updates {@link ShardEventsSubscriber#sequenceNumber}.
+   */
+  private @MonotonicNonNull StartingPosition initialPosition;
 
   /**
    * Completes once this shard subscriber is done, either normally (stopped or shard is completely
@@ -123,14 +126,15 @@ class EFOShardSubscriber {
   }
 
   @SuppressWarnings({"FutureReturnValueIgnored", "all"})
-  public EFOShardSubscriber(
+  EFOShardSubscriber(
       EFOShardSubscribersPool pool,
       String shardId,
       KinesisIO.Read read,
+      String consumerArn,
       KinesisAsyncClient kinesis,
       int onErrorCoolDownMs) {
     this.pool = pool;
-    this.consumerArn = checkArgumentNotNull(read.getConsumerArn());
+    this.consumerArn = consumerArn;
     this.shardId = shardId;
     this.kinesis = kinesis;
     this.reSubscriptionHandler =
@@ -151,7 +155,6 @@ class EFOShardSubscriber {
                 pool.delayedTask(
                     () -> internalReSubscribe(lastContinuationSequenceNumber), onErrorCoolDownMs);
               } else {
-                Preconditions.checkArgumentNotNull(initialPosition);
                 pool.delayedTask(() -> internalSubscribe(initialPosition), onErrorCoolDownMs);
               }
             }
@@ -172,10 +175,12 @@ class EFOShardSubscriber {
             return;
           }
 
-          LOG.warn(
-              "Unknown case which is likely a bug: state={} seqnum={}",
-              state,
-              lastContinuationSequenceNumber);
+          String msg =
+              String.format(
+                  "Unknown case which is likely a bug: state=%s seqnum=%s",
+                  state, lastContinuationSequenceNumber);
+          LOG.warn(msg);
+          done.completeExceptionally(new IllegalStateException(msg));
         };
   }
 
@@ -321,9 +326,9 @@ class EFOShardSubscriber {
       event.accept(this);
     }
 
+    /** Nothing to do here, handled in {@link #reSubscriptionHandler}. */
     @Override
     public void onError(Throwable t) {
-      // nothing to do here, handled in {@link #reSubscriptionHandler}
       LOG.warn("Pool id = {} shard id = {} subscriber got error", pool.getPoolId(), shardId, t);
     }
 

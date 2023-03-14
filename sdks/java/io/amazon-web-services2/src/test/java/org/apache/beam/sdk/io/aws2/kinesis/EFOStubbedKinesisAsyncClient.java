@@ -31,16 +31,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
-import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
-import software.amazon.awssdk.services.kinesis.model.SequenceNumberRange;
-import software.amazon.awssdk.services.kinesis.model.Shard;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEventStream;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
@@ -53,16 +48,12 @@ class EFOStubbedKinesisAsyncClient implements KinesisAsyncClient {
   private final int publisherRateMs;
 
   private final Map<String, Deque<StubbedSdkPublisher>> stubbedPublishers = new HashMap<>();
-  private final List<String> initialShardsIds;
 
-  private final ConcurrentLinkedQueue<ListShardsRequest> listShardsRequestsSeen =
-      new ConcurrentLinkedQueue<>();
   private final ConcurrentLinkedQueue<SubscribeToShardRequest> subscribeRequestsSeen =
       new ConcurrentLinkedQueue<>();
 
-  EFOStubbedKinesisAsyncClient(int publisherRateMs, List<String> initialShardsIds) {
+  EFOStubbedKinesisAsyncClient(int publisherRateMs) {
     this.publisherRateMs = publisherRateMs;
-    this.initialShardsIds = initialShardsIds;
   }
 
   /**
@@ -98,25 +89,6 @@ class EFOStubbedKinesisAsyncClient implements KinesisAsyncClient {
   @Override
   public String serviceName() {
     return "kinesis";
-  }
-
-  @Override
-  public CompletableFuture<ListShardsResponse> listShards(ListShardsRequest listShardsRequest) {
-    listShardsRequestsSeen.add(listShardsRequest);
-    return CompletableFuture.completedFuture(
-        ListShardsResponse.builder().shards(buildShards()).build());
-  }
-
-  private List<Shard> buildShards() {
-    return initialShardsIds.stream()
-        .map(
-            shardId ->
-                Shard.builder()
-                    .shardId(shardId)
-                    .sequenceNumberRange(
-                        SequenceNumberRange.builder().startingSequenceNumber("ignored").build())
-                    .build())
-        .collect(Collectors.toList());
   }
 
   interface CanFail {
@@ -199,9 +171,5 @@ class EFOStubbedKinesisAsyncClient implements KinesisAsyncClient {
 
   List<SubscribeToShardRequest> subscribeRequestsSeen() {
     return new ArrayList<>(subscribeRequestsSeen);
-  }
-
-  List<ListShardsRequest> listRequestsSeen() {
-    return new ArrayList<>(listShardsRequestsSeen);
   }
 }
