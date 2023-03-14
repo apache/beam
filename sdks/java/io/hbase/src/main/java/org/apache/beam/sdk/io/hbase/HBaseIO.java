@@ -41,11 +41,13 @@ import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -60,11 +62,13 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.RowMutations;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -767,5 +771,202 @@ public class HBaseIO {
   }
 
 
-  // TODO: add public static class for RowMutationsIO
+  public static WriteRowMutations writeRowMutations() {
+    return new WriteRowMutations(null /* Configuration */, "");
+  }
+
+  // TODO: write class-level Javadoc
+  // TODO: write tests for HbaseIO.writeRowMutations(), HBaseRowMutationsCoder
+  /** Transformation that writes RowMutation objects to a Hbase table. */
+  public static class WriteRowMutations
+      extends PTransform<PCollection<KV<byte[], RowMutations>>, PCollection<Integer>> {
+
+    /** Writes to the HBase instance indicated by the* given Configuration. */
+    public WriteRowMutations withConfiguration(Configuration configuration) {
+      checkNotNull(configuration, "configuration cannot be null");
+      return new WriteRowMutations(configuration, tableId);
+    }
+
+    /** Writes to the specified table. */
+    public WriteRowMutations withTableId(String tableId) {
+      checkNotNull(tableId, "tableId cannot be null");
+      return new WriteRowMutations(configuration, tableId);
+    }
+
+    private WriteRowMutations(Configuration configuration, String tableId) {
+      this.configuration = configuration;
+      this.tableId = tableId;
+    }
+
+    @Override
+    public PCollection<Integer> expand(PCollection<KV<byte[], RowMutations>> input) {
+      checkNotNull(configuration, "withConfiguration() is required");
+      checkNotNull(tableId, "withTableId() is required");
+      checkArgument(!tableId.isEmpty(), "withTableId() cannot be empty");
+
+      return input.apply(ParDo.of(new WriteRowMutationsFn(this)));
+      // TODO: change this back to PDone later.
+      // return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("configuration", configuration.toString()));
+      builder.add(DisplayData.item("tableId", tableId));
+    }
+
+    public Configuration getConfiguration() {
+      return configuration;
+    }
+
+    public String getTableId() {
+      return tableId;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      WriteRowMutations writeRowMutations = (WriteRowMutations) o;
+      return configuration.toString().equals(writeRowMutations.configuration.toString())
+          && Objects.equals(tableId, writeRowMutations.tableId);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(configuration, tableId);
+    }
+
+    /**
+     * The writeReplace method allows the developer to provide a replacement object that will be
+     * serialized instead of the original one. We use this to keep the enclosed class immutable. For
+     * more details on the technique see <a
+     * href="https://lingpipe-blog.com/2009/08/10/serializing-immutable-singletons-serialization-proxy/">this
+     * article</a>.
+     */
+    private Object writeReplace() {
+      return new SerializationProxy(this);
+    }
+
+    private static class SerializationProxy implements Serializable {
+      public SerializationProxy() {}
+
+      public SerializationProxy(WriteRowMutations writeRowMutations) {
+        configuration = writeRowMutations.configuration;
+        tableId = writeRowMutations.tableId;
+      }
+
+      private void writeObject(ObjectOutputStream out) throws IOException {
+        SerializableCoder.of(SerializableConfiguration.class)
+            .encode(new SerializableConfiguration(this.configuration), out);
+
+        StringUtf8Coder.of().encode(this.tableId, out);
+      }
+
+      private void readObject(ObjectInputStream in) throws IOException {
+        this.configuration = SerializableCoder.of(SerializableConfiguration.class).decode(in).get();
+        this.tableId = StringUtf8Coder.of().decode(in);
+      }
+
+      Object readResolve() {
+        return HBaseIO.writeRowMutations()
+            .withConfiguration(configuration)
+            .withTableId(tableId);
+      }
+
+      private Configuration configuration;
+      private String tableId;
+    }
+
+    private final Configuration configuration;
+    private final String tableId;
+
+    /** Function to write row mutations to a hbase table. */
+    private class WriteRowMutationsFn extends DoFn<KV<byte[], RowMutations>, Integer> {
+
+      public WriteRowMutationsFn(
+          WriteRowMutations writeRowMutations) { // , HbaseSharedConnection hbaseSharedConnection) {
+        checkNotNull(writeRowMutations.tableId, "tableId");
+        checkNotNull(writeRowMutations.configuration, "configuration");
+      }
+
+      @Setup
+      public void setup() throws Exception {
+        connection = HBaseSharedConnection.getOrCreate(configuration);
+      }
+
+      @StartBundle
+      public void startBundle(StartBundleContext c) throws IOException {
+        table = connection.getTable(TableName.valueOf(tableId));
+        recordsWritten = 0;
+      }
+
+      @FinishBundle
+      public void finishBundle() throws Exception {
+        if (table != null) {
+          table.close();
+          table = null;
+        }
+
+        LOG.debug("Wrote {} records", recordsWritten);
+      }
+
+      @Teardown
+      public void tearDown() throws Exception {
+
+        if (table != null) {
+          table.close();
+          table = null;
+        }
+
+        HBaseSharedConnection.close();
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        RowMutations mutations = c.element().getValue();
+
+        try {
+          // Use Table instead of BufferedMutator to preserve mutation-ordering
+          table.mutateRow(mutations);
+        } catch (Exception e) {
+          throw new Exception(
+              (String.join(
+                  " ",
+                  "Table",
+                  tableId,
+                  "row",
+                  Bytes.toString(mutations.getRow()),
+                  "mutation failed.",
+                  "\nTable Available/Enabled:",
+                  Boolean.toString(
+                      connection.getAdmin().isTableAvailable(TableName.valueOf(tableId))),
+                  Boolean.toString(
+                      connection.getAdmin().isTableEnabled(TableName.valueOf(tableId))),
+                  "\nConnection Closed/Aborted/Locks:",
+                  Boolean.toString(connection.isClosed()),
+                  Boolean.toString(connection.isAborted()))));
+        }
+
+        // TODO: what to do with this Metrics counter?
+        Metrics.counter(HBaseIO.class, "mutations_written_to_hbase").inc();
+        // TODO: change this back to PDone when moving to HbaseIO
+        c.output(1); // Dummy output so that we can get Dataflow stats for throughput.
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.delegate(WriteRowMutations.this);
+      }
+
+      private long recordsWritten;
+      private transient Connection connection;
+      private transient Table table;
+    }
+  }
 }
