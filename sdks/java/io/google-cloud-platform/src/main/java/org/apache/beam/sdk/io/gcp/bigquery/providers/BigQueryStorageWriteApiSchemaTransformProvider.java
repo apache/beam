@@ -352,7 +352,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .apply("error-count", ParDo.of(new ElementCounterFn("BigQuery-write-error-counter")))
               .setRowSchema(rowSchema);
 
-      return PCollectionRowTuple.of(FAILED_ROWS_TAG, errorOutput)
+      return PCollectionRowTuple.of(FAILED_ROWS_TAG, failedRowsOutput)
           .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors);
     }
 
