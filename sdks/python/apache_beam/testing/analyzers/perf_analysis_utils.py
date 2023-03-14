@@ -59,7 +59,7 @@ def is_change_point_in_valid_window(
 
 
 def get_existing_issues_data(
-    test_name: str, big_query_metrics_fetcher: BigQueryMetricsFetcher
+    table_name: str, big_query_metrics_fetcher: BigQueryMetricsFetcher
 ) -> Optional[pd.DataFrame]:
   """
   Finds the most recent GitHub issue created for the test_name.
@@ -67,7 +67,7 @@ def get_existing_issues_data(
   else return latest created issue_number along with
   """
   query = f"""
-  SELECT * FROM {constants._BQ_PROJECT_NAME}.{constants._BQ_DATASET}.{test_name}
+  SELECT * FROM {constants._BQ_PROJECT_NAME}.{constants._BQ_DATASET}.{table_name}
   ORDER BY {constants._ISSUE_CREATION_TIMESTAMP_LABEL} DESC
   LIMIT 10
   """
@@ -164,19 +164,19 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
   return change_points_idx[-1]
 
 
-def publish_issue_metadata_to_big_query(issue_metadata, test_name):
+def publish_issue_metadata_to_big_query(issue_metadata, table_name):
   """
   Published issue_metadata to BigQuery with table name=test_name.
   """
   bq_metrics_publisher = BigQueryMetricsPublisher(
       project_name=constants._BQ_PROJECT_NAME,
       dataset=constants._BQ_DATASET,
-      table=test_name,
+      table=table_name,
       bq_schema=constants._SCHEMA)
   bq_metrics_publisher.publish([asdict(issue_metadata)])
   logging.info(
       'GitHub metadata is published to Big Query Dataset %s'
-      ', table %s' % (constants._BQ_DATASET, test_name))
+      ', table %s' % (constants._BQ_DATASET, table_name))
 
 
 def create_performance_alert(
@@ -209,6 +209,6 @@ def create_performance_alert(
         existing_issue_number=existing_issue_number)
 
   logging.info(
-      'Performance regression is alerted on issue #%s. Link to '
-      'the issue: %s' % (issue_number, issue_url))
+      'Performance regression/improvement is alerted on issue #%s. Link '
+      ': %s' % (issue_number, issue_url))
   return issue_number, issue_url

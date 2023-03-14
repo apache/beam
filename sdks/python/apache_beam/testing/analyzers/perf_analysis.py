@@ -104,8 +104,10 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
 
   is_alert = True
   last_reported_issue_number = None
+  issue_metadata_table_name = f'{params.get("metrics_table")}_{metric_name}'
   existing_issue_data = get_existing_issues_data(
-      test_name=test_name, big_query_metrics_fetcher=big_query_metrics_fetcher)
+      table_name=issue_metadata_table_name,
+      big_query_metrics_fetcher=big_query_metrics_fetcher)
 
   if existing_issue_data is not None:
     existing_issue_timestamps = existing_issue_data[
@@ -118,7 +120,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
         change_point_index=change_point_index,
         timestamps=timestamps,
         min_runs_between_change_points=min_runs_between_change_points)
-  logging.info(
+  logging.debug(
       "Performance alert is %s for test %s" % (is_alert, params['test_name']))
   if is_alert:
     issue_number, issue_url = create_performance_alert(
@@ -139,7 +141,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
         change_point_timestamp=timestamps[change_point_index])
 
     publish_issue_metadata_to_big_query(
-        issue_metadata=issue_metadata, test_name=test_name)
+        issue_metadata=issue_metadata, table_name=issue_metadata_table_name)
 
   return is_alert
 
