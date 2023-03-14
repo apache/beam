@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static java.sql.JDBCType.NULL;
 import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
@@ -993,13 +992,13 @@ public class JdbcIOTest implements Serializable {
         .set(row, psMocked, 10, SchemaUtil.FieldWithIndex.of(schema.getField(8), 8));
 
     // primitive
-    verify(psMocked, times(1)).setNull(1, NULL.getVendorTypeNumber());
-    verify(psMocked, times(1)).setNull(2, NULL.getVendorTypeNumber());
-    verify(psMocked, times(1)).setNull(3, NULL.getVendorTypeNumber());
-    verify(psMocked, times(1)).setNull(4, NULL.getVendorTypeNumber());
-    verify(psMocked, times(1)).setNull(5, NULL.getVendorTypeNumber());
-    verify(psMocked, times(1)).setNull(6, NULL.getVendorTypeNumber());
-    verify(psMocked, times(1)).setNull(7, NULL.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(1, JDBCType.BIGINT.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(2, JDBCType.BOOLEAN.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(3, JDBCType.DOUBLE.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(4, JDBCType.FLOAT.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(5, JDBCType.INTEGER.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(6, JDBCType.SMALLINT.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(7, JDBCType.TINYINT.getVendorTypeNumber());
     // reference
     verify(psMocked, times(1)).setBytes(8, null);
     verify(psMocked, times(1)).setString(9, null);
@@ -1377,7 +1376,6 @@ public class JdbcIOTest implements Serializable {
     try {
       // run write pipeline
       ArrayList<Row> data = getNullableRowsToWrite(rowsToAdd, schema);
-      System.out.println(data);
       pipeline
           .apply(Create.of(data))
           .setRowSchema(schema)
