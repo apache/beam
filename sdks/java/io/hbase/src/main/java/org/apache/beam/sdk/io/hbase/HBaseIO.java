@@ -41,7 +41,6 @@ import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -137,6 +136,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to HBase</h3>
  *
+ * <h4>Writing {@link Mutation}</h4>
+ *
  * <p>The HBase sink executes a set of row mutations on a single table. It takes as input a {@link
  * PCollection PCollection&lt;Mutation&gt;}, where each {@link Mutation} represents an idempotent
  * transformation on a row.
@@ -154,7 +155,31 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table"));
  * }</pre>
  *
- * // TODO: Add section on writing {@link RowMutations} to Hbase.
+ * <h4>Writing {@link RowMutations}</h4>
+ *
+ * <p>An alternative way to write to HBase is with {@link HBaseIO#writeRowMutations()}, which takes
+ * as input a {@link PCollection<KV<byte[], RowMutations>>}, representing KVs of byte row keys and
+ * {@link RowMutations}.
+ *
+ * <p>This implementation is Dataflow specific. Useful for preserving mutation order if the upstream
+ * is ordered by row key, as RowMutations will only be applied after previous RowMutations are
+ * successful.
+ *
+ * <p>To configure the sink, you must supply a table id string and a {@link Configuration} to
+ * identify the HBase instance, for example:
+ *
+ * <pre>{@code
+ * Configuration configuration = ...;
+ * PCollection<KV<byte[], RowMutations>> data = ...;
+ *
+ * data.apply("write",
+ *     HBaseIO.writeRowMutations()
+ *         .withConfiguration(configuration)
+ *         .withTableId("table"));
+ * }</pre>
+ *
+ * <p>Note that the transformation emits the number of RowMutations written as an integer after
+ * successfully writing to HBase.
  *
  * <h3>Experimental</h3>
  *
@@ -776,8 +801,6 @@ public class HBaseIO {
     return new WriteRowMutations(null /* Configuration */, "");
   }
 
-  // TODO: write class-level Javadoc
-  // TODO: write tests for HbaseIO.writeRowMutations(), HBaseRowMutationsCoder
   /** Transformation that writes RowMutation objects to a Hbase table. */
   public static class WriteRowMutations
       extends PTransform<PCollection<KV<byte[], RowMutations>>, PCollection<Integer>> {
@@ -806,8 +829,6 @@ public class HBaseIO {
       checkArgument(!tableId.isEmpty(), "withTableId() cannot be empty");
 
       return input.apply(ParDo.of(new WriteRowMutationsFn(this)));
-      // TODO: change this back to PDone later.
-      // return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -952,10 +973,8 @@ public class HBaseIO {
                   Boolean.toString(connection.isAborted()))));
         }
 
-        // TODO: what to do with this Metrics counter?
-        Metrics.counter(HBaseIO.class, "mutations_written_to_hbase").inc();
-        // TODO: change this back to PDone when moving to HbaseIO
-        c.output(1); // Dummy output so that we can get Dataflow stats for throughput.
+        // Dummy output so that we can get Dataflow stats for throughput.
+        c.output(1);
       }
 
       @Override

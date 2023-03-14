@@ -26,6 +26,7 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO: test SharedConnection on prod Dataflow instance.
 /**
  * Static connection shared between all threads of a worker. Connectors are not persisted between
  * worker machines as Connection serialization is not implemented. Each worker will create its own
