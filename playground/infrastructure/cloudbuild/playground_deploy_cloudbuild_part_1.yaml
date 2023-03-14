@@ -1,0 +1,78 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+steps:
+  - name: ubuntu
+    args:
+      - '-c'
+      - >-
+        echo "Search for DEPLOY_LOG keyword to find valuable logs entries"
+    
+        apt update > /dev/null
+
+        apt-get install -y git curl apt-transport-https ca-certificates gnupg > /dev/null
+
+        echo "deb https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+
+        apt-get update && apt-get install -y google-cloud-sdk > /dev/null
+    
+        git clone --branch {_BRANCH_NAME} https://github.com/apache/beam.git
+    
+        cd beam
+    
+        curl -O --output-dir /tmp https://raw.githubusercontent.com/akvelon/beam/playground-ci-webhook/playground/infrastructure/cloudbuild/sample.sh
+    
+        echo "DEPLOY_LOG $(date --utc '+%D %T') Starting PG deployment."
+    
+        chmod +x /tmp/sample.sh
+    
+        env -i bash -c "/tmp/sample.sh 
+        PROJECT_ID='"'${_GCP_PROJECT}'"' 
+        NETWORK_NAME='"'${_NETWORK_NAME}'"' 
+        SUBNETWORK_NAME='"'${_SUBNETWORK_NAME}'"' 
+        GKE_NAME='"'${_GKE_NAME}'"'
+        PG_REGION='"'${_PG_REGION}'"' 
+        PG_LOCATION='"'${_PG_LOCATION}'"' 
+        STATE_BUCKET='"'${_STATE_BUCKET}'"'
+        REDIS_NAME='"'${_REDIS_NAME}'"' 
+        MIN_COUNT='"'${_MIN_COUNT}'"' 
+        MAX_COUNT='"'${_MAX_COUNT}'"'
+        GKE_MACHINE_TYPE='"'${_GKE_MACHINE_TYPE}'"' 
+        IP_ADDRESS_NAME='"'${_IP_ADDRESS_NAME}'"' 
+        REPOSITORY_ID='"'${_REPOSITORY_ID}'"'
+        SERVICE_ACCOUNT_ID='"'${_SERVICE_ACCOUNT_ID}'"'
+        ENVIRONMENT_NAME='"'${_ENVIRONMENT_NAME}'"'
+        DNS_NAME='"'${_DNS_NAME}'"'
+        "
+        script_status=$?
+        
+        if [ $script_status -eq 0 ]; then
+                echo "DEPLOY_LOG $(date --utc '+%D %T') Done."
+            else
+                echo "DEPLOY_LOG $(date --utc '+%D %T') Not Done"
+            fi
+        else
+            echo "DEPLOY_LOG $(date --utc '+%D %T') Smth else."
+        fi
+    entrypoint: bash
+timeout: 7200s
+logsBucket: 'gs://playground-cloudbuild-logs-private'
+options:
+  machineType: E2_HIGHCPU_32
+  logging: GCS_ONLY
+substitutions:
+  _PUBLIC_BUCKET: 'gs://playground-cloudbuild-logs-public/'
