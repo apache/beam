@@ -22,16 +22,20 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 
 import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.util.Iterator;
 
 /** Tests for {@link org.apache.beam.runners.core.construction.ExternalTranslation}. */
 @RunWith(JUnit4.class)
@@ -56,6 +60,7 @@ public class ExternalTranslationTest {
                 .getTransformsMap()
                 .keySet()
                 .toArray(new String[0])));
+
   }
 
   static class TestExpansionServiceClientFactory implements ExpansionServiceClientFactory {
@@ -93,6 +98,26 @@ public class ExternalTranslationTest {
         @Override
         public void close() throws Exception {
           // do nothing
+        }
+      };
+    }
+
+    @Override
+    public ArtifactServiceClient getArtifactServiceClient(Endpoints.ApiServiceDescriptor endpoint) {
+      return new ArtifactServiceClient() {
+        @Override
+        public ArtifactApi.ResolveArtifactsResponse resolveArtifacts(ArtifactApi.ResolveArtifactsRequest request) {
+          return ArtifactApi.ResolveArtifactsResponse.getDefaultInstance();
+        }
+
+        @Override
+        public Iterator<ArtifactApi.GetArtifactResponse> getArtifact(ArtifactApi.GetArtifactRequest request) {
+          return ImmutableList.of(ArtifactApi.GetArtifactResponse.newBuilder().setData(ByteString.EMPTY).build()).iterator();
+        }
+
+        @Override
+        public void close() throws Exception {
+
         }
       };
     }

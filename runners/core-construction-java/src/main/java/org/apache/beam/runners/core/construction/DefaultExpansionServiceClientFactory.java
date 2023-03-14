@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -24,6 +25,8 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 
 /** Default factory for ExpansionServiceClient used by External transform. */
 public class DefaultExpansionServiceClientFactory implements ExpansionServiceClientFactory {
@@ -96,12 +99,12 @@ public class DefaultExpansionServiceClientFactory implements ExpansionServiceCli
               ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
 
               @Override
-              ArtifactApi.ResolveArtifactsResponse resolveArtifacts(ArtifactApi.ResolveArtifactsRequest request) {
+              public ArtifactApi.ResolveArtifactsResponse resolveArtifacts(ArtifactApi.ResolveArtifactsRequest request) {
                 return service.resolveArtifacts(request);
               }
 
               @Override
-              Iterator<ArtifactApi.GetArtifactResponse> getArtifact(ArtifactApi.GetArtifactRequest request) {
+              public Iterator<ArtifactApi.GetArtifactResponse> getArtifact(ArtifactApi.GetArtifactRequest request) {
                 return service.getArtifact(request);
               }
 
