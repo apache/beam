@@ -76,9 +76,6 @@ RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-constr
     mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
-# Downgrade Apache Kafka Client to support mock kafka cluster
-RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/$KAFKA_CLIENTS_VERSION/kafka-clients-$KAFKA_CLIENTS_VERSION.jar &&\
-    mv kafka-clients-$KAFKA_CLIENTS_VERSION.jar /opt/apache/beam/jars/kafka-clients.jar
 # Install Spring Expression
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-expression/$SPRING_VERSION/spring-expression-$SPRING_VERSION.jar &&\
     mv spring-expression-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-expression.jar
@@ -107,6 +104,10 @@ ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
+COPY kafka-emulator/kafka-emulator.tar /opt/playground/backend/kafka-emulator/
+RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar && rm kafka-emulator.tar &&\
+    mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
+    mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \

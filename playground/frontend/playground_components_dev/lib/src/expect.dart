@@ -21,9 +21,22 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
+import 'examples/example_descriptor.dart';
 import 'widget_tester.dart';
 
-void expectOutput(String text, WidgetTester wt) {
+void expectOutput(ExampleDescriptor example, WidgetTester wt) {
+  if (example.outputTail != null) {
+    expectOutputEndsWith(example.outputTail, wt);
+  } else if (example.outputContains != null) {
+    for (final str in example.outputContains!) {
+      expectOutputContains(str, wt);
+    }
+  } else {
+    throw AssertionError('No pattern to check example output: ${example.path}');
+  }
+}
+
+void expectOutputEquals(String text, WidgetTester wt) {
   final actualText = wt.findOutputText();
   expect(actualText, text);
 }

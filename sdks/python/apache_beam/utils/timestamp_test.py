@@ -87,7 +87,10 @@ class TimestampTest(unittest.TestCase):
             datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)),
         Timestamp(0))
     with self.assertRaisesRegex(ValueError, r'UTC'):
-      Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1))
+      Timestamp.from_utc_datetime(
+          datetime.datetime(1970, 1, 1, tzinfo=pytz.timezone('US/Eastern')))
+    with self.assertRaisesRegex(ValueError, r'dt has no timezone info'):
+      Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1, tzinfo=None))
 
   def test_arithmetic(self):
     # Supported operations.

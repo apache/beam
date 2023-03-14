@@ -17,11 +17,14 @@ package dataflow
 
 import (
 	"context"
+	"flag"
+	"reflect"
 	"sort"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
 )
 
 func TestDontUseFlagAsPipelineOption(t *testing.T) {
@@ -381,6 +384,53 @@ func TestGetJobOptions_InvalidMapping(t *testing.T) {
 	}
 }
 
+func TestGetJobOptions_AliasAreEffective(t *testing.T) {
+	// option: alias key-value pairs
+	opt_alias := map[string]string{
+		"--worker_machine_type": "--machine_type",
+	}
+	// option: JobOptions field name key-value pairs
+	opt_field := map[string]string{
+		"--worker_machine_type": "MachineType",
+	}
+	for opt, alias := range opt_alias {
+		resetGlobals()
+		flag.CommandLine.Parse([]string{
+			"--staging_location", "gs://testStagingLocation",
+			"--project", "testProject",
+			"--region", "testRegion",
+			opt, "someValue"})
+
+		opts, err := getJobOptions(context.Background(), true)
+		if err != nil {
+			t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
+		}
+		optv := getFieldFromOpt(opt_field[opt], opts)
+		if optv != "someValue" {
+			t.Errorf("Pipeline value for option %s: %s", opt, optv)
+		}
+		resetGlobals()
+		flag.CommandLine.Parse([]string{
+			"--staging_location", "gs://testStagingLocation",
+			"--project", "testProject",
+			"--region", "testRegion",
+			alias, "aliasValue"})
+
+		opts, err = getJobOptions(context.Background(), true)
+		if err != nil {
+			t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
+		}
+		optv = getFieldFromOpt(opt_field[opt], opts)
+		if optv != "aliasValue" {
+			t.Errorf("Pipeline value for option %s: %s", opt, optv)
+		}
+	}
+}
+
+func getFieldFromOpt(fieldName string, opts *dataflowlib.JobOptions) string {
+	return reflect.ValueOf(opts).Elem().FieldByName(fieldName).String()
+}
+
 func resetGlobals() {
 	*autoscalingAlgorithm = ""
 	*dataflowServiceOptions = ""
@@ -398,4 +448,6 @@ func resetGlobals() {
 	*transformMapping = ""
 	*update = false
 	*workerHarnessImage = ""
+	*workerMachineType = ""
+	*machineType = ""
 }

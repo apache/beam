@@ -25,7 +25,7 @@ import 'common/common.dart';
 import 'common/common_finders.dart';
 import 'common/widget_tester.dart';
 
-const _outputPrefix = 'The processing has started\n';
+const _outputPrefix = 'The processing has been started\n';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -45,11 +45,6 @@ void main() {
     );
   }
 
-  Future<void> runExpectJavaAggregationMax(WidgetTester wt) async {
-    await wt.runExpectCached();
-    expectOutputEndsWith(javaAggregationMax.outputTail, wt);
-  }
-
   Future<void> runCustomJava(WidgetTester wt) async {
     const text = 'OK';
     const code = '''
@@ -66,7 +61,7 @@ public class MyClass {
     await wt.tap(find.runOrCancelButton());
     await wt.pumpAndSettle();
 
-    expectOutput('$_outputPrefix$text', wt);
+    expectOutputEquals('$_outputPrefix$text', wt);
   }
 
   Future<void> switchToPython(WidgetTester wt) async {
@@ -100,14 +95,6 @@ public class MyClass {
     // );
   }
 
-  Future<void> runExpectPythonAggregationMean(WidgetTester wt) async {
-    await wt.runExpectCached();
-
-    for (final str in pythonAggregationMean.outputContains!) {
-      expectOutputContains(str, wt);
-    }
-  }
-
   Future<void> runCustomPython(WidgetTester wt) async {
     const text = 'OK';
     const code = 'print("$text", end="")';
@@ -118,19 +105,19 @@ public class MyClass {
     await wt.tap(find.runOrCancelButton());
     await wt.pumpAndSettle();
 
-    expectOutput('$_outputPrefix$text', wt);
+    expectOutputEquals('$_outputPrefix$text', wt);
   }
 
   testWidgets('Change example, change SDK, run', (WidgetTester wt) async {
     await init(wt);
 
     await changeToJavaAggregationMax(wt);
-    await runExpectJavaAggregationMax(wt);
+    await wt.runExpectCached(javaAggregationMax);
     await runCustomJava(wt);
 
     await switchToPython(wt);
     await changeToPythonAggregationMean(wt);
-    await runExpectPythonAggregationMean(wt);
+    await wt.runExpectCached(pythonAggregationMean);
     await runCustomPython(wt);
   });
 }

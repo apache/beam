@@ -399,7 +399,8 @@ public class WindmillStateReaderTest {
                     .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
                     .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
-    final ByteString CONT = ByteString.copyFrom("CONTINUATION", Charsets.UTF_8);
+    final ByteString CONT_1 = ByteString.copyFrom("CONTINUATION_1", Charsets.UTF_8);
+    final ByteString CONT_2 = ByteString.copyFrom("CONTINUATION_2", Charsets.UTF_8);
     Windmill.KeyedGetDataResponse.Builder response1 =
         Windmill.KeyedGetDataResponse.newBuilder()
             .setKey(DATA_KEY)
@@ -408,8 +409,8 @@ public class WindmillStateReaderTest {
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addEntries(
-                        SortedListEntry.newBuilder().setValue(intData(5)).setSortKey(5000).setId(5))
-                    .setContinuationPosition(CONT)
+                        SortedListEntry.newBuilder().setValue(intData(1)).setSortKey(1000).setId(1))
+                    .setContinuationPosition(CONT_1)
                     .addFetchRanges(
                         SortedListRange.newBuilder().setStart(beginning).setLimit(end)));
 
@@ -424,7 +425,7 @@ public class WindmillStateReaderTest {
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
-                    .setRequestPosition(CONT)
+                    .setRequestPosition(CONT_1)
                     .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
     Windmill.KeyedGetDataResponse.Builder response2 =
@@ -435,18 +436,51 @@ public class WindmillStateReaderTest {
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addEntries(
-                        SortedListEntry.newBuilder().setValue(intData(6)).setSortKey(6000).setId(5))
+                        SortedListEntry.newBuilder().setValue(intData(2)).setSortKey(2000).setId(2))
+                    .addEntries(
+                        SortedListEntry.newBuilder().setValue(intData(3)).setSortKey(3000).setId(3))
+                    .addEntries(
+                        SortedListEntry.newBuilder().setValue(intData(4)).setSortKey(4000).setId(4))
+                    .setContinuationPosition(CONT_2)
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
+                    .setRequestPosition(CONT_1));
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest3 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addSortedListsToFetch(
+                Windmill.TagSortedListFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
+                    .setRequestPosition(CONT_2)
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
+
+    Windmill.KeyedGetDataResponse.Builder response3 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagSortedLists(
+                Windmill.TagSortedListFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        SortedListEntry.newBuilder().setValue(intData(5)).setSortKey(5000).setId(5))
+                    .addEntries(
+                        SortedListEntry.newBuilder().setValue(intData(6)).setSortKey(6000).setId(7))
                     .addEntries(
                         SortedListEntry.newBuilder().setValue(intData(7)).setSortKey(7000).setId(7))
-                    .addEntries(
-                        SortedListEntry.newBuilder().setValue(intData(8)).setSortKey(8000).setId(8))
                     .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
-                    .setRequestPosition(CONT));
+                    .setRequestPosition(CONT_2));
 
     Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest1.build()))
         .thenReturn(response1.build());
     Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest2.build()))
         .thenReturn(response2.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest3.build()))
+        .thenReturn(response3.build());
 
     Iterable<TimestampedValue<Integer>> results = future.get();
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest1.build());
@@ -454,15 +488,19 @@ public class WindmillStateReaderTest {
       // Iterate over the results to force loading all the pages.
     }
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest2.build());
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest3.build());
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(
         results,
         Matchers.contains(
+            TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+            TimestampedValue.of(2, Instant.ofEpochMilli(2)),
+            TimestampedValue.of(3, Instant.ofEpochMilli(3)),
+            TimestampedValue.of(4, Instant.ofEpochMilli(4)),
             TimestampedValue.of(5, Instant.ofEpochMilli(5)),
             TimestampedValue.of(6, Instant.ofEpochMilli(6)),
-            TimestampedValue.of(7, Instant.ofEpochMilli(7)),
-            TimestampedValue.of(8, Instant.ofEpochMilli(8))));
+            TimestampedValue.of(7, Instant.ofEpochMilli(7))));
     // NOTE: The future will still contain a reference to the underlying reader.
   }
 

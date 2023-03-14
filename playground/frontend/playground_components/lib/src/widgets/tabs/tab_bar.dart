@@ -25,17 +25,26 @@ class BeamTabBar<K extends Object> extends StatelessWidget {
   const BeamTabBar({
     super.key,
     required this.tabs,
+    this.hasPadding = false,
   });
 
+  final bool hasPadding;
   final Map<K, Widget> tabs;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: BeamSizes.tabBarHeight,
-      child: KeyedTabBar.withDefaultController<K>(
-        isScrollable: true,
-        tabs: {for (final key in tabs.keys) key: Tab(child: tabs[key])},
+    return Padding(
+      padding: hasPadding
+          ? const EdgeInsets.symmetric(horizontal: BeamSizes.size16)
+          : EdgeInsets.zero,
+      child: SizedBox(
+        height: BeamSizes.tabBarHeight,
+        child: KeyedTabBar.withDefaultController<K>(
+          isScrollable: true,
+          tabs: {
+            for (final key in tabs.keys) key: Tab(child: tabs[key]),
+          },
+        ),
       ),
     );
   }
