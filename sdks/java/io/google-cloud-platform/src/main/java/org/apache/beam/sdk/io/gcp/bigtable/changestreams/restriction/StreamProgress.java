@@ -93,7 +93,7 @@ public class StreamProgress implements Serializable {
 
   @Override
   public int hashCode() {
-    return Objects.hash(getCurrentToken());
+    return Objects.hash(getCurrentToken(), getCloseStream());
   }
 
   @Override

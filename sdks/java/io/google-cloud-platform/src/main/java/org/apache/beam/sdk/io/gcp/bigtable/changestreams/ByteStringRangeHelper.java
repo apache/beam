@@ -221,6 +221,19 @@ public class ByteStringRangeHelper {
   }
 
   /**
+   * Checks if the partition's start key is before its end key.
+   *
+   * @param partition the partition to verify.
+   * @return true if partition is valid, otherwise false.
+   */
+  public static boolean isValidPartition(ByteStringRange partition) {
+    return ByteString.unsignedLexicographicalComparator()
+                .compare(partition.getStart(), partition.getEnd())
+            < 0
+        || partition.getEnd().isEmpty();
+  }
+
+  /**
    * Return the overlapping parts of 2 partitions. Throw IllegalArgumentException if the 2
    * partitions don't overlap at all.
    *

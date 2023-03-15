@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeH
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
-import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
@@ -33,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper;
@@ -42,6 +42,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminD
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.reconciler.PartitionReconciler;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -62,12 +63,7 @@ import org.slf4j.LoggerFactory;
  */
 // checkstyle bug is causing an issue with '@throws InvalidProtocolBufferException'
 // Allows for transient fields to be initialized later
-@SuppressWarnings({
-  "checkstyle:JavadocMethod",
-  "initialization.fields.uninitialized",
-  "UnusedVariable",
-  "UnusedMethod"
-})
+@SuppressWarnings({"checkstyle:JavadocMethod", "initialization.fields.uninitialized"})
 @Internal
 public class DetectNewPartitionsAction {
   private static final Logger LOG = LoggerFactory.getLogger(DetectNewPartitionsAction.class);
@@ -77,6 +73,8 @@ public class DetectNewPartitionsAction {
   private final ChangeStreamMetrics metrics;
   private final MetadataTableDao metadataTableDao;
   private final GenerateInitialPartitionsAction generateInitialPartitionsAction;
+
+  private transient PartitionReconciler partitionReconciler;
 
   public DetectNewPartitionsAction(
       ChangeStreamMetrics metrics,
@@ -133,14 +131,14 @@ public class DetectNewPartitionsAction {
         if (watermark.compareTo(lowWatermark) < 0) {
           lowWatermark = watermark;
         }
-        Range.ByteStringRange partition =
+        ByteStringRange partition =
             metadataTableDao.convertStreamPartitionRowKeyToPartition(row.getKey());
         partitions.add(partition);
         if (watermark.plus(DEBUG_WATERMARK_DELAY).isBeforeNow()) {
           slowPartitions.put(partition, watermark);
         }
       }
-      List<Range.ByteStringRange> missingAndOverlappingPartitions =
+      List<ByteStringRange> missingAndOverlappingPartitions =
           getMissingAndOverlappingPartitionsFromKeySpace(partitions);
       if (missingAndOverlappingPartitions.isEmpty()) {
         watermarkEstimator.setWatermark(lowWatermark);
@@ -161,6 +159,7 @@ public class DetectNewPartitionsAction {
                             + e.getValue())
                 .collect(Collectors.joining(", ", "{", "}")));
       }
+      partitionReconciler.addMissingPartitions(missingAndOverlappingPartitions);
     }
   }
 
@@ -205,15 +204,15 @@ public class DetectNewPartitionsAction {
   private void processNewPartition(
       Row row, OutputReceiver<PartitionRecord> receiver, List<ByteString> recordedPartitionRecords)
       throws Exception {
-    Range.ByteStringRange partition =
-        metadataTableDao.convertNewPartitionRowKeyToPartition(row.getKey());
+    ByteStringRange partition = metadataTableDao.convertNewPartitionRowKeyToPartition(row.getKey());
+
+    partitionReconciler.addNewPartition(partition, row.getKey());
 
     // Ensure all parent partitions have stopped and updated the metadata table with the new
     // partition continuation token.
-    List<Range.ByteStringRange> parentPartitions = new ArrayList<>();
+    List<ByteStringRange> parentPartitions = new ArrayList<>();
     for (RowCell cell : row.getCells(MetadataTableAdminDao.CF_PARENT_PARTITIONS)) {
-      Range.ByteStringRange parentPartition =
-          Range.ByteStringRange.toByteStringRange(cell.getQualifier());
+      ByteStringRange parentPartition = ByteStringRange.toByteStringRange(cell.getQualifier());
       parentPartitions.add(parentPartition);
     }
     if (!isSuperset(parentPartitions, partition)) {
@@ -275,6 +274,53 @@ public class DetectNewPartitionsAction {
   }
 
   /**
+   * Uses PartitionReconciler to process any partitions that it has found to be missing for too long
+   * and restarts them. For more details on why this is necessary see {@link PartitionReconciler}
+   *
+   * @param receiver used to output reconciled partitions
+   * @param watermarkEstimator read the low watermark for all partitions
+   * @param startTime startTime of the pipeline
+   * @param recordedPartitionRecords the list of row keys that needs to be cleaned up
+   */
+  private void processReconcilerPartitions(
+      OutputReceiver<PartitionRecord> receiver,
+      ManualWatermarkEstimator<Instant> watermarkEstimator,
+      Instant startTime,
+      List<ByteString> recordedPartitionRecords) {
+    for (HashMap.Entry<ByteStringRange, Set<ByteString>> partitionToReconcile :
+        partitionReconciler.getPartitionsToReconcile().entrySet()) {
+      String uid = UniqueIdGenerator.getNextId();
+
+      // When we reconcile, we start from 1h prior to effectively eliminate the possibility of
+      // missing data.
+      Instant reconciledTime =
+          watermarkEstimator.currentWatermark().minus(Duration.standardMinutes(60));
+      if (reconciledTime.compareTo(startTime) < 0) {
+        reconciledTime = startTime;
+      }
+
+      PartitionRecord partitionRecord =
+          new PartitionRecord(partitionToReconcile.getKey(), reconciledTime, uid, reconciledTime);
+      receiver.outputWithTimestamp(partitionRecord, Instant.EPOCH);
+      recordedPartitionRecords.addAll(partitionToReconcile.getValue());
+      LOG.warn(
+          "DNP: Reconciling missing partition: {} and cleaning up rows {}",
+          partitionRecord,
+          partitionToReconcile.getValue().stream()
+              .map(
+                  rowKey -> {
+                    try {
+                      return ByteStringRangeHelper.formatByteStringRange(
+                          metadataTableDao.convertNewPartitionRowKeyToPartition(rowKey));
+                    } catch (InvalidProtocolBufferException exception) {
+                      return rowKey.toStringUtf8();
+                    }
+                  })
+              .collect(Collectors.joining(", ", "{", "}")));
+    }
+  }
+
+  /**
    * After processing new partitions and if it was outputted successfully, we need to clean up the
    * metadata table so that we don't try to process the same new partition again.
    *
@@ -306,6 +352,7 @@ public class DetectNewPartitionsAction {
    *   <li>On rest of the runs, try advancing watermark if needed.
    *   <li>Update the metadata table with info about this DoFn.
    *   <li>Process new partitions and output them.
+   *   <li>Reconcile any Partitions that haven't been streaming for a long time
    *   <li>Register callback to clean up processed partitions after bundle has been finalized.
    * </ol>
    *
@@ -332,6 +379,9 @@ public class DetectNewPartitionsAction {
       return generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime);
     }
 
+    // Create a new partition reconciler every run to reset the state each time.
+    partitionReconciler = new PartitionReconciler(metadataTableDao);
+
     advanceWatermark(tracker, watermarkEstimator);
 
     if (!tracker.tryClaim(tracker.currentRestriction().getFrom())) {
@@ -347,6 +397,8 @@ public class DetectNewPartitionsAction {
     for (Row row : rows) {
       processNewPartition(row, receiver, recordedPartitionRecords);
     }
+
+    processReconcilerPartitions(receiver, watermarkEstimator, startTime, recordedPartitionRecords);
 
     cleanUpAfterCommit(bundleFinalizer, recordedPartitionRecords);
 

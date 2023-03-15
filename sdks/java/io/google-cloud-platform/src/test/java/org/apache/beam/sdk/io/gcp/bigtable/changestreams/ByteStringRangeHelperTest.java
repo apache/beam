@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeH
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getIntersectingPartition;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingAndOverlappingPartitionsFromKeySpace;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isValidPartition;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -329,6 +330,20 @@ public class ByteStringRangeHelperTest {
     assertFalse(doPartitionsOverlap(partition4, partition2));
     assertFalse(doPartitionsOverlap(partition3, partition4));
     assertFalse(doPartitionsOverlap(partition4, partition3));
+  }
+
+  @Test
+  public void testIsValidPartition() {
+    ByteStringRange validPartition1 = ByteStringRange.create("a", "");
+    ByteStringRange validPartition2 = ByteStringRange.create("", "");
+    ByteStringRange validPartition3 = ByteStringRange.create("", "z");
+    ByteStringRange validPartition4 = ByteStringRange.create("a", "b");
+    ByteStringRange invalidPartition1 = ByteStringRange.create("b", "a");
+    assertTrue(isValidPartition(validPartition1));
+    assertTrue(isValidPartition(validPartition2));
+    assertTrue(isValidPartition(validPartition3));
+    assertTrue(isValidPartition(validPartition4));
+    assertFalse(isValidPartition(invalidPartition1));
   }
 
   @Test

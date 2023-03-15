@@ -29,13 +29,16 @@ import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
 import com.google.cloud.bigtable.data.v2.models.Filters.Filter;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.HashMap;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationException;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
 import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -47,7 +50,6 @@ import org.slf4j.LoggerFactory;
  * <p>Metadata table is shared across many beam jobs. Each beam job uses a specific prefix to
  * identify itself which is used as the row prefix.
  */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class MetadataTableDao {
   private static final Logger LOG = LoggerFactory.getLogger(MetadataTableDao.class);
@@ -117,9 +119,8 @@ public class MetadataTableDao {
    * @param partition convert to row key
    * @return row key to insert to Cloud Bigtable.
    */
-  public ByteString convertPartitionToStreamPartitionRowKey(Range.ByteStringRange partition) {
-    return getFullStreamPartitionPrefix()
-        .concat(Range.ByteStringRange.serializeToByteString(partition));
+  public ByteString convertPartitionToStreamPartitionRowKey(ByteStringRange partition) {
+    return getFullStreamPartitionPrefix().concat(ByteStringRange.serializeToByteString(partition));
   }
 
   /**
@@ -144,9 +145,8 @@ public class MetadataTableDao {
    * @param partition convert to row key
    * @return row key to insert to Cloud Bigtable.
    */
-  public ByteString convertPartitionToNewPartitionRowKey(Range.ByteStringRange partition) {
-    return getFullNewPartitionPrefix()
-        .concat(Range.ByteStringRange.serializeToByteString(partition));
+  public ByteString convertPartitionToNewPartitionRowKey(ByteStringRange partition) {
+    return getFullNewPartitionPrefix().concat(ByteStringRange.serializeToByteString(partition));
   }
 
   /**
@@ -277,7 +277,7 @@ public class MetadataTableDao {
    *
    * @param partition forms the row key of the row to delete
    */
-  public void deleteStreamPartitionRow(Range.ByteStringRange partition) {
+  public void deleteStreamPartitionRow(ByteStringRange partition) {
     ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
     RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
     dataClient.mutateRow(rowMutation);
@@ -351,6 +351,60 @@ public class MetadataTableDao {
                 MetadataTableAdminDao.CF_VERSION,
                 MetadataTableAdminDao.QUALIFIER_DEFAULT,
                 MetadataTableAdminDao.CURRENT_METADATA_TABLE_VERSION);
+    dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * Read and deserialize missing partition and how long they have been missing from the metadata
+   * table.
+   *
+   * @return deserialized missing partitions and duration.
+   */
+  public HashMap<ByteStringRange, Long> readDetectNewPartitionMissingPartitions() {
+    @Nonnull HashMap<ByteStringRange, Long> missingPartitions = new HashMap<>();
+    Filter missingPartitionsFilter =
+        FILTERS
+            .chain()
+            .filter(FILTERS.family().exactMatch(MetadataTableAdminDao.CF_MISSING_PARTITIONS))
+            .filter(FILTERS.qualifier().exactMatch(MetadataTableAdminDao.QUALIFIER_DEFAULT))
+            .filter(FILTERS.limit().cellsPerColumn(1));
+    Row row = dataClient.readRow(tableId, getFullDetectNewPartition(), missingPartitionsFilter);
+
+    if (row == null
+        || row.getCells(
+                MetadataTableAdminDao.CF_MISSING_PARTITIONS,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT)
+            .isEmpty()) {
+      return missingPartitions;
+    }
+    ByteString serializedMissingPartition =
+        row.getCells(
+                MetadataTableAdminDao.CF_MISSING_PARTITIONS,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT)
+            .get(0)
+            .getValue();
+    try {
+      missingPartitions = SerializationUtils.deserialize(serializedMissingPartition.toByteArray());
+    } catch (SerializationException | NullPointerException exception) {
+      LOG.warn("Failed to deserialize missingPartitions: {}", exception.toString());
+    }
+    return missingPartitions;
+  }
+
+  /**
+   * Write to metadata table serialized missing partitions and how long they have been missing.
+   *
+   * @param missingPartitionDurations missing partitions and duration.
+   */
+  public void writeDetectNewPartitionMissingPartitions(
+      HashMap<ByteStringRange, Long> missingPartitionDurations) {
+    byte[] serializedMissingPartition = SerializationUtils.serialize(missingPartitionDurations);
+    RowMutation rowMutation =
+        RowMutation.create(tableId, getFullDetectNewPartition())
+            .setCell(
+                MetadataTableAdminDao.CF_MISSING_PARTITIONS,
+                ByteString.copyFromUtf8(MetadataTableAdminDao.QUALIFIER_DEFAULT),
+                ByteString.copyFrom(serializedMissingPartition));
     dataClient.mutateRow(rowMutation);
   }
 }
