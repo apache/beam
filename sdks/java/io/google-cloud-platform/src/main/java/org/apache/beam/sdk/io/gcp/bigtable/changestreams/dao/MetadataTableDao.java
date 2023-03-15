@@ -123,6 +123,21 @@ public class MetadataTableDao {
   }
 
   /**
+   * Convert new partition row key to partition to process metadata read from Bigtable.
+   *
+   * <p>RowKey should be directly from Cloud Bigtable and not altered in any way.
+   *
+   * @param rowKey row key from Cloud Bigtable
+   * @return partition extracted from rowKey
+   * @throws InvalidProtocolBufferException if conversion from rowKey to partition fails
+   */
+  public ByteStringRange convertNewPartitionRowKeyToPartition(ByteString rowKey)
+      throws InvalidProtocolBufferException {
+    int prefixLength = changeStreamNamePrefix.size() + NEW_PARTITION_PREFIX.size();
+    return ByteStringRange.toByteStringRange(rowKey.substring(prefixLength));
+  }
+
+  /**
    * Convert partition to a New Partition row key to query for partitions ready to be streamed as
    * the result of splits and merges.
    *
@@ -153,19 +168,21 @@ public class MetadataTableDao {
    * After a split or merge from a close stream, write the new partition's information to the
    * metadata table.
    *
+   * @param newPartition the new partition
    * @param changeStreamContinuationToken the token that can be used to pick up from where the
    *     parent left off
    * @param parentPartition the parent that stopped and split or merged
    * @param lowWatermark the low watermark of the parent stream
    */
   public void writeNewPartition(
+      ByteStringRange newPartition,
       ChangeStreamContinuationToken changeStreamContinuationToken,
-      Range.ByteStringRange parentPartition,
+      ByteStringRange parentPartition,
       Instant lowWatermark) {
     writeNewPartition(
-        changeStreamContinuationToken.getPartition(),
+        newPartition,
         changeStreamContinuationToken.toByteString(),
-        Range.ByteStringRange.serializeToByteString(parentPartition),
+        ByteStringRange.serializeToByteString(parentPartition),
         lowWatermark);
   }
 
@@ -179,10 +196,11 @@ public class MetadataTableDao {
    * @param lowWatermark low watermark of the parent
    */
   private void writeNewPartition(
-      Range.ByteStringRange newPartition,
+      ByteStringRange newPartition,
       ByteString newPartitionContinuationToken,
       ByteString parentPartition,
       Instant lowWatermark) {
+    LOG.debug("Insert new partition");
     ByteString rowKey = convertPartitionToNewPartitionRowKey(newPartition);
     RowMutation rowMutation =
         RowMutation.create(tableId, rowKey)
@@ -191,7 +209,7 @@ public class MetadataTableDao {
             .setCell(
                 MetadataTableAdminDao.CF_PARENT_LOW_WATERMARKS,
                 parentPartition,
-                ByteString.copyFromUtf8(Long.toString(lowWatermark.getMillis())));
+                lowWatermark.getMillis());
     dataClient.mutateRow(rowMutation);
   }
 
@@ -246,7 +264,7 @@ public class MetadataTableDao {
    * @param currentToken continuation token to set for the cell
    */
   public void updateWatermark(
-      Range.ByteStringRange partition,
+      ByteStringRange partition,
       Instant watermark,
       @Nullable ChangeStreamContinuationToken currentToken) {
     writeToMdTableWatermarkHelper(
@@ -261,6 +279,16 @@ public class MetadataTableDao {
    */
   public void deleteStreamPartitionRow(Range.ByteStringRange partition) {
     ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
+    RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
+    dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * Delete the row.
+   *
+   * @param rowKey row key of the row to delete
+   */
+  public void deleteRowKey(ByteString rowKey) {
     RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
     dataClient.mutateRow(rowMutation);
   }

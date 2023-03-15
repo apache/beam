@@ -23,11 +23,11 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeH
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.common.Status;
-import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import com.google.cloud.bigtable.data.v2.models.Range;
+import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -172,11 +172,12 @@ public class ReadChangeStreamPartitionAction {
       // If there are more than 1 tokens, then the tokens should form a continuous row range that is
       // a superset of this partition.
       List<Range.ByteStringRange> partitions = new ArrayList<>();
-      for (ChangeStreamContinuationToken changeStreamContinuationToken :
-          closeStream.getChangeStreamContinuationTokens()) {
-        partitions.add(changeStreamContinuationToken.getPartition());
+      for (int i = 0; i < closeStream.getChangeStreamContinuationTokens().size(); i++) {
+        ByteStringRange newPartition = closeStream.getNewPartitions().get(i);
+        partitions.add(newPartition);
         metadataTableDao.writeNewPartition(
-            changeStreamContinuationToken,
+            newPartition,
+            closeStream.getChangeStreamContinuationTokens().get(i),
             partitionRecord.getPartition(),
             watermarkEstimator.getState());
       }

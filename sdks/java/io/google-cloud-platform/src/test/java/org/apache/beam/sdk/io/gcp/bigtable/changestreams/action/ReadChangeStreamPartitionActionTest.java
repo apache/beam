@@ -185,7 +185,7 @@ public class ReadChangeStreamPartitionActionTest {
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // Should not try to write any new partition to the metadata table.
-    verify(metadataTableDao, never()).writeNewPartition(any(), any(), any());
+    verify(metadataTableDao, never()).writeNewPartition(any(), any(), any(), any());
     verify(metadataTableDao, never()).deleteStreamPartitionRow(any());
   }
 
@@ -205,7 +205,7 @@ public class ReadChangeStreamPartitionActionTest {
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // Should not try to write any new partition to the metadata table.
-    verify(metadataTableDao, never()).writeNewPartition(any(), any(), any());
+    verify(metadataTableDao, never()).writeNewPartition(any(), any(), any(), any());
     verify(metadataTableDao, never()).deleteStreamPartitionRow(any());
   }
 
@@ -222,6 +222,11 @@ public class ReadChangeStreamPartitionActionTest {
         .thenReturn(com.google.cloud.bigtable.common.Status.fromProto(statusProto));
     Mockito.when(mockCloseStream.getChangeStreamContinuationTokens())
         .thenReturn(Arrays.asList(changeStreamContinuationToken1, changeStreamContinuationToken2));
+    Mockito.when(mockCloseStream.getNewPartitions())
+        .thenReturn(
+            Arrays.asList(
+                changeStreamContinuationToken1.getPartition(),
+                changeStreamContinuationToken2.getPartition()));
 
     when(restriction.getCloseStream()).thenReturn(mockCloseStream);
     final DoFn.ProcessContinuation result =
@@ -232,8 +237,48 @@ public class ReadChangeStreamPartitionActionTest {
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // Write the new partitions.
-    verify(metadataTableDao).writeNewPartition(eq(changeStreamContinuationToken1), any(), any());
-    verify(metadataTableDao).writeNewPartition(eq(changeStreamContinuationToken2), any(), any());
+    verify(metadataTableDao)
+        .writeNewPartition(any(), eq(changeStreamContinuationToken1), any(), any());
+    verify(metadataTableDao)
+        .writeNewPartition(any(), eq(changeStreamContinuationToken2), any(), any());
+    verify(metadataTableDao, times(1)).deleteStreamPartitionRow(partitionRecord.getPartition());
+  }
+
+  @Test
+  public void testCloseStreamNewPartitionMerge() throws IOException {
+    // NewPartitions field includes the merge target. ChangeStreamContinuationToken's partition may
+    // not be the same as the new partition.
+    // If BD is split into AC and CD, the new partitions are AC and CD and the corresponding
+    // ChangeStreamContinuationToken are for BC and CD.
+    ByteStringRange newPartitionAC = ByteStringRange.create("A", "C");
+    ByteStringRange newPartitionCD = ByteStringRange.create("C", "D");
+    ChangeStreamContinuationToken changeStreamContinuationToken1 =
+        ChangeStreamContinuationToken.create(ByteStringRange.create("B", "C"), "1234");
+    ChangeStreamContinuationToken changeStreamContinuationToken2 =
+        ChangeStreamContinuationToken.create(ByteStringRange.create("C", "D"), "5678");
+
+    CloseStream mockCloseStream = Mockito.mock(CloseStream.class);
+    Status statusProto = Status.newBuilder().setCode(11).build();
+    Mockito.when(mockCloseStream.getStatus())
+        .thenReturn(com.google.cloud.bigtable.common.Status.fromProto(statusProto));
+    Mockito.when(mockCloseStream.getChangeStreamContinuationTokens())
+        .thenReturn(Arrays.asList(changeStreamContinuationToken1, changeStreamContinuationToken2));
+    Mockito.when(mockCloseStream.getNewPartitions())
+        .thenReturn(Arrays.asList(newPartitionAC, newPartitionCD));
+
+    when(restriction.getCloseStream()).thenReturn(mockCloseStream);
+    final DoFn.ProcessContinuation result =
+        action.run(partitionRecord, tracker, receiver, watermarkEstimator);
+    assertEquals(DoFn.ProcessContinuation.stop(), result);
+    // Should terminate before reaching processing stream partition responses.
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    // Should decrement the metric on termination.
+    verify(metrics).decPartitionStreamCount();
+    // Write the new partitions.
+    verify(metadataTableDao)
+        .writeNewPartition(eq(newPartitionAC), eq(changeStreamContinuationToken1), any(), any());
+    verify(metadataTableDao)
+        .writeNewPartition(eq(newPartitionCD), eq(changeStreamContinuationToken2), any(), any());
     verify(metadataTableDao, times(1)).deleteStreamPartitionRow(partitionRecord.getPartition());
   }
 }

@@ -226,9 +226,9 @@ public class MetadataTableDaoTest {
 
     Instant lowWatermark = Instant.now();
     metadataTableDao.writeNewPartition(
-        changeStreamContinuationToken1, parentPartition, lowWatermark);
+        partition1, changeStreamContinuationToken1, parentPartition, lowWatermark);
     metadataTableDao.writeNewPartition(
-        changeStreamContinuationToken2, parentPartition, lowWatermark);
+        partition2, changeStreamContinuationToken2, parentPartition, lowWatermark);
 
     ServerStream<Row> rows = metadataTableDao.readNewPartitions();
     int rowsCount = 0;
