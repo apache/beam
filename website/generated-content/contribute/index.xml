@@ -880,6 +880,9 @@ sub rsa4096/BA4D50BEBA4D50BE 2016-02-23
 &lt;p>In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
 please submit your GPG public key into &lt;a href="http://pgp.mit.edu:11371/">MIT PGP Public Key Server&lt;/a>.&lt;/p>
 &lt;p>If MIT doesn&amp;rsquo;t work for you (it probably won&amp;rsquo;t, it&amp;rsquo;s slow, returns 502 a lot, Nexus might error out not being able to find the keys), use a keyserver at &lt;code>ubuntu.com&lt;/code> instead: &lt;a href="https://keyserver.ubuntu.com/">https://keyserver.ubuntu.com/&lt;/a>.&lt;/p>
+&lt;p>You will need to use an ascii-armored version of your key.
+This can be obtained by running &lt;code>gpg --export --armor&lt;/code> and copying the whole block
+(including &lt;code>-----&amp;lt;START/END&amp;gt; PGP PUBLIC KEY BLOCK-----&lt;/code>).&lt;/p>
 &lt;h4 id="website-development-setup">Website development setup&lt;/h4>
 &lt;p>Updating the Beam website requires submitting PRs to both the main &lt;code>apache/beam&lt;/code> repo and the &lt;code>apache/beam-site&lt;/code> repo.
 The first contains reference manuals generated from SDK code, while the second updates the current release version number.&lt;/p>
@@ -957,15 +960,16 @@ script.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Usage&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;code>RELEASE_VERSION&lt;/code> and &lt;code>NEXT_VERSION&lt;/code> should be formatted like &lt;code>{major}.{minor}.{patch}&lt;/code> (e.g. &lt;code>2.46.0&lt;/code>)&lt;/p>
 &lt;pre>&lt;code># Cut a release branch
 ./beam/release/src/main/scripts/cut_release_branch.sh \
 --release=${RELEASE_VERSION} \
 --next_release=${NEXT_VERSION}
 # Show help page
 ./beam/release/src/main/scripts/cut_release_branch.sh -h
-&lt;/code>&lt;/pre>&lt;/li>
-&lt;/ul>
-&lt;h3 id="start-a-snapshot-build">Start a snapshot build&lt;/h3>
+&lt;/code>&lt;/pre>&lt;h3 id="start-a-snapshot-build">Start a snapshot build&lt;/h3>
 &lt;p>Start a build of &lt;a href="https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/">the nightly snapshot&lt;/a> against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version from the &lt;code>master&lt;/code> branch.
 Once the release branch is cut, these SNAPSHOT versions are no longer found, so builds will be broken until a new snapshot is available.&lt;/p>
@@ -983,6 +987,7 @@ Once the release branch is cut, these SNAPSHOT versions are no longer found, so 
 &lt;li>
 &lt;p>&lt;strong>The script will:&lt;/strong>&lt;/p>
 &lt;ol>
+&lt;li>Ask for the url of your personal clone of Beam (e.g. &lt;code>https://github.com/&amp;lt;user&amp;gt;/beam&lt;/code>).&lt;/li>
 &lt;li>Install &lt;a href="https://github.com/github/hub">hub&lt;/a> with your agreement.&lt;/li>
 &lt;li>Touch an empty txt file and commit changes into &lt;code>${your remote beam repo}/snapshot_build&lt;/code>&lt;/li>
 &lt;li>Use hub to create a PR against apache:master, which triggers a Jenkins job to build snapshot.&lt;/li>
@@ -1343,7 +1348,6 @@ It is created by &lt;code>build_release_candidate.sh&lt;/code> (see above).&lt;/
 &lt;/li>
 &lt;li>Update links to prior releases to point to &lt;a href="https://archive.apache.org">https://archive.apache.org&lt;/a> (see
 example PR).&lt;/li>
-&lt;li>Update &lt;code>website/www/site/static/.htaccess&lt;/code> to redirect to the new version.&lt;/li>
 &lt;li>Create the Blog post:&lt;/li>
 &lt;/ul>
 &lt;h4 id="blog-post">Blog post&lt;/h4>
@@ -1452,6 +1456,7 @@ The complete staging area is available for your review, which includes:
 * Go artifacts and documentation are available at pkg.go.dev [9]
 * Validation sheet with a tab for 1.2.3 release to help with validation [10].
 * Docker images published to Docker Hub [11].
+* PR to run tests against release branch [12].
 The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 For guidelines on how to try the release in your projects, check out our blog post at /blog/validate-beam-release/.
 Thanks,
@@ -1467,6 +1472,7 @@ Release Manager
 [9] https://pkg.go.dev/github.com/apache/beam/sdks/v2@v1.2.3-RC3/go/pkg/beam
 [10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
 [11] https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image
+[12] https://github.com/apache/beam/pull/...
 &lt;/code>&lt;/pre>
 &lt;p>If there are any issues found in the release candidate, reply on the vote thread to cancel the vote.
 There’s no need to wait 72 hours.
@@ -1510,6 +1516,12 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;li>Start a new terminal to run python LeaderBoard with Dataflow Runner.&lt;/li>
 &lt;li>Start a new terminal to run python GameStats with Direct Runner.&lt;/li>
 &lt;li>Start a new terminal to run python GameStats with Dataflow Runner.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Xlang validation, includes
+&lt;ul>
+&lt;li>Start a new terminal to run python xlang Java kafka validation with Dataflow Runner.&lt;/li>
+&lt;li>Start a new terminal to run python xlang Java sql validation with Dataflow Runner.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ol>
@@ -1761,7 +1773,7 @@ Thanks everyone!
 &lt;h3 id="checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step&lt;/h3>
 &lt;ol>
 &lt;li>Issues identified during vote have been resolved, with fixes committed to the release branch.&lt;/li>
-&lt;li>All issues tagged with &lt;code>Fix-Version&lt;/code> for the current release should be closed.&lt;/li>
+&lt;li>All issues in the current release&amp;rsquo;s milestone should be closed.&lt;/li>
 &lt;li>Community votes to release the proposed candidate, with at least three approving PMC votes.&lt;/li>
 &lt;/ol>
 &lt;hr>
