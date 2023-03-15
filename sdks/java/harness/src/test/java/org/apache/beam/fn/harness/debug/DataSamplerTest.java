@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -63,6 +64,10 @@ public class DataSamplerTest {
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     coder.encode(b, stream, Coder.Context.NESTED);
     return stream.toByteArray();
+  }
+
+  <T> WindowedValue<T> globalWindowedValue(T el) {
+    return WindowedValue.valueInGlobalWindow(el);
   }
 
   BeamFnApi.InstructionResponse getAllSamples(DataSampler dataSampler) {
@@ -122,7 +127,7 @@ public class DataSamplerTest {
     DataSampler sampler = new DataSampler();
 
     VarIntCoder coder = VarIntCoder.of();
-    sampler.sampleOutput("pcollection-id", coder).sample(1);
+    sampler.sampleOutput("pcollection-id", coder).sample(globalWindowedValue(1));
 
     BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
     assertHasSamples(samples, "pcollection-id", Collections.singleton(encodeInt(1)));
@@ -140,7 +145,7 @@ public class DataSamplerTest {
     String rawString = "hello";
     byte[] byteArray = rawString.getBytes(StandardCharsets.US_ASCII);
     ByteArrayCoder coder = ByteArrayCoder.of();
-    sampler.sampleOutput("pcollection-id", coder).sample(byteArray);
+    sampler.sampleOutput("pcollection-id", coder).sample(globalWindowedValue(byteArray));
 
     BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
     assertHasSamples(samples, "pcollection-id", Collections.singleton(encodeByteArray(byteArray)));
@@ -156,8 +161,8 @@ public class DataSamplerTest {
     DataSampler sampler = new DataSampler();
 
     VarIntCoder coder = VarIntCoder.of();
-    sampler.sampleOutput("pcollection-id-1", coder).sample(1);
-    sampler.sampleOutput("pcollection-id-2", coder).sample(2);
+    sampler.sampleOutput("pcollection-id-1", coder).sample(globalWindowedValue(1));
+    sampler.sampleOutput("pcollection-id-2", coder).sample(globalWindowedValue(2));
 
     BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
     assertHasSamples(samples, "pcollection-id-1", Collections.singleton(encodeInt(1)));
@@ -174,8 +179,8 @@ public class DataSamplerTest {
     DataSampler sampler = new DataSampler();
 
     VarIntCoder coder = VarIntCoder.of();
-    sampler.sampleOutput("pcollection-id", coder).sample(1);
-    sampler.sampleOutput("pcollection-id", coder).sample(2);
+    sampler.sampleOutput("pcollection-id", coder).sample(globalWindowedValue(1));
+    sampler.sampleOutput("pcollection-id", coder).sample(globalWindowedValue(2));
 
     BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
     assertHasSamples(samples, "pcollection-id", ImmutableList.of(encodeInt(1), encodeInt(2)));
@@ -183,12 +188,12 @@ public class DataSamplerTest {
 
   void generateStringSamples(DataSampler sampler) {
     StringUtf8Coder coder = StringUtf8Coder.of();
-    sampler.sampleOutput("a", coder).sample("a1");
-    sampler.sampleOutput("a", coder).sample("a2");
-    sampler.sampleOutput("b", coder).sample("b1");
-    sampler.sampleOutput("b", coder).sample("b2");
-    sampler.sampleOutput("c", coder).sample("c1");
-    sampler.sampleOutput("c", coder).sample("c2");
+    sampler.sampleOutput("a", coder).sample(globalWindowedValue("a1"));
+    sampler.sampleOutput("a", coder).sample(globalWindowedValue("a2"));
+    sampler.sampleOutput("b", coder).sample(globalWindowedValue("b1"));
+    sampler.sampleOutput("b", coder).sample(globalWindowedValue("b2"));
+    sampler.sampleOutput("c", coder).sample(globalWindowedValue("c1"));
+    sampler.sampleOutput("c", coder).sample(globalWindowedValue("c2"));
   }
 
   /**
@@ -250,7 +255,7 @@ public class DataSamplerTest {
                 }
 
                 for (int j = 0; j < 100; j++) {
-                  sampler.sampleOutput("pcollection-" + j, coder).sample(0);
+                  sampler.sampleOutput("pcollection-" + j, coder).sample(globalWindowedValue(0));
                 }
 
                 doneSignal.countDown();
