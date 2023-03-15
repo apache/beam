@@ -72,6 +72,7 @@ state_bucket         = "bucket_name"         #GCS bucket name for Beam Playgroun
 redis_name           = "playground_redis"    #Choose the name for redis instance
 min_count            = 2                     #Min node count for GKE cluster
 max_count            = 6                     #Max node count for GKE cluster
+redis_tier           = "STANDARD_HA"         #Choose the "Basic" or "STANDARD_HA" tyre
 gke_machine_type     = "e2-standard-8"       #Instance type       
 app_engine_flag      = true                  #AppEngine flag - defined if AppEngine and Datastore need to be installed. Should be "false" if AppEngine and Datastore were installed before
 ip-address-name      = "static-ip-stg"       #Static IP Address name
