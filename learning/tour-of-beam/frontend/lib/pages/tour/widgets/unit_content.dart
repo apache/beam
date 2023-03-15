@@ -215,7 +215,7 @@ class _SnippetTypeSwitcher extends StatelessWidget {
                   await _setSnippetByType(SnippetType.original);
                 },
               ),
-            if (tourNotifier.isAuthenticated && tourNotifier.isCodeSynced)
+            if (tourNotifier.isCodeSaved)
               _SnippetTypeButton(
                 groupValue: groupValue,
                 title: savedCodeButtonTitle,
@@ -224,15 +224,6 @@ class _SnippetTypeSwitcher extends StatelessWidget {
                   await _setSnippetByType(SnippetType.saved);
                 },
               ),
-            if (!tourNotifier.isAuthenticated && tourNotifier.isCodeCached)
-              _SnippetTypeButton(
-                groupValue: groupValue,
-                title: savedCodeButtonTitle,
-                value: SnippetType.cached,
-                onChanged: () async {
-                  await _setSnippetByType(SnippetType.cached);
-                },
-              )
           ],
         );
       },

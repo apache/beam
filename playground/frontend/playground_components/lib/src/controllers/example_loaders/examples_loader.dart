@@ -28,6 +28,7 @@ import 'content_example_loader.dart';
 import 'empty_example_loader.dart';
 import 'example_loader.dart';
 import 'example_loader_factory.dart';
+import 'hive_example_loader.dart';
 import 'http_example_loader.dart';
 import 'standard_example_loader.dart';
 import 'user_shared_example_loader.dart';
@@ -44,6 +45,7 @@ class ExamplesLoader {
     defaultFactory.add(HttpExampleLoader.new);
     defaultFactory.add(StandardExampleLoader.new);
     defaultFactory.add(UserSharedExampleLoader.new);
+    defaultFactory.add(HiveExampleLoader.new);
   }
 
   void setPlaygroundController(PlaygroundController value) {

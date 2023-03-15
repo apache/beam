@@ -79,4 +79,32 @@ class Example extends ExampleBase {
           sdk: sdk,
           type: ExampleType.example,
         );
+
+  // TODO(nausharipov) review: use hive adapter instead?
+  factory Example.fromJson(Map<String, dynamic> json) => Example(
+        files: (json['files'] as List<dynamic>)
+            .map((e) => SnippetFile.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        name: json['name'] as String,
+        sdk: Sdk.fromJson(json['sdk'] as Map<String, dynamic>),
+        type: _getExampleTypeFromString(json['type']),
+        path: json['path'] as String,
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'name': name,
+        'path': path,
+        'sdk': sdk.toJson(),
+        'type': type.name,
+        'files': files,
+      };
+
+  static ExampleType _getExampleTypeFromString(String typeAsString) {
+    for (final type in ExampleType.values) {
+      if (type.toString() == typeAsString) {
+        return type;
+      }
+    }
+    return ExampleType.example;
+  }
 }

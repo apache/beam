@@ -16,27 +16,28 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
+import 'package:playground_components/playground_components.dart';
 
-part 'unit_progress.g.dart';
+import '../models/get_user_progress_response.dart';
 
-@JsonSerializable()
-class UnitProgressModel {
-  final String id;
-  final bool isCompleted;
-  final String? userSnippetId;
-  // TODO(nausharipov) review: storedSnippetId?
-  final String? cachedSnippetId;
+abstract class AbstractUserProgressRepository {
+  Future<GetUserProgressResponse?> getUserProgress(
+    String sdkId,
+  );
 
-  const UnitProgressModel({
-    required this.id,
-    required this.isCompleted,
-    required this.userSnippetId,
-    this.cachedSnippetId,
+  Future<void> completeUnit(
+    String sdkId,
+    String unitId,
+  );
+
+  Future<void> saveUnitSnippet({
+    required Sdk sdk,
+    required List<SnippetFile> snippetFiles,
+    required String unitId,
   });
 
-  factory UnitProgressModel.fromJson(Map<String, dynamic> json) =>
-      _$UnitProgressModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$UnitProgressModelToJson(this);
+  Future<ExampleLoadingDescriptor> getSavedSnippet({
+    required Sdk sdk,
+    required String unitId,
+  });
 }

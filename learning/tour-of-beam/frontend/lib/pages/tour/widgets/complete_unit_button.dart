@@ -41,7 +41,12 @@ class CompleteUnitButton extends StatelessWidget {
         final borderColor =
             canComplete ? themeData.primaryColor : themeData.disabledColor;
         final onPressed = canComplete
-            ? tourNotifier.currentUnitController?.completeUnit
+            ? () async {
+                await unitProgressCache.completeUnit(
+                  tourNotifier.currentSdk?.id,
+                  tourNotifier.currentUnitId,
+                );
+              }
             : null;
 
         return Flexible(

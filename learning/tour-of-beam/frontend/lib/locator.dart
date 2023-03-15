@@ -21,7 +21,6 @@ import 'package:get_it/get_it.dart';
 
 import 'auth/notifier.dart';
 import 'cache/content_tree.dart';
-import 'cache/local_storage.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
 import 'cache/unit_progress.dart';
@@ -49,8 +48,7 @@ void _initializeCaches() {
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));
-  GetIt.instance.registerSingleton(UnitProgressCache(client: client));
-  GetIt.instance.registerSingleton(HiveLocalStorageCache());
+  GetIt.instance.registerSingleton(UnitProgressCache());
 }
 
 void _initializeState() {

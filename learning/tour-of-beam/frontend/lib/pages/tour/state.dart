@@ -25,7 +25,6 @@ import 'package:playground_components/playground_components.dart';
 import 'package:rate_limiter/rate_limiter.dart';
 
 import '../../auth/notifier.dart';
-import '../../cache/local_storage.dart';
 import '../../cache/unit_content.dart';
 import '../../cache/unit_progress.dart';
 import '../../config.dart';
@@ -33,10 +32,8 @@ import '../../enums/save_code_status.dart';
 import '../../enums/snippet_type.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
-import '../../repositories/client/client.dart';
 import '../../state.dart';
 import 'controllers/content_tree.dart';
-import 'controllers/unit.dart';
 import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
@@ -45,12 +42,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
-  UnitController? currentUnitController;
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
-  final _hiveLocalStorageCache = GetIt.instance.get<HiveLocalStorageCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -66,7 +61,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onAuthChanged);
-    _hiveLocalStorageCache.addListener(notifyListeners);
     _saveCodeDebounced = _saveCode.debounced(
       _saveUserCodeDebounceDuration,
     );
@@ -92,16 +86,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   // TODO(nausharipov) review: make java default?
   Sdk? get currentSdk => _appNotifier.sdk;
-  String? get currentUnitId => currentUnitController?.unitId;
+  String? get currentUnitId => _currentUnitContent?.id;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
   bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
-  bool get isCodeSaved =>
-      _authNotifier.isAuthenticated ? isCodeSynced : isCodeCached;
-  bool get isCodeSynced =>
-      _unitProgressCache.getUnitSavedSnippetId(currentUnitId) != null;
-  bool get isCodeCached => _hiveLocalStorageCache.isUnitSnippetCached(
-        currentSdk!,
+  bool get isCodeSaved => _unitProgressCache.hasSavedSnippet(
+        currentSdk?.id,
         currentUnitId,
       );
 
@@ -116,10 +106,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onAuthChanged() async {
-    await _setUnit(
-      _snippetType,
-      _currentUnitContent!,
-    );
+    await _updateSnippetTypeSelector();
+    if (_snippetType != SnippetType.saved
+        // && !_unitProgressCache.hasCachedSnippet(currentUnitId)
+        ) {
+      await _loadSnippetByType();
+    }
     notifyListeners();
   }
 
@@ -129,11 +121,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       playgroundController.setSdk(sdk);
       _listenToCurrentSnippetEditingController();
       contentTreeController.sdkId = sdk.id;
-      await _setUnit(
-        SnippetType.saved,
-        _currentUnitContent!,
-      );
-      notifyListeners();
+      await _updateSnippetTypeSelector();
+      _trySetSnippetType(SnippetType.saved);
+      await _loadSnippetByType();
     }
   }
 
@@ -146,29 +136,28 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         sdk.id,
         currentNode.id,
       );
-      currentUnitController = UnitController(
-        unitId: currentNode.id,
-        sdkId: contentTreeController.sdkId,
-      );
-      if (content != null) {
-        await _setUnit(
-          SnippetType.saved,
-          content,
-        );
-      }
+      _setUnitContent(content);
+      await _updateSnippetTypeSelector();
+      _trySetSnippetType(SnippetType.saved);
+      await _loadSnippetByType();
     } else {
       await _emptyPlayground();
     }
     notifyListeners();
   }
 
+  void _setUnitContent(UnitContentModel? unitContent) {
+    if (unitContent == null || unitContent == _currentUnitContent) {
+      return;
+    }
+    _currentUnitContent = unitContent;
+  }
+
   // Save user code.
 
   Future<void> showSnippetByType(SnippetType snippetType) async {
-    await _setUnit(
-      snippetType,
-      _currentUnitContent!,
-    );
+    _trySetSnippetType(snippetType);
+    await _loadSnippetByType();
     notifyListeners();
   }
 
@@ -191,128 +180,82 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetEditingController.activeFileController?.isChanged ?? false;
     final snippetFiles = snippetEditingController.getFiles();
 
-    final doSave = isCodeChanged &&
-        currentUnitController != null &&
-        snippetFiles.isNotEmpty;
+    final doSave =
+        isCodeChanged && _currentUnitContent != null && snippetFiles.isNotEmpty;
 
     if (doSave) {
       _saveCodeDebounced?.call([], {
-        const Symbol('sdkId'): currentUnitController!.sdkId,
-        const Symbol('unitId'): currentUnitController!.unitId,
+        const Symbol('sdk'): currentSdk,
+        const Symbol('unitId'): currentUnitId,
         const Symbol('snippetFiles'): snippetFiles,
       });
     }
   }
 
   Future<void> _saveCode({
-    required String sdkId,
+    required Sdk sdk,
     required List<SnippetFile> snippetFiles,
     required String unitId,
   }) async {
     saveCodeStatus = SaveCodeStatus.saving;
     try {
-      if (_authNotifier.isAuthenticated) {
-        await GetIt.instance.get<TobClient>().postUserCode(
-              sdkId: sdkId,
-              snippetFiles: snippetFiles,
-              unitId: unitId,
-            );
-      } else {
-        await _hiveLocalStorageCache.saveCode(
-          unitId,
-          ContentExampleLoadingDescriptor(
-            files: snippetFiles,
-            sdk: Sdk.parseOrCreate(sdkId),
-          ),
-        );
-        notifyListeners();
-      }
-      saveCodeStatus = SaveCodeStatus.saved;
-      await _setUnit(
-        _snippetType,
-        _currentUnitContent!,
+      await _unitProgressCache.saveSnippet(
+        sdk: sdk,
+        snippetFiles: snippetFiles,
+        unitId: unitId,
       );
+      saveCodeStatus = SaveCodeStatus.saved;
+      await _updateSnippetTypeSelector();
+      _trySetSnippetType(SnippetType.saved);
     } on Exception catch (e) {
       print(['Could not save code: ', e]);
       _saveCodeStatus = SaveCodeStatus.error;
     }
   }
 
-  Future<void> _setUnit(
-    SnippetType preferrableSnippetType,
-    UnitContentModel unitContent,
-  ) async {
-    if (preferrableSnippetType == _snippetType &&
-        unitContent == _currentUnitContent) {
-      return;
-    }
+  Future<void> _updateSnippetTypeSelector() async {
+    await _unitProgressCache.updateUnitProgress();
+    notifyListeners();
+  }
 
-    // Get fresh saved snippet IDs.
-    if (isAuthenticated) {
-      await _unitProgressCache.updateUnitProgress();
+  void _trySetSnippetType(SnippetType snippetType) {
+    if (snippetType == SnippetType.saved && !isCodeSaved) {
+      _snippetType = SnippetType.original;
     } else {
-      await _hiveLocalStorageCache.updateBox(currentSdk!.id);
+      _snippetType = snippetType;
     }
+    notifyListeners();
+  }
 
-    // Set preferrable type.
-    var snippetType = preferrableSnippetType;
-    if (preferrableSnippetType == SnippetType.saved && !isAuthenticated) {
-      snippetType = isCodeCached ? SnippetType.cached : SnippetType.original;
-    }
-    _snippetType = snippetType;
-    _currentUnitContent = unitContent;
-
-    switch (snippetType) {
+  Future<void> _loadSnippetByType() async {
+    final ExampleLoadingDescriptor descriptor;
+    switch (_snippetType) {
       case SnippetType.original:
-        await _setSnippetById(unitContent.taskSnippetId);
-        break;
-      case SnippetType.saved:
-        await _setSnippetById(
-          _unitProgressCache.getUnitSavedSnippetId(currentUnitId),
+        descriptor = UserSharedExampleLoadingDescriptor(
+          sdk: currentSdk!,
+          snippetId: _currentUnitContent!.taskSnippetId!,
         );
         break;
-      case SnippetType.cached:
-        await _setSnippetContent(currentSdk!, currentUnitId!);
+      case SnippetType.saved:
+        descriptor = await _unitProgressCache.getSavedSnippet(
+          sdk: currentSdk!,
+          unitId: _currentUnitContent!.id,
+        );
         break;
       case SnippetType.solution:
-        await _setSnippetById(unitContent.solutionSnippetId);
+        descriptor = UserSharedExampleLoadingDescriptor(
+          sdk: currentSdk!,
+          snippetId: _currentUnitContent!.solutionSnippetId!,
+        );
         break;
     }
-  }
-
-  Future<void> _setSnippetContent(Sdk sdk, String unitId) async {
-    final ContentExampleLoadingDescriptor? descriptor =
-        await _hiveLocalStorageCache.getSavedCode(sdk, unitId);
-
-    if (descriptor != null) {
-      await playgroundController.examplesLoader.load(
-        ExamplesLoadingDescriptor(
-          descriptors: [
-            descriptor,
-          ],
-        ),
-      );
-    }
-  }
-
-  Future<void> _setSnippetById(String? snippetId) async {
-    if (snippetId == null) {
-      await _emptyPlayground();
-      return;
-    }
-
-    if (currentSdk != null) {
-      await playgroundController.examplesLoader.load(
-        ExamplesLoadingDescriptor(
-          descriptors: [
-            UserSharedExampleLoadingDescriptor(
-              sdk: currentSdk!,
-              snippetId: snippetId,
-            ),
-          ],
-        ),
-      );
-    }
+    await playgroundController.examplesLoader.load(
+      ExamplesLoadingDescriptor(
+        descriptors: [
+          descriptor,
+        ],
+      ),
+    );
   }
 
   // TODO(alexeyinkin): Hide the entire right pane instead.

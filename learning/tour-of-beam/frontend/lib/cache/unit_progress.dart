@@ -18,25 +18,44 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
 import '../auth/notifier.dart';
 import '../enums/unit_completion.dart';
 import '../models/unit_progress.dart';
+import '../repositories/client/client.dart';
 import '../repositories/models/get_user_progress_response.dart';
+import '../repositories/user_progress/abstract.dart';
+import '../repositories/user_progress/cloud.dart';
+import '../repositories/user_progress/hive.dart';
 import '../state.dart';
-import 'cache.dart';
 
-class UnitProgressCache extends Cache {
-  UnitProgressCache({required super.client});
+class UnitProgressCache extends ChangeNotifier {
+  // TODO(nausharipov) review: to pass client from the cache, _cloudUserProgressRepository has to be late.
+  final CloudUserProgressRepository _cloudUserProgressRepository =
+      CloudUserProgressRepository(client: GetIt.instance.get<TobClient>());
+  final HiveUserProgressRepository _localStorageUserProgressRepository =
+      HiveUserProgressRepository();
+
+  AbstractUserProgressRepository _getUserProgressRepository() {
+    if (isAuthenticated) {
+      return _cloudUserProgressRepository;
+    }
+    return _localStorageUserProgressRepository;
+  }
+
+  Future<GetUserProgressResponse?>? _future;
 
   var _unitProgress = <UnitProgressModel>[];
-  Future<GetUserProgressResponse?>? _future;
+  final _unitProgressByUnitId = <String, UnitProgressModel>{};
 
   final _completedUnitIds = <String>{};
   final _updatingUnitIds = <String>{};
 
-  final _unitProgressByUnitId = <String, UnitProgressModel>{};
+  bool get isAuthenticated =>
+      GetIt.instance.get<AuthNotifier>().isAuthenticated;
 
   Future<void> updateUnitProgress() async {
     final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
@@ -54,7 +73,7 @@ class UnitProgressCache extends Cache {
   }
 
   Future<void> _loadUnitProgress(String sdkId) async {
-    _future = client.getUserProgress(sdkId);
+    _future = _getUserProgressRepository().getUserProgress(sdkId);
     final result = await _future;
 
     _unitProgressByUnitId.clear();
@@ -70,6 +89,19 @@ class UnitProgressCache extends Cache {
   }
 
   // Completion
+
+  Future<void> completeUnit(String? sdkId, String? unitId) async {
+    if (sdkId == null || unitId == null) {
+      return;
+    }
+    try {
+      addUpdatingUnitId(unitId);
+      await _getUserProgressRepository().completeUnit(sdkId, unitId);
+    } finally {
+      await updateUnitProgress();
+      clearUpdatingUnitId(unitId);
+    }
+  }
 
   Set<String> getUpdatingUnitIds() => _updatingUnitIds;
 
@@ -120,5 +152,44 @@ class UnitProgressCache extends Cache {
       return UnitCompletion.completed;
     }
     return UnitCompletion.uncompleted;
+  }
+
+  // Snippet
+
+  bool hasSavedSnippet(String? sdkId, String? unitId) {
+    if (isAuthenticated) {
+      return hasSyncedSnippet(unitId);
+    }
+    return hasCachedSnippet(unitId);
+  }
+
+  bool hasSyncedSnippet(String? unitId) {
+    return _unitProgressByUnitId[unitId]?.userSnippetId != null;
+  }
+
+  bool hasCachedSnippet(String? unitId) {
+    return _unitProgressByUnitId[unitId]?.cachedSnippetId != null;
+  }
+
+  Future<void> saveSnippet({
+    required Sdk sdk,
+    required List<SnippetFile> snippetFiles,
+    required String unitId,
+  }) async {
+    await _getUserProgressRepository().saveUnitSnippet(
+      sdk: sdk,
+      snippetFiles: snippetFiles,
+      unitId: unitId,
+    );
+  }
+
+  Future<ExampleLoadingDescriptor> getSavedSnippet({
+    required Sdk sdk,
+    required String unitId,
+  }) async {
+    return _getUserProgressRepository().getSavedSnippet(
+      sdk: sdk,
+      unitId: unitId,
+    );
   }
 }

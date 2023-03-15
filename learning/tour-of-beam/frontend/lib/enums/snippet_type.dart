@@ -17,7 +17,6 @@
  */
 
 enum SnippetType {
-  cached,
   original,
   saved,
   solution,
