@@ -36,7 +36,6 @@ import (
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/setup_tools/builder"
 	"beam.apache.org/playground/backend/internal/streaming"
 	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
@@ -97,13 +96,14 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
 
-	var executorBuilder *executors.ExecutorBuilder
-	err := error(nil)
-	if isUnitTest {
-		executorBuilder, err = builder.TestRunner(ctx, paths, sdkEnv)
-	} else {
-		executorBuilder, err = builder.Runner(ctx, paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
-	}
+	runCmd, err := func() (*exec.Cmd, error) {
+		if isUnitTest {
+			return executors.GetRunTest(ctx, paths, sdkEnv)
+		} else {
+			return executors.GetRunCmd(ctx, paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
+		}
+	}()
+
 	if err != nil {
 		if processingErr := processSetupError(err, pipelineId, cacheService); processingErr != nil {
 			return processingErr
@@ -111,9 +111,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 		return err
 	}
 
-	executor := executorBuilder.Build()
 	logger.Infof("%s: Run()/Test() ...\n", pipelineId)
-	runCmd := getExecuteCmd(isUnitTest, &executor, ctx)
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: ctx, CacheService: cacheService, PipelineId: pipelineId}
 	go readLogFile(ctx, cacheService, paths.AbsoluteLogFilePath, pipelineId, stopReadLogsChannel, finishReadLogsChannel)
@@ -303,16 +301,6 @@ func createStatusChannels() (chan error, chan bool) {
 	errorChannel := make(chan error, 1)
 	successChannel := make(chan bool, 1)
 	return errorChannel, successChannel
-}
-
-// getExecuteCmd return cmd instance based on the code type: unit test or example code
-func getExecuteCmd(isUnitTest bool, executor *executors.Executor, ctxWithTimeout context.Context) *exec.Cmd {
-	runType := executors.Run
-	if isUnitTest {
-		runType = executors.Test
-	}
-	cmdReflect := reflect.ValueOf(executor).MethodByName(string(runType)).Call([]reflect.Value{reflect.ValueOf(ctxWithTimeout)})
-	return cmdReflect[0].Interface().(*exec.Cmd)
 }
 
 // processSetupError processes errors during the setting up an executor builder

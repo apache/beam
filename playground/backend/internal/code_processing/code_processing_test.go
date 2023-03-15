@@ -19,10 +19,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/go-cmp/cmp"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -40,7 +38,6 @@ import (
 	"beam.apache.org/playground/backend/internal/cache/redis"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/environment"
-	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
@@ -579,72 +576,6 @@ func TestGetLastIndex(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("GetLastIndex() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_getRunOrTestCmd(t *testing.T) {
-	runEx := executors.NewExecutorBuilder().
-		WithRunner().
-		WithCommand("runCommand").
-		WithArgs([]string{"arg1"}).
-		WithPipelineOptions([]string{""}).
-		Build()
-
-	testEx := executors.NewExecutorBuilder().
-		WithTestRunner().
-		WithCommand("testCommand").
-		WithArgs([]string{"arg1"}).
-		Build()
-
-	wantRunExec := exec.CommandContext(context.Background(), "runCommand", "arg1")
-	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1")
-
-	type args struct {
-		isUnitTest     bool
-		executor       *executors.Executor
-		ctxWithTimeout context.Context
-	}
-
-	tests := []struct {
-		name string
-		args args
-		want *exec.Cmd
-	}{
-		{
-			//Get cmd objects with set run executor
-			name: "Get run cmd",
-			args: args{
-				isUnitTest:     false,
-				executor:       &runEx,
-				ctxWithTimeout: context.Background(),
-			},
-			want: wantRunExec,
-		},
-		{
-			//Get cmd objects with set test executor
-			name: "Get test cmd",
-			args: args{
-				isUnitTest:     true,
-				executor:       &testEx,
-				ctxWithTimeout: context.Background(),
-			},
-			want: wantTestExec,
-		},
-	}
-
-	execComparer := cmp.Comparer(func(a exec.Cmd, b exec.Cmd) bool {
-		return a.Path == b.Path &&
-			cmp.Equal(a.Args, b.Args) &&
-			cmp.Equal(a.Env, b.Env) &&
-			a.Dir == b.Dir
-	})
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := getExecuteCmd(tt.args.isUnitTest, tt.args.executor, tt.args.ctxWithTimeout); !cmp.Equal(got, tt.want, execComparer) {
-				t.Errorf("getExecuteCmd() = '%v', want '%v', diff = %v", got, tt.want, cmp.Diff(got, tt.want, execComparer))
 			}
 		})
 	}

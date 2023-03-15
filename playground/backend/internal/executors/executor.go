@@ -19,34 +19,18 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
-
-type ExecutionType string
 
 const (
-	Run  ExecutionType = "Run"
-	Test ExecutionType = "RunTest"
+	javaLogConfigFileName        = "logging.properties"
+	javaLogConfigFilePlaceholder = "{logConfigFile}"
 )
-
-// CmdConfiguration for base cmd code execution
-type CmdConfiguration struct {
-	fileNames       []string
-	workingDir      string
-	commandName     string
-	commandArgs     []string
-	pipelineOptions []string
-}
-
-// Executor struct for all sdks (Java/Python/Go/SCIO)
-type Executor struct {
-	compileArgs CmdConfiguration
-	runArgs     CmdConfiguration
-	testArgs    CmdConfiguration
-}
 
 // GetCompileCmd prepares the Cmd for code compilation
 // Returns Cmd instance
@@ -80,31 +64,125 @@ func GetCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *e
 	return cmd, nil
 }
 
-// Run prepares the Cmd for execution of the code
-// Returns Cmd instance
-func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
-	args := ex.runArgs.commandArgs
-	if len(ex.runArgs.fileNames) > 0 {
-		args = append(args, ex.runArgs.fileNames...)
+func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
+	workingDir := paths.AbsoluteBaseFolderPath
+
+	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
+	args := replaceLogPlaceholder(paths, executorConfig)
+
+	className, err := paths.FindExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
+	if err != nil {
+		return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s", paths.AbsoluteExecutableFileFolderPath, err)
 	}
-	if ex.runArgs.pipelineOptions != nil && ex.runArgs.pipelineOptions[0] != "" {
-		args = append(args, ex.runArgs.pipelineOptions...)
-	}
-	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, args...)
-	cmd.Dir = ex.runArgs.workingDir
-	return cmd
+	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
+
+	args = append(args, className)
+	args = append(args, pipelineOptionsSplit...)
+
+	cmd := exec.CommandContext(ctx, executorConfig.RunCmd, args...)
+	cmd.Dir = workingDir
+
+	return cmd, err
 }
 
-// RunTest prepares the Cmd for execution of the unit test
+func getGoRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
+	workingDir := paths.AbsoluteBaseFolderPath
+
+	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
+
+	cmd := exec.CommandContext(ctx, paths.AbsoluteExecutableFilePath, append(executorConfig.RunArgs, pipelineOptionsSplit...)...)
+	cmd.Dir = workingDir
+	return cmd, nil
+}
+
+func getPythonRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
+	workingDir := paths.AbsoluteBaseFolderPath
+
+	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
+
+	args := append(executorConfig.RunArgs, paths.AbsoluteExecutableFilePath)
+	args = append(args, pipelineOptionsSplit...)
+
+	cmd := exec.CommandContext(ctx, executorConfig.RunCmd, args...)
+	cmd.Dir = workingDir
+	return cmd, nil
+}
+
+func getScioRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
+	workingDir := paths.ProjectDir
+
+	className, err := paths.FindExecutableName(ctx, paths.AbsoluteBaseFolderPath)
+	if err != nil {
+		return nil, fmt.Errorf("no executable file name found for SCIO pipeline at %s: %s", paths.AbsoluteBaseFolderPath, err)
+	}
+
+	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
+	stringArg := fmt.Sprintf("%s %s %s", executorConfig.RunArgs[0], className, pipelineOptions)
+
+	cmd := exec.CommandContext(ctx, executorConfig.RunCmd, append(executorConfig.RunArgs, stringArg)...)
+	cmd.Dir = workingDir
+
+	return cmd, nil
+}
+
+// GetRunCmd prepares the Cmd for execution of the code
 // Returns Cmd instance
-func (ex *Executor) RunTest(ctx context.Context) *exec.Cmd {
-	args := append(ex.testArgs.commandArgs, ex.testArgs.fileNames...)
-	cmd := exec.CommandContext(ctx, ex.testArgs.commandName, args...)
-	cmd.Dir = ex.testArgs.workingDir
-	return cmd
+func GetRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
+	switch sdkEnv.ApacheBeamSdk {
+	case pb.Sdk_SDK_JAVA:
+		return getJavaRunCmd(ctx, paths, pipelineOptions, sdkEnv.ExecutorConfig)
+	case pb.Sdk_SDK_GO:
+		return getGoRunCmd(ctx, paths, pipelineOptions, sdkEnv.ExecutorConfig)
+	case pb.Sdk_SDK_PYTHON:
+		return getPythonRunCmd(ctx, paths, pipelineOptions, sdkEnv.ExecutorConfig)
+	case pb.Sdk_SDK_SCIO:
+		return getScioRunCmd(ctx, paths, pipelineOptions, sdkEnv.ExecutorConfig)
+	}
+
+	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
+}
+
+func GetRunTest(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
+	sdk := sdkEnv.ApacheBeamSdk
+	executorConfig := sdkEnv.ExecutorConfig
+
+	testCmd := executorConfig.TestCmd
+	args := executorConfig.TestArgs
+	workingDir := paths.AbsoluteSourceFileFolderPath
+
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		className, err := paths.FindTestExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
+		if err != nil {
+			return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s", paths.AbsoluteExecutableFileFolderPath, err)
+		}
+		workingDir = paths.AbsoluteBaseFolderPath
+		args = append(args, className)
+	case pb.Sdk_SDK_GO:
+		args = append(args, paths.AbsoluteSourceFileFolderPath)
+	default:
+		args = append(args, paths.AbsoluteSourceFilePath)
+	}
+
+	cmd := exec.CommandContext(ctx, testCmd, args...)
+	cmd.Dir = workingDir
+	return cmd, nil
 }
 
 // GetFirstFileFromFolder return a name of the first file in a specified folder
 func GetFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
 	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
+}
+
+// ReplaceLogPlaceholder replaces placeholder for log for JAVA SDK
+func replaceLogPlaceholder(paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) []string {
+	args := make([]string, 0)
+	for _, arg := range executorConfig.RunArgs {
+		if strings.Contains(arg, javaLogConfigFilePlaceholder) {
+			logConfigFilePath := filepath.Join(paths.AbsoluteBaseFolderPath, javaLogConfigFileName)
+			arg = strings.Replace(arg, javaLogConfigFilePlaceholder, logConfigFilePath, 1)
+		}
+		args = append(args, arg)
+	}
+	return args
 }
