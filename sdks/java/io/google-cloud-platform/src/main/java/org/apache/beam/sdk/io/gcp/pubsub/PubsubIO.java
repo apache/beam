@@ -1004,7 +1004,7 @@ public class PubsubIO {
      *
      * <p>Only for use by unit tests.
      */
-    Read<T> withClock(Clock clock) {
+    public Read<T> withClock(Clock clock) {
       return toBuilder().setClock(clock).build();
     }
 
