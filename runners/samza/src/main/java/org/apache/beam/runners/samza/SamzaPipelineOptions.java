@@ -125,9 +125,9 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   @Description("The maximum number of elements in a bundle.")
   @Default.Long(1)
-  long getMaxBundleSize();
+  Long getMaxBundleSize();
 
-  void setMaxBundleSize(long maxBundleSize);
+  void setMaxBundleSize(Long maxBundleSize);
 
   @Description("The maximum time to wait before finalising a bundle (in milliseconds).")
   @Default.Long(1000)
