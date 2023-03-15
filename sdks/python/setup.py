@@ -250,7 +250,7 @@ if __name__ == '__main__':
         # Use a strict upper bound.
         'numpy>=1.14.3,<1.25.0',   # Update build-requirements.txt as well.
         'objsize>=0.6.1,<0.7.0',
-        'pymongo>=3.8.0,<4.0.0',
+        'pymongo>=3.8.0,<5.0.0',
         'proto-plus>=1.7.1,<2',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
@@ -327,7 +327,7 @@ if __name__ == '__main__':
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,<8.0.3',
+            'jupyter-client>=6.1.11,!=6.1.13,<8.0.4',
             'timeloop>=1.0.2,<2',
           ],
           'interactive_test': [
@@ -336,7 +336,7 @@ if __name__ == '__main__':
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<111',
+            'chromedriver-binary>=100,<112',
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<8',
           ],
@@ -350,7 +350,7 @@ if __name__ == '__main__':
         # Exclude 1.5.0 and 1.5.1 because of
         # https://github.com/pandas-dev/pandas/issues/45725
           'dataframe': [
-            'pandas<1.4.0;python_version=="3.7"',
+            'pandas<1.6.0;python_version=="3.7"',
             'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
           ],
           'dask': [

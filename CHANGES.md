@@ -81,7 +81,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.46.0] - Unreleased
+# [2.46.0] - 2023-03-10
 
 ## Highlights
 

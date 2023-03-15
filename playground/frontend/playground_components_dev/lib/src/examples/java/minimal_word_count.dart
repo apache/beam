@@ -24,7 +24,7 @@ const javaMinimalWordCount = ExampleDescriptor(
   //
   'MinimalWordCount',
   contextLine1Based: 71,
-  dbPath: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+  dbPath: 'SDK_JAVA_MinimalWordCount',
   path:
       '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java',
   sdk: Sdk.java,

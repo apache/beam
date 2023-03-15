@@ -602,7 +602,6 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'
