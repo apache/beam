@@ -147,7 +147,7 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table")
  *         .withKeyRange(keyRange)
  *         .withAttemptTimeout(attemptTimeout)
- *         .withOperationTimeout(attemptTimeout);
+ *         .withOperationTimeout(operationTimeout);
  * }</pre>
  *
  * <h3>Writing to Cloud Bigtable</h3>
@@ -306,7 +306,9 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      *
-     * @deprecated please use {@link #getBigtableReadOptions()}.
+     * @deprecated please set the configurations directly:
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {

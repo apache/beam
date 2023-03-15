@@ -339,6 +339,8 @@ class BigtableConfigTranslator {
   static BigtableReadOptions translateToBigtableReadOptions(
       BigtableReadOptions readOptions, BigtableOptions options) {
     BigtableReadOptions.Builder builder = readOptions.toBuilder();
+    builder.setWaitTimeout(
+        org.joda.time.Duration.millis(options.getRetryOptions().getReadPartialRowTimeoutMillis()));
     if (options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().isPresent()) {
       builder.setAttemptTimeout(
           org.joda.time.Duration.millis(

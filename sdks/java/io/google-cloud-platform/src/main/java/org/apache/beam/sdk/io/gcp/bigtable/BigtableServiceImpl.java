@@ -93,12 +93,33 @@ class BigtableServiceImpl implements BigtableService {
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
 
   public BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
-    this.client = BigtableDataClient.create(settings);
+    this(settings, null);
+  }
+
+  public BigtableServiceImpl(BigtableDataSettings settings, Duration readWaitTimeout)
+      throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
     RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
     this.readAttemptTimeout = Duration.millis(retry.getInitialRpcTimeout().toMillis());
     this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
+    BigtableDataSettings.Builder builder = settings.toBuilder();
+    if (readWaitTimeout != null) {
+      // TODO: a hack to workaround incorrect mapping from attempt timeout to watchdogs wait
+      // timeout. This can be removed once
+      // https://github.com/googleapis/gapic-generator-java/pull/1473
+      // is resolved.
+      builder
+          .stubSettings()
+          .readRowsSettings()
+          .setRetrySettings(
+              retry
+                  .toBuilder()
+                  .setInitialRpcTimeout(
+                      org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
+                  .build());
+    }
+    this.client = BigtableDataClient.create(builder.build());
   }
 
   private final BigtableDataClient client;
