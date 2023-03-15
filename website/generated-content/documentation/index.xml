@@ -1,4 +1,141 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Learn about Beam</title><link>/documentation/</link><description>Recent content in Learn about Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/documentation/index.xml" rel="self" type="application/rss+xml"/><item><title>Documentation: AI Platform integration patterns</title><link>/documentation/patterns/ai-platform/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/ai-platform/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Learn about Beam</title><link>/documentation/</link><description>Recent content in Learn about Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/documentation/index.xml" rel="self" type="application/rss+xml"/><item><title>Documentation: About Beam ML</title><link>/documentation/ml/about-ml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/about-ml/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="about-beam-ml">About Beam ML&lt;/h1>
+&lt;table>
+&lt;tr>
+&lt;td>
+&lt;a>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;a target="_blank" class="button"
+href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/extensions/python/transforms/RunInference.html">
+&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="30px"
+alt="Javadoc" />
+Javadoc
+&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>You can use Apache Beam to:&lt;/p>
+&lt;ul>
+&lt;li>Process large volumes of data, both for preprocessing and for inference.&lt;/li>
+&lt;li>Experiment with your data during the exploration phase of your project and provides a seamless transition when
+upscaling your data pipelines as part of your MLOps ecosystem in a production environment.&lt;/li>
+&lt;li>Run your model in production on a varying data load, both in batch and streaming.&lt;/li>
+&lt;/ul>
+&lt;h2 id="aiml-workloads">AI/ML workloads&lt;/h2>
+&lt;p>You can use Apache Beam for data validation, data preprocessing, model validation, and model deployment/inference.&lt;/p>
+&lt;p>&lt;img src="/images/ml-workflows.svg" alt="Overview of AI/ML building blocks and where Apache Beam can be used">&lt;/p>
+&lt;ol>
+&lt;li>Data ingestion: Incoming new data is stored in your file system or database, or it&amp;rsquo;s published to a messaging queue.&lt;/li>
+&lt;li>&lt;strong>Data validation&lt;/strong>: After you receieve your data, check the quality of your data. For example, you might want to detect outliers and calculate standard deviations and class distributions.&lt;/li>
+&lt;li>&lt;strong>Data preprocessing&lt;/strong>: After you validate your data, transform the data so that it is ready to use to train your model.&lt;/li>
+&lt;li>Model training: When your data is ready, you can start training your AI/ML model. This step is typically repeated multiple times, depending on the quality of your trained model.&lt;/li>
+&lt;li>Model validation: Before you deploy your new model, validate its performance and accuracy.&lt;/li>
+&lt;li>&lt;strong>Model deployment&lt;/strong>: Deploy your model, using it to run inference on new or existing data.&lt;/li>
+&lt;/ol>
+&lt;p>To keep your model up to date and performing well as your data grows and evolves, run these steps multiple times. In addition, you can apply MLOps to your project to automate the AI/ML workflows throughout the model and data lifecycle. Use orchestrators to automate this flow and to handle the transition between the different building blocks in your project.&lt;/p>
+&lt;h2 id="use-runinference">Use RunInference&lt;/h2>
+&lt;p>The recommended way to implement inference in Apache Beam is by using the &lt;a href="/documentation/sdks/python-machine-learning/">RunInference API&lt;/a>. RunInference takes advantage of existing Apache Beam concepts, such as the &lt;code>BatchElements&lt;/code> transform and the &lt;code>Shared&lt;/code> class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.&lt;/p>
+&lt;p>You can integrate your model in your pipeline by using the corresponding model handlers. A &lt;code>ModelHandler&lt;/code> is an object that wraps the underlying model and allows you to configure its parameters. Model handlers are available for PyTorch, scikit-learn, and TensorFlow. Examples of how to use RunInference for PyTorch, scikit-learn, and TensorFlow are shown in this &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb">notebook&lt;/a>.&lt;/p>
+&lt;p>Because GPUs can process multiple computations simultaneously, they are optimized for training artificial intelligence and deep learning models. RunInference also allows you to use GPUs for significant inference speedup. An example of how to use RunInference with GPUs is demonstrated on the &lt;a href="/documentation/ml/runinference-metrics">RunInference metrics&lt;/a> page.&lt;/p>
+&lt;p>RunInference takes advantage of existing Apache Beam concepts, such as the &lt;code>BatchElements&lt;/code> transform and the &lt;code>Shared&lt;/code> class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.&lt;/p>
+&lt;h3 id="batchelements-ptransform">BatchElements PTransform&lt;/h3>
+&lt;p>To take advantage of the optimizations of vectorized inference that many models implement, we added the &lt;code>BatchElements&lt;/code> transform as an intermediate step before making the prediction for the model. This transform batches elements together. The batched elements are then applied with a transformation for the particular framework of RunInference. For example, for numpy &lt;code>ndarrays&lt;/code>, we call &lt;code>numpy.stack()&lt;/code>, and for torch &lt;code>Tensor&lt;/code> elements, we call &lt;code>torch.stack()&lt;/code>.&lt;/p>
+&lt;p>To customize the settings for &lt;code>beam.BatchElements&lt;/code>, in &lt;code>ModelHandler&lt;/code>, override the &lt;code>batch_elements_kwargs&lt;/code> function. For example, use &lt;code>min_batch_size&lt;/code> to set the lowest number of elements per batch or &lt;code>max_batch_size&lt;/code> to set the highest number of elements per batch.&lt;/p>
+&lt;p>For more information, see the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.BatchElements">&lt;code>BatchElements&lt;/code> transform documentation&lt;/a>.&lt;/p>
+&lt;h3 id="shared-helper-class">Shared helper class&lt;/h3>
+&lt;p>Using the &lt;code>Shared&lt;/code> class within the RunInference implementation makes it possible to load the model only once per process and share it with all DoFn instances created in that process. This feature reduces memory consumption and model loading time. For more information, see the
+&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/shared.py#L20">&lt;code>Shared&lt;/code> class documentation&lt;/a>.&lt;/p>
+&lt;h3 id="multi-model-pipelines">Multi-model pipelines&lt;/h3>
+&lt;p>The RunInference API can be composed into multi-model pipelines. Multi-model pipelines can be useful for A/B testing or for building out cascade models made up of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more. For more information, see &lt;a href="https://beam.apache.org/documentation/ml/multi-model-pipelines/">Multi-model pipelines&lt;/a>.&lt;/p>
+&lt;h3 id="use-pre-trained-models">Use pre-trained models&lt;/h3>
+&lt;p>The section provides requirements for using pre-trained models with PyTorch, Scikit-learn, and Tensorflow.&lt;/p>
+&lt;h4 id="pytorch">PyTorch&lt;/h4>
+&lt;p>You need to provide a path to a file that contains the model&amp;rsquo;s saved weights. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Download the pre-trained weights and host them in a location that the pipeline can access.&lt;/li>
+&lt;li>Pass the path of the model weights to the PyTorch &lt;code>ModelHandler&lt;/code> by using the following code: &lt;code>state_dict_path=&amp;lt;path_to_weights&amp;gt;&lt;/code>.&lt;/li>
+&lt;/ol>
+&lt;p>See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch.ipynb">this notebook&lt;/a>
+that illustrates running PyTorch models with Apache Beam.&lt;/p>
+&lt;h4 id="scikit-learn">Scikit-learn&lt;/h4>
+&lt;p>You need to provide a path to a file that contains the pickled Scikit-learn model. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the Scikit-learn framework, complete the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Download the pickled model class and host it in a location that the pipeline can access.&lt;/li>
+&lt;li>Pass the path of the model to the Sklearn &lt;code>ModelHandler&lt;/code> by using the following code:
+&lt;code>model_uri=&amp;lt;path_to_pickled_file&amp;gt;&lt;/code> and &lt;code>model_file_type: &amp;lt;ModelFileType&amp;gt;&lt;/code>, where you can specify
+&lt;code>ModelFileType.PICKLE&lt;/code> or &lt;code>ModelFileType.JOBLIB&lt;/code>, depending on how the model was serialized.&lt;/li>
+&lt;/ol>
+&lt;p>See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_sklearn.ipynb">this notebook&lt;/a>
+that illustrates running Scikit-learn models with Apache Beam.&lt;/p>
+&lt;h4 id="tensorflow">TensorFlow&lt;/h4>
+&lt;p>To use TensorFlow with the RunInference API, you need to do the following:&lt;/p>
+&lt;ul>
+&lt;li>Use &lt;code>tfx_bsl&lt;/code> version 1.10.0 or later.&lt;/li>
+&lt;li>Create a model handler using &lt;code>tfx_bsl.public.beam.run_inference.CreateModelHandler()&lt;/code>.&lt;/li>
+&lt;li>Use the model handler with the &lt;a href="/releases/pydoc/current/apache_beam.ml.inference.base.html">&lt;code>apache_beam.ml.inference.base.RunInference&lt;/code>&lt;/a> transform.&lt;/li>
+&lt;/ul>
+&lt;p>See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb">this notebook&lt;/a>
+that illustrates running TensorFlow models with Apache Beam and tfx-bsl.&lt;/p>
+&lt;h2 id="custom-inference">Custom Inference&lt;/h2>
+&lt;p>The RunInference API doesn&amp;rsquo;t currently support making remote inference calls using, for example, the Natural Language API or the Cloud Vision API. Therefore, in order to use these remote APIs with Apache Beam, you need to write custom inference calls. The &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb">Remote inference in Apache Beam notebook&lt;/a> shows how to implement a custom remote inference call using &lt;code>beam.DoFn&lt;/code>. When you implement a remote inference for real life projects, consider the following factors:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>API quotas and the heavy load you might incur on your external API. To optimize the calls to an external API, you can confgure &lt;code>PipelineOptions&lt;/code> to limit the parallel calls to the external remote API.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Be prepared to encounter, identify, and handle failure as gracefully as possible. Use techniques like exponential backoff and dead-letter queues (unprocessed messages queues).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>When running inference with an external API, batch your input together to allow for more efficient execution.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Consider monitoring and measuring the performance of a pipeline when deploying, because monitoring can provide insight into the status and health of the application.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="use-custom-models">Use custom models&lt;/h3>
+&lt;p>If you would like to use a model that isn&amp;rsquo;t specified by one of the supported frameworks, the RunInference API is designed flexibly to allow you to use any custom machine learning models.
+You only need to create your own &lt;code>ModelHandler&lt;/code> or &lt;code>KeyedModelHandler&lt;/code> with logic to load your model and use it to run the inference.&lt;/p>
+&lt;p>A simple example can be found in &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb">this notebook&lt;/a>.
+The &lt;code>load_model&lt;/code> method shows how to load the model using a popular &lt;code>spaCy&lt;/code> package while &lt;code>run_inference&lt;/code> shows how to run the inference on a batch of examples.&lt;/p>
+&lt;h2 id="model-validation">Model validation&lt;/h2>
+&lt;p>Model validation allows you to benchmark your model’s performance against a previously unseen dataset. You can extract chosen metrics, create visualizations, log metadata, and compare the performance of different models with the end goal of validating whether your model is ready to deploy. Beam provides support for running model evaluation on a TensorFlow model directly inside your pipeline.&lt;/p>
+&lt;p>The &lt;a href="/documentation/ml/model-evaluation">ML model evaluation&lt;/a> page shows how to integrate model evaluation as part of your pipeline by using &lt;a href="https://www.tensorflow.org/tfx/guide/tfma">TensorFlow Model Analysis (TFMA)&lt;/a>.&lt;/p>
+&lt;h2 id="related-links">Related links&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_basic.ipynb">RunInference public codelab&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml">RunInference notebooks&lt;/a>&lt;/li>
+&lt;li>&lt;a href="http://s.apache.org/beam-community-metrics/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1">RunInference benchmarks&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Documentation: AI Platform integration patterns</title><link>/documentation/patterns/ai-platform/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/ai-platform/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16880,7 +17017,93 @@ user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367
 user=user-1, score=9, window=[2019-05-26T14:30:22.429Z..2019-05-26T14:30:30.553Z)
 user=user-1, score=9, window=[2019-05-26T14:30:33.276Z..2019-05-26T14:30:41.849Z)
 user=user-2, score=10, window=[2019-05-26T14:30:37.357Z..2019-05-26T14:30:47.357Z)
-&lt;/code>&lt;/pre>&lt;p>With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it&amp;rsquo;s grouped into a different session. The large, 18-point session is split into two 9-point sessions.&lt;/p></description></item><item><title>Documentation: Design Your Pipeline</title><link>/documentation/pipelines/design-your-pipeline/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/pipelines/design-your-pipeline/</guid><description>
+&lt;/code>&lt;/pre>&lt;p>With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it&amp;rsquo;s grouped into a different session. The large, 18-point session is split into two 9-point sessions.&lt;/p></description></item><item><title>Documentation: Data processing</title><link>/documentation/ml/data-processing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/data-processing/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="data-processing">Data processing&lt;/h1>
+&lt;p>Several types of Apache Beam data processing are applicable to AI/ML projects:&lt;/p>
+&lt;ul>
+&lt;li>Data exploration: Learn about your data (properties, distributions, statistics) when you start to deploy your project or when the data changes.&lt;/li>
+&lt;li>Data preprocessing: Transform your data so that it is ready to be used to train your model.&lt;/li>
+&lt;li>Data postprocessing: After running inference, you might need to transform the output of your model so that it is meaningful.&lt;/li>
+&lt;li>Data validation: Check the quality of your data to detect outliers and calculate standard deviations and class distributions.&lt;/li>
+&lt;/ul>
+&lt;p>Data processing can be grouped into two main topics. This example first examimes data exploration and then data pipelines in ML that use both data preprocessing and validation. Data postprocessing is not covered because it is similar to prepressing. Postprocessing differs only in the order and type of pipeline.&lt;/p>
+&lt;h2 id="initial-data-exploration">Initial data exploration&lt;/h2>
+&lt;p>&lt;a href="https://pandas.pydata.org/">Pandas&lt;/a> is a popular tool for performing data exploration. Pandas is a data analysis and manipulation tool for Python. It uses DataFrames, which is a data structure that contains two-dimensional tabular data and that provides labeled rows and columns for the data. The Apache Beam Python SDK provides a &lt;a href="/documentation/dsls/dataframes/overview/">DataFrame API&lt;/a> for working with Pandas-like DataFrame objects.&lt;/p>
+&lt;p>The Beam DataFrame API is intended to provide access to a familiar programming interface within an Apache Beam pipeline. This API allows you to perform data exploration. You can reuse the code for your data preprocessing pipeline. Using the DataFrame API, you can build complex data processing pipelines by invoking standard Pandas commands.&lt;/p>
+&lt;p>You can use the DataFrame API in combination with the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/README.md">Beam interactive runner&lt;/a> in a &lt;a href="https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development">JupyterLab notebook&lt;/a>. Use the notebook to iteratively develop pipelines and display the results of your individual pipeline steps.&lt;/p>
+&lt;p>The following is an example of data exploration in Apache Beam in a notebook:&lt;/p>
+&lt;pre>&lt;code>import apache_beam as beam
+from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+import apache_beam.runners.interactive.interactive_beam as ib
+p = beam.Pipeline(InteractiveRunner())
+beam_df = p | beam.dataframe.io.read_csv(input_path)
+# Investigate columns and data types
+beam_df.dtypes
+# Generate descriptive statistics
+ib.collect(beam_df.describe())
+# Investigate missing values
+ib.collect(beam_df.isnull())
+&lt;/code>&lt;/pre>&lt;p>For a full end-to-end example that implements data exploration and data preprocessing with Apache Beam and the DataFrame API for your AI/ML project, see the &lt;a href="https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb">Beam Dataframe API tutorial for AI/ML&lt;/a>.&lt;/p>
+&lt;h2 id="data-pipeline-for-ml">Data pipeline for ML&lt;/h2>
+&lt;p>A typical data preprocessing pipeline consists of the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Read and write data: Read and write the data from your file system, database, or messaging queue. Apache Beam has a rich set of &lt;a href="/documentation/io/built-in/">IO connectors&lt;/a> for ingesting and writing data.&lt;/li>
+&lt;li>Data cleaning: Filter and clean your data before using it in your ML model. You might remove duplicate or irrelevant data, correct mistakes in your dataset, filter out unwanted outliers, or handle missing data.&lt;/li>
+&lt;li>Data transformations: Your data needs to fit the expected input your model needs to train. You might need to normalize, one-hot encode, scale, or vectorize your data.&lt;/li>
+&lt;li>Data enrichment: You might want to enrich your data with external data sources to make your data more meaningful or easier for an ML model to interpret. For example, you might want to transform a city name or address into a set of coordinates.&lt;/li>
+&lt;li>Data validation and metrics: Make sure your data adheres to a specific set of requirements that can be validated in your pipeline. Report metrics from your data, such as the class distributions.&lt;/li>
+&lt;/ol>
+&lt;p>You can use an Apache Beam pipeline to implement all of these steps. This example shows a pipeline that demonstrates all of the steps previously mentioned:&lt;/p>
+&lt;pre>&lt;code>import apache_beam as beam
+from apache_beam.metrics import Metrics
+with beam.Pipeline() as pipeline:
+# Create data
+input_data = (
+pipeline
+| beam.Create([
+{'age': 25, 'height': 176, 'weight': 60, 'city': 'London'},
+{'age': 61, 'height': 192, 'weight': 95, 'city': 'Brussels'},
+{'age': 48, 'height': 163, 'weight': None, 'city': 'Berlin'}]))
+# Clean data
+def filter_missing_data(row):
+return row['weight'] is not None
+cleaned_data = input_data | beam.Filter(filter_missing_data)
+# Transform data
+def scale_min_max_data(row):
+row['age'] = (row['age']/100)
+row['height'] = (row['height']-150)/50
+row['weight'] = (row['weight']-50)/50
+yield row
+transformed_data = cleaned_data | beam.FlatMap(scale_min_max_data)
+# Enrich data
+side_input = pipeline | beam.io.ReadFromText('coordinates.csv')
+def coordinates_lookup(row, coordinates):
+row['coordinates'] = coordinates.get(row['city'], (0, 0))
+del row['city']
+yield row
+enriched_data = (
+transformed_data
+| beam.FlatMap(coordinates_lookup, coordinates=beam.pvalue.AsDict(side_input)))
+# Metrics
+counter = Metrics.counter('main', 'counter')
+def count_data(row):
+counter.inc()
+yield row
+output_data = enriched_data | beam.FlatMap(count_data)
+# Write data
+output_data | beam.io.WriteToText('output.csv')
+&lt;/code>&lt;/pre></description></item><item><title>Documentation: Design Your Pipeline</title><link>/documentation/pipelines/design-your-pipeline/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/pipelines/design-your-pipeline/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18582,6 +18805,203 @@ that store the same data type.&lt;/p>
 &lt;li>&lt;a href="/documentation/transforms/python/elementwise/flatmap">FlatMap&lt;/a> applies a simple 1-to-many mapping
 function over each element in the collection. This transform might produce zero
 or more outputs.&lt;/li>
+&lt;/ul></description></item><item><title>Documentation: Get Started with ML</title><link>/documentation/ml/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/overview/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="get-started-with-aiml-pipelines">Get started with AI/ML pipelines&lt;/h1>
+&lt;table>
+&lt;tr>
+&lt;td>
+&lt;a>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;a target="_blank" class="button"
+href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/extensions/python/transforms/RunInference.html">
+&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="30px"
+alt="Javadoc" />
+Javadoc
+&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>Being productive and successful as a machine learning practitioner is often dependent on your ability to efficiently leverage large volumes of data in a way that is uniquely tailored to your resources, requirements, and budget. Whether starting your next AI/ML project or upscaling an existing project, consider adding Apache Beam to your project.&lt;/p>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;h2 id="use-beam-ml">Use Beam ML&lt;/h2>
+&lt;p>I want use Beam ML to do:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="#prediction-and-inference">Prediction and inference&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#data-processing">Data processing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#workflow-orchestration">Workflow orchestration&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#model-training">Model training&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#use-cases">Anomaly detection&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="prediction-and-inference">Prediction and inference&lt;/h2>
+&lt;p>Beam provides different ways to implement inference as part of your pipeline. You can run your ML model directly in your pipeline and apply it on big scale datasets, both in batch and streaming pipelines.&lt;/p>
+&lt;h3 id="runinference">RunInference&lt;/h3>
+&lt;p>The RunInfernce API is available with the Beam Python SDK versions 2.40.0 and later. You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through &lt;code>tfx-bsl&lt;/code>. For more deatils about using RunInference with Python, see &lt;a href="/documentation/sdks/python-machine-learning/">Machine Learning with Python&lt;/a>.&lt;/p>
+&lt;p>The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam&amp;rsquo;s &lt;a href="/documentation/programming-guide/#multi-language-pipelines">Multi-language Pipelines framework&lt;/a>. For information about the Java wrapper transform, see &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java">RunInference.java&lt;/a>. To try it out, see the &lt;a href="https://github.com/apache/beam/tree/master/examples/multi-language">Java Sklearn Mnist Classification example&lt;/a>.&lt;/p>
+&lt;p>You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Task&lt;/th>
+&lt;th>Example&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>I want to use the RunInference transform&lt;/td>
+&lt;td>&lt;a href="/documentation/sdks/python-machine-learning/#modify-a-python-pipeline-to-use-an-ml-model">Modify a Python pipeline to use an ML model&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to use RunInference with PyTorch&lt;/td>
+&lt;td>&lt;a href="/documentation/transforms/python/elementwise/runinference-pytorch/">Use RunInference with PyTorch&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to use RunInference with Sklearn&lt;/td>
+&lt;td>&lt;a href="/documentation/transforms/python/elementwise/runinference-sklearn/">Use RunInference with Sklearn&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to use pre-trained models (PyTorch, Scikit-learn, or TensorFlow)&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/about-ml/#use-pre-trained-models">Use pre-trained models&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>&lt;/div>
+&lt;h3 id="prediction-and-inference-examples">Prediction and inference examples&lt;/h3>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Task&lt;/th>
+&lt;th>Example&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>I want to build a pipeline with multiple models&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/multi-model-pipelines">Multi-Model Pipelines&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to build a custom model handler with TensorRT&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/tensorrt-runinference">Use TensorRT with RunInference&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to use LLM inference&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/large-language-modeling/">Large Language Model Inference&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>&lt;/div>
+&lt;h2 id="data-processing">Data processing&lt;/h2>
+&lt;p>You can use Apache Beam for data validation and preprocessing by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of &lt;a href="/documentation/io/built-in/">I/O connectors&lt;/a> for ingesting and writing data, which allows you to integrate it with your existing file system, database, or messaging queue.&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Task&lt;/th>
+&lt;th>Example&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>I want to explore my data&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/data-processing">Data Processing Example&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>&lt;/div>
+&lt;h2 id="workflow-orchestration">Workflow orchestration&lt;/h2>
+&lt;p>In order to automate and track the AI/ML workflows throughout your project, you can use orchestrators such as &lt;a href="https://www.kubeflow.org/docs/components/pipelines/introduction/">Kubeflow pipelines&lt;/a> (KFP) or &lt;a href="https://www.tensorflow.org/tfx">TensorFlow Extended&lt;/a> (TFX). These orchestrators automate your different building blocks and handle the transitions between them.&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Task&lt;/th>
+&lt;th>Example&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>I want to use ML-OPS workflow orchestrators&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/orchestration/">Workflow Orchestration&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to use Beam with TensorFlow Extended (TFX)&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/orchestration/#tensorflow-extended-tfx">Tensorflow Extended (TFX)&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to use Beam with Kubeflow&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/orchestration/#kubeflow-pipelines-kfp">Kubeflow pipelines (KFP)&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>&lt;/div>
+&lt;p>When you use Apache Beam as one of the building blocks in your project, these orchestrators are able to launch your Apache Beam job and to keep track of the input and output of your pipeline. These tasks are essential when moving your AI/ML solution into production, because they allow you to handle your model and data over time and improve the quality and reproducibility of results.&lt;/p>
+&lt;h2 id="model-training">Model training&lt;/h2>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Task&lt;/th>
+&lt;th>Example&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>I want to use per-entity training&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/per-entity-training">Per Entity Training&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to cluster text&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/online-clustering">Online Clustering Example&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>I want to benchmark model performance&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/model-evaluation/">ML Model Evaluation&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>&lt;/div>
+&lt;h2 id="use-cases">Use cases&lt;/h2>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Task&lt;/th>
+&lt;th>Example&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>I want to build an anomaly detection pipeline&lt;/td>
+&lt;td>&lt;a href="/documentation/ml/anomaly-detection/">Anomaly Detection Example&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>&lt;/div>
+&lt;h2 id="reference">Reference&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/ml/runinference-metrics/">RunInference metrics&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/ml/model-evaluation/">ML model evaluation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_basic.ipynb">RunInference public codelab&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml">RunInference notebooks&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Documentation: Google BigQuery I/O connector</title><link>/documentation/io/built-in/google-bigquery/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/io/built-in/google-bigquery/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20109,503 +20529,4 @@ outputs the results to a BigQuery table.&lt;/p>
 reads weather station data from a BigQuery table, manipulates BigQuery rows in
 memory, and writes the results to a BigQuery table.&lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>Documentation: GroupBy</title><link>/documentation/transforms/python/aggregation/groupby/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/groupby/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="groupby">GroupBy&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupBy"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;p>Takes a collection of elements and produces a collection grouped,
-by properties of those elements.&lt;/p>
-&lt;p>Unlike &lt;code>GroupByKey&lt;/code>, the key is dynamically created from the elements themselves.&lt;/p>
-&lt;h2 id="grouping-examples">Grouping Examples&lt;/h2>
-&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of fruits.&lt;/p>
-&lt;p>We use &lt;code>GroupBy&lt;/code> to group all fruits by the first letter of their name.&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>(&amp;#39;s&amp;#39;, [&amp;#39;strawberry&amp;#39;]),
-(&amp;#39;r&amp;#39;, [&amp;#39;raspberry&amp;#39;]),
-(&amp;#39;b&amp;#39;, [&amp;#39;banana&amp;#39;, &amp;#39;blackberry&amp;#39;, &amp;#39;blueberry&amp;#39;]),&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>We can group by a composite key consisting of multiple properties if desired.&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">letter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">is_berry&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;berry&amp;#39;&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>The resulting key is a named tuple with the two requested attributes, and the
-values are grouped accordingly.&lt;/p>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>(NamedTuple(letter=&amp;#39;s&amp;#39;, is_berry=True), [&amp;#39;strawberry&amp;#39;]),
-(NamedTuple(letter=&amp;#39;r&amp;#39;, is_berry=True), [&amp;#39;raspberry&amp;#39;]),
-(NamedTuple(letter=&amp;#39;b&amp;#39;, is_berry=True), [&amp;#39;blackberry&amp;#39;, &amp;#39;blueberry&amp;#39;]),
-(NamedTuple(letter=&amp;#39;b&amp;#39;, is_berry=False), [&amp;#39;banana&amp;#39;]),&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>In the case that the property one wishes to group by is an attribute, a string
-may be passed to &lt;code>GroupBy&lt;/code> in the place of a callable expression. For example,
-suppose I have the following data&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">GROCERY_LIST&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
-&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;pie&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1.50&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;pie&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">3.50&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;pie&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">4.00&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;pie&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">2.00&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;muffin&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">2.00&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;muffin&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1.00&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>We can then do&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;recipe&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>(
-&amp;#39;pie&amp;#39;,
-[
-beam.Row(
-recipe=&amp;#39;pie&amp;#39;,
-fruit=&amp;#39;strawberry&amp;#39;,
-quantity=3,
-unit_price=1.50),
-beam.Row(
-recipe=&amp;#39;pie&amp;#39;,
-fruit=&amp;#39;raspberry&amp;#39;,
-quantity=1,
-unit_price=3.50),
-beam.Row(
-recipe=&amp;#39;pie&amp;#39;,
-fruit=&amp;#39;blackberry&amp;#39;,
-quantity=1,
-unit_price=4.00),
-beam.Row(
-recipe=&amp;#39;pie&amp;#39;,
-fruit=&amp;#39;blueberry&amp;#39;,
-quantity=1,
-unit_price=2.00),
-]),
-(
-&amp;#39;muffin&amp;#39;,
-[
-beam.Row(
-recipe=&amp;#39;muffin&amp;#39;,
-fruit=&amp;#39;blueberry&amp;#39;,
-quantity=2,
-unit_price=2.00),
-beam.Row(
-recipe=&amp;#39;muffin&amp;#39;,
-fruit=&amp;#39;banana&amp;#39;,
-quantity=3,
-unit_price=1.00),
-]),&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>It is possible to mix and match attributes and expressions, for example&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;recipe&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">is_berry&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;berry&amp;#39;&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">fruit&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>(
-NamedTuple(recipe=&amp;#39;pie&amp;#39;, is_berry=True),
-[
-beam.Row(
-recipe=&amp;#39;pie&amp;#39;,
-fruit=&amp;#39;strawberry&amp;#39;,
-quantity=3,
-unit_price=1.50),
-beam.Row(
-recipe=&amp;#39;pie&amp;#39;,
-fruit=&amp;#39;raspberry&amp;#39;,
-quantity=1,
-unit_price=3.50),
-beam.Row(
-recipe=&amp;#39;pie&amp;#39;,
-fruit=&amp;#39;blackberry&amp;#39;,
-quantity=1,
-unit_price=4.00),
-beam.Row(
-recipe=&amp;#39;pie&amp;#39;,
-fruit=&amp;#39;blueberry&amp;#39;,
-quantity=1,
-unit_price=2.00),
-]),
-(
-NamedTuple(recipe=&amp;#39;muffin&amp;#39;, is_berry=True),
-[
-beam.Row(
-recipe=&amp;#39;muffin&amp;#39;,
-fruit=&amp;#39;blueberry&amp;#39;,
-quantity=2,
-unit_price=2.00),
-]),
-(
-NamedTuple(recipe=&amp;#39;muffin&amp;#39;, is_berry=False),
-[
-beam.Row(
-recipe=&amp;#39;muffin&amp;#39;,
-fruit=&amp;#39;banana&amp;#39;,
-quantity=3,
-unit_price=1.00),
-]),&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h2 id="aggregation">Aggregation&lt;/h2>
-&lt;p>Grouping is often used in conjunction with aggregation, and the
-&lt;code>aggregate_field&lt;/code> method of the &lt;code>GroupBy&lt;/code> transform can be used to accomplish
-this easily.
-This method takes three parameters: the field (or expression) which to
-aggregate, the &lt;code>CombineFn&lt;/code> (or associative &lt;code>callable&lt;/code>) with which to aggregate
-by, and finally a field name in which to store the result.
-For example, suppose one wanted to compute the amount of each fruit to buy.
-One could write&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fruit&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;quantity&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;total_quantity&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>NamedTuple(fruit=&amp;#39;strawberry&amp;#39;, total_quantity=3),
-NamedTuple(fruit=&amp;#39;raspberry&amp;#39;, total_quantity=1),
-NamedTuple(fruit=&amp;#39;blackberry&amp;#39;, total_quantity=1),
-NamedTuple(fruit=&amp;#39;blueberry&amp;#39;, total_quantity=3),
-NamedTuple(fruit=&amp;#39;banana&amp;#39;, total_quantity=3),&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>Similar to the parameters in &lt;code>GroupBy&lt;/code>, one can also aggregate multiple fields
-and by expressions.&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;recipe&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;quantity&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;total_quantity&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">quantity&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unit_price&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;price&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>NamedTuple(recipe=&amp;#39;pie&amp;#39;, total_quantity=6, price=14.00),
-NamedTuple(recipe=&amp;#39;muffin&amp;#39;, total_quantity=5, price=7.00),&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>One can, of course, aggregate the same field multiple times as well.
-This example also illustrates a global grouping, as the grouping key is empty.&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;min_price&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">MeanCombineFn&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="s1">&amp;#39;mean_price&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;max_price&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>NamedTuple(min_price=1.00, mean_price=7 / 3, max_price=4.00),&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey&lt;/a> for combining with a single CombineFn.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/aggregation/groupbykey">GroupByKey&lt;/a> for grouping with a known key.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey&lt;/a> for multiple input collections.&lt;/li>
-&lt;/ul>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: GroupByKey</title><link>/documentation/transforms/java/aggregation/groupbykey/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/groupbykey/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="groupbykey">GroupByKey&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/GroupByKey.html">
-&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
-alt="Javadoc" />
-Javadoc
-&lt;/a>
-&lt;/table>
-&lt;br>&lt;br>
-&lt;p>Takes a keyed collection of elements and produces a collection where
-each element consists of a key and an &lt;code>Iterable&lt;/code> of all values
-associated with that key.&lt;/p>
-&lt;p>The results can be combined with windowing to subdivide each key
-based on time or triggering to produce partial aggregations. Either
-windowing or triggering is necessary when processing unbounded collections.&lt;/p>
-&lt;p>See more information in the &lt;a href="/documentation/programming-guide/#groupbykey">Beam Programming Guide&lt;/a>.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>&lt;strong>Example 1&lt;/strong>: (a, 1), (b, 2), (a, 3) will result into (a, [1, 3]), (b, [2]).&lt;/p>
-&lt;p>&lt;strong>Example 2&lt;/strong>: Given a collection of customer orders keyed by postal code,
-you could use &lt;code>GroupByKey&lt;/code> to get the collection of all orders in each postal code.&lt;/p>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/java/aggregation/cogroupbykey">CoGroupByKey&lt;/a>
-for multiple input collections&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/java/aggregation/combine">Combine&lt;/a>
-for combining all values associated with a key to a single result&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: GroupByKey</title><link>/documentation/transforms/python/aggregation/groupbykey/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/groupbykey/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="groupbykey">GroupByKey&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;p>Takes a keyed collection of elements and produces a collection
-where each element consists of a key and all values associated with that key.&lt;/p>
-&lt;p>See more information in the &lt;a href="/documentation/programming-guide/#groupbykey">Beam Programming Guide&lt;/a>.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce keyed by season.&lt;/p>
-&lt;p>We use &lt;code>GroupByKey&lt;/code> to group all the produce for each season.&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">produce_counts&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">pipeline&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create produce counts&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;winter&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">])&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Group counts per produce&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupByKey&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MapTuple&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">vs&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">k&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sorted&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">vs&lt;/span>&lt;span class="p">)))&lt;/span> &lt;span class="c1"># sort and format&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>(&amp;#39;spring&amp;#39;, [&amp;#39;🍓&amp;#39;, &amp;#39;🥕&amp;#39;, &amp;#39;🍆&amp;#39;, &amp;#39;🍅&amp;#39;])
-(&amp;#39;summer&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;, &amp;#39;🌽&amp;#39;])
-(&amp;#39;fall&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;])
-(&amp;#39;winter&amp;#39;, [&amp;#39;🍆&amp;#39;])&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/python/aggregation/groupby">GroupBy&lt;/a> for grouping by arbitrary properties of the elements.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey&lt;/a> for combining all values associated with a key to a single result.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey&lt;/a> for multiple input collections.&lt;/li>
-&lt;/ul>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
+&lt;/ul></description></item></channel></rss>
