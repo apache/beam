@@ -19,110 +19,27 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/fs_tool"
-	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
-	"strings"
-)
-
-const (
-	javaLogConfigFileName        = "logging.properties"
-	javaLogConfigFilePlaceholder = "{logConfigFile}"
 )
 
 // GetCompileCmd prepares the Cmd for code compilation
 // Returns Cmd instance
 func GetCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
-	sdk := sdkEnv.ApacheBeamSdk
-	executorConfig := sdkEnv.ExecutorConfig
-
-	compileCmd := executorConfig.CompileCmd
-	workingDir := paths.AbsoluteBaseFolderPath
-	args := executorConfig.CompileArgs
-
-	switch sdk {
+	switch sdkEnv.ApacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		javaSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
-		if err != nil {
-			return nil, err
-		}
-		args = append(args, javaSources...)
+		return getJavaCompileCmd(ctx, paths, sdkEnv.ExecutorConfig)
 	case pb.Sdk_SDK_GO:
-		goSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
-		if err != nil {
-			return nil, err
-		}
-		args = append(args, goSources...)
-	default:
-		args = append(args, paths.AbsoluteSourceFilePath)
+		return getGoCompileCmd(ctx, paths, sdkEnv.ExecutorConfig)
+	case pb.Sdk_SDK_PYTHON:
+		return getPythonCompileCmd(ctx, paths, sdkEnv.ExecutorConfig)
+	case pb.Sdk_SDK_SCIO:
+		return getScioCompileCmd(ctx, paths, sdkEnv.ExecutorConfig)
 	}
 
-	cmd := exec.CommandContext(ctx, compileCmd, args...)
-	cmd.Dir = workingDir
-	return cmd, nil
-}
-
-func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	workingDir := paths.AbsoluteBaseFolderPath
-
-	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
-	args := replaceLogPlaceholder(paths, executorConfig)
-
-	className, err := paths.FindExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
-	if err != nil {
-		return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s", paths.AbsoluteExecutableFileFolderPath, err)
-	}
-	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
-
-	args = append(args, className)
-	args = append(args, pipelineOptionsSplit...)
-
-	cmd := exec.CommandContext(ctx, executorConfig.RunCmd, args...)
-	cmd.Dir = workingDir
-
-	return cmd, err
-}
-
-func getGoRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	workingDir := paths.AbsoluteBaseFolderPath
-
-	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
-
-	cmd := exec.CommandContext(ctx, paths.AbsoluteExecutableFilePath, append(executorConfig.RunArgs, pipelineOptionsSplit...)...)
-	cmd.Dir = workingDir
-	return cmd, nil
-}
-
-func getPythonRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	workingDir := paths.AbsoluteBaseFolderPath
-
-	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
-
-	args := append(executorConfig.RunArgs, paths.AbsoluteExecutableFilePath)
-	args = append(args, pipelineOptionsSplit...)
-
-	cmd := exec.CommandContext(ctx, executorConfig.RunCmd, args...)
-	cmd.Dir = workingDir
-	return cmd, nil
-}
-
-func getScioRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	workingDir := paths.ProjectDir
-
-	className, err := paths.FindExecutableName(ctx, paths.AbsoluteBaseFolderPath)
-	if err != nil {
-		return nil, fmt.Errorf("no executable file name found for SCIO pipeline at %s: %s", paths.AbsoluteBaseFolderPath, err)
-	}
-
-	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
-	stringArg := fmt.Sprintf("%s %s %s", executorConfig.RunArgs[0], className, pipelineOptions)
-
-	cmd := exec.CommandContext(ctx, executorConfig.RunCmd, append(executorConfig.RunArgs, stringArg)...)
-	cmd.Dir = workingDir
-
-	return cmd, nil
+	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
 }
 
 // GetRunCmd prepares the Cmd for execution of the code
@@ -143,46 +60,21 @@ func GetRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptio
 }
 
 func GetRunTest(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
-	sdk := sdkEnv.ApacheBeamSdk
-	executorConfig := sdkEnv.ExecutorConfig
-
-	testCmd := executorConfig.TestCmd
-	args := executorConfig.TestArgs
-	workingDir := paths.AbsoluteSourceFileFolderPath
-
-	switch sdk {
+	switch sdkEnv.ApacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		className, err := paths.FindTestExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
-		if err != nil {
-			return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s", paths.AbsoluteExecutableFileFolderPath, err)
-		}
-		workingDir = paths.AbsoluteBaseFolderPath
-		args = append(args, className)
+		return getJavaRunTestCmd(ctx, paths, sdkEnv.ExecutorConfig)
 	case pb.Sdk_SDK_GO:
-		args = append(args, paths.AbsoluteSourceFileFolderPath)
-	default:
-		args = append(args, paths.AbsoluteSourceFilePath)
+		return getGoRunTestCmd(ctx, paths, sdkEnv.ExecutorConfig)
+	case pb.Sdk_SDK_PYTHON:
+		return getPythonRunTestCmd(ctx, paths, sdkEnv.ExecutorConfig)
+	case pb.Sdk_SDK_SCIO:
+		return getScioRunTestCmd(ctx, paths, sdkEnv.ExecutorConfig)
 	}
 
-	cmd := exec.CommandContext(ctx, testCmd, args...)
-	cmd.Dir = workingDir
-	return cmd, nil
+	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
 }
 
 // GetFirstFileFromFolder return a name of the first file in a specified folder
 func GetFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
 	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
-}
-
-// ReplaceLogPlaceholder replaces placeholder for log for JAVA SDK
-func replaceLogPlaceholder(paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) []string {
-	args := make([]string, 0)
-	for _, arg := range executorConfig.RunArgs {
-		if strings.Contains(arg, javaLogConfigFilePlaceholder) {
-			logConfigFilePath := filepath.Join(paths.AbsoluteBaseFolderPath, javaLogConfigFileName)
-			arg = strings.Replace(arg, javaLogConfigFilePlaceholder, logConfigFilePath, 1)
-		}
-		args = append(args, arg)
-	}
-	return args
 }
