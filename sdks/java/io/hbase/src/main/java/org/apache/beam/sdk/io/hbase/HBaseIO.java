@@ -158,7 +158,7 @@ import org.slf4j.LoggerFactory;
  * <h4>Writing {@link RowMutations}</h4>
  *
  * <p>An alternative way to write to HBase is with {@link HBaseIO#writeRowMutations()}, which takes
- * as input a {@link PCollection<KV<byte[], RowMutations>>}, representing KVs of byte row keys and
+ * as input a {@link PCollection<KV<byte[], RowMutations>>}, representing KVs of bytes row keys and
  * {@link RowMutations}.
  *
  * <p>This implementation is Dataflow specific. Useful for preserving mutation order if the upstream
