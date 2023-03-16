@@ -156,6 +156,14 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
               'nested iterable',
               tuple[bytes, collections.abc.Iterable[int]],
               typehints.Tuple[bytes, typehints.Iterable[int]]),
+          (
+              'iterable over tuple',
+              collections.abc.Iterable[tuple[str, int]],
+              typehints.Iterable[typehints.Tuple[str, int]]),
+          (
+              'mapping not caught',
+              collections.abc.Mapping[str, int],
+              collections.abc.Mapping[str, int]),
       ]
 
       for test_case in test_cases:
