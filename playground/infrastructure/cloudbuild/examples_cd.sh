@@ -111,36 +111,36 @@ LogOutput "All packages and dependencies have been successfully installed. Start
 
 LogOutput "Checking changed files in the PR"
 
-diff_log=$(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH)
-diff=($(echo "$diff_log" | tr '\n' ' '))
+diff=($(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH | tr '\n' ' '))
 
-# Check if any files in the allowlist are changed
-if echo "$diff" | grep -qE "^($ALLOWLIST)"; then
-    LogOutput "CDLOG At least one changed file is in the allowlist"
-# Run CD script to deploy Examples to Playground for Go, Java, Python SDK
-    cd $BEAM_ROOT_DIR/playground/infrastructure
-    for sdk in $SDKS
-    do
-        export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-        python3 ci_cd.py \
-        --datastore-project ${PROJECT_ID} \
-        --namespace ${NAMESPACE} \
-        --step ${STEP} \
-        --sdk SDK_"${sdk^^}" \
-        --origin ${ORIGIN} \
-        --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
-        if [ $? -eq 0 ]
-            then
-                LogOutput "Examples for $sdk SDK have been successfully deployed."
-                eval "cd_${sdk}_passed"='True'
-            else
-                LogOutput "Examples deployment for $sdk SDK has failed."
-            fi
-    done
-else
-  LogOutput "No changed files are in the allowlist. Exiting"
-  exit 1
-fi
+for file in "${diff[@]}"; do
+    if echo '%s\n' "${ALLOWLIST[@]}" | grep -q -F "${file%/*}"; then
+        LogOutput "CDLOG At least one changed file is in the allowlist"
+    # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
+        cd $BEAM_ROOT_DIR/playground/infrastructure
+        for sdk in $SDKS
+        do
+            export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
+            python3 ci_cd.py \
+            --datastore-project ${PROJECT_ID} \
+            --namespace ${NAMESPACE} \
+            --step ${STEP} \
+            --sdk SDK_"${sdk^^}" \
+            --origin ${ORIGIN} \
+            --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
+            if [ $? -eq 0 ]
+                then
+                    LogOutput "Examples for $sdk SDK have been successfully deployed."
+                    eval "cd_${sdk}_passed"='True'
+                else
+                    LogOutput "Examples deployment for $sdk SDK has failed."
+                fi
+          done
+    else
+      LogOutput "No changed files are in the allowlist. Exiting"
+      exit 1
+    fi
+done
 
 for sdk in $SDKS
 do
