@@ -114,7 +114,8 @@ LogOutput "Checking changed files in the PR"
 diff=($(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH | tr '\n' ' '))
 
 for file in "${diff[@]}"; do
-    if echo '%s\n' "${ALLOWLIST[@]}" | grep -q -F "${file%/*}"; then
+    if echo $file == "*/learning/katas*" || echo $file == "*examples/*" || echo $file == "*sdks/*"
+    then
         LogOutput "CDLOG At least one changed file is in the allowlist"
     # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
         cd $BEAM_ROOT_DIR/playground/infrastructure
