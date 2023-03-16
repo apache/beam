@@ -45,7 +45,7 @@ widgets:
     label: 'Code Text Area'
   
   closeButton:
-    label: 'CLOSE'
+    label: 'Close'
 
   output:
     filter:

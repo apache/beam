@@ -18,15 +18,17 @@
 
 import 'package:flutter/material.dart';
 
-const kDialogPadding = 40.0;
-
 // TODO(alexeyinkin): In future convert all dialogs to this one.
 class BeamDialog extends StatelessWidget {
+  static const _padding = 40.0;
+
   const BeamDialog({
     required this.child,
+    this.actions = const [],
     this.title,
   });
 
+  final List<Widget> actions;
   final Widget child;
   final Widget? title;
 
@@ -39,26 +41,28 @@ class BeamDialog extends StatelessWidget {
     await showDialog<void>(
       context: context,
       builder: (BuildContext context) => BeamDialog(
-        child: AlertDialog(
-          actions: actions,
-          actionsPadding: const EdgeInsets.only(
-            bottom: kDialogPadding,
-            right: kDialogPadding,
-          ),
-          content: child,
-          contentPadding: const EdgeInsets.all(kDialogPadding),
-          title: title,
-          titlePadding: const EdgeInsets.only(
-            top: kDialogPadding,
-            left: kDialogPadding,
-          ),
-        ),
+        actions: actions,
+        title: title,
+        child: child,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return child;
+    return AlertDialog(
+      actions: actions,
+      actionsPadding: const EdgeInsets.only(
+        bottom: _padding,
+        right: _padding,
+      ),
+      content: child,
+      contentPadding: const EdgeInsets.all(_padding),
+      title: title,
+      titlePadding: const EdgeInsets.only(
+        top: _padding,
+        left: _padding,
+      ),
+    );
   }
 }

@@ -16,28 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
-
-class BeamCloseButton extends StatelessWidget {
-  static const _width = 120.0;
-  static const _height = 40.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: const ButtonStyle(
-        elevation: MaterialStatePropertyAll<double>(0),
-        fixedSize: MaterialStatePropertyAll<Size>(
-          Size(_width, _height),
-        ),
-        shape: MaterialStatePropertyAll<StadiumBorder>(
-          StadiumBorder(),
-        ),
-        padding: MaterialStatePropertyAll(EdgeInsets.only(bottom: 2)),
-      ),
-      onPressed: () => Navigator.of(context).pop(),
-      child: Text('widgets.closeButton.label'.tr().toUpperCase()),
-    );
+extension IterableExtension on Iterable {
+  Iterable<T> alternateWith<T>(T separator) {
+    return expand<T>((item) sync* {
+      yield separator;
+      yield item as T;
+    }).skip(1);
   }
 }

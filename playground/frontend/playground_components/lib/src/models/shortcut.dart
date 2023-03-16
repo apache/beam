@@ -22,9 +22,11 @@ import 'package:flutter/services.dart';
 import 'intents.dart';
 
 class BeamShortcut {
-  //Additional List property required for determinated displaying keys
-  //in shortcut dialog.  
+  // Keys in the order to be shown or mocked.
+  //
+  // A list is required because a [LogicalKeySet] discards the original order.
   final List<LogicalKeyboardKey> keys;
+  
   LogicalKeySet get keySet => LogicalKeySet.fromSet(keys.toSet());
   
   final BeamIntent actionIntent;

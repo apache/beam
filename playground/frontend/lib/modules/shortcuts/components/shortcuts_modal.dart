@@ -36,32 +36,40 @@ class ShortcutsDialogContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _kModalMaxWidth),
-      child: Wrap(
-        runSpacing: kXlSpacing,
+    return SizedBox(
+      width: _kModalMaxWidth,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           ...[
             ...playgroundController.shortcuts,
             ...globalShortcuts,
-          ].map(
-            (shortcut) => Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: _kShortcutsMaxWidth),
-                  child: ShortcutRow(shortcut: shortcut),
+          ]
+              .map(
+                (shortcut) => Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    ConstrainedBox(
+                      constraints:
+                          const BoxConstraints(maxWidth: _kShortcutsMaxWidth),
+                      child: ShortcutRow(shortcut: shortcut),
+                    ),
+                    const SizedBox(width: kMdSpacing),
+                    Expanded(
+                      child: Text(
+                        shortcut.actionIntent.slug.tr(),
+                        style: const TextStyle(fontWeight: kBoldWeight),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: kMdSpacing),
-                Expanded(
-                  child: Text(
-                    shortcut.actionIntent.slug.tr(),
-                    style: const TextStyle(fontWeight: kBoldWeight),
-                  ),
+              )
+              .alternateWith(
+                const SizedBox(
+                  height: kXlSpacing,
                 ),
-              ],
-            ),
-          )
+              ),
         ],
       ),
     );
