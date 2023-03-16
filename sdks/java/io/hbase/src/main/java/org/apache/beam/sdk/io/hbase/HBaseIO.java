@@ -805,7 +805,7 @@ public class HBaseIO {
   public static class WriteRowMutations
       extends PTransform<PCollection<KV<byte[], RowMutations>>, PCollection<Integer>> {
 
-    /** Writes to the HBase instance indicated by the* given Configuration. */
+    /** Writes to the HBase instance indicated by the given Configuration. */
     public WriteRowMutations withConfiguration(Configuration configuration) {
       checkNotNull(configuration, "configuration cannot be null");
       return new WriteRowMutations(configuration, tableId);
