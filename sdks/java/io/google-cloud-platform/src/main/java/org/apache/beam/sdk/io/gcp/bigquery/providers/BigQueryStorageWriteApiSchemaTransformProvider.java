@@ -191,6 +191,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Nullable
     public abstract Boolean getUseAtLeastOnceSemantics();
 
+    @SchemaFieldDescription(
+        "This option enables using a dynamically determined number of shards to write to "
+            + "BigQuery. Only applicable to unbounded data.")
+    @Nullable
+    public abstract Boolean getAutoSharding();
+
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
@@ -203,6 +209,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setTriggeringFrequencySeconds(Long seconds);
 
       public abstract Builder setUseAtLeastOnceSemantics(Boolean use);
+
+      public abstract Builder setAutoSharding(Boolean autoSharding);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -280,13 +288,16 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
+        Boolean autoSharding = configuration.getAutoSharding();
         write =
-            write
-                .withAutoSharding()
-                .withTriggeringFrequency(
-                    (triggeringFrequency == null || triggeringFrequency <= 0)
-                        ? DEFAULT_TRIGGERING_FREQUENCY
-                        : Duration.standardSeconds(triggeringFrequency));
+            write.withTriggeringFrequency(
+                (triggeringFrequency == null || triggeringFrequency <= 0)
+                    ? DEFAULT_TRIGGERING_FREQUENCY
+                    : Duration.standardSeconds(triggeringFrequency));
+
+        if (autoSharding != null && autoSharding) {
+          write = write.withAutoSharding();
+        }
       }
 
       Schema inputSchema = inputRows.getSchema();
