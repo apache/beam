@@ -95,6 +95,7 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
         .addNullableField("queryLocation", FieldType.STRING)
         .addNullableField("createDisposition", FieldType.STRING)
         .addNullableField("useTestingBigQueryServices", FieldType.BOOLEAN)
+        .addNullableField("autoSharding", FieldType.BOOLEAN)
         .build();
   }
 
@@ -202,7 +203,7 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
                   .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                   .withTriggeringFrequency(Duration.standardSeconds(5))
                   .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                  .withAutoSharding();
+                  .withAutoSharding(config.getBoolean("autoSharding"));
 
           final Boolean useTestingBigQueryServices =
               config.getBoolean("useTestingBigQueryServices");
