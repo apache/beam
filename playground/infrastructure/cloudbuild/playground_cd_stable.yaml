@@ -32,9 +32,9 @@ steps:
             exit 0
         fi
         
-        if [[ ${_PR_TYPE} == "closed" ]]; then
+        if [[ ${_PR_TYPE} == "closed" ]] && [[ ${_MERGE_STATUS} == "true" ]]; then
 
-            echo "CDLOG Pull Request $_PR_URL has been successfully closed and merged into Apache/Beam master repository. Continuing the process."
+            echo "CDLOG Pull Request $_PR_URL has been successfully closed and merged into Apache/Beam GitHub repository. Continuing the process."
               
             echo "CDLOG Continous Deployment of Playground Examples (CD) in the progress."
   
