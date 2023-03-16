@@ -106,7 +106,44 @@ preCommitPyCoverage.dependsOn "testPy38pytorch-113"
 toxTask "testPy38onnx-113", "py38-onnx-113", "${posargs}"
 test.dependsOn "testPy38onnx-113"
 preCommitPyCoverage.dependsOn "testPy38onnx-113"
+
 // Create a test task for each minor version of tensorflow
+toxTask "testPy38tensorflow-20", "py38-tensorflow-20", "${posargs}"
+test.dependsOn "testPy38tensorflow-20"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-20"
+
+toxTask "testPy38tensorflow-21", "py38-tensorflow-21", "${posargs}"
+test.dependsOn "testPy38tensorflow-21"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-21"
+
+toxTask "testPy38tensorflow-22", "py38-tensorflow-22", "${posargs}"
+test.dependsOn "testPy38tensorflow-22"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-22"
+
+toxTask "testPy38tensorflow-23", "py38-tensorflow-23", "${posargs}"
+test.dependsOn "testPy38tensorflow-23"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-23"
+
+toxTask "testPy38tensorflow-24", "py38-tensorflow-24", "${posargs}"
+test.dependsOn "testPy38tensorflow-24"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-24"
+
+toxTask "testPy38tensorflow-25", "py38-tensorflow-25", "${posargs}"
+test.dependsOn "testPy38tensorflow-25"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-25"
+
+toxTask "testPy38tensorflow-26", "py38-tensorflow-26", "${posargs}"
+test.dependsOn "testPy38tensorflow-26"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-26"
+
+toxTask "testPy38tensorflow-27", "py38-tensorflow-27", "${posargs}"
+test.dependsOn "testPy38tensorflow-27"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-27"
+
+toxTask "testPy38tensorflow-28", "py38-tensorflow-28", "${posargs}"
+test.dependsOn "testPy38tensorflow-28"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-28"
+
 toxTask "testPy38tensorflow-29", "py38-tensorflow-29", "${posargs}"
 test.dependsOn "testPy38tensorflow-29"
 preCommitPyCoverage.dependsOn "testPy38tensorflow-29"
