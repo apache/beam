@@ -41,7 +41,7 @@ To update mocks for tests, run:
 $ go generate -x ./...
 ```
 
-> Note: this requires [`protoc`](https://grpc.io/docs/protoc-installation/) version `>= 3.15` and [`moq`](https://github.com/matryer/moq) tools to be installed
+> Note: [`moq`](https://github.com/matryer/moq) tool to be installed
 
 ### Datastore schema
 
