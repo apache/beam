@@ -27,34 +27,38 @@ steps:
          WebHook Action: $_PR_TYPE; 
          Merged to: $_TARGET_PR_REPO_BRANCH; 
          Playground DNS: $_DNS_NAME; "
-        if [[ ${_TARGET_PR_REPO_BRANCH} == "apache:master" ]]; then
-            echo "CDLOG $(date --utc '+%D %T').
+        if [[ ${_TARGET_PR_REPO_BRANCH} != "apache:master" ]]; then
+            echo "CDLOG Merge to branch apache/${_TARGET_PR_REPO_BRANCH}. Exiting"
+            exit 0
+        fi
+        
+        if [[ ${_PR_TYPE} == "closed" ]]; then
 
-          Pull Request $_PR_URL has been successfully merged into Apache/Beam Master repository (https://github.com/apache/beam).
-            
-          Continous Deployment of Playground Examples (CD) in the progress."
-
+            echo "CDLOG Pull Request $_PR_URL has been successfully closed merged into Apache/Beam master repository. Continuing the process."
+              
+            echo "CDLOG Continous Deployment of Playground Examples (CD) in the progress."
+  
             apt update > /dev/null 2>&1
-
+  
             apt install -y git curl > /dev/null 2>&1
-
+  
             apt-get install -y apt-transport-https ca-certificates gnupg > /dev/null 2>&1
-
+  
             echo "deb https://packages.cloud.google.com/apt cloud-sdk main" > /dev/null 2>&1 | tee -a
             /etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null 2>&1
-
+  
             curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null 2>&1 | apt-key add - > /dev/null 2>&1 
-
+  
             apt-get update && apt-get install -y google-cloud-sdk > /dev/null 2>&1
-
+  
             git clone --branch master https://github.com/apache/beam.git > /dev/null 2>&1
-
+  
             cd beam
-
+  
             git remote add forked https://github.com/${_FORK_REPO}.git > /dev/null 2>&1
-
+  
             curl -O --output-dir /tmp https://raw.githubusercontent.com/akvelon/beam/master/playground/infrastructure/cloudbuild/examples_cd.sh
-
+  
             chmod +x /tmp/examples_cd.sh
             
             env -i bash -c "/tmp/examples_cd.sh NAMESPACE='"'${_NAMESPACE}'"' PROJECT_ID='"'${PROJECT_ID}'"' DNS_NAME='"'${_DNS_NAME}'"' COMMIT='"'${_PR_COMMIT}'"' "
