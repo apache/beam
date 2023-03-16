@@ -41,16 +41,48 @@ steps:
         git clone --branch {_BRANCH_NAME} https://github.com/apache/beam.git
     
         cd beam
-  
         
-        if [ $script_status -eq 0 ]; then
-                echo "DEPLOY_LOG $(date --utc '+%D %T') Done."
-            else
-                echo "DEPLOY_LOG $(date --utc '+%D %T') Not Done"
-            fi
-        else
-            echo "DEPLOY_LOG $(date --utc '+%D %T') Smth else."
-        fi
+        mkdir playground/terraform/environment/$ENVIRONMENT_NAME
+        
+        
+        cat <<EOT > playground/terraform/environment/$ENVIRONMENT_NAME/terraform.tfvars
+
+
+        project_id = $PROJECT_ID
+        
+        network_name = $_NETWORK_NAME
+        
+        subnetwork_name=$_SUBNETWORK_NAME
+        
+        gke_name = $_GKE_NAME
+        
+        region = $_PLAYGROUND_REGION
+        
+        location = $_PLAYGROUND_ZONE
+        
+        state_bucket = $_STATE_BUCKET
+        
+        redis_name = $_REDIS_NAME
+        
+        min_count = $_MIN_COUNT
+        
+        max_count = $_MAX_COUNT
+        
+        gke_machine_type = $_GKE_MACHINE_TYPE
+        
+        app_engine_flag = $_APP_ENGINE_FLAG
+        
+        ip_address_name = $_IP_ADDRESS_NAME
+        
+        repository_id = $_REPOSITORY_ID
+        
+        service_account_id = $_SERVICE_ACCOUNT_ID
+        
+        EOT
+        
+        cat <<EOT > playground/terraform/environment/$ENVIRONMENT_NAME/state.tfbackend
+        bucket = $_STATE_BUCKET
+
     entrypoint: bash
 timeout: 7200s
 logsBucket: 'gs://playground-cloudbuild-logs-private'
