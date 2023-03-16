@@ -190,9 +190,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             + "duplicate data elements.")
     @Nullable
     public abstract Boolean getUseAtLeastOnceSemantics();
-    
+
     @SchemaFieldDescription(
-      "This option enables using a dynamically determined number of shards to write to "
+        "This option enables using a dynamically determined number of shards to write to "
             + "BigQuery. Only applicable to unbounded data.")
     @Nullable
     public abstract Boolean getAutoSharding();
@@ -209,7 +209,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setTriggeringFrequencySeconds(Long seconds);
 
       public abstract Builder setUseAtLeastOnceSemantics(Boolean use);
-      
+
       public abstract Builder setAutoSharding(Boolean autoSharding);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
@@ -291,11 +291,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         Boolean autoSharding = configuration.getAutoSharding();
         write =
             write.withTriggeringFrequency(
-                    (triggeringFrequency == null || triggeringFrequency <= 0)
-                        ? DEFAULT_TRIGGERING_FREQUENCY
-                        : Duration.standardSeconds(triggeringFrequency));
-        
-        if(autoSharding != null && autoSharding) {
+                (triggeringFrequency == null || triggeringFrequency <= 0)
+                    ? DEFAULT_TRIGGERING_FREQUENCY
+                    : Duration.standardSeconds(triggeringFrequency));
+
+        if (autoSharding != null && autoSharding) {
           write = write.withAutoSharding();
         }
       }
