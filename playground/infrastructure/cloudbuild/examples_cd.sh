@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This loop reads the arguments passed to the script, parses them, and exports them as environment  variables.
+# This loop reads the arguments passed to the script, parses them, and exports them as environment   variables.
 for ARGUMENT in "$@"
 do
    KEY=$(echo $ARGUMENT | cut -f1 -d=)
