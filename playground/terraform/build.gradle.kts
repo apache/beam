@@ -311,16 +311,6 @@ const String kApiScioClientURL =
       'https://scio.${dns_name}';
 """
         )
-        try {
-            var stdout = ByteArrayOutputStream()
-            //set Docker Registry
-            exec {
-                commandLine = listOf("terraform", "output", "docker-repository-root")
-                standardOutput = stdout
-            }
-            project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
-        } catch (e: Exception) {
-        }
     }
 }
 /* initialization infrastructure */
