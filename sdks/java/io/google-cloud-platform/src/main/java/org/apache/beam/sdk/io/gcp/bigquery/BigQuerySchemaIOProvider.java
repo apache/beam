@@ -202,9 +202,13 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
                   .useBeamSchema()
                   .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                   .withTriggeringFrequency(Duration.standardSeconds(5))
-                  .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                  .withAutoSharding(config.getBoolean("autoSharding"));
-
+                  .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND);
+          
+          final Boolean autoSharding = config.getBoolean("autoSharding");
+          if(autoSharding != null && autoSharding){
+            write = write.withAutoSharding(config.getBoolean("autoSharding"));
+          }
+          
           final Boolean useTestingBigQueryServices =
               config.getBoolean("useTestingBigQueryServices");
           if (useTestingBigQueryServices != null && useTestingBigQueryServices) {
