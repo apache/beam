@@ -161,7 +161,7 @@ import org.slf4j.LoggerFactory;
  * as input a {@link PCollection<KV<byte[], RowMutations>>}, representing KVs of bytes row keys and
  * {@link RowMutations}.
  *
- * <p>This implementation is Dataflow specific. Useful for preserving mutation order if the upstream
+ * <p>This implementation is useful for preserving mutation order if the upstream
  * is ordered by row key, as RowMutations will only be applied after previous RowMutations are
  * successful.
  *
