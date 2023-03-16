@@ -14,9 +14,9 @@
 // limitations under the License.
 
 /*
-	This is a golang script to download the example catalog and the sdk catalog
-	to the Cloud Datastore for local deployment and testing.
-	Please be aware that this is fictitious data.
+This is a golang script to download the example catalog and the sdk catalog
+to the Cloud Datastore for local deployment and testing.
+Please be aware that this is fictitious data.
 */
 package test_data
 

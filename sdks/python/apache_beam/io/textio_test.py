@@ -1711,6 +1711,39 @@ class TextSinkTest(unittest.TestCase):
     self.assertEqual(sorted(read_result), sorted(lines))
 
 
+class CsvTest(unittest.TestCase):
+  def test_csv_read_write(self):
+    records = [beam.Row(a='str', b=ix) for ix in range(3)]
+    with tempfile.TemporaryDirectory() as dest:
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(records) | beam.io.WriteToCsv(os.path.join(dest, 'out'))
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.io.ReadFromCsv(os.path.join(dest, 'out*'))
+            | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
+
+        assert_that(pcoll, equal_to(records))
+
+
+class JsonTest(unittest.TestCase):
+  def test_json_read_write(self):
+    records = [beam.Row(a='str', b=ix) for ix in range(3)]
+    with tempfile.TemporaryDirectory() as dest:
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(records) | beam.io.WriteToJson(
+            os.path.join(dest, 'out'))
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.io.ReadFromJson(os.path.join(dest, 'out*'))
+            | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
+
+        assert_that(pcoll, equal_to(records))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

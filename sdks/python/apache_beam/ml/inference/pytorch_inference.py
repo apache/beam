@@ -97,7 +97,7 @@ def _load_model(
         "Loading state_dict_path %s onto a %s device", state_dict_path, device)
     if not torch_script_model_path:
       file = FileSystems.open(state_dict_path, 'rb')
-      model = model_class(**model_params)  # type: ignore[misc]
+      model = model_class(**model_params)  # type: ignore[arg-type,misc]
       state_dict = torch.load(file, map_location=device)
       model.load_state_dict(state_dict)
     else:

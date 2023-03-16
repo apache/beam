@@ -477,7 +477,7 @@ class _Mutate(PTransform):
       client_element = self.element_to_client_batch_item(element)
       self._batch_elements.append(client_element)
       self.add_to_batch(client_element)
-      self._batch_bytes_size += self._batch.mutations[-1].ByteSize()
+      self._batch_bytes_size += self._batch.mutations[-1]._pb.ByteSize()
 
       if (len(self._batch.mutations) >= self._target_batch_size or
           self._batch_bytes_size > util.WRITE_BATCH_MAX_BYTES_SIZE):
