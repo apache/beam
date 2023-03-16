@@ -206,7 +206,7 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
           
           final Boolean autoSharding = config.getBoolean("autoSharding");
           if(autoSharding != null && autoSharding){
-            write = write.withAutoSharding(config.getBoolean("autoSharding"));
+            write = write.withAutoSharding();
           }
           
           final Boolean useTestingBigQueryServices =
