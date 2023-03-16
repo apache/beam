@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toJodaTime;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,20 +44,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This class is responsible for processing individual ChangeStreamRecord. */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class ChangeStreamAction {
   private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamAction.class);
 
   private final ChangeStreamMetrics metrics;
+  private final ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator;
 
   /**
    * Constructs ChangeStreamAction to process individual ChangeStreamRecord.
    *
    * @param metrics record beam metrics.
    */
-  public ChangeStreamAction(ChangeStreamMetrics metrics) {
+  public ChangeStreamAction(
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator) {
     this.metrics = metrics;
+    this.throughputEstimator = throughputEstimator;
   }
 
   /**
@@ -204,6 +209,7 @@ public class ChangeStreamAction {
 
       KV<ByteString, ChangeStreamMutation> outputRecord =
           KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
+      throughputEstimator.update(Timestamp.now(), outputRecord);
       // We are outputting elements with timestamp of 0 to prevent reliance on event time. This
       // limits the ability to window on commit time of any data changes. It is still possible to
       // window on processing time.

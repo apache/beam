@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.ThroughputEstimator;
+import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 
 /**
@@ -48,9 +52,12 @@ public class ActionFactory implements Serializable {
    *
    * @return singleton instance of the {@link ChangeStreamAction}
    */
-  public synchronized ChangeStreamAction changeStreamAction(ChangeStreamMetrics metrics) {
+  public synchronized ChangeStreamAction changeStreamAction(
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator) {
+
     if (changeStreamAction == null) {
-      changeStreamAction = new ChangeStreamAction(metrics);
+      changeStreamAction = new ChangeStreamAction(metrics, throughputEstimator);
     }
     return changeStreamAction;
   }
