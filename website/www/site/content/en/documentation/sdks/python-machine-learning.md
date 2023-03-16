@@ -262,17 +262,23 @@ Use elements of the same size or resize the inputs. For computer vision applicat
 Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
 [BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform). For an example, see our [language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py).
 
-=## Compatible versions
+## Compatible versions
 
 The following table describes how the `RunInference` Model Handlers versions are compatible with
 its dependency PyPI packages. This is determined by our testing framework,
 but other *untested* combinations may also work.
 
-apache_beam                                                               | Tensorflow | TFX   | PyTorch       | Scikit-learn | TensorRT | Onnx
-------------------------------------------------------------------------- |------------|-------|---------------|--------------|----------|--------|
-[GitHub master](https://github.com/apache/beam/blob/master/RELEASE.md)    | 2.40.0     | 1.12.0     | 6.0.0 | nightly (2.x) | 1.12.0       | 1.12.0   | 0.43.0 
-[GitHub master](https://github.com/apache/beam/blob/master/RELEASE.md)       | 2.40.0     | 1.12.0     | 6.0.0 | 2.11          | 1.12.0       | 1.12.0   | 0.43.0
-[
+| apache_beam                                                            | Tensorflow    | TFX-BSL            | PyTorch          | Scikit-learn     | TensorRT             | Onnx   |
+|------------------------------------------------------------------------|---------------|--------------------|------------------|------------------|----------------------|--------|
+| [GitHub master](https://github.com/apache/beam/blob/master/RELEASE.md) | \>=2.12.0rc1  | WIP                | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | WIP    |
+| [2.46.0](https://github.com/apache/beam/tree/v2.46.0)                  | \>=2.9,<=2.11 | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | 1.13.0 |
+| [2.45.0](https://github.com/apache/beam/tree/v2.45.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
+| [2.44.0](https://github.com/apache/beam/tree/v2.44.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
+| [2.43.0](https://github.com/apache/beam/tree/v2.43.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
+| [2.42.0](https://github.com/apache/beam/tree/v2.42.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
+| [2.41.0](https://github.com/apache/beam/tree/v2.41.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
+| [2.40.0](https://github.com/apache/beam/tree/v2.40.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      |
+
 
 ## Related links
 

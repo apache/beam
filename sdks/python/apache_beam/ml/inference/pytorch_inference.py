@@ -224,7 +224,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         batch will be fed into the inference_fn as a Sequence of Tensors.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
-    with PyTorch 1.9 and 1.10.
+    with PyTorch >=1.9.0,<1.14.0.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU':
