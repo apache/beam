@@ -23,9 +23,3 @@ variable "cloudfunctions_bucket" {
 variable "region" {
   description = "The GCS region"
 }
-
-data "archive_file" "source_code" {
-  type        = "zip"
-  source_dir  = "../backend"
-  output_path = "/tmp/backend.zip"
-}

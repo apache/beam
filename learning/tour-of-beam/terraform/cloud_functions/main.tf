@@ -48,8 +48,8 @@ resource "google_cloudfunctions_function" "cloud_function" {
 # Create IAM entry so all users can invoke the function
 resource "google_cloudfunctions_function_iam_member" "invoker" {
   count          = length(google_cloudfunctions_function.cloud_function)
-  project        = google_cloudfunctions_function.cloud_function[count.index].project
-  region         = google_cloudfunctions_function.cloud_function[count.index].region
+  project        = var.project_id
+  region         = var.region
   cloud_function = google_cloudfunctions_function.cloud_function[count.index].name
 
   role   = "roles/cloudfunctions.invoker"
