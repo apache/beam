@@ -43,7 +43,7 @@ plugins {
 }
 
 terraformPlugin {
-    terraformVersion.set("1.4.1")
+    terraformVersion.set("1.4.0")
 }
 
 tasks {
