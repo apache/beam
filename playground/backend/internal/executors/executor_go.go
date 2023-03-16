@@ -1,46 +1,42 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"context"
 	"os/exec"
 	"strings"
 )
 
-func getGoCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	compileCmd := executorConfig.CompileCmd
-	workingDir := paths.AbsoluteBaseFolderPath
-	args := executorConfig.CompileArgs
+const (
+	goCompileCmd = "go"
+	goTestCmd    = "go"
+)
 
-	goSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
+var goCompileArgs = []string{"build", "-o", "bin"}
+var goTestArgs = []string{"test", "-v"}
+
+func getGoCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
+	goSources, err := getFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
 	if err != nil {
 		return nil, err
 	}
-	args = append(args, goSources...)
+	args := append(goCompileArgs, goSources...)
 
-	cmd := exec.CommandContext(ctx, compileCmd, args...)
-	cmd.Dir = workingDir
+	cmd := exec.CommandContext(ctx, goCompileCmd, args...)
+	cmd.Dir = paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }
 
-func getGoRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	workingDir := paths.AbsoluteBaseFolderPath
-
+func getGoRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string) (*exec.Cmd, error) {
 	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
 
-	cmd := exec.CommandContext(ctx, paths.AbsoluteExecutableFilePath, append(executorConfig.RunArgs, pipelineOptionsSplit...)...)
-	cmd.Dir = workingDir
+	cmd := exec.CommandContext(ctx, paths.AbsoluteExecutableFilePath, pipelineOptionsSplit...)
+	cmd.Dir = paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }
-func getGoRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	testCmd := executorConfig.TestCmd
-	args := executorConfig.TestArgs
-	workingDir := paths.AbsoluteSourceFileFolderPath
 
-	args = append(args, paths.AbsoluteSourceFileFolderPath)
-
-	cmd := exec.CommandContext(ctx, testCmd, args...)
-	cmd.Dir = workingDir
+func getGoRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
+	cmd := exec.CommandContext(ctx, goTestCmd, append(goTestArgs, paths.AbsoluteSourceFileFolderPath)...)
+	cmd.Dir = paths.AbsoluteSourceFileFolderPath
 	return cmd, nil
 }

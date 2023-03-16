@@ -30,16 +30,12 @@ import (
 func GetCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
 	switch sdkEnv.ApacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		return getJavaCompileCmd(ctx, paths, sdkEnv.ExecutorConfig)
+		return getJavaCompileCmd(ctx, paths)
 	case pb.Sdk_SDK_GO:
-		return getGoCompileCmd(ctx, paths, sdkEnv.ExecutorConfig)
-	case pb.Sdk_SDK_PYTHON:
-		return getPythonCompileCmd(ctx, paths, sdkEnv.ExecutorConfig)
-	case pb.Sdk_SDK_SCIO:
-		return getScioCompileCmd(ctx, paths, sdkEnv.ExecutorConfig)
+		return getGoCompileCmd(ctx, paths)
+	default:
+		return nil, fmt.Errorf("sdk '%s' doesn't support compilation", sdkEnv.ApacheBeamSdk.String())
 	}
-
-	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
 }
 
 // GetRunCmd prepares the Cmd for execution of the code
@@ -47,13 +43,13 @@ func GetCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *e
 func GetRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
 	switch sdkEnv.ApacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		return getJavaRunCmd(ctx, paths, pipelineOptions, sdkEnv.ExecutorConfig)
+		return getJavaRunCmd(ctx, paths, pipelineOptions)
 	case pb.Sdk_SDK_GO:
-		return getGoRunCmd(ctx, paths, pipelineOptions, sdkEnv.ExecutorConfig)
+		return getGoRunCmd(ctx, paths, pipelineOptions)
 	case pb.Sdk_SDK_PYTHON:
-		return getPythonRunCmd(ctx, paths, pipelineOptions, sdkEnv.ExecutorConfig)
+		return getPythonRunCmd(ctx, paths, pipelineOptions)
 	case pb.Sdk_SDK_SCIO:
-		return getScioRunCmd(ctx, paths, pipelineOptions, sdkEnv.ExecutorConfig)
+		return getScioRunCmd(ctx, paths, pipelineOptions)
 	}
 
 	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
@@ -62,19 +58,19 @@ func GetRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptio
 func GetRunTest(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
 	switch sdkEnv.ApacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		return getJavaRunTestCmd(ctx, paths, sdkEnv.ExecutorConfig)
+		return getJavaRunTestCmd(ctx, paths)
 	case pb.Sdk_SDK_GO:
-		return getGoRunTestCmd(ctx, paths, sdkEnv.ExecutorConfig)
+		return getGoRunTestCmd(ctx, paths)
 	case pb.Sdk_SDK_PYTHON:
-		return getPythonRunTestCmd(ctx, paths, sdkEnv.ExecutorConfig)
+		return getPythonRunTestCmd(ctx, paths)
 	case pb.Sdk_SDK_SCIO:
-		return getScioRunTestCmd(ctx, paths, sdkEnv.ExecutorConfig)
+		return getScioRunTestCmd(ctx, paths)
 	}
 
 	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
 }
 
-// GetFirstFileFromFolder return a name of the first file in a specified folder
-func GetFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
+// GetFilesFromFolder return a name of the first file in a specified folder
+func getFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
 	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 }

@@ -1,7 +1,6 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
@@ -12,31 +11,33 @@ import (
 )
 
 const (
-	javaLogConfigFileName        = "logging.properties"
-	javaLogConfigFilePlaceholder = "{logConfigFile}"
+	javaCompileCmd        = "javac"
+	javaRunCmd            = "java"
+	javaLoggConfigOption  = "-Djava.util.logging.config.file"
+	javaLogConfigFileName = "logging.properties"
+	javaTestCmd           = "java"
 )
 
-func getJavaCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	compileCmd := executorConfig.CompileCmd
-	workingDir := paths.AbsoluteBaseFolderPath
-	args := executorConfig.CompileArgs
+var javaCompileArgs = []string{"-d", "bin", "-parameters", "-classpath"}
+var javaRunArgs = []string{"-cp", "bin:"}
+var javaTestArgs = []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}
 
-	javaSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
+func getJavaCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
+	javaSources, err := getFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
 	if err != nil {
 		return nil, err
 	}
-	args = append(args, javaSources...)
 
-	cmd := exec.CommandContext(ctx, compileCmd, args...)
-	cmd.Dir = workingDir
+	cmd := exec.CommandContext(ctx, javaCompileCmd, append(javaCompileArgs, javaSources...)...)
+	cmd.Dir = paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }
 
-func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	workingDir := paths.AbsoluteBaseFolderPath
-
+func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string) (*exec.Cmd, error) {
 	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
-	args := replaceLogPlaceholder(paths, executorConfig)
+
+	logConfigFilePath := filepath.Join(paths.AbsoluteBaseFolderPath, javaLogConfigFileName)
+	args := append(javaRunArgs, fmt.Sprintf("%s=%s", javaLoggConfigOption, logConfigFilePath))
 
 	className, err := paths.FindExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
 	if err != nil {
@@ -47,37 +48,18 @@ func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineO
 	args = append(args, className)
 	args = append(args, pipelineOptionsSplit...)
 
-	cmd := exec.CommandContext(ctx, executorConfig.RunCmd, args...)
-	cmd.Dir = workingDir
-
-	return cmd, err
+	cmd := exec.CommandContext(ctx, javaRunCmd, args...)
+	cmd.Dir = paths.AbsoluteBaseFolderPath
+	return cmd, nil
 }
 
-func getJavaRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	workingDir := paths.AbsoluteBaseFolderPath
-	testCmd := executorConfig.TestCmd
-	args := executorConfig.TestArgs
-
+func getJavaRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
 	className, err := paths.FindTestExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
 	if err != nil {
 		return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s", paths.AbsoluteExecutableFileFolderPath, err)
 	}
-	args = append(args, className)
 
-	cmd := exec.CommandContext(ctx, testCmd, args...)
-	cmd.Dir = workingDir
+	cmd := exec.CommandContext(ctx, javaTestCmd, append(javaTestArgs, className)...)
+	cmd.Dir = paths.AbsoluteBaseFolderPath
 	return cmd, nil
-}
-
-// ReplaceLogPlaceholder replaces placeholder for log for JAVA SDK
-func replaceLogPlaceholder(paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) []string {
-	args := make([]string, 0)
-	for _, arg := range executorConfig.RunArgs {
-		if strings.Contains(arg, javaLogConfigFilePlaceholder) {
-			logConfigFilePath := filepath.Join(paths.AbsoluteBaseFolderPath, javaLogConfigFileName)
-			arg = strings.Replace(arg, javaLogConfigFilePlaceholder, logConfigFilePath, 1)
-		}
-		args = append(args, arg)
-	}
-	return args
 }

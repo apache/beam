@@ -1,7 +1,6 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
@@ -9,43 +8,28 @@ import (
 	"os/exec"
 )
 
-func getScioCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	compileCmd := executorConfig.CompileCmd
-	workingDir := paths.AbsoluteBaseFolderPath
-	args := executorConfig.CompileArgs
+const (
+	scioRunCmd  = "sbt"
+	scioRunArg  = "runMain"
+	scioTestCmd = "sbt"
+)
 
-	args = append(args, paths.AbsoluteSourceFilePath)
-
-	cmd := exec.CommandContext(ctx, compileCmd, args...)
-	cmd.Dir = workingDir
-	return cmd, nil
-}
-
-func getScioRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	workingDir := paths.ProjectDir
-
+func getScioRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string) (*exec.Cmd, error) {
 	className, err := paths.FindExecutableName(ctx, paths.AbsoluteBaseFolderPath)
 	if err != nil {
 		return nil, fmt.Errorf("no executable file name found for SCIO pipeline at %s: %s", paths.AbsoluteBaseFolderPath, err)
 	}
 
 	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
-	stringArg := fmt.Sprintf("%s %s %s", executorConfig.RunArgs[0], className, pipelineOptions)
 
-	cmd := exec.CommandContext(ctx, executorConfig.RunCmd, append(executorConfig.RunArgs, stringArg)...)
-	cmd.Dir = workingDir
+	cmd := exec.CommandContext(ctx, scioRunCmd, fmt.Sprintf("%s %s %s", scioRunArg, className, pipelineOptions))
+	cmd.Dir = paths.ProjectDir
 
 	return cmd, nil
 }
 
-func getScioRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, executorConfig *environment.ExecutorConfig) (*exec.Cmd, error) {
-	testCmd := executorConfig.TestCmd
-	args := executorConfig.TestArgs
-	workingDir := paths.AbsoluteSourceFileFolderPath
-
-	args = append(args, paths.AbsoluteSourceFilePath)
-
-	cmd := exec.CommandContext(ctx, testCmd, args...)
-	cmd.Dir = workingDir
+func getScioRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
+	cmd := exec.CommandContext(ctx, scioTestCmd, paths.AbsoluteSourceFilePath)
+	cmd.Dir = paths.AbsoluteSourceFileFolderPath
 	return cmd, nil
 }
