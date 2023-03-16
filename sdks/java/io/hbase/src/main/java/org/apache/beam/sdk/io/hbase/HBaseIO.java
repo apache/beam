@@ -161,9 +161,8 @@ import org.slf4j.LoggerFactory;
  * as input a {@link PCollection<KV<byte[], RowMutations>>}, representing KVs of bytes row keys and
  * {@link RowMutations}.
  *
- * <p>This implementation is useful for preserving mutation order if the upstream
- * is ordered by row key, as RowMutations will only be applied after previous RowMutations are
- * successful.
+ * <p>This implementation is useful for preserving mutation order if the upstream is ordered by row
+ * key, as RowMutations will only be applied after previous RowMutations are successful.
  *
  * <p>To configure the sink, you must supply a table id string and a {@link Configuration} to
  * identify the HBase instance, for example:
@@ -803,7 +802,7 @@ public class HBaseIO {
 
   /** Transformation that writes RowMutation objects to a Hbase table. */
   public static class WriteRowMutations
-      extends PTransform<PCollection<KV<byte[], RowMutations>>, PCollection<Integer>> {
+      extends PTransform<PCollection<KV<byte[], RowMutations>>, PDone> {
 
     /** Writes to the HBase instance indicated by the given Configuration. */
     public WriteRowMutations withConfiguration(Configuration configuration) {
@@ -823,12 +822,13 @@ public class HBaseIO {
     }
 
     @Override
-    public PCollection<Integer> expand(PCollection<KV<byte[], RowMutations>> input) {
+    public PDone expand(PCollection<KV<byte[], RowMutations>> input) {
       checkNotNull(configuration, "withConfiguration() is required");
       checkNotNull(tableId, "withTableId() is required");
       checkArgument(!tableId.isEmpty(), "withTableId() cannot be empty");
 
-      return input.apply(ParDo.of(new WriteRowMutationsFn(this)));
+      input.apply(ParDo.of(new WriteRowMutationsFn(this)));
+      return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -954,6 +954,7 @@ public class HBaseIO {
         try {
           // Use Table instead of BufferedMutator to preserve mutation-ordering
           table.mutateRow(mutations);
+          recordsWritten++;
         } catch (Exception e) {
           throw new Exception(
               (String.join(
@@ -972,9 +973,6 @@ public class HBaseIO {
                   Boolean.toString(connection.isClosed()),
                   Boolean.toString(connection.isAborted()))));
         }
-
-        // Dummy output so that we can get Dataflow stats for throughput.
-        c.output(1);
       }
 
       @Override

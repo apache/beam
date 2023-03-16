@@ -19,14 +19,12 @@ package org.apache.beam.sdk.io.hbase;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: test SharedConnection on prod Dataflow instance.
 /**
  * Static connection shared between all threads of a worker. Connectors are not persisted between
  * worker machines as Connection serialization is not implemented. Each worker will create its own
@@ -37,7 +35,8 @@ public class HBaseSharedConnection implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(HBaseSharedConnection.class);
 
   // Transient connection to be initialized per worker
-  private static AtomicReference<Connection> connection = new AtomicReference<>();
+  // Wrap Connection in array because static Connection cannot be non-null in beam repo
+  private static Connection[] connection = new Connection[1];
   // Number of threads using the shared connection, close connection if connectionCount goes to 0
   private static int connectionCount;
 
@@ -50,11 +49,11 @@ public class HBaseSharedConnection implements Serializable {
    */
   public static synchronized Connection getOrCreate(Configuration configuration)
       throws IOException {
-    if (connection.get() == null || connection.get().isClosed()) {
+    if (connection[0] == null || connection[0].isClosed()) {
       forceCreate(configuration);
     }
     connectionCount++;
-    return connection.get();
+    return connection[0];
   }
 
   /**
@@ -64,7 +63,7 @@ public class HBaseSharedConnection implements Serializable {
    * @throws IOException
    */
   public static synchronized void forceCreate(Configuration configuration) throws IOException {
-    connection.set(ConnectionFactory.createConnection(configuration));
+    connection[0] = ConnectionFactory.createConnection(configuration);
     connectionCount = 0;
   }
 
@@ -89,8 +88,8 @@ public class HBaseSharedConnection implements Serializable {
    * @throws IOException
    */
   public static synchronized void forceClose() throws IOException {
-    if (connection.get() != null) {
-      connection.get().close();
+    if (connection != null) {
+      connection[0].close();
       connectionCount = 0;
     }
   }
@@ -98,7 +97,7 @@ public class HBaseSharedConnection implements Serializable {
   public String getDebugString() {
     return String.format(
         "Connection down: %s\n" + "Connectors: %s\n",
-        (connection.get() == null || connection.get().isClosed()), connectionCount);
+        (connection[0] == null || connection[0].isClosed()), connectionCount);
   }
 
   public int getConnectionCount() {

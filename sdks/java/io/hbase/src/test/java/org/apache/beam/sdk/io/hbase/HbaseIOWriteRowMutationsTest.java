@@ -52,14 +52,14 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for Hbase row mutation IO. */
 @RunWith(JUnit4.class)
-public class HbaseRowMutationIOTest {
-  private static final Logger log = LoggerFactory.getLogger(HbaseRowMutationIOTest.class);
+public class HbaseIOWriteRowMutationsTest {
+  private static final Logger LOG = LoggerFactory.getLogger(HbaseIOWriteRowMutationsTest.class);
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   private static HBaseTestingUtility htu;
   private static final Configuration conf = HBaseConfiguration.create();
 
-  public HbaseRowMutationIOTest() {}
+  public HbaseIOWriteRowMutationsTest() {}
 
   @BeforeClass
   public static void setUpCluster() throws Exception {
@@ -75,7 +75,7 @@ public class HbaseRowMutationIOTest {
     htu.startMiniZKCluster();
     MiniHBaseCluster hbm = htu.startMiniHBaseCluster(1, 4);
     hbm.waitForActiveAndReadyMaster();
-    log.info("Hbase test cluster started.");
+    LOG.info("Hbase test cluster started.");
   }
 
   @AfterClass
