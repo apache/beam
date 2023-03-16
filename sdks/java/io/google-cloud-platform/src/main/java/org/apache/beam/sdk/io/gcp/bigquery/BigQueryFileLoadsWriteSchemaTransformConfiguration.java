@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * Configuration for writing to BigQuery.
  *
- * <p>This class is meant to be used with {@link BigQuerySchemaTransformWriteProvider}.
+ * <p>This class is meant to be used with {@link BigQueryFileLoadsWriteSchemaTransformProvider}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -35,17 +35,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class BigQuerySchemaTransformWriteConfiguration {
+public abstract class BigQueryFileLoadsWriteSchemaTransformConfiguration {
 
-  /** Instantiates a {@link BigQuerySchemaTransformWriteConfiguration.Builder}. */
+  /** Instantiates a {@link BigQueryFileLoadsWriteSchemaTransformConfiguration.Builder}. */
   public static Builder builder() {
-    return new AutoValue_BigQuerySchemaTransformWriteConfiguration.Builder();
+    return new AutoValue_BigQueryFileLoadsWriteSchemaTransformConfiguration.Builder();
   }
 
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQuerySchemaTransformWriteConfiguration> TYPE_DESCRIPTOR =
-      TypeDescriptor.of(BigQuerySchemaTransformWriteConfiguration.class);
-  private static final SerializableFunction<BigQuerySchemaTransformWriteConfiguration, Row>
+  private static final TypeDescriptor<BigQueryFileLoadsWriteSchemaTransformConfiguration>
+      TYPE_DESCRIPTOR = TypeDescriptor.of(BigQueryFileLoadsWriteSchemaTransformConfiguration.class);
+  private static final SerializableFunction<BigQueryFileLoadsWriteSchemaTransformConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   /**
@@ -80,7 +80,7 @@ public abstract class BigQuerySchemaTransformWriteConfiguration {
     /** Specifies what to do with existing data in the table, in case the table already exists. */
     public abstract Builder setWriteDisposition(String value);
 
-    /** Builds the {@link BigQuerySchemaTransformWriteConfiguration} configuration. */
-    public abstract BigQuerySchemaTransformWriteConfiguration build();
+    /** Builds the {@link BigQueryFileLoadsWriteSchemaTransformConfiguration} configuration. */
+    public abstract BigQueryFileLoadsWriteSchemaTransformConfiguration build();
   }
 }
