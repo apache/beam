@@ -61,7 +61,6 @@ ENV PROPERTY_PATH=/opt/playground/backend/
 
 # Copy build result
 COPY --from=build /go/bin/server_go_backend /opt/playground/backend/
-COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 
 COPY sdks.yaml /opt/playground/backend/sdks.yaml
 COPY sdks-emulator.yaml /opt/playground/backend/sdks-emulator.yaml

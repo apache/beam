@@ -119,15 +119,10 @@ func setup() error {
 		return err
 	}
 
-	executorConfig := &environment.ExecutorConfig{
-		CompileCmd:  "MOCK_COMPILE_CMD",
-		CompileArgs: []string{"MOCK_COMPILE_ARG"},
-		RunArgs:     []string{"MOCK_RUN_CMD"},
-	}
-	pythonSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_PYTHON, "", executorConfig, "", 0)
-	javaSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, "", executorConfig, "", 0)
-	goSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_GO, "", executorConfig, "", 0)
-	scioSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_SCIO, "", executorConfig, "", 0)
+	pythonSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_PYTHON, "", "", 0)
+	javaSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, "", "", 0)
+	goSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_GO, "", "", 0)
+	scioSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_SCIO, "", "", 0)
 
 	return nil
 }

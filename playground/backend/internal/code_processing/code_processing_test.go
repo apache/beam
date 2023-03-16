@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -128,7 +127,7 @@ func Test_Process(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	sdkJavaEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	sdkJavaEnv, err := environment.ConfigureBeamEnvs()
 	if err != nil {
 		panic(err)
 	}
@@ -583,11 +582,7 @@ func TestGetLastIndex(t *testing.T) {
 
 func getSdkEnv(sdk pb.Sdk) (*environment.BeamEnvs, error) {
 	setupSDK(sdk)
-	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
-	if err != nil {
-		return nil, err
-	}
-	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	sdkEnv, err := environment.ConfigureBeamEnvs()
 	if err != nil {
 		return nil, err
 	}
@@ -664,7 +659,7 @@ func Benchmark_ProcessJava(b *testing.B) {
 	if err != nil {
 		b.Fatalf("error during preparing appEnv: %s", err)
 	}
-	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
+	sdkEnv, err := environment.ConfigureBeamEnvs()
 	if err != nil {
 		b.Fatalf("error during preparing sdkEnv: %s", err)
 	}
@@ -694,7 +689,7 @@ func Benchmark_ProcessPython(b *testing.B) {
 	if err != nil {
 		b.Fatalf("error during preparing appEnv: %s", err)
 	}
-	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
+	sdkEnv, err := environment.ConfigureBeamEnvs()
 	if err != nil {
 		b.Fatalf("error during preparing sdkEnv: %s", err)
 	}
@@ -724,7 +719,7 @@ func Benchmark_ProcessGo(b *testing.B) {
 	if err != nil {
 		b.Fatalf("error during preparing appEnv: %s", err)
 	}
-	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
+	sdkEnv, err := environment.ConfigureBeamEnvs()
 	if err != nil {
 		b.Fatalf("error during preparing sdkEnv: %s", err)
 	}
@@ -800,8 +795,7 @@ func Test_validateStep(t *testing.T) {
 		panic(err)
 	}
 	incorrectSdkEnv := &environment.BeamEnvs{
-		ApacheBeamSdk:  pb.Sdk_SDK_UNSPECIFIED,
-		ExecutorConfig: nil,
+		ApacheBeamSdk: pb.Sdk_SDK_UNSPECIFIED,
 	}
 	type args struct {
 		ctx          context.Context
@@ -869,8 +863,7 @@ func Test_prepareStep(t *testing.T) {
 		panic(err)
 	}
 	incorrectSdkEnv := &environment.BeamEnvs{
-		ApacheBeamSdk:  pb.Sdk_SDK_UNSPECIFIED,
-		ExecutorConfig: nil,
+		ApacheBeamSdk: pb.Sdk_SDK_UNSPECIFIED,
 	}
 	validationResults := validators.ValidationResult{
 		IsUnitTest: validators.No,
@@ -1134,15 +1127,6 @@ func Test_runStep(t *testing.T) {
 			}
 		})
 	}
-}
-
-func syncMapLen(syncMap *sync.Map) int {
-	length := 0
-	syncMap.Range(func(_, _ interface{}) bool {
-		length++
-		return true
-	})
-	return length
 }
 
 func TestGetGraph(t *testing.T) {

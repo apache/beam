@@ -66,7 +66,6 @@ ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
 
 # Copy build result
 COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
-COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/datasets/
 COPY --from=dep /pipeline-dependencies/target/dependency/ /opt/apache/beam/jars/

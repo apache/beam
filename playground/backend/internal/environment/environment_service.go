@@ -16,10 +16,7 @@
 package environment
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -150,7 +147,7 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 // Lookups in os environment variables and takes value for Apache Beam SDK.
 // If os environment variables don't contain a value for Apache Beam SDK - returns error.
 // Configures ExecutorConfig with config file.
-func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
+func ConfigureBeamEnvs() (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
 	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
 	numOfParallelJobs := getEnvAsInt(numOfParallelJobsKey, defaultNumOfParallelJobs)
@@ -174,40 +171,9 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 		}
 	}
 	if sdk == pb.Sdk_SDK_UNSPECIFIED {
-		return NewBeamEnvs(sdk, beamVersion, nil, preparedModDir, numOfParallelJobs), nil
+		return NewBeamEnvs(sdk, beamVersion, preparedModDir, numOfParallelJobs), nil
 	}
-	configPath := filepath.Join(workDir, configFolderName, sdk.String()+jsonExt)
-	executorConfig, err := createExecutorConfig(sdk, configPath)
-	if err != nil {
-		return nil, err
-	}
-	return NewBeamEnvs(sdk, beamVersion, executorConfig, preparedModDir, numOfParallelJobs), nil
-}
-
-// createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
-// Configures ExecutorConfig with config file which is located at configPath.
-func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorConfig, error) {
-	executorConfig, err := getConfigFromJson(configPath)
-	if err != nil {
-		return nil, err
-	}
-	switch apacheBeamSdk {
-	case pb.Sdk_SDK_JAVA:
-		args, err := ConcatBeamJarsToString()
-		if err != nil {
-			return nil, fmt.Errorf("error during proccessing jars: %s", err.Error())
-		}
-		executorConfig.CompileArgs = append(executorConfig.CompileArgs, args)
-		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], args)
-		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], args)
-	case pb.Sdk_SDK_GO:
-		// Go sdk doesn't need any additional arguments from the config file
-	case pb.Sdk_SDK_PYTHON:
-		// Python sdk doesn't need any additional arguments from the config file
-	case pb.Sdk_SDK_SCIO:
-		// Scala sdk doesn't need any additional arguments from the config file
-	}
-	return executorConfig, nil
+	return NewBeamEnvs(sdk, beamVersion, preparedModDir, numOfParallelJobs), nil
 }
 
 func ConcatBeamJarsToString() (string, error) {
@@ -217,20 +183,6 @@ func ConcatBeamJarsToString() (string, error) {
 	}
 	args := strings.Join(jars, ":")
 	return args, nil
-}
-
-// getConfigFromJson reads a json file to ExecutorConfig
-func getConfigFromJson(configPath string) (*ExecutorConfig, error) {
-	file, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return nil, err
-	}
-	executorConfig := ExecutorConfig{}
-	err = json.Unmarshal(file, &executorConfig)
-	if err != nil {
-		return nil, err
-	}
-	return &executorConfig, err
 }
 
 // getEnv returns an environment variable or default value

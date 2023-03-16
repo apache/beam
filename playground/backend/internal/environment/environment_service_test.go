@@ -36,8 +36,6 @@ const (
 	dirPermission    = 0600
 )
 
-var executorConfig *ExecutorConfig
-
 func TestMain(m *testing.M) {
 	err := setup()
 	if err != nil {
@@ -64,17 +62,6 @@ func setup() error {
 		return err
 	}
 	os.Clearenv()
-
-	jars, err := ConcatBeamJarsToString()
-	if err != nil {
-		return err
-	}
-	executorConfig = NewExecutorConfig(
-		"javac", "java", "java",
-		[]string{"-d", "bin", "-parameters", "-classpath", jars},
-		[]string{"-cp", "bin:" + jars},
-		[]string{"-cp", "bin:" + jars, "org.junit.runner.JUnitCore"},
-	)
 	return nil
 }
 
@@ -96,7 +83,6 @@ func setOsEnvs(envsToSet map[string]string) error {
 }
 
 func TestNewEnvironment(t *testing.T) {
-	executorConfig := NewExecutorConfig("javac", "java", "java", []string{""}, []string{""}, []string{""})
 	preparedModDir := ""
 	tests := []struct {
 		name string
@@ -104,7 +90,7 @@ func TestNewEnvironment(t *testing.T) {
 	}{
 		{name: "Create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, 0),
+			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, defaultBeamVersion, preparedModDir, 0),
 			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 		}},
 	}
@@ -112,7 +98,7 @@ func TestNewEnvironment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-				*NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, 0),
+				*NewBeamEnvs(defaultSdk, defaultBeamVersion, preparedModDir, 0),
 				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
@@ -121,7 +107,6 @@ func TestNewEnvironment(t *testing.T) {
 }
 
 func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
-	workingDir := "./"
 	preparedModDir := ""
 	tests := []struct {
 		name      string
@@ -131,25 +116,25 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "Not specified beam sdk key in os envs",
-			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{},
 			wantErr:   false,
 		},
 		{
 			name:      "Default beam envs",
-			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(defaultSdk, defaultBeamVersion, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_UNSPECIFIED"},
 			wantErr:   false,
 		},
 		{
 			name:      "Specific sdk key in os envs",
-			want:      NewBeamEnvs(pb.Sdk_SDK_JAVA, defaultBeamVersion, executorConfig, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_JAVA, defaultBeamVersion, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "Wrong sdk key in os envs",
-			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_J"},
 			wantErr:   false,
 		},
@@ -159,7 +144,7 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 			if err := setOsEnvs(tt.envsToSet); err != nil {
 				t.Fatalf("couldn't setup os env")
 			}
-			got, err := ConfigureBeamEnvs(workingDir)
+			got, err := ConfigureBeamEnvs()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ConfigureBeamEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -278,160 +263,54 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 	os.Clearenv()
 }
 
-func Test_createExecutorConfig(t *testing.T) {
-	type args struct {
-		apacheBeamSdk pb.Sdk
-		configPath    string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *ExecutorConfig
-		wantErr bool
-	}{
-		{
-			name:    "Create executor configuration from json file",
-			args:    args{apacheBeamSdk: pb.Sdk_SDK_JAVA, configPath: filepath.Join(configFolderName, pb.Sdk_SDK_JAVA.String()+jsonExt)},
-			want:    executorConfig,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := createExecutorConfig(tt.args.apacheBeamSdk, tt.args.configPath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("createExecutorConfig() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("createExecutorConfig() got = %v\n, want %v\n", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_getConfigFromJson(t *testing.T) {
-	type args struct {
-		configPath string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *ExecutorConfig
-		wantErr bool
-	}{
-		{
-			name:    "Get object from json",
-			args:    args{filepath.Join(configFolderName, pb.Sdk_SDK_JAVA.String()+jsonExt)},
-			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-parameters", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}),
-			wantErr: false,
-		},
-		{
-			name:    "Error if wrong json path",
-			args:    args{filepath.Join("wrong_folder", pb.Sdk_SDK_JAVA.String()+jsonExt)},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getConfigFromJson(tt.args.configPath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getConfigFromJson() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getConfigFromJson() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestConfigureBeamEnvs(t *testing.T) {
-	workingDir := "./"
 	modDir := "/modDir"
-	goExecutorConfig := NewExecutorConfig(
-		"go",
-		"",
-		"go",
-		[]string{"build", "-o", "bin"},
-		[]string{},
-		[]string{"test", "-v"},
-	)
-	pythonExecutorConfig := NewExecutorConfig(
-		"",
-		"python3",
-		"pytest",
-		[]string{},
-		[]string{},
-		[]string{},
-	)
-	scioExecutorConfig := NewExecutorConfig(
-		"",
-		"sbt",
-		"sbt",
-		[]string{},
-		[]string{"runMain"},
-		[]string{},
-	)
-	type args struct {
-		workingDir string
-	}
+
 	tests := []struct {
 		name      string
-		args      args
 		want      *BeamEnvs
 		wantErr   bool
 		envsToSet map[string]string
 	}{
 		{
 			name:      "PREPARED_MOD_DIR is not specified in the environment for GO sdk",
-			args:      args{workingDir: workingDir},
 			want:      nil,
 			wantErr:   true,
 			envsToSet: map[string]string{beamSdkKey: "SDK_GO"},
 		},
 		{
 			name:      "BeamSdkKey set to GO sdk",
-			args:      args{workingDir: workingDir},
-			want:      NewBeamEnvs(pb.Sdk_SDK_GO, defaultBeamVersion, goExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_GO, defaultBeamVersion, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_GO", preparedModDirKey: modDir},
 		},
 		{
-			name:      "Error during creating executable config",
-			args:      args{workingDir: "/app"},
-			want:      nil,
-			wantErr:   true,
-			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON"},
-		},
-		{
 			name:      "BeamSdkKey set to Python sdk",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON"},
 		},
 		{
 			name:      "BeamSdkKey set to SCIO sdk",
-			want:      NewBeamEnvs(pb.Sdk_SDK_SCIO, defaultBeamVersion, scioExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_SCIO, defaultBeamVersion, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_SCIO"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with a positive number",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, 1),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, modDir, 1),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "1"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with a negative number",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "-1"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with incorrect value",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "incorrectValue"},
 		},
@@ -441,7 +320,7 @@ func TestConfigureBeamEnvs(t *testing.T) {
 			if err := setOsEnvs(tt.envsToSet); err != nil {
 				t.Fatalf("couldn't setup os env")
 			}
-			got, err := ConfigureBeamEnvs(tt.args.workingDir)
+			got, err := ConfigureBeamEnvs()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ConfigureBeamEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return

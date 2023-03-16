@@ -169,7 +169,7 @@ func setupEnvironment() (*environment.Environment, error) {
 	if err != nil {
 		return nil, err
 	}
-	beamEnvs, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	beamEnvs, err := environment.ConfigureBeamEnvs()
 	if err != nil {
 		return nil, err
 	}
