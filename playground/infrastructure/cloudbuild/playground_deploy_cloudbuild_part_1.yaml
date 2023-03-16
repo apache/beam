@@ -18,47 +18,30 @@ steps:
     args:
       - '-c'
       - >-
-        echo "Search for DEPLOY_LOG keyword to find valuable logs entries"
-    
-        apt update > /dev/null
-
-        apt-get install -y git curl apt-transport-https ca-certificates gnupg > /dev/null
-
-        echo "deb https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-
-        apt-get update && apt-get install -y google-cloud-sdk > /dev/null
+        apt update >/dev/null && apt install -y build-essential unzip ca-certificates curl wget gnupg2 lsb-release openjdk-11-jdk >/dev/null
+        
+        echo "deb [signed-by=/usr/share/keyrings/google-cloud-archive-keyring.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee /etc/apt/sources.list.d/google-cloud-sdk.list
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor | tee /usr/share/keyrings/google-cloud-archive-keyring.gpg >/dev/null
+        apt update && apt install -y google-cloud-sdk >/dev/null
+        
+        curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+        add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable" >/dev/null
+        apt update >/dev/null && apt install -y docker-ce >/dev/null
+        
+        curl -fsSLo get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 >/dev/null
+        chmod +x get_helm.sh && ./get_helm.sh >/dev/null
+        
+        wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | tee /usr/share/keyrings/hashicorp-archive-keyring.gpg >/dev/null
+        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list
+        apt update >/dev/null && apt install -y terraform >/dev/null
+        
+        curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
     
         git clone --branch {_BRANCH_NAME} https://github.com/apache/beam.git
     
         cd beam
-    
-        curl -O --output-dir /tmp https://raw.githubusercontent.com/akvelon/beam/playground-ci-webhook/playground/infrastructure/cloudbuild/sample.sh
-    
-        echo "DEPLOY_LOG $(date --utc '+%D %T') Starting PG deployment."
-    
-        chmod +x /tmp/sample.sh
-    
-        env -i bash -c "/tmp/sample.sh 
-        PROJECT_ID='"'${_GCP_PROJECT}'"' 
-        NETWORK_NAME='"'${_NETWORK_NAME}'"' 
-        SUBNETWORK_NAME='"'${_SUBNETWORK_NAME}'"' 
-        GKE_NAME='"'${_GKE_NAME}'"'
-        PG_REGION='"'${_PG_REGION}'"' 
-        PG_LOCATION='"'${_PG_LOCATION}'"' 
-        STATE_BUCKET='"'${_STATE_BUCKET}'"'
-        REDIS_NAME='"'${_REDIS_NAME}'"' 
-        MIN_COUNT='"'${_MIN_COUNT}'"' 
-        MAX_COUNT='"'${_MAX_COUNT}'"'
-        GKE_MACHINE_TYPE='"'${_GKE_MACHINE_TYPE}'"' 
-        IP_ADDRESS_NAME='"'${_IP_ADDRESS_NAME}'"' 
-        REPOSITORY_ID='"'${_REPOSITORY_ID}'"'
-        SERVICE_ACCOUNT_ID='"'${_SERVICE_ACCOUNT_ID}'"'
-        ENVIRONMENT_NAME='"'${_ENVIRONMENT_NAME}'"'
-        DNS_NAME='"'${_DNS_NAME}'"'
-        "
-        script_status=$?
+  
         
         if [ $script_status -eq 0 ]; then
                 echo "DEPLOY_LOG $(date --utc '+%D %T') Done."

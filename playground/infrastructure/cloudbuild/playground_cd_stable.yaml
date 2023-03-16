@@ -20,16 +20,13 @@ steps:
       - |-
         echo "Search for CDLOG keyword to find valuable logs entries"
         echo "CDLOG $(date --utc '+%D %T') Trigger run inputs: 
-        1. PR URL: $_PR_URL; 
-        2. PR Source Repo: $_FORK_REPO; 
-        3. PR Branch: $_PR_BRANCH;
-        4. PR Commit: $_PR_COMMIT; 
-        5. WebHook Action: $_PR_TYPE; 
-        6. Merged to: $_TARGET_PR_REPO_BRANCH; 
-        7. Playground DNS: $_DNS_NAME; "
-        if [[ "${_PR_BRANCH}" != "playground-ci-webhook" ]]; then
-           exit 0
-        fi
+         PR URL: $_PR_URL; 
+         PR Source Repo: $_FORK_REPO; 
+         PR Branch: $_PR_BRANCH;
+         PR Commit: $_PR_COMMIT; 
+         WebHook Action: $_PR_TYPE; 
+         Merged to: $_TARGET_PR_REPO_BRANCH; 
+         Playground DNS: $_DNS_NAME; "
         if [[ ${_TARGET_PR_REPO_BRANCH} == "apache:master" ]]; then
             echo "CDLOG $(date --utc '+%D %T').
 
@@ -56,11 +53,11 @@ steps:
 
             git remote add forked https://github.com/${_FORK_REPO}.git > /dev/null 2>&1
 
-            curl -O --output-dir /tmp https://raw.githubusercontent.com/akvelon/beam/playground-ci-webhook/playground/infrastructure/cloudbuild/examples_cd.sh
+            curl -O --output-dir /tmp https://raw.githubusercontent.com/akvelon/beam/master/playground/infrastructure/cloudbuild/examples_cd.sh
 
             chmod +x /tmp/examples_cd.sh
             
-            env -i bash -c "/tmp/examples_cd.sh PROJECT_ID='"'${PROJECT_ID}'"' DNS_NAME='"'${_DNS_NAME}'"' COMMIT='"'${_PR_COMMIT}'"' "
+            env -i bash -c "/tmp/examples_cd.sh NAMESPACE='"'${_NAMESPACE}'"' PROJECT_ID='"'${PROJECT_ID}'"' DNS_NAME='"'${_DNS_NAME}'"' COMMIT='"'${_PR_COMMIT}'"' "
             cd_script_status=$?
 
             if [ $cd_script_status -eq 0 ]; then

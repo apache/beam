@@ -95,11 +95,11 @@ LogOutput "Installing Python environment"
 apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
-apt install --reinstall python3.8-distutils > /dev/null
+apt install -y --reinstall python3.8-distutils > /dev/null
 pip install --upgrade google-api-python-client > /dev/null
 python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
-apt install python3.8-venv > /dev/null
+apt install -y python3.8-venv > /dev/null
 pip install -r playground/infrastructure/requirements.txt > /dev/null
 
 LogOutput "Installing JDK and Gradle"

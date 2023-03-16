@@ -28,10 +28,13 @@ done
 # This block sets default values for several environment variables to run CD script.
 export LOG_PATH=${LOG_PATH-"/dev/null"}
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
-export STEP=${STEP-"CD"}
 export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
 export PROJECT_ID=${PROJECT_ID}
+if [[ -z "${PROJECT_ID}" ]]; then
+  echo "PROJECT_ID is empty or not set. Exiting"
+  exit 1
+fi
 export SDK_CONFIG=${SDK_CONFIG-"$BEAM_ROOT_DIR/playground/sdks.yaml"}
 export BEAM_EXAMPLE_CATEGORIES=${BEAM_EXAMPLE_CATEGORIES-"$BEAM_ROOT_DIR/playground/categories.yaml"}
 export BEAM_USE_WEBGRPC=${BEAM_USE_WEBGRPC-"yes"}
@@ -39,6 +42,15 @@ export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-2}
 export SDKS=${SDKS-"java python go"}
 export COMMIT=${COMMIT-"HEAD"}
 export DNS_NAME=${DNS_NAME}
+if [[ -z "${DNS_NAME}" ]]; then
+  echo "DNS_NAME is empty or not set. Exiting"
+  exit 1
+fi
+export NAMESPACE=${NAMESPACE}
+if [[ -z "${NAMESPACE}" ]]; then
+  echo "Datastore NAMESPACE is empty or not set. Exiting"
+  exit 1
+fi
 
 # This function logs the given message to a file and outputs it to the console.
 function LogOutput ()
@@ -49,18 +61,19 @@ function LogOutput ()
 }
 
 LogOutput "Input variables:
-1. ORIGIN=$ORIGIN
-2. STEP=$STEP
-3. SUBDIRS=$SUBDIRS
-4. BEAM_ROOT_DIR=$BEAM_ROOT_DIR
-5. PROJECT_ID=$PROJECT_ID
-6. SDK_CONFIG=$SDK_CONFIG
-7. BEAM_EXAMPLE_CATEGORIES=$BEAM_EXAMPLE_CATEGORIES
-8. BEAM_CONCURRENCY=$BEAM_CONCURRENCY
-9. SDKS=$SDKS
-10. COMMIT=$COMMIT
-11. DNS_NAME=$DNS_NAME
-12. BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC"
+ ORIGIN=$ORIGIN
+ STEP=$STEP
+ SUBDIRS=$SUBDIRS
+ BEAM_ROOT_DIR=$BEAM_ROOT_DIR
+ PROJECT_ID=$PROJECT_ID
+ SDK_CONFIG=$SDK_CONFIG
+ BEAM_EXAMPLE_CATEGORIES=$BEAM_EXAMPLE_CATEGORIES
+ BEAM_CONCURRENCY=$BEAM_CONCURRENCY
+ SDKS=$SDKS
+ COMMIT=$COMMIT
+ DNS_NAME=$DNS_NAME
+ BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC
+ NAMESPACE=$NAMESPACE"
 
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
@@ -79,11 +92,11 @@ export DEBIAN_FRONTEND=noninteractive
 apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null 2>&1
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null 2>&1
-apt install --reinstall python3.8-distutils > /dev/null 2>&1
+apt install -y --reinstall python3.8-distutils > /dev/null 2>&1
 pip install --upgrade google-api-python-client > /dev/null 2>&1
 python3.8 -m pip install pip --upgrade > /dev/null 2>&1
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
-apt install python3.8-venv > /dev/null 2>&1
+apt install -y python3.8-venv > /dev/null 2>&1
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
 LogOutput "All packages and dependencies have been successfully installed. Starting Playground examples Deployment to https://${DNS_NAME}."
@@ -95,10 +108,11 @@ do
     export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
     python3 ci_cd.py \
     --datastore-project ${PROJECT_ID} \
+    --namespace ${NAMESPACE} \
     --step ${STEP} \
     --sdk SDK_"${sdk^^}" \
     --origin ${ORIGIN} \
-    --subdirs ${SUBDIRS}
+    --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
     if [ $? -eq 0 ]
         then
             LogOutput "Examples for $sdk SDK have been successfully deployed."
