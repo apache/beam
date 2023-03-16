@@ -24,10 +24,6 @@ steps:
         $_PR_URL; PR Source Repo: $_FORK_REPO; PR Branch: $_PR_BRANCH; PR
         Commit: $_PR_COMMIT; WebHook Action: $_PR_TYPE; Merge to: $_BASE_REF;"
 
-        if [[ "${_PR_BRANCH}" != "test_ci" ]]; then
-           exit 0
-        fi
-
         if [[ "${_BASE_REF}" != "master" ]]; then
             echo "CILOG Merge to  branch apache/${_BASE_REF}. Exiting"
             exit 0
