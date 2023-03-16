@@ -214,6 +214,10 @@ class BigtableConfigTranslator {
     }
     batchingSettings = batchingSettings.setFlowControlSettings(flowControlSettings.build());
 
+    if (writeOptions.getThrottlingTargetMs() != null) {
+      settings.enableBatchMutationLatencyBasedThrottling(writeOptions.getThrottlingTargetMs());
+    }
+
     settings
         .stubSettings()
         .bulkMutateRowsSettings()
@@ -361,6 +365,9 @@ class BigtableConfigTranslator {
       builder.setAttemptTimeout(
           org.joda.time.Duration.millis(
               options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().get()));
+    }
+    if (options.getBulkOptions().isEnableBulkMutationThrottling()) {
+      builder.setThrottlingTargetMs(options.getBulkOptions().getBulkMutationRpcTargetMs());
     }
     builder.setOperationTimeout(
         org.joda.time.Duration.millis(options.getCallOptionsConfig().getMutateRpcTimeoutMs()));

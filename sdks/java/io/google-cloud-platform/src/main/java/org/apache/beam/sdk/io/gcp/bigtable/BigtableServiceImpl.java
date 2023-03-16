@@ -107,8 +107,7 @@ class BigtableServiceImpl implements BigtableService {
     if (readWaitTimeout != null) {
       // TODO: a hack to workaround incorrect mapping from attempt timeout to watchdogs wait
       // timeout. This can be removed once
-      // https://github.com/googleapis/gapic-generator-java/pull/1473
-      // is resolved.
+      // https://github.com/googleapis/gapic-generator-java/pull/1473 is resolved.
       builder
           .stubSettings()
           .readRowsSettings()
