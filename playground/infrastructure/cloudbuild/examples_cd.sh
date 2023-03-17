@@ -109,7 +109,7 @@ do
     python3 ci_cd.py \
     --datastore-project ${PROJECT_ID} \
     --namespace ${NAMESPACE} \
-    --step ${STEP} \
+    --step CD \
     --sdk SDK_"${sdk^^}" \
     --origin ${ORIGIN} \
     --subdirs ${SUBDIRS}
