@@ -10,7 +10,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.transforms.online_clustering import OnlineClustering
-from apache_beam.transforms.online_clustering import OnlineKMeans
+from apache_beam.transforms.online_clustering import OnlineKMeansClustering
 
 
 def parse_known_args(argv):
@@ -43,7 +43,7 @@ def run(
 
     data = (
         pipeline
-        | read_csv('/tmp/housing.csv')
+        | read_csv(known_args.input)
     )
 
     features = ['longitude', 'latitude', 'median_income']
@@ -53,7 +53,7 @@ def run(
     _ = (
         housing_features
         | beam.Map(lambda record: list(record))
-        | OnlineClustering(OnlineKMeans, n_clusters=6, batch_size=256)
+        | OnlineClustering(OnlineKMeansClustering, n_clusters=6, batch_size=256)
     )
 
     result = pipeline.run()
