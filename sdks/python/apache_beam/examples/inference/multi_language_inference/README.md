@@ -24,7 +24,7 @@ More details on how to do this can be found [here](https://beam.apache.org/get-s
 Make sure you have Maven installed and added to PATH. Also make sure that JAVA_HOME
 points to the correct Java version.
 
-First we need to download the Maven arche-type for Beam. Run the following command:
+First we need to download the Maven archetype for Beam. Run the following command:
 
 ```bash
 export BEAM_VERSION=<Beam version>
