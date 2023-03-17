@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This loop reads the arguments passed to the script, parses them, and exports them as environment    variables.
+# This loop reads the arguments passed to the script, parses them, and exports them as environment variables.
 for ARGUMENT in "$@"
 do
    KEY=$(echo $ARGUMENT | cut -f1 -d=)
@@ -112,7 +112,7 @@ do
     --step ${STEP} \
     --sdk SDK_"${sdk^^}" \
     --origin ${ORIGIN} \
-    --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
+    --subdirs ${SUBDIRS}
     if [ $? -eq 0 ]
         then
             LogOutput "Examples for $sdk SDK have been successfully deployed."
