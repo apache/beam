@@ -48,6 +48,8 @@ class TabbedSnippetEditor extends StatelessWidget {
       keys: keys,
       onChanged: (key) {
         if (key != null) {
+          controller.activeFileController?.codeController.popupController
+              .hide();
           controller.activateFileControllerByName(key);
         }
       },

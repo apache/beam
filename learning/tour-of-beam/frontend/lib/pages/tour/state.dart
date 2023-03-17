@@ -107,9 +107,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   Future<void> _onAuthChanged() async {
     await _updateSnippetTypeSelector();
-    if (_snippetType != SnippetType.saved
-        // && !_unitProgressCache.hasCachedSnippet(currentUnitId)
-        ) {
+    // The local changes are preserved if the user signs in.
+    if (_snippetType != SnippetType.saved || !isAuthenticated) {
       await _loadSnippetByType();
     }
     notifyListeners();
@@ -184,9 +183,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         isCodeChanged && _currentUnitContent != null && snippetFiles.isNotEmpty;
 
     if (doSave) {
+      final sdk = currentSdk;
+      final unitId = currentUnitId;
       _saveCodeDebounced?.call([], {
-        const Symbol('sdk'): currentSdk,
-        const Symbol('unitId'): currentUnitId,
+        const Symbol('sdk'): sdk,
+        const Symbol('unitId'): unitId,
         const Symbol('snippetFiles'): snippetFiles,
       });
     }
