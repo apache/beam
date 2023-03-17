@@ -311,12 +311,6 @@ def ensure_grpcio_exists():
   try:
     from grpc_tools import protoc  # pylint: disable=unused-import
   except ImportError:
-    if platform.system() == 'Windows':
-      # For Windows, grpcio-tools has to be installed manually.
-      raise RuntimeError(
-          'Cannot generate protos for Windows since grpcio-tools package is '
-          'not installed. Please install this package manually '
-          'using \'pip install grpcio-tools\'.')
     return _install_grpcio_tools()
 
 
@@ -556,10 +550,11 @@ def generate_proto_files(force=False):
       f.writelines(lines)
 
   generate_init_files_lite(PYTHON_OUTPUT_PATH)
-  for proto_package in proto_packages:
-    generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
+  with PythonPath(grpcio_install_loc):
+    for proto_package in proto_packages:
+      generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
 
-  generate_init_files_full(PYTHON_OUTPUT_PATH)
+    generate_init_files_full(PYTHON_OUTPUT_PATH)
 
 
 if __name__ == '__main__':
