@@ -70,15 +70,6 @@ test_6:
     - python_tft_criteo
 
 test_7:
-  test_name: TFT Criteo 10 GB test with shuffle and fixed workers 50 on n1-standard-4 machine
-  metrics_dataset: beam_cloudml
-  metrics_table: cloudml_benchmark_criteo_fixed_workers_10GB
-  project: apache-beam-testing
-  metric_name: runtime_sec
-  labels:
-    - python_tft_criteo
-
-test_8:
   test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152_tesla_t4
@@ -87,7 +78,7 @@ test_8:
   labels:
     - run-inference
 
-test_9:
+test_8:
   test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152_tesla_t4
