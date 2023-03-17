@@ -19,7 +19,15 @@ limitations under the License.
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+<table>
+  <tr>
+    <td>
+      <a>
+      {{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+      </a>
+   </td>
+  </tr>
+</table>
 
 Uses models to do local and remote inference. A `RunInference` transform performs inference on a `PCollection` of examples using a machine learning (ML) model. The transform outputs a `PCollection` that contains the input examples and output predictions.
 
@@ -29,74 +37,16 @@ See more [RunInference API pipeline examples](https://github.com/apache/beam/tre
 
 ## Examples
 
-In the following examples, we explore how to create pipelines that use the Beam RunInference API to make predictions based on models.
+The following examples show how to create pipelines that use the Beam RunInference API to make predictions based on models.
 
-### Example 1: PyTorch unkeyed model
-
-In this example, we create a pipeline that uses a PyTorch RunInference transform on unkeyed data.
-
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
-  class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" torch_unkeyed_model_handler >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" torch_unkeyed_model_handler >}}
-{{< /highlight >}}
-
-### Example 2: PyTorch keyed model
-
-In this example, we create a pipeline that uses a PyTorch RunInference transform on keyed data.
-
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
-  class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" torch_keyed_model_handler >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" torch_keyed_model_handler >}}
-{{< /highlight >}}
-
-### Example 3: Sklearn unkeyed model
-
-In this example, we create a pipeline that uses an SKlearn RunInference transform on unkeyed data.
-
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
-  class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" sklearn_unkeyed_model_handler >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" sklearn_unkeyed_model_handler >}}
-{{< /highlight >}}
-
-### Example 4: Sklearn keyed model
-
-In this example, we create a pipeline that uses an SKlearn RunInference transform on keyed data.
-
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
-  class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" sklearn_keyed_model_handler >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" sklearn_keyed_model_handler >}}
-{{< /highlight >}}
+{{< table >}}
+| Framework | Example |
+| ----- | ----- |
+| PyTorch | [PyTorch unkeyed model](/documentation/transforms/python/elementwise/runinference-pytorch/#example-1-pytorch-unkeyed-model) |
+| PyTorch | [PyTorch keyed model](/documentation/transforms/python/elementwise/runinference-pytorch/#example-2-pytorch-keyed-model) |
+| Sklearn| [Sklearn unkeyed model](/documentation/transforms/python/elementwise/runinference-sklearn/#example-1-sklearn-unkeyed-model) |
+| Sklearn | [Sklearn keyed model](/documentation/transforms/python/elementwise/runinference-sklearn/#example-2-sklearn-keyed-model) |:
+{{< /table >}}
 
 ## Related transforms
 

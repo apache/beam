@@ -32,9 +32,6 @@ cython<1
 # some versions of libraries that launch Beam pipelines, like tensorflow-transform.
 # Leaving 'future' in our containers for now prevent breaking tft users.
 future
-# TODO: Remove the upper bound once Tensorflow 2.11 is released.
-# https://github.com/apache/beam/issues/23355
-google-cloud-profiler<4.0.0
 guppy3  # Memory profiler
 mmh3  # Optimizes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.
@@ -42,4 +39,4 @@ nose==1.3.7  # For Dataflow internal testing. TODO: remove this.
 python-snappy  # Optimizes execution of some Beam codepaths.
 scipy
 scikit-learn
-tensorflow
+tensorflow>=2.12.0rc1;python_version>="3.8"

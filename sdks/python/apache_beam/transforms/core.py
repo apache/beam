@@ -3227,16 +3227,14 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-
-  def __init__(
-      self,
-      windowfn,  # type: WindowFn
-      triggerfn=None,  # type: typing.Optional[TriggerFn]
-      accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
-      timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
-      allowed_lateness=0,  # type: typing.Union[int, float]
-      environment_id=None,  # type: typing.Optional[str]
-  ):
+  def __init__(self,
+               windowfn,  # type: WindowFn
+               triggerfn=None,  # type: typing.Optional[TriggerFn]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum.ValueType]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum.ValueType]
+               allowed_lateness=0, # type: typing.Union[int, float]
+               environment_id=None, # type: typing.Optional[str]
+               ):
     """Class representing the window strategy.
 
     Args:

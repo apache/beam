@@ -32,6 +32,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Pipeline authors can use resource hints to provide additional information to runners about the
@@ -42,6 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Interpretation of hints is provided by Beam runners.
  */
 public class ResourceHints {
+  private static final Logger LOG = LoggerFactory.getLogger(ResourceHints.class);
   private static final String MIN_RAM_URN = "beam:resources:min_ram_bytes:v1";
   private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
 
@@ -207,8 +210,28 @@ public class ResourceHints {
     }
   }
 
-  /** Sets desired minimal available RAM size to have in transform's execution environment. */
+  /**
+   * Sets desired minimal available RAM size to have in transform's execution environment.
+   *
+   * @param ramBytes specifies a positive RAM size in bytes. A number greater than 2G
+   *     (Integer.MAX_VALUE) is typical.
+   */
   public ResourceHints withMinRam(long ramBytes) {
+    if (ramBytes <= 0L) {
+      // TODO(yathu) ignore invalid value as of Beam v2.47.0. throw error in future version.
+      LOG.error(
+          "Encountered invalid non-positive minimum ram hint value {}.\n"
+              + "Likely cause is an (overflowing) int expression is passed in. "
+              + "The value is ignored. In the future, The method will require an object Long type "
+              + "and throw an IllegalArgumentException for invalid values.",
+          ramBytes);
+      return this;
+    } else if (ramBytes <= Integer.MAX_VALUE) {
+      LOG.warn(
+          "Minimum available RAM size ({}) is set too small.\n"
+              + "Likely cause is an (overflowing) int expression is passed in.",
+          ramBytes);
+    }
     return withHint(MIN_RAM_URN, new BytesHint(ramBytes));
   }
 
