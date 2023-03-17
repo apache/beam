@@ -239,7 +239,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     """
 
   def __init__(self,
-               job_id,  # type: str
+               job_id,   # type: str
                pipeline,
                options,
                provision_info,  # type: fn_runner.ExtendedProvisionInfo

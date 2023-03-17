@@ -84,48 +84,6 @@ func TestGetPCObjectKey(t *testing.T) {
 	}
 }
 
-func TestGetExampleID(t *testing.T) {
-	tests := []struct {
-		name              string
-		cloudPath         string
-		expectedExampleId string
-		wantErr           bool
-	}{
-		{
-			name:              "Getting example identifier in the usual case",
-			cloudPath:         "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE",
-			expectedExampleId: "SDK_JAVA_MOCK_EXAMPLE",
-			wantErr:           false,
-		},
-		{
-			name:              "Getting example identifier when invalid the cloud path",
-			cloudPath:         "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE",
-			expectedExampleId: "SDK_JAVA_MOCK_EXAMPLE",
-			wantErr:           true,
-		},
-		{
-			name:              "Getting example identifier when the cloud path is empty",
-			cloudPath:         "",
-			expectedExampleId: "SDK_JAVA_MOCK_EXAMPLE",
-			wantErr:           true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			exampleId, err := GetExampleID(tt.cloudPath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetExampleID() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err == nil {
-				if exampleId != tt.expectedExampleId {
-					t.Error("GetExampleID() unexpected result")
-				}
-			}
-		})
-	}
-}
-
 func TestGetIDWithDelimiter(t *testing.T) {
 	tests := []struct {
 		name           string

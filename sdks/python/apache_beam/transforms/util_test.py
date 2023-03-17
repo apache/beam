@@ -288,7 +288,23 @@ class BatchElementsTest(unittest.TestCase):
     batch_estimator = util._BatchSizeEstimator(
         target_batch_overhead=None, target_batch_duration_secs=10, clock=clock)
     batch_duration = lambda batch_size: 1 + .7 * batch_size
-    # 1 + 12 * .7 is as close as we can get to 10 as possible.
+    # 14 * .7 is as close as we can get to 10 as possible.
+    expected_sizes = [1, 2, 4, 8, 14, 14, 14]
+    actual_sizes = []
+    for _ in range(len(expected_sizes)):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        clock.sleep(batch_duration(actual_sizes[-1]))
+    self.assertEqual(expected_sizes, actual_sizes)
+
+  def test_target_duration_including_fixed_cost(self):
+    clock = FakeClock()
+    batch_estimator = util._BatchSizeEstimator(
+        target_batch_overhead=None,
+        target_batch_duration_secs_including_fixed_cost=10,
+        clock=clock)
+    batch_duration = lambda batch_size: 1 + .7 * batch_size
+    # 1 + 14 * .7 is as close as we can get to 10 as possible.
     expected_sizes = [1, 2, 4, 8, 12, 12, 12]
     actual_sizes = []
     for _ in range(len(expected_sizes)):

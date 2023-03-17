@@ -595,7 +595,7 @@ class ExternalTransform(ptransform.PTransform):
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
-        namespace=self._external_namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
+        namespace=self._external_namespace,
         transform=transform_proto,
         output_coder_requests=output_coders)
 

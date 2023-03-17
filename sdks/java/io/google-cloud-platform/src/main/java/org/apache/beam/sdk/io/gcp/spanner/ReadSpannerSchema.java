@@ -22,6 +22,8 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -32,17 +34,44 @@ import org.apache.beam.sdk.values.PCollectionView;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
+public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   private final SpannerConfig config;
 
   private final PCollectionView<Dialect> dialectView;
 
+  private final Set<String> allowedTableNames;
+
   private transient SpannerAccessor spannerAccessor;
 
+  /**
+   * Constructor for creating an instance of the ReadSpannerSchema class. If no {@param
+   * allowedTableNames} is passed, every single table is allowed.
+   *
+   * @param config The SpannerConfig object that contains the configuration for accessing the
+   *     Spanner database.
+   * @param dialectView A PCollectionView object that holds a Dialect object for the database
+   *     dialect to use for reading the Spanner schema.
+   */
   public ReadSpannerSchema(SpannerConfig config, PCollectionView<Dialect> dialectView) {
+    this(config, dialectView, new HashSet<String>());
+  }
+
+  /**
+   * Constructor for creating an instance of the ReadSpannerSchema class.
+   *
+   * @param config The SpannerConfig object that contains the configuration for accessing the
+   *     Spanner database.
+   * @param dialectView A PCollectionView object that holds a Dialect object for the database
+   *     dialect to use for reading the Spanner schema.
+   * @param allowedTableNames A set of allowed table names to be used when reading the Spanner
+   *     schema.
+   */
+  public ReadSpannerSchema(
+      SpannerConfig config, PCollectionView<Dialect> dialectView, Set<String> allowedTableNames) {
     this.config = config;
     this.dialectView = dialectView;
+    this.allowedTableNames = allowedTableNames == null ? new HashSet<>() : allowedTableNames;
   }
 
   @Setup
@@ -68,7 +97,11 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         String columnName = resultSet.getString(1);
         String type = resultSet.getString(2);
         long cellsMutated = resultSet.getLong(3);
-
+        if (allowedTableNames.size() > 0 && !allowedTableNames.contains(tableName)) {
+          // If we want to filter out table names, and the current table name is not part
+          // of the allowed names, we exclude it.
+          continue;
+        }
         builder.addColumn(tableName, columnName, type, cellsMutated);
       }
 
