@@ -127,7 +127,9 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
     metric_name, params['test_name'], timestamps,
     metric_values, change_point_index,
     params.get('labels', None),
-    last_reported_issue_number)
+    last_reported_issue_number,
+    test_target=params['test_target'] if 'test_target' in params else None
+    )
 
     issue_metadata = GitHubIssueMetaData(
         issue_timestamp=pd.Timestamp(
