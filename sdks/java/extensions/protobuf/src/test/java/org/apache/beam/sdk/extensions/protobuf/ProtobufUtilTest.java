@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.verifyDetermi
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.Descriptors.GenericDescriptor;
 import com.google.protobuf.Duration;
 import com.google.protobuf.ExtensionRegistry;
