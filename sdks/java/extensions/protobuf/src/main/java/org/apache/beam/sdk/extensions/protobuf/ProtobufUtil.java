@@ -68,22 +68,6 @@ class ProtobufUtil {
   }
 
   /**
-   * Recursively walks the given {@link Message} class and verifies that every field or message
-   * linked in uses the Protocol Buffers proto2 syntax.
-   */
-  static void checkProto2Syntax(Class<? extends Message> clazz, ExtensionRegistry registry) {
-    for (GenericDescriptor d : getRecursiveDescriptorsForClass(clazz, registry)) {
-      Syntax s = d.getFile().getSyntax();
-      checkArgument(
-          s == Syntax.PROTO2,
-          "Message %s or one of its dependencies does not use proto2 syntax: %s in file %s",
-          clazz.getName(),
-          d.getFullName(),
-          d.getFile().getName());
-    }
-  }
-
-  /**
    * Recursively checks whether the specified class uses any Protocol Buffers fields that cannot be
    * deterministically encoded.
    *
