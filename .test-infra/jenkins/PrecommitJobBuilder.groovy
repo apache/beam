@@ -48,12 +48,26 @@ class PrecommitJobBuilder {
   boolean commitTriggering = true
 
   /**
+   * Whether to trigger on cron run. Useful to set jobs that runs tasks covered by
+   * other test suites but are deemed to triggered on pull request only.
+   */
+  boolean cronTriggering = true
+
+  /**
+   * Whether to configure defaultPathTriggers.
+   * Set to false for PreCommit only runs on certain code path change.
+   */
+  boolean defaultPathTriggering = true
+
+  /**
    * Define a set of pre-commit jobs.
    *
    * @param additionalCustomization Job DSL closure with additional customization to apply to the job.
    */
   void build(Closure additionalCustomization = {}) {
-    defineCronJob additionalCustomization
+    if (cronTriggering) {
+      defineCronJob additionalCustomization
+    }
     if (commitTriggering) {
       defineCommitJob additionalCustomization
     }
@@ -82,7 +96,7 @@ class PrecommitJobBuilder {
       '^gradle.bat$',
       '^settings.gradle.kts$'
     ]
-    if (triggerPathPatterns) {
+    if (defaultPathTriggering && triggerPathPatterns) {
       triggerPathPatterns.addAll defaultPathTriggers
     }
     job.with {

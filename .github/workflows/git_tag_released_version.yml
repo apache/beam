@@ -32,7 +32,7 @@ on:
 
 jobs:
   generate_tags:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
     env:
       VERSION_PATH: ${{ github.event.inputs.VERSION_TAG }}
     steps:

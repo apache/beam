@@ -230,6 +230,9 @@ public abstract class SpannerSchema implements Serializable {
           if (spannerType.startsWith("NUMERIC")) {
             return Type.pgNumeric();
           }
+          if ("SPANNER.COMMIT_TIMESTAMP".equals(spannerType)) {
+            return Type.timestamp();
+          }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         default:
           throw new IllegalArgumentException("Unrecognized dialect: " + dialect.name());

@@ -33,7 +33,7 @@ var pcObjMapperCtx = context.Background()
 func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
 	expected := &dto.ObjectInfo{
 		Name:            "MOCK_NAME",
-		CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME",
+		CloudPath:       "SDK_JAVA_MOCK_NAME",
 		Description:     "MOCK_DESCR",
 		Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
 		Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
@@ -61,7 +61,7 @@ func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
 func TestPrecompiledObjectMapper_ToPrecompiledObj(t *testing.T) {
 	expected := &pb.PrecompiledObject{
 		Name:            "MOCK_NAME",
-		CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME",
+		CloudPath:       "SDK_JAVA_MOCK_NAME",
 		Description:     "MOCK_DESCR",
 		Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
 		Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
@@ -98,7 +98,7 @@ func TestPrecompiledObjectMapper_ToDefaultPrecompiledObjects(t *testing.T) {
 			Link:            "MOCK_PATH",
 			Description:     "MOCK_DESCR",
 			PipelineOptions: "MOCK_OPTIONS",
-			CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/1_MOCK_DEFAULT_EXAMPLE",
+			CloudPath:       "SDK_JAVA_1_MOCK_DEFAULT_EXAMPLE",
 			Sdk:             pb.Sdk_SDK_JAVA,
 		},
 		pb.Sdk_SDK_GO: {
@@ -111,7 +111,7 @@ func TestPrecompiledObjectMapper_ToDefaultPrecompiledObjects(t *testing.T) {
 			Link:            "MOCK_PATH",
 			Description:     "MOCK_DESCR",
 			PipelineOptions: "MOCK_OPTIONS",
-			CloudPath:       "SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/2_MOCK_DEFAULT_EXAMPLE",
+			CloudPath:       "SDK_GO_2_MOCK_DEFAULT_EXAMPLE",
 			Sdk:             pb.Sdk_SDK_GO,
 		},
 		pb.Sdk_SDK_PYTHON: {
@@ -124,7 +124,7 @@ func TestPrecompiledObjectMapper_ToDefaultPrecompiledObjects(t *testing.T) {
 			Link:            "MOCK_PATH",
 			Description:     "MOCK_DESCR",
 			PipelineOptions: "MOCK_OPTIONS",
-			CloudPath:       "SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/3_MOCK_DEFAULT_EXAMPLE",
+			CloudPath:       "SDK_PYTHON_3_MOCK_DEFAULT_EXAMPLE",
 			Sdk:             pb.Sdk_SDK_PYTHON,
 		},
 		pb.Sdk_SDK_SCIO: {
@@ -137,7 +137,7 @@ func TestPrecompiledObjectMapper_ToDefaultPrecompiledObjects(t *testing.T) {
 			Link:            "MOCK_PATH",
 			Description:     "MOCK_DESCR",
 			PipelineOptions: "MOCK_OPTIONS",
-			CloudPath:       "SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/4_MOCK_DEFAULT_EXAMPLE",
+			CloudPath:       "SDK_SCIO_4_MOCK_DEFAULT_EXAMPLE",
 			Sdk:             pb.Sdk_SDK_SCIO,
 		},
 	}
@@ -151,7 +151,7 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		len(javaCatalog.Categories[0].PrecompiledObjects) != 1 ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].Name != "SDK_JAVA_MOCK_NAME" ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].Description != "MOCK_DESCR" ||
-		javaCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/SDK_JAVA_MOCK_NAME" ||
+		javaCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_JAVA_SDK_JAVA_MOCK_NAME" ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].Multifile != false ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].DefaultExample != false ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
@@ -166,7 +166,7 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		len(goCatalog.Categories[0].PrecompiledObjects) != 1 ||
 		goCatalog.Categories[0].PrecompiledObjects[0].Name != "SDK_GO_MOCK_NAME" ||
 		goCatalog.Categories[0].PrecompiledObjects[0].Description != "MOCK_DESCR" ||
-		goCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/SDK_GO_MOCK_NAME" ||
+		goCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_GO_SDK_GO_MOCK_NAME" ||
 		goCatalog.Categories[0].PrecompiledObjects[0].Multifile != false ||
 		goCatalog.Categories[0].PrecompiledObjects[0].DefaultExample != false ||
 		goCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
@@ -181,7 +181,7 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		len(pythonCatalog.Categories[0].PrecompiledObjects) != 1 ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].Name != "SDK_PYTHON_MOCK_NAME" ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].Description != "MOCK_DESCR" ||
-		pythonCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/SDK_PYTHON_MOCK_NAME" ||
+		pythonCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_PYTHON_SDK_PYTHON_MOCK_NAME" ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].Multifile != false ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].DefaultExample != false ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
@@ -196,7 +196,7 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		len(scioCatalog.Categories[0].PrecompiledObjects) != 1 ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].Name != "SDK_SCIO_MOCK_NAME" ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].Description != "MOCK_DESCR" ||
-		scioCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/SDK_SCIO_MOCK_NAME" ||
+		scioCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_SCIO_SDK_SCIO_MOCK_NAME" ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].Multifile != false ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].DefaultExample != false ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||

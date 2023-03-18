@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.commons.csv.CSVFormat;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.junit.Rule;
 import org.junit.Test;
@@ -285,7 +286,10 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
     FileWriteSchemaTransformConfiguration configuration =
         buildConfiguration(to)
             .toBuilder()
-            .setCsvConfiguration(csvConfigurationBuilder().build())
+            .setCsvConfiguration(
+                csvConfigurationBuilder()
+                    .setPredefinedCsvFormat(CSVFormat.Predefined.Default.name())
+                    .build())
             .build();
     if (!expectedErrorWhenCsvConfigurationSet().isPresent()) {
       // No error expected
@@ -391,11 +395,11 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
     readPipeline.run();
   }
 
-  private FileWriteSchemaTransformFormatProvider getProvider() {
+  protected FileWriteSchemaTransformFormatProvider getProvider() {
     return loadProviders().get(getFormat());
   }
 
-  private <T> String folder(Class<T> clazz, String additionalPath) {
+  protected <T> String folder(Class<T> clazz, String additionalPath) {
     return folder(getFormat(), clazz.getSimpleName(), additionalPath);
   }
 

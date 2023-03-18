@@ -40,6 +40,7 @@ from typing import Tuple
 from apache_beam.coders import TupleCoder
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -1852,3 +1853,46 @@ def group_by_key_input_visitor(deterministic_key_coders=True):
               self.deterministic_key_coders and transform_node.full_label)
 
   return GroupByKeyInputVisitor(deterministic_key_coders)
+
+
+def validate_pipeline_graph(pipeline_proto):
+  """Ensures this is a correctly constructed Beam pipeline.
+  """
+  def get_coder(pcoll_id):
+    return pipeline_proto.components.coders[
+        pipeline_proto.components.pcollections[pcoll_id].coder_id]
+
+  def validate_transform(transform_id):
+    transform_proto = pipeline_proto.components.transforms[transform_id]
+
+    # Currently the only validation we perform is that GBK operations have
+    # their coders set properly.
+    if transform_proto.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
+      if len(transform_proto.inputs) != 1:
+        raise ValueError("Unexpected number of inputs: %s" % transform_proto)
+      if len(transform_proto.outputs) != 1:
+        raise ValueError("Unexpected number of outputs: %s" % transform_proto)
+      input_coder = get_coder(next(iter(transform_proto.inputs.values())))
+      output_coder = get_coder(next(iter(transform_proto.outputs.values())))
+      if input_coder.spec.urn != common_urns.coders.KV.urn:
+        raise ValueError(
+            "Bad coder for input of %s: %s" % (transform_id, input_coder))
+      if output_coder.spec.urn != common_urns.coders.KV.urn:
+        raise ValueError(
+            "Bad coder for output of %s: %s" % (transform_id, output_coder))
+      output_values_coder = pipeline_proto.components.coders[
+          output_coder.component_coder_ids[1]]
+      if (input_coder.component_coder_ids[0] !=
+          output_coder.component_coder_ids[0] or
+          output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn or
+          output_values_coder.component_coder_ids[0] !=
+          input_coder.component_coder_ids[1]):
+        raise ValueError(
+            "Incompatible input coder %s and output coder %s for transform %s" %
+            (transform_id, input_coder, output_coder))
+
+    for t in transform_proto.subtransforms:
+      validate_transform(t)
+
+  for t in pipeline_proto.root_transform_ids:
+    validate_transform(t)
