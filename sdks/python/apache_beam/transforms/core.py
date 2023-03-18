@@ -1436,7 +1436,8 @@ def _check_fn_use_yield_and_return(fn):
       if has_yield and has_return:
         return True
     return False
-  except TypeError:
+  except Exception as e:
+    _LOGGER.info(str(e))
     return False
 
 
