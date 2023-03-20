@@ -75,6 +75,15 @@ class TestDoFn7(beam.DoFn):
     return yield_test
 
 
+class TestDoFn8(beam.DoFn):
+  """test the code containing yield and yield from"""
+  def process(self, element):
+    if not element:
+      yield from [1, 2, 3]
+    else:
+      yield element
+
+
 class CreateTest(unittest.TestCase):
   @pytest.fixture(autouse=True)
   def inject_fixtures(self, caplog):
@@ -91,6 +100,7 @@ class CreateTest(unittest.TestCase):
       assert beam.ParDo(TestDoFn5())
       assert beam.ParDo(TestDoFn6())
       assert beam.ParDo(TestDoFn7())
+      assert beam.ParDo(TestDoFn8())
       assert warning_text not in self._caplog.text
 
     with self._caplog.at_level(logging.WARNING):

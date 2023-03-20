@@ -1437,7 +1437,7 @@ def _check_fn_use_yield_and_return(fn):
         return True
     return False
   except Exception as e:
-    _LOGGER.info(str(e))
+    _LOGGER.debug(str(e))
     return False
 
 
