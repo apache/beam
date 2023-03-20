@@ -46,8 +46,6 @@ terraformPlugin {
     terraformVersion.set("1.0.9")
 }
 
-println("AAAA")
-
 tasks {
     /* init Infrastructure for migrate */
     register<TerraformTask>("terraformInit") {
@@ -249,35 +247,15 @@ tasks {
     }
 }
 
-
-val terraformTask = tasks.create<TerraformTask>("getDockerRepositoryRoot") {
+tasks.register("readState") {
     group = "deploy"
-
-    args("output", "docker-repository-root")
-    standardOutput = ByteArrayOutputStream()
-}
-
-// This task is tricky - we need to execute terraform in gradle configuration phase
-// to set the "docker-repository-root" property before docker projects are loaded.
-// The only way to execute task during the configuration phase which I discovered is to invoke its actions directly
-tasks.register("setDockerRepositoryRoot") {
-    group = "deploy"
-
-    val actions = terraformTask.actions
-    for (action in actions) {
-        action.execute(terraformTask)
-    }
-
-    project.rootProject.extra["docker-repository-root"] =
-        terraformTask.standardOutput.toString().trim().replace("\"", "")
-
-    println(project.rootProject.extra["docker-repository-root"])
+    dependsOn(":playground:terraform:terraformInit")
+    dependsOn(":playground:terraform:terraformRef")
 }
 
 tasks.register("pushBack") {
     group = "deploy"
 
-    dependsOn("setDockerRepositoryRoot")
     dependsOn(":playground:backend:containers:go:dockerTagsPush")
     dependsOn(":playground:backend:containers:java:dockerTagsPush")
     dependsOn(":playground:backend:containers:python:dockerTagsPush")
@@ -285,11 +263,9 @@ tasks.register("pushBack") {
     dependsOn(":playground:backend:containers:router:dockerTagsPush")
 }
 
-//tasks.getByPath(":playground:frontend:dockerPrepare").dependsOn(":playground:terraform:setDockerRepositoryRoot")
 tasks.register("pushFront") {
     group = "deploy"
 
-    dependsOn("setDockerRepositoryRoot")
     dependsOn(":playground:frontend:dockerTagsPush")
 }
 
@@ -394,7 +370,6 @@ tasks.register("takeConfig") {
     dependsOn("setPlaygroundStaticIpAddress")
     dependsOn("setPlaygroundRedisIp")
     dependsOn("setPlaygroundGkeProject")
-    dependsOn("setDockerRepositoryRoot")
     dependsOn("setPlaygroundStaticIpAddressName")
 
     doLast {
@@ -463,7 +438,6 @@ tasks.register("helmRelease") {
 }
 tasks.register("gkebackend") {
     group = "deploy"
-    dependsOn("setDockerRepositoryRoot")
     val initTask = tasks.getByName("terraformInit")
     val takeConfigTask = tasks.getByName("takeConfig")
     val pushBackTask = tasks.getByName("pushBack")
