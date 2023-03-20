@@ -340,7 +340,8 @@ class PipelineOptions(HasDisplayData):
         if not unknown_args[i].startswith('-'):
           i += 1
           continue
-        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+        if (i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('--')
+            ) and unknown_args[i].startswith('--'):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
             parser.add_argument(unknown_args[i], action='store_true')
