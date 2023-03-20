@@ -22,7 +22,7 @@ import '../models/get_user_progress_response.dart';
 
 abstract class AbstractUserProgressRepository {
   Future<GetUserProgressResponse?> getUserProgress(
-    String sdkId,
+    Sdk sdk,
   );
 
   Future<void> completeUnit(

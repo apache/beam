@@ -17,9 +17,13 @@
  */
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../util/string.dart';
 
+part 'example_view_options.g.dart';
+
+@JsonSerializable()
 class ExampleViewOptions with EquatableMixin {
   final bool foldCommentAtLineZero;
   final bool foldImports;
@@ -34,6 +38,11 @@ class ExampleViewOptions with EquatableMixin {
     this.foldCommentAtLineZero = true,
     this.foldImports = true,
   });
+
+  factory ExampleViewOptions.fromJson(Map<String, dynamic> json) =>
+      _$ExampleViewOptionsFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ExampleViewOptionsToJson(this);
 
   factory ExampleViewOptions.fromShortMap(Map<String, dynamic> map) {
     return ExampleViewOptions(

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:collection/collection.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../client/client.dart';
@@ -38,8 +39,8 @@ class CloudUserProgressRepository extends AbstractUserProgressRepository {
     required Sdk sdk,
     required String unitId,
   }) async {
-    final userProgressResponse = await getUserProgress(sdk.id);
-    final unitProgress = userProgressResponse?.units.firstWhere(
+    final userProgressResponse = await getUserProgress(sdk);
+    final unitProgress = userProgressResponse?.units.firstWhereOrNull(
       (unit) => unit.id == unitId,
     );
     final userSnippetId = unitProgress?.userSnippetId;
@@ -53,8 +54,8 @@ class CloudUserProgressRepository extends AbstractUserProgressRepository {
   }
 
   @override
-  Future<GetUserProgressResponse?> getUserProgress(String sdkId) async {
-    return client.getUserProgress(sdkId);
+  Future<GetUserProgressResponse?> getUserProgress(Sdk sdk) async {
+    return client.getUserProgress(sdk.id);
   }
 
   @override

@@ -11,7 +11,6 @@ UnitProgressModel _$UnitProgressModelFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String,
       isCompleted: json['isCompleted'] as bool,
       userSnippetId: json['userSnippetId'] as String?,
-      cachedSnippetId: json['cachedSnippetId'] as String?,
     );
 
 Map<String, dynamic> _$UnitProgressModelToJson(UnitProgressModel instance) =>
@@ -19,5 +18,4 @@ Map<String, dynamic> _$UnitProgressModelToJson(UnitProgressModel instance) =>
       'id': instance.id,
       'isCompleted': instance.isCompleted,
       'userSnippetId': instance.userSnippetId,
-      'cachedSnippetId': instance.cachedSnippetId,
     };

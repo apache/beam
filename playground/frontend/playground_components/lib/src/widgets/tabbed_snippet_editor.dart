@@ -48,6 +48,7 @@ class TabbedSnippetEditor extends StatelessWidget {
       keys: keys,
       onChanged: (key) {
         if (key != null) {
+          // TODO(nausharipov): Remove when the bug is fixed: https://github.com/akvelon/flutter-code-editor/issues/203
           controller.activeFileController?.codeController.popupController
               .hide();
           controller.activateFileControllerByName(key);

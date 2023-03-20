@@ -25,14 +25,11 @@ class UnitProgressModel {
   final String id;
   final bool isCompleted;
   final String? userSnippetId;
-  // TODO(nausharipov) review: storedSnippetId?
-  final String? cachedSnippetId;
 
   const UnitProgressModel({
     required this.id,
     required this.isCompleted,
     required this.userSnippetId,
-    this.cachedSnippetId,
   });
 
   factory UnitProgressModel.fromJson(Map<String, dynamic> json) =>

@@ -20,15 +20,16 @@ import 'dart:convert';
 
 import 'package:hive/hive.dart';
 
-import '../../../playground_components.dart';
+import '../../cache/example_cache.dart';
+import '../../models/example.dart';
+import '../../models/example_loading_descriptors/hive_example_loading_descriptor.dart';
+import '../../models/sdk.dart';
 import 'example_loader.dart';
 
-// TODO(nausharipov) review: move /example_loaders into /models.
 class HiveExampleLoader extends ExampleLoader {
   @override
   final HiveExampleLoadingDescriptor descriptor;
 
-  Example? _example;
   final ExampleCache exampleCache;
 
   HiveExampleLoader({
@@ -37,21 +38,12 @@ class HiveExampleLoader extends ExampleLoader {
   });
 
   @override
-  Sdk? get sdk => _example?.sdk;
-
-  Future<Example> _getExample() async {
-    try {
-      final box = await Hive.openBox(descriptor.boxName);
-      final Map<String, dynamic> map =
-          jsonDecode(box.get(descriptor.snippetId));
-      return Example.fromJson(map);
-    } on Exception catch (_) {
-      rethrow;
-    }
-  }
+  Sdk? get sdk => descriptor.sdk;
 
   @override
   Future<Example> get future async {
-    return _example ?? (_example = await _getExample());
+    final box = await Hive.openBox(descriptor.boxName);
+    final Map<String, dynamic> map = jsonDecode(box.get(descriptor.snippetId));
+    return Example.fromJson(map);
   }
 }

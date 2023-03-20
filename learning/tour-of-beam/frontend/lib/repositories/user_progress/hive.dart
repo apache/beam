@@ -38,28 +38,29 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
     required String unitId,
   }) async {
     try {
-      final unitProgressEncoded = Hive.box(
-        // TODO(nausharipov) review: use hive collections or something better?
-        _getSdkBoxName(sdk, HiveBoxNames.unitProgress),
-      ).get(unitId);
-      final unitProgress =
-          UnitProgressModel.fromJson(jsonDecode(unitProgressEncoded));
-      return HiveExampleLoadingDescriptor(
-        boxName: _getSdkBoxName(sdk, HiveBoxNames.snippets),
-        sdk: sdk,
-        snippetId: unitProgress.cachedSnippetId!,
+      final unitProgressBox = await Hive.openBox(
+        HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.unitProgress),
       );
-    } on Exception catch (_) {
+      final unitProgress = UnitProgressModel.fromJson(
+        jsonDecode(unitProgressBox.get(unitId)),
+      );
+      return HiveExampleLoadingDescriptor(
+        boxName: HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.snippets),
+        sdk: sdk,
+        snippetId: unitProgress.userSnippetId!,
+      );
+    } on Exception {
       return EmptyExampleLoadingDescriptor(sdk: sdk);
     }
   }
 
   @override
-  Future<GetUserProgressResponse?> getUserProgress(String sdkId) async {
-    final sdkUnitProgressBox =
-        await Hive.openBox(sdkId + HiveBoxNames.unitProgress);
+  Future<GetUserProgressResponse?> getUserProgress(Sdk sdk) async {
+    final sdkUnitProgressBox = await Hive.openBox(
+      HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.unitProgress),
+    );
     return GetUserProgressResponse.fromJson({
-      // ignore: unnecessary_lambdas
+      // TODO(nausharipov): Replace lambda with tear-off when this lands: https://github.com/dart-lang/language/issues/1813
       'units': sdkUnitProgressBox.values.map((e) => jsonDecode(e)).toList(),
     });
   }
@@ -70,12 +71,19 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
     required List<SnippetFile> snippetFiles,
     required String unitId,
   }) async {
-    final box = await Hive.openBox(
-      _getSdkBoxName(sdk, HiveBoxNames.snippets),
+    final snippetsBox = await Hive.openBox(
+      HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.snippets),
     );
-    await _saveUnitProgress(sdk: sdk, unitId: unitId);
-    await box.put(
-      unitId,
+    final snippetId = 'local_$unitId';
+
+    await _saveUnitProgressIfNot(
+      sdk: sdk,
+      unitId: unitId,
+      userSnippetId: snippetId,
+    );
+
+    await snippetsBox.put(
+      snippetId,
       jsonEncode(
         Example(
           files: snippetFiles,
@@ -88,31 +96,26 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
     );
   }
 
-  Future<void> _saveUnitProgress({
+  Future<void> _saveUnitProgressIfNot({
     required Sdk sdk,
     required String unitId,
+    required String userSnippetId,
   }) async {
-    final box = await Hive.openBox(
-      _getSdkBoxName(sdk, HiveBoxNames.unitProgress),
+    final unitProgressBox = await Hive.openBox(
+      HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.unitProgress),
     );
-    final unitProgressEncoded = box.get(unitId);
+    final unitProgressEncoded = unitProgressBox.get(unitId);
     if (unitProgressEncoded == null) {
-      await box.put(
+      await unitProgressBox.put(
         unitId,
         jsonEncode(
           UnitProgressModel(
             id: unitId,
-            // TODO(nausharipov) review: avoid hardcode?
             isCompleted: false,
-            userSnippetId: null,
-            cachedSnippetId: unitId,
+            userSnippetId: userSnippetId,
           ).toJson(),
         ),
       );
     }
-  }
-
-  String _getSdkBoxName(Sdk sdk, String boxName) {
-    return sdk.id + boxName;
   }
 }

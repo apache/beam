@@ -16,11 +16,19 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
+import '../enums/complexity.dart';
+import 'dataset.dart';
 import 'example_base.dart';
+import 'example_view_options.dart';
 import 'sdk.dart';
 import 'snippet_file.dart';
 
+part 'example.g.dart';
+
 /// A [ExampleBase] that also has all large fields fetched.
+@JsonSerializable()
 class Example extends ExampleBase {
   final List<SnippetFile> files;
   final String? graph;
@@ -47,6 +55,12 @@ class Example extends ExampleBase {
     super.urlVcs,
     super.viewOptions,
   });
+
+  factory Example.fromJson(Map<String, dynamic> json) =>
+      _$ExampleFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$ExampleToJson(this);
 
   Example.fromBase(
     ExampleBase example, {
@@ -79,32 +93,4 @@ class Example extends ExampleBase {
           sdk: sdk,
           type: ExampleType.example,
         );
-
-  // TODO(nausharipov) review: use hive adapter instead?
-  factory Example.fromJson(Map<String, dynamic> json) => Example(
-        files: (json['files'] as List<dynamic>)
-            .map((e) => SnippetFile.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        name: json['name'] as String,
-        sdk: Sdk.fromJson(json['sdk'] as Map<String, dynamic>),
-        type: _getExampleTypeFromString(json['type']),
-        path: json['path'] as String,
-      );
-
-  Map<String, dynamic> toJson() => <String, dynamic>{
-        'name': name,
-        'path': path,
-        'sdk': sdk.toJson(),
-        'type': type.name,
-        'files': files,
-      };
-
-  static ExampleType _getExampleTypeFromString(String typeAsString) {
-    for (final type in ExampleType.values) {
-      if (type.toString() == typeAsString) {
-        return type;
-      }
-    }
-    return ExampleType.example;
-  }
 }

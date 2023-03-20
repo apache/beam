@@ -33,11 +33,10 @@ import '../repositories/user_progress/hive.dart';
 import '../state.dart';
 
 class UnitProgressCache extends ChangeNotifier {
-  // TODO(nausharipov) review: to pass client from the cache, _cloudUserProgressRepository has to be late.
-  final CloudUserProgressRepository _cloudUserProgressRepository =
-      CloudUserProgressRepository(client: GetIt.instance.get<TobClient>());
-  final HiveUserProgressRepository _localStorageUserProgressRepository =
-      HiveUserProgressRepository();
+  final _cloudUserProgressRepository = CloudUserProgressRepository(
+    client: GetIt.instance.get<TobClient>(),
+  );
+  final _localStorageUserProgressRepository = HiveUserProgressRepository();
 
   AbstractUserProgressRepository _getUserProgressRepository() {
     if (isAuthenticated) {
@@ -58,9 +57,9 @@ class UnitProgressCache extends ChangeNotifier {
       GetIt.instance.get<AuthNotifier>().isAuthenticated;
 
   Future<void> updateUnitProgress() async {
-    final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
-    if (sdkId != null) {
-      await _loadUnitProgress(sdkId);
+    final sdk = GetIt.instance.get<AppNotifier>().sdk;
+    if (sdk != null) {
+      await _loadUnitProgress(sdk);
     }
   }
 
@@ -72,8 +71,8 @@ class UnitProgressCache extends ChangeNotifier {
     return _unitProgress;
   }
 
-  Future<void> _loadUnitProgress(String sdkId) async {
-    _future = _getUserProgressRepository().getUserProgress(sdkId);
+  Future<void> _loadUnitProgress(Sdk sdk) async {
+    _future = _getUserProgressRepository().getUserProgress(sdk);
     final result = await _future;
 
     _unitProgressByUnitId.clear();
@@ -157,18 +156,7 @@ class UnitProgressCache extends ChangeNotifier {
   // Snippet
 
   bool hasSavedSnippet(String? sdkId, String? unitId) {
-    if (isAuthenticated) {
-      return hasSyncedSnippet(unitId);
-    }
-    return hasCachedSnippet(unitId);
-  }
-
-  bool hasSyncedSnippet(String? unitId) {
     return _unitProgressByUnitId[unitId]?.userSnippetId != null;
-  }
-
-  bool hasCachedSnippet(String? unitId) {
-    return _unitProgressByUnitId[unitId]?.cachedSnippetId != null;
   }
 
   Future<void> saveSnippet({

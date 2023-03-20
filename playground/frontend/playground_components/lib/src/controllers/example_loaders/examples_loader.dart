@@ -42,10 +42,10 @@ class ExamplesLoader {
     defaultFactory.add(CatalogDefaultExampleLoader.new);
     defaultFactory.add(ContentExampleLoader.new);
     defaultFactory.add(EmptyExampleLoader.new);
+    defaultFactory.add(HiveExampleLoader.new);
     defaultFactory.add(HttpExampleLoader.new);
     defaultFactory.add(StandardExampleLoader.new);
     defaultFactory.add(UserSharedExampleLoader.new);
-    defaultFactory.add(HiveExampleLoader.new);
   }
 
   void setPlaygroundController(PlaygroundController value) {

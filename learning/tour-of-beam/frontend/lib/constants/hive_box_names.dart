@@ -16,7 +16,13 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/playground_components.dart';
+
 class HiveBoxNames {
   static const unitProgress = 'UnitProgress';
   static const snippets = 'Snippets';
+
+  static String getSdkBoxName(Sdk sdk, String boxName) {
+    return '${sdk.id}_$boxName';
+  }
 }

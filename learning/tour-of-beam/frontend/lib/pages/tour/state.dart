@@ -65,7 +65,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       _saveUserCodeDebounceDuration,
     );
     // setSdk creates snippetEditingController if it doesn't exist.
-    playgroundController.setSdk(currentSdk!);
+    playgroundController.setSdk(currentSdk);
     _listenToCurrentSnippetEditingController();
     unawaited(_onUnitChanged());
   }
@@ -84,14 +84,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   bool get isAuthenticated => _authNotifier.isAuthenticated;
 
-  // TODO(nausharipov) review: make java default?
-  Sdk? get currentSdk => _appNotifier.sdk;
+  Sdk get currentSdk => _appNotifier.sdk!;
   String? get currentUnitId => _currentUnitContent?.id;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
   bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
   bool get isCodeSaved => _unitProgressCache.hasSavedSnippet(
-        currentSdk?.id,
+        currentSdk.id,
         currentUnitId,
       );
 
@@ -106,7 +105,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onAuthChanged() async {
-    await _updateSnippetTypeSelector();
+    await _unitProgressCache.updateUnitProgress();
     // The local changes are preserved if the user signs in.
     if (_snippetType != SnippetType.saved || !isAuthenticated) {
       await _loadSnippetByType();
@@ -115,32 +114,30 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onAppNotifierChanged() async {
-    final sdk = currentSdk;
-    if (sdk != null) {
-      playgroundController.setSdk(sdk);
-      _listenToCurrentSnippetEditingController();
-      contentTreeController.sdkId = sdk.id;
-      await _updateSnippetTypeSelector();
-      _trySetSnippetType(SnippetType.saved);
-      await _loadSnippetByType();
-    }
+    contentTreeController.sdkId = currentSdk.id;
+    playgroundController.setSdk(currentSdk);
+    _listenToCurrentSnippetEditingController();
+
+    await _unitProgressCache.updateUnitProgress();
+    _trySetSnippetType(SnippetType.saved);
+    await _loadSnippetByType();
   }
 
   Future<void> _onUnitChanged() async {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
-    if (currentNode is UnitModel) {
+    if (currentNode is! UnitModel) {
+      await _emptyPlayground();
+    } else {
       final sdk = contentTreeController.sdk;
       final content = _unitContentCache.getUnitContent(
         sdk.id,
         currentNode.id,
       );
       _setUnitContent(content);
-      await _updateSnippetTypeSelector();
+      await _unitProgressCache.updateUnitProgress();
       _trySetSnippetType(SnippetType.saved);
       await _loadSnippetByType();
-    } else {
-      await _emptyPlayground();
     }
     notifyListeners();
   }
@@ -206,17 +203,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         unitId: unitId,
       );
       saveCodeStatus = SaveCodeStatus.saved;
-      await _updateSnippetTypeSelector();
+      await _unitProgressCache.updateUnitProgress();
       _trySetSnippetType(SnippetType.saved);
     } on Exception catch (e) {
       print(['Could not save code: ', e]);
       _saveCodeStatus = SaveCodeStatus.error;
     }
-  }
-
-  Future<void> _updateSnippetTypeSelector() async {
-    await _unitProgressCache.updateUnitProgress();
-    notifyListeners();
   }
 
   void _trySetSnippetType(SnippetType snippetType) {
@@ -233,19 +225,19 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     switch (_snippetType) {
       case SnippetType.original:
         descriptor = UserSharedExampleLoadingDescriptor(
-          sdk: currentSdk!,
+          sdk: currentSdk,
           snippetId: _currentUnitContent!.taskSnippetId!,
         );
         break;
       case SnippetType.saved:
         descriptor = await _unitProgressCache.getSavedSnippet(
-          sdk: currentSdk!,
+          sdk: currentSdk,
           unitId: _currentUnitContent!.id,
         );
         break;
       case SnippetType.solution:
         descriptor = UserSharedExampleLoadingDescriptor(
-          sdk: currentSdk!,
+          sdk: currentSdk,
           snippetId: _currentUnitContent!.solutionSnippetId!,
         );
         break;
