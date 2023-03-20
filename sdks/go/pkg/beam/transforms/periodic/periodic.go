@@ -47,9 +47,6 @@ type SequenceDefinition struct {
 
 type sequenceGenDoFn struct{}
 
-func (fn *sequenceGenDoFn) Setup() {
-}
-
 func (fn *sequenceGenDoFn) CreateInitialRestriction(sd SequenceDefinition) offsetrange.Restriction {
 	totalOutputs := mtime.Time(sd.End).ToTime().Sub(mtime.Time(sd.Start).ToTime()) / sd.Interval
 	return offsetrange.Restriction{
