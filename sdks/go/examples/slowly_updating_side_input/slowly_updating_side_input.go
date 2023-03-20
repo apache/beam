@@ -44,8 +44,8 @@ func init() {
 }
 
 // update simulates an external call to get data for the side input.
-func update(ctx context.Context, t beam.EventTime, i int64, emit func(int, string)) {
-	log.Infof(ctx, "Making external call %d at event time %s", i, t.ToTime().Format(time.RFC3339))
+func update(ctx context.Context, t beam.EventTime, _ []byte, emit func(int, string)) {
+	log.Infof(ctx, "Making external call at event time %s", t.ToTime().Format(time.RFC3339))
 
 	// zero is the key used in beam.AddFixedKey which will be applied on the main input.
 	id, externalData := 0, "some fake data that changed at "+time.Now().Format(time.RFC3339)
