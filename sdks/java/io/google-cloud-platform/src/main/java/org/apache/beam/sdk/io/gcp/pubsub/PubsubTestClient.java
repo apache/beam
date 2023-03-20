@@ -101,7 +101,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
 
   /** Closing the factory will validate all expected messages were processed. */
   public interface PubsubTestClientFactory extends PubsubClientFactory, Closeable, Serializable {
-    public default <T> PubsubIO.Read<T> setClock(PubsubIO.Read<T> readTransform, Clock clock) {
+    default <T> PubsubIO.Read<T> setClock(PubsubIO.Read<T> readTransform, Clock clock) {
       return readTransform.withClock(clock);
     }
   }
