@@ -23,7 +23,7 @@ import '../example_descriptor.dart';
 const pythonAggregationMean = ExampleDescriptor(
   //
   'AggregationMean',
-  dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMean',
+  dbPath: 'SDK_PYTHON_AggregationMean',
   path: '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py',
   sdk: Sdk.python,
 

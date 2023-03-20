@@ -135,11 +135,12 @@ func TestLocal_util(t *testing.T) {
 
 func TestLocal_rename(t *testing.T) {
 	ctx := context.Background()
-	dirPath := filepath.Join(os.TempDir(), "beamgolocalfilesystemtest")
+	tempDir := t.TempDir()
+	dirPath := filepath.Join(tempDir, "beamgolocalfilesystemtest")
 	filePath1 := filepath.Join(dirPath, "file1.txt")
 	filePath2 := filepath.Join(dirPath, "file2.txt")
 	t.Cleanup(func() {
-		os.RemoveAll(dirPath)
+		os.RemoveAll(tempDir)
 	})
 
 	c, err := filesystem.New(ctx, dirPath)

@@ -18,7 +18,6 @@ package memfs
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
@@ -155,17 +154,17 @@ func TestListTable(t *testing.T) {
 			name: "dirs",
 			files: []string{
 				"fizzbuzz",
-				filepath.Join("xyz", "12"),
-				filepath.Join("xyz", "1234"),
-				filepath.Join("xyz", "1235"),
+				"xyz/12",
+				"xyz/1234",
+				"xyz/1235",
 				"foobar",
 				"baz",
 				"bazfoo",
 			},
 			pattern: "memfs://xyz/123*",
 			want: []string{
-				"memfs://" + filepath.Join("xyz", "1234"),
-				"memfs://" + filepath.Join("xyz", "1235"),
+				"memfs://xyz/1234",
+				"memfs://xyz/1235",
 			},
 		},
 	} {

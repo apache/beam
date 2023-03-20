@@ -239,9 +239,6 @@ class ExampleCache extends ChangeNotifier {
       // As long as any of the examples is loaded, continue.
       print(ex);
       // TODO: Log.
-
-      notifyListeners();
-      throw ExampleLoadingException(ex);
     }
 
     notifyListeners();
