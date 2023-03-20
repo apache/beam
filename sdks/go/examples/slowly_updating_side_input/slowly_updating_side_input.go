@@ -12,6 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// slowly_updating_side_input is an example pipeline demonstrating the pattern described
+// at https://beam.apache.org/documentation/patterns/side-inputs/.
 package main
 
 import (
@@ -42,7 +45,7 @@ func init() {
 
 // update simulates an external call to get data for the side input.
 func update(ctx context.Context, t beam.EventTime, i int64, emit func(int, string)) {
-	log.Infof(ctx, "Making external call %d at %s", i, t.ToTime().Format(time.RFC3339))
+	log.Infof(ctx, "Making external call %d at event time %s", i, t.ToTime().Format(time.RFC3339))
 
 	// zero is the key used in beam.AddFixedKey which will be applied on the main input.
 	id, externalData := 0, "some fake data that changed at "+time.Now().Format(time.RFC3339)
@@ -100,18 +103,12 @@ func main() {
 	_, err = pubsubx.EnsureTopic(ctx, client, inputTopic)
 	fatalf(err, "Failed to ensure topic: %v", err)
 
+    source :=  pubsubio.Read(s, project, inputTopic, nil)
+    keyedSource :=	beam.AddFixedKey(s, source) // simulate keyed data by adding a fixed key
 	mainInput := beam.WindowInto(
 		s,
+		keyedSource,
 		window.NewFixedWindows(periodicSequenceInterval),
-		beam.AddFixedKey( // simulate keyed data by adding a fixed key
-			s,
-			pubsubio.Read(
-				s,
-				project,
-				inputTopic,
-				nil,
-			),
-		),
 		beam.Trigger(trigger.Repeat(trigger.Always())),
 		beam.PanesDiscard(),
 	)
