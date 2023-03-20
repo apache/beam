@@ -62,7 +62,14 @@ class FakeGcsClient(object):
 
 class FakeFile(object):
   def __init__(
-      self, bucket, obj, contents, generation, crc32c=None, kms_key=None, last_updated=None):
+      self,
+      bucket,
+      obj,
+      contents,
+      generation,
+      crc32c=None,
+      kms_key=None,
+      last_updated=None):
     self.bucket = bucket
     self.object = obj
     self.contents = contents
@@ -333,7 +340,7 @@ class TestGCSIO(unittest.TestCase):
         os.urandom(size),
         generation,
         crc32c=crc32c,
-        kms_key=None,
+        kms_key=kms_key,
         last_updated=last_updated)
     client.objects.add_file(f, fail_when_getting_metadata, fail_when_reading)
     return f
