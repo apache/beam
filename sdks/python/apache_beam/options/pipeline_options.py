@@ -746,7 +746,8 @@ class GoogleCloudOptions(PipelineOptions):
         default=None,
         help='Labels to be applied to this Dataflow job. '
         'Labels are key value pairs separated by = '
-        '(e.g. --label key=value).')
+        '(e.g. --label key=value) or '
+        '(--labels=\'{ "key": "value", "mass": "1_3kg", "count": "3" }\').')
     parser.add_argument(
         '--update',
         default=False,
@@ -1471,7 +1472,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15']
+  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15', '1.16']
 
   @classmethod
   def _add_argparse_args(cls, parser):

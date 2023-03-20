@@ -19,7 +19,7 @@ import (
 	"log"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
-	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api/api/v1"
 )
 
 func MakePgSaveRequest(userRequest tob.UserCodeRequest, sdk tob.Sdk, persistence_key string) pb.SaveSnippetRequest {

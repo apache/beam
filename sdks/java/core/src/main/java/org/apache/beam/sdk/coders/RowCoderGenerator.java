@@ -142,10 +142,7 @@ public abstract class RowCoderGenerator {
       }
       // There should never be duplicate encoding positions.
       Preconditions.checkState(
-          schema.getFieldCount() == Arrays.stream(encodingPosToRowIndex).distinct().count(),
-          "The input schema (%s) and map for position encoding (%s) do not match.",
-          schema.getFields(),
-          encodingPosToRowIndex);
+          schema.getFieldCount() == Arrays.stream(encodingPosToRowIndex).distinct().count());
 
       // Component coders are ordered by encoding position, but may encode a field with a different
       // row index.
@@ -314,12 +311,7 @@ public abstract class RowCoderGenerator {
         boolean hasNullableFields)
         throws IOException {
       checkState(value.getFieldCount() == value.getSchema().getFieldCount());
-      checkState(
-          encodingPosToIndex.length == value.getFieldCount(),
-          "Unable to encode row. Expected %s values, but row has %s%s",
-          encodingPosToIndex.length,
-          value.getFieldCount(),
-          value.getSchema().getFieldNames());
+      checkState(encodingPosToIndex.length == value.getFieldCount());
 
       // Encode the field count. This allows us to handle compatible schema changes.
       VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
