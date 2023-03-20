@@ -103,8 +103,8 @@ func main() {
 	_, err = pubsubx.EnsureTopic(ctx, client, inputTopic)
 	fatalf(err, "Failed to ensure topic: %v", err)
 
-    source :=  pubsubio.Read(s, project, inputTopic, nil)
-    keyedSource :=	beam.AddFixedKey(s, source) // simulate keyed data by adding a fixed key
+	source := pubsubio.Read(s, project, inputTopic, nil)
+	keyedSource := beam.AddFixedKey(s, source) // simulate keyed data by adding a fixed key
 	mainInput := beam.WindowInto(
 		s,
 		keyedSource,
@@ -115,18 +115,16 @@ func main() {
 
 	startTime, _ := time.Parse(time.RFC3339, periodicSequenceStart)
 	endTime, _ := time.Parse(time.RFC3339, periodicSequenceEnd)
+
+	// Generate an impulse every period.
+	periodicImp := periodic.Impulse(s, startTime, endTime, periodicSequenceInterval, false)
+
+	// Use the impulse to trigger some other ordinary transform.
+	updatedImp := beam.ParDo(s, update, periodicImp)
+
+	// Window for use as a side input, to allow the input to change with windows.
 	sideInput := beam.WindowInto(s, window.NewFixedWindows(periodicSequenceInterval),
-		beam.ParDo(
-			s,
-			update,
-			periodic.Impulse(
-				s,
-				startTime,
-				endTime,
-				periodicSequenceInterval,
-				false,
-			),
-		),
+		updatedImp,
 		beam.Trigger(trigger.Repeat(trigger.Always())),
 		beam.PanesDiscard(),
 	)
