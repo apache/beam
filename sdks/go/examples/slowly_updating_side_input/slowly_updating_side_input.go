@@ -127,6 +127,7 @@ func main() {
 				startTime,
 				endTime,
 				periodicSequenceInterval,
+				false,
 			),
 		),
 		beam.Trigger(trigger.Repeat(trigger.Always())),
