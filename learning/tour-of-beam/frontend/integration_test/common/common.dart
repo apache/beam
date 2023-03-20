@@ -17,16 +17,16 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+import 'package:tour_of_beam/main.dart' as app;
+import 'package:tour_of_beam/pages/tour/controllers/content_tree.dart';
+import 'package:tour_of_beam/pages/tour/widgets/content_tree.dart';
 
 Future<void> init(WidgetTester wt) async {
-  app.main();
+  await app.main();
   await wt.pumpAndSettle();
 }
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
+ContentTreeController getContentTreeController(WidgetTester wt) {
+  return (wt.widget(find.byType(ContentTreeWidget)) as ContentTreeWidget)
+      .controller;
 }

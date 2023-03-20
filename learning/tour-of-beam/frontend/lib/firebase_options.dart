@@ -53,11 +53,11 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBtpRH-8Js9XD_A4PipbXIM58K5IFpjr1w',
-    authDomain: 'snappy-mark-378613.firebaseapp.com',
-    projectId: 'snappy-mark-378613',
-    storageBucket: 'snappy-mark-378613.appspot.com',
-    messagingSenderId: '32613428289',
-    appId: '1:32613428289:web:d3d358acd3a31446bc2ac0',
+    apiKey: 'AIzaSyAg7ZLslQRrEhwVVVzZb1OFMRMHL8kNL38',
+    authDomain: 'apache-beam-testing.firebaseapp.com',
+    projectId: 'apache-beam-testing',
+    storageBucket: 'apache-beam-testing.appspot.com',
+    messagingSenderId: '844138762903',
+    appId: '1:844138762903:web:c0094c4e6bba87d73d8fd2',
   );
 }

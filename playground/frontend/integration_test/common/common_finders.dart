@@ -32,7 +32,6 @@ import 'package:playground/pages/standalone_playground/widgets/feedback/feedback
 import 'package:playground/pages/standalone_playground/widgets/feedback/playground_feedback.dart';
 import 'package:playground/pages/standalone_playground/widgets/more_actions.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:playground_components/src/widgets/drag_handle.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 extension CommonFindersExtension on CommonFinders {

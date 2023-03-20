@@ -30,12 +30,14 @@ class SplitView extends StatefulWidget {
   final Widget second;
   final Axis direction;
   final double initialRatio;
+  final Key? dragHandleKey;
 
   const SplitView({
     super.key,
     required this.first,
     required this.second,
     required this.direction,
+    this.dragHandleKey,
     this.initialRatio = defaultRatio,
   });
 
@@ -124,7 +126,10 @@ class _SplitViewState extends State<SplitView> {
           height: _isVertical ? BeamSizes.splitViewSeparator : double.infinity,
           color: Theme.of(context).dividerColor,
           child: Center(
-            child: DragHandle(direction: widget.direction),
+            child: DragHandle(
+              direction: widget.direction,
+              key: widget.dragHandleKey,
+            ),
           ),
         ),
         onPanUpdate: (DragUpdateDetails details) {

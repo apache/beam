@@ -84,7 +84,7 @@ class _Content extends StatelessWidget {
     final content = unitContent;
 
     if (content == null) {
-      return Container();
+      return const Center(child: CircularProgressIndicator());
     }
     if (content.isChallenge) {
       return _ChallengeContent(

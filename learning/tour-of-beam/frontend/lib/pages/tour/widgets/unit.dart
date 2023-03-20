@@ -28,6 +28,7 @@ import 'binary_progress.dart';
 class UnitWidget extends StatelessWidget {
   final UnitModel unit;
   final ContentTreeController contentTreeController;
+  static const containerKey = Key('UnitContainer');
 
   const UnitWidget({
     required this.unit,
@@ -46,6 +47,7 @@ class UnitWidget extends StatelessWidget {
         return ClickableWidget(
           onTap: () => contentTreeController.openNode(unit),
           child: Container(
+            key: containerKey,
             decoration: BoxDecoration(
               color: isSelected ? Theme.of(context).selectedRowColor : null,
               borderRadius: BorderRadius.circular(BeamSizes.size3),

@@ -41,7 +41,7 @@ class ContentTreeWidget extends StatelessWidget {
         sdkId: controller.sdkId,
         builder: (context, contentTree, child) {
           if (contentTree == null) {
-            return Container();
+            return const Center(child: CircularProgressIndicator());
           }
 
           return SingleChildScrollView(
@@ -51,11 +51,11 @@ class ContentTreeWidget extends StatelessWidget {
                 ...contentTree.modules
                     .map(
                       (module) => ModuleWidget(
+                        key: ValueKey(module.id),
                         module: module,
                         contentTreeController: controller,
                       ),
-                    )
-                    .toList(growable: false),
+                    ),
                 const SizedBox(height: BeamSizes.size12),
               ],
             ),

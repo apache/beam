@@ -27,6 +27,7 @@ class DragHandle extends StatelessWidget {
 
   const DragHandle({
     required this.direction,
+    super.key,
   });
 
   @override

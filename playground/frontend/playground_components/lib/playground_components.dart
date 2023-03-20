@@ -63,6 +63,7 @@ export 'src/widgets/bubble.dart';
 export 'src/widgets/clickable.dart';
 export 'src/widgets/complexity.dart';
 export 'src/widgets/divider.dart';
+export 'src/widgets/drag_handle.dart';
 export 'src/widgets/header_icon_button.dart';
 export 'src/widgets/loading_error.dart';
 export 'src/widgets/loading_indicator.dart';

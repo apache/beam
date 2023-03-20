@@ -31,6 +31,7 @@ class ModuleWidget extends StatelessWidget {
   const ModuleWidget({
     required this.module,
     required this.contentTreeController,
+    super.key,
   });
 
   @override
@@ -47,8 +48,7 @@ class ModuleWidget extends StatelessWidget {
                 node: node,
                 contentTreeController: contentTreeController,
               ),
-            )
-            .toList(growable: false),
+            ),
         const BeamDivider(
           margin: EdgeInsets.symmetric(vertical: BeamSizes.size10),
         ),

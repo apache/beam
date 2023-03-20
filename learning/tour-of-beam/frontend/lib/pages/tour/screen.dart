@@ -28,6 +28,7 @@ import 'widgets/unit_content.dart';
 
 class TourScreen extends StatelessWidget {
   final TourNotifier tourNotifier;
+  static const dragHandleKey = Key('dragHandleKey');
 
   const TourScreen(this.tourNotifier);
 
@@ -55,6 +56,7 @@ class _WideTour extends StatelessWidget {
         Expanded(
           child: SplitView(
             direction: Axis.horizontal,
+            dragHandleKey: TourScreen.dragHandleKey,
             first: UnitContentWidget(tourNotifier),
             second: PlaygroundDemoWidget(
               playgroundController: tourNotifier.playgroundController,

@@ -19,10 +19,9 @@
 // TODO(alexeyinkin): Generate this file on deployment.
 
 const _cloudFunctionsProjectRegion = 'us-west1';
-const _cloudFunctionsProjectId = 'snappy-mark-378613';
+const _cloudFunctionsProjectId = 'apache-beam-testing';
 const cloudFunctionsBaseUrl = 'https://'
-    '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
-    '.cloudfunctions.net';
+    '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId.cloudfunctions.net/stg_';
 
 // Copied from Playground's config.g.dart
 
