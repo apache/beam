@@ -107,8 +107,8 @@ func main() {
 	keyedSource := beam.AddFixedKey(s, source) // simulate keyed data by adding a fixed key
 	mainInput := beam.WindowInto(
 		s,
-		keyedSource,
 		window.NewFixedWindows(periodicSequenceInterval),
+		keyedSource,
 		beam.Trigger(trigger.Repeat(trigger.Always())),
 		beam.PanesDiscard(),
 	)
