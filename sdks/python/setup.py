@@ -283,7 +283,7 @@ if __name__ == '__main__':
             'pytest-xdist>=2.5.0,<4',
             'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
-            'sqlalchemy>=1.3,<2.0',
+            'sqlalchemy>=1.3,<3.0',
             'psycopg2-binary>=2.8.5,<3.0.0',
             'testcontainers[mysql]>=3.0.3,<4.0.0',
             'cryptography>=36.0.0',
