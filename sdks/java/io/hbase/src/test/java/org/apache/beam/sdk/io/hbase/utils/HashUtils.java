@@ -33,7 +33,7 @@ import org.apache.hadoop.hbase.client.RowMutations;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Assert;
 
-/** Utility functions to help assert equality between mutation lists for testing purposes. */
+/** <p><b>Internal only:</b> Utility functions to help assert equality between mutation lists for testing purposes. */
 public class HashUtils {
 
   /**

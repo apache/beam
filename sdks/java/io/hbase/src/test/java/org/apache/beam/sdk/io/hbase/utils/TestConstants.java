@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.hbase.utils;
 
 import java.nio.charset.StandardCharsets;
 
-/** Constants used for testing purposes. */
+/** <p><b>Internal only:</b> Constants used for testing purposes. */
 public class TestConstants {
   // Base timestamp, assumed to be in milliseconds.
   public static long timeT = 123456000;
