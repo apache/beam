@@ -1569,12 +1569,11 @@ class BigQueryWriteFn(DoFn):
         if e.code == 404 and destination in _KNOWN_TABLES:
           _KNOWN_TABLES.remove(destination)
           _LOGGER.warning(
-              """Table %d was not found.
-              Table will be removed from _KNOWN_TABLES and bundle will retry.
-              This sometimes occurs due to the table being deleted while a 
-              streaming job is running and the destination was previously 
-              added to the _KNOWN_TABLES set"""
-              %destination)
+            "Table %s was not found. Will remove table from local cache"
+            "and recreate it in BigQuery. The bundle will retry afterwards. "
+            "This sometimes occurs due to the table being deleted while a "
+            "streaming job is running.",
+            destination)
         raise
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
