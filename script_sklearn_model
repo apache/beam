@@ -1,0 +1,27 @@
+import pickle
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from google.cloud import storage
+
+BUCKET_NAME = "your-bucket-name"
+MODEL_NAME = "linear_regression_model.pkl"
+TRAINING_DATA = "gs://{}/data/housing_train.csv".format(BUCKET_NAME)
+
+# loading the training data
+housing_data = pd.read_csv(TRAINING_DATA)
+
+# separating the features and target variable
+X_train = housing_data.drop("median_house_value", axis=1)
+y_train = housing_data["median_house_value"].values
+
+# training the model
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# saving the trained model to GCS
+model_file = pickle.dumps(model)
+storage_client = storage.Client()
+bucket = storage_client.bucket(BUCKET_NAME)
+blob = bucket.blob(MODEL_NAME)
+blob.upload_from_string(model_file)
+print("Trained model saved to GCS path: gs://{}/{}".format(BUCKET_NAME, MODEL_NAME))
