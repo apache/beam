@@ -37,16 +37,21 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -72,7 +77,9 @@ import org.joda.time.Duration;
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
-  private static final Duration DEFAULT_TRIGGERING_FREQUENCY = Duration.standardSeconds(5);
+  private static final Integer DEFAULT_TRIGGER_FREQUENCY_SECS = 5;
+  private static final Duration DEFAULT_TRIGGERING_FREQUENCY =
+      Duration.standardSeconds(DEFAULT_TRIGGER_FREQUENCY_SECS);
   private static final String INPUT_ROWS_TAG = "input";
   private static final String OUTPUT_ERRORS_TAG = "errors";
 
@@ -153,24 +160,47 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
           .Builder();
     }
 
+    @SchemaFieldDescription(
+        "The bigquery table to write to. Format: [${PROJECT}:]${DATASET}.${TABLE}")
     public abstract String getTable();
 
+    @SchemaFieldDescription(
+        "Optional field that specifies whether the job is allowed to create new tables. "
+            + "The following values are supported: CREATE_IF_NEEDED (the job may create the table), CREATE_NEVER ("
+            + "the job must fail if the table does not exist already).")
     @Nullable
     public abstract String getCreateDisposition();
 
+    @SchemaFieldDescription(
+        "Specifies the action that occurs if the destination table already exists. "
+            + "The following values are supported: "
+            + "WRITE_TRUNCATE (overwrites the table data), "
+            + "WRITE_APPEND (append the data to the table), "
+            + "WRITE_EMPTY (job must fail if the table is not empty).")
     @Nullable
     public abstract String getWriteDisposition();
 
+    @SchemaFieldDescription(
+        "Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.")
     @Nullable
     public abstract Long getTriggeringFrequencySeconds();
 
+    @SchemaFieldDescription(
+        "This option enables lower latency for insertions to BigQuery but may ocassionally "
+            + "duplicate data elements.")
     @Nullable
     public abstract Boolean getUseAtLeastOnceSemantics();
+
+    @SchemaFieldDescription(
+        "This option enables using a dynamically determined number of shards to write to "
+            + "BigQuery. Only applicable to unbounded data.")
+    @Nullable
+    public abstract Boolean getAutoSharding();
 
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setTable(String tableSpec);
+      public abstract Builder setTable(String table);
 
       public abstract Builder setCreateDisposition(String createDisposition);
 
@@ -179,6 +209,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setTriggeringFrequencySeconds(Long seconds);
 
       public abstract Builder setUseAtLeastOnceSemantics(Boolean use);
+
+      public abstract Builder setAutoSharding(Boolean autoSharding);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -222,6 +254,30 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       this.testBigQueryServices = testBigQueryServices;
     }
 
+    // A generic counter for PCollection of Row. Will be initialized with the given
+    // name argument. Performs element-wise counter of the input PCollection.
+    private static class ElementCounterFn extends DoFn<Row, Row> {
+      private Counter bqGenericElementCounter;
+      private Long elementsInBundle = 0L;
+
+      ElementCounterFn(String name) {
+        this.bqGenericElementCounter =
+            Metrics.counter(BigQueryStorageWriteApiPCollectionRowTupleTransform.class, name);
+      }
+
+      @ProcessElement
+      public void process(ProcessContext c) {
+        this.elementsInBundle += 1;
+        c.output(c.element());
+      }
+
+      @FinishBundle
+      public void finish(FinishBundleContext c) {
+        this.bqGenericElementCounter.inc(this.elementsInBundle);
+        this.elementsInBundle = 0L;
+      }
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // Check that the input exists
@@ -232,16 +288,25 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
+        Boolean autoSharding = configuration.getAutoSharding();
         write =
-            write
-                .withAutoSharding()
-                .withTriggeringFrequency(
-                    (triggeringFrequency == null || triggeringFrequency <= 0)
-                        ? DEFAULT_TRIGGERING_FREQUENCY
-                        : Duration.standardSeconds(triggeringFrequency));
+            write.withTriggeringFrequency(
+                (triggeringFrequency == null || triggeringFrequency <= 0)
+                    ? DEFAULT_TRIGGERING_FREQUENCY
+                    : Duration.standardSeconds(triggeringFrequency));
+
+        if (autoSharding != null && autoSharding) {
+          write = write.withAutoSharding();
+        }
       }
 
-      WriteResult result = inputRows.apply(write);
+      Schema inputSchema = inputRows.getSchema();
+      WriteResult result =
+          inputRows
+              .apply(
+                  "element-count", ParDo.of(new ElementCounterFn("BigQuery-write-element-counter")))
+              .setRowSchema(inputSchema)
+              .apply(write);
 
       Schema errorSchema =
           Schema.of(
@@ -263,7 +328,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                                   .build()))
               .setRowSchema(errorSchema);
 
-      return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorRows);
+      PCollection<Row> errorOutput =
+          errorRows
+              .apply("error-count", ParDo.of(new ElementCounterFn("BigQuery-write-error-counter")))
+              .setRowSchema(errorSchema);
+
+      return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorOutput);
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {
@@ -278,7 +348,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .to(configuration.getTable())
               .withMethod(writeMethod)
               .useBeamSchema()
-              .withFormatFunction(BigQueryUtils.toTableRow());
+              .withFormatFunction(BigQueryUtils.toTableRow())
+              .withWriteDisposition(WriteDisposition.WRITE_APPEND);
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =

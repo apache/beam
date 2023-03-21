@@ -1114,10 +1114,11 @@ func TestAsSplittableUnit(t *testing.T) {
 
 				// Call from SplittableUnit and check results.
 				su := SplittableUnit(node)
-				if err := node.Up(context.Background()); err != nil {
+				ctx := context.Background()
+				if err := node.Up(ctx); err != nil {
 					t.Fatalf("ProcessSizedElementsAndRestrictions.Up() failed: %v", err)
 				}
-				gotPrimaries, gotResiduals, err := su.Split(test.frac)
+				gotPrimaries, gotResiduals, err := su.Split(ctx, test.frac)
 				if err != nil {
 					t.Fatalf("SplittableUnit.Split(%v) failed: %v", test.frac, err)
 				}
@@ -1184,10 +1185,11 @@ func TestAsSplittableUnit(t *testing.T) {
 
 				// Call from SplittableUnit and check results.
 				su := SplittableUnit(node)
-				if err := node.Up(context.Background()); err != nil {
+				ctx := context.Background()
+				if err := node.Up(ctx); err != nil {
 					t.Fatalf("ProcessSizedElementsAndRestrictions.Up() failed: %v", err)
 				}
-				_, _, err := su.Split(0.5)
+				_, _, err := su.Split(ctx, 0.5)
 				if err == nil {
 					t.Errorf("SplittableUnit.Split(%v) was expected to fail.", test.in)
 				}
@@ -1251,10 +1253,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				node.currW = 0
 				// Call from SplittableUnit and check results.
 				su := SplittableUnit(node)
-				if err := node.Up(context.Background()); err != nil {
+				ctx := context.Background()
+				if err := node.Up(ctx); err != nil {
 					t.Fatalf("ProcessSizedElementsAndRestrictions.Up() failed: %v", err)
 				}
-				gotResiduals, err := su.Checkpoint()
+				gotResiduals, err := su.Checkpoint(ctx)
 
 				if err != nil {
 					t.Fatalf("SplittableUnit.Checkpoint() returned error, got %v", err)
@@ -1401,7 +1404,7 @@ func TestMultiWindowProcessing(t *testing.T) {
 	// Split should hit window boundary between 2 and 3. We don't need to check
 	// the split result here, just the effects it has on currW and numW.
 	frac := 0.5
-	if _, _, err := su.Split(frac); err != nil {
+	if _, _, err := su.Split(context.Background(), frac); err != nil {
 		t.Errorf("Split(%v) failed with error: %v", frac, err)
 	}
 	if got, want := node.currW, blockW; got != want {

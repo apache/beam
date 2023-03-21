@@ -16,11 +16,25 @@
 package storage
 
 import (
+	"os"
 	"time"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"cloud.google.com/go/datastore"
 )
+
+var (
+	PgNamespace string
+)
+
+func init() {
+	ns, ok := os.LookupEnv("DATASTORE_NAMESPACE")
+	//empty namespace corresponds to Default Datastore namespace and is perfectly fine
+	PgNamespace = ns
+	if !ok { // default to Playground
+		PgNamespace = "Playground"
+	}
+}
 
 // ToB Datastore schema
 // - Content tree has a root entity in tb_learning_path,
@@ -30,8 +44,6 @@ import (
 // - To limit ancestor queries by only first-level descendants, "level" property is used
 
 const (
-	PgNamespace = "Playground"
-
 	TbLearningPathKind   = "tb_learning_path"
 	TbLearningModuleKind = "tb_learning_module"
 	TbLearningNodeKind   = "tb_learning_node"

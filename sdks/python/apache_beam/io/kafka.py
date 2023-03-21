@@ -187,12 +187,7 @@ class ReadFromKafka(ExternalTransform):
                 start_read_time=start_read_time,
                 commit_offset_in_finalize=commit_offset_in_finalize,
                 timestamp_policy=timestamp_policy)),
-        expansion_service or default_io_expansion_service(
-            append_args=['--experiments=use_unbounded_sdf_wrapper']))
-    # TODO(https://github.com/apache/beam/issues/21730): remove
-    #  'use_unbounded_sdf_wrapper' which opts default expansion
-    #  service into using SDF wrapped legacy Kafka source instead of pure SDF
-    #  Kafka source.
+        expansion_service or default_io_expansion_service())
 
 
 WriteToKafkaSchema = typing.NamedTuple(

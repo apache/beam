@@ -24,8 +24,10 @@ import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -80,6 +82,12 @@ import scala.reflect.ClassTag;
 public abstract class PipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);
 
+  // Threshold to limit query plan complexity to avoid unnecessary planning overhead. Currently this
+  // is fairly low, Catalyst won't be able to optimize beyond ParDos anyways. Until there's
+  // dedicated support for schema transforms, there's little value of allowing more complex plans at
+  // this point.
+  private static final int PLAN_COMPLEXITY_THRESHOLD = 6;
+
   public static void replaceTransforms(Pipeline pipeline, StreamingOptions options) {
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(options.isStreaming()));
   }
@@ -127,14 +135,26 @@ public abstract class PipelineTranslator {
    * The correspondence of a {@link PCollection} as result of translating a {@link PTransform}
    * including additional metadata (such as name and dependents).
    */
-  private static final class TranslationResult<T> implements EvaluationContext.NamedDataset<T> {
+  private static final class TranslationResult<IntT, T>
+      implements EvaluationContext.NamedDataset<T> {
     private final String name;
+    private final float complexityFactor;
+    private float planComplexity = 0;
+
     private @MonotonicNonNull Dataset<WindowedValue<T>> dataset = null;
     private @MonotonicNonNull Broadcast<SideInputValues<T>> sideInputBroadcast = null;
-    private final Set<PTransform<?, ?>> dependentTransforms = new HashSet<>();
+    private @Nullable UnresolvedTranslation<IntT, T> unresolved = null;
 
-    private TranslationResult(PCollection<?> pCol) {
+    // dependent downstream transforms (if empty this is a leaf)
+    private final Set<PTransform<?, ?>> dependentTransforms = new HashSet<>();
+    // upstream dependencies (required inputs)
+    private final List<TranslationResult<?, ?>> dependencies;
+
+    private TranslationResult(
+        PCollection<?> pCol, float complexityFactor, List<TranslationResult<?, ?>> dependencies) {
       this.name = pCol.getName();
+      this.complexityFactor = complexityFactor;
+      this.dependencies = dependencies;
     }
 
     @Override
@@ -146,13 +166,55 @@ public abstract class PipelineTranslator {
     public @Nullable Dataset<WindowedValue<T>> dataset() {
       return dataset;
     }
+
+    private boolean isLeaf() {
+      return dependentTransforms.isEmpty();
+    }
+
+    private int usages() {
+      return dependentTransforms.size();
+    }
+
+    private void resetPlanComplexity() {
+      planComplexity = 1;
+    }
+
+    /** Estimate complexity of query plan by multiplying complexities of all dependencies. */
+    private float estimatePlanComplexity() {
+      if (planComplexity > 0) {
+        return planComplexity;
+      }
+      float complexity = 1 + complexityFactor;
+      for (TranslationResult<?, ?> result : dependencies) {
+        complexity *= result.estimatePlanComplexity();
+      }
+      return (planComplexity = complexity);
+    }
+  }
+
+  /**
+   * Unresolved translation, allowing to optimize the generated Spark DAG.
+   *
+   * <p>An unresolved translation can - in certain cases - be fused together with following
+   * transforms. Currently this is only the case for ParDos with linear linage.
+   */
+  public interface UnresolvedTranslation<InT, T> {
+    PCollection<InT> getInput();
+
+    <T2> UnresolvedTranslation<InT, T2> fuse(UnresolvedTranslation<T, T2> next);
+
+    Dataset<WindowedValue<T>> resolve(
+        Supplier<PipelineOptions> options, Dataset<WindowedValue<InT>> input);
   }
 
   /** Shared, mutable state during the translation of a pipeline and omitted afterwards. */
   public interface TranslationState extends EncoderProvider {
     <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection);
 
-    boolean isLeave(PCollection<?> pCollection);
+    boolean isLeaf(PCollection<?> pCollection);
+
+    <InT, OutT> void putUnresolved(
+        PCollection<OutT> out, UnresolvedTranslation<InT, OutT> unresolved);
 
     <T> void putDataset(
         PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache);
@@ -182,19 +244,19 @@ public abstract class PipelineTranslator {
    * broadcasted.
    */
   private class TranslatingVisitor extends PTransformVisitor implements TranslationState {
-    private final Map<PCollection<?>, TranslationResult<?>> translationResults;
+    private final Map<PCollection<?>, TranslationResult<?, ?>> translationResults;
     private final Map<Coder<?>, Encoder<?>> encoders;
     private final SparkSession sparkSession;
     private final PipelineOptions options;
     private final Supplier<PipelineOptions> optionsSupplier;
     private final StorageLevel storageLevel;
 
-    private final Set<TranslationResult<?>> leaves;
+    private final Set<TranslationResult<?, ?>> leaves;
 
     public TranslatingVisitor(
         SparkSession sparkSession,
         SparkCommonPipelineOptions options,
-        Map<PCollection<?>, TranslationResult<?>> translationResults) {
+        Map<PCollection<?>, TranslationResult<?, ?>> translationResults) {
       this.sparkSession = sparkSession;
       this.translationResults = translationResults;
       this.options = options;
@@ -234,41 +296,74 @@ public abstract class PipelineTranslator {
       return enc;
     }
 
-    private <T> TranslationResult<T> getResult(PCollection<T> pCollection) {
-      return (TranslationResult<T>) checkStateNotNull(translationResults.get(pCollection));
+    private <IntT, T> TranslationResult<IntT, T> getResult(PCollection<T> pCollection) {
+      return (TranslationResult<IntT, T>) checkStateNotNull(translationResults.get(pCollection));
     }
 
     @Override
     public <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection) {
-      return checkStateNotNull(getResult(pCollection).dataset);
+      return getOrResolve(getResult(pCollection));
     }
 
     @Override
     public <T> void putDataset(
         PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache) {
-      TranslationResult<T> result = getResult(pCollection);
-      if (cache && result.dependentTransforms.size() > 1) {
-        LOG.info("Dataset {} will be cached.", result.name);
-        result.dataset = dataset.persist(storageLevel); // use NONE to disable
-      } else {
-        result.dataset = dataset;
-        if (result.dependentTransforms.isEmpty()) {
-          leaves.add(result);
-        }
+      TranslationResult<?, T> result = getResult(pCollection);
+      result.dataset = dataset;
+
+      if (cache && result.usages() > 1) {
+        LOG.info("Dataset {} will be cached for reuse.", result.name);
+        dataset.persist(storageLevel); // use NONE to disable
+      }
+
+      if (result.estimatePlanComplexity() > PLAN_COMPLEXITY_THRESHOLD) {
+        // Break linage of dataset to limit planning overhead for complex query plans.
+        LOG.info("Breaking linage of dataset {} to limit complexity of query plan.", result.name);
+        result.dataset = sparkSession.createDataset(dataset.rdd(), dataset.encoder());
+        result.resetPlanComplexity();
+      }
+
+      if (result.isLeaf()) {
+        leaves.add(result);
+      }
+    }
+
+    private <InT, T> Dataset<WindowedValue<T>> getOrResolve(TranslationResult<InT, T> result) {
+      UnresolvedTranslation<InT, T> unresolved = result.unresolved;
+      if (unresolved != null) {
+        result.dataset = unresolved.resolve(optionsSupplier, getDataset(unresolved.getInput()));
+        result.unresolved = null;
+      }
+      return checkStateNotNull(result.dataset);
+    }
+
+    @Override
+    public <InT, T> void putUnresolved(
+        PCollection<T> out, UnresolvedTranslation<InT, T> unresolved) {
+      // For simplicity, pretend InT is the same
+      TranslationResult<InT, InT> translIn = getResult(unresolved.getInput());
+      TranslationResult<InT, T> translOut = getResult(out);
+      // Fuse with previous unresolved translation if necessary
+      UnresolvedTranslation<InT, InT> unresolvedIn = translIn.unresolved;
+      translOut.unresolved = unresolvedIn != null ? unresolvedIn.fuse(unresolved) : unresolved;
+      translIn.unresolved = null;
+      // Resolve dataset immediately in case of leaf or when there are multiple downstreams
+      if (translOut.usages() != 1) {
+        putDataset(out, getOrResolve(translOut));
       }
     }
 
     @Override
-    public boolean isLeave(PCollection<?> pCollection) {
-      return getResult(pCollection).dependentTransforms.isEmpty();
+    public boolean isLeaf(PCollection<?> pCollection) {
+      return getResult(pCollection).isLeaf();
     }
 
     @Override
     public <T> Broadcast<SideInputValues<T>> getSideInputBroadcast(
         PCollection<T> pCollection, SideInputValues.Loader<T> loader) {
-      TranslationResult<T> result = getResult(pCollection);
+      TranslationResult<?, T> result = getResult(pCollection);
       if (result.sideInputBroadcast == null) {
-        SideInputValues<T> sideInputValues = loader.apply(checkStateNotNull(result.dataset));
+        SideInputValues<T> sideInputValues = loader.apply(getOrResolve(result));
         result.sideInputBroadcast = broadcast(sparkSession, sideInputValues);
       }
       return result.sideInputBroadcast;
@@ -318,21 +413,24 @@ public abstract class PipelineTranslator {
    * <p>The visitor may throw if a {@link PTransform} is observed that uses unsupported features.
    */
   private class DependencyVisitor extends PTransformVisitor {
-    private final Map<PCollection<?>, TranslationResult<?>> results = new HashMap<>();
+    private final Map<PCollection<?>, TranslationResult<?, ?>> results = new HashMap<>();
 
     @Override
     <InT extends PInput, OutT extends POutput> void visit(
         Node node,
         PTransform<InT, OutT> transform,
         TransformTranslator<InT, OutT, PTransform<InT, OutT>> translator) {
+      // Track `transform` as downstream dependency of every input and reversely
+      // every input is a dependency of each output of `transform`.
+      List<TranslationResult<?, ?>> dependencies = new ArrayList<>(node.getInputs().size());
+      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : node.getInputs().entrySet()) {
+        TranslationResult<?, ?> input = checkStateNotNull(results.get(entry.getValue()));
+        dependencies.add(input);
+        input.dependentTransforms.add(transform);
+      }
       // add new translation result for every output of `transform`
       for (PCollection<?> pOut : node.getOutputs().values()) {
-        results.put(pOut, new TranslationResult<>(pOut));
-      }
-      // track `transform` as downstream dependency for every input
-      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : node.getInputs().entrySet()) {
-        TranslationResult<?> input = checkStateNotNull(results.get(entry.getValue()));
-        input.dependentTransforms.add(transform);
+        results.put(pOut, new TranslationResult<>(pOut, translator.complexityFactor, dependencies));
       }
     }
   }

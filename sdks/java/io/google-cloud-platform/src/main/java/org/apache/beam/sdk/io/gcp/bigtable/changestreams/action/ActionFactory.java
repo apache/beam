@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
-import com.google.cloud.Timestamp;
 import java.io.Serializable;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
@@ -31,6 +30,7 @@ import org.joda.time.Duration;
  */
 // Allows for transient fields to be initialized later
 @SuppressWarnings("initialization.field.uninitialized")
+@Internal
 public class ActionFactory implements Serializable {
   private static final long serialVersionUID = -6780082495458582986L;
 
@@ -66,12 +66,10 @@ public class ActionFactory implements Serializable {
   public synchronized DetectNewPartitionsAction detectNewPartitionsAction(
       ChangeStreamMetrics metrics,
       MetadataTableDao metadataTableDao,
-      @Nullable Timestamp endTime,
       GenerateInitialPartitionsAction generateInitialPartitionsAction) {
     if (detectNewPartitionsAction == null) {
       detectNewPartitionsAction =
-          new DetectNewPartitionsAction(
-              metrics, metadataTableDao, endTime, generateInitialPartitionsAction);
+          new DetectNewPartitionsAction(metrics, metadataTableDao, generateInitialPartitionsAction);
     }
     return detectNewPartitionsAction;
   }
@@ -85,10 +83,10 @@ public class ActionFactory implements Serializable {
    * @return singleton instance of the {@link GenerateInitialPartitionsAction}
    */
   public synchronized GenerateInitialPartitionsAction generateInitialPartitionsAction(
-      ChangeStreamMetrics metrics, ChangeStreamDao changeStreamDao, @Nullable Timestamp endTime) {
+      ChangeStreamMetrics metrics, ChangeStreamDao changeStreamDao) {
     if (generateInitialPartitionsAction == null) {
       generateInitialPartitionsAction =
-          new GenerateInitialPartitionsAction(metrics, changeStreamDao, endTime);
+          new GenerateInitialPartitionsAction(metrics, changeStreamDao);
     }
     return generateInitialPartitionsAction;
   }
@@ -106,15 +104,11 @@ public class ActionFactory implements Serializable {
       ChangeStreamDao changeStreamDao,
       ChangeStreamMetrics metrics,
       ChangeStreamAction changeStreamAction,
-      Duration heartbeatDurationSeconds) {
+      Duration heartbeatDuration) {
     if (readChangeStreamPartitionAction == null) {
       readChangeStreamPartitionAction =
           new ReadChangeStreamPartitionAction(
-              metadataTableDao,
-              changeStreamDao,
-              metrics,
-              changeStreamAction,
-              heartbeatDurationSeconds);
+              metadataTableDao, changeStreamDao, metrics, changeStreamAction, heartbeatDuration);
     }
     return readChangeStreamPartitionAction;
   }

@@ -34,7 +34,8 @@ class GRPCClient:
 
     def __init__(self, wait_for_ready=True):
         use_webgrpc = os.getenv("BEAM_USE_WEBGRPC", False)
-        timeout = os.getenv("GRPC_TIMEOUT", 10)
+        timeout = int(os.getenv("GRPC_TIMEOUT", 30))
+        logging.info("grpc timeout: %d", timeout)
         if use_webgrpc:
             self._channel = sonora.aio.insecure_web_channel(Config.SERVER_ADDRESS)
         else:

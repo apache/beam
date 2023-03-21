@@ -16,6 +16,7 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/logger"
 	"fmt"
 	"io"
 	"io/fs"
@@ -142,4 +143,27 @@ func (lc *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error 
 		return err
 	}
 	return nil
+}
+
+func (lc *LifeCycle) GetPreparerParameters() map[string]string {
+	if lc.emulatorMockCluster == nil {
+		return map[string]string{}
+	}
+	return lc.emulatorMockCluster.GetPreparerParameters()
+}
+
+func (lc *LifeCycle) StartEmulators(configuration emulators.EmulatorConfiguration) error {
+	kafkaMockClusters, err := emulators.PrepareMockClusters(configuration)
+	if err != nil {
+		logger.Errorf("Failed to start mock emulator: %v", err)
+		return err
+	}
+	lc.emulatorMockCluster = kafkaMockClusters[0]
+	return nil
+}
+
+func (lc *LifeCycle) StopEmulators() {
+	if lc.emulatorMockCluster != nil {
+		lc.emulatorMockCluster.Stop()
+	}
 }

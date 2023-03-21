@@ -36,3 +36,13 @@ plugins:
    - pyi_out=infrastructure
 - plugin: buf.build/grpc/python
   out: infrastructure
+
+# Tour of Beam stubs
+- name: go
+  out: ../learning/tour-of-beam/backend/playground_api
+  opt: paths=source_relative
+- name: go-grpc
+  out: ../learning/tour-of-beam/backend/playground_api
+  opt:
+  - paths=source_relative
+  - require_unimplemented_servers=false

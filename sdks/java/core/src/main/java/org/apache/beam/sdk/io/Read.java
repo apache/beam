@@ -268,7 +268,6 @@ public class Read {
   static class BoundedSourceAsSDFWrapperFn<T, BoundedSourceT extends BoundedSource<T>>
       extends DoFn<BoundedSourceT, T> {
     private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceAsSDFWrapperFn.class);
-    private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
 
     @GetInitialRestriction
     public BoundedSourceT initialRestriction(@Element BoundedSourceT element) {
@@ -290,12 +289,15 @@ public class Read {
       long estimatedSize = restriction.getEstimatedSizeBytes(pipelineOptions);
       // Split into pieces as close to the default desired bundle size but if that would cause too
       // few splits then prefer to split up to the default desired number of splits.
-      long splitBundleSize =
-          Math.min(
-              DEFAULT_DESIRED_BUNDLE_SIZE_BYTES,
-              Math.max(1L, estimatedSize / DEFAULT_DESIRED_NUM_SPLITS));
+      long desiredChunkSize;
+      if (estimatedSize <= 0) {
+        desiredChunkSize = 64 << 20; // 64mb
+      } else {
+        // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k shards
+        desiredChunkSize = Math.max(1 << 20, (long) (1000 * Math.sqrt(estimatedSize)));
+      }
       List<BoundedSourceT> splits =
-          (List<BoundedSourceT>) restriction.split(splitBundleSize, pipelineOptions);
+          (List<BoundedSourceT>) restriction.split(desiredChunkSize, pipelineOptions);
       for (BoundedSourceT split : splits) {
         receiver.output(split);
       }

@@ -5,7 +5,7 @@
 // (the "License"); you may not use this file except in compliance with
 // the License.  You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,7 +48,6 @@ const (
 	errorTitleGetDefaultExample = "Error during getting default example"
 	errorTitleRunCode           = "Error during run code"
 
-	userBadCloudPathErrMsg     = "Invalid cloud path parameter"
 	userCloudConnectionErrMsg  = "Cloud connection error"
 	resourceNotFoundErrMsg     = "Resource is not found"
 	resourceInconsistentErrMsg = "Resource is not consistent"
@@ -69,11 +68,11 @@ type playgroundController struct {
 }
 
 // RunCode is running code from requests using a particular SDK
-// - In case of incorrect sdk returns codes.InvalidArgument
-// - In case of error during preparing files/folders returns codes.Internal
-// - In case of no errors saves playground.Status_STATUS_EXECUTING as cache.Status into cache and sets expiration time
-//   for all cache values which will be saved into cache during processing received code.
-//   Returns id of code processing (pipelineId)
+//   - In case of incorrect sdk returns codes.InvalidArgument
+//   - In case of error during preparing files/folders returns codes.Internal
+//   - In case of no errors saves playground.Status_STATUS_EXECUTING as cache.Status into cache and sets expiration time
+//     for all cache values which will be saved into cache during processing received code.
+//     Returns id of code processing (pipelineId)
 func (controller *playgroundController) RunCode(ctx context.Context, info *pb.RunCodeRequest) (*pb.RunCodeResponse, error) {
 	// check for correct sdk
 	if info.Sdk != controller.env.BeamSdkEnvs.ApacheBeamSdk {
@@ -89,16 +88,6 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	var kafkaMockCluster emulators.EmulatorMockCluster
-	var prepareParams = make(map[string]string)
-	if len(info.Datasets) != 0 {
-		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(info)
-		if err != nil {
-			return nil, cerrors.InternalError(errorTitleRunCode, "Failed to prepare a mock emulator cluster")
-		}
-		kafkaMockCluster = kafkaMockClusters[0]
-		prepareParams = prepareParamsVal
-	}
 	sources := make([]entity.FileEntity, 0)
 	if len(info.Files) > 0 {
 		for _, file := range info.Files {
@@ -122,35 +111,41 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		})
 	}
 
-	lc, err := life_cycle.Setup(info.Sdk, sources, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), kafkaMockCluster)
+	emulatorConfiguration := emulators.EmulatorConfiguration{
+		Datasets:                    info.Datasets,
+		DatasetsPath:                controller.env.ApplicationEnvs.DatasetsPath(),
+		KafkaEmulatorExecutablePath: controller.env.ApplicationEnvs.KafkaExecutablePath(),
+	}
+
+	lc, err := life_cycle.Setup(info.Sdk, sources, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), emulatorConfiguration)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, cerrors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
 	}
 
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving status of the code processing")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial run output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving value for the logs output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial cancel flag")
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Internal error")
 	}
 
-	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions, kafkaMockCluster, prepareParams)
+	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
@@ -245,7 +240,7 @@ func (controller *playgroundController) GetRunError(ctx context.Context, info *p
 	return &pb.GetRunErrorResponse{Output: runError}, nil
 }
 
-//GetValidationOutput is returning output of validation for specific pipeline by PipelineUuid
+// GetValidationOutput is returning output of validation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetValidationOutput(ctx context.Context, info *pb.GetValidationOutputRequest) (*pb.GetValidationOutputResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	errorMessage := "Error during getting compilation output"
@@ -260,7 +255,7 @@ func (controller *playgroundController) GetValidationOutput(ctx context.Context,
 	return &pb.GetValidationOutputResponse{Output: validationOutput}, nil
 }
 
-//GetPreparationOutput is returning output of prepare step for specific pipeline by PipelineUuid
+// GetPreparationOutput is returning output of prepare step for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetPreparationOutput(ctx context.Context, info *pb.GetPreparationOutputRequest) (*pb.GetPreparationOutputResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	errorMessage := "Error during getting compilation output"
@@ -275,7 +270,7 @@ func (controller *playgroundController) GetPreparationOutput(ctx context.Context
 	return &pb.GetPreparationOutputResponse{Output: preparationOutput}, nil
 }
 
-//GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
+// GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	errorMessage := "Error during getting compilation output"
@@ -290,7 +285,7 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	return &pb.GetCompileOutputResponse{Output: compileOutput}, nil
 }
 
-//GetGraph is returning graph of execution for specific pipeline by PipelineUuid
+// GetGraph is returning graph of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetGraph(ctx context.Context, info *pb.GetGraphRequest) (*pb.GetGraphResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	errorMessage := "Error during getting graph output"
@@ -335,10 +330,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 
 // GetPrecompiledObject returns precompiled object from the Datastore or the cache
 func (controller *playgroundController) GetPrecompiledObject(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExample, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	sdks, err := controller.cacheComponent.GetSdkCatalogFromCacheOrDatastore(ctx, controller.env.ApplicationEnvs.CacheRequestTimeout())
 	if err != nil {
 		return nil, cerrors.InternalError(errorTitleGetExample, userCloudConnectionErrMsg)
@@ -357,10 +349,7 @@ func (controller *playgroundController) GetPrecompiledObject(ctx context.Context
 
 // GetPrecompiledObjectCode returns the code of the specific example
 func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleCode, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	files, err := controller.db.GetExampleCode(ctx, exampleId)
 	if err != nil {
 		switch err {
@@ -392,10 +381,7 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 
 // GetPrecompiledObjectOutput returns the output of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectOutputRequest) (*pb.GetPrecompiledObjectOutputResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleOutput, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	output, err := controller.db.GetExampleOutput(ctx, exampleId)
 	if err != nil {
 		switch err {
@@ -411,10 +397,7 @@ func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.C
 
 // GetPrecompiledObjectLogs returns the logs of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Context, info *pb.GetPrecompiledObjectLogsRequest) (*pb.GetPrecompiledObjectLogsResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleLogs, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	logs, err := controller.db.GetExampleLogs(ctx, exampleId)
 	if err != nil {
 		switch err {
@@ -430,10 +413,7 @@ func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Con
 
 // GetPrecompiledObjectGraph returns the graph of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Context, info *pb.GetPrecompiledObjectGraphRequest) (*pb.GetPrecompiledObjectGraphResponse, error) {
-	exampleId, err := utils.GetExampleID(info.GetCloudPath())
-	if err != nil {
-		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleGraph, userBadCloudPathErrMsg)
-	}
+	exampleId := info.GetCloudPath()
 	graph, err := controller.db.GetExampleGraph(ctx, exampleId)
 	if err != nil {
 		switch err {
