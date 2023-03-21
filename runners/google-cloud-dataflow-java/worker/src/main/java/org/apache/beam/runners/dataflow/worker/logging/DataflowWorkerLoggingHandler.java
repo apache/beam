@@ -76,6 +76,13 @@ public class DataflowWorkerLoggingHandler extends Handler {
   }
 
   /**
+   * Buffer size to use when writing logs. This matches <a
+   * href="https://cloud.google.com/logging/quotas#log-limits">Logging usage limits</a> to avoid
+   * spreading the same log entry across multiple disk flushes.
+   */
+  private static final int LOGGING_WRITER_BUFFER_SIZE = 262144; // 256kb
+
+  /**
    * Formats the throwable as per {@link Throwable#printStackTrace()}.
    *
    * @param thrown The throwable to format.
@@ -278,7 +285,8 @@ public class DataflowWorkerLoggingHandler extends Handler {
       try {
         String filename = filepath + "." + formatter.format(new Date()) + ".log";
         return new BufferedOutputStream(
-            new FileOutputStream(new File(filename), true /* append */));
+            new FileOutputStream(new File(filename), true /* append */),
+            LOGGING_WRITER_BUFFER_SIZE);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
