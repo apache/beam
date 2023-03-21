@@ -127,7 +127,7 @@ task postCommitLegacyWorker(type: Test) {
 }
 
 task postCommit(type: Test) {
-    dependsOn postCommitLegacyWorkerJava
+    dependsOn postCommitLegacyWorker
 }
 
 task verifyPortabilityApi() {
