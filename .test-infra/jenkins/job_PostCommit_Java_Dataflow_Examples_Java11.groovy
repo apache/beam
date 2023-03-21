@@ -33,7 +33,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_Java1
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:google-cloud-dataflow-java:examples:java11PostCommit')
+          tasks(':runners:google-cloud-dataflow-java:examples:postCommit')
 
           // Increase parallel worker threads above processor limit since most time is
           // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
@@ -41,6 +41,11 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_Java1
           // 3 x num_cores strikes a good balance between maxing out parallelism without
           // overloading the machines.
           commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+          switches '-PdisableSpotlessCheck=true'
+          switches '-PdisableCheckStyle=true'
+          switches '-PcompileAndRunTestsWithJava11'
+          switches '-PskipCheckerFramework'
+          switches "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"
         }
       }
     }

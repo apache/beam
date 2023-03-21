@@ -101,6 +101,11 @@ task preCommitLegacyWorkerImpersonate(type: Test) {
     ])
 }
 
+task preCommit(type: Test) {
+  dependsOn preCommitLegacyWorker
+  dependsOn preCommitLegacyWorkerImpersonate
+}
+
 task verifyFnApiWorker(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
@@ -115,31 +120,14 @@ task verifyFnApiWorker(type: Test) {
   }
 }
 
-task postCommitLegacyWorkerJava11(type: Test) {
+task postCommitLegacyWorker(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  systemProperty "java.specification.version", "11"
   with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
 }
 
-task java11PostCommit() {
-  dependsOn postCommitLegacyWorkerJava11
-}
-
-task postCommitLegacyWorkerJava17(type: Test) {
-    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-    systemProperty "java.specification.version", "17"
-    with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
-}
-
-task java17PostCommit() {
-    dependsOn postCommitLegacyWorkerJava17
-}
-
-task preCommit() {
-  dependsOn preCommitLegacyWorker
-  dependsOn preCommitLegacyWorkerImpersonate
+task postCommit(type: Test) {
+    dependsOn postCommitLegacyWorkerJava
 }
 
 task verifyPortabilityApi() {

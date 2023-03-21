@@ -25,8 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleTask: ':clean',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
-      '-PdisableCheckStyle=true',
-      '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
+      '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^model/.*$',
@@ -47,12 +46,18 @@ builder.build {
     gradle {
       rootBuildScriptDir(properties.checkoutDir)
       tasks 'javaExamplesDataflowPreCommit'
+
+      // Increase parallel worker threads above processor limit since most time is
+      // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
+      // because each one launches a Dataflow job with about 3 mins of overhead.
+      // 3 x num_cores strikes a good balance between maxing out parallelism without
+      // overloading the machines.
+      properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
       switches '-PdisableSpotlessCheck=true'
       switches '-PdisableCheckStyle=true'
       switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
       switches '-PcompileAndRunTestsWithJava11'
       switches "-Pjava11Home=${properties.JAVA_11_HOME}"
-      properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
   }
 }

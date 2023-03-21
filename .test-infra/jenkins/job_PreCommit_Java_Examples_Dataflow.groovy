@@ -21,7 +21,7 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java_Examples_Dataflow',
-    gradleTask: ':javaExamplesDataflowPreCommit',
+    gradleTask: ':clean',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true'
@@ -39,5 +39,21 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
+  }
+
+  steps {
+    gradle {
+      rootBuildScriptDir(properties.checkoutDir)
+      tasks 'javaExamplesDataflowPreCommit'
+
+      // Increase parallel worker threads above processor limit since most time is
+      // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
+      // because each one launches a Dataflow job with about 3 mins of overhead.
+      // 3 x num_cores strikes a good balance between maxing out parallelism without
+      // overloading the machines.
+      properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+      switches '-PdisableSpotlessCheck=true'
+      switches '-PdisableCheckStyle=true'
+    }
   }
 }
