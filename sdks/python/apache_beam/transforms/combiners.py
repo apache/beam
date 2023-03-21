@@ -317,7 +317,7 @@ class Top(object):
 
   @staticmethod
   @ptransform.ptransform_fn
-  def SmallestPerKey(pcoll, n, key=None, reverse=True):
+  def SmallestPerKey(pcoll, n, *, reverse=True, key=None):
     """Identifies the N least elements associated with each key."""
     return pcoll | Top.PerKey(n, key, reverse=True)
 
