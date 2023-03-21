@@ -218,7 +218,7 @@ class PipelineOptions(HasDisplayData):
     self._flags = flags
     regex = re.compile('-\\w+')
     single_dash_flags = list(filter(regex.match, flags))
-    if any(single_dash_flags):
+    if single_dash_flags:
       raise SystemExit(
           "single dash flags are not allowed: {}".format(single_dash_flags))
 
