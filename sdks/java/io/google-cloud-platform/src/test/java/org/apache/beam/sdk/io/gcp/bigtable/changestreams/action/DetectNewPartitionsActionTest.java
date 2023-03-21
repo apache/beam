@@ -24,6 +24,7 @@ import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
+import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import java.io.IOException;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
@@ -32,12 +33,14 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminD
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -66,6 +69,7 @@ public class DetectNewPartitionsActionTest {
   private MetadataTableDao metadataTableDao;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
   private Instant startTime;
+  private Instant partitionTime;
   private static BigtableDataClient dataClient;
   private static BigtableTableAdminClient adminClient;
 
@@ -101,6 +105,7 @@ public class DetectNewPartitionsActionTest {
             metadataTableAdminDao.getChangeStreamNamePrefix());
 
     startTime = Instant.now();
+    partitionTime = startTime.plus(Duration.standardSeconds(10));
     action =
         new DetectNewPartitionsAction(metrics, metadataTableDao, generateInitialPartitionsAction);
     watermarkEstimator = new WatermarkEstimators.Manual(startTime);
@@ -118,5 +123,61 @@ public class DetectNewPartitionsActionTest {
     assertEquals(
         ProcessContinuation.resume(),
         action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
+  }
+
+  // Every 10 tryClaim, DNP updates the watermark based on the watermark of all the RCSP.
+  @Test
+  public void testAdvanceWatermarkWithAllPartitions() throws Exception {
+    // We advance watermark on every 10 restriction tracker advancement
+    OffsetRange offsetRange = new OffsetRange(10, Long.MAX_VALUE);
+    when(tracker.currentRestriction()).thenReturn(offsetRange);
+    when(tracker.tryClaim(offsetRange.getFrom())).thenReturn(true);
+
+    assertEquals(startTime, watermarkEstimator.currentWatermark());
+
+    // Write 2 partitions to the table that covers entire keyspace.
+    Range.ByteStringRange partition1 = Range.ByteStringRange.create("", "b");
+    Instant watermark1 = partitionTime.plus(Duration.millis(100));
+    metadataTableDao.updateWatermark(partition1, watermark1, null);
+    Range.ByteStringRange partition2 = Range.ByteStringRange.create("b", "");
+    Instant watermark2 = partitionTime.plus(Duration.millis(1));
+    metadataTableDao.updateWatermark(partition2, watermark2, null);
+
+    assertEquals(
+        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
+
+    // Because the 2 partitions cover the entire keyspace, the watermark should have advanced.
+    // Also note the watermark is watermark2 which is the lowest of the 2 watermarks.
+    assertEquals(watermark2, watermarkEstimator.currentWatermark());
+  }
+
+  // Every 10 tryClaim, DNP only updates its watermark if all the RCSP currently streamed covers the
+  // entire key space. If there's any missing, they are in the process of split or merge. If the
+  // watermark is updated with missing partitions, the watermark might be further ahead than it
+  // actually is.
+  @Test
+  public void testAdvanceWatermarkWithMissingPartitions() throws Exception {
+    // We advance watermark on every 10 restriction tracker advancement
+    OffsetRange offsetRange = new OffsetRange(10, Long.MAX_VALUE);
+    when(tracker.currentRestriction()).thenReturn(offsetRange);
+    when(tracker.tryClaim(offsetRange.getFrom())).thenReturn(true);
+
+    assertEquals(startTime, watermarkEstimator.currentWatermark());
+
+    // Write 2 partitions to the table that DO NOT cover the entire keyspace.
+    Range.ByteStringRange partition1 = Range.ByteStringRange.create("", "b");
+    Instant watermark1 = partitionTime.plus(Duration.millis(100));
+    metadataTableDao.updateWatermark(partition1, watermark1, null);
+    Range.ByteStringRange partition2 = Range.ByteStringRange.create("b", "c");
+    Instant watermark2 = partitionTime.plus(Duration.millis(1));
+    metadataTableDao.updateWatermark(partition2, watermark2, null);
+
+    assertEquals(
+        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
+
+    // Because the 2 partitions DO NOT cover the entire keyspace, watermark stays at startTime.
+    assertEquals(startTime, watermarkEstimator.currentWatermark());
   }
 }

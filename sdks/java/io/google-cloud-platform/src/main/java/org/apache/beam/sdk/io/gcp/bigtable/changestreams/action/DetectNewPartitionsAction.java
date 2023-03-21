@@ -17,10 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingAndOverlappingPartitionsFromKeySpace;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
+
+import com.google.api.gax.rpc.ServerStream;
+import com.google.cloud.bigtable.data.v2.models.Range;
+import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
+import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -66,6 +79,83 @@ public class DetectNewPartitionsAction {
   }
 
   /**
+   * Periodically advances DetectNewPartition's (DNP) watermark based on the watermark of all the
+   * partitions recorded in the metadata table. We don't advance DNP's watermark on every run to
+   * "now" because of a possible inconsistent state. DNP's watermark is used to hold the entire
+   * pipeline's watermark back.
+   *
+   * <p>The low watermark is important to determine when to terminate the pipeline. During splits
+   * and merges, the watermark step may appear to be higher than it actually is. If a partition, at
+   * watermark 100, splits, it considered completed. If all other partitions including DNP have
+   * watermark beyond 100, the low watermark of the pipeline is higher than 100. However, the split
+   * partitions will have a watermark of 100 because they will resume from where the parent
+   * partition has stopped. But this would mean the low watermark of the pipeline needs to move
+   * backwards in time, which is not possible.
+   *
+   * <p>We "fix" this by using DNP's watermark to hold the pipeline's watermark down. DNP will
+   * periodically scan the metadata table for all the partitions watermarks. It only advances its
+   * watermark forward to the low watermark of the partitions. So in the case of a partition
+   * split/merge the low watermark of the pipeline is held back by DNP. We guarantee correctness by
+   * ensuring all the partitions exists in the metadata table in order to calculate the low
+   * watermark. It is possible that some partitions might be missing in between split and merges.
+   *
+   * @param tracker restriction tracker to guide how frequently watermark should be advanced
+   * @param watermarkEstimator watermark estimator to advance the watermark
+   */
+  private void advanceWatermark(
+      RestrictionTracker<OffsetRange, Long> tracker,
+      ManualWatermarkEstimator<Instant> watermarkEstimator)
+      throws InvalidProtocolBufferException {
+    // We currently choose to update the watermark every 10 runs. We want to choose a number that is
+    // frequent, so the watermark isn't lagged behind too far. Also not too frequent so we do not
+    // overload the table with full table scans.
+    if (tracker.currentRestriction().getFrom() % 10 == 0) {
+      // Get partitions with a watermark set but skip rows w a lock and no watermark yet
+      ServerStream<Row> rows = metadataTableDao.readFromMdTableStreamPartitionsWithWatermark();
+      List<ByteStringRange> partitions = new ArrayList<>();
+      HashMap<ByteStringRange, Instant> slowPartitions = new HashMap<>();
+      Instant lowWatermark = Instant.ofEpochMilli(Long.MAX_VALUE);
+      for (Row row : rows) {
+        Instant watermark = MetadataTableEncoder.parseWatermarkFromRow(row);
+        if (watermark == null) {
+          continue;
+        }
+        // Update low watermark if watermark < low watermark.
+        if (watermark.compareTo(lowWatermark) < 0) {
+          lowWatermark = watermark;
+        }
+        Range.ByteStringRange partition =
+            metadataTableDao.convertStreamPartitionRowKeyToPartition(row.getKey());
+        partitions.add(partition);
+        if (watermark.plus(DEBUG_WATERMARK_DELAY).isBeforeNow()) {
+          slowPartitions.put(partition, watermark);
+        }
+      }
+      List<Range.ByteStringRange> missingAndOverlappingPartitions =
+          getMissingAndOverlappingPartitionsFromKeySpace(partitions);
+      if (missingAndOverlappingPartitions.isEmpty()) {
+        watermarkEstimator.setWatermark(lowWatermark);
+        LOG.info("DNP: Updating watermark: " + watermarkEstimator.currentWatermark());
+      } else {
+        LOG.warn(
+            "DNP: Could not update watermark because missing {}",
+            partitionsToString(missingAndOverlappingPartitions));
+      }
+      if (!slowPartitions.isEmpty()) {
+        LOG.warn(
+            "DNP: Watermark is being held back by the following partitions: {}",
+            slowPartitions.entrySet().stream()
+                .map(
+                    e ->
+                        ByteStringRangeHelper.formatByteStringRange(e.getKey())
+                            + " => "
+                            + e.getValue())
+                .collect(Collectors.joining(", ", "{", "}")));
+      }
+    }
+  }
+
+  /**
    * Perform the necessary steps to manage initial set of partitions and new partitions. Currently,
    * we set to process new partitions every second.
    *
@@ -101,6 +191,8 @@ public class DetectNewPartitionsAction {
     if (!tracker.tryClaim(tracker.currentRestriction().getFrom())) {
       return ProcessContinuation.stop();
     }
+
+    advanceWatermark(tracker, watermarkEstimator);
 
     return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
   }
