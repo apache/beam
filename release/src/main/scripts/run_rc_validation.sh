@@ -34,6 +34,10 @@ function clean_up(){
   echo "====================Final Steps===================="
   echo "-----------------Stopping Pubsub Java Injector-----------------"
   echo "Please stop java injector manually."
+  echo "-----------------Stopping multi-language quickstart services-----------------"
+  echo "Please stop the Java expansion service manually."
+  echo "Please stop the Python expansion service manually."
+  echo "Please stop the Python portable runner Job server manually."
   echo "-----------------Signing up Spreadsheet-----------------"
   echo "Please open this spreadsheet: https://s.apache.org/beam-release-validation"
   echo "Please sign up your name in the tests you have ran."
@@ -216,6 +220,19 @@ if [[ -z `which kubectl` ]]; then
 fi
 kubectl version
 
+if [[ ("$python_xlang_quickstart" = true) \
+      || ("$java_xlang_quickstart" = true) ]]; then
+  echo "[Confirmation Required] Multi-language quickstart tests require generating
+  final Docker tags for several candidate Docker images. This should be safe to do
+  so since these tags will be overridden during the Docker image finalization step
+  of the Beam release.
+  Continue with the release validation ? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Cannot continue with the validation. Exiting."
+    exit
+  fi
+fi
 
 echo ""
 echo "====================Starting Python Quickstart and MobileGame==================="
@@ -487,16 +504,8 @@ fi
 # Setting up Docker images for multi-language quickstart tests.
 if [[ ("$python_xlang_quickstart" = true) \
       || ("$java_xlang_quickstart" = true) ]]; then
-  echo "[Confirmation Required] Multi-language quickstart tests requie generating 
-  final Docker tags for several candidate Docker images. This should be safe to do 
-  so since these tags will be overridden during the Docker image finalization step
-  of the Beam release.
-  Continue with the release validation ? [y|N]"
-  read confirmation
-  if [[ $confirmation != "y" ]]; then
-    echo "Cannot continue with the validation. Exiting."
-    exit
-  fi
+  echo ""
+  echo "====================Generating Docker tags for multi-language quickstart tests==============="
 
   RC_DOCKER_TAG=${RELEASE_VER}rc${RC_NUM}
   FINAL_DOCKER_TAG=${RELEASE_VER}
@@ -559,25 +568,26 @@ if [[ ("$python_xlang_quickstart" = true) \
     echo '* Running Python Multi-language Quickstart with DirectRunner';
     echo '************************************************************';
 
-    PYTHON_MULTILANG_QICKSTART_FILE_PREFIX=python_multilang_quickstart
-    PYTHON_MULTILANG_QICKSTART_INPUT_FILE_NAME=${PYTHON_MULTILANG_QICKSTART_FILE_PREFIX}_input
-    PYTHON_MULTILANG_QICKSTART_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QICKSTART_FILE_PREFIX}_output
-    PYTHON_MULTILANG_QICKSTART_EXPECTED_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QICKSTART_FILE_PREFIX}_expected_output
-    PYTHON_MULTILANG_QICKSTART_SORTED_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QICKSTART_FILE_PREFIX}_sorted_output
+    PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX=python_multilang_quickstart
+    PYTHON_MULTILANG_QUICKSTART_INPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_input
+    PYTHON_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_output
+    PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_expected_output
+    PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_sorted_output
     
-    # Cleaning up any existing input or output files
-    rm ${PYTHON_MULTILANG_QICKSTART_FILE_PREFIX}*
+    # Cleaning up data from any previous runs.
+    rm ${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}*
+    rm ./beam-examples-multi-language-${RELEASE_VER}.jar
 
     # Generating an input file.
     input_data=( aaa bbb ccc ddd eee)
 
-    touch $PYTHON_MULTILANG_QICKSTART_INPUT_FILE_NAME
-    touch $PYTHON_MULTILANG_QICKSTART_EXPECTED_OUTPUT_FILE_NAME
+    touch $PYTHON_MULTILANG_QUICKSTART_INPUT_FILE_NAME
+    touch $PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME
 
     for item in ${input_data[*]}
       do
-        echo $item >> $PYTHON_MULTILANG_QICKSTART_INPUT_FILE_NAME
-        echo python:java:$item >> $PYTHON_MULTILANG_QICKSTART_EXPECTED_OUTPUT_FILE_NAME
+        echo $item >> $PYTHON_MULTILANG_QUICKSTART_INPUT_FILE_NAME
+        echo python:java:$item >> $PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME
       done
 
     # Downloading the expansion service jar.
@@ -600,22 +610,25 @@ if [[ ("$python_xlang_quickstart" = true) \
     python ${LOCAL_BEAM_DIR}/examples/multi-language/python/addprefix.py \
         --runner DirectRunner \
         --environment_type=DOCKER \
-        --input $PYTHON_MULTILANG_QICKSTART_INPUT_FILE_NAME \
-        --output $PYTHON_MULTILANG_QICKSTART_OUTPUT_FILE_NAME \
+        --input $PYTHON_MULTILANG_QUICKSTART_INPUT_FILE_NAME \
+        --output $PYTHON_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME \
         --expansion_service_port $JAVA_EXPANSION_SERVICE_PORT
 
     # Validating output
-    cat ${PYTHON_MULTILANG_QICKSTART_OUTPUT_FILE_NAME}* | sort >> ${PYTHON_MULTILANG_QICKSTART_SORTED_OUTPUT_FILE_NAME}
+    cat ${PYTHON_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME}* | sort >> ${PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME}
 
-    if cmp --silent -- $PYTHON_MULTILANG_QICKSTART_EXPECTED_OUTPUT_FILE_NAME $PYTHON_MULTILANG_QICKSTART_SORTED_OUTPUT_FILE_NAME; then
-      echo "Successfully validated Python multi-language quickstart example."
+    if cmp --silent -- $PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME $PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME; then
+      echo "Successfully validated Python multi-language quickstart example. No additional manual validation needed."
     else
-      { echo "Python multi-language quickstart output validation failed." ;exit 1; }
+      echo "Python multi-language quickstart output validation failed. Since the output of the pipeline did not match the expected output"
+      echo "Expected output:\n"
+      cat $PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME
+      echo "\n"
+      echo "Pipeline output:\n"
+      cat $PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME
+      echo "\n"
+      exit 1
     fi
-
-    # Cleaning up
-    rm ${PYTHON_MULTILANG_QICKSTART_FILE_PREFIX}*
-    rm ./beam-examples-multi-language-${RELEASE_VER}.jar
   done # Loop over Python versions.
 else
   echo "* Skipping Python Multi-language Quickstart Validations"
@@ -693,23 +706,23 @@ if [[ ("$java_xlang_quickstart" = true) \
     echo '* Running Java Multi-language Quickstart with DirectRunner';
     echo '************************************************************';
 
-    JAVA_MULTILANG_QICKSTART_FILE_PREFIX=java_multilang_quickstart
-    JAVA_MULTILANG_QICKSTART_OUTPUT_FILE_NAME=${JAVA_MULTILANG_QICKSTART_FILE_PREFIX}_output
+    JAVA_MULTILANG_QUICKSTART_FILE_PREFIX=java_multilang_quickstart
+    JAVA_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME=${JAVA_MULTILANG_QUICKSTART_FILE_PREFIX}_output
 
     ./gradlew :examples:multi-language:pythonDataframeWordCount -Pver=${RELEASE_VER} -Prepourl=${REPO_URL} --args=" \
     --runner=PortableRunner \
     --jobEndpoint=localhost:${PYTHON_PORTABLE_RUNNER_JOB_SERVER_PORT} \
     --expansionService=localhost:${PYTHON_EXPANSION_SERVICE_PORT} \
-    --output=${JAVA_MULTILANG_QICKSTART_OUTPUT_FILE_NAME}"
+    --output=${JAVA_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME}"
 
     # We cannot validate local output since 
     # TODO: Write output to GCS and validate when Python portable runner can forward credentials to GCS appropriately.
 
     java_xlang_quickstart_status=$?
     if [[ $java_xlang_quickstart_status -eq 0 ]]; then
-      echo "Successfully completed Java multi-language quickstart example."
+      echo "Successfully completed Java multi-language quickstart example. No manual validation needed."
     else
-      { echo "Java multi-language quickstart failed." ;exit 1; }
+      { echo "Java multi-language quickstart failed since the pipeline execution failed." ;exit 1; }
     fi
   done # Loop over Python versions.
 else
