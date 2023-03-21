@@ -21,66 +21,57 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.RowMutations;
-import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
-import org.apache.hadoop.hbase.protobuf.generated.ClientProtos.MutationProto;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos.MutationProto.MutationType;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 /**
  * Row mutations coder to provide serialization support for Hbase RowMutations object, which isn't
  * natively serializable.
  */
-public class HBaseRowMutationsCoder extends AtomicCoder<RowMutations> implements Serializable {
+class HBaseRowMutationsCoder extends StructuredCoder<RowMutations> implements Serializable {
   private static final HBaseRowMutationsCoder INSTANCE = new HBaseRowMutationsCoder();
 
-  public HBaseRowMutationsCoder() {}
+  public HBaseRowMutationsCoder() {
+    byteArrayCoder = ByteArrayCoder.of();
+    listCoder = ListCoder.of(HBaseMutationCoder.of());
+  }
 
   public static HBaseRowMutationsCoder of() {
     return INSTANCE;
   }
 
+  private final ByteArrayCoder byteArrayCoder;
+  private final ListCoder<Mutation> listCoder;
+
   @Override
   public void encode(RowMutations value, OutputStream outStream) throws IOException {
-
-    // encode row key
-    byte[] rowKey = value.getRow();
-    int rowKeyLen = rowKey.length;
-
-    // serialize row key
-    outStream.write(rowKeyLen);
-    outStream.write(rowKey);
-
-    // serialize mutation list
-    List<Mutation> mutations = value.getMutations();
-    int mutationsSize = mutations.size();
-    outStream.write(mutationsSize);
-    for (Mutation mutation : mutations) {
-      MutationType type = getType(mutation);
-      MutationProto proto = ProtobufUtil.toMutation(type, mutation);
-      proto.writeDelimitedTo(outStream);
-    }
+    byteArrayCoder.encode(value.getRow(), outStream);
+    listCoder.encode(value.getMutations(), outStream);
   }
 
   @Override
   public RowMutations decode(InputStream inStream) throws IOException {
 
-    int rowKeyLen = inStream.read();
-    byte[] rowKey = new byte[rowKeyLen];
-    inStream.read(rowKey);
+    byte[] rowKey = byteArrayCoder.decode(inStream);
+    List<Mutation> mutations = listCoder.decode(inStream);
 
     RowMutations rowMutations = new RowMutations(rowKey);
-    int mutationListSize = inStream.read();
-    for (int i = 0; i < mutationListSize; i++) {
-      Mutation m = ProtobufUtil.toMutation(MutationProto.parseDelimitedFrom(inStream));
+    for (Mutation m : mutations) {
       MutationType type = getType(m);
 
       if (type == MutationType.PUT) {
@@ -90,6 +81,27 @@ public class HBaseRowMutationsCoder extends AtomicCoder<RowMutations> implements
       }
     }
     return rowMutations;
+  }
+
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized List<
+          ? extends
+              @UnknownKeyFor @NonNull @Initialized Coder<@UnknownKeyFor @NonNull @Initialized ?>>
+      getCoderArguments() {
+    return Arrays.asList(listCoder, byteArrayCoder);
+  }
+
+  /**
+   * Coder is always deterministic: 1. {@link RowMutations} maintains equality by row key only,
+   * which is asserted equal in this coder 2. Canonical encoding is maintained regardless of object
+   * machine or time context
+   *
+   * @throws @UnknownKeyFor@NonNull@Initialized NonDeterministicException
+   */
+  @Override
+  public void verifyDeterministic()
+      throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
+    return;
   }
 
   private static MutationType getType(Mutation mutation) {

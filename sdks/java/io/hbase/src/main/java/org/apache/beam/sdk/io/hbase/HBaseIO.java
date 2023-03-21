@@ -909,8 +909,7 @@ public class HBaseIO {
     /** Function to write row mutations to a hbase table. */
     private class WriteRowMutationsFn extends DoFn<KV<byte[], RowMutations>, Integer> {
 
-      public WriteRowMutationsFn(
-          WriteRowMutations writeRowMutations) { // , HbaseSharedConnection hbaseSharedConnection) {
+      public WriteRowMutationsFn(WriteRowMutations writeRowMutations) {
         checkNotNull(writeRowMutations.tableId, "tableId");
         checkNotNull(writeRowMutations.configuration, "configuration");
       }
@@ -948,15 +947,15 @@ public class HBaseIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
+      public void processElement(ProcessContext c) throws IOException {
         RowMutations mutations = c.element().getValue();
 
         try {
           // Use Table instead of BufferedMutator to preserve mutation-ordering
           table.mutateRow(mutations);
           recordsWritten++;
-        } catch (Exception e) {
-          throw new Exception(
+        } catch (IOException e) {
+          throw new RuntimeException(
               (String.join(
                   " ",
                   "Table",
