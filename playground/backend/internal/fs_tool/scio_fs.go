@@ -16,6 +16,8 @@
 package fs_tool
 
 import (
+	"context"
+	"fmt"
 	"github.com/google/uuid"
 )
 
@@ -26,6 +28,12 @@ const (
 // newScioLifeCycle creates LifeCycle with scala SDK environment.
 func newScioLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
 	lc := newInterpretedLifeCycle(pipelineId, pipelinesFolder, scioExecutableFileExtension)
-	lc.Paths.FindExecutableName = findExecutableName
+	lc.Paths.FindExecutableName = func(context context.Context) (string, error) {
+		path, err := findExecutableName(context, lc.Paths.AbsoluteBaseFolderPath)
+		if err != nil {
+			return "", fmt.Errorf("no executable file name found for SCIO pipeline at %s: %s", lc.Paths.AbsoluteBaseFolderPath, err)
+		}
+		return path, err
+	}
 	return lc
 }

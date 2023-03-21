@@ -83,9 +83,9 @@ func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineO
 	}
 	args := append(runArgs, fmt.Sprintf("%s=%s", javaLoggConfigOption, logConfigFilePath))
 
-	className, err := paths.FindExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
+	className, err := paths.FindExecutableName(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s", paths.AbsoluteExecutableFileFolderPath, err)
+		return nil, err
 	}
 	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
 
@@ -98,9 +98,9 @@ func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineO
 }
 
 func getJavaRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	className, err := paths.FindTestExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
+	className, err := paths.FindTestExecutableName(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s", paths.AbsoluteExecutableFileFolderPath, err)
+		return nil, err
 	}
 
 	testArgs, err := getJavaTestArgs()

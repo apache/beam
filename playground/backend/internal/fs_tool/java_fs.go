@@ -43,8 +43,22 @@ const (
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
 func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
 	javaLifeCycle := newCompilingLifeCycle(pipelineId, pipelinesFolder, JavaSourceFileExtension, javaCompiledFileExtension)
-	javaLifeCycle.Paths.FindExecutableName = findExecutableName
-	javaLifeCycle.Paths.FindTestExecutableName = findTestExecutableName
+	javaLifeCycle.Paths.FindExecutableName = func(context context.Context) (string, error) {
+		path, err := findExecutableName(context, javaLifeCycle.Paths.AbsoluteExecutableFileFolderPath)
+		if err != nil {
+			return "", fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s",
+				javaLifeCycle.Paths.AbsoluteExecutableFileFolderPath, err)
+		}
+		return path, err
+	}
+	javaLifeCycle.Paths.FindTestExecutableName = func(context context.Context) (string, error) {
+		path, err := findTestExecutableName(context, javaLifeCycle.Paths.AbsoluteExecutableFileFolderPath)
+		if err != nil {
+			return "", fmt.Errorf("no executable file name found for JAVA pipeline at %s: %s",
+				javaLifeCycle.Paths.AbsoluteExecutableFileFolderPath, err)
+		}
+		return path, err
+	}
 	return javaLifeCycle
 }
 

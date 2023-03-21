@@ -63,7 +63,6 @@ func Test_newJavaLifeCycle(t *testing.T) {
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
 					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
-					FindExecutableName:               findExecutableName,
 				},
 			},
 		},

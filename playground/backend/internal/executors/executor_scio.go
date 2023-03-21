@@ -30,9 +30,9 @@ const (
 )
 
 func getScioRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string) (*exec.Cmd, error) {
-	className, err := paths.FindExecutableName(ctx, paths.AbsoluteBaseFolderPath)
+	className, err := paths.FindExecutableName(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("no executable file name found for SCIO pipeline at %s: %s", paths.AbsoluteBaseFolderPath, err)
+		return nil, err
 	}
 
 	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
