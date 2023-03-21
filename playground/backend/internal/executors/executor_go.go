@@ -31,7 +31,7 @@ var goCompileArgs = []string{"build", "-o", "bin"}
 var goTestArgs = []string{"test", "-v"}
 
 func getGoCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	goSources, err := getFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
+	goSources, err := paths.GetSourceFiles()
 	if err != nil {
 		return nil, err
 	}

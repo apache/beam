@@ -59,6 +59,9 @@ func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
 		}
 		return path, err
 	}
+	javaLifeCycle.Paths.GetSourceFiles = func() ([]string, error) {
+		return getFilesFromFolder(javaLifeCycle.Paths.AbsoluteSourceFileFolderPath, JavaSourceFileExtension)
+	}
 	return javaLifeCycle
 }
 

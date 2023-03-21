@@ -17,9 +17,10 @@ package fs_tool
 
 import (
 	"beam.apache.org/playground/backend/internal/utils"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
@@ -29,6 +30,10 @@ func Test_newGoLifeCycle(t *testing.T) {
 	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
 	srcFileFolder := filepath.Join(baseFileFolder, "src")
 	binFileFolder := filepath.Join(baseFileFolder, "bin")
+
+	cmpOpts := []cmp.Option{
+		cmpopts.IgnoreFields(LifeCyclePaths{}, "GetSourceFiles"),
+	}
 
 	type args struct {
 		pipelineId      uuid.UUID
@@ -66,11 +71,13 @@ func Test_newGoLifeCycle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newGoLifeCycle(tt.args.pipelineId, tt.args.pipelinesFolder)
-			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
-				t.Errorf("newGoLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
+			if !cmp.Equal(got.folderGlobs, tt.want.folderGlobs, cmpOpts...) {
+				t.Errorf("newGoLifeCycle() folderGlobs got/want diff = %v",
+					cmp.Diff(got.folderGlobs, tt.want.folderGlobs, cmpOpts...))
 			}
-			if !reflect.DeepEqual(got.Paths, tt.want.Paths) {
-				t.Errorf("newGoLifeCycle() Paths = %v, want %v", got.Paths, tt.want.Paths)
+			if !cmp.Equal(got.Paths, tt.want.Paths, cmpOpts...) {
+				t.Errorf("newGoLifeCycle() Paths got/want diff = %v",
+					cmp.Diff(got.Paths, tt.want.Paths, cmpOpts...))
 			}
 		})
 	}

@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"path/filepath"
 )
 
 // GetCompileCmd prepares the Cmd for code compilation
@@ -68,9 +67,4 @@ func GetRunTest(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *envi
 	}
 
 	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
-}
-
-// GetFilesFromFolder return a name of the first file in a specified folder
-func getFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
-	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 }

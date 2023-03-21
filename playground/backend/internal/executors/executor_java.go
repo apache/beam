@@ -59,7 +59,7 @@ func getJavaTestArgs() ([]string, error) {
 }
 
 func getJavaCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	javaSources, err := getFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
+	javaSources, err := paths.GetSourceFiles()
 	if err != nil {
 		return nil, err
 	}

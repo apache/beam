@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"io/fs"
 	"os"
+	"path/filepath"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
@@ -47,6 +48,7 @@ type LifeCyclePaths struct {
 	ProjectDir                       string // /path/to/workingDir/
 	FindExecutableName               func(context.Context) (string, error)
 	FindTestExecutableName           func(context.Context) (string, error)
+	GetSourceFiles                   func() ([]string, error)
 }
 
 // LifeCycle is used for preparing folders and files to process code for one code processing request.
@@ -134,4 +136,9 @@ func (lc *LifeCycle) StopEmulators() {
 	if lc.emulatorMockCluster != nil {
 		lc.emulatorMockCluster.Stop()
 	}
+}
+
+// getFilesFromFolder return a name of the first file in a specified folder
+func getFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
+	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 }
