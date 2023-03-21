@@ -68,6 +68,7 @@
 ## Breaking Changes
 
 * If a main session fails to load, the pipeline will now fail at worker startup. ([#25401](https://github.com/apache/beam/issues/25401)).
+* Python pipelines will now discard pipeline options passed with single dash.
 
 ## Deprecations
 

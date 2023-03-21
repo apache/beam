@@ -22,6 +22,7 @@
 import argparse
 import json
 import logging
+import re
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -215,6 +216,11 @@ class PipelineOptions(HasDisplayData):
     # command-line flags. This list is shared across different views.
     # See: view_as().
     self._flags = flags
+    regex = re.compile('-\\w+')
+    single_dash_flags = list(filter(regex.match, flags))
+    if any(single_dash_flags):
+      raise SystemExit(
+          "single dash flags are not allowed: {}".format(single_dash_flags))
 
     # Build parser that will parse options recognized by the [sub]class of
     # PipelineOptions whose object is being instantiated.
@@ -340,24 +346,16 @@ class PipelineOptions(HasDisplayData):
         if not unknown_args[i].startswith('-'):
           i += 1
           continue
-        if (i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('--')
-            ) and unknown_args[i].startswith('--'):
+        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('--'):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
             parser.add_argument(unknown_args[i], action='store_true')
           else:
             parser.add_argument(split[0], type=str)
           i += 1
-        elif unknown_args[i].startswith('--'):
+        else:
           parser.add_argument(unknown_args[i], type=str)
           i += 2
-        else:
-          # skip all binary flags used with '-' and not '--'.
-          # ex: using -f instead of --f (or --flexrs_goal) will prevent
-          # argument validation before job submission and can be incorrectly
-          # submitted to job.
-          i += 2
-          continue
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
       if unknown_args:

@@ -354,9 +354,8 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(result['unknown_option'], 'expr = "2 + 2 = 5"')
 
   def test_retain_unknown_options_binary_single_dash_store_string(self):
-    options = PipelineOptions(['-i', 'some_value'])
-    result = options.get_all_options(retain_unknown_options=True)
-    self.assertNotIn('i', result)
+    with self.assertRaises(SystemExit):
+      PipelineOptions(['-i', 'some_value'])
 
   def test_retain_unknown_options_unary_store_true(self):
     options = PipelineOptions(['--unknown_option'])
@@ -370,9 +369,9 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(result['option_bar'], True)
 
   def test_retain_unknown_options_unary_single_dash_store_true(self):
-    options = PipelineOptions(['-i'])
-    result = options.get_all_options(retain_unknown_options=True)
-    self.assertNotIn('i', result)
+    # single dash flags are not allowed
+    with self.assertRaises(SystemExit):
+      PipelineOptions(['-i'])
 
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
