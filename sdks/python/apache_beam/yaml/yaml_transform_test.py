@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
+import glob
 import logging
+import os
+import tempfile
 import unittest
 
 import apache_beam as beam
@@ -83,6 +86,46 @@ class YamlTransformTest(unittest.TestCase):
               fn: "lambda x: x + 41"
           ''')
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
+
+  def test_csv_to_json(self):
+    try:
+      import pandas as pd
+    except ImportError:
+      raise unittest.SkipTest('Pandas not available.')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      data = pd.DataFrame([
+          {
+              'label': '11a', 'rank': 0
+          },
+          {
+              'label': '37a', 'rank': 1
+          },
+          {
+              'label': '389a', 'rank': 2
+          },
+      ])
+      input = os.path.join(tmpdir, 'input.csv')
+      output = os.path.join(tmpdir, 'output.json')
+      data.to_csv(input, index=False)
+
+      with beam.Pipeline() as p:
+        result = p | YamlTransform(
+            '''
+            type: chain
+            transforms:
+              - type: ReadFromCsv
+                path: "%s"
+              - type: WriteToJson
+                path: "%s"
+                num_shards: 1
+            ''' % (input, output))
+
+      output_shard = list(glob.glob(output + "*"))[0]
+      result = pd.read_json(
+          output_shard, orient='records',
+          lines=True).sort_values('rank').reindex()
+      pd.testing.assert_frame_equal(data, result)
 
 
 if __name__ == '__main__':
