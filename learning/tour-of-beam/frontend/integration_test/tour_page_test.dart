@@ -26,6 +26,7 @@ import 'package:tour_of_beam/cache/content_tree.dart';
 import 'package:tour_of_beam/components/builders/content_tree.dart';
 import 'package:tour_of_beam/models/group.dart';
 import 'package:tour_of_beam/models/module.dart';
+import 'package:tour_of_beam/models/node.dart';
 import 'package:tour_of_beam/models/unit.dart';
 import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
@@ -46,7 +47,7 @@ void main() {
       await _checkContentTreeBuildsProperly(wt);
       await _checkUnitContentLoadsProperly(wt);
       await _checkContentTreeScrollsProperly(wt);
-      await _checkDisplayingSelectedUnit(wt);
+      await _checkHighlightsSelectedUnit(wt);
       await _checkRunCodeWorks(wt);
       await _checkResizeUnitContent(wt);
     },
@@ -65,19 +66,13 @@ List<ModuleModel> _getModules(WidgetTester wt) {
   final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
   final controller = getContentTreeController(wt);
   final contentTree = contentTreeCache.getContentTree(controller.sdkId);
-  return contentTree?.modules ?? [];
+  return contentTree?.modules ?? (throw Exception('Can not load moduled'));
 }
 
 Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
   for (final node in module.nodes) {
     if (node is UnitModel) {
-      expect(
-        find.descendant(
-          of: find.byType(ContentTreeBuilder),
-          matching: find.text(node.title),
-        ),
-        findsAtLeastNWidgets(1),
-      );
+      _checkNode(node);
     }
     if (node is GroupModel) {
       await _checkGroup(node, wt);
@@ -85,32 +80,29 @@ Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
   }
 }
 
+void _checkNode(NodeModel node) {
+  expect(
+    find.descendant(
+      of: find.byType(ContentTreeBuilder),
+      matching: find.text(node.title),
+    ),
+    findsAtLeastNWidgets(1),
+  );
+}
+
 Future<void> _checkGroup(GroupModel group, WidgetTester wt) async {
   final contentTreeController = getContentTreeController(wt);
   contentTreeController.expandGroup(group);
   await wt.pumpAndSettle();
-  for (final node in group.nodes) {
-    expect(
-      find.descendant(
-        of: find.byType(ContentTreeBuilder),
-        matching: find.text(node.title),
-      ),
-      findsAtLeastNWidgets(1),
-    );
-  }
+  group.nodes.forEach(_checkNode);
 }
 
 Future<void> _checkUnitContentLoadsProperly(WidgetTester wt) async {
   final modules = _getModules(wt);
 
-  final unit = modules.expand((m) => m.nodes).whereType<UnitModel>().first;
+  final unit = modules.first.getFirstUnit();
 
-  await wt.tapAndSettle(
-    find.descendant(
-      of: find.byType(UnitWidget),
-      matching: find.text(unit.title),
-    ),
-  );
+  await wt.tapAndSettle(find.byKey(Key(unit.id)));
 
   expect(
     find.descendant(
@@ -125,26 +117,20 @@ Future<void> _checkContentTreeScrollsProperly(WidgetTester wt) async {
   final modules = _getModules(wt);
   final lastNode = modules.expand((m) => m.nodes).whereType<UnitModel>().last;
 
-  await wt.ensureVisible(
-    find.descendant(
-      of: find.byType(UnitWidget),
-      matching: find.text(lastNode.title),
-      skipOffstage: false,
-    ),
-  );
+  await wt.ensureVisible(find.byKey(Key(lastNode.id)));
   await wt.pumpAndSettle();
 }
 
-Future<void> _checkDisplayingSelectedUnit(WidgetTester wt) async {
+Future<void> _checkHighlightsSelectedUnit(WidgetTester wt) async {
   final controller = getContentTreeController(wt);
   final selectedUnit = controller.currentNode;
 
   if (selectedUnit == null) {
-    return;
+    fail('No unit selected');
   }
 
   final selectedUnitText = find.descendant(
-    of: find.byType(UnitWidget),
+    of: find.byKey(Key(selectedUnit.id)),
     matching: find.text(selectedUnit.title),
     skipOffstage: false,
   );
@@ -154,7 +140,7 @@ Future<void> _checkDisplayingSelectedUnit(WidgetTester wt) async {
     matching: find.byKey(UnitWidget.containerKey),
   );
 
-  final context = wt.element(selectedUnitContainer);
+  final context = wt.element(selectedUnitText);
 
   expect(
     (wt.widget<Container>(selectedUnitContainer).decoration as BoxDecoration?)

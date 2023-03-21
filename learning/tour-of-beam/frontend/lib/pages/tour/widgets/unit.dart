@@ -33,6 +33,7 @@ class UnitWidget extends StatelessWidget {
   const UnitWidget({
     required this.unit,
     required this.contentTreeController,
+    super.key,
   });
 
   @override

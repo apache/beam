@@ -49,6 +49,7 @@ class NodeWidget extends StatelessWidget {
       return UnitWidget(
         unit: node,
         contentTreeController: contentTreeController,
+        key: Key(node.id),
       );
     }
 
