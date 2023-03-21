@@ -608,6 +608,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							if err != nil {
 								return nil, err
 							}
+							// TODO: ensure this only gets set once or they're always the same.
 							n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerIDToCoder)
 						}
 					}

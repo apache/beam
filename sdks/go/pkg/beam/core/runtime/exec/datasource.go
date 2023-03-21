@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"golang.org/x/exp/maps"
 )
 
 // DataSource is a Root execution unit.
@@ -40,6 +41,8 @@ type DataSource struct {
 	Coder *coder.Coder
 	Out   Node
 	PCol  PCollection // Handles size metrics. Value instead of pointer so it's initialized by default in tests.
+	// OnTimerTransforms maps PtransformIDs to their execution nodes that handle OnTimer callbacks.
+	OnTimerTransforms map[string]*ParDo
 
 	source DataManager
 	state  StateReader
@@ -104,8 +107,10 @@ func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContex
 }
 
 // process handles converting elements from the data source to timers.
-func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader) error, timer func(bcr *byteCountReader, timerFamilyID string) error) error {
-	elms, err := n.source.OpenElementChan(ctx, n.SID)
+func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader, ptransformID string) error, timer func(bcr *byteCountReader, ptransformID, timerFamilyID string) error) error {
+	// TODO(riteshghorse): Pass in the PTransformIDs expecting OnTimer calls.
+	// The SID contains this instruction's expected data processing transform (this one).
+	elms, err := n.source.OpenElementChan(ctx, n.SID, maps.Keys(n.OnTimerTransforms))
 	if err != nil {
 		return err
 	}
@@ -121,15 +126,18 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 		case e, ok := <-elms:
 			// Channel closed, so time to exit
 			if !ok {
+				log.Infof(ctx, "%v: Data Channel closed", n)
 				return nil
 			}
 			if len(e.Data) > 0 {
 				r.Reset(e.Data)
-				err = data(&bcr)
+				err = data(&bcr, e.PtransformID)
 			}
 			if len(e.Timers) > 0 {
+				// TODO remove this debug log.
+				log.Infof(ctx, "timer received for %v; %v : %v", e.PtransformID, e.TimerFamilyID, e.Timers)
 				r.Reset(e.Timers)
-				err = timer(&bcr, e.TimerFamilyID)
+				err = timer(&bcr, e.PtransformID, e.TimerFamilyID)
 			}
 		case <-ctx.Done():
 			return nil
@@ -191,7 +199,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 	}
 
 	var checkpoints []*Checkpoint
-	err := n.process(ctx, func(bcr *byteCountReader) error {
+	err := n.process(ctx, func(bcr *byteCountReader, ptransformID string) error {
 		for {
 			// TODO(lostluck) 2020/02/22: Should we include window headers or just count the element sizes?
 			ws, t, pn, err := DecodeWindowedValueHeader(wc, bcr.reader)
@@ -208,7 +216,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			pe.Windows = ws
 			pe.Pane = pn
 
-			log.Debugf(ctx, "%v: processing %v,%v", n, pe.Elm, pe.Elm2)
+			log.Infof(ctx, "%v[%v]: processing %+v,%v", n, ptransformID, pe.Elm, pe.Elm2)
 
 			var valReStreams []ReStream
 			for _, cv := range cvs {
@@ -246,9 +254,9 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		log.Debugf(ctx, "%v: exiting data loop", n)
 		return nil
 	},
-		func(bcr *byteCountReader, timerFamilyID string) error {
+		func(bcr *byteCountReader, ptransformID, timerFamilyID string) error {
 			tmap, err := decodeTimer(cp, wc, bcr)
-			log.Errorf(ctx, "timer received: %v - %+v  err: %v", timerFamilyID, tmap, err)
+			log.Infof(ctx, "timer received for: %v and %v - %+v  err: %v", ptransformID, timerFamilyID, tmap, err)
 			return nil
 		})
 

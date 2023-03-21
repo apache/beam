@@ -79,7 +79,7 @@ func NewStateful() *Stateful {
 }
 
 func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key, word string, emit func(string, string)) error {
-	//	log.Infof(ctx, "stateful dofn invoked key: %v word: %v", key, word)
+	log.Infof(ctx, "stateful dofn invoked key: %q word: %q", key, word)
 
 	s.ElementBag.Add(sp, word)
 	s.MinTime.Add(sp, int64(ts))
@@ -96,9 +96,12 @@ func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp sta
 		return err
 	}
 
-	s.OutputState.SetWithOpts(tp, mtime.Time(toFire).ToTime(), timers.Opts{Hold: mtime.Time(minTime).ToTime()})
+	s.OutputState.SetWithOpts(tp, mtime.Time(toFire).ToTime(), timers.Opts{
+		Hold: mtime.Time(minTime).ToTime(),
+		Tag:  word,
+	})
 	s.TimerTime.Write(sp, toFire)
-	//log.Infof(ctx, "stateful dofn key: %v word: %v, timer: %v, minTime: %v", key, word, toFire, minTime)
+	log.Infof(ctx, "stateful dofn key: %v word: %v, timer: %v, minTime: %v", key, word, toFire, minTime)
 
 	// // Get the Value stored in our state
 	// val, ok, err := s.Val.Read(p)
@@ -157,7 +160,7 @@ func (fn *eventtimeSDFStream) ProcessElement(ctx context.Context, _ *CWE, rt *sd
 	r := rt.GetRestriction().(offsetrange.Restriction)
 	i := r.Start
 	if r.Size() < 1 {
-		log.Debugf(ctx, "size 0 restriction, stoping to process sentinel", slog.Any("value", v))
+		log.Debugf(ctx, "size 0 restriction, stoping to process sentinel %v", slog.Any("value", v))
 		return sdf.StopProcessing()
 	}
 	slog.Debug("emitting element to restriction", slog.Any("value", v), slog.Group("restriction",

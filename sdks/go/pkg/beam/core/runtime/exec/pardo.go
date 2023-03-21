@@ -76,6 +76,11 @@ func (n *ParDo) ID() UnitID {
 	return n.UID
 }
 
+// HasOnTimer returns if this ParDo wraps a DoFn that has an OnTimer method.
+func (n *ParDo) HasOnTimer() bool {
+	return n.Timer != nil
+}
+
 // Up initializes this ParDo and does one-time DoFn setup.
 func (n *ParDo) Up(ctx context.Context) error {
 	if n.status != Initializing {

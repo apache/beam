@@ -58,7 +58,7 @@ type SideCache interface {
 // opened by one consumer only.
 type DataManager interface {
 	// OpenElementChan opens a channel for data and timers.
-	OpenElementChan(ctx context.Context, id StreamID) (<-chan Elements, error)
+	OpenElementChan(ctx context.Context, id StreamID, expectedTimerTransforms []string) (<-chan Elements, error)
 	// OpenWrite opens a closable byte stream for data writing.
 	OpenWrite(ctx context.Context, id StreamID) (io.WriteCloser, error)
 	// OpenTimerWrite opens a byte stream for writing timers
@@ -97,6 +97,6 @@ type StateReader interface {
 // If TimerFamilyID is populated, it's a timer, otherwise it's
 // data elements.
 type Elements struct {
-	Data, Timers  []byte
-	TimerFamilyID string
+	Data, Timers                []byte
+	TimerFamilyID, PtransformID string
 }

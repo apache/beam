@@ -58,12 +58,12 @@ func (s *ScopedDataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io
 }
 
 // OpenElementChan returns a channel of exec.Elements on the given stream.
-func (s *ScopedDataManager) OpenElementChan(ctx context.Context, id exec.StreamID) (<-chan exec.Elements, error) {
+func (s *ScopedDataManager) OpenElementChan(ctx context.Context, id exec.StreamID, expectedTimerTransforms []string) (<-chan exec.Elements, error) {
 	ch, err := s.open(ctx, id.Port)
 	if err != nil {
 		return nil, err
 	}
-	return ch.OpenElementChan(ctx, id.PtransformID, s.instID), nil
+	return ch.OpenElementChan(ctx, id.PtransformID, s.instID, expectedTimerTransforms), nil
 }
 
 // OpenTimerWrite opens an io.WriteCloser on the given stream to write timers
@@ -144,9 +144,8 @@ func (m *DataChannelManager) closeInstruction(instID instructionID) {
 
 // clientID identifies a client of a connected channel.
 type clientID struct {
-	ptransformID  string
-	instID        instructionID
-	timerFamilyID string
+	instID       instructionID
+	ptransformID string
 }
 
 // This is a reduced version of the full gRPC interface to help with testing.
@@ -166,9 +165,9 @@ type DataChannel struct {
 	id     string
 	client dataClient
 
-	writers      map[instructionID]map[string]*dataWriter
-	timerWriters map[instructionID]map[string]*timerWriter
-	channels     map[instructionID]map[string]*elementsChan
+	writers      map[instructionID]map[string]*dataWriter // PTransformID
+	timerWriters map[instructionID]map[timerKey]*timerWriter
+	channels     map[instructionID]*elementsChan
 
 	// recently terminated instructions
 	endedInstructions map[instructionID]struct{}
@@ -184,14 +183,38 @@ type DataChannel struct {
 	mu sync.Mutex // guards mutable internal data, notably the maps and readErr.
 }
 
+type timerKey struct {
+	ptransformID, family string
+}
+
 type elementsChan struct {
-	ch       chan exec.Elements
-	complete bool
+	ch                chan exec.Elements
+	readingTransforms map[string]bool
+	complete          int // count of "done" streams
+}
+
+// Closed indicates if all expected streams are complete
+func (ec *elementsChan) Closed() bool {
+	return ec.complete == len(ec.readingTransforms)
+}
+
+// Done signals that this PTransform has no more data coming to it.
+// Timer consuming PTransforms and DataSources use distinct transformIDs,
+// So the channel should only close when all data is completed.
+func (ec *elementsChan) Done(ptransformID string) {
+	if !ec.Closed() {
+		if ec.readingTransforms[ptransformID] {
+			ec.readingTransforms[ptransformID] = false
+			ec.complete++
+		}
+		if ec.Closed() {
+			close(ec.ch)
+		}
+	}
 }
 
 func (ec *elementsChan) Close() error {
-	if !ec.complete {
-		ec.complete = true
+	if !ec.Closed() {
 		close(ec.ch)
 	}
 	return nil
@@ -221,8 +244,8 @@ func makeDataChannel(ctx context.Context, id string, client dataClient, cancelFn
 		id:                id,
 		client:            client,
 		writers:           make(map[instructionID]map[string]*dataWriter),
-		timerWriters:      make(map[instructionID]map[string]*timerWriter),
-		channels:          make(map[instructionID]map[string]*elementsChan),
+		timerWriters:      make(map[instructionID]map[timerKey]*timerWriter),
+		channels:          make(map[instructionID]*elementsChan),
 		endedInstructions: make(map[instructionID]struct{}),
 		cancelFn:          cancelFn,
 	}
@@ -246,53 +269,68 @@ func (c *DataChannel) OpenWrite(ctx context.Context, ptransformID string, instID
 }
 
 // OpenElementChan returns a channel of typex.Elements for the given instruction and ptransform.
-func (c *DataChannel) OpenElementChan(ctx context.Context, ptransformID string, instID instructionID) <-chan exec.Elements {
+func (c *DataChannel) OpenElementChan(ctx context.Context, ptransformID string, instID instructionID, expectedTimerTransforms []string) <-chan exec.Elements {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	cid := clientID{ptransformID: ptransformID, instID: instID}
 	if c.readErr != nil {
 		panic(fmt.Errorf("opening a reader %v on a closed channel", cid))
 	}
-	return c.makeChannel(ctx, cid).ch
+	log.Infof(ctx, "OpenElementChan %v %v", cid, expectedTimerTransforms)
+	return c.makeChannel(ctx, cid, expectedTimerTransforms...).ch
 }
 
 // makeChannel creates a channel of exec.Elements. It expects to be called while c.mu is held.
-func (c *DataChannel) makeChannel(ctx context.Context, id clientID) *elementsChan {
-	var m map[string]*elementsChan
-	var ok bool
-	if m, ok = c.channels[id.instID]; !ok {
-		m = make(map[string]*elementsChan)
-		c.channels[id.instID] = m
-	}
-
-	if r, ok := m[id.ptransformID]; ok {
+func (c *DataChannel) makeChannel(ctx context.Context, id clientID, additionalTransforms ...string) *elementsChan {
+	if r, ok := c.channels[id.instID]; ok {
+		if !r.Closed() {
+			// Ensure new readers are accounted for, and current data stream state is respected.
+			// That is, we only add an entry if it doesn't exist already.
+			if _, ok := r.readingTransforms[id.ptransformID]; !ok {
+				r.readingTransforms[id.ptransformID] = true
+			}
+			for _, pid := range additionalTransforms {
+				if _, ok := r.readingTransforms[pid]; !ok {
+					r.readingTransforms[pid] = true
+				}
+			}
+		}
+		log.Infof(ctx, "looked up data read channel %v %v", id, additionalTransforms)
 		return r
 	}
 
-	log.Infof(ctx, "make data read channel %v", id)
+	log.Infof(ctx, "make data read channel %v %v", id, additionalTransforms)
 
-	r := &elementsChan{ch: make(chan exec.Elements, 20)}
+	r := &elementsChan{
+		ch:                make(chan exec.Elements, 20),
+		readingTransforms: map[string]bool{id.ptransformID: true},
+	}
 	// Just in case initial data for an instruction arrives *after* an instructon has ended.
 	// eg. it was blocked by another reader being slow, or the other instruction failed.
 	// So we provide a pre-completed reader, and do not cache it, as there's no further cleanup for it.
 	if _, ok := c.endedInstructions[id.instID]; ok {
 		log.Infof(ctx, "data read channel %v already ended", id)
-		close(r.ch)
-		r.complete = true
+		r.Done(id.ptransformID)
 		return r
 	}
 
-	m[id.ptransformID] = r
+	// Set after checking for endedInstructions to set them only once.
+	for _, pid := range additionalTransforms {
+		r.readingTransforms[pid] = true
+	}
+
+	c.channels[id.instID] = r
 	return r
 }
 
 // OpenTimerWrite returns io.WriteCloser for the given timerFamilyID, instruction and ptransform.
 func (c *DataChannel) OpenTimerWrite(ctx context.Context, ptransformID string, instID instructionID, family string) io.WriteCloser {
-	return c.makeTimerWriter(ctx, clientID{timerFamilyID: family, ptransformID: ptransformID, instID: instID})
+	return c.makeTimerWriter(ctx, clientID{ptransformID: ptransformID, instID: instID}, family)
 }
 
 func (c *DataChannel) read(ctx context.Context) {
-	cache := make(map[clientID]*elementsChan)
+	cache := make(map[instructionID]*elementsChan)
+	seenLast := make([]clientID, 5)
 	for {
 		msg, err := c.client.Recv()
 		if err != nil {
@@ -303,12 +341,10 @@ func (c *DataChannel) read(ctx context.Context) {
 			// close the r.buf channels twice, or send on a closed channel.
 			// Any other approach is racy, and may cause one of the above
 			// panics.
-			for instID, m := range c.channels {
-				for tid, r := range m {
-					log.Errorf(ctx, "DataChannel.read %v channel inst: %v tid %v closing due to error on channel", c.id, instID, tid)
-					r.Close()
-					delete(cache, clientID{ptransformID: tid, instID: instID})
-				}
+			for instID, r := range c.channels {
+				log.Errorf(ctx, "DataChannel.read %v channel inst: %v closing due to error on channel", c.id, instID)
+				r.Close()
+				delete(cache, instID)
 			}
 			c.terminateStreamOnError(err)
 			c.mu.Unlock()
@@ -326,80 +362,80 @@ func (c *DataChannel) read(ctx context.Context) {
 		// Each message may contain segments for multiple streams, so we
 		// must treat each segment in isolation. We maintain a local cache
 		// to reduce lock contention.
+		iterateElements(ctx, "timer", c, cache, &seenLast, msg.GetTimers(),
+			func(elm *fnpb.Elements_Timers) exec.Elements {
+				return exec.Elements{Timers: elm.GetTimers(), PtransformID: elm.GetTransformId(), TimerFamilyID: elm.GetTimerFamilyId()}
+			})
 
-		for _, elm := range msg.GetData() {
-			id := clientID{ptransformID: elm.TransformId, instID: instructionID(elm.GetInstructionId())}
+		iterateElements(ctx, "data", c, cache, &seenLast, msg.GetData(),
+			func(elm *fnpb.Elements_Data) exec.Elements {
+				return exec.Elements{Data: elm.GetData(), PtransformID: elm.GetTransformId()}
+			})
 
-			var r *elementsChan
-			if local, ok := cache[id]; ok {
-				r = local
-			} else {
-				c.mu.Lock()
-				r = c.makeChannel(ctx, id)
-				c.mu.Unlock()
-				cache[id] = r
+		// Mark all readers that we've seen the last of as done, after queuing their elements.
+		if len(seenLast) > 0 {
+			c.mu.Lock()
+			for _, id := range seenLast {
+				r, ok := cache[id.instID]
+				if !ok {
+					continue // we've already closed this cached reader, skip
+				}
+				r.Done(id.ptransformID)
+				if r.Closed() {
+					// Clean up local bookkeeping. We'll never see another message
+					// for it again. We have to be careful not to remove the real
+					// one, because readers may be initialized after we've seen
+					// the full stream.
+					delete(cache, id.instID)
+				}
 			}
-
-			// This send is deliberately blocking, if we exceed the buffering for
-			// a reader. We can't buffer the entire main input, if some user code
-			// is slow (or gets stuck). If the local side closes, the reader
-			// will be marked as completed and further remote data will be ignored.
-			select {
-			case r.ch <- exec.Elements{Data: elm.GetData()}:
-			case <-ctx.Done():
-				// Technically, we need to close all the things here... to start.
-				r.Close()
-			}
-			if elm.GetIsLast() {
-				r.Close()
-
-				// Clean up local bookkeeping. We'll never see another message
-				// for it again. We have to be careful not to remove the real
-				// one, because readers may be initialized after we've seen
-				// the full stream.
-				delete(cache, id)
-				continue
-			}
+			seenLast = seenLast[:0] // reset for re-use
+			c.mu.Unlock()
 		}
-		for _, tim := range msg.GetTimers() {
-			id := clientID{
-				ptransformID: tim.TransformId,
-				instID:       instructionID(tim.GetInstructionId()),
-				// timerFamilyID: tim.GetTimerFamilyId(),
-			}
+	}
+}
 
-			var r *elementsChan
-			if local, ok := cache[id]; ok {
-				r = local
-			} else {
-				c.mu.Lock()
-				r = c.makeChannel(ctx, id)
-				c.mu.Unlock()
-				cache[id] = r
-			}
-			if tim.GetIsLast() {
-				// If this reader hasn't closed yet, do so now.
-				r.Close()
+// dataEle is a light interface against the proto Data and Timer Elements.
+type dataEle interface {
+	GetTransformId() string
+	GetInstructionId() string
+	GetIsLast() bool
+}
 
-				// Clean up local bookkeeping. We'll never see another message
-				// for it again. We have to be careful not to remove the real
-				// one, because readers may be initialized after we've seen
-				// the full stream.
-				delete(cache, id)
-				continue
-			}
-			log.Infof(ctx, "timer received for %v, %v: %v", id, tim.GetTimerFamilyId(), tim.GetTimers())
+func iterateElements[E dataEle](ctx context.Context, kind string, c *DataChannel, cache map[instructionID]*elementsChan, seenLast *[]clientID, elms []E, wrap func(E) exec.Elements) {
+	for _, elm := range elms {
+		id := clientID{ptransformID: elm.GetTransformId(), instID: instructionID(elm.GetInstructionId())}
 
-			// This send is deliberately blocking, if we exceed the buffering for
-			// a reader. We can't buffer the entire main input, if some user code
-			// is slow (or gets stuck). If the local side closes, the reader
-			// will be marked as completed and further remote data will be ignored.
-			select {
-			case r.ch <- exec.Elements{Timers: tim.GetTimers(), TimerFamilyID: tim.GetTimerFamilyId()}:
-			case <-ctx.Done():
-				// Technically, we need to close all the things here... to start.
-				r.Close()
-			}
+		var r *elementsChan
+		if local, ok := cache[id.instID]; ok {
+			r = local
+		} else {
+			c.mu.Lock()
+			r = c.makeChannel(ctx, id)
+			c.mu.Unlock()
+			cache[id.instID] = r
+		}
+
+		if r.Closed() {
+			log.Infof(ctx, "%s for closed channel %v", kind, id)
+			continue
+		}
+
+		// This send is deliberately blocking, if we exceed the buffering for
+		// a reader. We can't buffer the entire main input, if some user code
+		// is slow (or gets stuck). If the local side closes, the reader
+		// will be marked as completed and further remote data will be ignored.
+		select {
+		case r.ch <- wrap(elm):
+		case <-ctx.Done():
+			// Technically, we need to close all the things here... to start.
+			c.mu.Lock()
+			r.Close()
+			c.mu.Unlock()
+		}
+		if elm.GetIsLast() {
+			log.Infof(ctx, "done with %s for %v", kind, id)
+			*seenLast = append(*seenLast, id)
 		}
 	}
 }
@@ -422,7 +458,9 @@ func (c *DataChannel) removeInstruction(instID instructionID) {
 
 	ws := c.writers[instID]
 	tws := c.timerWriters[instID]
-	ecs := c.channels[instID]
+
+	// Element channels are per instruction
+	ec := c.channels[instID]
 
 	// Prevent other users while we iterate.
 	delete(c.writers, instID)
@@ -436,9 +474,7 @@ func (c *DataChannel) removeInstruction(instID instructionID) {
 	for _, tw := range tws {
 		tw.Close()
 	}
-	for _, ec := range ecs {
-		ec.Close()
-	}
+	ec.Close()
 }
 
 func (c *DataChannel) makeWriter(ctx context.Context, id clientID) *dataWriter {
@@ -452,7 +488,7 @@ func (c *DataChannel) makeWriter(ctx context.Context, id clientID) *dataWriter {
 		c.writers[id.instID] = m
 	}
 
-	if w, ok := m[makeID(id)]; ok {
+	if w, ok := m[id.ptransformID]; ok {
 		return w
 	}
 
@@ -461,22 +497,22 @@ func (c *DataChannel) makeWriter(ctx context.Context, id clientID) *dataWriter {
 	// runner or user directed.
 
 	w := &dataWriter{ch: c, id: id}
-	m[makeID(id)] = w
+	m[id.ptransformID] = w
 	return w
 }
 
-func (c *DataChannel) makeTimerWriter(ctx context.Context, id clientID) *timerWriter {
+func (c *DataChannel) makeTimerWriter(ctx context.Context, id clientID, family string) *timerWriter {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	var m map[string]*timerWriter
+	var m map[timerKey]*timerWriter
 	var ok bool
 	if m, ok = c.timerWriters[id.instID]; !ok {
-		m = make(map[string]*timerWriter)
+		m = make(map[timerKey]*timerWriter)
 		c.timerWriters[id.instID] = m
 	}
-
-	if w, ok := m[makeID(id)]; ok {
+	tk := timerKey{ptransformID: id.ptransformID, family: family}
+	if w, ok := m[tk]; ok {
 		return w
 	}
 
@@ -484,17 +520,9 @@ func (c *DataChannel) makeTimerWriter(ctx context.Context, id clientID) *timerWr
 	// can only be created if an instruction is in scope, and aren't
 	// runner or user directed.
 
-	w := &timerWriter{ch: c, id: id}
-	m[makeID(id)] = w
+	w := &timerWriter{ch: c, id: id, timerFamilyID: family}
+	m[tk] = w
 	return w
-}
-
-func makeID(id clientID) string {
-	newID := id.ptransformID
-	if id.timerFamilyID != "" {
-		newID += ":" + id.timerFamilyID
-	}
-	return newID
 }
 
 type dataWriter struct {
@@ -595,8 +623,9 @@ func (w *dataWriter) Write(p []byte) (n int, err error) {
 }
 
 type timerWriter struct {
-	id clientID
-	ch *DataChannel
+	id            clientID
+	timerFamilyID string
+	ch            *DataChannel
 }
 
 // send requires the ch.mu lock to be held.
@@ -623,14 +652,14 @@ func (w *timerWriter) send(msg *fnpb.Elements) error {
 func (w *timerWriter) Close() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
-	delete(w.ch.timerWriters[w.id.instID], makeID(w.id))
+	delete(w.ch.timerWriters[w.id.instID], timerKey{w.id.ptransformID, w.timerFamilyID})
 	var msg *fnpb.Elements
 	msg = &fnpb.Elements{
 		Timers: []*fnpb.Elements_Timers{
 			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
-				TimerFamilyId: w.id.timerFamilyID,
+				TimerFamilyId: w.timerFamilyID,
 				IsLast:        true,
 			},
 		},
@@ -649,7 +678,7 @@ func (w *timerWriter) writeTimers(p []byte) error {
 			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
-				TimerFamilyId: w.id.timerFamilyID,
+				TimerFamilyId: w.timerFamilyID,
 				Timers:        p,
 			},
 		},
