@@ -34,8 +34,10 @@ const (
 	javaTestCmd           = "java"
 )
 
+var getBeamJars = environment.ConcatBeamJarsToString
+
 func getJavaCompileArgs() ([]string, error) {
-	classpath, err := environment.ConcatBeamJarsToString()
+	classpath, err := getBeamJars()
 	if err != nil {
 		return nil, fmt.Errorf("error during proccessing jars: %s", err.Error())
 	}
@@ -43,7 +45,7 @@ func getJavaCompileArgs() ([]string, error) {
 }
 
 func getJavaRunArgs() ([]string, error) {
-	classpath, err := environment.ConcatBeamJarsToString()
+	classpath, err := getBeamJars()
 	if err != nil {
 		return nil, fmt.Errorf("error during proccessing jars: %s", err.Error())
 	}
@@ -51,7 +53,7 @@ func getJavaRunArgs() ([]string, error) {
 }
 
 func getJavaTestArgs() ([]string, error) {
-	classpath, err := environment.ConcatBeamJarsToString()
+	classpath, err := getBeamJars()
 	if err != nil {
 		return nil, fmt.Errorf("error during proccessing jars: %s", err.Error())
 	}
