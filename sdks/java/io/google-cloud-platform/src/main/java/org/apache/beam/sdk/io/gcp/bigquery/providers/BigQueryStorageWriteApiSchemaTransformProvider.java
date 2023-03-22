@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
@@ -396,7 +397,15 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       LOG.info("Validating schema ...");
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
       try {
-        Table table = BigQueryHelpers.getTable(options, tableRef);
+        Table table = null;
+        if (this.testBigQueryServices != null) {
+          DatasetService datasetService = testBigQueryServices.getDatasetService(options);
+          if (datasetService != null) {
+            table = datasetService.getTable(tableRef);
+          }
+        } else {
+          table = BigQueryHelpers.getTable(options, tableRef);
+        }
         if (table == null) {
           LOG.info("Table not found and skipped schema validation: " + tableRef.getTableId());
           return;
