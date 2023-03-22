@@ -338,7 +338,7 @@ public class PCollectionViews {
    */
   @Internal
   public static class SingletonViewFn2<T> extends ViewFn<IterableView<T>, T>
-      implements HasDefaultValue<T> {
+      implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
     private transient @Nullable T defaultValue;
     private @Nullable Coder<T> valueCoder;
@@ -425,6 +425,9 @@ public class PCollectionViews {
     T getDefaultValue();
   }
 
+  @Internal
+  public interface IsSingletonView<T> {}
+
   /**
    * Implementation which is able to adapt a multimap materialization to a {@code T}.
    *
@@ -434,7 +437,7 @@ public class PCollectionViews {
    */
   @Deprecated
   public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T>
-      implements HasDefaultValue<T> {
+      implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
     private transient @Nullable T defaultValue;
     private @Nullable Coder<T> valueCoder;
@@ -460,7 +463,6 @@ public class PCollectionViews {
     }
 
     /** Returns if a default value was specified. */
-    @Internal
     public boolean hasDefault() {
       return hasDefault;
     }
