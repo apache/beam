@@ -40,6 +40,7 @@ import traceback
 from itertools import islice
 from typing import Optional
 from typing import Union
+from google.cloud import storage
 
 import apache_beam
 from apache_beam.internal.http_client import get_new_http
@@ -68,7 +69,6 @@ try:
   from apitools.base.py.exceptions import HttpError
   from apitools.base.py import transfer
   from apache_beam.internal.gcp import auth
-  from apache_beam.io.gcp.internal.clients import storage
 except ImportError:
   raise ImportError(
       'Google Cloud Storage I/O not supported for this execution environment '
@@ -162,20 +162,13 @@ class GcsIOError(IOError, retry.PermanentException):
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(self, storage_client=None, pipeline_options=None):
-    # type: (Optional[storage.StorageV1], Optional[Union[dict, PipelineOptions]]) -> None
     if storage_client is None:
       if not pipeline_options:
         pipeline_options = PipelineOptions()
       elif isinstance(pipeline_options, dict):
         pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
-      storage_client = storage.StorageV1(
-          credentials=auth.get_service_credentials(pipeline_options),
-          get_credentials=False,
-          http=get_new_http(),
-          response_encoding='utf8',
-          additional_http_headers={
-              "User-Agent": "apache-beam-%s" % apache_beam.__version__
-          })
+      storage_client = storage.Client(
+          credentials=auth.get_service_credentials(pipeline_options))
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
@@ -200,24 +193,24 @@ class GcsIO(object):
   def get_bucket(self, bucket_name):
     """Returns an object bucket from its name, or None if it does not exist."""
     try:
-      request = storage.StorageBucketsGetRequest(bucket=bucket_name)
-      return self.client.buckets.Get(request)
+      return self.client.lookup_bucket(bucket_name)
     except HttpError:
       return None
 
   def create_bucket(self, bucket_name, project, kms_key=None, location=None):
     """Create and return a GCS bucket in a specific project."""
     encryption = None
-    if kms_key:
-      encryption = storage.Bucket.EncryptionValue(kms_key)
-
-    request = storage.StorageBucketsInsertRequest(
-        bucket=storage.Bucket(
-            name=bucket_name, location=location, encryption=encryption),
-        project=project,
-    )
+    
     try:
-      return self.client.buckets.Insert(request)
+      bucket = self.client.create_bucket(
+        bucket_or_name=bucket_name,
+        project=project,
+        location=location,
+        )
+      if kms_key:
+        bucket.default_kms_key_name(kms_key)
+        return self.get_bucket(bucket_name)
+      return bucket
     except HttpError:
       return None
 
@@ -270,11 +263,10 @@ class GcsIO(object):
     Args:
       path: GCS file path pattern in the form gs://<bucket>/<name>.
     """
-    bucket, object_path = parse_gcs_path(path)
-    request = storage.StorageObjectsDeleteRequest(
-        bucket=bucket, object=object_path)
+    bucket_name, target_name = parse_gcs_path(path)
     try:
-      self.client.objects.Delete(request)
+      bucket = self.client.get_bucket(bucket_name)
+      bucket.delete_blob(target_name)
     except HttpError as http_error:
       if http_error.status_code == 404:
         # Return success when the file doesn't exist anymore for idempotency.
@@ -329,47 +321,53 @@ class GcsIO(object):
   def copy(
       self,
       src,
-      dest,
-      dest_kms_key_name=None,
-      max_bytes_rewritten_per_call=None):
+      dest):
+      # dest_kms_key_name=None,
+      # max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
     Args:
       src: GCS file path pattern in the form gs://<bucket>/<name>.
       dest: GCS file path pattern in the form gs://<bucket>/<name>.
+      !!!
       dest_kms_key_name: Experimental. No backwards compatibility guarantees.
         Encrypt dest with this Cloud KMS key. If None, will use dest bucket
         encryption defaults.
       max_bytes_rewritten_per_call: Experimental. No backwards compatibility
         guarantees. Each rewrite API call will return after these many bytes.
-        Used for testing.
+        Used for testing. !!!
 
     Raises:
       TimeoutError: on timeout.
     """
-    src_bucket, src_path = parse_gcs_path(src)
-    dest_bucket, dest_path = parse_gcs_path(dest)
-    request = storage.StorageObjectsRewriteRequest(
-        sourceBucket=src_bucket,
-        sourceObject=src_path,
-        destinationBucket=dest_bucket,
-        destinationObject=dest_path,
-        destinationKmsKeyName=dest_kms_key_name,
-        maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
-    response = self.client.objects.Rewrite(request)
-    while not response.done:
-      _LOGGER.debug(
-          'Rewrite progress: %d of %d bytes, %s to %s',
-          response.totalBytesRewritten,
-          response.objectSize,
-          src,
-          dest)
-      request.rewriteToken = response.rewriteToken
-      response = self.client.objects.Rewrite(request)
-      if self._rewrite_cb is not None:
-        self._rewrite_cb(response)
+    src_bucket_name, src_path = parse_gcs_path(src)
+    dest_bucket_name, dest_path = parse_gcs_path(dest)
+    # request = storage.StorageObjectsRewriteRequest(
+    #     sourceBucket=src_bucket,
+    #     sourceObject=src_path,
+    #     destinationBucket=dest_bucket,
+    #     destinationObject=dest_path,
+    #     destinationKmsKeyName=dest_kms_key_name,
+    #     maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
+    src_bucket = self.get_bucket(src_bucket_name)
+    src_blob = src_bucket.get_blob(src_path)
+    dest_bucket = self.get_bucket(dest_bucket_name)
+    if not dest_path:
+      dest_path = None
+    response = src_bucket.copy_blob(src_blob, dest_bucket, new_name=dest_path)
+    # !!! while not response.done:
+    #   _LOGGER.debug(
+    #       'Rewrite progress: %d of %d bytes, %s to %s',
+    #       response.totalBytesRewritten,
+    #       response.objectSize,
+    #       src,
+    #       dest)
+    #   request.rewriteToken = response.rewriteToken
+    #   response = self.client.objects.Rewrite(request)
+    #   if self._rewrite_cb is not None:
+    #     self._rewrite_cb(response)
 
-    _LOGGER.debug('Rewrite done: %s to %s', src, dest)
+    # _LOGGER.debug('Rewrite done: %s to %s', src, dest) !!!
 
   # We intentionally do not decorate this method with a retry, as retrying is
   # handled in BatchApiRequest.Execute().
@@ -565,10 +563,9 @@ class GcsIO(object):
 
     Returns: GCS object.
     """
-    bucket, object_path = parse_gcs_path(path)
-    request = storage.StorageObjectsGetRequest(
-        bucket=bucket, object=object_path)
-    return self.client.objects.Get(request)
+    bucket_name, object_path = parse_gcs_path(path)
+    bucket = self.client.get_bucket(bucket_name)
+    return bucket.get_blob(object_path)
 
   @deprecated(since='2.45.0', current='list_files')
   def list_prefix(self, path, with_metadata=False):
@@ -604,7 +601,6 @@ class GcsIO(object):
       tuple(file name, tuple(size, timestamp)).
     """
     bucket, prefix = parse_gcs_path(path, object_optional=True)
-    request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_info = set()
     counter = 0
     start_time = time.time()
@@ -612,35 +608,26 @@ class GcsIO(object):
       _LOGGER.debug("Starting the file information of the input")
     else:
       _LOGGER.debug("Starting the size estimation of the input")
-    while True:
-      response = retry.with_exponential_backoff(
-          retry_filter=retry.retry_on_server_errors_and_timeout_filter)(
-              self.client.objects.List)(
-                  request)
-
-      for item in response.items:
-        file_name = 'gs://%s/%s' % (item.bucket, item.name)
-        if file_name not in file_info:
-          file_info.add(file_name)
-          counter += 1
-          if counter % 10000 == 0:
-            if with_metadata:
-              _LOGGER.info(
-                  "Finished computing file information of: %s files",
-                  len(file_info))
-            else:
-              _LOGGER.info(
-                  "Finished computing size of: %s files", len(file_info))
-
+    response = self.client.list_blobs(bucket, prefix=prefix)
+    for item in response:
+      file_name = 'gs://%s/%s' % (item.bucket(), item.name)
+      if file_name not in file_info:
+        file_info.add(file_name)
+        counter += 1
+        if counter % 10000 == 0:
           if with_metadata:
-            yield file_name, (item.size, self._updated_to_seconds(item.updated))
+            _LOGGER.info(
+                "Finished computing file information of: %s files",
+                len(file_info))
           else:
-            yield file_name, item.size
+            _LOGGER.info(
+                "Finished computing size of: %s files", len(file_info))
 
-      if response.nextPageToken:
-        request.pageToken = response.nextPageToken
-      else:
-        break
+        if with_metadata:
+          yield file_name, (item.size(), self._updated_to_seconds(item.updated()))
+        else:
+          yield file_name, item.size()
+
     _LOGGER.log(
         # do not spam logs when list_prefix is likely used to check empty folder
         logging.INFO if counter > 0 else logging.DEBUG,

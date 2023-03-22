@@ -62,12 +62,20 @@ class FakeGcsClient(object):
 
 class FakeFile(object):
   def __init__(
-      self, bucket, obj, contents, generation, crc32c=None, last_updated=None):
+      self,
+      bucket,
+      obj,
+      contents,
+      generation,
+      crc32c=None,
+      kms_key=None,
+      last_updated=None):
     self.bucket = bucket
     self.object = obj
     self.contents = contents
     self.generation = generation
     self.crc32c = crc32c
+    self.kms_key = kms_key
     self.last_updated = last_updated
 
   def get_metadata(self):
@@ -82,6 +90,7 @@ class FakeFile(object):
         generation=self.generation,
         size=len(self.contents),
         crc32c=self.crc32c,
+        kmsKeyName=self.kms_key,
         updated=last_updated_datetime)
 
 
@@ -320,6 +329,7 @@ class TestGCSIO(unittest.TestCase):
       size,
       generation=1,
       crc32c=None,
+      kms_key=None,
       last_updated=None,
       fail_when_getting_metadata=False,
       fail_when_reading=False):
@@ -330,6 +340,7 @@ class TestGCSIO(unittest.TestCase):
         os.urandom(size),
         generation,
         crc32c=crc32c,
+        kms_key=kms_key,
         last_updated=last_updated)
     client.objects.add_file(f, fail_when_getting_metadata, fail_when_reading)
     return f
@@ -394,6 +405,16 @@ class TestGCSIO(unittest.TestCase):
     self._insert_random_file(self.client, file_name, file_size)
     self.assertTrue(self.gcs.exists(file_name))
     self.assertEqual(1234, self.gcs.size(file_name))
+
+  def test_kms_key(self):
+    file_name = 'gs://gcsio-test/dummy_file'
+    file_size = 1234
+    kms_key = "dummy"
+
+    self._insert_random_file(
+        self.client, file_name, file_size, kms_key=kms_key)
+    self.assertTrue(self.gcs.exists(file_name))
+    self.assertEqual(kms_key, self.gcs.kms_key(file_name))
 
   def test_last_updated(self):
     file_name = 'gs://gcsio-test/dummy_file'
