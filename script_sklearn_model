@@ -1,7 +1,7 @@
 import pickle
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from google.cloud import storage
+#from google.cloud import storage
 
 """
 BUCKET_NAME = "your-bucket-name"
