@@ -21,6 +21,11 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.allPrimitiveDat
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.allPrimitiveDataTypesToRowFn;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.arrayPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.arrayPrimitiveDataTypesToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.avroArrayPrimitiveDataTypes;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.avroArrayPrimitiveDataTypesToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.avroNestedRepeatedDataTypesToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.avroPrimitiveDataTypes;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.avroPrimitiveDataTypesToRowFn;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.doublyNestedDataTypes;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.doublyNestedDataTypesToRowFn;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypes;
@@ -31,6 +36,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContaining;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingToRowFn;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +45,9 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AllPrimitiveDataTypes;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ArrayPrimitiveDataTypes;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AvroArrayPrimitiveDataTypes;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AvroNestedRepeatedDataTypes;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AvroPrimitiveDataTypes;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DoublyNestedDataTypes;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NullableAllPrimitiveDataTypes;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SinglyNestedDataTypes;
@@ -53,6 +62,41 @@ class FileWriteSchemaTransformFormatProviderTestData {
 
   /* Prevent instantiation outside this class. */
   private FileWriteSchemaTransformFormatProviderTestData() {}
+
+  final List<AvroPrimitiveDataTypes> avroPrimitiveDataTypesList =
+      Arrays.asList(
+          avroPrimitiveDataTypes(
+              false,
+              BigDecimal.valueOf(1L),
+              ByteBuffer.wrap(new byte[] {1}),
+              1.2345,
+              1.2345f,
+              1,
+              1L,
+              "a"),
+          avroPrimitiveDataTypes(
+              true,
+              BigDecimal.valueOf(2L),
+              ByteBuffer.wrap(new byte[] {2}),
+              2.2345,
+              2.2345f,
+              2,
+              2L,
+              "b"),
+          avroPrimitiveDataTypes(
+              false,
+              BigDecimal.valueOf(3L),
+              ByteBuffer.wrap(new byte[] {3}),
+              3.2345,
+              3.2345f,
+              3,
+              3L,
+              "c"));
+
+  final List<Row> avroPrimitiveDataTypesRows =
+      avroPrimitiveDataTypesList.stream()
+          .map(avroPrimitiveDataTypesToRowFn()::apply)
+          .collect(Collectors.toList());
 
   final List<AllPrimitiveDataTypes> allPrimitiveDataTypesList =
       Arrays.asList(
@@ -185,6 +229,132 @@ class FileWriteSchemaTransformFormatProviderTestData {
   final List<Row> arrayPrimitiveDataTypesRows =
       arrayPrimitiveDataTypesList.stream()
           .map(arrayPrimitiveDataTypesToRowFn()::apply)
+          .collect(Collectors.toList());
+
+  final List<AvroArrayPrimitiveDataTypes> avroArrayPrimitiveDataTypesList =
+      Arrays.asList(
+          avroArrayPrimitiveDataTypes(
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList()),
+          avroArrayPrimitiveDataTypes(
+              Collections.singletonList(false),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList()),
+          avroArrayPrimitiveDataTypes(
+              Collections.emptyList(),
+              Collections.singletonList(BigDecimal.ZERO),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList()),
+          avroArrayPrimitiveDataTypes(
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.singletonList(ByteBuffer.wrap(new byte[] {1})),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList()),
+          avroArrayPrimitiveDataTypes(
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.singletonList(Double.MAX_VALUE),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList()),
+          avroArrayPrimitiveDataTypes(
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.singletonList(Float.MAX_VALUE),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList()),
+          avroArrayPrimitiveDataTypes(
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.singletonList(Integer.MAX_VALUE),
+              Collections.emptyList(),
+              Collections.emptyList()),
+          avroArrayPrimitiveDataTypes(
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.singletonList(Long.MAX_VALUE),
+              Collections.emptyList()),
+          avroArrayPrimitiveDataTypes(
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.emptyList(),
+              Collections.singletonList(
+                  Stream.generate(() -> "🦋").limit(100).collect(Collectors.joining("")))),
+          avroArrayPrimitiveDataTypes(
+              Arrays.asList(false, true, false),
+              Arrays.asList(BigDecimal.ZERO, BigDecimal.ONE, BigDecimal.TEN),
+              Arrays.asList(
+                  ByteBuffer.wrap(new byte[] {1, 2, 3}),
+                  ByteBuffer.wrap(new byte[] {4, 5, 6}),
+                  ByteBuffer.wrap(new byte[] {7, 8, 9})),
+              Arrays.asList(Double.MIN_VALUE, 0.0, Double.MAX_VALUE),
+              Arrays.asList(Float.MIN_VALUE, 0.0f, Float.MAX_VALUE),
+              Arrays.asList(Integer.MIN_VALUE, 0, Integer.MAX_VALUE),
+              Arrays.asList(Long.MIN_VALUE, 0L, Long.MAX_VALUE),
+              Arrays.asList(
+                  Stream.generate(() -> "🐤").limit(100).collect(Collectors.joining("")),
+                  Stream.generate(() -> "🐥").limit(100).collect(Collectors.joining("")),
+                  Stream.generate(() -> "🐣").limit(100).collect(Collectors.joining("")))),
+          avroArrayPrimitiveDataTypes(
+              Stream.generate(() -> true).limit(100).collect(Collectors.toList()),
+              Stream.generate(() -> BigDecimal.ZERO).limit(100).collect(Collectors.toList()),
+              Stream.generate(() -> ByteBuffer.wrap(new byte[] {1, 2, 3}))
+                  .limit(100)
+                  .collect(Collectors.toList()),
+              Stream.generate(() -> Double.MIN_VALUE).limit(100).collect(Collectors.toList()),
+              Stream.generate(() -> Float.MIN_VALUE).limit(100).collect(Collectors.toList()),
+              Stream.generate(() -> Integer.MIN_VALUE).limit(100).collect(Collectors.toList()),
+              Stream.generate(() -> Long.MIN_VALUE).limit(100).collect(Collectors.toList()),
+              Stream.generate(() -> "🐿").limit(100).collect(Collectors.toList())));
+
+  final List<Row> avroArrayPrimitiveDataTypesRows =
+      avroArrayPrimitiveDataTypesList.stream()
+          .map(avroArrayPrimitiveDataTypesToRowFn()::apply)
+          .collect(Collectors.toList());
+
+  final List<AvroNestedRepeatedDataTypes> avroNestedRepeatedDataTypes =
+      avroPrimitiveDataTypesList.stream()
+          .map(SchemaAwareJavaBeans::avroNestedRepeatedDataTypes)
+          .collect(Collectors.toList());
+
+  final List<Row> avroNestedRepeatedRows =
+      avroNestedRepeatedDataTypes.stream()
+          .map(avroNestedRepeatedDataTypesToRowFn()::apply)
           .collect(Collectors.toList());
 
   final List<SinglyNestedDataTypes> singlyNestedDataTypesNoRepeat =
