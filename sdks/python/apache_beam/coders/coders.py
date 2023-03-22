@@ -83,7 +83,7 @@ try:
   # occurs.
   from apache_beam.internal.dill_pickler import dill
 except ImportError:
-  # We fall back to using the vendor dill library in tests that don't use the
+  # We fall back to using the vendored dill library in tests that don't use the
   # full Python SDK.
   from apache_beam.vendor import dill
 
