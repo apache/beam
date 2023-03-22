@@ -59,6 +59,9 @@ def commonConfig = { Map args ->
     }
 
     def actualDataflowWorkerJar = args.dataflowWorkerJar
+    // Provide job with a customizable worker jar.
+    // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
+    // More context and discussions can be found in PR#6694.
     def actualWorkerHarnessContainerImage = args.workerHarnessContainerImage ?: ''
     def actualGcsTempRoot = args.gcsTempRoot ?: gcsTempRoot
     def additionalOptions = args.additionalOptions ?: []
