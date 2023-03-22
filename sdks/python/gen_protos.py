@@ -126,18 +126,26 @@ def generate_urn_files(out_dir, api_path):
   from google.protobuf import message
   from google.protobuf.internal import api_implementation
   if api_implementation.Type() == 'python':
-    from google.protobuf.internal import containers as impl
+    from google.protobuf.internal import containers
+    repeated_types = (
+        list,
+        containers.RepeatedScalarFieldContainer,
+        containers.RepeatedCompositeFieldContainer)
   elif api_implementation.Type() == 'upb':
-    from google._upb import _message as impl
+    from google._upb import _message
+    repeated_types = (
+        list,
+        _message.RepeatedScalarContainer,
+        _message.RepeatedCompositeContainer)
   elif api_implementation.Type() == 'cpp':
-    import google.protobuf.pyext._message as impl
+    import google.protobuf.pyext._message
+    repeated_types = (
+        list,
+        _message.RepeatedScalarContainer,
+        _message.RepeatedCompositeContainer)
   else:
     raise TypeError(
         "Unknown proto implementation: " + api_implementation.Type())
-  repeated_types = (
-      list,
-      impl.RepeatedScalarFieldContainer,
-      impl.RepeatedCompositeFieldContainer)
 
   class Context(object):
     INDENT = '  '
