@@ -220,8 +220,8 @@ if __name__ == '__main__':
       ], language_level=3),
       install_requires = [
         'crcmod>=1.7,<2.0',
-        # Note: Omitting dill. A copy of dill is in the vendor
-        # directory. Since it is not forwards-compatible.
+        # Note: Omitting dill, which is vendored.
+        #
         # It is prudent to use the same version of pickler at job submission
         # and at runtime, therefore bounds need to be tight.
         # To avoid depending on an old dependency, update the minor version on

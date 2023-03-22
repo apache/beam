@@ -42,7 +42,6 @@ from typing import Any
 from typing import Dict
 from typing import Tuple
 
-#import vendor version of dill
 from apache_beam.vendor import dill
 
 settings = {'dill_byref': None}
