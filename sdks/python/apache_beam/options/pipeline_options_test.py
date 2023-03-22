@@ -355,8 +355,8 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_retain_unknown_options_binary_single_dash_store_string(self):
     options = PipelineOptions(['-i', 'some_value'])
-    result = options.get_all_options(retain_unknown_options=True)
-    self.assertEqual(result['i'], '')
+    with self.assertRaises(KeyError):
+      _ = options.get_all_options(retain_unknown_options=True)['i']
 
   def test_retain_unknown_options_unary_store_true(self):
     options = PipelineOptions(['--unknown_option'])
@@ -372,7 +372,7 @@ class PipelineOptionsTest(unittest.TestCase):
   def test_retain_unknown_options_unary_single_dash_store_true(self):
     options = PipelineOptions(['-i'])
     result = options.get_all_options(retain_unknown_options=True)
-    self.assertEqual(result['i'], False)
+    self.assertEqual(result['i'], True)
 
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
