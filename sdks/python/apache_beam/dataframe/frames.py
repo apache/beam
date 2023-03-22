@@ -5410,8 +5410,8 @@ def _create_maybe_elementwise_or(base):
   return _maybe_elementwise_or
 
 
-DeferredSeries.__or__ = _create_maybe_elementwise_or(pd.Series)
-DeferredDataFrame.__or__ = _create_maybe_elementwise_or(pd.DataFrame)
+DeferredSeries.__or__ = _create_maybe_elementwise_or(pd.Series)  # pylint: disable=operator
+DeferredDataFrame.__or__ = _create_maybe_elementwise_or(pd.DataFrame)  # pylint: disable=operator
 
 
 for name in ['lt', 'le', 'gt', 'ge', 'eq', 'ne']:
