@@ -3,9 +3,11 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from google.cloud import storage
 
-"""BUCKET_NAME = "your-bucket-name"
+"""
+BUCKET_NAME = "your-bucket-name"
 MODEL_NAME = "linear_regression_model.pkl"
-TRAINING_DATA = "gs://{}/data/housing_train.csv".format(BUCKET_NAME)"""
+TRAINING_DATA = "gs://{}/data/housing_train.csv".format(BUCKET_NAME)
+"""
 
 # loading the training data
 housing_data = pd.read_csv(TRAINING_DATA)
