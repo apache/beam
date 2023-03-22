@@ -123,20 +123,21 @@ def generate_urn_files(out_dir, api_path):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
-  try:
-    from google._upb import _message
-    list_types = (
-        list,
-        _message.RepeatedScalarContainer,
-        _message.RepeatedCompositeContainer,
-    )  # pylint: disable=c-extension-no-member
-  except ImportError:
-    from google.protobuf.internal import containers
-    list_types = (
-        list,
-        containers.RepeatedScalarFieldContainer,
-        containers.RepeatedCompositeFieldContainer)
   from google.protobuf import message
+  from google.protobuf.internal import api_implementation
+  if api_implementation.Type() == 'python':
+    from google.protobuf.internal import containers as impl
+  elif api_implementation.Type() == 'upb':
+    from google._upb import _message as impl
+  elif api_implementation.Type() == 'cpp':
+    import google.protobuf.pyext._message as impl
+  else:
+    raise TypeError(
+        "Unknown proto implementation: " + api_implementation.Type())
+  list_types = (
+      list,
+      impl.RepeatedScalarFieldContainer,
+      impl.RepeatedCompositeFieldContainer)
 
   class Context(object):
     INDENT = '  '
