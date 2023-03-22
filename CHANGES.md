@@ -64,6 +64,7 @@
 ## New Features / Improvements
 
 * The Flink runner now supports Flink 1.16.x ([#25046](https://github.com/apache/beam/issues/25046)).
+* Schema'd PTransforms can now be directly applied to Beam dataframes just like PCollections.
 
 ## Breaking Changes
 
