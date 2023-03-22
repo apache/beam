@@ -138,7 +138,7 @@ def generate_urn_files(out_dir, api_path):
         _message.RepeatedScalarContainer,
         _message.RepeatedCompositeContainer)
   elif api_implementation.Type() == 'cpp':
-    import google.protobuf.pyext._message
+    from google.protobuf.pyext import _message
     repeated_types = (
         list,
         _message.RepeatedScalarContainer,
