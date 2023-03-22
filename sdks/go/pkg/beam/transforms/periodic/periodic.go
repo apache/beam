@@ -43,8 +43,22 @@ func init() {
 // timestamped elements at an interval.
 type SequenceDefinition struct {
 	Interval time.Duration
-	Start    int64
-	End      int64
+
+	// Start is the number of milliseconds since the Unix epoch.
+	Start int64
+
+	// End is the number of milliseconds since the Unix epoch.
+	End int64
+}
+
+// NewSequenceDefinition creates a new [SequenceDefinition] from a start and
+// end [time.Time] along with its interval [time.Duration].
+func NewSequenceDefinition(start, end time.Time, interval time.Duration) SequenceDefinition {
+	return SequenceDefinition{
+		Start:    start.UnixMilli(),
+		End:      end.UnixMilli(),
+		Interval: interval,
+	}
 }
 
 type sequenceGenDoFn struct{}
