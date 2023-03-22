@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-"""Contains third party libraries used by apache beam."""
+"""Contains third party libraries vendored in apache beam codebase."""
