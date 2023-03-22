@@ -38,12 +38,8 @@ import threading
 import time
 import traceback
 from itertools import islice
-from typing import Optional
-from typing import Union
 from google.cloud import storage
 
-import apache_beam
-from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
@@ -199,14 +195,13 @@ class GcsIO(object):
 
   def create_bucket(self, bucket_name, project, kms_key=None, location=None):
     """Create and return a GCS bucket in a specific project."""
-    encryption = None
-    
+
     try:
       bucket = self.client.create_bucket(
-        bucket_or_name=bucket_name,
-        project=project,
-        location=location,
-        )
+          bucket_or_name=bucket_name,
+          project=project,
+          location=location,
+      )
       if kms_key:
         bucket.default_kms_key_name(kms_key)
         return self.get_bucket(bucket_name)
@@ -265,7 +260,7 @@ class GcsIO(object):
     """
     bucket_name, target_name = parse_gcs_path(path)
     try:
-      bucket = self.client.get_bucket(bucket_name)
+      bucket = self.get_bucket(bucket_name)
       bucket.delete_blob(target_name)
     except HttpError as http_error:
       if http_error.status_code == 404:
@@ -318,56 +313,25 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def copy(
-      self,
-      src,
-      dest):
-      # dest_kms_key_name=None,
-      # max_bytes_rewritten_per_call=None):
+  def copy(self, src, dest):
     """Copies the given GCS object from src to dest.
 
     Args:
       src: GCS file path pattern in the form gs://<bucket>/<name>.
       dest: GCS file path pattern in the form gs://<bucket>/<name>.
       !!!
-      dest_kms_key_name: Experimental. No backwards compatibility guarantees.
-        Encrypt dest with this Cloud KMS key. If None, will use dest bucket
-        encryption defaults.
-      max_bytes_rewritten_per_call: Experimental. No backwards compatibility
-        guarantees. Each rewrite API call will return after these many bytes.
-        Used for testing. !!!
 
     Raises:
       TimeoutError: on timeout.
     """
     src_bucket_name, src_path = parse_gcs_path(src)
     dest_bucket_name, dest_path = parse_gcs_path(dest)
-    # request = storage.StorageObjectsRewriteRequest(
-    #     sourceBucket=src_bucket,
-    #     sourceObject=src_path,
-    #     destinationBucket=dest_bucket,
-    #     destinationObject=dest_path,
-    #     destinationKmsKeyName=dest_kms_key_name,
-    #     maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
     src_bucket = self.get_bucket(src_bucket_name)
     src_blob = src_bucket.get_blob(src_path)
     dest_bucket = self.get_bucket(dest_bucket_name)
     if not dest_path:
       dest_path = None
-    response = src_bucket.copy_blob(src_blob, dest_bucket, new_name=dest_path)
-    # !!! while not response.done:
-    #   _LOGGER.debug(
-    #       'Rewrite progress: %d of %d bytes, %s to %s',
-    #       response.totalBytesRewritten,
-    #       response.objectSize,
-    #       src,
-    #       dest)
-    #   request.rewriteToken = response.rewriteToken
-    #   response = self.client.objects.Rewrite(request)
-    #   if self._rewrite_cb is not None:
-    #     self._rewrite_cb(response)
-
-    # _LOGGER.debug('Rewrite done: %s to %s', src, dest) !!!
+    src_bucket.copy_blob(src_blob, dest_bucket, new_name=dest_path)
 
   # We intentionally do not decorate this method with a retry, as retrying is
   # handled in BatchApiRequest.Execute().
@@ -620,11 +584,11 @@ class GcsIO(object):
                 "Finished computing file information of: %s files",
                 len(file_info))
           else:
-            _LOGGER.info(
-                "Finished computing size of: %s files", len(file_info))
+            _LOGGER.info("Finished computing size of: %s files", len(file_info))
 
         if with_metadata:
-          yield file_name, (item.size(), self._updated_to_seconds(item.updated()))
+          yield file_name, (
+              item.size(), self._updated_to_seconds(item.updated()))
         else:
           yield file_name, item.size()
 
@@ -654,8 +618,8 @@ class GcsDownloader(Downloader):
     # Create a request count metric
     resource = resource_identifiers.GoogleCloudStorageBucket(self._bucket)
     labels = {
-        monitoring_infos.SERVICE_LABEL: 'Storage',
-        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.SERVICE_LABEL: 'GCS Client',
+        monitoring_infos.METHOD_LABEL: 'BlobReader.read',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: self._bucket
     }
@@ -664,7 +628,7 @@ class GcsDownloader(Downloader):
       labels[monitoring_infos.GCS_PROJECT_ID_LABEL] = str(project_number)
     else:
       _LOGGER.debug(
-          'Possibly missing storage.buckets.get permission to '
+          'Possibly missing storage.get_bucket permission to '
           'bucket %s. Label %s is not added to the counter because it '
           'cannot be identified.',
           self._bucket,
@@ -674,12 +638,9 @@ class GcsDownloader(Downloader):
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
 
-    # Get object state.
-    self._get_request = (
-        storage.StorageObjectsGetRequest(
-            bucket=self._bucket, object=self._name))
     try:
-      metadata = self._get_object_metadata(self._get_request)
+      bucket = self._client.get_bucket(self._bucket)
+      metadata = bucket.get_blob(self._name)
     except HttpError as http_error:
       service_call_metric.call(http_error)
       if http_error.status_code == 404:
@@ -691,31 +652,20 @@ class GcsDownloader(Downloader):
     else:
       service_call_metric.call('ok')
 
-    self._size = metadata.size
-
-    # Ensure read is from file of the correct generation.
-    self._get_request.generation = metadata.generation
-
-    # Initialize read buffer state.
-    self._download_stream = io.BytesIO()
-    self._downloader = transfer.Download(
-        self._download_stream,
-        auto_transfer=False,
-        chunksize=self._buffer_size,
-        num_retries=20)
+    self._size = metadata.size()
 
     try:
-      self._client.objects.Get(self._get_request, download=self._downloader)
+      reader = storage.fileio.BlobReader(metadata, chunk_size=self._buffer_size)
+      reader.read()
       service_call_metric.call('ok')
     except HttpError as e:
       service_call_metric.call(e)
       raise
+    finally:
+      reader.close()
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _get_object_metadata(self, get_request):
-    return self._client.objects.Get(get_request)
-
   @property
   def size(self):
     return self._size

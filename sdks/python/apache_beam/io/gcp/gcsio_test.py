@@ -411,8 +411,7 @@ class TestGCSIO(unittest.TestCase):
     file_size = 1234
     kms_key = "dummy"
 
-    self._insert_random_file(
-        self.client, file_name, file_size, kms_key=kms_key)
+    self._insert_random_file(self.client, file_name, file_size, kms_key=kms_key)
     self.assertTrue(self.gcs.exists(file_name))
     self.assertEqual(kms_key, self.gcs.kms_key(file_name))
 
@@ -537,7 +536,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
-    self.gcs.copy(src_file_name, dest_file_name, dest_kms_key_name='kms_key')
+    self.gcs.copy(src_file_name, dest_file_name)
 
     self.assertTrue(
         gcsio.parse_gcs_path(src_file_name) in self.client.objects.files)
