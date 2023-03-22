@@ -1,5 +1,5 @@
 # THIS FILE GENERATED FROM SETUP.PY
-this_version = '0.3.2.dev0'
+this_version = '0.3.1.1'
 stable_version = '0.3.1.1'
 readme = '''-----------------------------
 dill: serialize all of python
@@ -70,7 +70,7 @@ Major Features
 Current Release
 ===============
 
-This documentation is for version ``dill-0.3.2.dev0``.
+This documentation is for version ``dill-0.3.1.1``.
 
 The latest released version of ``dill`` is available from:
 
