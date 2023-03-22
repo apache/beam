@@ -87,7 +87,7 @@ SDK_CONFIG=../sdks-emulator.yaml \
 go run ./cmd/server
 ```
 
-where `<port>` should be the value of port on which you want to have the backend server availalbe; `<beam_sdk_type>` is a value of desired Beam SDK, possible values are `SDK_UNSPECIFIED`, `SDK_JAVA`, `SDK_PYTHON`, `SDK_GO`, `SDK_SCIO`; `<path_to_workdir>` should be set to path to yoru work dir, e.g. `~/path/to/workdir`.
+where `<port>` should be the value of port on which you want to have the backend server available; `<beam_sdk_type>` is a value of desired Beam SDK, possible values are `SDK_UNSPECIFIED`, `SDK_JAVA`, `SDK_PYTHON`, `SDK_GO`, `SDK_SCIO`; `<path_to_workdir>` should be set to path to your work dir, e.g. `~/path/to/workdir`.
 
 Run the following command to generate a release build file:
 
