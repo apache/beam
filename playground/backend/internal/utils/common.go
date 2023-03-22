@@ -28,7 +28,7 @@ func ReduceWhiteSpacesToSinge(s string) string {
 	return re.ReplaceAllString(s, " ")
 }
 
-//ReadFile reads from file and returns string.
+// ReadFile reads from file and returns string.
 func ReadFile(pipelineId uuid.UUID, path string) (string, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -38,7 +38,7 @@ func ReadFile(pipelineId uuid.UUID, path string) (string, error) {
 	return string(content), nil
 }
 
-//ReadYamlFile reads from a yaml file.
+// ReadYamlFile reads from a yaml file.
 func ReadYamlFile(filename string, out interface{}) error {
 	buf, err := ioutil.ReadFile(filename)
 	if err != nil {

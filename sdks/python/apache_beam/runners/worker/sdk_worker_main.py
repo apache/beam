@@ -71,6 +71,7 @@ def _import_beam_plugins(plugins):
 def create_harness(environment, dry_run=False):
   """Creates SDK Fn Harness."""
 
+  deferred_exception = None
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
     try:
       logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
@@ -114,15 +115,23 @@ def create_harness(environment, dry_run=False):
   if pickle_library != pickler.USE_CLOUDPICKLE:
     try:
       _load_main_session(semi_persistent_directory)
-    except CorruptMainSessionException:
+    except LoadMainSessionException:
       exception_details = traceback.format_exc()
       _LOGGER.error(
           'Could not load main session: %s', exception_details, exc_info=True)
       raise
     except Exception:  # pylint: disable=broad-except
+      summary = (
+          "Could not load main session. Inspect which external dependencies "
+          "are used in the main module of your pipeline. Verify that "
+          "corresponding packages are installed in the pipeline runtime "
+          "environment and their installed versions match the versions used in "
+          "pipeline submission environment. For more information, see: https://"
+          "beam.apache.org/documentation/sdks/python-pipeline-dependencies/")
+      _LOGGER.error(summary, exc_info=True)
       exception_details = traceback.format_exc()
-      _LOGGER.error(
-          'Could not load main session: %s', exception_details, exc_info=True)
+      deferred_exception = LoadMainSessionException(
+          f"{summary} {exception_details}")
 
   _LOGGER.info(
       'Pipeline_options: %s',
@@ -159,7 +168,8 @@ def create_harness(environment, dry_run=False):
       profiler_factory=profiler.Profile.factory_from_options(
           sdk_pipeline_options.view_as(ProfilingOptions)),
       enable_heap_dump=enable_heap_dump,
-      data_sampler=data_sampler)
+      data_sampler=data_sampler,
+      deferred_exception=deferred_exception)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
@@ -306,10 +316,9 @@ def _set_log_level_overrides(options_dict: dict) -> None:
           "Error occurred when setting log level for %s: %s", module_name, e)
 
 
-class CorruptMainSessionException(Exception):
+class LoadMainSessionException(Exception):
   """
-  Used to crash this worker if a main session file was provided but
-  is not valid.
+  Used to crash this worker if a main session file failed to load.
   """
   pass
 
@@ -325,7 +334,8 @@ def _load_main_session(semi_persistent_directory):
       # This can happen if the worker fails to download the main session.
       # Raise a fatal error and crash this worker, forcing a restart.
       if os.path.getsize(session_file) == 0:
-        raise CorruptMainSessionException(
+        # Potenitally transient error, unclear if still happening.
+        raise LoadMainSessionException(
             'Session file found, but empty: %s. Functions defined in __main__ '
             '(interactive session) will almost certainly fail.' %
             (session_file, ))

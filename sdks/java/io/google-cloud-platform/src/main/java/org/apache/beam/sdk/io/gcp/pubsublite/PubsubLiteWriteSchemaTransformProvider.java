@@ -33,6 +33,7 @@ import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -53,7 +54,9 @@ public class PubsubLiteWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         PubsubLiteWriteSchemaTransformProvider.PubsubLiteWriteSchemaTransformConfiguration> {
 
-  public static final Set<String> SUPPORTED_FORMATS = Sets.newHashSet("JSON", "AVRO");
+  public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
+  public static final Set<String> SUPPORTED_FORMATS =
+      Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteWriteSchemaTransformConfiguration>
@@ -141,12 +144,22 @@ public class PubsubLiteWriteSchemaTransformProvider
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class PubsubLiteWriteSchemaTransformConfiguration {
+    @SchemaFieldDescription(
+        "The GCP project where the Pubsub Lite reservation resides. This can be a "
+            + "project number of a project ID.")
     public abstract String getProject();
 
+    @SchemaFieldDescription("The region or zone where the Pubsub Lite reservation resides.")
     public abstract String getLocation();
 
+    @SchemaFieldDescription(
+        "The name of the topic to publish data into. This will be concatenated with "
+            + "the project and location parameters to build a full topic path.")
     public abstract String getTopicName();
 
+    @SchemaFieldDescription(
+        "The encoding format for the data stored in Pubsub Lite. Valid options are: "
+            + SUPPORTED_FORMATS_STR)
     public abstract String getFormat();
 
     public static Builder builder() {
