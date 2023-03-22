@@ -297,7 +297,7 @@ class DatastoreClient:
                 "cats": example.tag.categories,
                 "path": example.url_vcs,  # keep for backward-compatibity, to be removed
                 "type": api_pb2.PrecompiledObjectType.Name(example.type),
-                "always_run": example.tag.always_run,
+                "alwaysRun": example.tag.always_run,
                 "origin": origin,
                 "schVer": schema_key,
                 "urlVCS": example.url_vcs,
