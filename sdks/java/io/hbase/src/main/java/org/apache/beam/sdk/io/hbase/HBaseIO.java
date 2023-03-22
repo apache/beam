@@ -903,7 +903,9 @@ public class HBaseIO {
       private String tableId;
     }
 
+    @SuppressFBWarnings("SE_BAD_FIELD")
     private final Configuration configuration;
+
     private final String tableId;
 
     /** Function to write row mutations to a hbase table. */

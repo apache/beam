@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.hbase.utils;
 
 import java.nio.charset.StandardCharsets;
 
-/** <p><b>Internal only:</b> Constants used for testing purposes. */
+/** <b>Internal only:</b> Constants used for testing purposes. */
 public class TestConstants {
   // Base timestamp, assumed to be in milliseconds.
   public static long timeT = 123456000;
@@ -34,12 +34,4 @@ public class TestConstants {
   public static byte[] colFamily2 = "cf2".getBytes(StandardCharsets.UTF_8);
   public static byte[] colQualifier2 = "col2".getBytes(StandardCharsets.UTF_8);
   public static byte[] value2 = "long-value-2".getBytes(StandardCharsets.UTF_8);
-
-  // Variables for bidirectional replication.
-  public static String cbtQualifier = "SOURCE_CBT";
-  public static String hbaseQualifier = "SOURCE_HBASE";
-
-  // Bigtable change stream constants.
-  public static String testCluster = "test-cluster-1";
-  public static String testToken = "test-token";
 }

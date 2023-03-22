@@ -31,7 +31,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 
-/** <p><b>Internal only:</b> Hbase-related convenience functions. */
+/** <b>Internal only:</b> Hbase-related convenience functions. */
 public class TestHBaseUtils {
 
   public static byte[] getCell(Table table, byte[] rowKey, byte[] colFamily, byte[] colQualifier)

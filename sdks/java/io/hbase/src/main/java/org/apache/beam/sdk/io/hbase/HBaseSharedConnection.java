@@ -78,7 +78,7 @@ class HBaseSharedConnection implements Serializable {
 
   public String getDebugString() {
     return String.format(
-        "Connection down: %s\n" + "Connectors: %s\n",
+        "Connection down: %s%n" + "Connectors: %s%n",
         (connection == null || connection.isClosed()), connectionCount);
   }
 
