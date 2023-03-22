@@ -1503,7 +1503,7 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;li>
 &lt;p>&lt;strong>Tasks included&lt;/strong>&lt;/p>
 &lt;ol>
-&lt;li>Create a PR to trigger python validation job, including
+&lt;li>Create a PR to trigger Python validation job, including
 &lt;ul>
 &lt;li>Python quickstart in batch and streaming mode with direct runner and Dataflow runner.&lt;/li>
 &lt;li>Python Mobile Games(UserScore, HourlyTeamScore) with direct runner and Dataflow runner.&lt;/li>
@@ -1512,16 +1512,18 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;li>Run Python Streaming MobileGames, includes
 &lt;ul>
 &lt;li>Start a new terminal to run Java Pubsub injector.&lt;/li>
-&lt;li>Start a new terminal to run python LeaderBoard with Direct Runner.&lt;/li>
-&lt;li>Start a new terminal to run python LeaderBoard with Dataflow Runner.&lt;/li>
-&lt;li>Start a new terminal to run python GameStats with Direct Runner.&lt;/li>
-&lt;li>Start a new terminal to run python GameStats with Dataflow Runner.&lt;/li>
+&lt;li>Start a new terminal to run Python LeaderBoard with Direct Runner.&lt;/li>
+&lt;li>Start a new terminal to run Python LeaderBoard with Dataflow Runner.&lt;/li>
+&lt;li>Start a new terminal to run Python GameStats with Direct Runner.&lt;/li>
+&lt;li>Start a new terminal to run Python GameStats with Dataflow Runner.&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>Xlang validation, includes
+&lt;li>Multi-language pipelines validation, includes
 &lt;ul>
-&lt;li>Start a new terminal to run python xlang Java kafka validation with Dataflow Runner.&lt;/li>
-&lt;li>Start a new terminal to run python xlang Java sql validation with Dataflow Runner.&lt;/li>
+&lt;li>Running the Python quickstart example using Python portable DirectRunner. This will start a new terminal for the Java expansion service.&lt;/li>
+&lt;li>Running the Java quickstart example using Python portable DirectRunner. This will start new terminals for the Python expansion service and the job server.&lt;/li>
+&lt;li>Start a new terminal to run Python multi-language Java kafka validation with Dataflow Runner.&lt;/li>
+&lt;li>Start a new terminal to run Python multi-language Java sql validation with Dataflow Runner.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ol>
