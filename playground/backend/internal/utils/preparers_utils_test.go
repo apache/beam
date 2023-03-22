@@ -64,9 +64,6 @@ func setup() error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 	emptyFilePath := filepath.Join(sourceDir, emptyFileName)
 	err = os.WriteFile(emptyFilePath, []byte(""), filePermission)
 	if err != nil {
