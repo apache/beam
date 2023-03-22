@@ -123,6 +123,13 @@ task run(type: JavaExec) {
       dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     }
   }
+
+  if(isSparkRunner){
+    // Disable UI
+    systemProperty "spark.ui.enabled", "false"
+    systemProperty "spark.ui.showConsoleProgress", "false"
+  }
+
   mainClass = project.findProperty(mainClassProperty)
   classpath = configurations.gradleRun
   args loadTestArgsList.toArray()

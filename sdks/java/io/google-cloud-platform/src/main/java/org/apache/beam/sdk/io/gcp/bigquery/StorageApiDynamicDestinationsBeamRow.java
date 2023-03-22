@@ -62,9 +62,9 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
 
     @Override
     @SuppressWarnings("nullness")
-    public StorageApiWritePayload toMessage(T element) {
+    public StorageApiWritePayload toMessage(T element) throws Exception {
       Message msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, toRow.apply(element));
-      return new AutoValue_StorageApiWritePayload(msg.toByteArray(), null);
+      return StorageApiWritePayload.of(msg.toByteArray(), null);
     }
 
     @Override

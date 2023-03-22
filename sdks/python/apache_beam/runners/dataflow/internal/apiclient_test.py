@@ -826,6 +826,25 @@ class UtilTest(unittest.TestCase):
     self.assertEqual('key5', job.proto.labels.additionalProperties[4].key)
     self.assertEqual('', job.proto.labels.additionalProperties[4].value)
 
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--labels',
+        '{ "name": "wrench", "mass": "1_3kg", "count": "3" }'
+    ])
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
+    self.assertEqual(3, len(job.proto.labels.additionalProperties))
+    self.assertEqual('name', job.proto.labels.additionalProperties[0].key)
+    self.assertEqual('wrench', job.proto.labels.additionalProperties[0].value)
+    self.assertEqual('mass', job.proto.labels.additionalProperties[1].key)
+    self.assertEqual('1_3kg', job.proto.labels.additionalProperties[1].value)
+    self.assertEqual('count', job.proto.labels.additionalProperties[2].key)
+    self.assertEqual('3', job.proto.labels.additionalProperties[2].value)
+
   def test_experiment_use_multiple_sdk_containers(self):
     pipeline_options = PipelineOptions([
         '--project',
