@@ -134,7 +134,7 @@ def generate_urn_files(out_dir, api_path):
   else:
     raise TypeError(
         "Unknown proto implementation: " + api_implementation.Type())
-  list_types = (
+  repeated_types = (
       list,
       impl.RepeatedScalarFieldContainer,
       impl.RepeatedCompositeFieldContainer)
@@ -188,7 +188,7 @@ def generate_urn_files(out_dir, api_path):
     def python_repr(self, obj):
       if isinstance(obj, message.Message):
         return self.message_repr(obj)
-      elif isinstance(obj, list_types):
+      elif isinstance(obj, repeated_types):
         return '[%s]' % ', '.join(self.python_repr(x) for x in obj)
       else:
         return repr(obj)
