@@ -1338,7 +1338,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               .build();
 
       StreamWriter streamWriter =
-          StreamWriter.newBuilder(streamName)
+          StreamWriter.newBuilder(streamName, newWriteClient)
               .setExecutorProvider(
                   FixedExecutorProvider.create(
                       options.as(ExecutorOptions.class).getScheduledExecutorService()))
@@ -1514,9 +1514,18 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   private static BigQueryWriteClient newBigQueryWriteClient(BigQueryOptions options) {
     try {
+      TransportChannelProvider transportChannelProvider =
+          BigQueryWriteSettings.defaultGrpcTransportProviderBuilder()
+              .setKeepAliveTime(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveTimeout(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveWithoutCalls(true)
+              .setChannelsPerCpu(2)
+              .build();
+
       return BigQueryWriteClient.create(
           BigQueryWriteSettings.newBuilder()
               .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
+              .setTransportChannelProvider(transportChannelProvider)
               .setBackgroundExecutorProvider(
                   FixedExecutorProvider.create(
                       options.as(ExecutorOptions.class).getScheduledExecutorService()))

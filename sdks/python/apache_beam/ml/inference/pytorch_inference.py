@@ -97,7 +97,7 @@ def _load_model(
         "Loading state_dict_path %s onto a %s device", state_dict_path, device)
     if not torch_script_model_path:
       file = FileSystems.open(state_dict_path, 'rb')
-      model = model_class(**model_params)  # type: ignore[misc]
+      model = model_class(**model_params)  # type: ignore[arg-type,misc]
       state_dict = torch.load(file, map_location=device)
       model.load_state_dict(state_dict)
     else:
@@ -380,7 +380,7 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
         batched_tensors = torch.stack(key_to_tensor_list[key])
         batched_tensors = _convert_to_device(batched_tensors, device)
         key_to_batched_tensors[key] = batched_tensors
-        pred_fn = getattr(model, model_fn)
+      pred_fn = getattr(model, model_fn)
       predictions = pred_fn(**key_to_batched_tensors, **inference_args)
     return utils._convert_to_result(batch, predictions, model_id)
 

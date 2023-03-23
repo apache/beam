@@ -29,7 +29,10 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -40,6 +43,17 @@ public class OutputSamplerTest {
     VarIntCoder coder = VarIntCoder.of();
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     coder.encode(i, stream);
+    return BeamFnApi.SampledElement.newBuilder()
+        .setElement(ByteString.copyFrom(stream.toByteArray()))
+        .build();
+  }
+
+  public BeamFnApi.SampledElement encodeGlobalWindowedInt(Integer i) throws IOException {
+    WindowedValue.WindowedValueCoder<Integer> coder =
+        WindowedValue.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
+
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    coder.encode(WindowedValue.valueInGlobalWindow(i), stream);
     return BeamFnApi.SampledElement.newBuilder()
         .setElement(ByteString.copyFrom(stream.toByteArray()))
         .build();
@@ -57,7 +71,7 @@ public class OutputSamplerTest {
 
     // Purposely go over maxSamples and sampleEveryN. This helps to increase confidence.
     for (int i = 0; i < 15; ++i) {
-      outputSampler.sample(i);
+      outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
     }
 
     // The expected list is only 0..9 inclusive.
@@ -66,6 +80,33 @@ public class OutputSamplerTest {
       expected.add(encodeInt(i));
     }
 
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  @Test
+  public void testWindowedValueSample() throws Exception {
+    WindowedValue.WindowedValueCoder<Integer> coder =
+        WindowedValue.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
+
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
+    outputSampler.sample(WindowedValue.valueInGlobalWindow(0));
+
+    // The expected list is only 0..9 inclusive.
+    List<BeamFnApi.SampledElement> expected = ImmutableList.of(encodeGlobalWindowedInt(0));
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  @Test
+  public void testNonWindowedValueSample() throws Exception {
+    VarIntCoder coder = VarIntCoder.of();
+
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
+    outputSampler.sample(WindowedValue.valueInGlobalWindow(0));
+
+    // The expected list is only 0..9 inclusive.
+    List<BeamFnApi.SampledElement> expected = ImmutableList.of(encodeInt(0));
     List<BeamFnApi.SampledElement> samples = outputSampler.samples();
     assertThat(samples, containsInAnyOrder(expected.toArray()));
   }
@@ -81,7 +122,7 @@ public class OutputSamplerTest {
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
 
     for (int i = 0; i < 100; ++i) {
-      outputSampler.sample(i);
+      outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
     }
 
     // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
@@ -124,7 +165,7 @@ public class OutputSamplerTest {
               }
 
               for (int i = 0; i < 1000000; i++) {
-                outputSampler.sample(i);
+                outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
               }
 
               doneSignal.countDown();
@@ -141,7 +182,7 @@ public class OutputSamplerTest {
               }
 
               for (int i = -1000000; i < 0; i++) {
-                outputSampler.sample(i);
+                outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
               }
 
               doneSignal.countDown();

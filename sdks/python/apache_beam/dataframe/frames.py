@@ -49,10 +49,12 @@ from pandas.api.types import is_int64_dtype
 from pandas.api.types import is_list_like
 from pandas.core.groupby.generic import DataFrameGroupBy
 
+from apache_beam.dataframe import convert
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import io
 from apache_beam.dataframe import partitionings
+from apache_beam.transforms import PTransform
 
 __all__ = [
     'DeferredSeries',
@@ -5393,6 +5395,24 @@ for base in ['add',
         inplace_name,
         frame_base._elementwise_method(inplace_name, inplace=True,
                                        base=pd.DataFrame))
+
+# Allow dataframe | SchemaTransform
+def _create_maybe_elementwise_or(base):
+  elementwise = frame_base._elementwise_method(
+      '__or__', restrictions={'level': None}, base=base)
+
+  def _maybe_elementwise_or(self, right):
+    if isinstance(right, PTransform):
+      return convert.to_dataframe(convert.to_pcollection(self) | right)
+    else:
+      return elementwise(self, right)
+
+  return _maybe_elementwise_or
+
+
+DeferredSeries.__or__ = _create_maybe_elementwise_or(pd.Series)  # type: ignore
+DeferredDataFrame.__or__ = _create_maybe_elementwise_or(pd.DataFrame)  # type: ignore
+
 
 for name in ['lt', 'le', 'gt', 'ge', 'eq', 'ne']:
   for p in '%s', '__%s__':
