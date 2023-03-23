@@ -68,7 +68,7 @@
 ## Breaking Changes
 
 * If a main session fails to load, the pipeline will now fail at worker startup. ([#25401](https://github.com/apache/beam/issues/25401)).
-* Python Pipelines will now ignore flags with single dash.  ([#25943](https://github.com/apache/beam/issues/25943)).
+* Python pipeline options will now ignore unparsed command line flags prefixed with a single dash. ([#25943](https://github.com/apache/beam/issues/25943)).
 
 ## Deprecations
 
