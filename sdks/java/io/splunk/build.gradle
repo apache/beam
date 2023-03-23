@@ -40,7 +40,7 @@ dependencies {
     testImplementation library.java.junit
     testImplementation group: 'org.mock-server', name: 'mockserver-junit-rule', version: '5.10.0'
     testImplementation group: 'org.mock-server', name: 'mockserver-client-java', version: '5.10.0'
-    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.6.2'
+    testImplementation library.java.jupiter_api
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
