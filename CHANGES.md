@@ -67,6 +67,8 @@
 * Schema'd PTransforms can now be directly applied to Beam dataframes just like PCollections.
   (Note that when doing multiple operations, it may be more efficient to explicitly chain the operations
   like `df | (Transform1 | Transform2 | ...)` to avoid excessive conversions.)
+* The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support 
+  for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
 
 ## Breaking Changes
 
