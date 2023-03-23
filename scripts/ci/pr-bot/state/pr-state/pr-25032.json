@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "damccorm",
-    "java": "kennknowles",
-    "go": "damccorm"
+    "python": "jrmccluskey",
+    "java": "robertwb",
+    "go": "riteshghorse"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
