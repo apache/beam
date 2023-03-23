@@ -33,7 +33,7 @@ import org.apache.parquet.Strings;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class FileReadSchemaTransformConfiguration {
-  static final Set<String> VALID_FORMATS = Sets.newHashSet("avro");
+  static final Set<String> VALID_FORMATS = Sets.newHashSet("avro", "parquet");
 
   public void validate() {
     checkArgument(
