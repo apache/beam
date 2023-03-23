@@ -18,6 +18,45 @@
 
 import PrecommitJobBuilder
 
+def excludePaths = [
+  'sdks/java/extensions/sql',
+  'sdks/java/io/amazon-web-services',
+  'sdks/java/io/amazon-web-services2$',
+  'sdks/java/io/amqp',
+  'sdks/java/io/azure',
+  'sdks/java/io/cassandra',
+  'sdks/java/io/cdap',
+  'sdks/java/io/clickhouse',
+  'sdks/java/io/debezium',
+  'sdks/java/io/elasticsearch',
+  'sdks/java/io/elasticsearch-tests',
+  'sdks/java/io/google-cloud-platform',
+  'sdks/java/io/hadoop-common',
+  'sdks/java/io/hadoop-file-system',
+  'sdks/java/io/hadoop-format',
+  'sdks/java/io/hbase',
+  'sdks/java/io/hcatalog',
+  'sdks/java/io/influxdb',
+  'sdks/java/io/jdbc',
+  'sdks/java/io/jms',
+  'sdks/java/io/kafka',
+  'sdks/java/io/kinesis',
+  'sdks/java/io/kudu',
+  'sdks/java/io/mqtt',
+  'sdks/java/io/mongodb',
+  'sdks/java/io/neo4j',
+  'sdks/java/io/parquet',
+  'sdks/java/io/pulsar',
+  'sdks/java/io/rabbitmq',
+  'sdks/java/io/redis',
+  'sdks/java/io/singlestore',
+  'sdks/java/io/snowflake',
+  'sdks/java/io/solr',
+  'sdks/java/io/splunk',
+  'sdks/java/io/thrift',
+  'sdks/java/io/tika',
+]
+
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java',
@@ -35,44 +74,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^examples/kotlin/.*$',
       '^release/.*$',
     ],
-    excludePathPatterns: [
-      '^sdks/java/extensions/sql/.*$',
-      '^sdks/java/io/amazon-web-services/.*$',
-      '^sdks/java/io/amazon-web-services2/.*$',
-      '^sdks/java/io/amqp/.*$',
-      '^sdks/java/io/azure/.*$',
-      '^sdks/java/io/cassandra/.*$',
-      '^sdks/java/io/cdap/.*$',
-      '^sdks/java/io/clickhouse/.*$',
-      '^sdks/java/io/debezium/.*$',
-      '^sdks/java/io/elasticsearch/.*$',
-      '^sdks/java/io/elasticsearch-tests/.*$',
-      '^sdks/java/io/google-cloud-platform/.*$',
-      '^sdks/java/io/hadoop-common/.*$',
-      '^sdks/java/io/hadoop-file-system/.*$',
-      '^sdks/java/io/hadoop-format/.*$',
-      '^sdks/java/io/hbase/.*$',
-      '^sdks/java/io/hcatalog/.*$',
-      '^sdks/java/io/influxdb/.*$',
-      '^sdks/java/io/jdbc/.*$',
-      '^sdks/java/io/jms/.*$',
-      '^sdks/java/io/kafka/.*$',
-      '^sdks/java/io/kinesis/.*$',
-      '^sdks/java/io/kudu/.*$',
-      '^sdks/java/io/mqtt/.*$',
-      '^sdks/java/io/mongodb/.*$',
-      '^sdks/java/io/neo4j/.*$',
-      '^sdks/java/io/parquet/.*$',
-      '^sdks/java/io/pulsar/.*$',
-      '^sdks/java/io/rabbitmq/.*$',
-      '^sdks/java/io/redis/.*$',
-      '^sdks/java/io/singlestore/.*$',
-      '^sdks/java/io/snowflake/.*$',
-      '^sdks/java/io/solr/.*$',
-      '^sdks/java/io/splunk/.*$',
-      '^sdks/java/io/thrift/.*$',
-      '^sdks/java/io/tika/.*$',
-    ]
+    excludePathPatterns: excludePaths.collect {entry ->
+      "^$entry/.*\$"}
     )
 builder.build {
   publishers {
@@ -90,7 +93,8 @@ builder.build {
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
       exclusionPattern('**/org/apache/beam/gradle/**,**/org/apache/beam/model/**,' +
-          '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*')
+          '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*,' +
+          excludePaths.collect {entry -> "**/$entry/**" }.join(",") )
     }
   }
 }
