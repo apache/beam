@@ -68,7 +68,6 @@ sudo apt-get install sbt
 # Available Gradle Tasks
 
 ## Perform overall pre-commit checks
-> **Google Cloud Shell note:** run `unset GOOGLE_CLOUD_PROJECT` before running tests so they would use locally running datastore emulator.
 
 ```
 cd beam
