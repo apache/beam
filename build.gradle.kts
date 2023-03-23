@@ -488,7 +488,6 @@ tasks.register("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:inferencePostCommitIT")
 }
 
 tasks.register("python38PostCommit") {
@@ -498,6 +497,7 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
   // TODO: https://github.com/apache/beam/issues/22651
   dependsOn(":sdks:python:test-suites:dataflow:py38:inferencePostCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py38:inferencePostCommitIT")
 }
 
 tasks.register("python39PostCommit") {
