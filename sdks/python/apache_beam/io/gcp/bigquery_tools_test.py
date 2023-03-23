@@ -27,7 +27,6 @@ import re
 import unittest
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import fastavro
 import mock
@@ -792,6 +791,7 @@ class TestCheckSchemaEqual(unittest.TestCase):
         check_schema_equal(schema1, schema2, ignore_descriptions=True))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBeamRowFromDict(unittest.TestCase):
   DICT_ROW = {
       "str": "a",
@@ -938,6 +938,7 @@ class TestBeamRowFromDict(unittest.TestCase):
     self.assertEqual(expected_beam_row, beam_row_from_dict(dict_row, schema))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBeamTypehintFromSchema(unittest.TestCase):
   EXPECTED_TYPEHINTS = [("str", str), ("bool", bool), ("bytes", bytes),
                         ("int", np.int64), ("float", np.float64),
