@@ -45,7 +45,7 @@ class PostProcessor(beam.DoFn):
     )
     imagenet_labels = numpy.array(open(labels_path).read().splitlines())
     predicted_class_name = imagenet_labels[predicted_class]
-    return predicted_class_name.title()
+    yield predicted_class_name.title()
 
 
 def parse_known_args(argv):
