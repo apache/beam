@@ -355,6 +355,9 @@ class PipelineOptions(HasDisplayData):
           # ex: using -f instead of --f (or --flexrs_goal) will prevent
           # argument validation before job submission and can be incorrectly
           # submitted to job.
+          _LOGGER.warning(
+              "Discarding flag %s, single dash flags are not allowed.",
+              unknown_args[i])
           i += 2
           continue
       parsed_args, _ = parser.parse_known_args(self._flags)
