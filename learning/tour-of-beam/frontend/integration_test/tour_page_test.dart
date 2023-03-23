@@ -44,13 +44,29 @@ void main() {
       await wt.tapAndSettle(find.text(Sdk.java.title));
       await wt.tapAndSettle(find.startTourButton());
 
-      await _checkContentTreeBuildsProperly(wt);
       await _checkUnitContentLoadsProperly(wt);
+      await _checkContentTreeBuildsProperly(wt);
       await _checkContentTreeScrollsProperly(wt);
       await _checkHighlightsSelectedUnit(wt);
       await _checkRunCodeWorks(wt);
       await _checkResizeUnitContent(wt);
     },
+  );
+}
+
+Future<void> _checkUnitContentLoadsProperly(WidgetTester wt) async {
+  final modules = _getModules(wt);
+
+  final unit = modules.first.getFirstUnit();
+
+  await wt.tapAndSettle(find.byKey(Key(unit.id)));
+
+  expect(
+    find.descendant(
+      of: find.byType(UnitContentWidget),
+      matching: find.text(unit.title),
+    ),
+    findsOneWidget,
   );
 }
 
@@ -91,26 +107,11 @@ void _checkNode(NodeModel node) {
 }
 
 Future<void> _checkGroup(GroupModel group, WidgetTester wt) async {
-  final contentTreeController = getContentTreeController(wt);
-  contentTreeController.expandGroup(group);
+  await wt.ensureVisible(find.byKey(Key(group.id)));
+  await wt.tapAndSettle(find.byKey(Key(group.id)));
+
   await wt.pumpAndSettle();
   group.nodes.forEach(_checkNode);
-}
-
-Future<void> _checkUnitContentLoadsProperly(WidgetTester wt) async {
-  final modules = _getModules(wt);
-
-  final unit = modules.first.getFirstUnit();
-
-  await wt.tapAndSettle(find.byKey(Key(unit.id)));
-
-  expect(
-    find.descendant(
-      of: find.byType(UnitContentWidget),
-      matching: find.text(unit.title),
-    ),
-    findsOneWidget,
-  );
 }
 
 Future<void> _checkContentTreeScrollsProperly(WidgetTester wt) async {
@@ -149,21 +150,6 @@ Future<void> _checkHighlightsSelectedUnit(WidgetTester wt) async {
   );
 }
 
-Future<void> _checkResizeUnitContent(WidgetTester wt) async {
-  var dragHandleFinder = find.byKey(TourScreen.dragHandleKey);
-
-  final startHandlePosition = wt.getCenter(dragHandleFinder);
-
-  await wt.drag(dragHandleFinder, const Offset(100, 0));
-  await wt.pumpAndSettle();
-
-  dragHandleFinder = find.byKey(TourScreen.dragHandleKey);
-
-  final movedHandlePosition = wt.getCenter(dragHandleFinder);
-
-  expectSimilar(startHandlePosition.dx, movedHandlePosition.dx - 100);
-}
-
 Future<void> _checkRunCodeWorks(WidgetTester wt) async {
   const text = 'OK';
   const code = '''
@@ -199,6 +185,21 @@ Future<void> _runAndCancelExample(WidgetTester wt, Duration duration) async {
     playgroundController.codeRunner.resultLogOutput,
     contains('Pipeline cancelled'),
   );
+}
+
+Future<void> _checkResizeUnitContent(WidgetTester wt) async {
+  var dragHandleFinder = find.byKey(TourScreen.dragHandleKey);
+
+  final startHandlePosition = wt.getCenter(dragHandleFinder);
+
+  await wt.drag(dragHandleFinder, const Offset(100, 0));
+  await wt.pumpAndSettle();
+
+  dragHandleFinder = find.byKey(TourScreen.dragHandleKey);
+
+  final movedHandlePosition = wt.getCenter(dragHandleFinder);
+
+  expectSimilar(startHandlePosition.dx, movedHandlePosition.dx - 100);
 }
 
 PlaygroundController _getPlaygroundController(WidgetTester wt) {
