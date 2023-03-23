@@ -27,14 +27,14 @@ from typing import Any
 from typing import Dict
 from typing import Tuple
 
+from google.cloud import storage
+
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.internal.gcp import auth
-from apache_beam.internal.http_client import get_new_http
-from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -452,13 +452,9 @@ def assert_bucket_exists(bucket_name):
   """
   try:
     from apitools.base.py.exceptions import HttpError
-    storage_client = storage.StorageV1(
-        credentials=auth.get_service_credentials(PipelineOptions()),
-        get_credentials=False,
-        http=get_new_http(),
-        response_encoding='utf8')
-    request = storage.StorageBucketsGetRequest(bucket=bucket_name)
-    storage_client.buckets.Get(request)
+    storage_client = storage.Client(
+        credentials=auth.get_service_credentials(PipelineOptions()))
+    storage_client.get_bucket(bucket_name)
   except HttpError as e:
     if e.status_code == 404:
       _LOGGER.error('%s bucket does not exist!', bucket_name)
