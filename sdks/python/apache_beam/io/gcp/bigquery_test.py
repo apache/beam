@@ -1351,7 +1351,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               ignore_insert_ids=False,
               ignore_unknown_columns=False,
               with_auto_sharding=False,
-              test_client=client))
+              test_client=client,
+              num_streaming_keys=500))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       self.assertEqual(json.load(f1), json.load(f2))
@@ -1447,7 +1448,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
                 ignore_insert_ids=False,
                 ignore_unknown_columns=False,
                 with_auto_sharding=False,
-                test_client=client))
+                test_client=client,
+                num_streaming_keys=500))
 
         failed_values = (
             bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
@@ -1523,7 +1525,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
                 ignore_unknown_columns=False,
                 with_auto_sharding=False,
                 test_client=client,
-                max_retries=10))
+                max_retries=10,
+                num_streaming_keys=500))
 
         failed_values = (
             bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS]
@@ -1589,7 +1592,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               ignore_insert_ids=False,
               ignore_unknown_columns=False,
               with_auto_sharding=with_auto_sharding,
-              test_client=client))
+              test_client=client,
+              num_streaming_keys=500))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       out1 = json.load(f1)
