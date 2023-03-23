@@ -2458,18 +2458,6 @@ class StorageWriteToBigQuery(PTransform):
         self._expansion_service, self.URN)
 
   def expand(self, input):
-    opts = input.pipeline.options.view_as(StandardOptions)
-    # TODO(https://github.com/apache/beam/issues/21307): Add support for
-    # OnWindowExpiration to more runners. Storage Write API requires
-    # `beam:requirement:pardo:on_window_expiration:v1` when unbounded
-    streaming_runners = ['DataflowRunner', 'TestDataflowRunner']
-    if not input.is_bounded and opts.runner not in streaming_runners:
-      raise NotImplementedError(
-          "Storage API Streaming Writes via xlang is not yet available for %s."
-          " Available runners are %s",
-          opts.runner,
-          streaming_runners)
-
     external_storage_write = SchemaAwareExternalTransform(
         identifier=self.schematransform_config.identifier,
         expansion_service=self._expansion_service,

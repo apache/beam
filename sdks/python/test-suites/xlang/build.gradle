@@ -43,6 +43,9 @@ def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
 def xlangTasks = []
 
 // ******** Java GCP expansion service ********
+// Note: this only runs cross-language tests that use the Java GCP expansion service
+// To run tests that use another expansion service, create a new CrossLanguageTaskCommon with the
+// relevant fields as done here, then add it to `xlangTasks`.
 def gcpExpansionProject = project.project(':sdks:java:io:google-cloud-platform:expansion-service')
 // Properties that are common across runners.
 // Used to launch the expansion service, collect the right tests, and cleanup afterwards
@@ -55,10 +58,5 @@ def gcpXlangCommon = new CrossLanguageTaskCommon().tap {
 }
 xlangTasks.add(gcpXlangCommon)
 
-// ******** Java _____ expansion service ********
-// Create a new CrossLanguageTaskCommon() object for the specified expansion service and add it to xlangTasks
-
-// ******** Java _____ expansion service ********
-// Create a new CrossLanguageTaskCommon() object for the specified expansion service and add it to xlangTasks
 
 ext.xlangTasks = xlangTasks

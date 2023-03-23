@@ -107,6 +107,8 @@ _PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
 _DATASET_PATTERN = r'\w{1,1024}'
 _TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
 
+# TODO(https://github.com/apache/beam/issues/25946): Add support for
+# more Beam portable schema types as Python types
 BIGQUERY_TYPE_TO_PYTHON_TYPE = {
     "STRING": str,
     "BOOL": bool,
@@ -1552,9 +1554,9 @@ bigquery_v2_messages.TableSchema):
   for col_name, value in row.items():
     # get this column's schema field and handle struct types
     field = schema_fields[col_name]
-    if field.type in ["RECORD", "STRUCT"]:
+    if field.type.upper() in ["RECORD", "STRUCT"]:
       # if this is a list of records, we create a list of Beam Rows
-      if field.mode == "REPEATED":
+      if field.mode.upper() == "REPEATED":
         list_of_beam_rows = []
         for record in value:
           list_of_beam_rows.append(beam_row_from_dict(record, field))
@@ -1703,7 +1705,7 @@ bigquery_v2_messages.TableSchema):
     schema = get_bq_tableschema(schema)
   typehints = []
   for field in schema.fields:
-    name, field_type, mode = field.name, field.type, field.mode
+    name, field_type, mode = field.name, field.type.upper(), field.mode.upper()
 
     if field_type in ["STRUCT", "RECORD"]:
       # Structs can be represented as Beam Rows.
