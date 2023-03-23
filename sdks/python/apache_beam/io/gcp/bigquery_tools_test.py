@@ -24,10 +24,10 @@ import json
 import logging
 import math
 import re
+import unittest
 from typing import Optional
 from typing import Sequence
 from typing import Union
-import unittest
 
 import fastavro
 import mock
@@ -44,8 +44,8 @@ from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
 from apache_beam.io.gcp.bigquery_tools import check_schema_equal
-from apache_beam.io.gcp.bigquery_tools import get_beam_typehints_from_tableschema
 from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
+from apache_beam.io.gcp.bigquery_tools import get_beam_typehints_from_tableschema
 from apache_beam.io.gcp.bigquery_tools import parse_table_reference
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
