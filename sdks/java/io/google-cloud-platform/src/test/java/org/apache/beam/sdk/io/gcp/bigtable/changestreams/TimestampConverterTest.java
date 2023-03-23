@@ -17,28 +17,22 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toJodaTime;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toThreetenInstant;
 import static org.junit.Assert.assertEquals;
 
-import org.joda.time.Instant;
 import org.junit.Test;
 
 public class TimestampConverterTest {
-
   @Test
-  public void testCloudTimestampTotoInstant() {
-    int nanos = 123000000; // 123 ms
-    com.google.cloud.Timestamp timestamp =
-        com.google.cloud.Timestamp.ofTimeSecondsAndNanos(1000, nanos);
-    Instant instant = TimestampConverter.toInstant(timestamp);
-    assertEquals(1000123, instant.getMillis());
+  public void testToThreetenInstant() {
+    org.joda.time.Instant jodaInstant = org.joda.time.Instant.ofEpochMilli(1_000_000_000L);
+    assertEquals(1_000_000_000L, toThreetenInstant(jodaInstant).toEpochMilli());
   }
 
   @Test
-  public void testProtoTimestampTotoInstant() {
-    int nanos = 123000000; // 123 ms
-    com.google.protobuf.Timestamp timestamp =
-        com.google.protobuf.Timestamp.newBuilder().setSeconds(1000).setNanos(nanos).build();
-    Instant instant = TimestampConverter.toInstant(timestamp);
-    assertEquals(1000123, instant.getMillis());
+  public void testToJodaInstant() {
+    org.threeten.bp.Instant threetenInstant = org.threeten.bp.Instant.ofEpochMilli(1_000_000_000L);
+    assertEquals(1_000_000_000L, toJodaTime(threetenInstant).getMillis());
   }
 }

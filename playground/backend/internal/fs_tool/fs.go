@@ -18,12 +18,9 @@ package fs_tool
 import (
 	"beam.apache.org/playground/backend/internal/logger"
 	"fmt"
-	"io"
+	"github.com/google/uuid"
 	"io/fs"
 	"os"
-	"path/filepath"
-
-	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
@@ -110,37 +107,6 @@ func (lc *LifeCycle) CreateSourceCodeFiles(sources []entity.FileEntity) error {
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// CopyFile copies a file with fileName from sourceDir to destinationDir.
-func (lc *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
-	absSourcePath := filepath.Join(sourceDir, fileName)
-	absDestinationPath := filepath.Join(destinationDir, fileName)
-	sourceFileStat, err := os.Stat(absSourcePath)
-	if err != nil {
-		return err
-	}
-
-	if !sourceFileStat.Mode().IsRegular() {
-		return fmt.Errorf("%s is not a regular file", fileName)
-	}
-
-	sourceFile, err := os.Open(absSourcePath)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destinationFile, err := os.Create(absDestinationPath)
-	if err != nil {
-		return err
-	}
-	defer destinationFile.Close()
-	_, err = io.Copy(destinationFile, sourceFile)
-	if err != nil {
-		return err
 	}
 	return nil
 }

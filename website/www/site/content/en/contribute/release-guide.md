@@ -846,18 +846,20 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
       ```
 
 * **Tasks included**
-  1. Create a PR to trigger python validation job, including
+  1. Create a PR to trigger Python validation job, including
      * Python quickstart in batch and streaming mode with direct runner and Dataflow runner.
      * Python Mobile Games(UserScore, HourlyTeamScore) with direct runner and Dataflow runner.
   1. Run Python Streaming MobileGames, includes
      * Start a new terminal to run Java Pubsub injector.
-     * Start a new terminal to run python LeaderBoard with Direct Runner.
-     * Start a new terminal to run python LeaderBoard with Dataflow Runner.
-     * Start a new terminal to run python GameStats with Direct Runner.
-     * Start a new terminal to run python GameStats with Dataflow Runner.
-  1. Xlang validation, includes
-     * Start a new terminal to run python xlang Java kafka validation with Dataflow Runner.
-     * Start a new terminal to run python xlang Java sql validation with Dataflow Runner.
+     * Start a new terminal to run Python LeaderBoard with Direct Runner.
+     * Start a new terminal to run Python LeaderBoard with Dataflow Runner.
+     * Start a new terminal to run Python GameStats with Direct Runner.
+     * Start a new terminal to run Python GameStats with Dataflow Runner.
+  1. Multi-language pipelines validation, includes
+     * Running the Python quickstart example using Python portable DirectRunner. This will start a new terminal for the Java expansion service.
+     * Running the Java quickstart example using Python portable DirectRunner. This will start new terminals for the Python expansion service and the job server.
+     * Start a new terminal to run Python multi-language Java kafka validation with Dataflow Runner.
+     * Start a new terminal to run Python multi-language Java sql validation with Dataflow Runner.
 
 * **Tasks you need to do manually**
   1. Check whether validations succeed by following console output instructions.
