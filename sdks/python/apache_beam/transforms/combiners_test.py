@@ -191,14 +191,18 @@ class CombineTest(unittest.TestCase):
                      | combine.Top.Of(3, key=len, reverse=True),
                      [['c', 'aa', 'bbb']])
 
-    self.assertEqual(['xc', 'zb', 'yd' ,'wa'] | combine.Top.Largest(3, key=lambda x: x[-1]),
+    self.assertEqual(['xc', 'zb', 'yd', 'wa']
+                     | combine.Top.Largest(3, key=lambda x: x[-1]),
                      [['yd', 'xc', 'zb']])
-    self.assertEqual(['xc', 'zb', 'yd' ,'wa'] | combine.Top.Smallest(3, key=lambda x: x[-1]),
+    self.assertEqual(['xc', 'zb', 'yd', 'wa']
+                     | combine.Top.Smallest(3, key=lambda x: x[-1]),
                      [['wa', 'zb', 'xc']])
 
-    self.assertEqual([('a', x) for x in [1, 2, 3, 4, 1, 1]] | combine.Top.LargestPerKey(3, key=lambda x: -x),
+    self.assertEqual([('a', x) for x in [1, 2, 3, 4, 1, 1]]
+                     | combine.Top.LargestPerKey(3, key=lambda x: -x),
                      [('a', [1, 1, 1])])
-    self.assertEqual([('a', x) for x in [1, 2, 3, 4, 1, 1]] | combine.Top.SmallestPerKey(3, key=lambda x: -x),
+    self.assertEqual([('a', x) for x in [1, 2, 3, 4, 1, 1]]
+                     | combine.Top.SmallestPerKey(3, key=lambda x: -x),
                      [('a', [4, 3, 2])])
 
   def test_sharded_top_combine_fn(self):
