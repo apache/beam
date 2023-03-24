@@ -22,6 +22,7 @@ import 'package:hive/hive.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../constants/hive_box_names.dart';
+import '../../enums/snippet_type.dart';
 import '../../models/unit_progress.dart';
 import '../models/get_user_progress_response.dart';
 import 'abstract.dart';
@@ -69,12 +70,13 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
   Future<void> saveUnitSnippet({
     required Sdk sdk,
     required List<SnippetFile> snippetFiles,
+    required SnippetType snippetType,
     required String unitId,
   }) async {
     final snippetsBox = await Hive.openBox(
       HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.snippets),
     );
-    final snippetId = 'local_$unitId';
+    final snippetId = 'local_${snippetType.name}_$unitId';
 
     await _saveUnitProgressIfNot(
       sdk: sdk,

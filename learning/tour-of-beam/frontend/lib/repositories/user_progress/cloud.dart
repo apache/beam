@@ -19,6 +19,7 @@
 import 'package:collection/collection.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../enums/snippet_type.dart';
 import '../client/client.dart';
 import '../models/get_user_progress_response.dart';
 import 'abstract.dart';
@@ -63,6 +64,7 @@ class CloudUserProgressRepository extends AbstractUserProgressRepository {
     required Sdk sdk,
     required List<SnippetFile> snippetFiles,
     required String unitId,
+    required SnippetType? snippetType,
   }) async {
     await client.postUserCode(
       snippetFiles: snippetFiles,

@@ -18,6 +18,7 @@
 
 import 'package:playground_components/playground_components.dart';
 
+import '../../enums/snippet_type.dart';
 import '../models/get_user_progress_response.dart';
 
 abstract class AbstractUserProgressRepository {
@@ -33,6 +34,7 @@ abstract class AbstractUserProgressRepository {
   Future<void> saveUnitSnippet({
     required Sdk sdk,
     required List<SnippetFile> snippetFiles,
+    required SnippetType snippetType,
     required String unitId,
   });
 

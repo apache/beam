@@ -23,6 +23,7 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../auth/notifier.dart';
+import '../enums/snippet_type.dart';
 import '../enums/unit_completion.dart';
 import '../models/unit_progress.dart';
 import '../repositories/client/client.dart';
@@ -89,10 +90,7 @@ class UnitProgressCache extends ChangeNotifier {
 
   // Completion
 
-  Future<void> completeUnit(String? sdkId, String? unitId) async {
-    if (sdkId == null || unitId == null) {
-      return;
-    }
+  Future<void> completeUnit(String sdkId, String unitId) async {
     try {
       addUpdatingUnitId(unitId);
       await _getUserProgressRepository().completeUnit(sdkId, unitId);
@@ -155,18 +153,20 @@ class UnitProgressCache extends ChangeNotifier {
 
   // Snippet
 
-  bool hasSavedSnippet(String? sdkId, String? unitId) {
+  bool hasSavedSnippet(String? unitId) {
     return _unitProgressByUnitId[unitId]?.userSnippetId != null;
   }
 
   Future<void> saveSnippet({
     required Sdk sdk,
     required List<SnippetFile> snippetFiles,
+    required SnippetType snippetType,
     required String unitId,
   }) async {
     await _getUserProgressRepository().saveUnitSnippet(
       sdk: sdk,
       snippetFiles: snippetFiles,
+      snippetType: snippetType,
       unitId: unitId,
     );
   }

@@ -29,9 +29,13 @@ class CompleteUnitButton extends StatelessWidget {
   const CompleteUnitButton(this.tourNotifier);
 
   Future<void> _onPressed() async {
+    final unitId = tourNotifier.currentUnitId;
+    if (unitId == null) {
+      return;
+    }
     await GetIt.instance.get<UnitProgressCache>().completeUnit(
           tourNotifier.currentSdk.id,
-          tourNotifier.currentUnitId,
+          unitId,
         );
   }
 

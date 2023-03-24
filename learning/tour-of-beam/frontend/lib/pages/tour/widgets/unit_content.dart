@@ -187,13 +187,6 @@ class _SnippetTypeSwitcher extends StatelessWidget {
       animation: tourNotifier,
       builder: (context, child) {
         final groupValue = tourNotifier.snippetType;
-        final originalCodeButtonTitle = unitContent.isChallenge
-            ? 'pages.tour.assignment'.tr()
-            : 'pages.tour.example'.tr();
-        final savedCodeButtonTitle =
-            tourNotifier.saveCodeStatus == SaveCodeStatus.saving
-                ? 'pages.tour.saving'.tr()
-                : 'pages.tour.myCode'.tr();
 
         return Row(
           children: [
@@ -209,7 +202,9 @@ class _SnippetTypeSwitcher extends StatelessWidget {
             if (tourNotifier.hasSolution || tourNotifier.isCodeSaved)
               _SnippetTypeButton(
                 groupValue: groupValue,
-                title: originalCodeButtonTitle,
+                title: unitContent.isChallenge
+                    ? 'pages.tour.assignment'.tr()
+                    : 'pages.tour.example'.tr(),
                 value: SnippetType.original,
                 onChanged: () async {
                   await _setSnippetByType(SnippetType.original);
@@ -218,7 +213,9 @@ class _SnippetTypeSwitcher extends StatelessWidget {
             if (tourNotifier.isCodeSaved)
               _SnippetTypeButton(
                 groupValue: groupValue,
-                title: savedCodeButtonTitle,
+                title: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
+                    ? 'pages.tour.saving'.tr()
+                    : 'pages.tour.myCode'.tr(),
                 value: SnippetType.saved,
                 onChanged: () async {
                   await _setSnippetByType(SnippetType.saved);

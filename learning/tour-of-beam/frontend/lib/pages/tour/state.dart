@@ -89,10 +89,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
   bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
-  bool get isCodeSaved => _unitProgressCache.hasSavedSnippet(
-        currentSdk.id,
-        currentUnitId,
-      );
+  bool get isCodeSaved => _unitProgressCache.hasSavedSnippet(currentUnitId);
 
   SnippetType _snippetType = SnippetType.original;
   SnippetType get snippetType => _snippetType;
@@ -180,12 +177,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         isCodeChanged && _currentUnitContent != null && snippetFiles.isNotEmpty;
 
     if (doSave) {
+      // Snapshot of sdk and unitId at the moment of editing.
       final sdk = currentSdk;
       final unitId = currentUnitId;
       _saveCodeDebounced?.call([], {
         const Symbol('sdk'): sdk,
-        const Symbol('unitId'): unitId,
         const Symbol('snippetFiles'): snippetFiles,
+        const Symbol('unitId'): unitId,
       });
     }
   }
@@ -200,6 +198,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       await _unitProgressCache.saveSnippet(
         sdk: sdk,
         snippetFiles: snippetFiles,
+        snippetType: _snippetType,
         unitId: unitId,
       );
       saveCodeStatus = SaveCodeStatus.saved;

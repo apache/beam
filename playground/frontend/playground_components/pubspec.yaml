@@ -43,6 +43,7 @@ dependencies:
   grpc: ^3.0.2
   highlight: ^0.7.0
   hive: ^2.2.3
+  hive_test: ^1.0.1
   http: ^0.13.5
   json_annotation: ^4.7.0
   keyed_collection_widgets: ^0.4.3
