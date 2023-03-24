@@ -44,8 +44,9 @@ type DataSource struct {
 	// OnTimerTransforms maps PtransformIDs to their execution nodes that handle OnTimer callbacks.
 	OnTimerTransforms map[string]*ParDo
 
-	source DataManager
-	state  StateReader
+	source  DataManager
+	state   StateReader
+	curInst string
 
 	index    int64
 	splitIdx int64
@@ -97,6 +98,7 @@ func (n *DataSource) Up(ctx context.Context) error {
 // StartBundle initializes this datasource for the bundle.
 func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContext) error {
 	n.mu.Lock()
+	n.curInst = id
 	n.source = data.Data
 	n.state = data.State
 	n.start = time.Now()
@@ -106,9 +108,19 @@ func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContex
 	return n.Out.StartBundle(ctx, id, data)
 }
 
+// splitSuccess is a marker error to indicate we've reached the split index.
+// Akin to io.EOF.
+var splitSuccess = errors.New("split index reached")
+
 // process handles converting elements from the data source to timers.
+//
+// The data and timer callback functions must return an io.EOF if the reader terminates to signal that an additional
+// buffer is desired. On successful splits, [splitSuccess] must be returned to indicate that the
+// PTransform is done processing data for this instruction.
 func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader, ptransformID string) error, timer func(bcr *byteCountReader, ptransformID, timerFamilyID string) error) error {
-	// TODO(riteshghorse): Pass in the PTransformIDs expecting OnTimer calls.
+	defer func() {
+		log.Infof(ctx, "%v DataSource.process returning", n.curInst)
+	}()
 	// The SID contains this instruction's expected data processing transform (this one).
 	elms, err := n.source.OpenElementChan(ctx, n.SID, maps.Keys(n.OnTimerTransforms))
 	if err != nil {
@@ -120,35 +132,44 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 
 	var byteCount int
 	bcr := byteCountReader{reader: &r, count: &byteCount}
+
+	splitPrimaryComplete := map[string]bool{}
 	for {
 		var err error
 		select {
 		case e, ok := <-elms:
 			// Channel closed, so time to exit
 			if !ok {
-				log.Infof(ctx, "%v: Data Channel closed", n)
+				log.Infof(ctx, "%v Data Channel closed", n.curInst)
 				return nil
+			}
+			if splitPrimaryComplete[e.PtransformID] {
+				log.Infof(ctx, "%v skipping elements for %v, previous split", n.curInst, e.PtransformID)
+				continue
 			}
 			if len(e.Data) > 0 {
 				r.Reset(e.Data)
 				err = data(&bcr, e.PtransformID)
 			}
 			if len(e.Timers) > 0 {
-				// TODO remove this debug log.
-				log.Infof(ctx, "timer received for %v; %v : %v", e.PtransformID, e.TimerFamilyID, e.Timers)
+				log.Infof(ctx, "%v timer received for %v; %v : %v", n.curInst, e.PtransformID, e.TimerFamilyID, e.Timers)
 				r.Reset(e.Timers)
 				err = timer(&bcr, e.PtransformID, e.TimerFamilyID)
 			}
-		case <-ctx.Done():
-			return nil
-		}
 
-		if err != nil {
-			if err != io.EOF {
+			if err == splitSuccess {
+				log.Infof(ctx, "%v split success received for %v", n.curInst, e.PtransformID)
+				// Returning splitSuccess means we've split, and aren't consuming the remaining buffer.
+				// We mark the PTransform done to ignore further data.
+				splitPrimaryComplete[e.PtransformID] = true
+			} else if err != nil && err != io.EOF {
 				return errors.Wrap(err, "source failed")
 			}
-			// io.EOF means the reader successfully drained
+			// io.EOF means the reader successfully drained.
 			// We're ready for a new buffer.
+		case <-ctx.Done():
+			log.Infof(ctx, "%v context canceled for: %v", n.curInst, ctx.Err())
+			return nil
 		}
 	}
 }
@@ -204,6 +225,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			// TODO(lostluck) 2020/02/22: Should we include window headers or just count the element sizes?
 			ws, t, pn, err := DecodeWindowedValueHeader(wc, bcr.reader)
 			if err != nil {
+				log.Infof(ctx, "%v decode window error: %v", n.curInst, err)
 				return err
 			}
 
@@ -216,7 +238,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			pe.Windows = ws
 			pe.Pane = pn
 
-			log.Infof(ctx, "%v[%v]: processing %+v,%v", n, ptransformID, pe.Elm, pe.Elm2)
+			log.Infof(ctx, "%v[%v]: processing %+v,%v", n.curInst, ptransformID, pe.Elm, pe.Elm2)
 
 			var valReStreams []ReStream
 			for _, cv := range cvs {
@@ -234,7 +256,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			n.PCol.addSize(int64(bcr.reset()))
 
 			// Check if there's a continuation and return residuals
-			// Needs to be done immeadiately after processing to not lose the element.
+			// Needs to be done immediately after processing to not lose the element.
 			if c := n.getProcessContinuation(); c != nil {
 				cp, err := n.checkpointThis(ctx, c)
 				if err != nil {
@@ -247,12 +269,10 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			}
 			//	We've finished processing an element, check if we have finished a split.
 			if n.incrementIndexAndCheckSplit() {
-				break
+				log.Infof(ctx, "%v split index reached", n.curInst)
+				return splitSuccess
 			}
 		}
-		// Signal data loop exit.
-		log.Debugf(ctx, "%v: exiting data loop", n)
-		return nil
 	},
 		func(bcr *byteCountReader, ptransformID, timerFamilyID string) error {
 			tmap, err := decodeTimer(cp, wc, bcr)
@@ -526,7 +546,7 @@ func (n *DataSource) checkpointThis(ctx context.Context, pc sdf.ProcessContinuat
 // The bufSize param specifies the estimated number of elements that will be
 // sent to this DataSource, and is used to be able to perform accurate splits
 // even if the DataSource has not yet received all its elements. A bufSize of
-// 0 or less indicates that its unknown, and so uses the current known size.
+// 0 or less indicates that it's unknown, and so uses the current known size.
 func (n *DataSource) Split(ctx context.Context, splits []int64, frac float64, bufSize int64) (SplitResult, error) {
 	if n == nil {
 		return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, DataSource not initialized", splits)

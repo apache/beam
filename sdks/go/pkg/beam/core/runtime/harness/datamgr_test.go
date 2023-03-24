@@ -18,6 +18,7 @@ package harness
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -26,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
@@ -99,6 +101,419 @@ func (f *fakeDataClient) Send(*fnpb.Elements) error {
 		return io.EOF
 	}
 	return nil
+}
+
+type fakeChanClient struct {
+	ch chan *fnpb.Elements
+}
+
+func (f *fakeChanClient) Recv() (*fnpb.Elements, error) {
+	e, ok := <-f.ch
+	if !ok {
+		return nil, io.EOF
+	}
+	return e, nil
+}
+
+func (f *fakeChanClient) Send(e *fnpb.Elements) error {
+	f.ch <- e
+	return nil
+}
+
+func (f *fakeChanClient) Close() error {
+	close(f.ch)
+	return nil
+}
+
+func TestElementChan(t *testing.T) {
+	const instID = "inst_ref"
+	dataID := "dataTransform"
+	timerID := "timerTransform"
+	timerFamily := "timerFamily"
+	setupClient := func(t *testing.T) (context.Context, *fakeChanClient, *DataChannel) {
+		fmt.Println("TTTTT ", t.Name())
+		t.Helper()
+		client := &fakeChanClient{ch: make(chan *fnpb.Elements, 20)}
+		ctx, cancelFn := context.WithCancel(context.Background())
+		t.Cleanup(cancelFn)
+		t.Cleanup(func() { client.Close() })
+
+		c := makeDataChannel(ctx, "id", client, cancelFn)
+		return ctx, client, c
+	}
+	drainAndSum := func(t *testing.T, elms <-chan exec.Elements) (sum, count int) {
+		t.Helper()
+		for e := range elms { // only exits if data channel is closed.
+			count++
+			if len(e.Data) != 0 {
+				sum += int(e.Data[0])
+			}
+			if len(e.Timers) != 0 {
+				if e.TimerFamilyID != timerFamily {
+					t.Errorf("timer received without family set: %v, state= sum %v, count %v", e, sum, count)
+				}
+				sum += int(e.Timers[0])
+			}
+		}
+		return sum, count
+	}
+
+	timerElm := func(val byte, isLast bool) *fnpb.Elements_Timers {
+		return &fnpb.Elements_Timers{InstructionId: instID, TransformId: timerID, Timers: []byte{val}, IsLast: isLast, TimerFamilyId: timerFamily}
+	}
+	dataElm := func(val byte, isLast bool) *fnpb.Elements_Data {
+		return &fnpb.Elements_Data{InstructionId: instID, TransformId: dataID, Data: []byte{val}, IsLast: isLast}
+	}
+	noTimerElm := func() *fnpb.Elements_Timers {
+		return &fnpb.Elements_Timers{InstructionId: instID, TransformId: timerID, Timers: []byte{}, IsLast: true}
+	}
+	noDataElm := func() *fnpb.Elements_Data {
+		return &fnpb.Elements_Data{InstructionId: instID, TransformId: dataID, Data: []byte{}, IsLast: true}
+	}
+
+	// Simple batch HappyPath.
+	t.Run("readerThenData_singleRecv", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, nil)
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+
+		client.Send(&fnpb.Elements{
+			Data: []*fnpb.Elements_Data{
+				dataElm(1, false),
+				dataElm(2, false),
+				dataElm(3, true),
+			},
+		})
+
+		sum, count := drainAndSum(t, elms)
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+
+	t.Run("readerThenData_multipleRecv", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, nil)
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(1, false)}})
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(2, false)}})
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
+
+		sum, count := drainAndSum(t, elms)
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+	t.Run("readerThenDataAndTimers", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, []string{timerID})
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(1, false)}})
+
+		client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{timerElm(2, true)}})
+
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
+
+		sum, count := drainAndSum(t, elms)
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+
+	t.Run("DataThenReaderThenLast", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+		client.Send(&fnpb.Elements{
+			Data: []*fnpb.Elements_Data{
+				dataElm(1, false),
+				dataElm(2, false),
+			},
+		})
+		elms, err := c.OpenElementChan(ctx, dataID, instID, nil)
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
+
+		sum, count := drainAndSum(t, elms)
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+
+	t.Run("AllDataThenReader", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+
+		client.Send(&fnpb.Elements{
+			Data: []*fnpb.Elements_Data{
+				dataElm(1, false),
+				dataElm(2, false),
+				dataElm(3, true),
+			},
+		})
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, nil)
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+
+		sum, count := drainAndSum(t, elms)
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+
+	t.Run("TimerThenReaderThenDataCloseThenLastTimer", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+		client.Send(&fnpb.Elements{
+			Timers: []*fnpb.Elements_Timers{
+				timerElm(1, false),
+				timerElm(2, false),
+			},
+		})
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, []string{timerID})
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+		var wg sync.WaitGroup
+		wg.Add(1)
+		var sum, count int
+		go func() {
+			defer wg.Done()
+			sum, count = drainAndSum(t, elms)
+		}()
+
+		client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{timerElm(3, true)}})
+
+		wg.Wait()
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+
+	t.Run("AllTimerThenReaderThenDataClose", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+		client.Send(&fnpb.Elements{
+			Timers: []*fnpb.Elements_Timers{
+				timerElm(1, false),
+				timerElm(2, false),
+				timerElm(3, true),
+			},
+		})
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, []string{timerID})
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+		var wg sync.WaitGroup
+		wg.Add(1)
+		var sum, count int
+		go func() {
+			defer wg.Done()
+			sum, count = drainAndSum(t, elms)
+		}()
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
+
+		wg.Wait()
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+	t.Run("NoTimersThenReaderThenNoData", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+		client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{noTimerElm()}})
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, []string{timerID})
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+		var wg sync.WaitGroup
+		wg.Add(1)
+		var sum, count int
+		go func() {
+			defer wg.Done()
+			sum, count = drainAndSum(t, elms)
+		}()
+
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{noDataElm()}})
+
+		wg.Wait()
+		if wantSum, wantCount := 0, 0; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+	t.Run("SomeTimersThenReaderThenAData", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+		client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{timerElm(1, false), timerElm(2, true)}})
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, []string{timerID})
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+		var wg sync.WaitGroup
+		wg.Add(1)
+		var sum, count int
+		go func() {
+			defer wg.Done()
+			sum, count = drainAndSum(t, elms)
+		}()
+
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
+
+		wg.Wait()
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+
+	t.Run("SomeTimersThenADataThenReader", func(t *testing.T) {
+		ctx, client, c := setupClient(t)
+		client.Send(&fnpb.Elements{Timers: []*fnpb.Elements_Timers{timerElm(1, false), timerElm(2, true)}})
+		client.Send(&fnpb.Elements{Data: []*fnpb.Elements_Data{dataElm(3, true)}})
+
+		elms, err := c.OpenElementChan(ctx, dataID, instID, []string{timerID})
+		if err != nil {
+			t.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+		}
+		var wg sync.WaitGroup
+		wg.Add(1)
+		var sum, count int
+		go func() {
+			defer wg.Done()
+			sum, count = drainAndSum(t, elms)
+		}()
+
+		wg.Wait()
+		if wantSum, wantCount := 6, 3; sum != wantSum && count != wantCount {
+			t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantSum)
+		}
+	})
+}
+
+func TestDataChannelTerminate_dataReader(t *testing.T) {
+	// The logging of channels closed is quite noisy for this test
+	log.SetOutput(io.Discard)
+
+	expectedError := fmt.Errorf("EXPECTED ERROR")
+
+	tests := []struct {
+		name          string
+		expectedError error
+		caseFn        func(t *testing.T, ch *elementsChan, client *fakeDataClient, c *DataChannel)
+	}{
+		{
+			name:          "onInstructionEnded",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, ch *elementsChan, client *fakeDataClient, c *DataChannel) {
+				ch.InstructionEnded()
+			},
+		}, {
+			name:          "onSentinel",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, ch *elementsChan, client *fakeDataClient, c *DataChannel) {
+				// fakeDataClient eventually returns a sentinel element.
+			},
+		}, {
+			name:          "onIsLast_withData",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, ch *elementsChan, client *fakeDataClient, c *DataChannel) {
+				// Set the last call with data to use is_last.
+				client.isLastCall = 2
+			},
+		}, {
+			name:          "onIsLast_withoutData",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, ch *elementsChan, client *fakeDataClient, c *DataChannel) {
+				// Set the call without data to use is_last.
+				client.isLastCall = 3
+			},
+		}, {
+			name:          "onRecvError",
+			expectedError: expectedError,
+			caseFn: func(t *testing.T, ch *elementsChan, client *fakeDataClient, c *DataChannel) {
+				// The SDK starts reading in a goroutine immeadiately after open.
+				// Set the 2nd Recv call to have an error.
+				client.err = expectedError
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fmt.Println("TTTTT ", test.name)
+			done := make(chan bool, 1)
+			client := &fakeDataClient{t: t, done: done}
+			client.blocked.Lock()
+			ctx, cancelFn := context.WithCancel(context.Background())
+			c := makeDataChannel(ctx, "id", client, cancelFn)
+
+			elms, err := c.OpenElementChan(ctx, "ptr", "inst_ref", nil)
+			if err != nil {
+				t.Errorf("Unexpected error from OpenElementChan: %v", err)
+			}
+			ech := c.channels["inst_ref"]
+
+			test.caseFn(t, ech, client, c)
+			client.blocked.Unlock()
+			// Drain channel
+			for range elms {
+			}
+
+			// Verify that new readers return the same error on their reads after client.Recv is done.
+			if _, err = c.OpenElementChan(ctx, "ptr", "inst_ref", nil); !errors.Is(err, test.expectedError) {
+				t.Errorf("Unexpected error from read: got %v, want %v", err, test.expectedError)
+			}
+
+			select {
+			case <-ctx.Done(): // Assert that the context must have been cancelled on read failures.
+				return
+			case <-time.After(time.Second * 5):
+				t.Fatal("context wasn't cancelled")
+			}
+		})
+	}
+}
+
+func TestDataChannelRemoveInstruction_dataAfterClose(t *testing.T) {
+	done := make(chan bool, 1)
+	client := &fakeDataClient{t: t, done: done}
+	client.blocked.Lock()
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	c := makeDataChannel(ctx, "id", client, cancelFn)
+	c.removeInstruction("inst_ref")
+
+	client.blocked.Unlock()
+
+	_, err := c.OpenElementChan(ctx, "ptr", "inst_ref", nil)
+	if err != nil {
+		t.Errorf("Unexpected error from read: %v,", err)
+	}
+}
+
+func TestDataChannelRemoveInstruction_limitInstructionCap(t *testing.T) {
+	done := make(chan bool, 1)
+	client := &fakeDataClient{t: t, done: done}
+	ctx, cancelFn := context.WithCancel(context.Background())
+	c := makeDataChannel(ctx, "id", client, cancelFn)
+
+	for i := 0; i < endedInstructionCap+10; i++ {
+		instID := instructionID(fmt.Sprintf("inst_ref%d", i))
+		c.OpenElementChan(ctx, "ptr", instID, nil)
+		c.removeInstruction(instID)
+	}
+	if got, want := len(c.endedInstructions), endedInstructionCap; got != want {
+		t.Errorf("unexpected len(endedInstructions) got %v, want %v,", got, want)
+	}
 }
 
 func TestDataChannelTerminate_Writes(t *testing.T) {

@@ -245,7 +245,7 @@ func main() {
 	}, imp)
 	// out = beam.WindowInto(s, window.NewFixedWindows(10*time.Second), out)
 	str := beam.ParDo(s, func(b int64) string {
-		return fmt.Sprintf("element%03d", b)
+		return fmt.Sprintf("%03d", b)
 	}, out)
 
 	keyed := beam.ParDo(s, func(ctx context.Context, ts beam.EventTime, s string) (string, string) {
