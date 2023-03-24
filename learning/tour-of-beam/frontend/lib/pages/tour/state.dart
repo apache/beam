@@ -102,7 +102,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onAuthChanged() async {
-    await _unitProgressCache.updateUnitProgress();
+    await _unitProgressCache.loadUnitProgress(currentSdk);
     // The local changes are preserved if the user signs in.
     if (_snippetType != SnippetType.saved || !isAuthenticated) {
       await _loadSnippetByType();
@@ -115,7 +115,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     playgroundController.setSdk(currentSdk);
     _listenToCurrentSnippetEditingController();
 
-    await _unitProgressCache.updateUnitProgress();
+    await _unitProgressCache.loadUnitProgress(currentSdk);
     _trySetSnippetType(SnippetType.saved);
     await _loadSnippetByType();
   }
@@ -132,7 +132,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         currentNode.id,
       );
       _setUnitContent(content);
-      await _unitProgressCache.updateUnitProgress();
+      await _unitProgressCache.loadUnitProgress(currentSdk);
       _trySetSnippetType(SnippetType.saved);
       await _loadSnippetByType();
     }
@@ -202,7 +202,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         unitId: unitId,
       );
       saveCodeStatus = SaveCodeStatus.saved;
-      await _unitProgressCache.updateUnitProgress();
+      await _unitProgressCache.loadUnitProgress(currentSdk);
       _trySetSnippetType(SnippetType.saved);
     } on Exception catch (e) {
       print(['Could not save code: ', e]);
@@ -220,24 +220,28 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _loadSnippetByType() async {
+    final unitContent = _currentUnitContent;
+    if (unitContent == null) {
+      return;
+    }
     final ExampleLoadingDescriptor descriptor;
     switch (_snippetType) {
       case SnippetType.original:
-        descriptor = UserSharedExampleLoadingDescriptor(
-          sdk: currentSdk,
-          snippetId: _currentUnitContent!.taskSnippetId!,
+        descriptor = _getSharedOrEmptyDescriptor(
+          currentSdk,
+          unitContent.taskSnippetId,
         );
         break;
       case SnippetType.saved:
         descriptor = await _unitProgressCache.getSavedSnippet(
           sdk: currentSdk,
-          unitId: _currentUnitContent!.id,
+          unitId: unitContent.id,
         );
         break;
       case SnippetType.solution:
-        descriptor = UserSharedExampleLoadingDescriptor(
-          sdk: currentSdk,
-          snippetId: _currentUnitContent!.solutionSnippetId!,
+        descriptor = _getSharedOrEmptyDescriptor(
+          currentSdk,
+          unitContent.solutionSnippetId,
         );
         break;
     }
@@ -247,6 +251,21 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           descriptor,
         ],
       ),
+    );
+  }
+
+  ExampleLoadingDescriptor _getSharedOrEmptyDescriptor(
+    Sdk sdk,
+    String? snippetId,
+  ) {
+    if (snippetId == null) {
+      return EmptyExampleLoadingDescriptor(
+        sdk: currentSdk,
+      );
+    }
+    return UserSharedExampleLoadingDescriptor(
+      sdk: currentSdk,
+      snippetId: snippetId,
     );
   }
 

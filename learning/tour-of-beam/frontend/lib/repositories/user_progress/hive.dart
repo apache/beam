@@ -78,7 +78,7 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
     );
     final snippetId = 'local_${snippetType.name}_$unitId';
 
-    await _saveUnitProgressIfNot(
+    await _saveUnitProgressIfUnsaved(
       sdk: sdk,
       unitId: unitId,
       userSnippetId: snippetId,
@@ -98,7 +98,7 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
     );
   }
 
-  Future<void> _saveUnitProgressIfNot({
+  Future<void> _saveUnitProgressIfUnsaved({
     required Sdk sdk,
     required String unitId,
     required String userSnippetId,

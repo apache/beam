@@ -19,8 +19,8 @@
 import 'package:playground_components/playground_components.dart';
 
 class HiveBoxNames {
-  static const unitProgress = 'UnitProgress';
-  static const snippets = 'Snippets';
+  static const unitProgress = 'unit_progress';
+  static const snippets = 'snippets';
 
   static String getSdkBoxName(Sdk sdk, String boxName) {
     return '${sdk.id}_$boxName';

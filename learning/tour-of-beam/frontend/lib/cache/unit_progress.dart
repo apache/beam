@@ -57,22 +57,7 @@ class UnitProgressCache extends ChangeNotifier {
   bool get isAuthenticated =>
       GetIt.instance.get<AuthNotifier>().isAuthenticated;
 
-  Future<void> updateUnitProgress() async {
-    final sdk = GetIt.instance.get<AppNotifier>().sdk;
-    if (sdk != null) {
-      await _loadUnitProgress(sdk);
-    }
-  }
-
-  List<UnitProgressModel> getUnitProgress() {
-    if (_future == null) {
-      unawaited(updateUnitProgress());
-    }
-
-    return _unitProgress;
-  }
-
-  Future<void> _loadUnitProgress(Sdk sdk) async {
+  Future<void> loadUnitProgress(Sdk sdk) async {
     _future = _getUserProgressRepository().getUserProgress(sdk);
     final result = await _future;
 
@@ -88,6 +73,13 @@ class UnitProgressCache extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<UnitProgressModel> _getUnitProgress() {
+    if (_future == null) {
+      unawaited(loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk!));
+    }
+    return _unitProgress;
+  }
+
   // Completion
 
   Future<void> completeUnit(String sdkId, String unitId) async {
@@ -95,7 +87,7 @@ class UnitProgressCache extends ChangeNotifier {
       addUpdatingUnitId(unitId);
       await _getUserProgressRepository().completeUnit(sdkId, unitId);
     } finally {
-      await updateUnitProgress();
+      await loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk!);
       clearUpdatingUnitId(unitId);
     }
   }
@@ -104,7 +96,7 @@ class UnitProgressCache extends ChangeNotifier {
 
   Set<String> getCompletedUnits() {
     _completedUnitIds.clear();
-    for (final unitProgress in getUnitProgress()) {
+    for (final unitProgress in _getUnitProgress()) {
       if (unitProgress.isCompleted) {
         _completedUnitIds.add(unitProgress.id);
       }
