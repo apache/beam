@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import '../../api/v1/api.pb.dart' as grpc;
 import '../models/get_default_precompiled_object_request.dart';
 import '../models/get_precompiled_object_code_response.dart';
 import '../models/get_precompiled_object_request.dart';
@@ -29,6 +30,8 @@ import '../models/save_snippet_request.dart';
 import '../models/save_snippet_response.dart';
 
 abstract class ExampleClient {
+  Future<grpc.GetMetadataResponse> getMetadata();
+
   Future<GetPrecompiledObjectsResponse> getPrecompiledObjects(
     GetPrecompiledObjectsRequest request,
   );

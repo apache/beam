@@ -16,24 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+import '../api/v1/api.pb.dart';
+import '../models/component_version.dart';
 
-Future<void> init(WidgetTester wt) async {
-  await app.main();
-  await wt.pumpAndSettle();
-}
+extension MetadataResponseGrpcExtension on GetMetadataResponse {
+  ComponentVersion get componentVersion {
+    return ComponentVersion(
+      beamSdkVersion: beamSdkVersion == '' ? null : beamSdkVersion,
+      buildCommitHash: buildCommitHash == '' ? null : buildCommitHash,
+      dateTime: _getDateTime(),
+    );
+  }
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
-}
+  DateTime? _getDateTime() {
+    final seconds = buildCommitTimestampSecondsSinceEpoch.toInt();
+    if (seconds == 0) {
+      return null;
+    }
 
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
+    return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+  }
 }

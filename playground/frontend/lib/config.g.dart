@@ -16,24 +16,10 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+// This file was auto-generated and used to contain backend URLs.
+// They are now determined automatically
+// as of https://github.com/apache/beam/pull/25610
+// TODO(alexeyinkin): When it is merged, find a better place for the remaining
+//  constant and delete this file.
 
-Future<void> init(WidgetTester wt) async {
-  await app.main();
-  await wt.pumpAndSettle();
-}
-
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
-}
-
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
-}
+const String kAnalyticsUA = 'G-BXFP2FNCKC';

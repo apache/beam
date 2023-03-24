@@ -35,6 +35,7 @@ const (
 	serverIpKey                        = "SERVER_IP"
 	serverPortKey                      = "SERVER_PORT"
 	beamSdkKey                         = "BEAM_SDK"
+	beamVersionKey                     = "BEAM_VERSION"
 	workingDirKey                      = "APP_WORK_DIR"
 	preparedModDirKey                  = "PREPARED_MOD_DIR"
 	numOfParallelJobsKey               = "NUM_PARALLEL_JOBS"
@@ -53,6 +54,7 @@ const (
 	defaultIp                          = "localhost"
 	defaultPort                        = 8080
 	defaultSdk                         = pb.Sdk_SDK_JAVA
+	defaultBeamVersion                 = "<unknown>"
 	defaultBeamJarsPath                = "/opt/apache/beam/jars/*"
 	defaultDatasetsPath                = "/opt/playground/backend/datasets"
 	defaultKafkaEmulatorExecutablePath = "/opt/playground/backend/kafka-emulator/beam-playground-kafka-emulator.jar"
@@ -153,6 +155,8 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
 	numOfParallelJobs := getEnvAsInt(numOfParallelJobsKey, defaultNumOfParallelJobs)
 
+	beamVersion := getEnv(beamVersionKey, defaultBeamVersion)
+
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
 		switch value {
@@ -170,14 +174,14 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 		}
 	}
 	if sdk == pb.Sdk_SDK_UNSPECIFIED {
-		return NewBeamEnvs(sdk, nil, preparedModDir, numOfParallelJobs), nil
+		return NewBeamEnvs(sdk, beamVersion, nil, preparedModDir, numOfParallelJobs), nil
 	}
 	configPath := filepath.Join(workDir, configFolderName, sdk.String()+jsonExt)
 	executorConfig, err := createExecutorConfig(sdk, configPath)
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig, preparedModDir, numOfParallelJobs), nil
+	return NewBeamEnvs(sdk, beamVersion, executorConfig, preparedModDir, numOfParallelJobs), nil
 }
 
 // createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
