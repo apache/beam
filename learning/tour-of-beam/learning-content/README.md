@@ -80,7 +80,6 @@ content:
 __sdk__:  list of programming languages this learning content is intended for (available options are "Go", "Java", "Python").
 __content__: list of folders with modules which will be included in this course
 #### Module metadata
-
 Module metadata is stored in module-info.yaml file in each module folder and is represented as a yaml object with following content:
 
 ```
@@ -119,7 +118,6 @@ content:
 Group metadata is used to group several units into a logical unit. Group metadata has the same structure as module metadata.
 
 #### Unit metadata
-
 Unit metadata serves the purpose of grouping theoretical learning materials with accompanying runnable examples and motivating challenges.
 
 ```
@@ -170,7 +168,6 @@ Each example in this repository is a self-contained code snippet that demonstrat
 Metadata tag should be embedded in pipeline source file as a commented yaml structure.
 There is a degree of flexibiloty as for where to keep example source files. We propose to keep examples for different SDK's in separate folders. It's also beneficial to separate motivating examples and solutions to separate folders.
 
-
 Here is a sample of example metadata tag (java comment):
 
 ```
@@ -204,7 +201,6 @@ The rest of the fields in yaml metadata are processed with Playground. See [Play
 
 # Contributing
 We welcome contributions to this repository! If you would like to contribute, please follow these steps:
-
 - Fork the repository
 - Create a new branch for your changes
 - Make your changes and test them
