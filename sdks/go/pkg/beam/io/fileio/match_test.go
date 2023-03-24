@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
@@ -66,11 +65,11 @@ func TestMatchFiles(t *testing.T) {
 			name: "Match files",
 			glob: filepath.Join(dir, "*", "file*.txt"),
 			want: []any{
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: filepath.Join(testDir, "file1.txt"),
 					Size: 5,
 				},
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: filepath.Join(testDir, "file2.txt"),
 					Size: 0,
 				},
@@ -119,15 +118,15 @@ func TestMatchAll(t *testing.T) {
 				filepath.Join(dir, "*", "file*.csv"),
 			},
 			want: []any{
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: filepath.Join(testDir, "file1.txt"),
 					Size: 5,
 				},
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: filepath.Join(testDir, "file2.txt"),
 					Size: 0,
 				},
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: filepath.Join(testDir, "file3.csv"),
 					Size: 5,
 				},
@@ -242,12 +241,12 @@ func Test_metadataFromFiles(t *testing.T) {
 	tests := []struct {
 		name  string
 		files []string
-		want  []filesystem.FileMetadata
+		want  []FileMetadata
 	}{
 		{
 			name:  "Slice of FileMetadata from file paths",
 			files: files,
-			want: []filesystem.FileMetadata{
+			want: []FileMetadata{
 				{
 					Path: filepath.Join(dir, "file1.txt"),
 					Size: 5,

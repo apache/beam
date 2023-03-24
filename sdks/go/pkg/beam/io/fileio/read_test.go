@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
@@ -35,83 +34,83 @@ func TestReadMatches(t *testing.T) {
 		{
 			name: "Read matches",
 			input: []any{
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: "file1.txt",
 					Size: 5,
 				},
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: "file2.txt",
 					Size: 0,
 				},
 			},
 			want: []any{
 				ReadableFile{
-					Metadata: filesystem.FileMetadata{
+					Metadata: FileMetadata{
 						Path: "file1.txt",
 						Size: 5,
 					},
-					Compression: filesystem.CompressionAuto,
+					Compression: CompressionAuto,
 				},
 				ReadableFile{
-					Metadata: filesystem.FileMetadata{
+					Metadata: FileMetadata{
 						Path: "file2.txt",
 						Size: 0,
 					},
-					Compression: filesystem.CompressionAuto,
+					Compression: CompressionAuto,
 				},
 			},
 		},
 		{
 			name: "Read matches with specified compression",
 			opts: []ReadOptionFn{
-				WithReadCompression(filesystem.CompressionGzip),
+				WithReadCompression(CompressionGzip),
 			},
 			input: []any{
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: "file1.txt.gz",
 					Size: 5,
 				},
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: "file2.txt.gz",
 					Size: 0,
 				},
 			},
 			want: []any{
 				ReadableFile{
-					Metadata: filesystem.FileMetadata{
+					Metadata: FileMetadata{
 						Path: "file1.txt.gz",
 						Size: 5,
 					},
-					Compression: filesystem.CompressionGzip,
+					Compression: CompressionGzip,
 				},
 				ReadableFile{
-					Metadata: filesystem.FileMetadata{
+					Metadata: FileMetadata{
 						Path: "file2.txt.gz",
 						Size: 0,
 					},
-					Compression: filesystem.CompressionGzip,
+					Compression: CompressionGzip,
 				},
 			},
 		},
 		{
 			name: "Read matches and skip directories",
 			input: []any{
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: "dir/",
 					Size: 0,
 				},
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: "file1.txt",
 					Size: 5,
 				},
 			},
 			want: []any{
 				ReadableFile{
-					Metadata: filesystem.FileMetadata{
+					Metadata: FileMetadata{
 						Path: "file1.txt",
 						Size: 5,
 					},
-					Compression: filesystem.CompressionAuto,
+					Compression: CompressionAuto,
 				},
 			},
 		},
@@ -121,11 +120,11 @@ func TestReadMatches(t *testing.T) {
 				WithDirectoryTreatment(DirectoryTreatmentDisallow),
 			},
 			input: []any{
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: "dir/",
 					Size: 0,
 				},
-				filesystem.FileMetadata{
+				FileMetadata{
 					Path: "file1.txt",
 					Size: 5,
 				},

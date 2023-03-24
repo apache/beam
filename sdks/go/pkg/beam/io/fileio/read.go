@@ -20,12 +20,11 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	register.DoFn2x1[filesystem.FileMetadata, func(ReadableFile), error](&readFn{})
+	register.DoFn2x1[FileMetadata, func(ReadableFile), error](&readFn{})
 	register.Emitter1[ReadableFile]()
 }
 
@@ -40,7 +39,7 @@ const (
 )
 
 type readOption struct {
-	Compression        filesystem.Compression
+	Compression        Compression
 	DirectoryTreatment DirectoryTreatment
 }
 
@@ -50,7 +49,7 @@ type ReadOptionFn func(*readOption) error
 
 // WithReadCompression specifies the compression type of the files that are read. By default,
 // the compression type is determined by the file extension.
-func WithReadCompression(compression filesystem.Compression) ReadOptionFn {
+func WithReadCompression(compression Compression) ReadOptionFn {
 	return func(o *readOption) error {
 		o.Compression = compression
 		return nil
@@ -66,17 +65,16 @@ func WithDirectoryTreatment(treatment DirectoryTreatment) ReadOptionFn {
 	}
 }
 
-// ReadMatches accepts the result of MatchFiles or MatchAll as a
-// PCollection<filesystem.FileMetadata> and converts it to a PCollection<ReadableFile>. The
-// ReadableFile can be used to retrieve file metadata, open the file for reading or read the entire
-// file into memory. The compression type of the readable files can be specified by passing the
-// WithReadCompression option. If no compression type is provided, it will be determined by the file
-// extension.
+// ReadMatches accepts the result of MatchFiles or MatchAll as a PCollection<FileMetadata> and
+// converts it to a PCollection<ReadableFile>. The ReadableFile can be used to retrieve file
+// metadata, open the file for reading or read the entire file into memory. The compression type of
+// the readable files can be specified by passing the WithReadCompression option. If no compression
+// type is provided, it will be determined by the file extension.
 func ReadMatches(s beam.Scope, col beam.PCollection, opts ...ReadOptionFn) beam.PCollection {
 	s = s.Scope("fileio.ReadMatches")
 
 	option := &readOption{
-		Compression:        filesystem.CompressionAuto,
+		Compression:        CompressionAuto,
 		DirectoryTreatment: DirectoryTreatmentSkip,
 	}
 
@@ -90,7 +88,7 @@ func ReadMatches(s beam.Scope, col beam.PCollection, opts ...ReadOptionFn) beam.
 }
 
 type readFn struct {
-	Compression        filesystem.Compression
+	Compression        Compression
 	DirectoryTreatment DirectoryTreatment
 }
 
@@ -101,7 +99,7 @@ func newReadFn(option *readOption) *readFn {
 	}
 }
 
-func (fn *readFn) ProcessElement(metadata filesystem.FileMetadata, emit func(ReadableFile)) error {
+func (fn *readFn) ProcessElement(metadata FileMetadata, emit func(ReadableFile)) error {
 	if isDirectory(metadata.Path) {
 		if fn.DirectoryTreatment == DirectoryTreatmentDisallow {
 			return fmt.Errorf("path to directory not allowed: %q", metadata.Path)

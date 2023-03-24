@@ -21,8 +21,6 @@ import (
 	"path/filepath"
 	"testing"
 	"testing/iotest"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 )
 
 func TestReadableFile_Open(t *testing.T) {
@@ -38,20 +36,20 @@ func TestReadableFile_Open(t *testing.T) {
 		{
 			name: "Open uncompressed file",
 			file: ReadableFile{
-				Metadata: filesystem.FileMetadata{
+				Metadata: FileMetadata{
 					Path: filepath.Join(dir, "file1.txt"),
 				},
-				Compression: filesystem.CompressionUncompressed,
+				Compression: CompressionUncompressed,
 			},
 			want: []byte("test1"),
 		},
 		{
 			name: "Open file with auto-detection of compression",
 			file: ReadableFile{
-				Metadata: filesystem.FileMetadata{
+				Metadata: FileMetadata{
 					Path: filepath.Join(dir, "file2.gz"),
 				},
-				Compression: filesystem.CompressionAuto,
+				Compression: CompressionAuto,
 			},
 			want: []byte("test2"),
 		},
@@ -80,22 +78,22 @@ func Test_compressionFromExt(t *testing.T) {
 	tests := []struct {
 		name string
 		path string
-		want filesystem.Compression
+		want Compression
 	}{
 		{
 			name: "CompressionGzip for gz extension",
 			path: "file.gz",
-			want: filesystem.CompressionGzip,
+			want: CompressionGzip,
 		},
 		{
 			name: "CompressionUncompressed for no extension",
 			path: "file",
-			want: filesystem.CompressionUncompressed,
+			want: CompressionUncompressed,
 		},
 		{
 			name: "CompressionUncompressed for unrecognized extension",
 			path: "file.unknown",
-			want: filesystem.CompressionUncompressed,
+			want: CompressionUncompressed,
 		},
 	}
 	for _, tt := range tests {
@@ -115,26 +113,26 @@ func Test_newDecompressionReader(t *testing.T) {
 	tests := []struct {
 		name    string
 		path    string
-		comp    filesystem.Compression
+		comp    Compression
 		want    []byte
 		wantErr bool
 	}{
 		{
 			name: "Reader for uncompressed file",
 			path: filepath.Join(dir, "file1.txt"),
-			comp: filesystem.CompressionUncompressed,
+			comp: CompressionUncompressed,
 			want: []byte("test1"),
 		},
 		{
 			name: "Reader for gzip compressed file",
 			path: filepath.Join(dir, "file2.gz"),
-			comp: filesystem.CompressionGzip,
+			comp: CompressionGzip,
 			want: []byte("test2"),
 		},
 		{
 			name:    "Error - reader for auto compression not supported",
 			path:    filepath.Join(dir, "file2.gz"),
-			comp:    filesystem.CompressionAuto,
+			comp:    CompressionAuto,
 			wantErr: true,
 		},
 	}
@@ -174,20 +172,20 @@ func TestReadableFile_Read(t *testing.T) {
 		{
 			name: "Read contents from uncompressed file",
 			file: ReadableFile{
-				Metadata: filesystem.FileMetadata{
+				Metadata: FileMetadata{
 					Path: filepath.Join(dir, "file1.txt"),
 				},
-				Compression: filesystem.CompressionUncompressed,
+				Compression: CompressionUncompressed,
 			},
 			want: []byte("test1"),
 		},
 		{
 			name: "Read contents from gzip compressed file",
 			file: ReadableFile{
-				Metadata: filesystem.FileMetadata{
+				Metadata: FileMetadata{
 					Path: filepath.Join(dir, "file2.gz"),
 				},
-				Compression: filesystem.CompressionGzip,
+				Compression: CompressionGzip,
 			},
 			want: []byte("test2"),
 		},
@@ -221,20 +219,20 @@ func TestReadableFile_ReadString(t *testing.T) {
 		{
 			name: "Read contents from uncompressed file as string",
 			file: ReadableFile{
-				Metadata: filesystem.FileMetadata{
+				Metadata: FileMetadata{
 					Path: filepath.Join(dir, "file1.txt"),
 				},
-				Compression: filesystem.CompressionUncompressed,
+				Compression: CompressionUncompressed,
 			},
 			want: "test1",
 		},
 		{
 			name: "Read contents from gzip compressed file as string",
 			file: ReadableFile{
-				Metadata: filesystem.FileMetadata{
+				Metadata: FileMetadata{
 					Path: filepath.Join(dir, "file2.gz"),
 				},
-				Compression: filesystem.CompressionGzip,
+				Compression: CompressionGzip,
 			},
 			want: "test2",
 		},

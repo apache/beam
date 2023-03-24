@@ -27,8 +27,8 @@ import (
 )
 
 func init() {
-	register.DoFn3x1[context.Context, string, func(filesystem.FileMetadata), error](&matchFn{})
-	register.Emitter1[filesystem.FileMetadata]()
+	register.DoFn3x1[context.Context, string, func(FileMetadata), error](&matchFn{})
+	register.Emitter1[FileMetadata]()
 }
 
 // EmptyMatchTreatment controls how empty matches of a pattern are treated.
@@ -60,8 +60,8 @@ func WithEmptyMatchTreatment(treatment EmptyMatchTreatment) MatchOptionFn {
 	}
 }
 
-// MatchFiles finds all files matching the glob pattern and returns a
-// PCollection<filesystem.FileMetadata> of the matching files.
+// MatchFiles finds all files matching the glob pattern and returns a PCollection<FileMetadata> of
+// the matching files.
 func MatchFiles(s beam.Scope, glob string, opts ...MatchOptionFn) beam.PCollection {
 	s = s.Scope("fileio.MatchFiles")
 
@@ -70,7 +70,7 @@ func MatchFiles(s beam.Scope, glob string, opts ...MatchOptionFn) beam.PCollecti
 }
 
 // MatchAll finds all files matching the glob patterns given by the incoming PCollection<string> and
-// returns a PCollection<filesystem.FileMetadata> of the matching files.
+// returns a PCollection<FileMetadata> of the matching files.
 func MatchAll(s beam.Scope, col beam.PCollection, opts ...MatchOptionFn) beam.PCollection {
 	s = s.Scope("fileio.MatchAll")
 
@@ -100,7 +100,7 @@ func newMatchFn(option *matchOption) *matchFn {
 func (fn *matchFn) ProcessElement(
 	ctx context.Context,
 	glob string,
-	emit func(filesystem.FileMetadata),
+	emit func(FileMetadata),
 ) error {
 	if strings.TrimSpace(glob) == "" {
 		return nil
@@ -151,12 +151,12 @@ func metadataFromFiles(
 	ctx context.Context,
 	fs filesystem.Interface,
 	files []string,
-) ([]filesystem.FileMetadata, error) {
+) ([]FileMetadata, error) {
 	if len(files) == 0 {
 		return nil, nil
 	}
 
-	metadata := make([]filesystem.FileMetadata, len(files))
+	metadata := make([]FileMetadata, len(files))
 
 	for i, path := range files {
 		size, err := fs.Size(ctx, path)
@@ -164,7 +164,7 @@ func metadataFromFiles(
 			return nil, err
 		}
 
-		metadata[i] = filesystem.FileMetadata{
+		metadata[i] = FileMetadata{
 			Path: path,
 			Size: size,
 		}

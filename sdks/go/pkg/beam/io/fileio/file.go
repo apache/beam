@@ -28,20 +28,38 @@ import (
 )
 
 func init() {
+	beam.RegisterType(reflect.TypeOf((*FileMetadata)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*ReadableFile)(nil)).Elem())
 }
 
-// ReadableFile is a wrapper around a filesystem.FileMetadata and filesystem.Compression that can be
-// used to obtain a file descriptor or read the file's contents.
+// FileMetadata contains metadata about a file, namely its path and size in bytes.
+type FileMetadata struct {
+	Path string
+	Size int64
+}
+
+// Compression is the type of compression used to compress a file.
+type Compression int
+
+const (
+	// CompressionAuto indicates that the compression type should be auto-detected.
+	CompressionAuto Compression = iota
+	// CompressionGzip indicates that the file is compressed using gzip.
+	CompressionGzip
+	// CompressionUncompressed indicates that the file is not compressed.
+	CompressionUncompressed
+)
+
+// ReadableFile is a wrapper around a FileMetadata and Compression that can be used to obtain a file
+// descriptor or read the file's contents.
 type ReadableFile struct {
-	Metadata    filesystem.FileMetadata
-	Compression filesystem.Compression
+	Metadata    FileMetadata
+	Compression Compression
 }
 
 // Open opens the file for reading. The compression type is determined by the Compression field of
-// the ReadableFile. If Compression is filesystem.CompressionAuto, the compression type is
-// auto-detected from the file extension. It is the caller's responsibility to close the returned
-// reader.
+// the ReadableFile. If Compression is CompressionAuto, the compression type is auto-detected from
+// the file extension. It is the caller's responsibility to close the returned reader.
 func (f ReadableFile) Open(ctx context.Context) (io.ReadCloser, error) {
 	fs, err := filesystem.New(ctx, f.Metadata.Path)
 	if err != nil {
@@ -55,7 +73,7 @@ func (f ReadableFile) Open(ctx context.Context) (io.ReadCloser, error) {
 	}
 
 	comp := f.Compression
-	if comp == filesystem.CompressionAuto {
+	if comp == CompressionAuto {
 		comp = compressionFromExt(f.Metadata.Path)
 	}
 
@@ -63,29 +81,29 @@ func (f ReadableFile) Open(ctx context.Context) (io.ReadCloser, error) {
 }
 
 // compressionFromExt detects the compression of a file based on its extension. If the extension is
-// not recognized, filesystem.CompressionUncompressed is returned.
-func compressionFromExt(path string) filesystem.Compression {
+// not recognized, CompressionUncompressed is returned.
+func compressionFromExt(path string) Compression {
 	switch filepath.Ext(path) {
 	case ".gz":
-		return filesystem.CompressionGzip
+		return CompressionGzip
 	default:
-		return filesystem.CompressionUncompressed
+		return CompressionUncompressed
 	}
 }
 
 // newDecompressionReader returns an io.ReadCloser that can be used to read uncompressed data from
-// reader, based on the specified compression. If the compression is filesystem.CompressionAuto,
-// a non-nil error is returned. It is the caller's responsibility to close the returned reader.
+// reader, based on the specified compression. If the compression is CompressionAuto, a non-nil
+// error is returned. It is the caller's responsibility to close the returned reader.
 func newDecompressionReader(
 	reader io.ReadCloser,
-	compression filesystem.Compression,
+	compression Compression,
 ) (io.ReadCloser, error) {
 	switch compression {
-	case filesystem.CompressionAuto:
+	case CompressionAuto:
 		return nil, errors.New(
 			"compression must be resolved into a concrete type before obtaining a reader",
 		)
-	case filesystem.CompressionGzip:
+	case CompressionGzip:
 		return newGzipReader(reader)
 	default:
 		return reader, nil
