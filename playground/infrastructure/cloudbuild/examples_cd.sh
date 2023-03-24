@@ -134,7 +134,7 @@ for file in "${diff[@]}"; do
 
           if [[ "$result" == "True" ]]; then
             echo "Running ci_cd.py for SDK $sdk"
-      # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
+
             cd $BEAM_ROOT_DIR/playground/infrastructure
             export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
             python3 ci_cd.py \
@@ -144,17 +144,19 @@ for file in "${diff[@]}"; do
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
             --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
-              if [ $? -eq 0 ]
-                then
-                  LogOutput "Examples for $sdk SDK have been successfully deployed."
-                  eval "cd_${sdk}_passed"='True'
-                else
-                  LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
-              fi
+            if [ $? -eq 0 ]
+              then
+                LogOutput "Examples for $sdk SDK have been successfully deployed."
+                eval "cd_${sdk}_passed"='True'
+              else
+                LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
+            fi
+          else
+            LogOutput "Checker has not found relevant examples"
           fi
         done
     else
-      LogOutput "Checker has not found changed examples for $sdk"
+      LogOutput "Checker has not found any changed examples for $sdk in examples directories"
       exit 1
     fi
 done
