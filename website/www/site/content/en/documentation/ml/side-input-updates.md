@@ -25,7 +25,7 @@ based on timestamps and emits the latest [ModelMetadata](https://beam.apache.org
 
 **Note**: Slowly-updating side input pattern is non-deterministic.
 
-### Setting up source.
+### Setting up source
 
 We will use PubSub topic as a source to read the image names. 
  * PubSub topic emits a `UTF-8` encoded model path that will be used read and preprocess images for running the inference.
@@ -36,7 +36,7 @@ For the purpose of this example, use models saved in [HDF5](https://www.tensorfl
 After a while, upload a model that matches the `file_pattern` to the GCS bucket. The bucket path will be used a glob pattern and is passed to the `WatchFilePattern`.
 Once there is an update, the RunInference PTransform will update the `model_uri` to use the latest model for inferences.
 
-### ModelHandler used for Predictions.
+### ModelHandler used for inference
 
 For the ModelHandler, we will be using [TFModelHandlerTensor](https://github.com/apache/beam/blob/186973b110d82838fb8e5ba27f0225a67c336591/sdks/python/apache_beam/ml/inference/tensorflow_inference.py#L184).
 ```python
@@ -44,6 +44,7 @@ from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
 tf_model_handler = TFModelHandlerTensor(model_uri='gs://<your-bucket>/<model_path.h5>')
 ``` 
 
+### Pre-processing image for inference
 The PubSub topic emits an image path. We need to read and preprocess the image to use it for RunInference. `read_image` function is used to read the image for inference.
 
 ```python
@@ -64,13 +65,13 @@ def read_image(image_file_name):
 
 Now, let's jump into the pipeline code.
 
-Steps:
+**Steps**:
 1. Get the image names from the PubSub topic.
 2. Read and pre-process the images using `read_image` function.
 3. Pass the images to the `RunInference` PTransform. RunInference takes `model_handler` and `model_metadata_pcoll`.
    1. For the `model_handler`, `TFModelHandlerTensor` is used.
    2. The `model_metadata_pcoll` is a [side input](https://beam.apache.org/documentation/programming-guide/#side-inputs) PCollection to the RunInference PTransform. This is used to update the models in the `model_handler` without needing to stop the beam pipeline. 
-      1. The `WatchFilePattern` is used as side input, which is used to watch a glob pattern matching `.h5` files. We use [HDF5](https://www.tensorflow.org/tutorials/keras/save_and_load#hdf5_format) standard to load the models
+      1. The `WatchFilePattern` is used as side input, which is used to watch a glob pattern matching `.h5` files. We use [HDF5](https://www.tensorflow.org/tutorials/keras/save_and_load#hdf5_format) standard to load the models.
 ```python
 import apache_beam as beam
 from apache_beam.ml.inference.utils import WatchFilePattern
@@ -109,14 +110,14 @@ Once the inference is done, RunInference outputs `PredictionResult` object that 
 from apache_beam.ml.inference.base import PredictionResult
 
 class PostProcessor(beam.DoFn):
-  """Process the PredictionResult to get the predicted label.
-  Returns predicted label.
+  """
+  Process the PredictionResult to get the predicted label and model id used for inference.
   """
   def process(self, element: PredictionResult) -> typing.Iterable[str]:
     predicted_class = numpy.argmax(element.inference[0], axis=-1)
     labels_path = tf.keras.utils.get_file(
         'ImageNetLabels.txt',
-        'https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt'  # pylint: disable=line-too-long
+        'https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt' 
     )
     imagenet_labels = numpy.array(open(labels_path).read().splitlines())
     predicted_class_name = imagenet_labels[predicted_class]
@@ -130,7 +131,7 @@ post_processor_pcoll = (inference_pcoll | "PostProcessor" >> PostProcessor())
 result = pipeline.run().wait_until_finish()
 ```
 Once the pipeline is run with initial settings, upload a model matching the `file_pattern` to GCS bucket. After some time, you will see that your pipeline starts to use the updated model instead of the initial model. 
-**Note**: `model_name` of the `ModelMetaData` object will be attached as prefix to the [metrics](https://beam.apache.org/documentation/ml/runinference-metrics/) calculated by the RunInference PTransform 
+**Note**: `model_name` of the `ModelMetaData` object will be attached as prefix to the [metrics](https://beam.apache.org/documentation/ml/runinference-metrics/) calculated by the RunInference PTransform. 
 
 ## Final remarks
 Use this example as a pattern on how to use side inputs with RunInference PTransform to auto update the models without the need to stop the pipeline. A similar example for PyTorch can be found on [GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py).
