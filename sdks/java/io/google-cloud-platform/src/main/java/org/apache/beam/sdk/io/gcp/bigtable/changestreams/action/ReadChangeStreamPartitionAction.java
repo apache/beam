@@ -20,13 +20,14 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isSuperset;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamContinuationTokenHelper.getTokenWithCorrectPartition;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.common.Status;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.CloseStream;
-import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
@@ -171,27 +172,38 @@ public class ReadChangeStreamPartitionAction {
       // If there's only 1 token, then the token's partition should be a superset of this partition.
       // If there are more than 1 tokens, then the tokens should form a continuous row range that is
       // a superset of this partition.
-      List<Range.ByteStringRange> partitions = new ArrayList<>();
+      List<ByteStringRange> childPartitions = new ArrayList<>();
+      // Check if NewPartitions field exists, if not we default to using just the
+      // ChangeStreamContinuationTokens.
+      boolean useNewPartitionsField =
+          closeStream.getNewPartitions().size()
+              == closeStream.getChangeStreamContinuationTokens().size();
       for (int i = 0; i < closeStream.getChangeStreamContinuationTokens().size(); i++) {
-        ByteStringRange newPartition = closeStream.getNewPartitions().get(i);
-        partitions.add(newPartition);
+        ByteStringRange childPartition;
+        if (useNewPartitionsField) {
+          childPartition = closeStream.getNewPartitions().get(i);
+        } else {
+          childPartition = closeStream.getChangeStreamContinuationTokens().get(i).getPartition();
+        }
+        childPartitions.add(childPartition);
+        ChangeStreamContinuationToken token =
+            getTokenWithCorrectPartition(
+                partitionRecord.getPartition(),
+                closeStream.getChangeStreamContinuationTokens().get(i));
         metadataTableDao.writeNewPartition(
-            newPartition,
-            closeStream.getChangeStreamContinuationTokens().get(i),
-            partitionRecord.getPartition(),
-            watermarkEstimator.getState());
+            childPartition, token, partitionRecord.getPartition(), watermarkEstimator.getState());
       }
       if (shouldDebug) {
         LOG.info(
             "RCSP {}: Split/Merge into {}",
             formatByteStringRange(partitionRecord.getPartition()),
-            partitionsToString(partitions));
+            partitionsToString(childPartitions));
       }
-      if (!isSuperset(partitions, partitionRecord.getPartition())) {
+      if (!isSuperset(childPartitions, partitionRecord.getPartition())) {
         LOG.warn(
             "RCSP {}: CloseStream has child partition(s) {} that doesn't cover the keyspace",
             formatByteStringRange(partitionRecord.getPartition()),
-            partitionsToString(partitions));
+            partitionsToString(childPartitions));
       }
       metadataTableDao.deleteStreamPartitionRow(partitionRecord.getPartition());
       metrics.decPartitionStreamCount();

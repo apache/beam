@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamContinuationTokenHelper.getTokenWithCorrectPartition;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -38,6 +39,7 @@ import com.google.protobuf.ByteString;
 import com.google.rpc.Status;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
@@ -248,23 +250,20 @@ public class ReadChangeStreamPartitionActionTest {
   public void testCloseStreamNewPartitionMerge() throws IOException {
     // NewPartitions field includes the merge target. ChangeStreamContinuationToken's partition may
     // not be the same as the new partition.
-    // If BD is split into AC and CD, the new partitions are AC and CD and the corresponding
-    // ChangeStreamContinuationToken are for BC and CD.
-    ByteStringRange newPartitionAC = ByteStringRange.create("A", "C");
-    ByteStringRange newPartitionCD = ByteStringRange.create("C", "D");
-    ChangeStreamContinuationToken changeStreamContinuationToken1 =
-        ChangeStreamContinuationToken.create(ByteStringRange.create("B", "C"), "1234");
-    ChangeStreamContinuationToken changeStreamContinuationToken2 =
-        ChangeStreamContinuationToken.create(ByteStringRange.create("C", "D"), "5678");
+    // AB merging into AC. The new partition is AC and the corresponding
+    // ChangeStreamContinuationToken is for AB
+    ByteStringRange childPartitionAC = ByteStringRange.create("A", "C");
+    ChangeStreamContinuationToken parentTokenAB =
+        ChangeStreamContinuationToken.create(ByteStringRange.create("A", "B"), "AB");
 
     CloseStream mockCloseStream = Mockito.mock(CloseStream.class);
     Status statusProto = Status.newBuilder().setCode(11).build();
     Mockito.when(mockCloseStream.getStatus())
         .thenReturn(com.google.cloud.bigtable.common.Status.fromProto(statusProto));
     Mockito.when(mockCloseStream.getChangeStreamContinuationTokens())
-        .thenReturn(Arrays.asList(changeStreamContinuationToken1, changeStreamContinuationToken2));
+        .thenReturn(Collections.singletonList(parentTokenAB));
     Mockito.when(mockCloseStream.getNewPartitions())
-        .thenReturn(Arrays.asList(newPartitionAC, newPartitionCD));
+        .thenReturn(Collections.singletonList(childPartitionAC));
 
     when(restriction.getCloseStream()).thenReturn(mockCloseStream);
     final DoFn.ProcessContinuation result =
@@ -275,10 +274,47 @@ public class ReadChangeStreamPartitionActionTest {
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // Write the new partitions.
+    // Write the new partitions.
     verify(metadataTableDao)
-        .writeNewPartition(eq(newPartitionAC), eq(changeStreamContinuationToken1), any(), any());
+        .writeNewPartition(eq(childPartitionAC), eq(parentTokenAB), eq(partition), any());
+    verify(metadataTableDao, times(1)).deleteStreamPartitionRow(partitionRecord.getPartition());
+    verify(metadataTableDao, times(1)).deleteStreamPartitionRow(partitionRecord.getPartition());
+  }
+
+  @Test
+  public void testCloseStreamMergeWithoutNewPartitionsField() throws IOException {
+    // This is testing the old version of the API without the NewPartitions field. This means the
+    // ChangeStreamContinuationToken's partition represents the new partition.
+    // AB merging into AC.
+    ByteStringRange childPartitionAC = ByteStringRange.create("A", "C");
+    // The partition in the token is different from the test above. The token is actually encoded
+    // for partition AB, but in this version, the partition in the token represents the NEW (child)
+    // partition. This has been replaced by the new_partitions field in CloseStream.
+    ChangeStreamContinuationToken parentTokenAB =
+        ChangeStreamContinuationToken.create(ByteStringRange.create("A", "C"), "AB");
+
+    CloseStream mockCloseStream = Mockito.mock(CloseStream.class);
+    Status statusProto = Status.newBuilder().setCode(11).build();
+    Mockito.when(mockCloseStream.getStatus())
+        .thenReturn(com.google.cloud.bigtable.common.Status.fromProto(statusProto));
+    Mockito.when(mockCloseStream.getChangeStreamContinuationTokens())
+        .thenReturn(Collections.singletonList(parentTokenAB));
+    Mockito.when(mockCloseStream.getNewPartitions()).thenReturn(Collections.emptyList());
+
+    when(restriction.getCloseStream()).thenReturn(mockCloseStream);
+    final DoFn.ProcessContinuation result =
+        action.run(partitionRecord, tracker, receiver, watermarkEstimator);
+    assertEquals(DoFn.ProcessContinuation.stop(), result);
+    // Should terminate before reaching processing stream partition responses.
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    // Should decrement the metric on termination.
+    verify(metrics).decPartitionStreamCount();
+    // We have to correct the partition in the tokens if we don't have new_partitions field.
+    ChangeStreamContinuationToken realTokenAB =
+        getTokenWithCorrectPartition(ByteStringRange.create("A", "B"), parentTokenAB);
+    // Write the new partitions.
     verify(metadataTableDao)
-        .writeNewPartition(eq(newPartitionCD), eq(changeStreamContinuationToken2), any(), any());
+        .writeNewPartition(eq(childPartitionAC), eq(realTokenAB), eq(partition), any());
     verify(metadataTableDao, times(1)).deleteStreamPartitionRow(partitionRecord.getPartition());
   }
 }

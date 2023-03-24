@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.doPartitionsOverlap;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getIntersectingPartition;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingAndOverlappingPartitionsFromKeySpace;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
@@ -30,7 +33,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+@RunWith(JUnit4.class)
 public class ByteStringRangeHelperTest {
 
   @Test
@@ -287,5 +293,92 @@ public class ByteStringRangeHelperTest {
     List<ByteStringRange> sorted = Arrays.asList(partition1, partition2, partition3, partition4);
     unsorted.sort(new ByteStringRangeHelper.PartitionComparator());
     assertEquals(unsorted, sorted);
+  }
+
+  @Test
+  public void testOverlappingByteStringRange() {
+    ByteStringRange partition1 = ByteStringRange.create("", "b");
+    ByteStringRange partition2 = ByteStringRange.create("a", "");
+    assertTrue(doPartitionsOverlap(partition1, partition2));
+    assertTrue(doPartitionsOverlap(partition2, partition1));
+  }
+
+  @Test
+  public void testNonOverlappingByteStringRange() {
+    ByteStringRange partition1 = ByteStringRange.create("", "a");
+    ByteStringRange partition2 = ByteStringRange.create("a", "");
+    assertFalse(doPartitionsOverlap(partition1, partition2));
+    assertFalse(doPartitionsOverlap(partition2, partition1));
+  }
+
+  @Test
+  public void testOverlappingByteStringRangeWithEmptyEndKey() {
+    ByteStringRange partition1 = ByteStringRange.create("a", "");
+    ByteStringRange partition2 = ByteStringRange.create("b", "");
+    ByteStringRange partition3 = ByteStringRange.create("b", "c");
+    ByteStringRange partition4 = ByteStringRange.create("", "b");
+    assertTrue(doPartitionsOverlap(partition1, partition2));
+    assertTrue(doPartitionsOverlap(partition2, partition1));
+    assertTrue(doPartitionsOverlap(partition1, partition3));
+    assertTrue(doPartitionsOverlap(partition3, partition1));
+    assertTrue(doPartitionsOverlap(partition1, partition4));
+    assertTrue(doPartitionsOverlap(partition4, partition1));
+    assertTrue(doPartitionsOverlap(partition2, partition3));
+    assertTrue(doPartitionsOverlap(partition3, partition2));
+    assertFalse(doPartitionsOverlap(partition2, partition4));
+    assertFalse(doPartitionsOverlap(partition4, partition2));
+    assertFalse(doPartitionsOverlap(partition3, partition4));
+    assertFalse(doPartitionsOverlap(partition4, partition3));
+  }
+
+  @Test
+  public void testGetIntersectingPartition() {
+    ByteStringRange partition1 = ByteStringRange.create("", "b");
+    ByteStringRange partition2 = ByteStringRange.create("", "a");
+    ByteStringRange partition3 = ByteStringRange.create("a", "c");
+    ByteStringRange partition4 = ByteStringRange.create("b", "d");
+    ByteStringRange partition5 = ByteStringRange.create("c", "d");
+    ByteStringRange partition6 = ByteStringRange.create("a", "");
+    ByteStringRange partition7 = ByteStringRange.create("b", "");
+    assertEquals(ByteStringRange.create("", "a"), getIntersectingPartition(partition1, partition2));
+    assertEquals(
+        ByteStringRange.create("a", "b"), getIntersectingPartition(partition1, partition3));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition1, partition4));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition1, partition5));
+    assertEquals(
+        ByteStringRange.create("a", "b"), getIntersectingPartition(partition1, partition6));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition1, partition7));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition2, partition3));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition2, partition4));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition2, partition5));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition2, partition6));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition2, partition7));
+    assertEquals(
+        ByteStringRange.create("b", "c"), getIntersectingPartition(partition3, partition4));
+    assertThrows(
+        IllegalArgumentException.class, () -> getIntersectingPartition(partition3, partition5));
+    assertEquals(
+        ByteStringRange.create("a", "c"), getIntersectingPartition(partition3, partition6));
+    assertEquals(
+        ByteStringRange.create("b", "c"), getIntersectingPartition(partition3, partition7));
+    assertEquals(
+        ByteStringRange.create("c", "d"), getIntersectingPartition(partition4, partition5));
+    assertEquals(
+        ByteStringRange.create("b", "d"), getIntersectingPartition(partition4, partition6));
+    assertEquals(
+        ByteStringRange.create("b", "d"), getIntersectingPartition(partition4, partition7));
+    assertEquals(
+        ByteStringRange.create("c", "d"), getIntersectingPartition(partition5, partition6));
+    assertEquals(
+        ByteStringRange.create("c", "d"), getIntersectingPartition(partition5, partition7));
+    assertEquals(ByteStringRange.create("b", ""), getIntersectingPartition(partition6, partition7));
   }
 }
