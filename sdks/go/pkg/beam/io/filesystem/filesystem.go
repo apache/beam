@@ -77,6 +77,7 @@ type Interface interface {
 	io.Closer
 
 	// List expands a pattern to a list of filenames.
+	// Returns nil if there are no matching files.
 	List(ctx context.Context, glob string) ([]string, error)
 
 	// OpenRead opens a file for reading.

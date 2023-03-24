@@ -523,3 +523,123 @@ background
 ...
 ```
 Each line has a list of predicted label.
+
+---
+## MNIST digit classification with Tensorflow using Saved Model Weights
+[`tensorflow_mnist_with_weights.py`](./tensorflow_mnist_with_weights.py) contains an implementation for a RunInference pipeline that performs image classification on handwritten digits from the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
+
+The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file.
+
+The model is loaded from the saved model weights. This can be done by passing a function which creates the model and setting the model type as
+`ModelType.SAVED_WEIGHTS` to the `TFModelHandler`. The path to saved weights saved using `model.save_weights(path)` should be passed to the `model_path` argument.
+
+### Dataset and model for language modeling
+
+To use this transform, you need a dataset and model for language modeling.
+
+1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
+```
+1,0,0,0...
+0,0,0,0...
+1,0,0,0...
+4,0,0,0...
+...
+```
+2. Save the weights of trained tensorflow model to a directory `SAVED_WEIGHTS_DIR` .
+
+
+### Running `tensorflow_mnist_with_weights.py`
+
+To run the MNIST classification pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.tensorflow_mnist_with_weights.py \
+  --input INPUT \
+  --output OUTPUT \
+  --model_path SAVED_WEIGHTS_DIR
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.tensorflow_mnist_with_weights.py \
+  --input INPUT.csv \
+  --output predictions.txt \
+  --model_path SAVED_WEIGHTS_DIR
+```
+
+This writes the output to the `predictions.txt` with contents like:
+```
+1,1
+4,4
+0,0
+7,7
+3,3
+5,5
+...
+```
+Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
+## Iris Classification
+
+[`xgboost_iris_classification.py.py`](./xgboost_iris_classification.py.py) contains an implementation for a RunInference pipeline that performs classification on tabular data from the [Iris Dataset](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html).
+
+The pipeline reads rows that contain the features of a given iris. The features are Sepal Length, Sepal Width, Petal Length and Petal Width. The pipeline passes those features to the XGBoost implementation of RunInference which writes the iris type predictions to a text file.
+
+### Dataset and model for language modeling
+
+To use this transform, you need to have sklearn installed. The dataset is loaded from using sklearn. The `_train_model` function can be used to train a simple classifier. The function outputs it's configuration in a file that can be loaded by the `XGBoostModelHandler`.
+
+### Training a simple classifier
+
+The following function allows you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in an pipeline using the `XGBoostModelHandler`.
+```
+import xgboost
+
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+
+
+def _train_model(model_state_output_path: str = '/tmp/model.json', seed=999):
+  """Function to train an XGBoost Classifier using the sklearn Iris dataset"""
+  dataset = load_iris()
+  x_train, _, y_train, _ = train_test_split(
+      dataset['data'], dataset['target'], test_size=.2, random_state=seed)
+  booster = xgboost.XGBClassifier(
+      n_estimators=2, max_depth=2, learning_rate=1, objective='binary:logistic')
+  booster.fit(x_train, y_train)
+  booster.save_model(model_state_output_path)
+  return booster
+```
+
+#### Running the Pipeline
+To run locally, use the following command:
+
+```
+python -m apache_beam.examples.inference.xgboost_iris_classification.py \
+  --input_type INPUT_TYPE \
+  --output OUTPUT_FILE \
+  -- model_state MODEL_STATE_JSON \
+  [--no_split|--split]
+```
+
+For example:
+
+```
+python -m apache_beam.examples.inference.xgboost_iris_classification.py \
+  --input_type numpy \
+  --output predictions.txt \
+  --model_state model_state.json \
+  --split
+```
+
+This writes the output to the `predictions.txt`. Each line contains the batch number and a list with all outputted class labels. There are 3 possible values for class labels: `0`, `1`, and `2`. When each batch contains a single elements the output look like this:
+```
+0,[1]
+1,[2]
+2,[1]
+3,[0]
+...
+```
+
+When all elements are in a single batch the output looks like this:
+```
+0,[1 1 1 0 0 0 0 1 2 0 0 2 0 2 1 2 2 2 2 0 0 0 0 2 2 0 2 2 2 1]
+
+```

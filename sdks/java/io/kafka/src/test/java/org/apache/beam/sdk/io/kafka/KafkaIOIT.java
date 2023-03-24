@@ -40,6 +40,7 @@ import java.util.stream.LongStream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -56,7 +57,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -623,7 +623,7 @@ public class KafkaIOIT {
                             true, options.isWithTestcontainers() ? 30 : 120)
                         .from(
                             KafkaReadSchemaTransformConfiguration.builder()
-                                .setDataFormat(format)
+                                .setFormat(format)
                                 .setAutoOffsetResetConfig("earliest")
                                 .setSchema(schemaDefinition)
                                 .setTopic(topicName)
