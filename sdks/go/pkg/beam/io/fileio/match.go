@@ -31,37 +31,44 @@ func init() {
 	register.Emitter1[FileMetadata]()
 }
 
-// EmptyMatchTreatment controls how empty matches of a pattern are treated.
-type EmptyMatchTreatment int
+// emptyTreatment controls how empty matches of a pattern are treated.
+type emptyTreatment int
 
 const (
-	// EmptyMatchTreatmentAllow allows empty matches.
-	EmptyMatchTreatmentAllow EmptyMatchTreatment = iota
-	// EmptyMatchTreatmentDisallow disallows empty matches.
-	EmptyMatchTreatmentDisallow
-	// EmptyMatchTreatmentAllowIfWildcard allows empty matches if the pattern contains a wildcard.
-	EmptyMatchTreatmentAllowIfWildcard
+	// emptyAllow allows empty matches.
+	emptyAllow emptyTreatment = iota
+	// emptyDisallow disallows empty matches.
+	emptyDisallow
+	// emptyAllowIfWildcard allows empty matches if the pattern contains a wildcard.
+	emptyAllowIfWildcard
 )
 
 type matchOption struct {
-	EmptyMatchTreatment EmptyMatchTreatment
+	EmptyTreatment emptyTreatment
 }
 
 // MatchOptionFn is a function that can be passed to MatchFiles or MatchAll to configure options for
 // matching files.
-type MatchOptionFn func(*matchOption) error
+type MatchOptionFn func(*matchOption)
 
-// WithEmptyMatchTreatment specifies how empty matches of a pattern should be treated. By default,
-// empty matches are allowed if the pattern contains a wildcard.
-func WithEmptyMatchTreatment(treatment EmptyMatchTreatment) MatchOptionFn {
-	return func(o *matchOption) error {
-		o.EmptyMatchTreatment = treatment
-		return nil
+// MatchEmptyAllow specifies that empty matches are allowed.
+func MatchEmptyAllow() MatchOptionFn {
+	return func(o *matchOption) {
+		o.EmptyTreatment = emptyAllow
+	}
+}
+
+// MatchEmptyDisallow specifies that empty matches are not allowed.
+func MatchEmptyDisallow() MatchOptionFn {
+	return func(o *matchOption) {
+		o.EmptyTreatment = emptyDisallow
 	}
 }
 
 // MatchFiles finds all files matching the glob pattern and returns a PCollection<FileMetadata> of
-// the matching files.
+// the matching files. MatchFiles accepts a variadic number of MatchOptionFn that can be used to
+// configure the treatment of empty matches. By default, empty matches are allowed if the pattern
+// contains a wildcard.
 func MatchFiles(s beam.Scope, glob string, opts ...MatchOptionFn) beam.PCollection {
 	s = s.Scope("fileio.MatchFiles")
 
@@ -70,30 +77,30 @@ func MatchFiles(s beam.Scope, glob string, opts ...MatchOptionFn) beam.PCollecti
 }
 
 // MatchAll finds all files matching the glob patterns given by the incoming PCollection<string> and
-// returns a PCollection<FileMetadata> of the matching files.
+// returns a PCollection<FileMetadata> of the matching files. MatchAll accepts a variadic number of
+// MatchOptionFn that can be used to configure the treatment of empty matches. By default, empty
+// matches are allowed if the pattern contains a wildcard.
 func MatchAll(s beam.Scope, col beam.PCollection, opts ...MatchOptionFn) beam.PCollection {
 	s = s.Scope("fileio.MatchAll")
 
 	option := &matchOption{
-		EmptyMatchTreatment: EmptyMatchTreatmentAllowIfWildcard,
+		EmptyTreatment: emptyAllowIfWildcard,
 	}
 
 	for _, opt := range opts {
-		if err := opt(option); err != nil {
-			panic(fmt.Sprintf("fileio.MatchAll: invalid option: %v", err))
-		}
+		opt(option)
 	}
 
 	return beam.ParDo(s, newMatchFn(option), col)
 }
 
 type matchFn struct {
-	EmptyMatchTreatment EmptyMatchTreatment
+	EmptyTreatment emptyTreatment
 }
 
 func newMatchFn(option *matchOption) *matchFn {
 	return &matchFn{
-		EmptyMatchTreatment: option.EmptyMatchTreatment,
+		EmptyTreatment: option.EmptyTreatment,
 	}
 }
 
@@ -118,7 +125,7 @@ func (fn *matchFn) ProcessElement(
 	}
 
 	if len(files) == 0 {
-		if !allowEmptyMatch(glob, fn.EmptyMatchTreatment) {
+		if !allowEmptyMatch(glob, fn.EmptyTreatment) {
 			return fmt.Errorf("no files matching pattern %q", glob)
 		}
 		return nil
@@ -136,11 +143,11 @@ func (fn *matchFn) ProcessElement(
 	return nil
 }
 
-func allowEmptyMatch(glob string, treatment EmptyMatchTreatment) bool {
+func allowEmptyMatch(glob string, treatment emptyTreatment) bool {
 	switch treatment {
-	case EmptyMatchTreatmentDisallow:
+	case emptyDisallow:
 		return false
-	case EmptyMatchTreatmentAllowIfWildcard:
+	case emptyAllowIfWildcard:
 		return strings.Contains(glob, "*")
 	default:
 		return true

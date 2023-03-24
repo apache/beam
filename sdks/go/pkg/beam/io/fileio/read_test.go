@@ -49,46 +49,46 @@ func TestReadMatches(t *testing.T) {
 						Path: "file1.txt",
 						Size: 5,
 					},
-					Compression: CompressionAuto,
+					Compression: compressionAuto,
 				},
 				ReadableFile{
 					Metadata: FileMetadata{
 						Path: "file2.txt",
 						Size: 0,
 					},
-					Compression: CompressionAuto,
+					Compression: compressionAuto,
 				},
 			},
 		},
 		{
 			name: "Read matches with specified compression",
 			opts: []ReadOptionFn{
-				WithReadCompression(CompressionGzip),
+				ReadCompressionGzip(),
 			},
 			input: []any{
 				FileMetadata{
-					Path: "file1.txt.gz",
+					Path: "file1",
 					Size: 5,
 				},
 				FileMetadata{
-					Path: "file2.txt.gz",
+					Path: "file2",
 					Size: 0,
 				},
 			},
 			want: []any{
 				ReadableFile{
 					Metadata: FileMetadata{
-						Path: "file1.txt.gz",
+						Path: "file1",
 						Size: 5,
 					},
-					Compression: CompressionGzip,
+					Compression: compressionGzip,
 				},
 				ReadableFile{
 					Metadata: FileMetadata{
-						Path: "file2.txt.gz",
+						Path: "file2",
 						Size: 0,
 					},
-					Compression: CompressionGzip,
+					Compression: compressionGzip,
 				},
 			},
 		},
@@ -110,14 +110,14 @@ func TestReadMatches(t *testing.T) {
 						Path: "file1.txt",
 						Size: 5,
 					},
-					Compression: CompressionAuto,
+					Compression: compressionAuto,
 				},
 			},
 		},
 		{
 			name: "Error - directories disallowed",
 			opts: []ReadOptionFn{
-				WithDirectoryTreatment(DirectoryTreatmentDisallow),
+				ReadDirectoryDisallow(),
 			},
 			input: []any{
 				FileMetadata{

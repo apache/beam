@@ -78,7 +78,7 @@ func TestMatchFiles(t *testing.T) {
 		{
 			name: "Read matches with specified empty match treatment",
 			opts: []MatchOptionFn{
-				WithEmptyMatchTreatment(EmptyMatchTreatmentAllow),
+				MatchEmptyAllow(),
 			},
 			glob: filepath.Join(dir, "non-existent.txt"),
 			want: nil,
@@ -147,7 +147,7 @@ func TestMatchAll(t *testing.T) {
 		{
 			name: "No matches for glob without wildcard and empty matches allowed",
 			opts: []MatchOptionFn{
-				WithEmptyMatchTreatment(EmptyMatchTreatmentAllow),
+				MatchEmptyAllow(),
 			},
 			input: []any{
 				filepath.Join(dir, "non-existent.txt"),
@@ -164,7 +164,7 @@ func TestMatchAll(t *testing.T) {
 		{
 			name: "Error - no matches and empty matches disallowed",
 			opts: []MatchOptionFn{
-				WithEmptyMatchTreatment(EmptyMatchTreatmentDisallow),
+				MatchEmptyDisallow(),
 			},
 			input: []any{
 				filepath.Join(dir, "*", "non-existent.txt"),
@@ -191,31 +191,31 @@ func Test_allowEmptyMatch(t *testing.T) {
 	tests := []struct {
 		name      string
 		glob      string
-		treatment EmptyMatchTreatment
+		treatment emptyTreatment
 		want      bool
 	}{
 		{
-			name:      "Allow for EmptyMatchTreatmentAllow",
+			name:      "Allow for emptyAllow",
 			glob:      "path/to/file.txt",
-			treatment: EmptyMatchTreatmentAllow,
+			treatment: emptyAllow,
 			want:      true,
 		},
 		{
-			name:      "Disallow for EmptyMatchTreatmentDisallow",
+			name:      "Disallow for emptyDisallow",
 			glob:      "path/to/file.txt",
-			treatment: EmptyMatchTreatmentDisallow,
+			treatment: emptyDisallow,
 			want:      false,
 		},
 		{
-			name:      "Allow for glob with wildcard and EmptyMatchTreatmentAllowIfWildcard",
+			name:      "Allow for glob with wildcard and emptyAllowIfWildcard",
 			glob:      "path/to/*.txt",
-			treatment: EmptyMatchTreatmentAllowIfWildcard,
+			treatment: emptyAllowIfWildcard,
 			want:      true,
 		},
 		{
-			name:      "Disallow for glob without wildcard and EmptyMatchTreatmentAllowIfWildcard",
+			name:      "Disallow for glob without wildcard and emptyAllowIfWildcard",
 			glob:      "path/to/file.txt",
-			treatment: EmptyMatchTreatmentAllowIfWildcard,
+			treatment: emptyAllowIfWildcard,
 			want:      false,
 		},
 	}

@@ -28,68 +28,70 @@ func init() {
 	register.Emitter1[ReadableFile]()
 }
 
-// DirectoryTreatment controls how directories are treated when reading matches.
-type DirectoryTreatment int
+// directoryTreatment controls how paths to directories are treated when reading matches.
+type directoryTreatment int
 
 const (
-	// DirectoryTreatmentSkip skips directories.
-	DirectoryTreatmentSkip DirectoryTreatment = iota
-	// DirectoryTreatmentDisallow disallows directories.
-	DirectoryTreatmentDisallow
+	// directorySkip skips directories.
+	directorySkip directoryTreatment = iota
+	// directoryDisallow disallows directories.
+	directoryDisallow
 )
 
 type readOption struct {
-	Compression        Compression
-	DirectoryTreatment DirectoryTreatment
+	Compression        compressionType
+	DirectoryTreatment directoryTreatment
 }
 
 // ReadOptionFn is a function that can be passed to ReadMatches to configure options for
 // reading files.
-type ReadOptionFn func(*readOption) error
+type ReadOptionFn func(*readOption)
 
-// WithReadCompression specifies the compression type of the files that are read. By default,
-// the compression type is determined by the file extension.
-func WithReadCompression(compression Compression) ReadOptionFn {
-	return func(o *readOption) error {
-		o.Compression = compression
-		return nil
+// ReadCompressionGzip specifies that files have been compressed using gzip.
+func ReadCompressionGzip() ReadOptionFn {
+	return func(o *readOption) {
+		o.Compression = compressionGzip
 	}
 }
 
-// WithDirectoryTreatment specifies how directories should be treated when reading files. By
-// default, directories are skipped.
-func WithDirectoryTreatment(treatment DirectoryTreatment) ReadOptionFn {
-	return func(o *readOption) error {
-		o.DirectoryTreatment = treatment
-		return nil
+// ReadCompressionUncompressed specifies that files have not been compressed.
+func ReadCompressionUncompressed() ReadOptionFn {
+	return func(o *readOption) {
+		o.Compression = compressionUncompressed
+	}
+}
+
+// ReadDirectoryDisallow specifies that directories are not allowed.
+func ReadDirectoryDisallow() ReadOptionFn {
+	return func(o *readOption) {
+		o.DirectoryTreatment = directoryDisallow
 	}
 }
 
 // ReadMatches accepts the result of MatchFiles or MatchAll as a PCollection<FileMetadata> and
 // converts it to a PCollection<ReadableFile>. The ReadableFile can be used to retrieve file
-// metadata, open the file for reading or read the entire file into memory. The compression type of
-// the readable files can be specified by passing the WithReadCompression option. If no compression
-// type is provided, it will be determined by the file extension.
+// metadata, open the file for reading or read the entire file into memory. ReadMatches accepts a
+// variadic number of ReadOptionFn that can be used to configure the compression type of the files
+// and treatment of directories. By default, the compression type is determined by the file
+// extension and directories are skipped.
 func ReadMatches(s beam.Scope, col beam.PCollection, opts ...ReadOptionFn) beam.PCollection {
 	s = s.Scope("fileio.ReadMatches")
 
 	option := &readOption{
-		Compression:        CompressionAuto,
-		DirectoryTreatment: DirectoryTreatmentSkip,
+		Compression:        compressionAuto,
+		DirectoryTreatment: directorySkip,
 	}
 
 	for _, opt := range opts {
-		if err := opt(option); err != nil {
-			panic(fmt.Sprintf("fileio.ReadMatches: invalid option: %v", err))
-		}
+		opt(option)
 	}
 
 	return beam.ParDo(s, newReadFn(option), col)
 }
 
 type readFn struct {
-	Compression        Compression
-	DirectoryTreatment DirectoryTreatment
+	Compression        compressionType
+	DirectoryTreatment directoryTreatment
 }
 
 func newReadFn(option *readOption) *readFn {
@@ -101,7 +103,7 @@ func newReadFn(option *readOption) *readFn {
 
 func (fn *readFn) ProcessElement(metadata FileMetadata, emit func(ReadableFile)) error {
 	if isDirectory(metadata.Path) {
-		if fn.DirectoryTreatment == DirectoryTreatmentDisallow {
+		if fn.DirectoryTreatment == directoryDisallow {
 			return fmt.Errorf("path to directory not allowed: %q", metadata.Path)
 		}
 		return nil
