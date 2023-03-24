@@ -106,23 +106,18 @@ enum Sdk {
 }
 ```
 
-2. Create a new environment for a new language as [this one](containers/java)
-3. Create a new config file for a new language as [this one](configs/SDK_JAVA.json)
-4. Update a method to create file system according to a new language [here](internal/fs_tool/fs.go) (`NewLifeCycle()`
+1. Create a new environment for a new language as [this one](containers/java)
+1. Create a new config file for a new language as [this one](configs/SDK_JAVA.json)
+1. Update a method to create file system according to a new language [here](internal/fs_tool/fs.go) (`NewLifeCycle()`
    method)
-5. Update a method to set up a file system according to a new
+1. Update a method to set up a file system according to a new
    language [here](internal/setup_tools/life_cycle/life_cycle_setuper.go) (`Setup()` method)
-6. Update a method to set up code validator according to a new language[here](internal/utils/validators_utils.go)
-7. Update a method to set up code preparers according to a new language [here](internal/utils/preparators_utils.go)
-8. Update a method to set up compiler according to a new
-   language [here](internal/setup_tools/builder/setup_builder.go) (`Compiler()` method)
-9. Update a method to set up runner according to a new
-   language [here](internal/setup_tools/builder/setup_builder.go) (`Runner()` method)
-10. Update a method to set up test runner according to a new
-    language [here](internal/setup_tools/builder/setup_builder.go) (`TestRunner()` method)
-11. Update a method to compile client's code according to a new
+1. Add new validation code [here](internal/validators/validator.go)
+1. Add new preparers [here](internal/preparers/preparer.go)
+1. Add new building and running code [here](internal/executors/executor.go)
+1. Update a method to compile client's code according to a new
     language [here](internal/code_processing/code_processing.go) (`compileStep()` method)
-12. Update a method to execute client's code according to a new
+1. Update a method to execute client's code according to a new
     language [here](internal/code_processing/code_processing.go) (`runStep()` method)
 
 ## Adding an emulator-enabled example
