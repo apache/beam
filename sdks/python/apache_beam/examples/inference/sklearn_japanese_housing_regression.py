@@ -139,7 +139,7 @@ def run(
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   requirements_dir = os.path.dirname(os.path.realpath(__file__))
-  # Pin to the version that we trained the model on.
+  # Pin to the version that we trained the model on. Sklearn doesn't guarantee compatability between versions.
   pipeline_options.view_as(SetupOptions).requirements_file = f'{requirements_dir}/sklearn_examples_requirements.txt'
 
   pipeline = test_pipeline
