@@ -15,28 +15,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Use Slowly-Updating Side Input Pattern to Update Models in RunInference Transform
+# Use Slowly-Updating Side Input Pattern to Auto Update Models in RunInference Transform
 
-The pipeline in this example uses RunInference PTransform with a `side input` PCollection that emits `ModelMetadata` to run inferences on images using open source Tensorflow models trained on `imagenet`.
+The pipeline in this example uses [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) PTransform with a `side input` PCollection that emits `ModelMetadata` to run inferences on images using open source Tensorflow models trained on `imagenet`.
 
 In this example, we will use `WatchFilePattern` as a side input. `WatchFilePattern` is used to watch for the file updates matching the `file_pattern`
-based on timestamps and emits the latest `ModelMetadata`, which is used in
-`RunInference` PTransform for the dynamic model updates without the need for stopping
-the beam pipeline.
+based on timestamps and emits the latest [ModelMetadata](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/), which is used in
+`RunInference` PTransform for the dynamic auto model updates without the need for stopping the beam pipeline.
 
 **Note**: Slowly-updating side input pattern is non-deterministic.
 
-You can find the code used in this example in the [Beam repository] (link).
-
-## Setting up source.
+### Setting up source.
 
 We will use PubSub topic as a source to read the image names. 
  * PubSub topic emits a `UTF-8` encoded model path that will be used read and preprocess images for running the inference.
 
-## Models for image segmentation
+### Models for image segmentation
 
-We will use `resnet_v2_101` for initial predictions. After a while, we will upload a `resnet_v2_152` to the GCS bucket. The bucket path will be used a glob pattern and is passed to the WatchFilePattern.
- 
+We will use `resnet_v2_101` for initial predictions. After a while, upload a model that matches the `file_pattern` to the GCS bucket. The bucket path will be used a glob pattern and is passed to the WatchFilePattern.
+Once there is an update, the RunInference PTransform will update the `model_uri` to use the latest model/file.
 
 ### ModelHandler used for Predictions.
 
@@ -109,10 +106,6 @@ Once the inference is done, RunInference outputs `PredictionResult` object that 
 
 ```python
 from apache_beam.ml.inference.base import PredictionResult
-import typing
-import numpy
-import apache_beam as beam
-import tensorflow as tf
 
 class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
@@ -128,5 +121,15 @@ class PostProcessor(beam.DoFn):
     predicted_class_name = imagenet_labels[predicted_class]
     return predicted_class_name.title(), element.model_id
 
-(inference_pcoll | "PostProcessor" >> PostProcessor())
+post_processor_pcoll = (inference_pcoll | "PostProcessor" >> PostProcessor())
 ```
+
+### Run the pipeline
+```python
+result = pipeline.run().wait_until_finish()
+```
+Once the pipeline is run with initial settings, upload a model matching the `file_pattern` to GCS bucket. After some time, you will see that your pipeline starts to use the updated model instead of the initial model. 
+**Note**: `model_name` of the `ModelMetaData` object will be attached as prefix to the [metrics](https://beam.apache.org/documentation/ml/runinference-metrics/) calculated by the RunInference PTransform 
+
+## Final remarks
+Use this example as a pattern on how to use side inputs with RunInference PTransform to auto update the models without the need to stop the pipeline. A similar example for PyTorch can be found on [GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py).
