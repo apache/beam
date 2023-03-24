@@ -1558,7 +1558,7 @@ documentation.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python main.py --input-text=&amp;#34;--inputText=Greetings&amp;#34;&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>python main.py --input-text=&amp;#34;Greetings&amp;#34;&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>The output is similar to the following:&lt;/p>
@@ -1643,6 +1643,176 @@ Google Cloud Dataflow. These systems support massively parallel processing.&lt;/
 &lt;li>Learn more about the &lt;a href="/documentation/sdks/python/">Beam SDK for Python&lt;/a>
 and look through the
 &lt;a href="https://beam.apache.org/releases/pydoc/current">Python SDK API reference&lt;/a>.&lt;/li>
+&lt;li>Take a self-paced tour through our
+&lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite
+&lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
+&lt;/ul>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any
+issues!&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Typescript</title><link>/get-started/quickstart/typescript/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart/typescript/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="apache-beam-typescript-sdk-quickstart">Apache Beam Typescript SDK quickstart&lt;/h1>
+&lt;p>This quickstart shows you how to run an
+&lt;a href="https://github.com/apache/beam-starter-typescript">example pipeline&lt;/a> written with
+the &lt;a href="/documentation/sdks/typescript">Apache Beam Typescript SDK&lt;/a>, using the
+&lt;a href="/documentation/runners/direct/">Direct Runner&lt;/a>. The Direct Runner executes
+pipelines locally on your machine.&lt;/p>
+&lt;p>If you&amp;rsquo;re interested in contributing to the Apache Beam Typescript codebase, see the
+&lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/p>
+&lt;p>On this page:&lt;/p>
+&lt;nav id="TableOfContents">
+&lt;ul>
+&lt;li>&lt;a href="#set-up-your-development-environment">Set up your development environment&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#clone-the-github-repository">Clone the GitHub repository&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#install-the-project-dependences">Install the project dependences&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#compile-the-pipeline">Compile the pipeline&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-the-quickstart">Run the quickstart&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#explore-the-code">Explore the code&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#create-a-pipeline">Create a pipeline&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#create-an-initial-pcollection">Create an initial PCollection&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#apply-a-transform-to-the-pcollection">Apply a transform to the PCollection&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-the-pipeline">Run the pipeline&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#next-steps">Next Steps&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;h2 id="set-up-your-development-environment">Set up your development environment&lt;/h2>
+&lt;p>Make sure you have a &lt;a href="https://nodejs.org/">Node.js&lt;/a> development environment installed.
+If you don&amp;rsquo;t, you can download and install it from the
+&lt;a href="https://nodejs.org/en/download/">downloads page&lt;/a>.&lt;/p>
+&lt;p>Due to its extensive use of cross-language transforms, it is recommended that
+Python 3 and Java be available on the system as well.&lt;/p>
+&lt;h2 id="clone-the-github-repository">Clone the GitHub repository&lt;/h2>
+&lt;p>Clone or download the
+&lt;a href="https://github.com/apache/beam-starter-typescript">apache/beam-starter-typescript&lt;/a>
+GitHub repository and change into the &lt;code>beam-starter-typescript&lt;/code> directory.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-typescript.git
+cd beam-starter-typescript&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="install-the-project-dependences">Install the project dependences&lt;/h2>
+&lt;p>Run the following command to install the project&amp;rsquo;s dependencies.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>npm install&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="compile-the-pipeline">Compile the pipeline&lt;/h2>
+&lt;p>The pipeline is then built with&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>npm run build&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="run-the-quickstart">Run the quickstart&lt;/h2>
+&lt;p>Run the following command:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>node dist/src/main.js --input_text=&amp;#34;Greetings&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>The output is similar to the following:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>Hello
+World!
+Greetings&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>The lines might appear in a different order.&lt;/p>
+&lt;h2 id="explore-the-code">Explore the code&lt;/h2>
+&lt;p>The main code file for this quickstart is &lt;strong>app.ts&lt;/strong>
+(&lt;a href="https://github.com/apache/beam-starter-typescript/blob/main/src/app.ts">GitHub&lt;/a>).
+The code performs the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Define a Beam pipeline that.&lt;/li>
+&lt;/ol>
+&lt;ul>
+&lt;li>Creates an initial &lt;code>PCollection&lt;/code>.&lt;/li>
+&lt;li>Applies a transform (map) to the &lt;code>PCollection&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;ol start="2">
+&lt;li>Run the pipeline, using the Direct Runner.&lt;/li>
+&lt;/ol>
+&lt;h3 id="create-a-pipeline">Create a pipeline&lt;/h3>
+&lt;p>A &lt;code>Pipeline&lt;/code> is simply a callable that takes a single &lt;code>root&lt;/code> object.
+The &lt;code>Pipeline&lt;/code> function builds up the graph of transformations to be executed.&lt;/p>
+&lt;h3 id="create-an-initial-pcollection">Create an initial PCollection&lt;/h3>
+&lt;p>The &lt;code>PCollection&lt;/code> abstraction represents a potentially distributed,
+multi-element data set. A Beam pipeline needs a source of data to populate an
+initial &lt;code>PCollection&lt;/code>. The source can be bounded (with a known, fixed size) or
+unbounded (with unlimited size).&lt;/p>
+&lt;p>This example uses the
+&lt;a href="https://beam.apache.org/releases/typedoc/current/functions/transforms_create.create.html">&lt;code>Create&lt;/code>&lt;/a>
+method to create a &lt;code>PCollection&lt;/code> from an in-memory array of strings. The
+resulting &lt;code>PCollection&lt;/code> contains the strings &amp;ldquo;Hello&amp;rdquo;, &amp;ldquo;World!&amp;quot;, and a
+user-provided input string.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s2">&amp;#34;Hello&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;World!&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">input_text&lt;/span>&lt;span class="p">]))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="apply-a-transform-to-the-pcollection">Apply a transform to the PCollection&lt;/h3>
+&lt;p>Transforms can change, filter, group, analyze, or otherwise process the
+elements in a &lt;code>PCollection&lt;/code>. This example uses the
+&lt;a href="https://beam.apache.org/releases/typedoc/current/classes/pvalue.PCollection.html#map">&lt;code>Map&lt;/code>&lt;/a>
+transform, which maps the elements of a collection into a new collection:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">printAndReturn&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For convenience, &lt;code>PColletion&lt;/code> has a &lt;code>map&lt;/code> method, but more generally transforms
+are applied with &lt;code>.apply(someTransform())&lt;/code>.&lt;/p>
+&lt;h3 id="run-the-pipeline">Run the pipeline&lt;/h3>
+&lt;p>To run the pipeline, a runner is created (possibly with some options)&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">createRunner&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">options&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>and then its &lt;code>run&lt;/code> method is invoked on the pipeline callable created above.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="p">.&lt;/span>&lt;span class="nx">run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">createPipeline&lt;/span>&lt;span class="p">(...));&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>A Beam &lt;a href="/documentation/basics/#runner">runner&lt;/a> runs a Beam pipeline on a
+specific platform. If you don&amp;rsquo;t specify a runner, the Direct Runner is the
+default. The Direct Runner runs the pipeline locally on your machine. It is
+meant for testing and development, rather than being optimized for efficiency.
+For more information, see
+&lt;a href="/documentation/runners/direct/">Using the Direct Runner&lt;/a>.&lt;/p>
+&lt;p>For production workloads, you typically use a distributed runner that runs the
+pipeline on a big data processing system such as Apache Flink, Apache Spark, or
+Google Cloud Dataflow. These systems support massively parallel processing.
+Different runners can be requested via the runner property on options, e.g.
+&lt;code>createRunner({runner: &amp;quot;dataflow&amp;quot;})&lt;/code> or &lt;code>createRunner({runner: &amp;quot;flink&amp;quot;})&lt;/code>.
+In this example this value can be passed in via the command line as
+&lt;code>--runner=...&lt;/code>, e.g. to run on Dataflow one would write&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sh" data-lang="sh">node dist/src/main.js &lt;span class="se">\
+&lt;/span>&lt;span class="se">&lt;/span> --runner&lt;span class="o">=&lt;/span>dataflow &lt;span class="se">\
+&lt;/span>&lt;span class="se">&lt;/span> --project&lt;span class="o">=&lt;/span>&lt;span class="si">${&lt;/span>&lt;span class="nv">PROJECT_ID&lt;/span>&lt;span class="si">}&lt;/span> &lt;span class="se">\
+&lt;/span>&lt;span class="se">&lt;/span> --tempLocation&lt;span class="o">=&lt;/span>gs://&lt;span class="si">${&lt;/span>&lt;span class="nv">GCS_BUCKET&lt;/span>&lt;span class="si">}&lt;/span>/wordcount-js/temp --region&lt;span class="o">=&lt;/span>&lt;span class="si">${&lt;/span>&lt;span class="nv">REGION&lt;/span>&lt;span class="si">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="next-steps">Next Steps&lt;/h2>
+&lt;ul>
+&lt;li>Learn more about the &lt;a href="/documentation/sdks/typescript/">Beam SDK for Typescript&lt;/a>
+and look through the
+&lt;a href="https://beam.apache.org/releases/typedoc/current">Typescript SDK API reference&lt;/a>.&lt;/li>
 &lt;li>Take a self-paced tour through our
 &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
 &lt;li>Dive in to some of our favorite
