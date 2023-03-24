@@ -131,6 +131,7 @@ post_processor_pcoll = (inference_pcoll | "PostProcessor" >> PostProcessor())
 result = pipeline.run().wait_until_finish()
 ```
 Once the pipeline is run with initial settings, upload a model matching the `file_pattern` to GCS bucket. After some time, you will see that your pipeline starts to use the updated model instead of the initial model. 
+
 **Note**: `model_name` of the `ModelMetaData` object will be attached as prefix to the [metrics](https://beam.apache.org/documentation/ml/runinference-metrics/) calculated by the RunInference PTransform. 
 
 ## Final remarks
