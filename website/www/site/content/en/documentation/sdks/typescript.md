@@ -108,7 +108,7 @@ See the [Beam-provided I/O Transforms](/documentation/io/built-in/) page for a l
 ## Supported Features
 
 The Typescript SDK is still under development but already supports many,
-but not all, features currently supported by the Beam model, including those required by streaming.
+but not all, features currently supported by the Beam model, both batch and streaming.
 It also has extensive support for
 [cross-language transforms](/documentation/programming-guide/#1324-using-cross-language-transforms-in-a-typescript-pipeline)
 which can be leveraged to use more advanced features from Typescript pipelines.
