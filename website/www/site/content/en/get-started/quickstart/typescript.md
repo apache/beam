@@ -96,7 +96,7 @@ The code performs the following steps:
 
 1. Define a Beam pipeline that.
   + Creates an initial `PCollection`.
-  + Apply a transform (map) to the `PCollection`.
+  + Applies a transform (map) to the `PCollection`.
 2. Run the pipeline, using the Direct Runner.
 
 ### Create a pipeline
