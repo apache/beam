@@ -1767,6 +1767,51 @@ public class WindmillStateInternalsTest {
     assertTagMultimapUpdates(builder, new MultimapEntryUpdate(key1, Arrays.asList(4), false));
   }
 
+  @Test
+  public void testMultimapRemoveAndKeysAndPersist() throws IOException {
+    final String tag = "multimap";
+    StateTag<MultimapState<byte[], Integer>> addr =
+        StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MultimapState<byte[], Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    final byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);
+    final byte[] key2 = "key2".getBytes(StandardCharsets.UTF_8);
+
+    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> keysFuture =
+        SettableFuture.create();
+    when(mockReader.multimapFetchAllFuture(
+            true, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(keysFuture);
+
+    ReadableState<Iterable<byte[]>> keysResult = multimapState.keys().readLater();
+    waitAndSet(
+        keysFuture,
+        new WindmillStateReader.WeightedList<>(
+            Arrays.asList(multimapEntry(key1), multimapEntry(key2))),
+        30);
+
+    multimapState.remove(key1);
+
+    Iterable<byte[]> keys = keysResult.read();
+    assertEquals(1, Iterables.size(keys));
+    assertThat(keys, Matchers.containsInAnyOrder(key2));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getMultimapUpdatesCount());
+    Windmill.TagMultimapUpdateRequest.Builder builder =
+        Iterables.getOnlyElement(commitBuilder.getMultimapUpdatesBuilderList());
+    assertEquals(1, builder.getUpdatesCount());
+    assertFalse(builder.getDeleteAll());
+    Windmill.TagMultimapEntry entryUpdate = Iterables.getOnlyElement(builder.getUpdatesList());
+    byte[] decodedKey =
+        ByteArrayCoder.of().decode(entryUpdate.getEntryName().newInput(), Context.OUTER);
+    assertTrue(Arrays.equals(key1, decodedKey));
+    assertTrue(entryUpdate.getDeleteAll());
+  }
+
   public static final Range<Long> FULL_ORDERED_LIST_RANGE =
       Range.closedOpen(WindmillOrderedList.MIN_TS_MICROS, WindmillOrderedList.MAX_TS_MICROS);
 

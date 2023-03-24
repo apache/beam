@@ -1610,10 +1610,21 @@ class WindmillStateInternals<K> implements StateInternals {
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
 
+    private enum KeyExistence {
+      // this key is known to exist, it has at least 1 value in either localAdditions or windmill
+      KNOWN_EXIST,
+      // this key is known to be nonexistent, it has 0 value in both localAdditions and windmill
+      KNOWN_NONEXISTENT,
+      // we don't know if this key is in this multimap, it has exact 0 value in localAddition, but
+      // may have 0 or any number of values in windmill. This is just to provide a mapping between
+      // the original key and the structural key.
+      UNKNOWN_EXISTENCE
+    }
+
     private class KeyState {
       final K originalKey;
       KeyExistence existence;
-      // valuesCached can be true if only existence == KNOWN_EXIST and all values of this key is
+      // valuesCached can be true if only existence == KNOWN_EXIST and all values of this key are
       // cached (both values and localAdditions).
       boolean valuesCached;
       // Represents the values in windmill. When new values are added during user processing, they
@@ -1641,16 +1652,8 @@ class WindmillStateInternals<K> implements StateInternals {
       }
     }
 
-    private enum KeyExistence {
-      // this key is known to exist
-      KNOWN_EXIST,
-      // this key is known to be nonexistent
-      KNOWN_NONEXISTENT,
-      // we don't know if this key is in this multimap, this is just to provide a mapping between
-      // the original key and the structural key.
-      UNKNOWN_EXISTENCE
-    }
-
+    // Set to true when user clears the entire multimap, so that we can later send delete request to
+    // the windmill backend.
     private boolean cleared = false;
     // We use the structural value of the keys as the key in keyStateMap, so that different java
     // Objects with the same content will be treated as the same Multimap key.
@@ -1658,6 +1661,7 @@ class WindmillStateInternals<K> implements StateInternals {
     // If true, all keys are cached in keyStateMap with existence == KNOWN_EXIST.
     private boolean allKeysKnown = false;
 
+    // True if all contents of this multimap are cached in this object.
     private boolean complete = false;
     // hasLocalAdditions and hasLocalRemovals track whether there are local changes that needs to be
     // propagated to windmill.
@@ -1696,8 +1700,10 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     // Initiates a backend state read to fetch all entries if necessary.
-    private Future<Iterable<Map.Entry<ByteString, Iterable<V>>>> getFuture(boolean omitValues) {
+    private Future<Iterable<Map.Entry<ByteString, Iterable<V>>>> necessaryEntriesFromStorageFuture(
+        boolean omitValues) {
       if (complete) {
+        // Since we're complete, even if there are entries in storage we don't need to read them.
         return Futures.immediateFuture(Collections.emptyList());
       } else {
         return reader.multimapFetchAllFuture(omitValues, stateKey, stateFamily, valueCoder);
@@ -1705,7 +1711,7 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     // Initiates a backend state read to fetch a single entry if necessary.
-    private Future<Iterable<V>> getFutureForKey(K key) {
+    private Future<Iterable<V>> necessaryKeyEntriesFromStorageFuture(K key) {
       try {
         ByteStringOutputStream keyStream = new ByteStringOutputStream();
         keyCoder.encode(key, keyStream, Context.OUTER);
@@ -1723,12 +1729,17 @@ class WindmillStateInternals<K> implements StateInternals {
 
         @Override
         public Iterable<V> read() {
-          KeyState keyState = keyStateMap.computeIfAbsent(structuralKey, k -> new KeyState(key));
-          if (keyState.existence == KeyExistence.KNOWN_NONEXISTENT) {
-            return Collections.emptyList();
+          KeyState keyState = null;
+          if (allKeysKnown) {
+            keyState = keyStateMap.get(structuralKey);
+            if (keyState == null || keyState.existence == KeyExistence.UNKNOWN_EXISTENCE) {
+              if (keyState != null) keyStateMap.remove(structuralKey);
+              return Collections.emptyList();
+            }
+          } else {
+            keyState = keyStateMap.computeIfAbsent(structuralKey, k -> new KeyState(key));
           }
-          if (allKeysKnown && keyState.existence == KeyExistence.UNKNOWN_EXISTENCE) {
-            keyStateMap.remove(structuralKey);
+          if (keyState.existence == KeyExistence.KNOWN_NONEXISTENT) {
             return Collections.emptyList();
           }
           Iterable<V> localNewValues =
@@ -1743,7 +1754,7 @@ class WindmillStateInternals<K> implements StateInternals {
                 Iterables.concat(
                     Iterables.limit(keyState.values, keyState.valuesSize), localNewValues));
           }
-          Future<Iterable<V>> persistedData = getFutureForKey(key);
+          Future<Iterable<V>> persistedData = necessaryKeyEntriesFromStorageFuture(key);
           try (Closeable scope = scopedReadState()) {
             final Iterable<V> persistedValues = persistedData.get();
             // Iterables.isEmpty() is O(1).
@@ -1776,7 +1787,7 @@ class WindmillStateInternals<K> implements StateInternals {
         @Override
         @SuppressWarnings("FutureReturnValueIgnored")
         public ReadableState<Iterable<V>> readLater() {
-          WindmillMultimap.this.getFutureForKey(key);
+          WindmillMultimap.this.necessaryKeyEntriesFromStorageFuture(key);
           return this;
         }
       };
@@ -1812,20 +1823,24 @@ class WindmillStateInternals<K> implements StateInternals {
           entryBuilder.setEntryName(encodedKey);
           entryBuilder.setDeleteAll(keyState.removedLocally);
           keyState.removedLocally = false;
-          for (V value : keyState.localAdditions) {
-            valueCoder.encode(value, valueStream, Context.OUTER);
-            ByteString encodedValue = valueStream.toByteStringAndReset();
-            entryBuilder.addValues(encodedValue);
+          if (!keyState.localAdditions.isEmpty()) {
+            for (V value : keyState.localAdditions) {
+              valueCoder.encode(value, valueStream, Context.OUTER);
+              ByteString encodedValue = valueStream.toByteStringAndReset();
+              entryBuilder.addValues(encodedValue);
+            }
+            // Move newly added values from localAdditions to keyState.values as those new values
+            // now
+            // are also persisted in Windmill. If a key now has no more values and is not
+            // KNOWN_EXIST,
+            // remove it from cache.
+            if (keyState.valuesCached) {
+              keyState.values.extendWith(keyState.localAdditions);
+              keyState.valuesSize += keyState.localAdditions.size();
+            }
+            // Create a new localAdditions so that the cached values are unaffected.
+            keyState.localAdditions = Lists.newArrayList();
           }
-          // Move newly added values from localAdditions to keyState.values as those new values now
-          // are also persisted in Windmill. If a key now has no more values and is not KNOWN_EXIST,
-          // remove it from cache.
-          if (keyState.valuesCached) {
-            keyState.values.extendWith(keyState.localAdditions);
-            keyState.valuesSize += keyState.localAdditions.size();
-          }
-          // Create a new localAdditions so that the cached values are unaffected.
-          keyState.localAdditions = Lists.newArrayList();
           if (!keyState.valuesCached && keyState.existence != KeyExistence.KNOWN_EXIST) {
             iterator.remove();
           }
@@ -1843,12 +1858,13 @@ class WindmillStateInternals<K> implements StateInternals {
     @Override
     public void remove(K key) {
       final Object structuralKey = keyCoder.structuralValue(key);
-      KeyState keyState = keyStateMap.computeIfAbsent(structuralKey, k -> new KeyState(key));
-      if (keyState.existence == KeyExistence.KNOWN_NONEXISTENT
-          || (allKeysKnown && keyState.existence == KeyExistence.UNKNOWN_EXISTENCE)) {
+      // does not insert key if allKeysKnown.
+      KeyState keyState =
+          keyStateMap.computeIfAbsent(structuralKey, k -> allKeysKnown ? null : new KeyState(key));
+      if (keyState == null || keyState.existence == KeyExistence.KNOWN_NONEXISTENT) {
         return;
       }
-      if (!keyState.valuesCached || (keyState.valuesCached && keyState.valuesSize > 0)) {
+      if (!keyState.valuesCached || keyState.valuesSize > 0) {
         // there may be data in windmill that need to be removed.
         hasLocalRemovals = true;
         keyState.removedLocally = true;
@@ -1871,6 +1887,8 @@ class WindmillStateInternals<K> implements StateInternals {
       cleared = true;
       complete = true;
       allKeysKnown = true;
+      hasLocalAdditions = false;
+      hasLocalRemovals = false;
     }
 
     @Override
@@ -1888,7 +1906,8 @@ class WindmillStateInternals<K> implements StateInternals {
           if (allKeysKnown) {
             return Iterables.unmodifiableIterable(cachedExistKeys().values());
           }
-          Future<Iterable<Entry<ByteString, Iterable<V>>>> persistedData = getFuture(true);
+          Future<Iterable<Entry<ByteString, Iterable<V>>>> persistedData =
+              necessaryEntriesFromStorageFuture(true);
           try (Closeable scope = scopedReadState()) {
             Iterable<Entry<ByteString, Iterable<V>>> entries = persistedData.get();
             if (entries instanceof Weighted) {
@@ -1911,7 +1930,10 @@ class WindmillStateInternals<K> implements StateInternals {
               allKeysKnown = true;
               keyStateMap
                   .values()
-                  .removeIf(keyState -> keyState.existence != KeyExistence.KNOWN_EXIST);
+                  .removeIf(
+                      keyState ->
+                          keyState.existence != KeyExistence.KNOWN_EXIST
+                              && !keyState.removedLocally);
               return Iterables.unmodifiableIterable(cachedExistKeys().values());
             } else {
               Map<Object, K> cachedExistKeys = Maps.newHashMap();
@@ -1961,7 +1983,7 @@ class WindmillStateInternals<K> implements StateInternals {
         @Override
         @SuppressWarnings("FutureReturnValueIgnored")
         public ReadableState<Iterable<K>> readLater() {
-          WindmillMultimap.this.getFuture(true);
+          WindmillMultimap.this.necessaryEntriesFromStorageFuture(true);
           return this;
         }
       };
@@ -1976,7 +1998,8 @@ class WindmillStateInternals<K> implements StateInternals {
             return Iterables.unmodifiableIterable(
                 unnestCachedEntries(mergedCachedEntries(null).entrySet()));
           }
-          Future<Iterable<Entry<ByteString, Iterable<V>>>> persistedData = getFuture(false);
+          Future<Iterable<Entry<ByteString, Iterable<V>>>> persistedData =
+              necessaryEntriesFromStorageFuture(false);
           try (Closeable scope = scopedReadState()) {
             Iterable<Entry<ByteString, Iterable<V>>> entries = persistedData.get();
             if (Iterables.isEmpty(entries)) {
@@ -2028,7 +2051,7 @@ class WindmillStateInternals<K> implements StateInternals {
         @Override
         @SuppressWarnings("FutureReturnValueIgnored")
         public ReadableState<Iterable<Entry<K, V>>> readLater() {
-          WindmillMultimap.this.getFuture(false);
+          WindmillMultimap.this.necessaryEntriesFromStorageFuture(false);
           return this;
         }
 
@@ -2037,9 +2060,10 @@ class WindmillStateInternals<K> implements StateInternals {
         // unloads any key that is not KNOWN_EXIST and not pending deletion from cache; also if
         // complete it marks the valuesCached of any key that is KNOWN_EXIST to true, entries()
         // depends on this behavior when the fetched result is weighted to iterate the whole
-        // keyStateMap one less time.
+        // keyStateMap one less time. For each cached key, returns its structural key and a tuple of
+        // <original key, keyState.valuesCached, keyState.values + keyState.localAdditions>.
         private Map<Object, Triple<K, Boolean, ConcatIterables<V>>> mergedCachedEntries(
-            Map<Object, K> knownNonexistentKeys) {
+            Set<Object> knownNonexistentKeys) {
           Map<Object, Triple<K, Boolean, ConcatIterables<V>>> cachedEntries = Maps.newHashMap();
           keyStateMap
               .entrySet()
@@ -2060,13 +2084,14 @@ class WindmillStateInternals<K> implements StateInternals {
                       if (it == null) it = new ConcatIterables<>();
                       it.extendWith(Iterables.limit(keyState.values, keyState.valuesSize));
                     }
-                    if (it != null)
+                    if (it != null) {
                       cachedEntries.put(
                           structuralKey,
                           Triple.of(keyState.originalKey, keyState.valuesCached, it));
+                    }
                     if (knownNonexistentKeys != null
                         && keyState.existence == KeyExistence.KNOWN_NONEXISTENT)
-                      knownNonexistentKeys.put(structuralKey, keyState.originalKey);
+                      knownNonexistentKeys.add(structuralKey);
                     return (keyState.existence == KeyExistence.KNOWN_NONEXISTENT
                             && !keyState.removedLocally)
                         || keyState.existence == KeyExistence.UNKNOWN_EXISTENCE;
@@ -2076,19 +2101,13 @@ class WindmillStateInternals<K> implements StateInternals {
 
         private Iterable<Entry<K, V>> unnestCachedEntries(
             Iterable<Entry<Object, Triple<K, Boolean, ConcatIterables<V>>>> cachedEntries) {
-          return Iterables.unmodifiableIterable(
-              () ->
-                  Iterators.concat(
+          return Iterables.concat(
+              Iterables.transform(
+                  cachedEntries,
+                  entry ->
                       Iterables.transform(
-                              cachedEntries,
-                              entry ->
-                                  Iterables.transform(
-                                          entry.getValue().getRight(),
-                                          v ->
-                                              new AbstractMap.SimpleEntry<>(
-                                                  entry.getValue().getLeft(), v))
-                                      .iterator())
-                          .iterator()));
+                          entry.getValue().getRight(),
+                          v -> new AbstractMap.SimpleEntry<>(entry.getValue().getLeft(), v))));
         }
 
         private Iterable<Entry<K, V>> nonWeightedEntries(
@@ -2096,12 +2115,12 @@ class WindmillStateInternals<K> implements StateInternals {
           class ResultIterable implements Iterable<Entry<K, V>> {
             private final Iterable<Entry<ByteString, Iterable<V>>> lazyWindmillEntries;
             private final Map<Object, Triple<K, Boolean, ConcatIterables<V>>> cachedEntries;
-            private final Map<Object, K> knownNonexistentKeys;
+            private final Set<Object> knownNonexistentKeys;
 
             ResultIterable(
                 Map<Object, Triple<K, Boolean, ConcatIterables<V>>> cachedEntries,
                 Iterable<Entry<ByteString, Iterable<V>>> lazyWindmillEntries,
-                Map<Object, K> knownNonexistentKeys) {
+                Set<Object> knownNonexistentKeys) {
               this.cachedEntries = cachedEntries;
               this.lazyWindmillEntries = lazyWindmillEntries;
               this.knownNonexistentKeys = knownNonexistentKeys;
@@ -2127,7 +2146,7 @@ class WindmillStateInternals<K> implements StateInternals {
                                   keyCoder.decode(entry.getKey().newInput(), Context.OUTER);
                               final Object structuralKey = keyCoder.structuralValue(key);
                               // key is deleted in cache thus fully cached.
-                              if (knownNonexistentKeys.containsKey(structuralKey)) return null;
+                              if (knownNonexistentKeys.contains(structuralKey)) return null;
                               Triple<K, Boolean, ConcatIterables<V>> triple =
                                   cachedEntries.get(structuralKey);
                               // no record of key in cache, return content in windmill.
@@ -2137,11 +2156,12 @@ class WindmillStateInternals<K> implements StateInternals {
                               // key is fully cached in cache.
                               if (triple.getMiddle()) return null;
 
-                              // key is not fully cached, combine the content with local additions
-                              if (seenCachedKeys.contains(structuralKey)) {
+                              // key is not fully cached, combine the content in windmill with local
+                              // additions with only the first observed page for the key to ensure
+                              // it is not repeated.
+                              if (!seenCachedKeys.add(structuralKey)) {
                                 return Triple.of(structuralKey, key, entry.getValue());
                               } else {
-                                seenCachedKeys.add(structuralKey);
                                 ConcatIterables<V> it = new ConcatIterables<>();
                                 it.extendWith(triple.getRight());
                                 it.extendWith(entry.getValue());
@@ -2172,7 +2192,7 @@ class WindmillStateInternals<K> implements StateInternals {
             }
           }
 
-          Map<Object, K> knownNonexistentKeys = Maps.newHashMap();
+          Set<Object> knownNonexistentKeys = Sets.newHashSet();
           Map<Object, Triple<K, Boolean, ConcatIterables<V>>> cachedEntries =
               mergedCachedEntries(knownNonexistentKeys);
           return Iterables.unmodifiableIterable(
