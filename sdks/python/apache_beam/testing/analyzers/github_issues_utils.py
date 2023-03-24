@@ -32,8 +32,7 @@ except KeyError as e:
       'A Github Personal Access token is required '
       'to create Github Issues.')
 
-# TODO: Change the REPO owner name to apache before merging.
-_BEAM_GITHUB_REPO_OWNER = 'AnandInguva'
+_BEAM_GITHUB_REPO_OWNER = 'apache'
 _BEAM_GITHUB_REPO_NAME = 'beam'
 # Adding GitHub Rest API version to the header to maintain version stability.
 # For more information, please look at

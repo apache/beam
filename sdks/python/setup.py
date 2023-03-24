@@ -280,7 +280,7 @@ if __name__ == '__main__':
             'requests_mock>=1.7,<2.0',
             'tenacity>=5.0.2,<6.0',
             'pytest>=7.1.2,<8.0',
-            'pytest-xdist>=2.5.0,<3',
+            'pytest-xdist>=2.5.0,<4',
             'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
             'sqlalchemy>=1.3,<2.0',
@@ -332,7 +332,7 @@ if __name__ == '__main__':
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<112',
+            'chromedriver-binary>=100,<113',
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<8',
           ],

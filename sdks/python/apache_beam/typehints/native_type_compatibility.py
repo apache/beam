@@ -201,7 +201,7 @@ def convert_collections_to_typing(typ):
       typ = typing.Iterator[typ.__args__]
     elif hasattr(typ, 'send') and hasattr(typ, 'throw'):
       typ = typing.Generator[typ.__args__]
-    else:
+    elif _match_is_exactly_iterable(typ):
       typ = typing.Iterable[typ.__args__]
   return typ
 

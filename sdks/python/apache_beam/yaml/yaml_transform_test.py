@@ -68,6 +68,24 @@ class YamlTransformTest(unittest.TestCase):
           ''')
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
+  def test_chain_with_source_sink(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          source:
+            type: Create
+            elements: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+          transforms:
+            - type: PyMap
+              fn: "lambda x: x * x + x"
+          sink:
+            type: PyMap
+            fn: "lambda x: x + 41"
+          ''')
+      assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
+
   def test_chain_with_root(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
