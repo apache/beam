@@ -2486,11 +2486,10 @@ class ReadFromBigQuery(PTransform):
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
     gcs_location_vp = self.gcs_location
-    unique_id = str(uuid.uuid4())[0:10]
 
     def file_path_to_remove(unused_elm):
       gcs_location = bigquery_export_destination_uri(
-          gcs_location_vp, temp_location, unique_id, True)
+          gcs_location_vp, temp_location, str(uuid.uuid4())[0:10], True)
       return gcs_location + '/'
 
     files_to_remove_pcoll = beam.pvalue.AsList(
@@ -2512,7 +2511,7 @@ class ReadFromBigQuery(PTransform):
                 method=self.method,
                 job_name=job_name,
                 step_name=step_name,
-                unique_id=unique_id,
+                unique_id=str(uuid.uuid4())[0:10],
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanup(files_to_remove_pcoll))
@@ -2657,7 +2656,6 @@ class ReadAllFromBigQuery(PTransform):
   def expand(self, pcoll):
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
     project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
-    unique_id = str(uuid.uuid4())[0:10]
 
     try:
       step_name = self.label
@@ -2674,7 +2672,7 @@ class ReadAllFromBigQuery(PTransform):
             bigquery_job_labels=self.bigquery_job_labels,
             job_name=job_name,
             step_name=step_name,
-            unique_id=unique_id,
+            unique_id=str(uuid.uuid4())[0:10],
             kms_key=self.kms_key,
             project=project,
             temp_dataset=self.temp_dataset,
