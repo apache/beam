@@ -26,6 +26,7 @@ from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
     STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
     SDK_SCIO, Sdk
+from constants import SERVER_ADDRESS_ENV_VAR_KEY, SDK_CONFIG_ENV_VAR_KEY
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,7 @@ class Config:
     """
     General configuration for CI/CD steps
     """
-    SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
+    SERVER_ADDRESS = os.getenv(SERVER_ADDRESS_ENV_VAR_KEY, "localhost:8080")
     EXTENSION_TO_SDK = {
         "java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON, "scala": SDK_SCIO
     }
@@ -60,7 +61,7 @@ class Config:
     CD_STEP_NAME = "CD"
     CI_CD_LITERAL = Literal["CI", "CD"]
     URL_VCS_PREFIX = "https://github.com/apache/beam/blob/master"
-    SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
+    SDK_CONFIG = os.getenv(SDK_CONFIG_ENV_VAR_KEY, "../../playground/sdks.yaml")
     DEFAULT_NAMESPACE = "Playground"
 
 

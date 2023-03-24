@@ -49,7 +49,7 @@ func TestSample(t *testing.T) {
 	trees, err := CollectLearningTree(filepath.Join("..", "..", "samples", "learning-content"))
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(trees))
-	assert.Equal(t, tob.ContentTree{
+	assert.Contains(t, trees, tob.ContentTree{
 		Sdk: tob.SDK_JAVA,
 		Modules: []tob.Module{
 			{
@@ -67,8 +67,8 @@ func TestSample(t *testing.T) {
 				},
 			},
 		},
-	}, trees[0])
-	assert.Equal(t, tob.ContentTree{
+	})
+	assert.Contains(t, trees, tob.ContentTree{
 		Sdk: tob.SDK_PYTHON,
 		Modules: []tob.Module{
 			{
@@ -88,7 +88,7 @@ func TestSample(t *testing.T) {
 				},
 			},
 		},
-	}, trees[1])
+	})
 }
 
 // TestTemplates test that templating engine is used correctly.

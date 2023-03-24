@@ -16,6 +16,7 @@
 package life_cycle
 
 import (
+	"beam.apache.org/playground/backend/internal/emulators"
 	"fmt"
 	"io/fs"
 	"os"
@@ -284,7 +285,13 @@ func TestSetup(t *testing.T) {
 				pipelinesFolder: pipelinesFolder,
 			},
 			prep: func() error {
-				_, err := os.Create(filepath.Join(workingDir, scioCommonConstants))
+				sourceScioShFile := "../../../new_scio_project.sh"
+				scioShFile := filepath.Join(workingDir, scioProject)
+				err := utils.CopyFile(sourceScioShFile, scioShFile)
+				if err != nil {
+					return err
+				}
+				_, err = os.Create(filepath.Join(workingDir, scioCommonConstants))
 				if err != nil {
 					return err
 				}
@@ -331,7 +338,7 @@ func TestSetup(t *testing.T) {
 			}
 
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.args.code, IsMain: true}}
-			got, err := Setup(tt.args.sdk, sources, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder, tt.args.preparedModDir, nil)
+			got, err := Setup(tt.args.sdk, sources, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder, tt.args.preparedModDir, emulators.EmulatorConfiguration{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Setup() error = %v, wantErr %v", err, tt.wantErr)
 				return
