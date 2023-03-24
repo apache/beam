@@ -40,7 +40,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Data access object to list and read stream partitions of a table. */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class ChangeStreamDao {
   private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamDao.class);
@@ -89,8 +88,8 @@ public class ChangeStreamDao {
     if (currentToken != null) {
       query.continuationTokens(Collections.singletonList(currentToken));
     } else if (startTime != null) {
-      // Check if tracker has Continuation Token
       query.startTime(toThreetenInstant(startTime));
+      // Check if partition has Continuation Tokens
     } else if (changeStreamContinuationTokenList != null) {
       query.continuationTokens(changeStreamContinuationTokenList);
     } else {

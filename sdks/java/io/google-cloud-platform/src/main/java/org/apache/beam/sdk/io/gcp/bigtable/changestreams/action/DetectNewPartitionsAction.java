@@ -398,9 +398,7 @@ public class DetectNewPartitionsAction {
     }
 
     if (!tracker.tryClaim(tracker.currentRestriction().getFrom())) {
-      LOG.error(
-          "DNP: Couldn't continue because we failed to claim tracker: "
-              + tracker.currentRestriction());
+      LOG.warn("DNP: Checkpointing, stopping this run: " + tracker.currentRestriction());
       return ProcessContinuation.stop();
     }
 

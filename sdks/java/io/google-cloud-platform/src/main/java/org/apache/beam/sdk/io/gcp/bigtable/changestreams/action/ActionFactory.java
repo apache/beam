@@ -57,7 +57,6 @@ public class ActionFactory implements Serializable {
   public synchronized ChangeStreamAction changeStreamAction(
       ChangeStreamMetrics metrics,
       ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator) {
-
     if (changeStreamAction == null) {
       changeStreamAction = new ChangeStreamAction(metrics, throughputEstimator);
     }

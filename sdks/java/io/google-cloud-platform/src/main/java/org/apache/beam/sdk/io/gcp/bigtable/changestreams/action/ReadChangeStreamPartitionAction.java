@@ -41,7 +41,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -55,7 +55,6 @@ import org.slf4j.LoggerFactory;
  * This class is part of {@link
  * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF.
  */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class ReadChangeStreamPartitionAction {
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionAction.class);
@@ -80,7 +79,7 @@ public class ReadChangeStreamPartitionAction {
   }
 
   /**
-   * Streams changes from a specific partition. This function is responsible to maintaining the
+   * Streams changes from a specific partition. This function is responsible for maintaining the
    * lifecycle of streaming the partition. We delegate to {@link ChangeStreamAction} to process
    * individual response from the change stream.
    *
@@ -130,7 +129,7 @@ public class ReadChangeStreamPartitionAction {
   public ProcessContinuation run(
       PartitionRecord partitionRecord,
       RestrictionTracker<StreamProgress, StreamProgress> tracker,
-      DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver,
+      OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator)
       throws IOException {
     // Watermark being delayed beyond 5 minutes signals a possible problem.
