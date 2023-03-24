@@ -2622,12 +2622,33 @@ class BeamModulePlugin implements Plugin<Project> {
       def installGcpTest = project.tasks.register('installGcpTest')  {
         dependsOn setupVirtualenv
         dependsOn ':sdks:python:sdist'
+
+        def useWheel = true // project.hasProperty('sdistUseWheel')
+        // Set sdistFiles project ext at execution time as the path to the
+        // generated installable Python SDK package. If project property
+        // sdistUseWheel is set, targets to wheel, otherwise a tarball.
+        project.ext.sdistFiles = project.files()
+
         doLast {
-          def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
+          def packageFile = "${pythonRootDir}/build/apache-beam.tar.gz"
+          if (useWheel) {
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && pip install 'Cython<1' " +
+                  "&& cd ${pythonRootDir} && python setup.py -q sdist bdist_wheel --dist-dir ${project.buildDir}"
+            }
+            def collection = project.fileTree(project.buildDir){
+              include "**/*${project.ext.pythonVersion.replace('.', '')}*.whl"
+              exclude 'srcs/**'
+            }
+            packageFile = collection.singleFile
+            logger.warn('Create distribution wheel file {} in {}', packageFile.getName(), project.buildDir)
+          }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${distTarBall}[gcp,test,aws,azure,dataframe]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${packageFile}[gcp,test,aws,azure,dataframe]"
           }
+          project.ext.sdistFiles.from packageFile
         }
       }
 

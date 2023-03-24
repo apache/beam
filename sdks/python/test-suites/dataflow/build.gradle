@@ -19,10 +19,6 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-dependencies {
-  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
-}
-
 task preCommitIT {
   getVersionsAsList('dataflow_precommit_it_task_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_batch")

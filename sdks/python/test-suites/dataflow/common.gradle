@@ -23,10 +23,6 @@ String pythonVersionSuffix = project.ext.pythonVersion
         ? "-py${project.ext.pythonVersion.replace('.', '')}"
         : ''
 
-dependencies {
-  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
-}
-
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
 // Basic test options for ITs running on Jenkins.
@@ -42,7 +38,6 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
   suffix = streaming ? "_streaming$suffix" : "_batch$suffix"
   task "preCommitIT${suffix}" {
     dependsOn 'installGcpTest'
-    dependsOn ':sdks:python:sdist'
 
     doLast {
       // Basic integration tests to run in PreCommit
@@ -60,7 +55,7 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
 
       def argMap = [
               "test_opts"   : testOpts,
-              "sdk_location": files(configurations.distTarBall.files).singleFile,
+              "sdk_location": project.ext.sdistFiles.singleFile,
               "suite"       : "preCommitIT-df${pythonSuffix}",
       ]
 
@@ -97,13 +92,12 @@ task preCommitIT_V2{
 
 task postCommitIT {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "sdk_location": project.ext.sdistFiles.singleFile,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit"
     ]
@@ -117,13 +111,12 @@ task postCommitIT {
 
 task postCommitSickbay {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "sdk_location": project.ext.sdistFiles.singleFile,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit_sickbay"
     ]
@@ -137,13 +130,12 @@ task postCommitSickbay {
 
 task spannerioIT {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "sdk_location": project.ext.sdistFiles.singleFile,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "spannerio_it"
     ]
@@ -157,14 +149,13 @@ task spannerioIT {
 
 task examples {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
   def testOpts = basicPytestOpts
 
   // Execute tests with xdists
   doFirst {
     def argMap = [
             "test_opts": testOpts + ["--numprocesses=8", "--dist=loadfile"],
-            "sdk_location": files(configurations.distTarBall.files).singleFile,
+            "sdk_location": project.ext.sdistFiles.singleFile,
             "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
             "collect": "examples_postcommit and not no_xdist and not sickbay_dataflow"
@@ -180,7 +171,7 @@ task examples {
   doLast {
     def argMap = [
             "test_opts": testOpts,
-            "sdk_location": files(configurations.distTarBall.files).singleFile,
+            "sdk_location": project.ext.sdistFiles.singleFile,
             "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-no-xdist",
             "collect": "examples_postcommit and no_xdist and not sickbay_dataflow"
@@ -195,24 +186,22 @@ task examples {
 
 task validatesRunnerBatchTests {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-
-  def argMap = [
-          "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
-          "sdk_location": files(configurations.distTarBall.files).singleFile,
-          "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
-          "collect": "it_validatesrunner and not no_sickbay_batch"
-          ]
-
-  if (project.hasProperty('useRunnerV2')) {
-    argMap.put("runner_v2", "true")
-  }
-
-  if (project.hasProperty('disableRunnerV2')) {
-    argMap.put("disable_runner_v2", "true")
-  }
 
   doLast {
+    def argMap = [
+        "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
+        "sdk_location": project.ext.sdistFiles.singleFile,
+        "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
+        "collect": "it_validatesrunner and not no_sickbay_batch"
+    ]
+
+    if (project.hasProperty('useRunnerV2')) {
+      argMap.put("runner_v2", "true")
+    }
+
+    if (project.hasProperty('disableRunnerV2')) {
+      argMap.put("disable_runner_v2", "true")
+    }
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -223,7 +212,6 @@ task validatesRunnerBatchTests {
 
 task validatesRunnerStreamingTests {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
 
   // TODO(BEAM-3544,https://github.com/apache/beam/issues/19012): Disable tests with 'sickbay-streaming' tag.
   // Execute tests with xdists
@@ -231,7 +219,7 @@ task validatesRunnerStreamingTests {
     def argMap = [
                 "test_opts": basicPytestOpts + ["--numprocesses=8"],
                 "streaming": "true",
-                "sdk_location": files(configurations.distTarBall.files).singleFile,
+                "sdk_location": project.ext.sdistFiles.singleFile,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
                 "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist",
                 "runner_v2": "true",
@@ -249,7 +237,7 @@ task validatesRunnerStreamingTests {
     def argMap = [
                 "test_opts": basicPytestOpts,
                 "streaming": "true",
-                "sdk_location": files(configurations.distTarBall.files).singleFile,
+                "sdk_location": project.ext.sdistFiles.singleFile,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
                 "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist",
                 "runner_v2": "true",
@@ -263,28 +251,33 @@ task validatesRunnerStreamingTests {
   }
 }
 
-task runPerformanceTest(type: Exec) {
+task runPerformanceTest {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
 
   def test = project.findProperty('test')
   def suite = "runPerformanceTest-df${pythonVersionSuffix}"
   def xUnitFile ="pytest-${suite}.xml"
 
-  def testOpts = project.findProperty('test-pipeline-options')
-  testOpts += " --sdk_location=${files(configurations.distTarBall.files).singleFile}"
+  doLast {
+    def testOpts = project.findProperty('test-pipeline-options')
+    testOpts += " --sdk_location=${project.ext.sdistFiles.singleFile}"
 
-  setWorkingDir "${project.rootDir}/sdks/python"
-  commandLine 'sh', '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
+    exec {
+      workingDir "${project.rootDir}/sdks/python"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
               " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=1800"
+    }
+  }
 }
 
 task mongodbioIT {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  def opts = findProperty('opts')
-  opts = String.format("%s %s", opts, "--sdk_location=${files(configurations.distTarBall.files).singleFile}")
+
   doLast {
+    def opts = findProperty('opts')
+    opts = String.format("%s %s", opts, "--sdk_location=${project.ext.sdistFiles.singleFile}")
+
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python -m apache_beam.io.mongodbio_it_test ${opts}"
@@ -306,13 +299,12 @@ task installChicagoTaxiExampleRequirements {
 
 task chicagoTaxiExample {
   dependsOn 'installChicagoTaxiExampleRequirements'
-  dependsOn ':sdks:python:sdist'
-
-  def gcsRoot = findProperty('gcsRoot')
-  def pipelineOptions = findProperty('pipelineOptions') ?: ""
-  pipelineOptions += " --sdk_location=\"${files(configurations.distTarBall.files).singleFile}\""
 
   doLast {
+    def gcsRoot = findProperty('gcsRoot')
+    def pipelineOptions = findProperty('pipelineOptions') ?: ""
+    pipelineOptions += " --sdk_location=\"${project.ext.sdistFiles.singleFile}\""
+
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
       executable 'sh'
@@ -324,7 +316,6 @@ task chicagoTaxiExample {
 task validatesContainer() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
   dependsOn ":sdks:python:container:py${pyversion}:docker"
   def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
   doLast {
@@ -332,34 +323,34 @@ task validatesContainer() {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} " +
               "${project.ext.pythonVersion} " +
-              "${files(configurations.distTarBall.files).singleFile}"
+              "${project.ext.sdistFiles.singleFile}"
     }
   }
 }
 
 def tensorRTTests = tasks.create("tensorRTtests") {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
- doLast {
-  def testOpts = basicPytestOpts
-  def argMap = [
-    "runner": "DataflowRunner",
-    "machine_type":"n1-standard-4",
-    "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest",
-    "sdk_location": files(configurations.distTarBall.files).singleFile,
-    "project": "apache-beam-testing",
-    "region": "us-central1",
-    "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
-    "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
-    "engine_path":  "gs://apache-beam-ml/models/ssd_mobilenet_v2_320x320_coco17_tpu-8.trt",
-    "disk_size_gb": 75
-  ]
-  def cmdArgs = mapToArgString(argMap)
-  exec {
-    executable 'sh'
-    args '-c', ". ${envdir}/bin/activate && pip install pillow && python -m apache_beam.examples.inference.tensorrt_object_detection $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver' --experiment=no_use_multiple_sdk_containers"
+
+  doLast {
+    def testOpts = basicPytestOpts
+    def argMap = [
+        "runner": "DataflowRunner",
+        "machine_type":"n1-standard-4",
+        "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest",
+        "sdk_location": project.ext.sdistFiles.singleFile,
+        "project": "apache-beam-testing",
+        "region": "us-central1",
+        "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
+        "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
+        "engine_path":  "gs://apache-beam-ml/models/ssd_mobilenet_v2_320x320_coco17_tpu-8.trt",
+        "disk_size_gb": 75
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install pillow && python -m apache_beam.examples.inference.tensorrt_object_detection $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver' --experiment=no_use_multiple_sdk_containers"
+    }
   }
- }
 }
 
 task installTFTRequirements {
@@ -376,12 +367,11 @@ task installTFTRequirements {
 // Tensorflow transform integration and benchmarking tests on Apache Beam.
 task tftTests {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
   dependsOn "installTFTRequirements"
 
   doLast {
     def opts = project.findProperty('opts')
-    opts += " --sdk_location=${files(configurations.distTarBall.files).singleFile}"
+    opts += " --sdk_location=${project.ext.sdistFiles.singleFile}"
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
