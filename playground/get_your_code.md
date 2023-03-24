@@ -134,6 +134,7 @@ For examples which require use of Kafka server emulator you need to specify that
           source_dataset: <dataset_name>
     datasets:
       <dataset_name>:
+        location: local
         format: json # or 'avro'
     ```
     replace `<dataset_name>` with the name of your dataset file without the file name extension.
