@@ -21,32 +21,39 @@ from typing import Iterable
 from typing import Optional
 from typing import Sequence
 
+from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from google.cloud import aiplatform
-
 
 class VertexAIModelHandlerJSON(ModelHandler[str,
                                             PredictionResult,
                                             aiplatform.types.Endpoint]):
   def __init__(
       self,
-      endpoint: str,
+      endpoint_name: str,
       project: Optional[str] = None,
       location: Optional[str] = None,
       experiment: Optional[str] = None):
-    self.endpointName = aiplatform.endpoint_path(project, location, endpoint)
-    self.client = aiplatform.EndpointServiceClient()
 
-    self.endpoint = self._retrieve_endpoint()
+    # TODO: support the full list of options for aiplatform.init()
+    # See https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform#google_cloud_aiplatform_init
+    aiplatform.init(project=project, location=location, experiment=experiment)
 
-  def _retrieve_endpoint(self) -> aiplatform.types.Endpoint:
-    request = aiplatform.GetEndpointRequest(name=self.endpointName)
-    response = self.client.get_endpoint(request=request)
-    if response is None:
-      raise ValueError("Vertex AI endpoint %s not found", self.endpointName)
+    self.endpoint = self._retrieve_endpoint(endpoint_name)
 
-    return response
+  def _retrieve_endpoint(self, endpoint_name: str) -> aiplatform.types.Endpoint:
+    endpoint = aiplatform.Endpoint(endpoint_name=endpoint_name)
+
+    try:
+      mod_list = endpoint.list_models()
+    except Exception as e:
+      raise ValueError("Failed to contact endpoint %s, got exception: %s", endpoint_name, e)
+    
+    if len(mod_list) == 0:
+      raise ValueError("Endpoint %s has no models deployed to it.")
+    
+    return endpoint
 
   def load_model(self) -> aiplatform.types.Endpoint:
     # Check to make sure the endpoint is still active since pipeline construction time
@@ -59,9 +66,8 @@ class VertexAIModelHandlerJSON(ModelHandler[str,
       model: aiplatform.types.Endpoint,
       inference_args: Optional[Dict[str, any]]) -> Iterable[PredictionResult]:
 
-    prediction = model.Predict(instances=batch, parameters=inference_args)
+    # Endpoint.predict returns a Prediction type with the prediction values along 
+    # with model metadata
+    prediction = model.predict(instances=batch, parameters=inference_args)
 
-    # TODO: implement an "unpack" function to turn the aiplatform.types.Prediction type
-    # into a PredictionResult. Will involve asking questions about the format, because there's
-    # a very real chance the dict is already [JSON str input, prediction output].
-    return prediction
+    return utils._convert_to_result(batch, prediction.predictions, prediction.deployed_model_id)
