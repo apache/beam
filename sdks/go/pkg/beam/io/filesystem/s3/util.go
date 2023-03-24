@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 )
 
 // parseURI deconstructs the S3 uri in the format 's3://bucket/key' to (bucket, key)
@@ -49,12 +48,4 @@ func parseURI(uri string) (string, string, error) {
 // makeURI constructs an S3 uri from the bucket and key to the format 's3://bucket/key'
 func makeURI(bucket string, key string) string {
 	return fmt.Sprintf("s3://%s/%s", bucket, key)
-}
-
-// getPrefix returns the prefix of the key pattern before the first wildcard, if any
-func getPrefix(keyPattern string) string {
-	if index := strings.Index(keyPattern, "*"); index >= 0 {
-		return keyPattern[:index]
-	}
-	return keyPattern
 }

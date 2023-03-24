@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-tensorflow>=1.0.0
+tensorflow>=2.12.0rc1
 tensorflow_hub>=0.10.0
 Pillow>=9.0.0
 

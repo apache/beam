@@ -77,7 +77,7 @@
             <li><a href="/documentation/io/built-in/sparkreceiver/">Spark Receiver I/O connector</a></li>
             <li><a href="/documentation/io/built-in/singlestore/">SingleStoreDB I/O connector</a></li>
           </ul>
-      </li>
+        </li>
 
 
         <li class="section-nav-item--collapsible">
@@ -216,17 +216,51 @@
   <span class="section-nav-list-title">AI/ML pipelines</span>
 
   <ul class="section-nav-list">
-    <li><a href="/documentation/ml/overview/">Overview</a></li>
-    <li><a href="/documentation/ml/data-processing/">Data processing</a></li>
-    <li><a href="/documentation/ml/runinference-metrics/">RunInference Metrics</a></li>
-    <li><a href="/documentation/ml/tensorrt-runinference">TensorRT Inference</a></li>
-    <li><a href="/documentation/ml/model-evaluation/">Model evaluation</a></li>
-    <li><a href="/documentation/ml/orchestration/">Workflow Orchestration</a></li>
-    <li><a href="/documentation/ml/multi-model-pipelines/">Multi-model pipelines</a></li>
-    <li><a href="/documentation/ml/online-clustering/">Online Clustering</a></li>
-    <li><a href="/documentation/ml/anomaly-detection/">Anomaly Detection</a></li>
-    <li><a href="/documentation/ml/large-language-modeling">Large Language Model Inference in Beam</a></li>
-    <li><a href="/documentation/ml/per-entity-training">Per Entity Training in Beam</a></li>
+    <li><a href="/documentation/ml/overview/">Get started with AI/ML</a></li>
+    <li><a href="/documentation/ml/about-ml/">About Beam ML</a></li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Prediction and inference</span>
+      <ul class="section-nav-list">
+      <li><a href="/documentation/ml/inference-overview/">Overview</a></li>
+      <li><a href="/documentation/ml/multi-model-pipelines/">Build a pipeline with multiple models</a></li>
+      <li><a href="/documentation/ml/tensorrt-runinference">Build a custom model handler with TensorRT</a></li>
+      <li><a href="/documentation/ml/large-language-modeling">Use LLM inference</a></li>
+      <li><a href="/documentation/ml/multi-language-inference/">Build a multi-language inference pipeline</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Data processing</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/data-processing/">Explore your data</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Workflow orchestration</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/orchestration/">Use ML-OPS workflow orchestrators</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Model training</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/per-entity-training">Per-entity training</a></li>
+        <li><a href="/documentation/ml/online-clustering/">Online clustering</a></li>
+        <li><a href="/documentation/ml/model-evaluation/">ML model evaluation</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Use cases</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/anomaly-detection/">Build an anomaly detection pipeline</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Reference</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/runinference-metrics/">RunInference metrics</a></li>
+        <li><a href="/documentation/ml/model-evaluation/">Model validation</a></li>
+      </ul>
+    </li>
   </ul>
 </li>
 <li class="section-nav-item--collapsible">
@@ -260,7 +294,14 @@
             <li><a href="/documentation/transforms/python/elementwise/partition/">Partition</a></li>
             <li><a href="/documentation/transforms/python/elementwise/regex/">Regex</a></li>
             <li><a href="/documentation/transforms/python/elementwise/reify/">Reify</a></li>
-            <li><a href="/documentation/transforms/python/elementwise/runinference/">RunInference</a></li>
+             <li class="section-nav-item--collapsible">
+              <span class="section-nav-list-title">RunInference</span>
+              <ul class="section-nav-list">
+                <li><a href="/documentation/transforms/python/elementwise/runinference/">Overview</a></li>
+                <li><a href="/documentation/transforms/python/elementwise/runinference-pytorch/">PyTorch examples</a></li>
+                <li><a href="/documentation/transforms/python/elementwise/runinference-sklearn/">Sklearn examples</a></li>
+              </ul>
+              </li>
             <li><a href="/documentation/transforms/python/elementwise/tostring/">ToString</a></li>
             <li><a href="/documentation/transforms/python/elementwise/values/">Values</a></li>
             <li><a href="/documentation/transforms/python/elementwise/withtimestamps/">WithTimestamps</a></li>
