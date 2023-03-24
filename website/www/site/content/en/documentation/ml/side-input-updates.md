@@ -32,8 +32,9 @@ We will use PubSub topic as a source to read the image names.
 
 ### Models for image segmentation
 
-We will use `resnet_v2_101` for initial predictions. After a while, upload a model that matches the `file_pattern` to the GCS bucket. The bucket path will be used a glob pattern and is passed to the WatchFilePattern.
-Once there is an update, the RunInference PTransform will update the `model_uri` to use the latest model/file.
+For the purpose of this example, use models saved in [HDF5](https://www.tensorflow.org/tutorials/keras/save_and_load#hdf5_format) format. Initially, pass a model to the Tensorflow ModelHandler for predictions until there is an update via side input. 
+After a while, upload a model that matches the `file_pattern` to the GCS bucket. The bucket path will be used a glob pattern and is passed to the `WatchFilePattern`.
+Once there is an update, the RunInference PTransform will update the `model_uri` to use the latest model for inferences.
 
 ### ModelHandler used for Predictions.
 
