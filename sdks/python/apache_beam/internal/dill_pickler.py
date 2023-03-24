@@ -104,6 +104,14 @@ def _find_containing_class(nested_class):
   return _find_containing_class_inner(sys.modules[nested_class.__module__])
 
 
+def _dict_from_mappingproxy(mp):
+  d = mp.copy()
+  d.pop('__dict__', None)
+  d.pop('__prepare__', None)
+  d.pop('__weakref__', None)
+  return d
+
+
 def _nested_type_wrapper(fun):
   """A wrapper for the standard pickler handler for class objects.
 
@@ -136,7 +144,7 @@ def _nested_type_wrapper(fun):
               type(obj),
               obj.__name__,
               obj.__bases__,
-              dill.dill._dict_from_dictproxy(obj.__dict__)),
+              _dict_from_mappingproxy(obj.__dict__)),
           obj=obj)
       # pylint: enable=protected-access
 
