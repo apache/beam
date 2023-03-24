@@ -90,6 +90,8 @@ def run(
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+  # Pin to the version that we trained the model on.
+  pipeline_options.view_as(SetupOptions).requirements_file = f'{requirements_dir}/sklearn_examples_requirements.txt'
 
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over SklearnModelHandlerNumpy.
