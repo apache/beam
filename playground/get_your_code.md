@@ -21,6 +21,7 @@ They can be combined, e.g.
   * [Source 1. Playground Visible Catalog](#source-1-playground-visible-catalog)
     + [1. Put the file to a directory](#1-put-the-file-to-a-directory)
     + [2. Add metadata](#2-add-metadata)
+      - [Kafka emulator](#kafka-emulator)
     + [3. Make a PR](#3-make-a-pr)
     + [4. Save the snippet ID](#4-save-the-snippet-id)
   * [Source 2. Playground Unlisted Database](#source-2-playground-unlisted-database)
@@ -118,6 +119,30 @@ This comment block is cut from the text before putting it to the database and so
 to end users. The block is in the format of a YAML map.
 
 For metadata reference see fields in "Tag" class [here](infrastructure/models.py).
+
+##### Kafka emulator
+For examples which require use of Kafka server emulator you need to specify that example requires the emulator and name of the dataset in the example's tag. You can refer to an example [here](/examples/java/src/main/java/org/apache/beam/examples/KafkaWordCountJson.java).
+
+1. Put your dataset in either JSON or Avro format under the `playground/backend/datasets` path.
+
+1. Add the following to the tag of your example:
+    ```YAML
+    emulators:
+      - type: kafka
+        topic:
+          id: dataset
+          source_dataset: <dataset_name>
+    datasets:
+      <dataset_name>:
+        format: json # or 'avro'
+    ```
+    replace `<dataset_name>` with the name of your dataset file without the file name extension.
+
+1. Use string `"kafka_server:9092"` as a server name in your code verbatim. This string will be replaced by the actual host name and port automatically before the compilation step.
+
+>**Kafka emulator limitations:** 
+> - only Java SDK is supported
+> - string `"kafka_server:9092"` should be present in the code verbatim; any other variation like `"kafa_server" + ":9092"` will not work
 
 #### 3. Make a PR
 
