@@ -115,11 +115,11 @@ class YamlTransformTest(unittest.TestCase):
             type: chain
             transforms:
               - type: ReadFromCsv
-                path: "%s"
+                path: %s
               - type: WriteToJson
-                path: "%s"
+                path: %s
                 num_shards: 1
-            ''' % (input, output))
+            ''' % (repr(input), repr(output)))
 
       output_shard = list(glob.glob(output + "*"))[0]
       result = pd.read_json(
