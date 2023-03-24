@@ -46,7 +46,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -199,7 +198,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category(ValidatesRunner.class)
   public void testEmptySingletonSideInput() throws Exception {
 
     final PCollectionView<Integer> view =
@@ -220,17 +219,14 @@ public class ViewTest implements Serializable {
                     })
                 .withSideInputs(view));
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(NoSuchElementException.class));
-    thrown.expectMessage("Empty");
-    thrown.expectMessage("PCollection");
-    thrown.expectMessage("singleton");
+    // As long as we get an error, be flexible with how a runner surfaces it
+    thrown.expect(Exception.class);
 
     pipeline.run();
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category(ValidatesRunner.class)
   public void testNonSingletonSideInput() throws Exception {
 
     PCollection<Integer> oneTwoThree = pipeline.apply(Create.of(1, 2, 3));
@@ -247,11 +243,8 @@ public class ViewTest implements Serializable {
                 })
             .withSideInputs(view));
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalArgumentException.class));
-    thrown.expectMessage("PCollection");
-    thrown.expectMessage("more than one");
-    thrown.expectMessage("singleton");
+    // As long as we get an error, be flexible with how a runner surfaces it
+    thrown.expect(Exception.class);
 
     pipeline.run();
   }
@@ -1258,7 +1251,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category(ValidatesRunner.class)
   public void testMapSideInputWithNullValuesCatchesDuplicates() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1291,10 +1284,9 @@ public class ViewTest implements Serializable {
     PAssert.that(output)
         .containsInAnyOrder(KV.of("apple", 1), KV.of("banana", 3), KV.of("blackberry", 3));
 
-    // PipelineExecutionException is thrown with cause having a message stating that a
-    // duplicate is not allowed.
-    thrown.expectCause(
-        ThrowableMessageMatcher.hasMessage(Matchers.containsString("Duplicate values for a")));
+    // As long as we get an error, be flexible with how a runner surfaces it
+    thrown.expect(Exception.class);
+
     pipeline.run();
   }
 
