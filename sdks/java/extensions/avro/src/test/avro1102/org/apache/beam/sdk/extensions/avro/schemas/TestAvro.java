@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas;
 
-import org.apache.avro.message.BinaryMessageDecoder;
-import org.apache.avro.message.BinaryMessageEncoder;
-import org.apache.avro.message.SchemaStore;
+import org.apache.avro.generic.GenericArray;
 import org.apache.avro.specific.SpecificData;
-
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.Map;
+import org.apache.avro.util.Utf8;
+import org.apache.avro.message.BinaryMessageEncoder;
+import org.apache.avro.message.BinaryMessageDecoder;
+import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class TestAvro extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
@@ -90,11 +88,11 @@ static {
   }
 
    private boolean bool_non_nullable;
-   private Integer int$;
-   private Long long$;
-   private Float float$;
-   private Double double$;
-   private CharSequence string;
+   private java.lang.Integer int$;
+   private java.lang.Long long$;
+   private java.lang.Float float$;
+   private java.lang.Double double$;
+   private java.lang.CharSequence string;
    private java.nio.ByteBuffer bytes;
    private org.apache.beam.sdk.extensions.avro.schemas.fixed4 fixed;
    private java.time.LocalDate date;
@@ -102,7 +100,7 @@ static {
    private org.apache.beam.sdk.extensions.avro.schemas.TestEnum TestEnum;
    private org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested row;
    private java.util.List<org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> array;
-   private java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> map;
+   private java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> map;
 
   /**
    * Default constructor.  Note that this does not initialize fields
@@ -128,7 +126,7 @@ static {
    * @param array The new value for array
    * @param map The new value for map
    */
-  public TestAvro(Boolean bool_non_nullable, Integer int$, Long long$, Float float$, Double double$, CharSequence string, java.nio.ByteBuffer bytes, org.apache.beam.sdk.extensions.avro.schemas.fixed4 fixed, java.time.LocalDate date, java.time.Instant timestampMillis, org.apache.beam.sdk.extensions.avro.schemas.TestEnum TestEnum, org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested row, java.util.List<org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> array, java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> map) {
+  public TestAvro(java.lang.Boolean bool_non_nullable, java.lang.Integer int$, java.lang.Long long$, java.lang.Float float$, java.lang.Double double$, java.lang.CharSequence string, java.nio.ByteBuffer bytes, org.apache.beam.sdk.extensions.avro.schemas.fixed4 fixed, java.time.LocalDate date, java.time.Instant timestampMillis, org.apache.beam.sdk.extensions.avro.schemas.TestEnum TestEnum, org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested row, java.util.List<org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> array, java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> map) {
     this.bool_non_nullable = bool_non_nullable;
     this.int$ = int$;
     this.long$ = long$;
@@ -145,45 +143,10 @@ static {
     this.map = map;
   }
 
-  /**
-   * Manually added a ompatible with Avro v1.8.2 API constructor
-   *
-   * @param bool_non_nullable
-   * @param int$
-   * @param long$
-   * @param float$
-   * @param double$
-   * @param string
-   * @param bytes
-   * @param fixed
-   * @param date
-   * @param timestampMillis
-   * @param TestEnum
-   * @param row
-   * @param array
-   * @param map
-   */
-  public TestAvro(java.lang.Boolean bool_non_nullable, java.lang.Integer int$, java.lang.Long long$, java.lang.Float float$, java.lang.Double double$, java.lang.String string, java.nio.ByteBuffer bytes, org.apache.beam.sdk.extensions.avro.schemas.fixed4 fixed, org.joda.time.LocalDate date, org.joda.time.DateTime timestampMillis, org.apache.beam.sdk.extensions.avro.schemas.TestEnum TestEnum, org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested row, java.util.List<org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> array, java.util.Map<java.lang.String,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> map) {
-    this.bool_non_nullable = bool_non_nullable;
-    this.int$ = int$;
-    this.long$ = long$;
-    this.float$ = float$;
-    this.double$ = double$;
-    this.string = string;
-    this.bytes = bytes;
-    this.fixed = fixed;
-    this.date = LocalDate.of(date.getYear(), date.getMonthOfYear(), date.getDayOfMonth());
-    this.timestampMillis = Instant.ofEpochMilli(timestampMillis.getMillis());
-    this.TestEnum = TestEnum;
-    this.row = row;
-    this.array = array;
-    this.map = (Map)map;
-  }
-
-  public SpecificData getSpecificData() { return MODEL$; }
+  public org.apache.avro.specific.SpecificData getSpecificData() { return MODEL$; }
   public org.apache.avro.Schema getSchema() { return SCHEMA$; }
   // Used by DatumWriter.  Applications should not call.
-  public Object get(int field$) {
+  public java.lang.Object get(int field$) {
     switch (field$) {
     case 0: return bool_non_nullable;
     case 1: return int$;
@@ -229,14 +192,14 @@ static {
 
   // Used by DatumReader.  Applications should not call.
   @SuppressWarnings(value="unchecked")
-  public void put(int field$, Object value$) {
+  public void put(int field$, java.lang.Object value$) {
     switch (field$) {
-    case 0: bool_non_nullable = (Boolean)value$; break;
-    case 1: int$ = (Integer)value$; break;
-    case 2: long$ = (Long)value$; break;
-    case 3: float$ = (Float)value$; break;
-    case 4: double$ = (Double)value$; break;
-    case 5: string = (CharSequence)value$; break;
+    case 0: bool_non_nullable = (java.lang.Boolean)value$; break;
+    case 1: int$ = (java.lang.Integer)value$; break;
+    case 2: long$ = (java.lang.Long)value$; break;
+    case 3: float$ = (java.lang.Float)value$; break;
+    case 4: double$ = (java.lang.Double)value$; break;
+    case 5: string = (java.lang.CharSequence)value$; break;
     case 6: bytes = (java.nio.ByteBuffer)value$; break;
     case 7: fixed = (org.apache.beam.sdk.extensions.avro.schemas.fixed4)value$; break;
     case 8: date = (java.time.LocalDate)value$; break;
@@ -244,7 +207,7 @@ static {
     case 10: TestEnum = (org.apache.beam.sdk.extensions.avro.schemas.TestEnum)value$; break;
     case 11: row = (org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested)value$; break;
     case 12: array = (java.util.List<org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested>)value$; break;
-    case 13: map = (java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested>)value$; break;
+    case 13: map = (java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested>)value$; break;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -270,7 +233,7 @@ static {
    * Gets the value of the 'int$' field.
    * @return The value of the 'int$' field.
    */
-  public Integer getInt$() {
+  public java.lang.Integer getInt$() {
     return int$;
   }
 
@@ -279,7 +242,7 @@ static {
    * Sets the value of the 'int$' field.
    * @param value the value to set.
    */
-  public void setInt$(Integer value) {
+  public void setInt$(java.lang.Integer value) {
     this.int$ = value;
   }
 
@@ -287,7 +250,7 @@ static {
    * Gets the value of the 'long$' field.
    * @return The value of the 'long$' field.
    */
-  public Long getLong$() {
+  public java.lang.Long getLong$() {
     return long$;
   }
 
@@ -296,7 +259,7 @@ static {
    * Sets the value of the 'long$' field.
    * @param value the value to set.
    */
-  public void setLong$(Long value) {
+  public void setLong$(java.lang.Long value) {
     this.long$ = value;
   }
 
@@ -304,7 +267,7 @@ static {
    * Gets the value of the 'float$' field.
    * @return The value of the 'float$' field.
    */
-  public Float getFloat$() {
+  public java.lang.Float getFloat$() {
     return float$;
   }
 
@@ -313,7 +276,7 @@ static {
    * Sets the value of the 'float$' field.
    * @param value the value to set.
    */
-  public void setFloat$(Float value) {
+  public void setFloat$(java.lang.Float value) {
     this.float$ = value;
   }
 
@@ -321,7 +284,7 @@ static {
    * Gets the value of the 'double$' field.
    * @return The value of the 'double$' field.
    */
-  public Double getDouble$() {
+  public java.lang.Double getDouble$() {
     return double$;
   }
 
@@ -330,7 +293,7 @@ static {
    * Sets the value of the 'double$' field.
    * @param value the value to set.
    */
-  public void setDouble$(Double value) {
+  public void setDouble$(java.lang.Double value) {
     this.double$ = value;
   }
 
@@ -338,7 +301,7 @@ static {
    * Gets the value of the 'string' field.
    * @return The value of the 'string' field.
    */
-  public CharSequence getString() {
+  public java.lang.CharSequence getString() {
     return string;
   }
 
@@ -347,7 +310,7 @@ static {
    * Sets the value of the 'string' field.
    * @param value the value to set.
    */
-  public void setString(CharSequence value) {
+  public void setString(java.lang.CharSequence value) {
     this.string = value;
   }
 
@@ -474,7 +437,7 @@ static {
    * Gets the value of the 'map' field.
    * @return The value of the 'map' field.
    */
-  public java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> getMap() {
+  public java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> getMap() {
     return map;
   }
 
@@ -483,7 +446,7 @@ static {
    * Sets the value of the 'map' field.
    * @param value the value to set.
    */
-  public void setMap(java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> value) {
+  public void setMap(java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> value) {
     this.map = value;
   }
 
@@ -529,11 +492,11 @@ static {
     implements org.apache.avro.data.RecordBuilder<TestAvro> {
 
     private boolean bool_non_nullable;
-    private Integer int$;
-    private Long long$;
-    private Float float$;
-    private Double double$;
-    private CharSequence string;
+    private java.lang.Integer int$;
+    private java.lang.Long long$;
+    private java.lang.Float float$;
+    private java.lang.Double double$;
+    private java.lang.CharSequence string;
     private java.nio.ByteBuffer bytes;
     private org.apache.beam.sdk.extensions.avro.schemas.fixed4 fixed;
     private java.time.LocalDate date;
@@ -542,7 +505,7 @@ static {
     private org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested row;
     private org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested.Builder rowBuilder;
     private java.util.List<org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> array;
-    private java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> map;
+    private java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> map;
 
     /** Creates a new Builder */
     private Builder() {
@@ -724,7 +687,7 @@ static {
       * Gets the value of the 'int$' field.
       * @return The value.
       */
-    public Integer getInt$() {
+    public java.lang.Integer getInt$() {
       return int$;
     }
 
@@ -734,7 +697,7 @@ static {
       * @param value The value of 'int$'.
       * @return This builder.
       */
-    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setInt$(Integer value) {
+    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setInt$(java.lang.Integer value) {
       validate(fields()[1], value);
       this.int$ = value;
       fieldSetFlags()[1] = true;
@@ -764,7 +727,7 @@ static {
       * Gets the value of the 'long$' field.
       * @return The value.
       */
-    public Long getLong$() {
+    public java.lang.Long getLong$() {
       return long$;
     }
 
@@ -774,7 +737,7 @@ static {
       * @param value The value of 'long$'.
       * @return This builder.
       */
-    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setLong$(Long value) {
+    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setLong$(java.lang.Long value) {
       validate(fields()[2], value);
       this.long$ = value;
       fieldSetFlags()[2] = true;
@@ -804,7 +767,7 @@ static {
       * Gets the value of the 'float$' field.
       * @return The value.
       */
-    public Float getFloat$() {
+    public java.lang.Float getFloat$() {
       return float$;
     }
 
@@ -814,7 +777,7 @@ static {
       * @param value The value of 'float$'.
       * @return This builder.
       */
-    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setFloat$(Float value) {
+    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setFloat$(java.lang.Float value) {
       validate(fields()[3], value);
       this.float$ = value;
       fieldSetFlags()[3] = true;
@@ -844,7 +807,7 @@ static {
       * Gets the value of the 'double$' field.
       * @return The value.
       */
-    public Double getDouble$() {
+    public java.lang.Double getDouble$() {
       return double$;
     }
 
@@ -854,7 +817,7 @@ static {
       * @param value The value of 'double$'.
       * @return This builder.
       */
-    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setDouble$(Double value) {
+    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setDouble$(java.lang.Double value) {
       validate(fields()[4], value);
       this.double$ = value;
       fieldSetFlags()[4] = true;
@@ -884,7 +847,7 @@ static {
       * Gets the value of the 'string' field.
       * @return The value.
       */
-    public CharSequence getString() {
+    public java.lang.CharSequence getString() {
       return string;
     }
 
@@ -894,7 +857,7 @@ static {
       * @param value The value of 'string'.
       * @return This builder.
       */
-    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setString(CharSequence value) {
+    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setString(java.lang.CharSequence value) {
       validate(fields()[5], value);
       this.string = value;
       fieldSetFlags()[5] = true;
@@ -1238,7 +1201,7 @@ static {
       * Gets the value of the 'map' field.
       * @return The value.
       */
-    public java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> getMap() {
+    public java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> getMap() {
       return map;
     }
 
@@ -1248,7 +1211,7 @@ static {
       * @param value The value of 'map'.
       * @return This builder.
       */
-    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setMap(java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> value) {
+    public org.apache.beam.sdk.extensions.avro.schemas.TestAvro.Builder setMap(java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested> value) {
       validate(fields()[13], value);
       this.map = value;
       fieldSetFlags()[13] = true;
@@ -1279,12 +1242,12 @@ static {
     public TestAvro build() {
       try {
         TestAvro record = new TestAvro();
-        record.bool_non_nullable = fieldSetFlags()[0] ? this.bool_non_nullable : (Boolean) defaultValue(fields()[0]);
-        record.int$ = fieldSetFlags()[1] ? this.int$ : (Integer) defaultValue(fields()[1]);
-        record.long$ = fieldSetFlags()[2] ? this.long$ : (Long) defaultValue(fields()[2]);
-        record.float$ = fieldSetFlags()[3] ? this.float$ : (Float) defaultValue(fields()[3]);
-        record.double$ = fieldSetFlags()[4] ? this.double$ : (Double) defaultValue(fields()[4]);
-        record.string = fieldSetFlags()[5] ? this.string : (CharSequence) defaultValue(fields()[5]);
+        record.bool_non_nullable = fieldSetFlags()[0] ? this.bool_non_nullable : (java.lang.Boolean) defaultValue(fields()[0]);
+        record.int$ = fieldSetFlags()[1] ? this.int$ : (java.lang.Integer) defaultValue(fields()[1]);
+        record.long$ = fieldSetFlags()[2] ? this.long$ : (java.lang.Long) defaultValue(fields()[2]);
+        record.float$ = fieldSetFlags()[3] ? this.float$ : (java.lang.Float) defaultValue(fields()[3]);
+        record.double$ = fieldSetFlags()[4] ? this.double$ : (java.lang.Double) defaultValue(fields()[4]);
+        record.string = fieldSetFlags()[5] ? this.string : (java.lang.CharSequence) defaultValue(fields()[5]);
         record.bytes = fieldSetFlags()[6] ? this.bytes : (java.nio.ByteBuffer) defaultValue(fields()[6]);
         record.fixed = fieldSetFlags()[7] ? this.fixed : (org.apache.beam.sdk.extensions.avro.schemas.fixed4) defaultValue(fields()[7]);
         record.date = fieldSetFlags()[8] ? this.date : (java.time.LocalDate) defaultValue(fields()[8]);
@@ -1301,11 +1264,11 @@ static {
           record.row = fieldSetFlags()[11] ? this.row : (org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested) defaultValue(fields()[11]);
         }
         record.array = fieldSetFlags()[12] ? this.array : (java.util.List<org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested>) defaultValue(fields()[12]);
-        record.map = fieldSetFlags()[13] ? this.map : (java.util.Map<CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested>) defaultValue(fields()[13]);
+        record.map = fieldSetFlags()[13] ? this.map : (java.util.Map<java.lang.CharSequence,org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested>) defaultValue(fields()[13]);
         return record;
       } catch (org.apache.avro.AvroMissingFieldException e) {
         throw e;
-      } catch (Exception e) {
+      } catch (java.lang.Exception e) {
         throw new org.apache.avro.AvroRuntimeException(e);
       }
     }

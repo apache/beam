@@ -41,6 +41,7 @@ import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
+import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUserFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -803,7 +804,7 @@ public class AvroUtilsTest {
     assertTrue(records.hasSchema());
     CoderProperties.coderSerializable(records.getCoder());
 
-    AvroGeneratedUser user = new AvroGeneratedUser("foo", 42, "green");
+    AvroGeneratedUser user = AvroGeneratedUserFactory.newInstance("foo", 42, "green");
     PCollection<AvroGeneratedUser> users =
         pipeline.apply(Create.of(user).withCoder(AvroCoder.of(AvroGeneratedUser.class)));
     assertFalse(users.hasSchema());

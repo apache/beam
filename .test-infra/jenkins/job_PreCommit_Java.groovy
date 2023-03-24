@@ -112,6 +112,9 @@ builder.build {
       execPattern('**/build/jacoco/*.exec')
       exclusionPattern('**/org/apache/beam/gradle/**,**/org/apache/beam/model/**,' +
           '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*,' +
+          '**/org/apache/beam/sdk/extensions/avro/io/AvroGeneratedUser.*,' +
+          '**/org/apache/beam/sdk/extensions/avro/schemas/Test*,' +
+          '**/org/apache/beam/sdk/extensions/avro/schemas/fixed4.*,' +
           excludePaths.collect {entry -> getModuleNameFromProject(entry) }.join(",") )
     }
   }

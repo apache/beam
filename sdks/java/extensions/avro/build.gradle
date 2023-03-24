@@ -75,7 +75,10 @@ avroVersions.each {kv ->
 
   sourceSets {
     "avro${kv.key}" {
-      java.srcDirs "src/test/avro${kv.key}"
+      java {
+        srcDirs "src/test/avro${kv.key}"
+      }
+
       compileClasspath = configurations."avroVersion$kv.key" + sourceSets.test.output + sourceSets.test.compileClasspath
       runtimeClasspath += compileClasspath + sourceSets.test.runtimeClasspath
     }
@@ -86,6 +89,13 @@ avroVersions.each {kv ->
     checkerFramework {
       skipCheckerFramework = true
     }
+    checkstyle {
+      ignoreFailures = true
+    }
+  }
+
+  "spotbugsAvro${kv.key}" {
+    ignoreFailures = true
   }
 
   task "avroVersion${kv.key}Test"(type: Test) {

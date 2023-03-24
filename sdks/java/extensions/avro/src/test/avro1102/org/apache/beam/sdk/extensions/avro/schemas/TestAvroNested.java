@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas;
 
-import org.apache.avro.message.BinaryMessageDecoder;
-import org.apache.avro.message.BinaryMessageEncoder;
-import org.apache.avro.message.SchemaStore;
+import org.apache.avro.generic.GenericArray;
 import org.apache.avro.specific.SpecificData;
+import org.apache.avro.util.Utf8;
+import org.apache.avro.message.BinaryMessageEncoder;
+import org.apache.avro.message.BinaryMessageDecoder;
+import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
@@ -82,7 +84,7 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
   }
 
    private boolean BOOL_NON_NULLABLE;
-   private Integer int$;
+   private java.lang.Integer int$;
 
   /**
    * Default constructor.  Note that this does not initialize fields
@@ -96,15 +98,15 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
    * @param BOOL_NON_NULLABLE The new value for BOOL_NON_NULLABLE
    * @param int$ The new value for int
    */
-  public TestAvroNested(Boolean BOOL_NON_NULLABLE, Integer int$) {
+  public TestAvroNested(java.lang.Boolean BOOL_NON_NULLABLE, java.lang.Integer int$) {
     this.BOOL_NON_NULLABLE = BOOL_NON_NULLABLE;
     this.int$ = int$;
   }
 
-  public SpecificData getSpecificData() { return MODEL$; }
+  public org.apache.avro.specific.SpecificData getSpecificData() { return MODEL$; }
   public org.apache.avro.Schema getSchema() { return SCHEMA$; }
   // Used by DatumWriter.  Applications should not call.
-  public Object get(int field$) {
+  public java.lang.Object get(int field$) {
     switch (field$) {
     case 0: return BOOL_NON_NULLABLE;
     case 1: return int$;
@@ -114,10 +116,10 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
 
   // Used by DatumReader.  Applications should not call.
   @SuppressWarnings(value="unchecked")
-  public void put(int field$, Object value$) {
+  public void put(int field$, java.lang.Object value$) {
     switch (field$) {
-    case 0: BOOL_NON_NULLABLE = (Boolean)value$; break;
-    case 1: int$ = (Integer)value$; break;
+    case 0: BOOL_NON_NULLABLE = (java.lang.Boolean)value$; break;
+    case 1: int$ = (java.lang.Integer)value$; break;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -143,7 +145,7 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
    * Gets the value of the 'int$' field.
    * @return The value of the 'int$' field.
    */
-  public Integer getInt$() {
+  public java.lang.Integer getInt$() {
     return int$;
   }
 
@@ -152,7 +154,7 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
    * Sets the value of the 'int$' field.
    * @param value the value to set.
    */
-  public void setInt$(Integer value) {
+  public void setInt$(java.lang.Integer value) {
     this.int$ = value;
   }
 
@@ -198,7 +200,7 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
     implements org.apache.avro.data.RecordBuilder<TestAvroNested> {
 
     private boolean BOOL_NON_NULLABLE;
-    private Integer int$;
+    private java.lang.Integer int$;
 
     /** Creates a new Builder */
     private Builder() {
@@ -280,7 +282,7 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
       * Gets the value of the 'int$' field.
       * @return The value.
       */
-    public Integer getInt$() {
+    public java.lang.Integer getInt$() {
       return int$;
     }
 
@@ -290,7 +292,7 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
       * @param value The value of 'int$'.
       * @return This builder.
       */
-    public org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested.Builder setInt$(Integer value) {
+    public org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested.Builder setInt$(java.lang.Integer value) {
       validate(fields()[1], value);
       this.int$ = value;
       fieldSetFlags()[1] = true;
@@ -321,12 +323,12 @@ public class TestAvroNested extends org.apache.avro.specific.SpecificRecordBase 
     public TestAvroNested build() {
       try {
         TestAvroNested record = new TestAvroNested();
-        record.BOOL_NON_NULLABLE = fieldSetFlags()[0] ? this.BOOL_NON_NULLABLE : (Boolean) defaultValue(fields()[0]);
-        record.int$ = fieldSetFlags()[1] ? this.int$ : (Integer) defaultValue(fields()[1]);
+        record.BOOL_NON_NULLABLE = fieldSetFlags()[0] ? this.BOOL_NON_NULLABLE : (java.lang.Boolean) defaultValue(fields()[0]);
+        record.int$ = fieldSetFlags()[1] ? this.int$ : (java.lang.Integer) defaultValue(fields()[1]);
         return record;
       } catch (org.apache.avro.AvroMissingFieldException e) {
         throw e;
-      } catch (Exception e) {
+      } catch (java.lang.Exception e) {
         throw new org.apache.avro.AvroRuntimeException(e);
       }
     }
