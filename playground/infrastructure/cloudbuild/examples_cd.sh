@@ -117,10 +117,25 @@ for file in "${diff[@]}"; do
     if echo $file == *learning/katas/ || echo $file == *examples/* || echo $file == *sdks/*
     then
         LogOutput "At least one changed file is in the allowlist"
-    # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
-        cd $BEAM_ROOT_DIR/playground/infrastructure
-        for sdk in $SDKS
-        do
+
+        for sdk in $SDKS; do
+          result=$(python -c "
+            import logging
+            from pathlib import Path
+            from checker import check_sdk_examples
+
+            paths = ${file}
+            sdk = ${sdk}
+            root_dir = ${BEAM_ROOT_DIR}
+            result = check_sdk_examples(paths, [sdk], root_dir)
+            print(result[sdk])
+          ")
+          echo "$sdk: $result"
+
+          if [[ "$result" == "True" ]]; then
+            echo "Running ci_cd.py for SDK $sdk"
+      # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
+            cd $BEAM_ROOT_DIR/playground/infrastructure
             export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
             python3 ci_cd.py \
             --datastore-project ${PROJECT_ID} \
@@ -129,26 +144,17 @@ for file in "${diff[@]}"; do
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
             --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
-            if [ $? -eq 0 ]
+              if [ $? -eq 0 ]
                 then
-                    LogOutput "Examples for $sdk SDK have been successfully deployed."
-                    eval "cd_${sdk}_passed"='True'
+                  LogOutput "Examples for $sdk SDK have been successfully deployed."
+                  eval "cd_${sdk}_passed"='True'
                 else
-                    LogOutput "Examples deployment for $sdk SDK has failed."
-                fi
-          done
+                  LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
+              fi
+          fi
+        done
     else
-      LogOutput "No changed files are in the allowlist. Exiting"
+      LogOutput "Checker has not found changed examples for $sdk"
       exit 1
     fi
 done
-
-for sdk in $SDKS
-do
-    result=$(eval echo '$'"cd_${sdk}_passed")
-    if [ "$result" != "True" ]; then
-        LogOutput "At least one of the SDK has failed to deploy. Please check the Cloud Build logs."
-        exit 1
-    fi
-done
-exit 0
