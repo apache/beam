@@ -41,6 +41,8 @@ dependencies {
     implementation library.java.joda_time
     implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":sdks:java:extensions:avro")
+    implementation project(path: ":sdks:java:io:csv")
     implementation project(path: ":sdks:java:io:parquet")
     implementation "org.apache.parquet:parquet-common:$parquet_version"
     implementation project(path: ":sdks:java:io:xml")

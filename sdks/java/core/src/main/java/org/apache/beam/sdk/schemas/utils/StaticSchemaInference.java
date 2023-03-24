@@ -109,11 +109,14 @@ public class StaticSchemaInference {
     for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(clazz)) {
       Schema.FieldType fieldType =
           fieldFromType(type.getType(), fieldValueTypeSupplier, alreadyVisitedSchemas);
-      if (type.isNullable()) {
-        builder.addNullableField(type.getName(), fieldType);
-      } else {
-        builder.addField(type.getName(), fieldType);
+      Schema.Field f =
+          type.isNullable()
+              ? Schema.Field.nullable(type.getName(), fieldType)
+              : Schema.Field.of(type.getName(), fieldType);
+      if (type.getDescription() != null) {
+        f = f.withDescription(type.getDescription());
       }
+      builder.addFields(f);
     }
     Schema generatedSchema = builder.build();
     alreadyVisitedSchemas.replace(clazz, generatedSchema);

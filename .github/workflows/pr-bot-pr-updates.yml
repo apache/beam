@@ -31,7 +31,7 @@ jobs:
 
     # Don't run on forks
     if: github.repository == 'apache/beam'
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
 
     steps:
       # Pin to master so users can't do anything malicious on their own branch and run it here.

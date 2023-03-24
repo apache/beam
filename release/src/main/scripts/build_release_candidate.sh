@@ -415,6 +415,7 @@ if [[ $confirmation = "y" ]]; then
   ln -s ${RELEASE} pydoc/current
 
   echo "............Copying generated typedoc into beam-site.........."
+  mkdir -p typedoc
   cp -r ${GENERATED_TYPEDOC} typedoc/${RELEASE}
   # Update current symlink to point to the latest release
   unlink typedoc/current | true
@@ -448,4 +449,5 @@ if [[ $confirmation = "y" ]]; then
   echo "Finished v${RELEASE}-RC${RC_NUM} creation."
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}
+  rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}
 fi

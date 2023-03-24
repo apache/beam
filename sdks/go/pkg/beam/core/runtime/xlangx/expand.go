@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -32,7 +33,12 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
 	"google.golang.org/grpc"
+	"gopkg.in/retry.v1"
 )
+
+// maxRetries is the maximum number of retries to attempt connecting to
+// an expansion service endpoint.
+const maxRetries = 5
 
 // Expand expands an unexpanded graph.ExternalTransform as a
 // graph.ExpandedTransform and assigns it to the ExternalTransform's Expanded
@@ -163,16 +169,31 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	client := jobpb.NewExpansionServiceClient(conn)
 
 	// Handling ExpansionResponse
-	res, err := client.Expand(ctx, req)
-	if err != nil {
-		err = errors.Wrapf(err, "expansion failed")
-		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
+	strategy := retry.LimitCount(
+		maxRetries,
+		retry.Exponential{
+			Initial: time.Second,
+			Factor:  2,
+		},
+	)
+	var res *jobpb.ExpansionResponse
+	for attempt := retry.Start(strategy, nil); attempt.Next(); {
+		res, err = client.Expand(ctx, req)
+		if err == nil {
+			break
+		}
+
+		if attempt.Count() == maxRetries {
+			err = errors.Wrap(err, "expansion failed")
+			return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
+		}
 	}
 	if len(res.GetError()) != 0 { // ExpansionResponse includes an error.
 		err := errors.New(res.GetError())
-		err = errors.Wrapf(err, "expansion failed")
+		err = errors.Wrap(err, "expansion response error")
 		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}
+
 	return res, nil
 }
 

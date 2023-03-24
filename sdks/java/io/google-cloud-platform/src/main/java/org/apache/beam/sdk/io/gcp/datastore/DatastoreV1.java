@@ -1304,10 +1304,10 @@ public class DatastoreV1 {
   /**
    * A {@link PTransform} that writes mutations to Cloud Datastore.
    *
-   * <p>It requires a {@link DoFn} that tranforms an object of type {@code T} to a {@link Mutation}.
-   * {@code T} is usually either an {@link Entity} or a {@link Key} <b>Note:</b> Only idempotent
-   * Cloud Datastore mutation operations (upsert and delete) should be used by the {@code DoFn}
-   * provided, as the commits are retried when failures occur.
+   * <p>It requires a {@link DoFn} that transforms an object of type {@code T} to a {@link
+   * Mutation}. {@code T} is usually either an {@link Entity} or a {@link Key} <b>Note:</b> Only
+   * idempotent Cloud Datastore mutation operations (upsert and delete) should be used by the {@code
+   * DoFn} provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
 
@@ -1542,12 +1542,27 @@ public class DatastoreV1 {
       }
     }
 
+    private static com.google.datastore.v1.Key getKey(Mutation m) {
+      if (m.hasUpsert()) {
+        return m.getUpsert().getKey();
+      } else if (m.hasInsert()) {
+        return m.getInsert().getKey();
+      } else if (m.hasDelete()) {
+        return m.getDelete();
+      } else if (m.hasUpdate()) {
+        return m.getUpdate().getKey();
+      } else {
+        LOG.warn("Mutation {} does not have an operation type set.", m);
+        return Entity.getDefaultInstance().getKey();
+      }
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Mutation write = c.element();
-      int size = write.getSerializedSize();
+      Mutation mutation = c.element();
+      int size = mutation.getSerializedSize();
 
-      if (!uniqueMutationKeys.add(write.getUpsert().getKey())) {
+      if (!uniqueMutationKeys.add(getKey(mutation))) {
         flushBatch();
       }
 

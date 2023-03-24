@@ -56,7 +56,7 @@ cd beam-starter-go
 Run the following command:
 
 {{< highlight >}}
-go run main.go --inputText="Greetings"
+go run main.go --input-text="Greetings"
 {{< /highlight >}}
 
 The output is similar to the following:

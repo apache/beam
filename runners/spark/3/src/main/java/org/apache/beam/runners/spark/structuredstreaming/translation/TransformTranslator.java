@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.TranslationState;
+import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.UnresolvedTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -156,6 +157,12 @@ public abstract class TransformTranslator<
     public <T> void putDataset(
         PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache) {
       state.putDataset(pCollection, dataset, cache);
+    }
+
+    @Override
+    public <InputT, T> void putUnresolved(
+        PCollection<T> out, UnresolvedTranslation<InputT, T> unresolved) {
+      state.putUnresolved(out, unresolved);
     }
 
     @Override

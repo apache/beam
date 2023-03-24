@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Schema and tranform definition for the Criteo dataset."""
+"""Schema and transform definition for the Criteo dataset."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

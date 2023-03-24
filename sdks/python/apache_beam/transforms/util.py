@@ -316,7 +316,8 @@ class _BatchSizeEstimator(object):
       min_batch_size=1,
       max_batch_size=10000,
       target_batch_overhead=.05,
-      target_batch_duration_secs=1,
+      target_batch_duration_secs=10,
+      target_batch_duration_secs_including_fixed_cost=None,
       variance=0.25,
       clock=time.time,
       ignore_first_n_seen_per_batch_size=0,
@@ -333,10 +334,18 @@ class _BatchSizeEstimator(object):
       raise ValueError(
           "target_batch_duration_secs (%s) must be positive" %
           (target_batch_duration_secs))
-    if not (target_batch_overhead or target_batch_duration_secs):
+    if (target_batch_duration_secs_including_fixed_cost and
+        target_batch_duration_secs_including_fixed_cost <= 0):
+      raise ValueError(
+          "target_batch_duration_secs_including_fixed_cost "
+          "(%s) must be positive" %
+          (target_batch_duration_secs_including_fixed_cost))
+    if not (target_batch_overhead or target_batch_duration_secs or
+            target_batch_duration_secs_including_fixed_cost):
       raise ValueError(
           "At least one of target_batch_overhead or "
-          "target_batch_duration_secs must be positive.")
+          "target_batch_duration_secs or "
+          "target_batch_duration_secs_including_fixed_cost must be positive.")
     if ignore_first_n_seen_per_batch_size < 0:
       raise ValueError(
           'ignore_first_n_seen_per_batch_size (%s) must be non '
@@ -345,6 +354,8 @@ class _BatchSizeEstimator(object):
     self._max_batch_size = max_batch_size
     self._target_batch_overhead = target_batch_overhead
     self._target_batch_duration_secs = target_batch_duration_secs
+    self._target_batch_duration_secs_including_fixed_cost = (
+        target_batch_duration_secs_including_fixed_cost)
     self._variance = variance
     self._clock = clock
     self._data = []
@@ -501,9 +512,19 @@ class _BatchSizeEstimator(object):
 
     target = self._max_batch_size
 
+    if self._target_batch_duration_secs_including_fixed_cost:
+      # Solution to
+      # a + b*x = self._target_batch_duration_secs_including_fixed_cost.
+      target = min(
+          target,
+          (self._target_batch_duration_secs_including_fixed_cost - a) / b)
+
     if self._target_batch_duration_secs:
-      # Solution to a + b*x = self._target_batch_duration_secs.
-      target = min(target, (self._target_batch_duration_secs - a) / b)
+      # Solution to b*x = self._target_batch_duration_secs.
+      # We ignore the fixed cost in this computation as it has negligeabel
+      # impact when it is small and unhelpfully forces the minimum batch size
+      # when it is large.
+      target = min(target, self._target_batch_duration_secs / b)
 
     if self._target_batch_overhead:
       # Solution to a / (a + b*x) = self._target_batch_overhead.
@@ -653,7 +674,9 @@ class BatchElements(PTransform):
     target_batch_overhead: (optional) a target for fixed_cost / time,
         as used in the formula above
     target_batch_duration_secs: (optional) a target for total time per bundle,
-        in seconds
+        in seconds, excluding fixed cost
+    target_batch_duration_secs_including_fixed_cost: (optional) a target for
+        total time per bundle, in seconds, including fixed cost
     element_size_fn: (optional) A mapping of an element to its contribution to
         batch size, defaulting to every element having size 1.  When provided,
         attempts to provide batches of optimal total size which may consist of
@@ -671,7 +694,8 @@ class BatchElements(PTransform):
       min_batch_size=1,
       max_batch_size=10000,
       target_batch_overhead=.05,
-      target_batch_duration_secs=1,
+      target_batch_duration_secs=10,
+      target_batch_duration_secs_including_fixed_cost=None,
       *,
       element_size_fn=lambda x: 1,
       variance=0.25,
@@ -682,6 +706,8 @@ class BatchElements(PTransform):
         max_batch_size=max_batch_size,
         target_batch_overhead=target_batch_overhead,
         target_batch_duration_secs=target_batch_duration_secs,
+        target_batch_duration_secs_including_fixed_cost=(
+            target_batch_duration_secs_including_fixed_cost),
         variance=variance,
         clock=clock,
         record_metrics=record_metrics)
