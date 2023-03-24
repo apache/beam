@@ -251,6 +251,33 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
+  public void testDiscardingNonSingletonSideInput() throws Exception {
+
+    PCollection<Integer> oneTwoThree = pipeline.apply(Create.of(1, 2, 3));
+    final PCollectionView<Integer> view =
+        oneTwoThree
+            .apply(Window.<Integer>configure().discardingFiredPanes())
+            .apply(View.asSingleton());
+
+    oneTwoThree.apply(
+        "OutputSideInputs",
+        ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(c.sideInput(view));
+                  }
+                })
+            .withSideInputs(view));
+
+    // As long as we get an error, be flexible with how a runner surfaces it
+    thrown.expect(Exception.class);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
   public void testListSideInput() {
 
     final PCollectionView<List<Integer>> view =
