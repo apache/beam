@@ -78,7 +78,7 @@ content:
   - triggers
 ```
 __sdk__:  list of programming languages this learning content is intended for (available options are "Go", "Java", "Python").
-__content__: list of folders with modules which will be included in this course 
+__content__: list of folders with modules which will be included in this course
 #### Module metadata
 
 Module metadata is stored in module-info.yaml file in each module folder and is represented as a yaml object with following content:
@@ -98,7 +98,7 @@ content:
 
 ```
 __sdk__:  list of programming languages this learning module is intended for (available options are "Go", "Java", "Python").
-__content__: list of folders with groups/units which will be included in this module 
+__content__: list of folders with groups/units which will be included in this module
 __id__: unique id of the module within the course
 __name__: Short name of the module that wil be used in course navigation
 __complexity__: Complexity of the module (available options are BASIC, MEDIUM, ADVANCED)
@@ -136,7 +136,7 @@ solutionName: WindowingSolution
 __sdk__:  list of programming languages this learning unit is intended for (available options are "Go", "Java", "Python").
 __id__: unique id of the unit within the course
 __name__: Short name of the unit that wil be used in course navigation
-__taskName__: Name of runnable example or motivating challenge that is accompanies this unit 
+__taskName__: Name of runnable example or motivating challenge that is accompanies this unit
 __solutionName__: Name of solution for motivating challenge
 
 ### Unit material sctucture
@@ -147,13 +147,13 @@ Unit lerning materials should be stored in the following documents inside untit 
 __description.md__: Markdown file containing learning unit theoretical materials or description of motivating challenge. All features of markdown are supported in unit learning materials.
 __hint.md__: Markdown file containing hint for a motivating challenge. There could be up to nine hints for a motivating challenge in files ```hint1.md``` to ```hint9.md```. Hints are shown sequentionally in Tour of Beam.
 
-### Multilanguaage template support for learning materials 
+### Multilanguaage template support for learning materials
 
-Learning unit theoretical materials markdown files support go templates for unifying leraning materials for different SDK supported languagesL 
+Learning unit theoretical materials markdown files support go templates for unifying leraning materials for different SDK supported languages
 
 ```
 {{if (eq .Sdk "go")}}
-Learning content that should be displayed only for in Go SDK course tree 
+Learning content that should be displayed only for in Go SDK course tree
 {{end}}
 ```
 
@@ -161,11 +161,11 @@ Templates also support sections for several programming languages:
 
 ```
 {{if (eq .Sdk "go" "java")}}
-Learning content that should be displayed only for both Go and Java SDK course tree 
+Learning content that should be displayed only for both Go and Java SDK course tree
 {{end}}
 ```
 
-## Runnable examples and motivating challenges 
+## Runnable examples and motivating challenges
 Each example in this repository is a self-contained code snippet that demonstrates a specific concept or technique. Examples are organized into subfolders by language for convenience, and each example includes embedded tags with metadata that correspond to the information in the YAML metadata files. This makes it easy for contributors to find the examples they need and understand how to use them.
 Metadata tag should be embedded in pipeline source file as a commented yaml structure.
 There is a degree of flexibiloty as for where to keep example source files. We propose to keep examples for different SDK's in separate folders. It's also beneficial to separate motivating examples and solutions to separate folders.
