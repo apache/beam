@@ -190,7 +190,7 @@ class CombineTest(unittest.TestCase):
     self.assertEqual(['aa', 'bbb', 'c', 'dddd']
                      | combine.Top.Of(3, key=len, reverse=True),
                      [['c', 'aa', 'bbb']])
-    
+
     self.assertEqual(['xc', 'zb', 'yd' ,'wa'] | combine.Top.Largest(3, key=lambda x: x[-1]),
                      [['yd', 'xc', 'zb']])
     self.assertEqual(['xc', 'zb', 'yd' ,'wa'] | combine.Top.Smallest(3, key=lambda x: x[-1]),
