@@ -29,7 +29,9 @@ import com.google.cloud.bigtable.data.v2.models.ReadChangeStreamQuery;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.joda.time.Duration;
@@ -64,7 +66,8 @@ public class ChangeStreamDao {
    * Streams a partition.
    *
    * @param partition the partition to stream
-   * @param streamProgress may contain a continuation token for the stream request\
+   * @param streamProgress may contain a continuation token for the stream request
+   * @param endTime time to end the stream, may be null
    * @param heartbeatDuration period between heartbeat messages
    * @return stream of ReadChangeStreamResponse
    * @throws IOException if the stream could not be started
@@ -72,6 +75,7 @@ public class ChangeStreamDao {
   public ServerStream<ChangeStreamRecord> readChangeStreamPartition(
       PartitionRecord partition,
       StreamProgress streamProgress,
+      @Nullable Instant endTime,
       Duration heartbeatDuration,
       boolean shouldDebug)
       throws IOException {
@@ -91,6 +95,9 @@ public class ChangeStreamDao {
       query.continuationTokens(changeStreamContinuationTokenList);
     } else {
       throw new IOException("Something went wrong");
+    }
+    if (endTime != null) {
+      query.endTime(TimestampConverter.toThreetenInstant(endTime));
     }
     query.heartbeatDuration(org.threeten.bp.Duration.ofMillis(heartbeatDuration.getMillis()));
     if (shouldDebug) {

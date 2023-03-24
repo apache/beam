@@ -98,12 +98,20 @@ public class ReadChangeStreamPartitionAction {
    *   <li>Process CloseStream if it exists. In order to solve a possible inconsistent state
    *       problem, we do not process CloseStream after receiving it. We claim the CloseStream in
    *       the RestrictionTracker so it persists after a checkpoint. We checkpoint to flush all the
-   *       DataChanges. Then on resume, we process the CloseStream. There is only 1 expected Status
-   *       for CloseStream: Out of Range. Out of Range is returned when the partition has either
-   *       been split into more partitions or merged into a larger partition. In this case, we write
-   *       to the metadata table the new partitions' information so that {@link
-   *       DetectNewPartitionsDoFn} can read and output those new partitions to be streamed. We also
-   *       need to ensure we clean up this partition's metadata to release the lock.
+   *       DataChanges. Then on resume, we process the CloseStream. There are only 2 expected Status
+   *       for CloseStream: OK and Out of Range.
+   *       <ol>
+   *         <li>OK status is returned when the predetermined endTime has been reached. In this
+   *             case, we update the watermark and update the metadata table. {@link
+   *             DetectNewPartitionsDoFn} aggregates the watermark from all the streams to ensure
+   *             all the streams have reached beyond endTime so it can also terminate and end the
+   *             beam job.
+   *         <li>Out of Range is returned when the partition has either been split into more
+   *             partitions or merged into a larger partition. In this case, we write to the
+   *             metadata table the new partitions' information so that {@link
+   *             DetectNewPartitionsDoFn} can read and output those new partitions to be streamed.
+   *             We also need to ensure we clean up this partition's metadata to release the lock.
+   *       </ol>
    *   <li>Update the metadata table with the watermark and additional debugging info.
    *   <li>Stream the partition.
    * </ol>
@@ -160,6 +168,22 @@ public class ReadChangeStreamPartitionAction {
     // Process CloseStream if it exists
     CloseStream closeStream = tracker.currentRestriction().getCloseStream();
     if (closeStream != null) {
+      // tracker.currentRestriction().closeStream.getStatus()
+      if (closeStream.getStatus().getCode() == Status.Code.OK) {
+        // We need to update watermark here. We're terminating this stream because we have reached
+        // endTime. Instant.now is greater or equal to endTime. The goal here is
+        // DNP will need to know this stream has passed the endTime so DNP can eventually terminate.
+        watermarkEstimator.setWatermark(Instant.now());
+        metadataTableDao.updateWatermark(
+            partitionRecord.getPartition(),
+            watermarkEstimator.currentWatermark(),
+            tracker.currentRestriction().getCurrentToken());
+        LOG.info(
+            "RCSP {}: Reached end time, terminating...",
+            formatByteStringRange(partitionRecord.getPartition()));
+        metrics.decPartitionStreamCount();
+        return ProcessContinuation.stop();
+      }
       if (closeStream.getStatus().getCode() != Status.Code.OUT_OF_RANGE) {
         LOG.error(
             "RCSP {}: Reached unexpected terminal state: {}",
@@ -221,7 +245,11 @@ public class ReadChangeStreamPartitionAction {
     try {
       stream =
           changeStreamDao.readChangeStreamPartition(
-              partitionRecord, tracker.currentRestriction(), heartbeatDuration, shouldDebug);
+              partitionRecord,
+              tracker.currentRestriction(),
+              partitionRecord.getEndTime(),
+              heartbeatDuration,
+              shouldDebug);
       for (ChangeStreamRecord record : stream) {
         Optional<ProcessContinuation> result =
             changeStreamAction.run(
