@@ -2624,7 +2624,7 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':sdks:python:sdist'
 
         // if host system wheel compatible with dataflow runner
-        def compatibleWithDataflow= ("amd64".equalsIgnoreCase(System.getProperty("os.arch"))
+        def compatibleWithDataflow = ("amd64".equalsIgnoreCase(System.getProperty("os.arch"))
             && "linux".equalsIgnoreCase(System.getProperty("os.name"))
             && !project.hasProperty('sdistForceTarball'))
 
@@ -2636,10 +2636,18 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def packageFile = "${pythonRootDir}/build/apache-beam.tar.gz"
           if (compatibleWithDataflow) {
+            // build wheel in separate folder to avoid racing conditions
+            project.copy {
+              from project.tarTree(project.resources.gzip(packageFile))
+              into project.buildDir
+            }
+            def srcDirs = project.files()
+            project.buildDir.eachDirMatch({it.startsWith('apache-beam')}, {srcDirs.from it})
+            def srcDir = srcDirs.singleFile
             project.exec {
               executable 'sh'
               args '-c', ". ${project.ext.envdir}/bin/activate && pip install 'Cython<1' " +
-                  "&& cd ${pythonRootDir} && python setup.py -q sdist bdist_wheel --dist-dir ${project.buildDir}"
+                  "&& cd ${srcDir} && python setup.py -q sdist bdist_wheel --dist-dir ${project.buildDir}"
             }
             def collection = project.fileTree(project.buildDir){
               include "**/*${project.ext.pythonVersion.replace('.', '')}*.whl"
