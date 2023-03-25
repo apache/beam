@@ -2623,7 +2623,11 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn setupVirtualenv
         dependsOn ':sdks:python:sdist'
 
-        def useWheel = true // project.hasProperty('sdistUseWheel')
+        // if host system wheel compatible with dataflow runner
+        def compatibleWithDataflow= ("amd64".equalsIgnoreCase(System.getProperty("os.arch"))
+            && "linux".equalsIgnoreCase(System.getProperty("os.name"))
+            && !project.hasProperty('sdistForceTarball'))
+
         // Set sdistFiles project ext at execution time as the path to the
         // generated installable Python SDK package. If project property
         // sdistUseWheel is set, targets to wheel, otherwise a tarball.
@@ -2631,7 +2635,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         doLast {
           def packageFile = "${pythonRootDir}/build/apache-beam.tar.gz"
-          if (useWheel) {
+          if (compatibleWithDataflow) {
             project.exec {
               executable 'sh'
               args '-c', ". ${project.ext.envdir}/bin/activate && pip install 'Cython<1' " +
@@ -2641,8 +2645,16 @@ class BeamModulePlugin implements Plugin<Project> {
               include "**/*${project.ext.pythonVersion.replace('.', '')}*.whl"
               exclude 'srcs/**'
             }
-            packageFile = collection.singleFile
-            logger.warn('Create distribution wheel file {} in {}', packageFile.getName(), project.buildDir)
+            def packageFilename = collection.singleFile.getName()
+            def renamed = packageFilename.replace('linux_x86_64', 'manylinux_2_17_x86_64.manylinux2014_x86_64')
+
+            if (renamed != packageFilename) {
+              project.copy {
+                from collection.singleFile; into project.buildDir;
+                rename { renamed } }
+            }
+            packageFile = project.file("${project.buildDir}/$renamed")
+            logger.warn('Create distribution wheel file {} in {}', packageFilename, project.buildDir)
           }
           project.exec {
             executable 'sh'
