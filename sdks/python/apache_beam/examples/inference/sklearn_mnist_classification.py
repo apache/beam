@@ -53,6 +53,7 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
   """
+
   def process(self, element: Tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = prediction_result.inference
@@ -92,8 +93,11 @@ def run(
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   requirements_dir = os.path.dirname(os.path.realpath(__file__))
-  # Pin to the version that we trained the model on. Sklearn doesn't guarantee compatability between versions.
-  pipeline_options.view_as(SetupOptions).requirements_file = f'{requirements_dir}/sklearn_examples_requirements.txt'
+  # Pin to the version that we trained the model on.
+  # Sklearn doesn't guarantee compatability between versions.
+  pipeline_options.view_as(
+      SetupOptions
+  ).requirements_file = f'{requirements_dir}/sklearn_examples_requirements.txt'
 
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over SklearnModelHandlerNumpy.
