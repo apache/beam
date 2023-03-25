@@ -16,24 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
-
-Future<void> init(WidgetTester wt) async {
-  await app.main();
-  await wt.pumpAndSettle();
-}
-
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
-}
-
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
-}
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// This file is generated during deployment to contain data about the commit.
+// The copy of this file stored in the repository is for development purpose
+// so the project can be started locally.
+// Keep these constants `null` in the repository.
+const buildCommitHash = null;
+const buildCommitSecondsSinceEpoch = null;

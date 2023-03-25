@@ -16,24 +16,36 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+import 'package:flutter/material.dart';
 
-Future<void> init(WidgetTester wt) async {
-  await app.main();
-  await wt.pumpAndSettle();
-}
+// TODO(alexeyinkin): In future convert all dialogs to this one.
+class BeamDialog extends StatelessWidget {
+  const BeamDialog({
+    required this.child,
+    this.title,
+  });
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
-}
+  final Widget child;
+  final Widget? title;
 
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
+  static Future<void> show({
+    required Widget child,
+    required BuildContext context,
+    Widget? title,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) => BeamDialog(
+        child: AlertDialog(
+          title: title,
+          content: child,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return child;
+  }
 }
