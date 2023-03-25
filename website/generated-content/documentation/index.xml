@@ -98,14 +98,28 @@ that illustrates running PyTorch models with Apache Beam.&lt;/p>
 &lt;p>See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_sklearn.ipynb">this notebook&lt;/a>
 that illustrates running Scikit-learn models with Apache Beam.&lt;/p>
 &lt;h4 id="tensorflow">TensorFlow&lt;/h4>
-&lt;p>To use TensorFlow with the RunInference API, you need to do the following:&lt;/p>
+&lt;p>To use TensorFlow with the RunInference API, you have two options:&lt;/p>
+&lt;ol>
+&lt;li>Use the built-in TensorFlow Model Handlers in Apache Beam SDK - &lt;code>TFModelHandlerNumpy&lt;/code> and &lt;code>TFModelHandlerTensor&lt;/code>.
 &lt;ul>
+&lt;li>Depending on the type of input for your model, use &lt;code>TFModelHandlerNumpy&lt;/code> for &lt;code>numpy&lt;/code> input and &lt;code>TFModelHandlerTensor&lt;/code> for &lt;code>tf.Tensor&lt;/code> input respectively.&lt;/li>
+&lt;li>Use tensorflow 2.7 or later.&lt;/li>
+&lt;li>Pass the path of the model to the TensorFlow &lt;code>ModelHandler&lt;/code> by using &lt;code>model_uri=&amp;lt;path_to_trained_model&amp;gt;&lt;/code>.&lt;/li>
+&lt;li>Alternatively, you can pass the path to saved weights of the trained model, a function to build the model using &lt;code>create_model_fn=&amp;lt;function&amp;gt;&lt;/code>, and set the &lt;code>model_type=ModelType.SAVED_WEIGHTS&lt;/code>.
+See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow_with_tensorflowhub.ipynb">this notebook&lt;/a> that illustrates running Tensorflow models with Built-in model handlers.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Using &lt;code>tfx_bsl&lt;/code>.
+&lt;ul>
+&lt;li>Use this approach if your model input is of type &lt;code>tf.Example&lt;/code>.&lt;/li>
 &lt;li>Use &lt;code>tfx_bsl&lt;/code> version 1.10.0 or later.&lt;/li>
 &lt;li>Create a model handler using &lt;code>tfx_bsl.public.beam.run_inference.CreateModelHandler()&lt;/code>.&lt;/li>
-&lt;li>Use the model handler with the &lt;a href="/releases/pydoc/current/apache_beam.ml.inference.base.html">&lt;code>apache_beam.ml.inference.base.RunInference&lt;/code>&lt;/a> transform.&lt;/li>
+&lt;li>Use the model handler with the &lt;a href="/releases/pydoc/current/apache_beam.ml.inference.base.html">&lt;code>apache_beam.ml.inference.base.RunInference&lt;/code>&lt;/a> transform.
+See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb">this notebook&lt;/a>
+that illustrates running TensorFlow models with Apache Beam and tfx-bsl.&lt;/li>
 &lt;/ul>
-&lt;p>See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb">this notebook&lt;/a>
-that illustrates running TensorFlow models with Apache Beam and tfx-bsl.&lt;/p>
+&lt;/li>
+&lt;/ol>
 &lt;h2 id="custom-inference">Custom Inference&lt;/h2>
 &lt;p>The RunInference API doesn&amp;rsquo;t currently support making remote inference calls using, for example, the Natural Language API or the Cloud Vision API. Therefore, in order to use these remote APIs with Apache Beam, you need to write custom inference calls. The &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb">Remote inference in Apache Beam notebook&lt;/a> shows how to implement a custom remote inference call using &lt;code>beam.DoFn&lt;/code>. When you implement a remote inference for real life projects, consider the following factors:&lt;/p>
 &lt;ul>
