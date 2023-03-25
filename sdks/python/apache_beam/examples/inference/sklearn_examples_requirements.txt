@@ -15,4 +15,6 @@
 # limitations under the License.
 #
 
+# This should match the saved version of your trained model.
+# Beam's tests use sklearn 1.0.2 for their saved models.
 scikit-learn==1.0.2
