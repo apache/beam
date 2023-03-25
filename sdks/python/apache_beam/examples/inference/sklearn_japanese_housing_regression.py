@@ -30,9 +30,9 @@ In order to set this example up, you will need two things.
 """
 
 import argparse
+import os
 from typing import Iterable
 
-import os
 import pandas
 
 import apache_beam as beam
