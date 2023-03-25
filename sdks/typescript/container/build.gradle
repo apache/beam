@@ -54,6 +54,8 @@ docker {
   // tags used by dockerTag task
   tags containerImageTags()
   files "./build"
+  buildx project.containerPlatforms() != [project.nativeArchitecture()]
+  platform(*project.containerPlatforms())
 }
 
 dockerPrepare.dependsOn goBuild
