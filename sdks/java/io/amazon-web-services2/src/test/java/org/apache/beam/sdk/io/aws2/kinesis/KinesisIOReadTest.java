@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -63,6 +64,7 @@ import software.amazon.awssdk.services.kinesis.KinesisClientBuilder;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.awssdk.services.kinesis.model.Record;
+import software.amazon.kinesis.common.InitialPositionInStream;
 
 /** Tests for {@link KinesisIO#read}. */
 @RunWith(MockitoJUnitRunner.class)
@@ -81,6 +83,26 @@ public class KinesisIOReadTest {
   public void configureClientBuilderFactory() {
     MockClientBuilderFactory.set(p, KinesisClientBuilder.class, client);
     MockClientBuilderFactory.set(p, CloudWatchClientBuilder.class, mock(CloudWatchClient.class));
+  }
+
+  @Test
+  public void testReadDefaults() {
+    KinesisIO.Read readSpec =
+        KinesisIO.read()
+            .withStreamName("streamName")
+            .withInitialPositionInStream(InitialPositionInStream.LATEST);
+
+    assertThat(readSpec.getStreamName()).isEqualTo("streamName");
+    assertThat(readSpec.getConsumerArn()).isNull();
+
+    assertThat(readSpec.getInitialPosition())
+        .isEqualTo(new StartingPoint(InitialPositionInStream.LATEST));
+    assertThat(readSpec.getWatermarkPolicyFactory())
+        .isEqualTo(WatermarkPolicyFactory.withArrivalTimePolicy());
+    assertThat(readSpec.getUpToDateThreshold()).isEqualTo(Duration.ZERO);
+    assertThat(readSpec.getMaxCapacityPerShard()).isEqualTo(10_000);
+    assertThat(readSpec.getMaxNumRecords()).isEqualTo(Long.MAX_VALUE);
+    assertThat(readSpec.getClientConfiguration()).isEqualTo(ClientConfiguration.builder().build());
   }
 
   @Test

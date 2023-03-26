@@ -120,15 +120,14 @@ class EFOShardSubscribersPool {
   // EventRecords iterator that is currently consumed
   @Nullable EventRecords current = null;
 
-  // FIXME: Add support for injected watermark policy - as in ShardRecordsIterator
-  private final WatermarkPolicy latestRecordTimestampPolicy =
-      WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+  private final WatermarkPolicy watermarkPolicy;
 
   EFOShardSubscribersPool(KinesisIO.Read readSpec, String consumerArn, KinesisAsyncClient kinesis) {
     this.poolId = UUID.randomUUID();
     this.read = readSpec;
     this.consumerArn = consumerArn;
     this.kinesis = kinesis;
+    this.watermarkPolicy = read.getWatermarkPolicyFactory().createWatermarkPolicy();
     this.onErrorCoolDownMs = ON_ERROR_COOL_DOWN_MS_DEFAULT;
   }
 
@@ -141,6 +140,7 @@ class EFOShardSubscribersPool {
     this.read = readSpec;
     this.consumerArn = consumerArn;
     this.kinesis = kinesis;
+    this.watermarkPolicy = read.getWatermarkPolicyFactory().createWatermarkPolicy();
     this.onErrorCoolDownMs = onErrorCoolDownMs;
   }
 
@@ -213,7 +213,7 @@ class EFOShardSubscribersPool {
           KinesisRecord kinesisRecord = new KinesisRecord(r, read.getStreamName(), shardId);
           if (shardState.recordWasNotCheckPointedYet(kinesisRecord)) {
             shardState.update(r);
-            latestRecordTimestampPolicy.update(kinesisRecord);
+            watermarkPolicy.update(kinesisRecord);
             return kinesisRecord;
           }
           // Make sure to update shard state accordingly if `current` does not contain any more
@@ -319,7 +319,7 @@ class EFOShardSubscribersPool {
   }
 
   Instant getWatermark() {
-    return latestRecordTimestampPolicy.getWatermark();
+    return watermarkPolicy.getWatermark();
   }
 
   /** This is assumed to be never called before {@link #start} is called. */
