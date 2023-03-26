@@ -38,6 +38,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingT
 import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
@@ -61,7 +62,7 @@ public class SchemaAwareJavaBeansTest {
   public void allPrimitiveDataTypesRowFns() {
     AllPrimitiveDataTypes element =
         allPrimitiveDataTypes(
-            false, (byte) 1, BigDecimal.valueOf(1L), 1.2345, 1.2345f, (short) 1, 1, 1L, "a");
+            false, ByteBuffer.wrap(new byte[] {1}), BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
 
     Row row = allPrimitiveDataTypesToRowFn().apply(element);
     assertEquals(element, allPrimitiveDataTypesFromRowFn().apply(row));
@@ -108,13 +109,13 @@ public class SchemaAwareJavaBeansTest {
     ArrayPrimitiveDataTypes noneEmpty =
         arrayPrimitiveDataTypes(
             Stream.generate(() -> true).limit(Short.MAX_VALUE).collect(Collectors.toList()),
+            Stream.generate(() -> ByteBuffer.wrap(new byte[] {1, 2, 3}))
+                .limit(Short.MAX_VALUE)
+                .collect(Collectors.toList()),
             Stream.generate(() -> Double.MIN_VALUE)
                 .limit(Short.MAX_VALUE)
                 .collect(Collectors.toList()),
             Stream.generate(() -> Float.MIN_VALUE)
-                .limit(Short.MAX_VALUE)
-                .collect(Collectors.toList()),
-            Stream.generate(() -> Short.MIN_VALUE)
                 .limit(Short.MAX_VALUE)
                 .collect(Collectors.toList()),
             Stream.generate(() -> Integer.MIN_VALUE)
@@ -132,7 +133,7 @@ public class SchemaAwareJavaBeansTest {
   public void singlyNestedDataTypesRowFns() {
     AllPrimitiveDataTypes element =
         allPrimitiveDataTypes(
-            false, (byte) 1, BigDecimal.valueOf(1L), 1.2345, 1.2345f, (short) 1, 1, 1L, "a");
+            false, ByteBuffer.wrap(new byte[] {1}), BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
     SinglyNestedDataTypes notRepeated = singlyNestedDataTypes(element);
     SinglyNestedDataTypes repeated = singlyNestedDataTypes(element, element, element, element);
     Row notRepeatedRow = singlyNestedDataTypesToRowFn().apply(notRepeated);
@@ -145,7 +146,7 @@ public class SchemaAwareJavaBeansTest {
   public void doublyNestedDataTypesRowFns() {
     AllPrimitiveDataTypes element =
         allPrimitiveDataTypes(
-            false, (byte) 1, BigDecimal.valueOf(1L), 1.2345, 1.2345f, (short) 1, 1, 1L, "a");
+            false, ByteBuffer.wrap(new byte[] {1}), BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
     DoublyNestedDataTypes d0s0 = doublyNestedDataTypes(singlyNestedDataTypes(element));
     DoublyNestedDataTypes d1s0 =
         doublyNestedDataTypes(

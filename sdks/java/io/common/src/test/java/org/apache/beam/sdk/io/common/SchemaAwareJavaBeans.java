@@ -40,45 +40,21 @@ public class SchemaAwareJavaBeans {
   private static final DefaultSchemaProvider DEFAULT_SCHEMA_PROVIDER = new DefaultSchemaProvider();
 
   /** Convenience method for {@link AllPrimitiveDataTypes} instantiation. */
-  public static AvroPrimitiveDataTypes avroPrimitiveDataTypes(
-      Boolean aBoolean,
-      BigDecimal aDecimal,
-      ByteBuffer aBytes,
-      Double aDouble,
-      Float aFloat,
-      Integer anInteger,
-      Long aLong,
-      String aString) {
-    return new AutoValue_SchemaAwareJavaBeans_AvroPrimitiveDataTypes.Builder()
-        .setABoolean(aBoolean)
-        .setADecimal(aDecimal)
-        .setABytes(aBytes)
-        .setADouble(aDouble)
-        .setAFloat(aFloat)
-        .setAnInteger(anInteger)
-        .setALong(aLong)
-        .setAString(aString)
-        .build();
-  }
-
-  /** Convenience method for {@link AllPrimitiveDataTypes} instantiation. */
   public static AllPrimitiveDataTypes allPrimitiveDataTypes(
       Boolean aBoolean,
-      Byte aByte,
+      ByteBuffer bytes,
       BigDecimal aDecimal,
       Double aDouble,
       Float aFloat,
-      Short aShort,
       Integer anInteger,
       Long aLong,
       String aString) {
     return new AutoValue_SchemaAwareJavaBeans_AllPrimitiveDataTypes.Builder()
         .setABoolean(aBoolean)
-        .setAByte(aByte)
+        .setBytes(bytes)
         .setADecimal(aDecimal)
         .setADouble(aDouble)
         .setAFloat(aFloat)
-        .setAShort(aShort)
         .setAnInteger(anInteger)
         .setALong(aLong)
         .setAString(aString)
@@ -114,51 +90,20 @@ public class SchemaAwareJavaBeans {
   /** Convenience method for {@link ArrayPrimitiveDataTypes} instantiation. */
   public static ArrayPrimitiveDataTypes arrayPrimitiveDataTypes(
       List<Boolean> booleans,
-      List<Double> doubles,
-      List<Float> floats,
-      List<Short> shorts,
-      List<Integer> integers,
-      List<Long> longs,
-      List<String> strings) {
-    return new AutoValue_SchemaAwareJavaBeans_ArrayPrimitiveDataTypes.Builder()
-        .setBooleanList(booleans)
-        .setDoubleList(doubles)
-        .setFloatList(floats)
-        .setShortList(shorts)
-        .setIntegerList(integers)
-        .setLongList(longs)
-        .setStringList(strings)
-        .build();
-  }
-
-  /** Convenience method for {@link AvroArrayPrimitiveDataTypes} instantiation. */
-  public static AvroArrayPrimitiveDataTypes avroArrayPrimitiveDataTypes(
-      List<Boolean> booleans,
-      List<BigDecimal> decimals,
       List<ByteBuffer> bytes,
       List<Double> doubles,
       List<Float> floats,
       List<Integer> integers,
       List<Long> longs,
       List<String> strings) {
-    return new AutoValue_SchemaAwareJavaBeans_AvroArrayPrimitiveDataTypes.Builder()
+    return new AutoValue_SchemaAwareJavaBeans_ArrayPrimitiveDataTypes.Builder()
         .setBooleanList(booleans)
-        .setDecimalList(decimals)
         .setBytesList(bytes)
         .setDoubleList(doubles)
         .setFloatList(floats)
         .setIntegerList(integers)
         .setLongList(longs)
         .setStringList(strings)
-        .build();
-  }
-
-  /** Convenience method for {@link AvroNestedRepeatedDataTypes} instantiation. */
-  public static AvroNestedRepeatedDataTypes avroNestedRepeatedDataTypes(
-      AvroPrimitiveDataTypes avroPrimitiveDataTypes, AvroPrimitiveDataTypes... repeated) {
-    return new AutoValue_SchemaAwareJavaBeans_AvroNestedRepeatedDataTypes.Builder()
-        .setAvroPrimitiveDataTypes(avroPrimitiveDataTypes)
-        .setAvroPrimitiveDataTypesList(Arrays.stream(repeated).collect(Collectors.toList()))
         .build();
   }
 
@@ -178,30 +123,6 @@ public class SchemaAwareJavaBeans {
         .setSinglyNestedDataTypes(singlyNestedDataTypes)
         .setSinglyNestedDataTypesList(Arrays.stream(repeated).collect(Collectors.toList()))
         .build();
-  }
-
-  private static final TypeDescriptor<AvroPrimitiveDataTypes>
-      AVRO_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(AvroPrimitiveDataTypes.class);
-
-  /** The schema for {@link AvroPrimitiveDataTypes}. */
-  public static final Schema AVRO_PRIMITIVE_DATA_TYPES_SCHEMA =
-      DEFAULT_SCHEMA_PROVIDER.schemaFor(AVRO_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link AvroPrimitiveDataTypes} to a
-   * {@link Row}.
-   */
-  public static SerializableFunction<AvroPrimitiveDataTypes, Row> avroPrimitiveDataTypesToRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.toRowFunction(AVRO_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
-   * AvroPrimitiveDataTypes}.
-   */
-  public static SerializableFunction<Row, AvroPrimitiveDataTypes>
-      avroPrimitiveDataTypesFromRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(AVRO_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
   private static final TypeDescriptor<AllPrimitiveDataTypes>
@@ -302,58 +223,6 @@ public class SchemaAwareJavaBeans {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
-  private static final TypeDescriptor<AvroArrayPrimitiveDataTypes>
-      AVRO_ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR =
-          TypeDescriptor.of(AvroArrayPrimitiveDataTypes.class);
-
-  /** The schema for {@link AvroArrayPrimitiveDataTypes}. */
-  public static final Schema AVRO_ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA =
-      DEFAULT_SCHEMA_PROVIDER.schemaFor(AVRO_ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link AvroArrayPrimitiveDataTypes} to
-   * a {@link Row}.
-   */
-  public static SerializableFunction<AvroArrayPrimitiveDataTypes, Row>
-      avroArrayPrimitiveDataTypesToRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.toRowFunction(AVRO_ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
-   * ArrayPrimitiveDataTypes}.
-   */
-  public static SerializableFunction<Row, AvroArrayPrimitiveDataTypes>
-      avroArrayPrimitiveDataTypesFromRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(AVRO_ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
-  private static final TypeDescriptor<AvroNestedRepeatedDataTypes>
-      AVRO_NESTED_REPEATED_DATA_TYPES_TYPE_DESCRIPTOR =
-          TypeDescriptor.of(AvroNestedRepeatedDataTypes.class);
-
-  /** The schema for {@link AvroNestedRepeatedDataTypes}. */
-  public static final Schema AVRO_NESTED_REPEATED_DATA_TYPES_SCHEMA =
-      DEFAULT_SCHEMA_PROVIDER.schemaFor(AVRO_NESTED_REPEATED_DATA_TYPES_TYPE_DESCRIPTOR);
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link AvroNestedRepeatedDataTypes} to
-   * a {@link Row}.
-   */
-  public static SerializableFunction<AvroNestedRepeatedDataTypes, Row>
-      avroNestedRepeatedDataTypesToRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.toRowFunction(AVRO_NESTED_REPEATED_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
-   * AvroNestedRepeatedDataTypes}.
-   */
-  public static SerializableFunction<Row, AvroNestedRepeatedDataTypes>
-      avroNestedRepeatedDataTypesFromRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(AVRO_NESTED_REPEATED_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
   private static final TypeDescriptor<SinglyNestedDataTypes>
       SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(SinglyNestedDataTypes.class);
 
@@ -401,55 +270,6 @@ public class SchemaAwareJavaBeans {
   }
 
   /**
-   * Contains all primitive Java types supported by Avro. The purpose of this class is to test
-   * schema-aware PTransforms with flat {@link Schema} {@link Row}s.
-   */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class AvroPrimitiveDataTypes implements Serializable {
-
-    public abstract Boolean getABoolean();
-
-    public abstract BigDecimal getADecimal();
-
-    public abstract ByteBuffer getABytes();
-
-    public abstract Double getADouble();
-
-    public abstract Float getAFloat();
-
-    public abstract Integer getAnInteger();
-
-    public abstract Long getALong();
-
-    public abstract String getAString();
-
-    public abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-
-      public abstract Builder setABoolean(Boolean value);
-
-      public abstract Builder setADecimal(BigDecimal value);
-
-      public abstract Builder setABytes(ByteBuffer value);
-
-      public abstract Builder setADouble(Double value);
-
-      public abstract Builder setAFloat(Float value);
-
-      public abstract Builder setAnInteger(Integer value);
-
-      public abstract Builder setALong(Long value);
-
-      public abstract Builder setAString(String value);
-
-      public abstract AvroPrimitiveDataTypes build();
-    }
-  }
-
-  /**
    * Contains all primitive Java types i.e. String, Integer, etc and {@link BigDecimal}. The purpose
    * of this class is to test schema-aware PTransforms with flat {@link Schema} {@link Row}s.
    */
@@ -459,15 +279,13 @@ public class SchemaAwareJavaBeans {
 
     public abstract Boolean getABoolean();
 
-    public abstract Byte getAByte();
+    public abstract ByteBuffer getBytes();
 
     public abstract BigDecimal getADecimal();
 
     public abstract Double getADouble();
 
     public abstract Float getAFloat();
-
-    public abstract Short getAShort();
 
     public abstract Integer getAnInteger();
 
@@ -482,15 +300,13 @@ public class SchemaAwareJavaBeans {
 
       public abstract Builder setABoolean(Boolean value);
 
-      public abstract Builder setAByte(Byte value);
+      public abstract Builder setBytes(ByteBuffer value);
 
       public abstract Builder setADecimal(BigDecimal value);
 
       public abstract Builder setADouble(Double value);
 
       public abstract Builder setAFloat(Float value);
-
-      public abstract Builder setAShort(Short value);
 
       public abstract Builder setAnInteger(Integer value);
 
@@ -586,53 +402,6 @@ public class SchemaAwareJavaBeans {
 
     public abstract List<Boolean> getBooleanList();
 
-    public abstract List<Double> getDoubleList();
-
-    public abstract List<Float> getFloatList();
-
-    public abstract List<Short> getShortList();
-
-    public abstract List<Integer> getIntegerList();
-
-    public abstract List<Long> getLongList();
-
-    public abstract List<String> getStringList();
-
-    public abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-
-      public abstract Builder setBooleanList(List<Boolean> value);
-
-      public abstract Builder setDoubleList(List<Double> value);
-
-      public abstract Builder setFloatList(List<Float> value);
-
-      public abstract Builder setShortList(List<Short> value);
-
-      public abstract Builder setIntegerList(List<Integer> value);
-
-      public abstract Builder setLongList(List<Long> value);
-
-      public abstract Builder setStringList(List<String> value);
-
-      public abstract ArrayPrimitiveDataTypes build();
-    }
-  }
-
-  /**
-   * Contains arrays of all Java types supported by Avro. The purpose of this class is to test
-   * schema-aware PTransforms with {@link Row}s containing repeated primitive Java types.
-   */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class AvroArrayPrimitiveDataTypes {
-
-    public abstract List<Boolean> getBooleanList();
-
-    public abstract List<BigDecimal> getDecimalList();
-
     public abstract List<ByteBuffer> getBytesList();
 
     public abstract List<Double> getDoubleList();
@@ -652,8 +421,6 @@ public class SchemaAwareJavaBeans {
 
       public abstract Builder setBooleanList(List<Boolean> value);
 
-      public abstract Builder setDecimalList(List<BigDecimal> value);
-
       public abstract Builder setBytesList(List<ByteBuffer> value);
 
       public abstract Builder setDoubleList(List<Double> value);
@@ -666,33 +433,7 @@ public class SchemaAwareJavaBeans {
 
       public abstract Builder setStringList(List<String> value);
 
-      public abstract AvroArrayPrimitiveDataTypes build();
-    }
-  }
-
-  /**
-   * Contains nested and repeated {@link AvroPrimitiveDataTypes}. The purpose of this class is to
-   * test schema-aware PTransforms with {@link Row}s containing nested and repeated complex Java
-   * types.
-   */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class AvroNestedRepeatedDataTypes {
-
-    public abstract AvroPrimitiveDataTypes getAvroPrimitiveDataTypes();
-
-    public abstract List<AvroPrimitiveDataTypes> getAvroPrimitiveDataTypesList();
-
-    public abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-
-      public abstract Builder setAvroPrimitiveDataTypes(AvroPrimitiveDataTypes value);
-
-      public abstract Builder setAvroPrimitiveDataTypesList(List<AvroPrimitiveDataTypes> value);
-
-      public abstract AvroNestedRepeatedDataTypes build();
+      public abstract ArrayPrimitiveDataTypes build();
     }
   }
 

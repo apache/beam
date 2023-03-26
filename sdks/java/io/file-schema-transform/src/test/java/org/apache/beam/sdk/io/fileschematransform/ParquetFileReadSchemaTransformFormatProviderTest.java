@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AVRO_ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AVRO_NESTED_REPEATED_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AVRO_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
-import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
 
 import java.io.IOException;
@@ -32,16 +31,10 @@ import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
-import org.apache.beam.sdk.extensions.avro.io.AvroIO;
-import org.apache.beam.sdk.extensions.avro.io.DynamicAvroDestinations;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy;
-import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -61,13 +54,11 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.apache.beam.sdk.io.FileIO;
 
-public class ParquetReadSchemaTransformFormatProviderTest {
+public class ParquetFileReadSchemaTransformFormatProviderTest {
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
@@ -119,10 +110,10 @@ public class ParquetReadSchemaTransformFormatProviderTest {
   }
 
   @Test
-  public void testAvroPrimitiveDataTypes() {
-    Schema schema = AVRO_PRIMITIVE_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroPrimitiveDataTypesRows;
-    String filePath = filePath("testAvroPrimitiveDataTypes");
+  public void testAllPrimitiveDataTypes() {
+    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.allPrimitiveDataTypesRows;
+    String filePath = filePath("testAllPrimitiveDataTypes");
 
     runWriteAndReadTest(schema, rows, filePath);
   }
@@ -146,19 +137,19 @@ public class ParquetReadSchemaTransformFormatProviderTest {
   }
 
   @Test
-  public void testArrayAvroPrimitiveDataTypes() {
-    Schema schema = AVRO_ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroArrayPrimitiveDataTypesRows;
-    String filePath = filePath("testArrayAvroPrimitiveDataTypes");
+  public void testArrayPrimitiveDataTypes() {
+    Schema schema = ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.arrayPrimitiveDataTypesRows;
+    String filePath = filePath("testArrayPrimitiveDataTypes");
 
     runWriteAndReadTest(schema, rows, filePath);
   }
 
   @Test
-  public void testAvroNestedDataTypes() {
-    Schema schema = AVRO_NESTED_REPEATED_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroNestedRepeatedRows;
-    String filePath = filePath("testAvroNestedDataTypes");
+  public void testNestedRepeatedDataTypes() {
+    Schema schema = SINGLY_NESTED_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.singlyNestedDataTypesRepeatedRows;
+    String filePath = filePath("testNestedRepeatedDataTypes");
 
     runWriteAndReadTest(schema, rows, filePath);
   }
@@ -173,15 +164,15 @@ public class ParquetReadSchemaTransformFormatProviderTest {
 
     @Override
     public GenericRecord apply(Long l) {
-      Row row = DATA.avroPrimitiveDataTypesRows.get(l.intValue());
+      Row row = DATA.allPrimitiveDataTypesRows.get(l.intValue());
       return AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(schema)).apply(row);
     }
   }
 
   @Test
   public void testStreamingRead() {
-    Schema schema = AVRO_PRIMITIVE_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroPrimitiveDataTypesRows;
+    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.allPrimitiveDataTypesRows;
 
     String folder = folder("testStreamingRead");
 
@@ -227,8 +218,8 @@ public class ParquetReadSchemaTransformFormatProviderTest {
 
   @Test
   public void testReadWithPCollectionOfFilepatterns() {
-    Schema schema = AVRO_PRIMITIVE_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroPrimitiveDataTypesRows;
+    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.allPrimitiveDataTypesRows;
 
     String folder = folder("testReadWithPCollectionOfFilepatterns");
 

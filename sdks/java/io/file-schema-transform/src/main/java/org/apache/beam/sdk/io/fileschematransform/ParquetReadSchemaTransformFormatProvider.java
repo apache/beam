@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.fileschematransform;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.extensions.avro.io.AvroIO;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
@@ -30,7 +29,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @AutoService(FileReadSchemaTransformFormatProvider.class)
 public class ParquetReadSchemaTransformFormatProvider
@@ -47,7 +46,8 @@ public class ParquetReadSchemaTransformFormatProvider
     return new PTransform<PCollection<ReadableFile>, PCollection<Row>>() {
       @Override
       public PCollection<Row> expand(PCollection<ReadableFile> input) {
-        org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(configuration.getSchema());
+        org.apache.avro.Schema avroSchema =
+            new org.apache.avro.Schema.Parser().parse(configuration.getSchema());
         Schema beamSchema = AvroUtils.toBeamSchema(avroSchema);
 
         return input

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AVRO_ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AVRO_NESTED_REPEATED_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AVRO_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
@@ -62,7 +62,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-public class AvroReadSchemaTransformFormatProviderTest {
+public class AvroFileReadSchemaTransformFormatProviderTest {
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
@@ -109,10 +109,10 @@ public class AvroReadSchemaTransformFormatProviderTest {
   }
 
   @Test
-  public void testAvroPrimitiveDataTypes() {
-    Schema schema = AVRO_PRIMITIVE_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroPrimitiveDataTypesRows;
-    String filePath = filePath("testAvroPrimitiveDataTypes");
+  public void testAllPrimitiveDataTypes() {
+    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.allPrimitiveDataTypesRows;
+    String filePath = filePath("testAllPrimitiveDataTypes");
 
     runWriteAndReadTest(schema, rows, filePath);
   }
@@ -136,19 +136,19 @@ public class AvroReadSchemaTransformFormatProviderTest {
   }
 
   @Test
-  public void testArrayAvroPrimitiveDataTypes() {
-    Schema schema = AVRO_ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroArrayPrimitiveDataTypesRows;
-    String filePath = filePath("testArrayAvroPrimitiveDataTypes");
+  public void testArrayPrimitiveDataTypes() {
+    Schema schema = ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.arrayPrimitiveDataTypesRows;
+    String filePath = filePath("testArrayPrimitiveDataTypes");
 
     runWriteAndReadTest(schema, rows, filePath);
   }
 
   @Test
-  public void testAvroNestedDataTypes() {
-    Schema schema = AVRO_NESTED_REPEATED_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroNestedRepeatedRows;
-    String filePath = filePath("testAvroNestedDataTypes");
+  public void testNestedRepeatedDataTypes() {
+    Schema schema = SINGLY_NESTED_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.singlyNestedDataTypesRepeatedRows;
+    String filePath = filePath("testNestedRepeatedDataTypes");
 
     runWriteAndReadTest(schema, rows, filePath);
   }
@@ -163,15 +163,15 @@ public class AvroReadSchemaTransformFormatProviderTest {
 
     @Override
     public GenericRecord apply(Long l) {
-      Row row = DATA.avroPrimitiveDataTypesRows.get(l.intValue());
+      Row row = DATA.allPrimitiveDataTypesRows.get(l.intValue());
       return AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(schema)).apply(row);
     }
   }
 
   @Test
   public void testStreamingRead() {
-    Schema schema = AVRO_PRIMITIVE_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroPrimitiveDataTypesRows;
+    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.allPrimitiveDataTypesRows;
 
     String folder = folder("testStreamingRead");
     ResourceId dir = FileSystems.matchNewResource(folder, true);
@@ -216,8 +216,8 @@ public class AvroReadSchemaTransformFormatProviderTest {
 
   @Test
   public void testReadWithPCollectionOfFilepatterns() {
-    Schema schema = AVRO_PRIMITIVE_DATA_TYPES_SCHEMA;
-    List<Row> rows = DATA.avroPrimitiveDataTypesRows;
+    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.allPrimitiveDataTypesRows;
 
     String folder = folder("testReadWithPCollectionOfFilepatterns");
 
@@ -282,7 +282,7 @@ public class AvroReadSchemaTransformFormatProviderTest {
 
     @Override
     public org.apache.avro.Schema getSchema(String destination) {
-      return AvroUtils.toAvroSchema(AVRO_PRIMITIVE_DATA_TYPES_SCHEMA);
+      return AvroUtils.toAvroSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA);
     }
 
     @Override
