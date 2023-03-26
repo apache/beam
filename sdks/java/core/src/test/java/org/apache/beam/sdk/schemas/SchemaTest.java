@@ -227,7 +227,7 @@ public class SchemaTest {
         true,
         Objects.equals(unorderedSchemaAfterSorting.getFields(), sortedSchema.getFields())
             && Objects.equals(unorderedSchemaAfterSorting.getOptions(), sortedSchema.getOptions())
-            && !Objects.equals(
+            && Objects.equals(
                 unorderedSchemaAfterSorting.getEncodingPositions(),
                 sortedSchema.getEncodingPositions()));
   }
