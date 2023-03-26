@@ -87,6 +87,7 @@ def create_issue(
     data['labels'].extend(labels)  # type: ignore
   response = requests.post(
       url=url, data=json.dumps(data), headers=_HEADERS).json()
+  logging.info(response)
   return response['number'], response['html_url']
 
 
