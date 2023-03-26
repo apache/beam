@@ -15,11 +15,11 @@
 package main
 
 import (
+	"cloud.google.com/go/datastore"
 	"context"
 	"errors"
-
-	"cloud.google.com/go/datastore"
 	"github.com/google/uuid"
+	"strconv"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
@@ -527,5 +527,23 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 			IsMain:  file.IsMain,
 		})
 	}
+	return &response, nil
+}
+
+// GetMetadata returns runner metadata
+func (controller *playgroundController) GetMetadata(_ context.Context, _ *pb.GetMetadataRequest) (*pb.GetMetadataResponse, error) {
+	commitTimestampInteger, err := strconv.ParseInt(BuildCommitTimestamp, 10, 64)
+	if err != nil {
+		logger.Errorf("GetMetadata(): failed to parse BuildCommitTimestamp (\"%s\"): %s", BuildCommitTimestamp, err.Error())
+		commitTimestampInteger = 0
+	}
+
+	response := pb.GetMetadataResponse{
+		RunnerSdk:                             controller.env.BeamSdkEnvs.ApacheBeamSdk.String(),
+		BuildCommitHash:                       BuildCommitHash,
+		BuildCommitTimestampSecondsSinceEpoch: commitTimestampInteger,
+		BeamSdkVersion:                        controller.env.BeamSdkEnvs.BeamVersion,
+	}
+
 	return &response, nil
 }

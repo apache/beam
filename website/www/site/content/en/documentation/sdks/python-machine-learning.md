@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Machine Learning
+# Machine Learning with Python
 
 <table>
   <tr>
@@ -36,9 +36,16 @@ limitations under the License.
   </tr>
 </table>
 
+
 You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through tfx-bsl.
 
 You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.
+
+For more infomation about machine learning with Apache Beam, see:
+
+* [Get started with AI/ML](/documentation/ml/overview)
+* [About Beam ML](/documentation/ml/about-ml)
+* [RunInference notebooks](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml)
 
 ## Why use the RunInference API?
 
@@ -60,8 +67,10 @@ Using the `Shared` class within the RunInference implementation makes it possibl
 ### Multi-model pipelines
 
 The RunInference API can be composed into multi-model pipelines. Multi-model pipelines can be useful for A/B testing or for building out cascade models made up of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
+For more information about multi-model pipelines, see
+[Multi-model pipelines](/documentation/ml/multi-model-pipelines/).
 
-## Modify a pipeline to use an ML model
+## Modify a Python pipeline to use an ML model
 
 To use the RunInference transform, add the following code to your pipeline:
 
@@ -82,11 +91,12 @@ from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from tfx_bsl.public.beam.run_inference import CreateModelHandler
 ```
-### Use pre-trained models
+
+## Use pre-trained models
 
 The section provides requirements for using pre-trained models with PyTorch and Scikit-learn
 
-#### PyTorch
+### PyTorch
 
 You need to provide a path to a file that contains the model's saved weights. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:
 
@@ -96,7 +106,7 @@ You need to provide a path to a file that contains the model's saved weights. Th
 See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch.ipynb)
 that illustrates running PyTorch models with Apache Beam.
 
-#### Scikit-learn
+### Scikit-learn
 
 You need to provide a path to a file that contains the pickled Scikit-learn model. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the Scikit-learn framework, complete the following steps:
 
@@ -108,18 +118,25 @@ You need to provide a path to a file that contains the pickled Scikit-learn mode
 See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_sklearn.ipynb)
 that illustrates running Scikit-learn models with Apache Beam.
 
-#### TensorFlow
+### TensorFlow
 
-To use TensorFlow with the RunInference API, you need to do the following:
+To use TensorFlow with the RunInference API, you have two options:
 
-* Use `tfx_bsl` version 1.10.0 or later.
-* Create a model handler using `tfx_bsl.public.beam.run_inference.CreateModelHandler()`.
-* Use the model handler with the [`apache_beam.ml.inference.base.RunInference`](/releases/pydoc/current/apache_beam.ml.inference.base.html) transform.
+1. Use the built-in TensorFlow Model Handlers in Apache Beam SDK - `TFModelHandlerNumpy` and `TFModelHandlerTensor`.
+    * Depending on the type of input for your model, use `TFModelHandlerNumpy` for `numpy` input and `TFModelHandlerTensor` for `tf.Tensor` input respectively.
+    * Use tensorflow 2.7 or later.
+    * Pass the path of the model to the TensorFlow `ModelHandler` by using `model_uri=<path_to_trained_model>`.
+    * Alternatively, you can pass the path to saved weights of the trained model, a function to build the model using `create_model_fn=<function>`, and set the `model_type=ModelType.SAVED_WEIGHTS`.
+  See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow_with_tensorflowhub.ipynb) that illustrates running Tensorflow models with Built-in model handlers.
+2. Using `tfx_bsl`.
+    * Use this approach if your model input is of type `tf.Example`.
+    * Use `tfx_bsl` version 1.10.0 or later.
+    * Create a model handler using `tfx_bsl.public.beam.run_inference.CreateModelHandler()`.
+    * Use the model handler with the [`apache_beam.ml.inference.base.RunInference`](/releases/pydoc/current/apache_beam.ml.inference.base.html) transform.
+  See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb)
+  that illustrates running TensorFlow models with Apache Beam and tfx-bsl.
 
-See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb)
-that illustrates running TensorFlow models with Apache Beam and tfx-bsl.
-
-### Use custom models
+## Use custom models
 
 If you would like to use a model that isn't specified by one of the supported frameworks, the RunInference API is designed flexibly to allow you to use any custom machine learning models.
 You only need to create your own `ModelHandler` or `KeyedModelHandler` with logic to load your model and use it to run the inference.
@@ -127,11 +144,11 @@ You only need to create your own `ModelHandler` or `KeyedModelHandler` with logi
 A simple example can be found in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb).
 The `load_model` method shows how to load the model using a popular `spaCy` package while `run_inference` shows how to run the inference on a batch of examples.
 
-### Use multiple models
+## Use multiple models
 
-You can also use the RunInference transform to add multiple inference models to your pipeline.
+You can also use the RunInference transform to add multiple inference models to your Python pipeline.
 
-#### A/B Pattern
+### A/B Pattern
 
 ```
 with pipeline as p:
@@ -142,7 +159,7 @@ with pipeline as p:
 
 Where `model_handler_A` and `model_handler_B` are the model handler setup code.
 
-#### Cascade Pattern
+### Cascade Pattern
 
 ```
 with pipeline as p:
@@ -153,7 +170,7 @@ with pipeline as p:
 
 Where `model_handler_A` and `model_handler_B` are the model handler setup code.
 
-#### Use Resource Hints for Different Model Requirements
+### Use Resource Hints for Different Model Requirements
 
 When using multiple models in a single pipeline, different models may have different memory or worker SKU requirements.
 Resource hints allow you to provide information to a runner about the compute resource requirements for each step in your
@@ -175,7 +192,7 @@ with pipeline as p:
 
 For more information on resource hints, see [Resource hints](/documentation/runtime/resource-hints/).
 
-### Use a keyed ModelHandler
+## Use a keyed ModelHandler
 
 If a key is attached to the examples, wrap the `KeyedModelHandler` around the `ModelHandler` object:
 
@@ -195,7 +212,7 @@ If you are unsure if your data is keyed, you can also use `MaybeKeyedModelHandle
 
 For more information, see [`KeyedModelHander`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler).
 
-### Use the PredictionResults object
+## Use the PredictionResults object
 
 When doing a prediction in Apache Beam, the output `PCollection` includes both the keys of the input examples and the inferences. Including both these items in the output allows you to find the input that determined the predictions.
 
@@ -230,12 +247,13 @@ For more information, see the [`PredictionResult` documentation](https://github.
 
 ## Run a machine learning pipeline
 
-For detailed instructions explaining how to build and run a pipeline that uses ML models, see the
+For detailed instructions explaining how to build and run a Python pipeline that uses ML models, see the
 [Example RunInference API pipelines](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) on GitHub.
 
 ## Beam Java SDK support
 
 The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language).
+
 
 ## Troubleshooting
 
@@ -260,7 +278,7 @@ Use elements of the same size or resize the inputs. For computer vision applicat
 **Option 2: Disable batching**
 
 Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
-[BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform). For an example, see our [language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py).
+[BatchElements PTransforms](/documentation/ml/about-ml/#batchelements-ptransform). For an example, see our [language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py).
 
 ## Related links
 
@@ -270,4 +288,20 @@ Disable batching by overriding the `batch_elements_kwargs` function in your Mode
 * [RunInference notebooks](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml)
 * [RunInference benchmarks](http://s.apache.org/beam-community-metrics/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1)
 
-{{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+<table>
+  <tr>
+    <td>
+      <a>
+      {{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+      </a>
+   </td>
+   <td>
+      <a target="_blank" class="button"
+          href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/extensions/python/transforms/RunInference.html">
+        <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="30px"
+            alt="Javadoc" />
+      Javadoc
+      </a>
+    </td>
+  </tr>
+</table>

@@ -424,21 +424,21 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 		case <-ticker.C:
 			if _, err := os.Stat(graphFilePath); err == nil {
 				ticker.Stop()
-				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
 				}
-				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, string(graph))
 			}
 		// in case of timeout or cancel
 		case <-pipelineLifeCycleCtx.Done():
 			ticker.Stop()
 			if _, err := os.Stat(graphFilePath); err == nil {
-				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
 				}
-				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, string(graph))
 			}
 			return
 		}

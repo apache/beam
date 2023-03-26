@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/fsx"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -64,6 +65,10 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 		return nil, fmt.Errorf("error listing object keys: %v", err)
 	}
 
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
 	uris := make([]string, len(keys))
 	for i, key := range keys {
 		uris[i] = makeURI(bucket, key)
@@ -78,7 +83,7 @@ func (f *fs) listObjectKeys(
 	bucket string,
 	keyPattern string,
 ) ([]string, error) {
-	prefix := getPrefix(keyPattern)
+	prefix := fsx.GetPrefix(keyPattern)
 	params := &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucket),
 		Prefix: aws.String(prefix),

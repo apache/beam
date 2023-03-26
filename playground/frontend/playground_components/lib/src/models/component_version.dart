@@ -15,13 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
-import org.apache.beam.sdk.annotations.Internal;
+// ignore_for_file: avoid_redundant_argument_values
 
-/**
- * This is a placeholder class that will be replaced by updated Cloud Bigtable java client. The java
- * client is work in progress and will be checked in and updated soon.
- */
-@Internal
-public class ChangeStreamMutation {}
+import '../build_metadata.g.dart' as frontend_build_metadata;
+
+class ComponentVersion {
+  const ComponentVersion({
+    this.beamSdkVersion,
+    this.buildCommitHash,
+    this.dateTime,
+  });
+
+  final String? beamSdkVersion;
+  final String? buildCommitHash;
+  final DateTime? dateTime;
+
+  /// The version of the frontend.
+  static final frontend = ComponentVersion(
+    buildCommitHash: frontend_build_metadata.buildCommitHash,
+    dateTime: frontend_build_metadata.buildCommitSecondsSinceEpoch == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(
+            // ignore: avoid_dynamic_calls
+            frontend_build_metadata.buildCommitSecondsSinceEpoch * 1000,
+          ),
+  );
+}

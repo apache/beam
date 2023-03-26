@@ -16,14 +16,36 @@
  * limitations under the License.
  */
 
-// To build and run the app, copy this file to './config.g.dart'
-// This is a temporary solution while we cannot have 'config.g.dart'
-// in the repository.
-// TODO: https://github.com/apache/beam/issues/24200
+import 'package:flutter/material.dart';
 
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL = 'https://router.play-dev.beam.apache.org';
-const String kApiJavaClientURL = 'https://java.play-dev.beam.apache.org';
-const String kApiGoClientURL = 'https://go.play-dev.beam.apache.org';
-const String kApiPythonClientURL = 'https://python.play-dev.beam.apache.org';
-const String kApiScioClientURL = 'https://scio.play-dev.beam.apache.org';
+// TODO(alexeyinkin): In future convert all dialogs to this one.
+class BeamDialog extends StatelessWidget {
+  const BeamDialog({
+    required this.child,
+    this.title,
+  });
+
+  final Widget child;
+  final Widget? title;
+
+  static Future<void> show({
+    required Widget child,
+    required BuildContext context,
+    Widget? title,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) => BeamDialog(
+        child: AlertDialog(
+          title: title,
+          content: child,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return child;
+  }
+}

@@ -18,6 +18,8 @@
 ARG java_version
 FROM eclipse-temurin:${java_version}
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
 
 ARG pull_licenses
 
@@ -33,7 +35,7 @@ ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
 # since it is only included in Java 9+ containers
 COPY target/jamm.jar target/open-module-agent*.jar /opt/apache/beam/jars/
 
-ADD target/linux_amd64/boot /opt/apache/beam/
+COPY target/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
 COPY target/LICENSE /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
