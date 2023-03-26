@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -211,12 +212,13 @@ type timerKey struct {
 // got is incremented only if we receive an IsLast signal for a given
 // instruction/transform pair.
 type elementsChan struct {
-	instID    instructionID
+	closed uint32 // Closed if != 0
+	instID instructionID
+
 	mu        sync.Mutex
 	want, got int32
 
-	ch        chan exec.Elements // closed only by read loop
-	closeOnce sync.Once
+	ch chan exec.Elements // must only be closed by the read loop
 
 	done chan struct{} // Forces escape from a blocked write to allow channel close.
 }
@@ -228,9 +230,7 @@ func (ec *elementsChan) InstructionEnded() {
 
 // Closed indicates if all expected streams are complete
 func (ec *elementsChan) Closed() bool {
-	ec.mu.Lock()
-	defer ec.mu.Unlock()
-	return ec.want > 0 && ec.want == ec.got
+	return atomic.LoadUint32(&ec.closed) != 0
 }
 
 // PTransformDone signals that a PTransform has no more data coming to it.
@@ -240,7 +240,10 @@ func (ec *elementsChan) PTransformDone() {
 	defer ec.mu.Unlock()
 	ec.got++
 	if ec.want > 0 && ec.want == ec.got {
-		close(ec.ch)
+		if !ec.Closed() {
+			atomic.StoreUint32(&ec.closed, 1)
+			close(ec.ch)
+		}
 	}
 }
 
@@ -300,12 +303,11 @@ func (c *DataChannel) OpenElementChan(ctx context.Context, ptransformID string, 
 	if c.readErr != nil {
 		return nil, fmt.Errorf("opening a reader %v on a closed channel. Original error: %w", cid, c.readErr)
 	}
-	//Infof(ctx, "OpenElementChan %v %v", cid, expectedTimerTransforms)
-	return c.makeChannel(ctx, true, cid, expectedTimerTransforms...).ch, nil
+	return c.makeChannel(true, cid, expectedTimerTransforms...).ch, nil
 }
 
 // makeChannel creates a channel of exec.Elements. It expects to be called while c.mu is held.
-func (c *DataChannel) makeChannel(ctx context.Context, fromSource bool, id clientID, additionalTransforms ...string) *elementsChan {
+func (c *DataChannel) makeChannel(fromSource bool, id clientID, additionalTransforms ...string) *elementsChan {
 	if ec, ok := c.channels[id.instID]; ok {
 		ec.mu.Lock()
 		defer ec.mu.Unlock()
@@ -313,7 +315,7 @@ func (c *DataChannel) makeChannel(ctx context.Context, fromSource bool, id clien
 			ec.want = (1 + int32(len(additionalTransforms)))
 		}
 		if _, ok := c.endedInstructions[id.instID]; ok || (ec.want > 0 && ec.want == ec.got) {
-			ec.got = ec.want
+			atomic.StoreUint32(&ec.closed, 1)
 			close(ec.ch)
 		}
 		return ec
@@ -333,8 +335,7 @@ func (c *DataChannel) makeChannel(ctx context.Context, fromSource bool, id clien
 	// So we provide a pre-completed reader, and do not cache it, as there's no further cleanup for it.
 	if _, ok := c.endedInstructions[id.instID]; ok {
 		// Since this is freshly created, we can set the close conditions immeadiately.
-		ec.got = 1
-		ec.want = ec.got
+		atomic.StoreUint32(&ec.closed, 1)
 		close(ec.ch)
 		return ec
 	}
@@ -362,6 +363,7 @@ func (c *DataChannel) read(ctx context.Context) {
 			// Any other approach is racy, and may cause one of the above panics.
 			for instID, ec := range c.channels {
 				if !ec.Closed() {
+					atomic.StoreUint32(&ec.closed, 1)
 					close(ec.ch)
 				}
 				delete(cache, instID)
@@ -379,12 +381,12 @@ func (c *DataChannel) read(ctx context.Context) {
 		// Each message may contain segments for multiple streams, so we
 		// must treat each segment in isolation. We maintain a local cache
 		// to reduce lock contention.
-		iterateElements(ctx, "timer", c, cache, &seenLast, msg.GetTimers(),
+		iterateElements(c, cache, &seenLast, msg.GetTimers(),
 			func(elm *fnpb.Elements_Timers) exec.Elements {
 				return exec.Elements{Timers: elm.GetTimers(), PtransformID: elm.GetTransformId(), TimerFamilyID: elm.GetTimerFamilyId()}
 			})
 
-		iterateElements(ctx, "data", c, cache, &seenLast, msg.GetData(),
+		iterateElements(c, cache, &seenLast, msg.GetData(),
 			func(elm *fnpb.Elements_Data) exec.Elements {
 				return exec.Elements{Data: elm.GetData(), PtransformID: elm.GetTransformId()}
 			})
@@ -419,7 +421,7 @@ type dataEle interface {
 	GetIsLast() bool
 }
 
-func iterateElements[E dataEle](ctx context.Context, kind string, c *DataChannel, cache map[instructionID]*elementsChan, seenLast *[]clientID, elms []E, wrap func(E) exec.Elements) {
+func iterateElements[E dataEle](c *DataChannel, cache map[instructionID]*elementsChan, seenLast *[]clientID, elms []E, wrap func(E) exec.Elements) {
 	for _, elm := range elms {
 		id := clientID{ptransformID: elm.GetTransformId(), instID: instructionID(elm.GetInstructionId())}
 
@@ -428,7 +430,7 @@ func iterateElements[E dataEle](ctx context.Context, kind string, c *DataChannel
 			ec = local
 		} else {
 			c.mu.Lock()
-			ec = c.makeChannel(ctx, false, id)
+			ec = c.makeChannel(false, id)
 			c.mu.Unlock()
 			cache[id.instID] = ec
 		}
@@ -445,12 +447,7 @@ func iterateElements[E dataEle](ctx context.Context, kind string, c *DataChannel
 		case ec.ch <- wrap(elm):
 		case <-ec.done: // In case of out of band cancels.
 			ec.mu.Lock()
-			ec.got = ec.want
-			close(ec.ch)
-			ec.mu.Unlock()
-		case <-ctx.Done():
-			ec.mu.Lock()
-			ec.got = ec.want
+			atomic.StoreUint32(&ec.closed, 1)
 			close(ec.ch)
 			ec.mu.Unlock()
 		}
@@ -522,30 +519,6 @@ func (c *DataChannel) makeWriter(ctx context.Context, id clientID) *dataWriter {
 
 	w := &dataWriter{ch: c, id: id}
 	m[id.ptransformID] = w
-	return w
-}
-
-func (c *DataChannel) makeTimerWriter(ctx context.Context, id clientID, family string) *timerWriter {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	var m map[timerKey]*timerWriter
-	var ok bool
-	if m, ok = c.timerWriters[id.instID]; !ok {
-		m = make(map[timerKey]*timerWriter)
-		c.timerWriters[id.instID] = m
-	}
-	tk := timerKey{ptransformID: id.ptransformID, family: family}
-	if w, ok := m[tk]; ok {
-		return w
-	}
-
-	// We don't check for finished instructions for writers, as writers
-	// can only be created if an instruction is in scope, and aren't
-	// runner or user directed.
-
-	w := &timerWriter{ch: c, id: id, timerFamilyID: family}
-	m[tk] = w
 	return w
 }
 
@@ -644,6 +617,30 @@ func (w *dataWriter) Write(p []byte) (n int, err error) {
 	// At this point there's room in the buffer one way or another.
 	w.buf = append(w.buf, p...)
 	return len(p), nil
+}
+
+func (c *DataChannel) makeTimerWriter(ctx context.Context, id clientID, family string) *timerWriter {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var m map[timerKey]*timerWriter
+	var ok bool
+	if m, ok = c.timerWriters[id.instID]; !ok {
+		m = make(map[timerKey]*timerWriter)
+		c.timerWriters[id.instID] = m
+	}
+	tk := timerKey{ptransformID: id.ptransformID, family: family}
+	if w, ok := m[tk]; ok {
+		return w
+	}
+
+	// We don't check for finished instructions for writers, as writers
+	// can only be created if an instruction is in scope, and aren't
+	// runner or user directed.
+
+	w := &timerWriter{ch: c, id: id, timerFamilyID: family}
+	m[tk] = w
+	return w
 }
 
 type timerWriter struct {
