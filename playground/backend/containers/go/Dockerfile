@@ -20,6 +20,8 @@ ARG BASE_IMAGE
 FROM $BASE_IMAGE
 ARG SDK_TAG
 ARG SDK_TAG_LOCAL
+ARG GIT_COMMIT="<unknown>"
+ARG GIT_TIMESTAMP="0"
 
 # Setup Go Environment
 ENV GOPATH /go
@@ -48,8 +50,9 @@ WORKDIR /go/src/playground/backend
 RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
-    go build -o /opt/playground/backend/server_go_backend
+    go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /opt/playground/backend/server_go_backend
 
+ENV BEAM_VERSION=$SDK_TAG
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/

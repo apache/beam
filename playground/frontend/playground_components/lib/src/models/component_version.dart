@@ -16,14 +16,29 @@
  * limitations under the License.
  */
 
-// To build and run the app, copy this file to './config.g.dart'
-// This is a temporary solution while we cannot have 'config.g.dart'
-// in the repository.
-// TODO: https://github.com/apache/beam/issues/24200
+// ignore_for_file: avoid_redundant_argument_values
 
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL = 'https://router.play-dev.beam.apache.org';
-const String kApiJavaClientURL = 'https://java.play-dev.beam.apache.org';
-const String kApiGoClientURL = 'https://go.play-dev.beam.apache.org';
-const String kApiPythonClientURL = 'https://python.play-dev.beam.apache.org';
-const String kApiScioClientURL = 'https://scio.play-dev.beam.apache.org';
+import '../build_metadata.g.dart' as frontend_build_metadata;
+
+class ComponentVersion {
+  const ComponentVersion({
+    this.beamSdkVersion,
+    this.buildCommitHash,
+    this.dateTime,
+  });
+
+  final String? beamSdkVersion;
+  final String? buildCommitHash;
+  final DateTime? dateTime;
+
+  /// The version of the frontend.
+  static final frontend = ComponentVersion(
+    buildCommitHash: frontend_build_metadata.buildCommitHash,
+    dateTime: frontend_build_metadata.buildCommitSecondsSinceEpoch == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(
+            // ignore: avoid_dynamic_calls
+            frontend_build_metadata.buildCommitSecondsSinceEpoch * 1000,
+          ),
+  );
+}
