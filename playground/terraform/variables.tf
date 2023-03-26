@@ -31,6 +31,8 @@ variable "region" {
   description = "Infrastructure Region"
 }
 
+variable "location" {}
+
 # Infrastructure variables
 
 #GKE
