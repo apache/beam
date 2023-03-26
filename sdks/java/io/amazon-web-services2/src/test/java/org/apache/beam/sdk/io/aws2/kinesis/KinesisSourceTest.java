@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -32,6 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.regions.Region;
@@ -42,6 +44,28 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class KinesisSourceTest {
+  @Test
+  public void testCreateReaderOfCorrectType() throws Exception {
+    KinesisIO.Read readSpec =
+        KinesisIO.read()
+            .withStreamName("stream-xxx")
+            .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON);
+
+    KinesisIO.Read readSpecEFO =
+        KinesisIO.read()
+            .withStreamName("stream-xxx")
+            .withConsumerArn("consumer-aaa")
+            .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON);
+
+    KinesisReaderCheckpoint initCheckpoint = new KinesisReaderCheckpoint(ImmutableList.of());
+    UnboundedSource.UnboundedReader<KinesisRecord> reader =
+        new KinesisSource(readSpec, initCheckpoint).createReader(opts(), null);
+    assertThat(reader).isInstanceOf(KinesisReader.class);
+    UnboundedSource.UnboundedReader<KinesisRecord> efoReader =
+        new KinesisSource(readSpecEFO, initCheckpoint).createReader(opts(), null);
+    assertThat(efoReader).isInstanceOf(EFOKinesisReader.class);
+  }
+
   @Mock private KinesisClient kinesisClient;
   private KinesisSource source;
 
