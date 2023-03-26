@@ -221,14 +221,13 @@ public class SchemaTest {
             .addStringField("d")
             .build()
             .withOptions(testOptions);
-    sortedSchema.setEncodingPositions(unorderedSchema.getEncodingPositions());
 
     assertEquals(true, unorderedSchema.equivalent(unorderedSchemaAfterSorting));
     assertEquals(
         true,
         Objects.equals(unorderedSchemaAfterSorting.getFields(), sortedSchema.getFields())
             && Objects.equals(unorderedSchemaAfterSorting.getOptions(), sortedSchema.getOptions())
-            && Objects.equals(
+            && !Objects.equals(
                 unorderedSchemaAfterSorting.getEncodingPositions(),
                 sortedSchema.getEncodingPositions()));
   }

@@ -40,7 +40,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_PythonUsingJava_Dataflow
           shell("echo \"*** RUN CROSS-LANGUAGE DATAFLOW PYTHON WITH JAVA EXTERNAL TRANSFORMS USING PYTHON ${pythonVersion} ***\"")
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingJava')
+            tasks(":sdks:python:test-suites:dataflow:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
+            tasks(":sdks:python:test-suites:direct:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
+            // tasks(':runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingJava')
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
           }

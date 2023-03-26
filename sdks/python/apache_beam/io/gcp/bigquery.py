@@ -1947,8 +1947,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
       with_auto_sharding: Experimental. If true, enables using a dynamically
         determined number of shards to write to BigQuery. This can be used for
-        both FILE_LOADS and STREAMING_INSERTS. Only applicable to unbounded
-        input.
+        all of FILE_LOADS, STREAMING_INSERTS, and STORAGE_WRITE_API. Only
+        applicable to unbounded input.
       ignore_unknown_columns: Accept rows that contain values that do not match
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. This option is only valid for
@@ -2166,6 +2166,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               write_disposition=self.write_disposition,
               triggering_frequency=triggering_frequency,
               use_at_least_once=self.use_at_least_once,
+              with_auto_sharding=self.with_auto_sharding,
               expansion_service=self.expansion_service))
 
       # return back from Beam Rows to Python dict elements
@@ -2419,6 +2420,7 @@ class StorageWriteToBigQuery(PTransform):
       write_disposition=BigQueryDisposition.WRITE_APPEND,
       triggering_frequency=0,
       use_at_least_once=False,
+      with_auto_sharding=False,
       expansion_service=None):
     """Initialize a StorageWriteToBigQuery transform.
 
@@ -2441,6 +2443,9 @@ class StorageWriteToBigQuery(PTransform):
     :param use_at_least_once:
       Use at-least-once semantics. Is cheaper and provides lower latency,
       but will potentially duplicate records.
+    :param with_auto_sharding:
+      Experimental. If true, enables using a dynamically determined number of
+      shards to write to BigQuery. Only applicable to unbounded input.
     :param expansion_service:
       The address (host:port) of the expansion service. If no expansion
       service is provided, will attempt to run the default GCP expansion
@@ -2452,6 +2457,7 @@ class StorageWriteToBigQuery(PTransform):
     self._write_disposition = write_disposition
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
+    self._with_auto_sharding = with_auto_sharding
     self._expansion_service = (
         expansion_service or _default_io_expansion_service())
     self.schematransform_config = SchemaAwareExternalTransform.discover_config(
@@ -2461,11 +2467,12 @@ class StorageWriteToBigQuery(PTransform):
     external_storage_write = SchemaAwareExternalTransform(
         identifier=self.schematransform_config.identifier,
         expansion_service=self._expansion_service,
+        autoSharding=self._with_auto_sharding,
         createDisposition=self._create_disposition,
-        writeDisposition=self._write_disposition,
+        table=self._table,
         triggeringFrequencySeconds=self._triggering_frequency,
         useAtLeastOnceSemantics=self._use_at_least_once,
-        table=self._table,
+        writeDisposition=self._write_disposition,
     )
 
     input_tag = self.schematransform_config.inputs[0]
