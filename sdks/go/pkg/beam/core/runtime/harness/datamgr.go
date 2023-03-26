@@ -370,14 +370,11 @@ func (c *DataChannel) read(ctx context.Context) {
 			c.mu.Unlock()
 
 			if err == io.EOF {
-				log.Warnf(ctx, "DataChannel.read %v closed", c.id)
 				return
 			}
 			log.Errorf(ctx, "DataChannel.read %v bad: %v", c.id, err)
 			return
 		}
-
-		recordStreamReceive(msg)
 
 		// Each message may contain segments for multiple streams, so we
 		// must treat each segment in isolation. We maintain a local cache

@@ -137,7 +137,6 @@ func TestElementChan(t *testing.T) {
 	timerID := "timerTransform"
 	timerFamily := "timerFamily"
 	setupClient := func(t *testing.T) (context.Context, *fakeChanClient, *DataChannel) {
-		fmt.Println("TTTTT ", t.Name())
 		t.Helper()
 		client := &fakeChanClient{ch: make(chan *fnpb.Elements, bufElements)}
 		ctx, cancelFn := context.WithCancel(context.Background())
@@ -400,6 +399,53 @@ func TestElementChan(t *testing.T) {
 			if wantSum, wantCount := test.wantSum, test.wantCount; sum != wantSum || count != wantCount {
 				t.Errorf("got sum %v, count %v, want sum %v, count %v", sum, count, wantSum, wantCount)
 			}
+		})
+	}
+}
+
+func BenchmarkElementChan(b *testing.B) {
+	benches := []struct {
+		size int
+	}{
+		{1},
+		{10},
+		{100},
+		{1000},
+		{10000},
+	}
+
+	for _, bench := range benches {
+		b.Run(fmt.Sprintf("batchSize:%v", bench.size), func(b *testing.B) {
+			client := &fakeChanClient{ch: make(chan *fnpb.Elements, bufElements)}
+			ctx, cancelFn := context.WithCancel(context.Background())
+			c := makeDataChannel(ctx, "id", client, cancelFn)
+
+			const instID = "inst_ref"
+			dataID := "dataTransform"
+			elms, err := c.OpenElementChan(ctx, dataID, instID, nil)
+			if err != nil {
+				b.Errorf("Unexpected error from OpenElementChan(%v, %v, nil): %v", dataID, instID, err)
+			}
+			e := &fnpb.Elements_Data{InstructionId: instID, TransformId: dataID, Data: []byte{1}, IsLast: false}
+			es := make([]*fnpb.Elements_Data, 0, bench.size)
+			for i := 0; i < bench.size; i++ {
+				es = append(es, e)
+			}
+			batch := &fnpb.Elements{Data: es}
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for range elms {
+				}
+			}()
+			// Batch elements sizes.
+			for i := 0; i < b.N; i += bench.size {
+				client.Send(batch)
+			}
+			client.Close()
+			// Wait until we've consumed all sent batches.
+			wg.Wait()
 		})
 	}
 }
