@@ -11,7 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-### TextIO local file
+### Writing local text files using TextIO
 
 Apache Beam is a programming model for data processing pipelines that can be executed on a variety of runtime environments, including **Apache Flink**, **Apache Spark**, and **Google Cloud Dataflow**. The `TextIO` class in Apache Beam provides a way to read and write text files in a pipeline. To read a local file using TextIO, you can use the Read method and pass in the file path as a string. Here is an example of reading a local text file named "**myfile.txt**" and printing its contents:
 {{if (eq .Sdk "go")}}

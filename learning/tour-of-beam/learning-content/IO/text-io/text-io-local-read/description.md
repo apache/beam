@@ -11,9 +11,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-### TextIO local file
+### Reading from local text files using TextIO
 
-Apache Beam is a programming model for data processing pipelines that can be executed on a variety of runtime environments, including **Apache Flink**, **Apache Spark**, and **Google Cloud Dataflow**. The `TextIO` class in Apache Beam provides a way to read and write text files in a pipeline. To read a local file using TextIO, you can use the Read method and pass in the file path as a string. Here is an example of reading a local text file named "**myfile.txt**" and printing its contents:
+The `TextIO` class in Apache Beam provides a way to read and write text files in a pipeline. To read a local file using `TextIO`, you can use the `Read` method and pass in the file path as a string. Here is an example of reading a local text file named **"myfile.txt"** and printing its contents:
 {{if (eq .Sdk "go")}}
 ```
 p := beam.NewPipeline()
@@ -82,3 +82,7 @@ p.run()
 ```
 {{end}}
 It is important to note that the `Read` and `Write` methods only read and write to local file systems and not the distributed file systems like **HDFS**, **GCS**, **S3** etc.
+
+### Playground exercise
+
+In the playground window, you can find an example that reads from a text file and outputs individual words found in the text. Can you modify this example to output found words to another file in reverse form?

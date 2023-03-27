@@ -11,7 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-### TextIO google cloud storage file
+### Writing google cloud storage file using TextIO
 
 The `TextIO` class in the Apache Beam provides a way to read and write text files from **Google Cloud Storage** **(GCS)** in a pipeline.
 To write data to a file on **GCS**, you can use the Write method and pass in the **GCS** file path as a string. Here is an example of writing a string to a text file named "**myfile.txt**" in a **GCS** bucket named "**mybucket**":
