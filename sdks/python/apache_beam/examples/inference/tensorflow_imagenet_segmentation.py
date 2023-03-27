@@ -116,7 +116,7 @@ def run(
       | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
 
   _ = predictions | "WriteOutput" >> beam.io.WriteToText(
-      known_args.output, shard_name_template='', append_trailing_newlines=False)
+      known_args.output, shard_name_template='', append_trailing_newlines=True)
 
   result = pipeline.run()
   result.wait_until_finish()
