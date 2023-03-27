@@ -35,7 +35,6 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContaining;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingToRowFn;
 
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -63,30 +62,9 @@ class FileWriteSchemaTransformFormatProviderTestData {
 
   final List<AllPrimitiveDataTypes> allPrimitiveDataTypesList =
       Arrays.asList(
-          allPrimitiveDataTypes(
-              false,
-              BigDecimal.valueOf(1L),
-              1.2345,
-              1.2345f,
-              1,
-              1L,
-              "a"),
-          allPrimitiveDataTypes(
-              true,
-              BigDecimal.valueOf(2L),
-              2.2345,
-              2.2345f,
-              2,
-              2L,
-              "b"),
-          allPrimitiveDataTypes(
-              false,
-              BigDecimal.valueOf(3L),
-              3.2345,
-              3.2345f,
-              3,
-              3L,
-              "c"));
+          allPrimitiveDataTypes(false, BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a"),
+          allPrimitiveDataTypes(true, BigDecimal.valueOf(2L), 2.2345, 2.2345f, 2, 2L, "b"),
+          allPrimitiveDataTypes(false, BigDecimal.valueOf(3L), 3.2345, 3.2345f, 3, 3L, "c"));
 
   final List<Row> allPrimitiveDataTypesRows =
       allPrimitiveDataTypesList.stream()
@@ -122,25 +100,23 @@ class FileWriteSchemaTransformFormatProviderTestData {
 
   final List<ByteType> byteTypeList =
       Arrays.asList(
-          byteType(
-              (byte) 1, Collections.singletonList((byte) 2)),
-          byteType(
-              (byte) Byte.MAX_VALUE,
-              Arrays.asList((byte) 3, (byte) 4)));
+          byteType((byte) 1, Collections.singletonList((byte) 2)),
+          byteType((byte) Byte.MAX_VALUE, Arrays.asList((byte) 3, (byte) 4)));
 
   final List<Row> byteTypeRows =
       byteTypeList.stream().map(byteTypeToRowFn()::apply).collect(Collectors.toList());
 
   final List<ByteSequenceType> byteSequenceTypeList =
       Arrays.asList(
-          byteSequenceType(
-              new byte[] {1, 2, 3}, Collections.singletonList(new byte[] {4, 5, 6})),
+          byteSequenceType(new byte[] {1, 2, 3}, Collections.singletonList(new byte[] {4, 5, 6})),
           byteSequenceType(
               new byte[] {Byte.MIN_VALUE, 0, Byte.MAX_VALUE},
               Arrays.asList(new byte[] {1, 2, 3}, new byte[] {4, 5, 6}, new byte[] {7, 8, 9})));
 
   final List<Row> byteSequenceTypeRows =
-      byteSequenceTypeList.stream().map(byteSequenceTypeToRowFn()::apply).collect(Collectors.toList());
+      byteSequenceTypeList.stream()
+          .map(byteSequenceTypeToRowFn()::apply)
+          .collect(Collectors.toList());
 
   final List<ArrayPrimitiveDataTypes> arrayPrimitiveDataTypesList =
       Arrays.asList(

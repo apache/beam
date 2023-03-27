@@ -44,7 +44,6 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingT
 import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
@@ -69,8 +68,7 @@ public class SchemaAwareJavaBeansTest {
   @Test
   public void allPrimitiveDataTypesRowFns() {
     AllPrimitiveDataTypes element =
-        allPrimitiveDataTypes(
-            false, BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
+        allPrimitiveDataTypes(false, BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
 
     Row row = allPrimitiveDataTypesToRowFn().apply(element);
     assertEquals(element, allPrimitiveDataTypesFromRowFn().apply(row));
@@ -102,10 +100,7 @@ public class SchemaAwareJavaBeansTest {
 
   @Test
   public void byteTypeRowFns() {
-    ByteType element =
-        byteType(
-            (byte) 1,
-            Arrays.asList((byte) 1, (byte) 2, (byte) 3));
+    ByteType element = byteType((byte) 1, Arrays.asList((byte) 1, (byte) 2, (byte) 3));
 
     Row row = byteTypeToRowFn().apply(element);
     assertEquals(element, byteTypeFromRowFn().apply(row));
@@ -138,18 +133,10 @@ public class SchemaAwareJavaBeansTest {
     ArrayPrimitiveDataTypes noneEmpty =
         arrayPrimitiveDataTypes(
             Stream.generate(() -> true).limit(10).collect(Collectors.toList()),
-            Stream.generate(() -> Double.MIN_VALUE)
-                .limit(10)
-                .collect(Collectors.toList()),
-            Stream.generate(() -> Float.MIN_VALUE)
-                .limit(10)
-                .collect(Collectors.toList()),
-            Stream.generate(() -> Integer.MIN_VALUE)
-                .limit(10)
-                .collect(Collectors.toList()),
-            Stream.generate(() -> Long.MIN_VALUE)
-                .limit(10)
-                .collect(Collectors.toList()),
+            Stream.generate(() -> Double.MIN_VALUE).limit(10).collect(Collectors.toList()),
+            Stream.generate(() -> Float.MIN_VALUE).limit(10).collect(Collectors.toList()),
+            Stream.generate(() -> Integer.MIN_VALUE).limit(10).collect(Collectors.toList()),
+            Stream.generate(() -> Long.MIN_VALUE).limit(10).collect(Collectors.toList()),
             Stream.generate(() -> "🐿").limit(10).collect(Collectors.toList()));
     Row noneEmptyRow = arrayPrimitiveDataTypesToRowFn().apply(noneEmpty);
     assertEquals(noneEmpty, arrayPrimitiveDataTypesFromRowFn().apply(noneEmptyRow));
@@ -158,8 +145,7 @@ public class SchemaAwareJavaBeansTest {
   @Test
   public void singlyNestedDataTypesRowFns() {
     AllPrimitiveDataTypes element =
-        allPrimitiveDataTypes(
-            false, BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
+        allPrimitiveDataTypes(false, BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
     SinglyNestedDataTypes notRepeated = singlyNestedDataTypes(element);
     SinglyNestedDataTypes repeated = singlyNestedDataTypes(element, element, element, element);
     Row notRepeatedRow = singlyNestedDataTypesToRowFn().apply(notRepeated);
@@ -171,8 +157,7 @@ public class SchemaAwareJavaBeansTest {
   @Test
   public void doublyNestedDataTypesRowFns() {
     AllPrimitiveDataTypes element =
-        allPrimitiveDataTypes(
-            false, BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
+        allPrimitiveDataTypes(false, BigDecimal.valueOf(1L), 1.2345, 1.2345f, 1, 1L, "a");
     DoublyNestedDataTypes d0s0 = doublyNestedDataTypes(singlyNestedDataTypes(element));
     DoublyNestedDataTypes d1s0 =
         doublyNestedDataTypes(

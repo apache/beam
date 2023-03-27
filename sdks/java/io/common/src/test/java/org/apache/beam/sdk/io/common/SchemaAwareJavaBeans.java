@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.common;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -94,7 +93,8 @@ public class SchemaAwareJavaBeans {
   }
 
   /** Convenience method for {@link ByteSequenceType} instantiation. */
-  public static ByteSequenceType byteSequenceType(byte[] byteSequence, List<byte[]> byteSequenceList) {
+  public static ByteSequenceType byteSequenceType(
+      byte[] byteSequence, List<byte[]> byteSequenceList) {
     return new AutoValue_SchemaAwareJavaBeans_ByteSequenceType.Builder()
         .setByteSequence(byteSequence)
         .setByteSequenceList(byteSequenceList)
@@ -217,16 +217,12 @@ public class SchemaAwareJavaBeans {
   public static final Schema BYTE_TYPE_SCHEMA =
       DEFAULT_SCHEMA_PROVIDER.schemaFor(BYTE_TYPE_TYPE_DESCRIPTOR);
 
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link ByteType} to a {@link Row}.
-   */
+  /** Returns a {@link SerializableFunction} to convert from a {@link ByteType} to a {@link Row}. */
   public static SerializableFunction<ByteType, Row> byteTypeToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(BYTE_TYPE_TYPE_DESCRIPTOR);
   }
 
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link ByteType}.
-   */
+  /** Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link ByteType}. */
   public static SerializableFunction<Row, ByteType> byteTypeFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(BYTE_TYPE_TYPE_DESCRIPTOR);
   }
@@ -239,16 +235,16 @@ public class SchemaAwareJavaBeans {
       DEFAULT_SCHEMA_PROVIDER.schemaFor(BYTE_SEQUENCE_TYPE_TYPE_DESCRIPTOR);
 
   /**
-   * Returns a {@link SerializableFunction} to convert from a {@link ByteSequenceType} to a
-   * {@link Row}.
+   * Returns a {@link SerializableFunction} to convert from a {@link ByteSequenceType} to a {@link
+   * Row}.
    */
   public static SerializableFunction<ByteSequenceType, Row> byteSequenceTypeToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(BYTE_SEQUENCE_TYPE_TYPE_DESCRIPTOR);
   }
 
   /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a
-   * {@link ByteSequenceType}.
+   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
+   * ByteSequenceType}.
    */
   public static SerializableFunction<Row, ByteSequenceType> byteSequenceTypeFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(BYTE_SEQUENCE_TYPE_TYPE_DESCRIPTOR);
@@ -470,8 +466,8 @@ public class SchemaAwareJavaBeans {
   }
 
   /**
-   * Contains {@link byte} type. The purpose of this class is to test schema-aware PTransforms
-   * with {@link Row}s containing a sequence of bytes. It is isolated because not all file formats
+   * Contains {@link byte} type. The purpose of this class is to test schema-aware PTransforms with
+   * {@link Row}s containing a sequence of bytes. It is isolated because not all file formats
    * support byte sequences (e.g. JSON, CSV, XML).
    */
   @DefaultSchema(AutoValueSchema.class)
@@ -479,6 +475,7 @@ public class SchemaAwareJavaBeans {
   public abstract static class ByteSequenceType {
     @SuppressWarnings("mutable")
     public abstract byte[] getByteSequence();
+
     @SuppressWarnings("mutable")
     public abstract List<byte[]> getByteSequenceList();
 
