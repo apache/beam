@@ -497,12 +497,13 @@ grace_hopper.jpg
 ```
 3. A tensorflow `MODEL_PATH`, we will use the [mobilenet]("https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4") model.
 4. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
+5. Install TensorflowHub: `pip install tensorflow_hub`
 
-### Running `tensorflow_image_segmentation.py`
+### Running `tensorflow_imagenet_segmentation.py`
 
 To run the image segmentation pipeline locally, use the following command:
 ```sh
-python -m apache_beam.examples.inference.tensorflow_image_segmentation \
+python -m apache_beam.examples.inference.tensorflow_imagenet_segmentation \
   --input IMAGE_FILE_NAMES \
   --image_dir IMAGES_DIR \
   --output OUTPUT \
@@ -511,9 +512,9 @@ python -m apache_beam.examples.inference.tensorflow_image_segmentation \
 
 For example, if you've followed the naming conventions recommended above:
 ```sh
-python -m apache_beam.examples.inference.tensorflow_image_segmentation \
+python -m apache_beam.examples.inference.tensorflow_imagenet_segmentation \
   --input IMAGE_FILE_NAMES.txt \
-  --image_dir "https://storage.googleapis.com/download.tensorflow.org/example_images/"
+  --image_dir "https://storage.googleapis.com/download.tensorflow.org/example_images/" \
   --output predictions.txt \
   --model_path "https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4"
 ```
