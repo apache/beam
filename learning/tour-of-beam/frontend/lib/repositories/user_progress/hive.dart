@@ -34,7 +34,7 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
   }
 
   @override
-  Future<ExampleLoadingDescriptor> getSavedExampleLoadingDescriptor({
+  Future<ExampleLoadingDescriptor> getSavedDescriptor({
     required Sdk sdk,
     required String unitId,
   }) async {

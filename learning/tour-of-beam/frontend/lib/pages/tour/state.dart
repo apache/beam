@@ -229,7 +229,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         );
         break;
       case SnippetType.saved:
-        descriptor = await _unitProgressCache.getSavedExampleLoadingDescriptor(
+        descriptor = await _unitProgressCache.getSavedDescriptor(
           sdk: currentSdk,
           unitId: _currentUnitContent!.id,
         );

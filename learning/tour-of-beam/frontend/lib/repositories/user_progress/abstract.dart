@@ -38,7 +38,7 @@ abstract class AbstractUserProgressRepository {
     required String unitId,
   });
 
-  Future<ExampleLoadingDescriptor> getSavedExampleLoadingDescriptor({
+  Future<ExampleLoadingDescriptor> getSavedDescriptor({
     required Sdk sdk,
     required String unitId,
   });
