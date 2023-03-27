@@ -39,7 +39,6 @@ labels:
       - lukecwik
       - kennknowles
       - robertwb
-      - apilloud
     exclusionList: []
   - name: IO
     reviewers:

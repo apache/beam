@@ -34,11 +34,14 @@ Authorized endpoints also consume `Authorization: Bearer <id_token>` header
 ### Playground GRPC API
 
 We use Playground GRPC to save/get user snippets, so we keep the generated stubs in [playground_api](playground_api)
-To re-generate:
+To re-generate, refer to [Playground Readme](../../../playground/README.md), section "Re-generate protobuf".
+
+To update mocks for tests, run:
 ```
 $ go generate -x ./...
 ```
 
+> Note: [`moq`](https://github.com/matryer/moq) tool to be installed
 
 ### Datastore schema
 

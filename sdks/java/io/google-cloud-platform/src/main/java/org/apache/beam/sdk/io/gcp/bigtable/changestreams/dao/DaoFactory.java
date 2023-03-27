@@ -19,6 +19,9 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminClient;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
@@ -91,7 +94,9 @@ public class DaoFactory implements Serializable {
       checkArgumentNotNull(changeStreamConfig.getInstanceId());
       String tableId = this.tableId;
       checkArgumentNotNull(changeStreamConfig.getAppProfileId());
-      changeStreamDao = new ChangeStreamDao(tableId);
+      BigtableDataClient dataClient =
+          BigtableChangeStreamAccessor.getOrCreate(changeStreamConfig).getDataClient();
+      changeStreamDao = new ChangeStreamDao(dataClient, tableId);
     }
     return changeStreamDao;
   }
@@ -102,8 +107,11 @@ public class DaoFactory implements Serializable {
       checkArgumentNotNull(metadataTableConfig.getInstanceId());
       checkArgumentNotNull(this.metadataTableId);
       checkArgumentNotNull(metadataTableConfig.getAppProfileId());
+      BigtableDataClient dataClient =
+          BigtableChangeStreamAccessor.getOrCreate(metadataTableConfig).getDataClient();
       metadataTableDao =
           new MetadataTableDao(
+              dataClient,
               getMetadataTableAdminDao().getTableId(),
               getMetadataTableAdminDao().getChangeStreamNamePrefix());
     }
@@ -116,7 +124,13 @@ public class DaoFactory implements Serializable {
       checkArgumentNotNull(metadataTableConfig.getInstanceId());
       String tableId = checkArgumentNotNull(this.metadataTableId);
       checkArgumentNotNull(metadataTableConfig.getAppProfileId());
-      metadataTableAdminDao = new MetadataTableAdminDao(changeStreamName, tableId);
+      BigtableTableAdminClient tableAdminClient =
+          BigtableChangeStreamAccessor.getOrCreate(metadataTableConfig).getTableAdminClient();
+      BigtableInstanceAdminClient instanceAdminClient =
+          BigtableChangeStreamAccessor.getOrCreate(metadataTableConfig).getInstanceAdminClient();
+      metadataTableAdminDao =
+          new MetadataTableAdminDao(
+              tableAdminClient, instanceAdminClient, changeStreamName, tableId);
     }
     return metadataTableAdminDao;
   }

@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 
 import java.io.IOException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.DetectNewPartitionsAction;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.GenerateInitialPartitionsAction;
@@ -42,9 +40,8 @@ import org.joda.time.Instant;
 @SuppressWarnings("initialization.fields.uninitialized")
 @Internal
 @UnboundedPerElement
-public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, PartitionRecord> {
+public class DetectNewPartitionsDoFn extends DoFn<Instant, PartitionRecord> {
   private static final long serialVersionUID = 8052524268978107367L;
-  @Nullable private final com.google.cloud.Timestamp endTime;
 
   private final DaoFactory daoFactory;
   private final ChangeStreamMetrics metrics;
@@ -52,19 +49,15 @@ public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, Pa
   private DetectNewPartitionsAction detectNewPartitionsAction;
 
   public DetectNewPartitionsDoFn(
-      @Nullable com.google.cloud.Timestamp endTime,
-      ActionFactory actionFactory,
-      DaoFactory daoFactory,
-      ChangeStreamMetrics metrics) {
+      ActionFactory actionFactory, DaoFactory daoFactory, ChangeStreamMetrics metrics) {
     this.actionFactory = actionFactory;
     this.daoFactory = daoFactory;
-    this.endTime = endTime;
     this.metrics = metrics;
   }
 
   @GetInitialWatermarkEstimatorState
-  public Instant getInitialWatermarkEstimatorState(@Element com.google.cloud.Timestamp startTime) {
-    return TimestampConverter.toInstant(startTime);
+  public Instant getInitialWatermarkEstimatorState(@Element Instant startTime) {
+    return startTime;
   }
 
   @NewWatermarkEstimator
@@ -94,15 +87,15 @@ public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, Pa
     final MetadataTableDao metadataTableDao = daoFactory.getMetadataTableDao();
     final ChangeStreamDao changeStreamDao = daoFactory.getChangeStreamDao();
     GenerateInitialPartitionsAction generateInitialPartitionsAction =
-        actionFactory.generateInitialPartitionsAction(metrics, changeStreamDao, endTime);
+        actionFactory.generateInitialPartitionsAction(metrics, changeStreamDao);
     detectNewPartitionsAction =
         actionFactory.detectNewPartitionsAction(
-            metrics, metadataTableDao, endTime, generateInitialPartitionsAction);
+            metrics, metadataTableDao, generateInitialPartitionsAction);
   }
 
   @ProcessElement
   public ProcessContinuation processElement(
-      @Element com.google.cloud.Timestamp startTime,
+      @Element Instant startTime,
       RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<PartitionRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
