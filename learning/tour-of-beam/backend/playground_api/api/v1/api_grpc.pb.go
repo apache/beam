@@ -60,6 +60,8 @@ type PlaygroundServiceClient interface {
 	SaveSnippet(ctx context.Context, in *SaveSnippetRequest, opts ...grpc.CallOption) (*SaveSnippetResponse, error)
 	// Get the snippet of playground.
 	GetSnippet(ctx context.Context, in *GetSnippetRequest, opts ...grpc.CallOption) (*GetSnippetResponse, error)
+	// Get the runner metadata.
+	GetMetadata(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error)
 }
 
 type playgroundServiceClient struct {
@@ -241,6 +243,15 @@ func (c *playgroundServiceClient) GetSnippet(ctx context.Context, in *GetSnippet
 	return out, nil
 }
 
+func (c *playgroundServiceClient) GetMetadata(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error) {
+	out := new(GetMetadataResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetMetadata", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PlaygroundServiceServer is the server API for PlaygroundService service.
 // All implementations should embed UnimplementedPlaygroundServiceServer
 // for forward compatibility
@@ -283,6 +294,8 @@ type PlaygroundServiceServer interface {
 	SaveSnippet(context.Context, *SaveSnippetRequest) (*SaveSnippetResponse, error)
 	// Get the snippet of playground.
 	GetSnippet(context.Context, *GetSnippetRequest) (*GetSnippetResponse, error)
+	// Get the runner metadata.
+	GetMetadata(context.Context, *GetMetadataRequest) (*GetMetadataResponse, error)
 }
 
 // UnimplementedPlaygroundServiceServer should be embedded to have forward compatible implementations.
@@ -345,6 +358,9 @@ func (UnimplementedPlaygroundServiceServer) SaveSnippet(context.Context, *SaveSn
 }
 func (UnimplementedPlaygroundServiceServer) GetSnippet(context.Context, *GetSnippetRequest) (*GetSnippetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSnippet not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetMetadata(context.Context, *GetMetadataRequest) (*GetMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMetadata not implemented")
 }
 
 // UnsafePlaygroundServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -700,6 +716,24 @@ func _PlaygroundService_GetSnippet_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_GetMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetMetadata",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetMetadata(ctx, req.(*GetMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PlaygroundService_ServiceDesc is the grpc.ServiceDesc for PlaygroundService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -782,6 +816,10 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSnippet",
 			Handler:    _PlaygroundService_GetSnippet_Handler,
+		},
+		{
+			MethodName: "GetMetadata",
+			Handler:    _PlaygroundService_GetMetadata_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

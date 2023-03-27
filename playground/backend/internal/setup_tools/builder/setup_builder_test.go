@@ -132,10 +132,10 @@ func setup() error {
 		CompileArgs: []string{"MOCK_COMPILE_ARG"},
 		RunArgs:     []string{"MOCK_RUN_CMD"},
 	}
-	pythonSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_PYTHON, executorConfig, "", 0)
-	javaSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig, "", 0)
-	goSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_GO, executorConfig, "", 0)
-	scioSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_SCIO, executorConfig, "", 0)
+	pythonSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_PYTHON, "", executorConfig, "", 0)
+	javaSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, "", executorConfig, "", 0)
+	goSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_GO, "", executorConfig, "", 0)
+	scioSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_SCIO, "", executorConfig, "", 0)
 
 	return nil
 }
@@ -197,7 +197,7 @@ func TestValidator(t *testing.T) {
 		WithValidator().
 		WithSdkValidators(scioVals)
 
-	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, pythonSdkEnv.ExecutorConfig, "", 0)
+	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, "", pythonSdkEnv.ExecutorConfig, "", 0)
 
 	type args struct {
 		paths  *fs_tool.LifeCyclePaths
@@ -315,7 +315,7 @@ func TestPreparer(t *testing.T) {
 		WithPreparer().
 		WithSdkPreparers(scioPrep)
 
-	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, pythonSdkEnv.ExecutorConfig, "", 0)
+	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, "", pythonSdkEnv.ExecutorConfig, "", 0)
 
 	type args struct {
 		paths           fs_tool.LifeCyclePaths

@@ -314,22 +314,6 @@ def create_builtin_provider():
       for key in dir(apache_beam.io)
       if key.startswith('ReadFrom') or key.startswith('WriteTo')
   }
-  ios['ReadFromCsv'] = lambda **kwargs: apache_beam.dataframe.io.ReadViaPandas(
-      'csv', **kwargs)
-  ios['WriteToCsv'] = lambda **kwargs: apache_beam.dataframe.io.WriteViaPandas(
-      'csv', **kwargs)
-  ios['ReadFromJson'] = (
-      lambda *,
-      orient='records',
-      lines=True,
-      **kwargs: apache_beam.dataframe.io.ReadViaPandas(
-          'json', orient=orient, lines=lines, **kwargs))
-  ios['WriteToJson'] = (
-      lambda *,
-      orient='records',
-      lines=True,
-      **kwargs: apache_beam.dataframe.io.WriteViaPandas(
-          'json', orient=orient, lines=lines, **kwargs))
 
   return InlineProvider(
       dict({

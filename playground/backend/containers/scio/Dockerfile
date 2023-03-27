@@ -17,6 +17,8 @@
 ###############################################################################
 ARG BASE_IMAGE=openjdk:8
 FROM golang:1.18-bullseye AS build
+ARG GIT_COMMIT="<unknown>"
+ARG GIT_TIMESTAMP="0"
 
 # Setup Go Environment
 ENV GOPATH /go
@@ -33,7 +35,7 @@ WORKDIR /go/src/playground/backend
 RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
-    go build -o /go/bin/server_scio_backend
+    go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_scio_backend
 
 FROM $BASE_IMAGE
 ENV SERVER_IP=0.0.0.0

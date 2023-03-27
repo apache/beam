@@ -156,8 +156,7 @@ class CodeRepository {
         );
 
       case RunCodeStatus.validationError:
-        final output =
-            await _client.getValidationErrorOutput(pipelineUuid);
+        final output = await _client.getValidationErrorOutput(pipelineUuid);
         return RunCodeResult(
           graph: prevGraph,
           log: prevLog,
@@ -167,8 +166,7 @@ class CodeRepository {
         );
 
       case RunCodeStatus.preparationError:
-        final output =
-            await _client.getPreparationErrorOutput(pipelineUuid);
+        final output = await _client.getPreparationErrorOutput(pipelineUuid);
         return RunCodeResult(
           graph: prevGraph,
           log: prevLog,

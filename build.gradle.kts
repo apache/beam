@@ -322,6 +322,7 @@ tasks.register("javaPreCommit") {
 tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:amqp:build")
   dependsOn(":sdks:java:io:cassandra:build")
+  dependsOn(":sdks:java:io:csv:build")
   dependsOn(":sdks:java:io:cdap:build")
   dependsOn(":sdks:java:io:clickhouse:build")
   dependsOn(":sdks:java:io:debezium:expansion-service:build")
@@ -332,6 +333,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build")
   dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
+  dependsOn(":sdks:java:io:file-schema-transform:build")
   dependsOn(":sdks:java:io:hbase:build")
   dependsOn(":sdks:java:io:hcatalog:build")
   dependsOn(":sdks:java:io:influxdb:build")
