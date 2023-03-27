@@ -378,6 +378,8 @@ func (c *DataChannel) read(ctx context.Context) {
 			return
 		}
 
+		recordStreamReceive(msg)
+
 		// Each message may contain segments for multiple streams, so we
 		// must treat each segment in isolation. We maintain a local cache
 		// to reduce lock contention.
