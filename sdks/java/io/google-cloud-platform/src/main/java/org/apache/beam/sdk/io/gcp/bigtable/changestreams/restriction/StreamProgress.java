@@ -42,18 +42,7 @@ public class StreamProgress implements Serializable {
   private @Nullable ChangeStreamContinuationToken currentToken;
   private @Nullable Instant estimatedLowWatermark;
   private @Nullable CloseStream closeStream;
-
-  public @Nullable ChangeStreamContinuationToken getCurrentToken() {
-    return currentToken;
-  }
-
-  public @Nullable Instant getEstimatedLowWatermark() {
-    return estimatedLowWatermark;
-  }
-
-  public @Nullable CloseStream getCloseStream() {
-    return closeStream;
-  }
+  private boolean failToLock;
 
   public StreamProgress() {}
 
@@ -67,6 +56,26 @@ public class StreamProgress implements Serializable {
     this.closeStream = closeStream;
   }
 
+  public @Nullable ChangeStreamContinuationToken getCurrentToken() {
+    return currentToken;
+  }
+
+  public @Nullable Instant getEstimatedLowWatermark() {
+    return estimatedLowWatermark;
+  }
+
+  public @Nullable CloseStream getCloseStream() {
+    return closeStream;
+  }
+
+  public boolean isFailToLock() {
+    return failToLock;
+  }
+
+  public void setFailToLock(boolean failToLock) {
+    this.failToLock = failToLock;
+  }
+
   @Override
   public boolean equals(@Nullable Object o) {
     if (this == o) {
@@ -78,7 +87,8 @@ public class StreamProgress implements Serializable {
     StreamProgress that = (StreamProgress) o;
     return Objects.equals(getCurrentToken(), that.getCurrentToken())
         && Objects.equals(getEstimatedLowWatermark(), that.getEstimatedLowWatermark())
-        && Objects.equals(getCloseStream(), that.getCloseStream());
+        && Objects.equals(getCloseStream(), that.getCloseStream())
+        && (isFailToLock() == that.isFailToLock());
   }
 
   @Override
@@ -95,6 +105,8 @@ public class StreamProgress implements Serializable {
         + estimatedLowWatermark
         + ", closeStream="
         + closeStream
+        + ", failToLock="
+        + failToLock
         + '}';
   }
 }

@@ -25,6 +25,9 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTabl
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
+import com.google.cloud.bigtable.data.v2.models.Filters.Filter;
+import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
@@ -260,6 +263,53 @@ public class MetadataTableDao {
     ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
     RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
     dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * Lock the partition in the metadata table for the DoFn streaming it. Only one DoFn is allowed to
+   * stream a specific partition at any time. Each DoFn has an uuid and will try to lock the
+   * partition at the very start of the stream. If another DoFn has already locked the partition
+   * (i.e. the uuid in the cell for the partition belongs to the DoFn), any future DoFn trying to
+   * lock the same partition will and terminate.
+   *
+   * @param partition form the row key in the metadata table to lock
+   * @param uuid id of the DoFn
+   * @return true if uuid holds the lock, otherwise false.
+   */
+  public boolean lockPartition(ByteStringRange partition, String uuid) {
+    LOG.debug("Locking partition before processing stream");
+
+    ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
+    Filter lockCellFilter =
+        FILTERS
+            .chain()
+            .filter(FILTERS.family().exactMatch(MetadataTableAdminDao.CF_LOCK))
+            .filter(FILTERS.qualifier().exactMatch(MetadataTableAdminDao.QUALIFIER_DEFAULT))
+            .filter(FILTERS.limit().cellsPerRow(1));
+    Row row = dataClient.readRow(tableId, rowKey, lockCellFilter);
+
+    // If the query returns non-null row, that means the lock is being held. Check if the owner is
+    // same as uuid.
+    if (row != null) {
+      return row.getCells().get(0).getValue().toStringUtf8().equals(uuid);
+    }
+
+    // We cannot check whether a cell is empty, We can check if the cell matches any value. If it
+    // does not, we perform the mutation to set the cell.
+    Mutation mutation =
+        Mutation.create()
+            .setCell(MetadataTableAdminDao.CF_LOCK, MetadataTableAdminDao.QUALIFIER_DEFAULT, uuid);
+    Filter matchAnyString =
+        FILTERS
+            .chain()
+            .filter(FILTERS.family().exactMatch(MetadataTableAdminDao.CF_LOCK))
+            .filter(FILTERS.qualifier().exactMatch(MetadataTableAdminDao.QUALIFIER_DEFAULT))
+            .filter(FILTERS.value().regex("\\C*"));
+    ConditionalRowMutation rowMutation =
+        ConditionalRowMutation.create(tableId, rowKey)
+            .condition(matchAnyString)
+            .otherwise(mutation);
+    return !dataClient.checkAndMutateRow(rowMutation);
   }
 
   /**
