@@ -42,7 +42,6 @@ public class SchemaAwareJavaBeans {
   /** Convenience method for {@link AllPrimitiveDataTypes} instantiation. */
   public static AllPrimitiveDataTypes allPrimitiveDataTypes(
       Boolean aBoolean,
-      ByteBuffer bytes,
       BigDecimal aDecimal,
       Double aDouble,
       Float aFloat,
@@ -51,7 +50,6 @@ public class SchemaAwareJavaBeans {
       String aString) {
     return new AutoValue_SchemaAwareJavaBeans_AllPrimitiveDataTypes.Builder()
         .setABoolean(aBoolean)
-        .setBytes(bytes)
         .setADecimal(aDecimal)
         .setADouble(aDouble)
         .setAFloat(aFloat)
@@ -87,10 +85,25 @@ public class SchemaAwareJavaBeans {
         .build();
   }
 
+  /** Convenience method for {@link ByteType} instantiation. */
+  public static ByteType byteType(Byte aByte, List<Byte> byteList) {
+    return new AutoValue_SchemaAwareJavaBeans_ByteType.Builder()
+        .setByte(aByte)
+        .setByteList(byteList)
+        .build();
+  }
+
+  /** Convenience method for {@link ByteSequenceType} instantiation. */
+  public static ByteSequenceType byteSequenceType(byte[] byteSequence, List<byte[]> byteSequenceList) {
+    return new AutoValue_SchemaAwareJavaBeans_ByteSequenceType.Builder()
+        .setByteSequence(byteSequence)
+        .setByteSequenceList(byteSequenceList)
+        .build();
+  }
+
   /** Convenience method for {@link ArrayPrimitiveDataTypes} instantiation. */
   public static ArrayPrimitiveDataTypes arrayPrimitiveDataTypes(
       List<Boolean> booleans,
-      List<ByteBuffer> bytes,
       List<Double> doubles,
       List<Float> floats,
       List<Integer> integers,
@@ -98,7 +111,6 @@ public class SchemaAwareJavaBeans {
       List<String> strings) {
     return new AutoValue_SchemaAwareJavaBeans_ArrayPrimitiveDataTypes.Builder()
         .setBooleanList(booleans)
-        .setBytesList(bytes)
         .setDoubleList(doubles)
         .setFloatList(floats)
         .setIntegerList(integers)
@@ -198,6 +210,50 @@ public class SchemaAwareJavaBeans {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(TIME_CONTAINING_TYPE_DESCRIPTOR);
   }
 
+  private static final TypeDescriptor<ByteType> BYTE_TYPE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(ByteType.class);
+
+  /** The schema for {@link ByteType}. */
+  public static final Schema BYTE_TYPE_SCHEMA =
+      DEFAULT_SCHEMA_PROVIDER.schemaFor(BYTE_TYPE_TYPE_DESCRIPTOR);
+
+  /**
+   * Returns a {@link SerializableFunction} to convert from a {@link ByteType} to a {@link Row}.
+   */
+  public static SerializableFunction<ByteType, Row> byteTypeToRowFn() {
+    return DEFAULT_SCHEMA_PROVIDER.toRowFunction(BYTE_TYPE_TYPE_DESCRIPTOR);
+  }
+
+  /**
+   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link ByteType}.
+   */
+  public static SerializableFunction<Row, ByteType> byteTypeFromRowFn() {
+    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(BYTE_TYPE_TYPE_DESCRIPTOR);
+  }
+
+  private static final TypeDescriptor<ByteSequenceType> BYTE_SEQUENCE_TYPE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(ByteSequenceType.class);
+
+  /** The schema for {@link ByteSequenceType}. */
+  public static final Schema BYTE_SEQUENCE_TYPE_SCHEMA =
+      DEFAULT_SCHEMA_PROVIDER.schemaFor(BYTE_SEQUENCE_TYPE_TYPE_DESCRIPTOR);
+
+  /**
+   * Returns a {@link SerializableFunction} to convert from a {@link ByteSequenceType} to a
+   * {@link Row}.
+   */
+  public static SerializableFunction<ByteSequenceType, Row> byteSequenceTypeToRowFn() {
+    return DEFAULT_SCHEMA_PROVIDER.toRowFunction(BYTE_SEQUENCE_TYPE_TYPE_DESCRIPTOR);
+  }
+
+  /**
+   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a
+   * {@link ByteSequenceType}.
+   */
+  public static SerializableFunction<Row, ByteSequenceType> byteSequenceTypeFromRowFn() {
+    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(BYTE_SEQUENCE_TYPE_TYPE_DESCRIPTOR);
+  }
+
   private static final TypeDescriptor<ArrayPrimitiveDataTypes>
       ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(ArrayPrimitiveDataTypes.class);
 
@@ -279,8 +335,6 @@ public class SchemaAwareJavaBeans {
 
     public abstract Boolean getABoolean();
 
-    public abstract ByteBuffer getBytes();
-
     public abstract BigDecimal getADecimal();
 
     public abstract Double getADouble();
@@ -299,8 +353,6 @@ public class SchemaAwareJavaBeans {
     public abstract static class Builder {
 
       public abstract Builder setABoolean(Boolean value);
-
-      public abstract Builder setBytes(ByteBuffer value);
 
       public abstract Builder setADecimal(BigDecimal value);
 
@@ -392,6 +444,58 @@ public class SchemaAwareJavaBeans {
   }
 
   /**
+   * Contains {@link Byte} type. The purpose of this class is to test schema-aware PTransforms with
+   * {@link Row}s containing this type. It is isolated because not all file formats support a single
+   * byte data type (e.g. Avro, Parquet).
+   */
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class ByteType {
+
+    public abstract Byte getByte();
+
+    public abstract List<Byte> getByteList();
+
+    public abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+
+      public abstract Builder setByte(Byte value);
+
+      public abstract Builder setByteList(List<Byte> value);
+
+      public abstract ByteType build();
+    }
+  }
+
+  /**
+   * Contains {@link byte} type. The purpose of this class is to test schema-aware PTransforms
+   * with {@link Row}s containing a sequence of bytes. It is isolated because not all file formats
+   * support byte sequences (e.g. JSON, CSV, XML).
+   */
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class ByteSequenceType {
+    @SuppressWarnings("mutable")
+    public abstract byte[] getByteSequence();
+    @SuppressWarnings("mutable")
+    public abstract List<byte[]> getByteSequenceList();
+
+    public abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+
+      public abstract Builder setByteSequence(byte[] value);
+
+      public abstract Builder setByteSequenceList(List<byte[]> value);
+
+      public abstract ByteSequenceType build();
+    }
+  }
+
+  /**
    * Contains arrays of all primitive Java types i.e. String, Integer, etc and {@link BigDecimal}.
    * The purpose of this class is to test schema-aware PTransforms with {@link Row}s containing
    * repeated primitive Java types.
@@ -401,8 +505,6 @@ public class SchemaAwareJavaBeans {
   public abstract static class ArrayPrimitiveDataTypes {
 
     public abstract List<Boolean> getBooleanList();
-
-    public abstract List<ByteBuffer> getBytesList();
 
     public abstract List<Double> getDoubleList();
 
@@ -420,8 +522,6 @@ public class SchemaAwareJavaBeans {
     public abstract static class Builder {
 
       public abstract Builder setBooleanList(List<Boolean> value);
-
-      public abstract Builder setBytesList(List<ByteBuffer> value);
 
       public abstract Builder setDoubleList(List<Double> value);
 

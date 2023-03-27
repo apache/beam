@@ -36,7 +36,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ParquetWriteSchemaTransformFormatProvider}. */
 @RunWith(JUnit4.class)
-public class ParquetFileWriteSchemaTransformFormatProviderTest
+public class ParquetWriteSchemaTransformFormatProviderTest
     extends FileWriteSchemaTransformFormatProviderTest {
   @Override
   protected String getFormat() {

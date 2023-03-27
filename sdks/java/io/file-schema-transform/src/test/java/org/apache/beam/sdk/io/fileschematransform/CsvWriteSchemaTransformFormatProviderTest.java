@@ -51,7 +51,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link CsvWriteSchemaTransformFormatProvider}. */
 @RunWith(JUnit4.class)
-public class CsvFileWriteSchemaTransformFormatProviderTest
+public class CsvWriteSchemaTransformFormatProviderTest
     extends FileWriteSchemaTransformFormatProviderTest {
 
   @Rule

@@ -21,6 +21,10 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.allPrimitiveDat
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.allPrimitiveDataTypesToRowFn;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.arrayPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.arrayPrimitiveDataTypesToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.byteSequenceType;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.byteSequenceTypeToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.byteType;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.byteTypeToRowFn;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.doublyNestedDataTypes;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.doublyNestedDataTypesToRowFn;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypes;
@@ -40,6 +44,8 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AllPrimitiveDataTypes;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ArrayPrimitiveDataTypes;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ByteSequenceType;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ByteType;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DoublyNestedDataTypes;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NullableAllPrimitiveDataTypes;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SinglyNestedDataTypes;
@@ -59,7 +65,6 @@ class FileWriteSchemaTransformFormatProviderTestData {
       Arrays.asList(
           allPrimitiveDataTypes(
               false,
-              ByteBuffer.wrap(new byte[] {1}),
               BigDecimal.valueOf(1L),
               1.2345,
               1.2345f,
@@ -68,7 +73,6 @@ class FileWriteSchemaTransformFormatProviderTestData {
               "a"),
           allPrimitiveDataTypes(
               true,
-              ByteBuffer.wrap(new byte[] {2}),
               BigDecimal.valueOf(2L),
               2.2345,
               2.2345f,
@@ -77,7 +81,6 @@ class FileWriteSchemaTransformFormatProviderTestData {
               "b"),
           allPrimitiveDataTypes(
               false,
-              ByteBuffer.wrap(new byte[] {3}),
               BigDecimal.valueOf(3L),
               3.2345,
               3.2345f,
@@ -117,6 +120,28 @@ class FileWriteSchemaTransformFormatProviderTestData {
   final List<Row> timeContainingRows =
       timeContainingList.stream().map(timeContainingToRowFn()::apply).collect(Collectors.toList());
 
+  final List<ByteType> byteTypeList =
+      Arrays.asList(
+          byteType(
+              (byte) 1, Collections.singletonList((byte) 2)),
+          byteType(
+              (byte) Byte.MAX_VALUE,
+              Arrays.asList((byte) 3, (byte) 4)));
+
+  final List<Row> byteTypeRows =
+      byteTypeList.stream().map(byteTypeToRowFn()::apply).collect(Collectors.toList());
+
+  final List<ByteSequenceType> byteSequenceTypeList =
+      Arrays.asList(
+          byteSequenceType(
+              new byte[] {1, 2, 3}, Collections.singletonList(new byte[] {4, 5, 6})),
+          byteSequenceType(
+              new byte[] {Byte.MIN_VALUE, 0, Byte.MAX_VALUE},
+              Arrays.asList(new byte[] {1, 2, 3}, new byte[] {4, 5, 6}, new byte[] {7, 8, 9})));
+
+  final List<Row> byteSequenceTypeRows =
+      byteSequenceTypeList.stream().map(byteSequenceTypeToRowFn()::apply).collect(Collectors.toList());
+
   final List<ArrayPrimitiveDataTypes> arrayPrimitiveDataTypesList =
       Arrays.asList(
           arrayPrimitiveDataTypes(
@@ -125,18 +150,8 @@ class FileWriteSchemaTransformFormatProviderTestData {
               Collections.emptyList(),
               Collections.emptyList(),
               Collections.emptyList(),
-              Collections.emptyList(),
               Collections.emptyList()),
           arrayPrimitiveDataTypes(
-              Collections.emptyList(),
-              Collections.singletonList(ByteBuffer.wrap(new byte[] {1})),
-              Collections.emptyList(),
-              Collections.emptyList(),
-              Collections.emptyList(),
-              Collections.emptyList(),
-              Collections.emptyList()),
-          arrayPrimitiveDataTypes(
-              Collections.emptyList(),
               Collections.emptyList(),
               Collections.singletonList(Double.MAX_VALUE),
               Collections.emptyList(),
@@ -144,7 +159,6 @@ class FileWriteSchemaTransformFormatProviderTestData {
               Collections.emptyList(),
               Collections.emptyList()),
           arrayPrimitiveDataTypes(
-              Collections.emptyList(),
               Collections.emptyList(),
               Collections.emptyList(),
               Collections.singletonList(Float.MAX_VALUE),
@@ -155,12 +169,10 @@ class FileWriteSchemaTransformFormatProviderTestData {
               Collections.emptyList(),
               Collections.emptyList(),
               Collections.emptyList(),
-              Collections.emptyList(),
               Collections.singletonList(Integer.MAX_VALUE),
               Collections.emptyList(),
               Collections.emptyList()),
           arrayPrimitiveDataTypes(
-              Collections.emptyList(),
               Collections.emptyList(),
               Collections.emptyList(),
               Collections.emptyList(),
@@ -173,15 +185,10 @@ class FileWriteSchemaTransformFormatProviderTestData {
               Collections.emptyList(),
               Collections.emptyList(),
               Collections.emptyList(),
-              Collections.emptyList(),
               Collections.singletonList(
                   Stream.generate(() -> "🦄").limit(100).collect(Collectors.joining("")))),
           arrayPrimitiveDataTypes(
               Arrays.asList(false, true, false),
-              Arrays.asList(
-                  ByteBuffer.wrap(new byte[] {1, 2, 3}),
-                  ByteBuffer.wrap(new byte[] {4, 5, 6}),
-                  ByteBuffer.wrap(new byte[] {7, 8, 9})),
               Arrays.asList(Double.MIN_VALUE, 0.0, Double.MAX_VALUE),
               Arrays.asList(Float.MIN_VALUE, 0.0f, Float.MAX_VALUE),
               Arrays.asList(Integer.MIN_VALUE, 0, Integer.MAX_VALUE),
@@ -192,16 +199,12 @@ class FileWriteSchemaTransformFormatProviderTestData {
                   Stream.generate(() -> "🐣").limit(100).collect(Collectors.joining("")))),
           arrayPrimitiveDataTypes(
               Stream.generate(() -> true).limit(Short.MAX_VALUE).collect(Collectors.toList()),
-              Stream.generate(() -> ByteBuffer.wrap(new byte[] {1, 2, 3}))
-                  .limit(100)
-                  .collect(Collectors.toList()),
               Stream.generate(() -> Double.MIN_VALUE).limit(100).collect(Collectors.toList()),
               Stream.generate(() -> Float.MIN_VALUE).limit(100).collect(Collectors.toList()),
               Stream.generate(() -> Integer.MIN_VALUE).limit(100).collect(Collectors.toList()),
               Stream.generate(() -> Long.MIN_VALUE).limit(100).collect(Collectors.toList()),
               Stream.generate(() -> "🐿").limit(100).collect(Collectors.toList())),
           arrayPrimitiveDataTypes(
-              Collections.emptyList(),
               Collections.emptyList(),
               Collections.emptyList(),
               Collections.emptyList(),
