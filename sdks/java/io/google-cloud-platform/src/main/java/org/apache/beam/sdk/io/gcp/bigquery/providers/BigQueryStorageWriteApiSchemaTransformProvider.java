@@ -427,7 +427,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
           table = BigQueryHelpers.getTable(options, tableRef);
         }
         if (table == null) {
-          LOG.info("Table not found and skipped schema validation: " + tableRef.getTableId());
+          LOG.info("Table [{}] not found, skipping schema validation.", tableRef.getTableId());
           return;
         }
         Schema outputSchema = BigQueryUtils.fromTableSchema(table.getSchema());
