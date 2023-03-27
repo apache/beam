@@ -137,7 +137,7 @@ func Test_executableName(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test case with calling sourceFileName method with empty directory.
+			// Test case with calling findExecutableName() function with empty directory.
 			// As a result, want to receive an error.
 			name:    "Directory is empty",
 			prepare: func() error { return nil },
@@ -149,7 +149,7 @@ func Test_executableName(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
+			// Test case with calling findExecutableName() function with correct pipelineId and workingDir.
 			// As a result, want to receive a name that should be executed
 			name: "Get executable name",
 			prepare: func() error {
@@ -169,7 +169,7 @@ func Test_executableName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with wrong directory.
+			// Test case with calling findExecutableName() function with wrong directory.
 			// As a result, want to receive an error.
 			name:    "Directory doesn't exist",
 			prepare: func() error { return nil },
@@ -181,7 +181,7 @@ func Test_executableName(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling sourceFileName method with multiple files where one of them is main
+			// Test case with calling findExecutableName() function with multiple files where one of them is main
 			// As a result, want to receive a name that should be executed
 			name: "Multiple files where one of them is main",
 			prepare: func() error {
@@ -206,8 +206,8 @@ func Test_executableName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with multiple files where one of them is a .class file
-			// with main() method
+			// Test case with calling findExecutableName() function with multiple files where one of them is a .class file
+			// with main() method. The executable class name is the same as the source file name.
 			// As a result, want to receive a name that should be executed
 			name: "Multiple Java class files where one of them contains main",
 			prepare: func() error {
@@ -229,12 +229,13 @@ func Test_executableName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with multiple files where one of them is a .class file
-			// with main() method
+			// Test case with calling findExecutableName() function with multiple files where one of them is a .class file
+			// with main() method. The executable class name is different from the source file name.
 			// As a result, want to receive a name that should be executed
 			name: "Multiple Java class files where one of them contains main",
 			prepare: func() error {
 				testdataPath := "java_testdata"
+				// The source file contains two classes, one of them has main() method (class name is different from the source file name)
 				sourceFile := filepath.Join(testdataPath, "HasMainTest2.java")
 
 				err := compileJavaFiles(sourceFile)
@@ -252,8 +253,8 @@ func Test_executableName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with multiple files where one of them is a .class file
-			// with main() method
+			// Test case with calling findExecutableName() function with multiple files where one of them is a .class file
+			// with main() method with incorrect signature.
 			// As a result, want to receive a name that should be executed
 			name: "Multiple Java class files where one of them contains main() with incorrect signature",
 			prepare: func() error {
@@ -275,8 +276,7 @@ func Test_executableName(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling sourceFileName method with multiple files where one of them is a .class file
-			// with main() method
+			// Test case with calling findExecutableName() function with multiple files where none of them has main().
 			// As a result, want to receive a name that should be executed
 			name: "Multiple Java class files where none of them contain main()",
 			prepare: func() error {
@@ -298,7 +298,7 @@ func Test_executableName(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling sourceFileName method with file which has multiple dots in its name
+			// Test case with calling findExecutableName() function with file which has multiple dots in its name
 			// As a result, want to receive a name that should be executed
 			name: "File with multiple dots in the name",
 			prepare: func() error {
