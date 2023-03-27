@@ -20,11 +20,15 @@ import 'package:flutter/material.dart';
 
 // TODO(alexeyinkin): In future convert all dialogs to this one.
 class BeamDialog extends StatelessWidget {
+  static const _padding = 40.0;
+
   const BeamDialog({
     required this.child,
+    this.actions = const [],
     this.title,
   });
 
+  final List<Widget> actions;
   final Widget child;
   final Widget? title;
 
@@ -32,20 +36,33 @@ class BeamDialog extends StatelessWidget {
     required Widget child,
     required BuildContext context,
     Widget? title,
+    List<Widget> actions = const [],
   }) async {
     await showDialog<void>(
       context: context,
       builder: (BuildContext context) => BeamDialog(
-        child: AlertDialog(
-          title: title,
-          content: child,
-        ),
+        actions: actions,
+        title: title,
+        child: child,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return child;
+    return AlertDialog(
+      actions: actions,
+      actionsPadding: const EdgeInsets.only(
+        bottom: _padding,
+        right: _padding,
+      ),
+      content: child,
+      contentPadding: const EdgeInsets.all(_padding),
+      title: title,
+      titlePadding: const EdgeInsets.only(
+        top: _padding,
+        left: _padding,
+      ),
+    );
   }
 }

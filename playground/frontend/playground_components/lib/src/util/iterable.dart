@@ -16,16 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:playground_components/playground_components.dart';
-
-import '../example_descriptor.dart';
-
-const pythonAggregationMean = ExampleDescriptor(
-  //
-  'AggregationMean',
-  dbPath: 'SDK_PYTHON_AggregationMean',
-  path: '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py',
-  sdk: Sdk.python,
-
-  outputContains: ['5.5'],
-);
+extension IterableExtension on Iterable {
+  Iterable<T> alternateWith<T>(T separator) {
+    return expand<T>((item) sync* {
+      yield separator;
+      yield item as T;
+    }).skip(1);
+  }
+}
