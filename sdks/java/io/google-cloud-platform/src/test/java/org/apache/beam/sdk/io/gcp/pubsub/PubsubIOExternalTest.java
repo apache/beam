@@ -150,7 +150,7 @@ public class PubsubIOExternalTest {
     RunnerApi.PTransform transform = result.getTransform();
     assertThat(
         transform.getSubtransformsList(),
-        Matchers.hasItem(MatchesPattern.matchesPattern(".*MapElements.*")));
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*PreparePubsubWrite.*")));
     assertThat(
         transform.getSubtransformsList(),
         Matchers.hasItem(MatchesPattern.matchesPattern(".*PubsubUnboundedSink.*")));
@@ -167,7 +167,7 @@ public class PubsubIOExternalTest {
 
     // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer
     RunnerApi.PTransform writeComposite3 =
-        result.getComponents().getTransformsOrThrow(writeComposite2.getSubtransforms(3));
+        result.getComponents().getTransformsOrThrow(writeComposite2.getSubtransforms(4));
 
     // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer/ParMultiDo(Writer)
     RunnerApi.PTransform writeParDo =

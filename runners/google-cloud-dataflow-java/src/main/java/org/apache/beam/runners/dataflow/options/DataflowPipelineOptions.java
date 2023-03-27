@@ -153,7 +153,14 @@ public interface DataflowPipelineOptions
   @Description("The customized dataflow worker jar")
   String getDataflowWorkerJar();
 
-  void setDataflowWorkerJar(String dataflowWorkerJar);
+  void setDataflowWorkerJar(String dataflowWorkerJafr);
+
+  // Disable this support for now until the Dataflow backend fully supports this option.
+  @Description("Whether to allow dynamic pubsub destinations. Temporary option: will be removed.")
+  @Default.Boolean(false)
+  Boolean getEnableDynamicPubsubDestinations();
+
+  void setEnableDynamicPubsubDestinations(Boolean enable);
 
   /** Set of available Flexible Resource Scheduling goals. */
   enum FlexResourceSchedulingGoal {
