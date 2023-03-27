@@ -574,6 +574,17 @@ public class BigQueryHelpers {
     }
   }
 
+  public static @Nullable Table getTable(BigQueryOptions options, TableReference tableRef)
+      throws InterruptedException, IOException {
+    try (DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options)) {
+      return datasetService.getTable(tableRef);
+    } catch (IOException | InterruptedException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   static String getDatasetLocation(
       DatasetService datasetService, String projectId, String datasetId) {
     Dataset dataset;

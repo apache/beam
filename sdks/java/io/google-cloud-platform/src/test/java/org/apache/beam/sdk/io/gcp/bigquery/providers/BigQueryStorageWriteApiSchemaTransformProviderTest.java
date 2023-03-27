@@ -21,12 +21,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
@@ -40,6 +43,8 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -59,6 +64,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class BigQueryStorageWriteApiSchemaTransformProviderTest {
+
   private FakeDatasetService fakeDatasetService = new FakeDatasetService();
   private FakeJobService fakeJobService = new FakeJobService();
   private FakeBigQueryServices fakeBigQueryServices =
@@ -72,6 +78,11 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
           Field.of("number", FieldType.INT64),
           Field.of("dt", FieldType.logicalType(SqlTypes.DATETIME)));
 
+  private static final Schema SCHEMA_WRONG =
+      Schema.of(
+          Field.of("name_wrong", FieldType.STRING),
+          Field.of("number", FieldType.INT64),
+          Field.of("dt", FieldType.logicalType(SqlTypes.DATETIME)));
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Before
@@ -149,6 +160,63 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
     assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
     assertEquals(3, fakeDatasetService.getAllRows("project", "dataset", "simple_write").size());
+  }
+
+  @Test
+  public void testSchemaValidationSuccess() throws Exception {
+    String tableSpec = "project:dataset.schema_validation_success";
+    Table table = new Table();
+    TableReference tableReference = BigQueryHelpers.parseTableSpec(tableSpec);
+    table.setTableReference(tableReference);
+    table.setSchema(BigQueryUtils.toTableSchema(SCHEMA));
+    fakeDatasetService.createTable(table);
+    BigQueryStorageWriteApiSchemaTransformConfiguration config =
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+            .setTable(tableSpec)
+            .setCreateDisposition("CREATE_IF_NEEDED")
+            .build();
+
+    runWithConfig(config);
+    p.run().waitUntilFinish();
+
+    assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
+    assertEquals(
+        3, fakeDatasetService.getAllRows("project", "dataset", "schema_validation_success").size());
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testSchemaValidationFail() throws Exception {
+    String tableSpec = "project:dataset.schema_validation_fail";
+    Table table = new Table();
+    TableReference tableReference = BigQueryHelpers.parseTableSpec(tableSpec);
+    table.setTableReference(tableReference);
+    table.setSchema(BigQueryUtils.toTableSchema(SCHEMA_WRONG));
+    fakeDatasetService.createTable(table);
+    BigQueryStorageWriteApiSchemaTransformConfiguration config =
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+            .setTable(tableSpec)
+            .setCreateDisposition("CREATE_IF_NEEDED")
+            .build();
+    BigQueryStorageWriteApiSchemaTransformProvider provider =
+        new BigQueryStorageWriteApiSchemaTransformProvider();
+
+    BigQueryStorageWriteApiPCollectionRowTupleTransform writeRowTupleTransform =
+        (BigQueryStorageWriteApiPCollectionRowTupleTransform)
+            provider.from(config).buildTransform();
+    writeRowTupleTransform.setBigQueryServices(fakeBigQueryServices);
+    List<Row> testRows =
+        Arrays.asList(
+            Row.withSchema(SCHEMA)
+                .withFieldValue("name", "a")
+                .withFieldValue("number", 1L)
+                .withFieldValue("dt", LocalDateTime.parse("2000-01-01T00:00:00"))
+                .build());
+    String tag = provider.inputCollectionNames().get(0);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<Row> rows = pipeline.apply(Create.of(testRows).withRowSchema(SCHEMA));
+    PCollectionRowTuple input = PCollectionRowTuple.of(tag, rows);
+    writeRowTupleTransform.expand(input);
   }
 
   @Test
