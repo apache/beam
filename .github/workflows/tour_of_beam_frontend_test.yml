@@ -57,25 +57,6 @@ jobs:
           cd playground/frontend/playground_components_dev && flutter pub get && cd -
           cd learning/tour-of-beam/frontend && flutter pub get && cd -
 
-#      - name: 'Formatting'
-#        run: dart format --output=none --set-exit-if-changed .
-
-#      - name: 'Analyze playground_components'
-#        working-directory: playground/frontend/playground_components
-#        run: dart analyze --fatal-infos
-
-#      - name: 'Analyze playground_components_dev'
-#        working-directory: playground/frontend/playground_components_dev
-#        run: dart analyze --fatal-infos
-
-#      - name: 'Analyze playground'
-#        working-directory: playground/frontend
-#        run: dart analyze --fatal-infos lib test
-
-      # - name: 'Test tour of beam'
-      #   working-directory: learning/tour-of-beam/frontend
-      #   run: flutter test
-
       - uses: nanasess/setup-chromedriver@v1
 
       - name: 'Integration tests'
