@@ -121,7 +121,7 @@ class EFOKinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     return source;
   }
 
-  private EFOShardSubscribersPool createPool() throws TransientKinesisException {
+  EFOShardSubscribersPool createPool() throws TransientKinesisException {
     return new EFOShardSubscribersPool(spec, consumerArn, kinesis);
   }
 

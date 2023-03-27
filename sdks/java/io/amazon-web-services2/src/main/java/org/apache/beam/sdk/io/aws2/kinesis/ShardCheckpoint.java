@@ -206,14 +206,28 @@ class ShardCheckpoint implements Serializable {
     return shardId;
   }
 
-  StartingPosition toStartingPosition() {
+  /**
+   * Converts stored checkpoint into start position.
+   *
+   * <p>It follows the semantics of {@link #getShardIterator(SimplifiedKinesisClient)} which
+   * effectively forces {@link ShardIteratorType#AT_SEQUENCE_NUMBER} for fetching first batch, all
+   * the time.
+   *
+   * <p>{@link #moveAfter(KinesisRecord)} never stores {@link ShardIteratorType#AT_SEQUENCE_NUMBER}
+   * and, instead, relies on {@link RecordFilter} to drop first redundant de-aggregated records or
+   * entire batch of de-aggregated or "normal" records.
+   */
+  StartingPosition toEFOStartingPosition() {
     StartingPosition.Builder builder = StartingPosition.builder().type(shardIteratorType);
     switch (shardIteratorType) {
       case AT_TIMESTAMP:
         return builder.timestamp(TimeUtil.toJava(checkNotNull(timestamp))).build();
       case AT_SEQUENCE_NUMBER:
       case AFTER_SEQUENCE_NUMBER:
-        return builder.sequenceNumber(checkNotNull(sequenceNumber)).build();
+        return StartingPosition.builder()
+            .type(AT_SEQUENCE_NUMBER)
+            .sequenceNumber(checkNotNull(sequenceNumber))
+            .build();
 
       default:
         return builder.build();

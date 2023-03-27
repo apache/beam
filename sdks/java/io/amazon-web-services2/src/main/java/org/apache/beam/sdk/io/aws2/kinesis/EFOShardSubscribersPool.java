@@ -277,7 +277,7 @@ class EFOShardSubscribersPool {
     EFOShardSubscriber subscriber =
         new EFOShardSubscriber(
             this, cp.getShardId(), read, consumerArn, kinesis, onErrorCoolDownMs);
-    StartingPosition startingPosition = cp.toStartingPosition();
+    StartingPosition startingPosition = cp.toEFOStartingPosition();
     if (subscriptionError == null) {
       subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
     }
@@ -370,29 +370,32 @@ class EFOShardSubscribersPool {
       subSequenceNumber = r.subSequenceNumber();
     }
 
+    /**
+     * To be used for end-of-record handling / heartbeat records.
+     *
+     * <p>{@link #subSequenceNumber} can not be re-set to 0 here, cause otherwise
+     * end-of-aggregated-record would erase progress in consuming aggregated records.
+     *
+     * @param eventRecords
+     */
     void update(EventRecords eventRecords) {
       sequenceNumber = checkNotNull(eventRecords.event.continuationSequenceNumber());
-      subSequenceNumber = 0L;
       subscriber.ackEvent();
     }
 
+    /**
+     * Follows semantics of {@link ShardCheckpoint#moveAfter(KinesisRecord)}, e.g. it will always
+     * persist {@link ShardIteratorType#AFTER_SEQUENCE_NUMBER} as soon as some record gets its
+     * {@link #sequenceNumber} registered.
+     */
     ShardCheckpoint toCheckpoint() {
       if (sequenceNumber != null) {
-        if (subSequenceNumber != 0L) {
-          return new ShardCheckpoint(
-              initCheckpoint.getStreamName(),
-              initCheckpoint.getShardId(),
-              ShardIteratorType.AT_SEQUENCE_NUMBER,
-              sequenceNumber,
-              subSequenceNumber);
-        } else {
-          return new ShardCheckpoint(
-              initCheckpoint.getStreamName(),
-              initCheckpoint.getShardId(),
-              ShardIteratorType.AFTER_SEQUENCE_NUMBER,
-              sequenceNumber,
-              subSequenceNumber);
-        }
+        return new ShardCheckpoint(
+            initCheckpoint.getStreamName(),
+            initCheckpoint.getShardId(),
+            ShardIteratorType.AFTER_SEQUENCE_NUMBER,
+            sequenceNumber,
+            subSequenceNumber);
       } else {
         // sequenceNumber was never updated for this shard,
         // fall back to its init checkpoint
@@ -400,10 +403,6 @@ class EFOShardSubscribersPool {
       }
     }
 
-    /**
-     * FIXME: needed is-before semantic. Why {@link ShardReadersPool} did it like this? This
-     * currently allows 1 record duplicate.
-     */
     boolean recordWasNotCheckPointedYet(KinesisRecord r) {
       return initCheckpoint.isBeforeOrAt(r);
     }

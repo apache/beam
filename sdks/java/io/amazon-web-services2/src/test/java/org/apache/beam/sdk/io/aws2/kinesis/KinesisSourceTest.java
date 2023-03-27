@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.sdk.io.aws2.kinesis.EFOHelpers.createIOOptions;
+import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.createIOOptions;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShards;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
@@ -29,11 +29,11 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.regions.Region;
@@ -58,9 +58,11 @@ public class KinesisSourceTest {
             .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON);
 
     KinesisReaderCheckpoint initCheckpoint = new KinesisReaderCheckpoint(ImmutableList.of());
+
     UnboundedSource.UnboundedReader<KinesisRecord> reader =
         new KinesisSource(readSpec, initCheckpoint).createReader(opts(), null);
     assertThat(reader).isInstanceOf(KinesisReader.class);
+
     UnboundedSource.UnboundedReader<KinesisRecord> efoReader =
         new KinesisSource(readSpecEFO, initCheckpoint).createReader(opts(), null);
     assertThat(efoReader).isInstanceOf(EFOKinesisReader.class);
