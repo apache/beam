@@ -48,7 +48,7 @@ func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
 	return javaLifeCycle
 }
 
-// findExecutableName returns name of .class file which has main() method
+// findExecutableName returns name of the .class file which has main() method
 func findExecutableName(ctx context.Context, executableFileFolderPath string) (string, error) {
 	dirEntries, err := os.ReadDir(executableFileFolderPath)
 	if err != nil {
@@ -70,7 +70,7 @@ func findExecutableName(ctx context.Context, executableFileFolderPath string) (s
 			filePath := fmt.Sprintf("%s/%s", executableFileFolderPath, entry.Name())
 			content, err := os.ReadFile(filePath)
 			if err != nil {
-				logger.Error(fmt.Sprintf("error during file reading: %s", err.Error()))
+				logger.Errorf("findExecutableName(): error when reading file %s: %s", entry.Name(), err.Error())
 				break
 			}
 			ext := filepath.Ext(entry.Name())
@@ -78,18 +78,19 @@ func findExecutableName(ctx context.Context, executableFileFolderPath string) (s
 			sdk := utils.ToSDKFromExt(ext)
 
 			if sdk == pb.Sdk_SDK_UNSPECIFIED {
-				logger.Error("invalid file extension")
-				break
+				logger.Errorf("findExecutableName(): file %s: unknown file extension: %s, skipping", entry.Name(), ext)
+				continue
 			}
 
 			switch ext {
 			case javaCompiledFileExtension:
 				isMain, err := isMainClass(ctx, executableFileFolderPath, filename)
 				if err != nil {
-					return "", err
+					logger.Errorf("findExecutableName(): file %s: error during checking main class: %s", entry.Name(), err.Error())
+					break
 				}
 				if isMain {
-					logger.Infof("executableName(): main file is %s", filename)
+					logger.Infof("findExecutableName(): main file is %s", filename)
 					return filename, nil
 				}
 			default:
@@ -103,7 +104,7 @@ func findExecutableName(ctx context.Context, executableFileFolderPath string) (s
 	return "", errors.New("cannot find file with main() method")
 }
 
-// findTestExecutableName returns name of .class file which has JUnit tests
+// findTestExecutableName returns name of the .class file which has JUnit tests
 func findTestExecutableName(ctx context.Context, executableFileFolderPath string) (string, error) {
 	dirEntries, err := os.ReadDir(executableFileFolderPath)
 	if err != nil {
@@ -122,20 +123,17 @@ func findTestExecutableName(ctx context.Context, executableFileFolderPath string
 		case <-ctx.Done():
 			return "", ctx.Err()
 		default:
-			if err != nil {
-				logger.Error(fmt.Sprintf("error during file reading: %s", err.Error()))
-				break
-			}
 			ext := filepath.Ext(entry.Name())
 			filename := strings.TrimSuffix(entry.Name(), ext)
 
 			if ext == javaCompiledFileExtension {
-				isMain, err := isTestClass(ctx, executableFileFolderPath, filename)
+				isTest, err := isTestClass(ctx, executableFileFolderPath, filename)
 				if err != nil {
-					return "", err
+					logger.Errorf("findTestExecutableName(): file %s: error during checking main class: %s", entry.Name(), err.Error())
+					break
 				}
-				if isMain {
-					logger.Infof("executableName(): main file is %s", filename)
+				if isTest {
+					logger.Infof("findTestExecutableName(): main file is %s", filename)
 					return filename, nil
 				}
 			}
