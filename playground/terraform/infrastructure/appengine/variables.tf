@@ -36,3 +36,8 @@ variable "location_id_us" {
   description = "Location of App"
   default = "us-central"
 }
+
+variable "location_id_eu" {
+  description = "Location of App"
+  default = "europe-west"
+}
