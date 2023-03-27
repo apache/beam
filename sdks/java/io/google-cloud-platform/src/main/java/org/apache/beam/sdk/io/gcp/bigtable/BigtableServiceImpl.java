@@ -92,12 +92,11 @@ class BigtableServiceImpl implements BigtableService {
   private static final double WATERMARK_PERCENTAGE = .1;
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
 
-  public BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
+  BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
     this(settings, null);
   }
 
-  public BigtableServiceImpl(BigtableDataSettings settings, Duration readWaitTimeout)
-      throws IOException {
+  BigtableServiceImpl(BigtableDataSettings settings, Duration readWaitTimeout) throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
     RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();

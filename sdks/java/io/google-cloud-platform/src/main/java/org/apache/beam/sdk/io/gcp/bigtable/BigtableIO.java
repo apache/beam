@@ -306,9 +306,8 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      *
-     * @deprecated please set the configurations directly:
-     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
-     *     and set credentials in {@link PipelineOptions}.
+     * @deprecated read options are configured directly on BigtableIO.read(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -691,7 +690,8 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being written to, and other parameters.
      *
-     * @deprecated please configure the write options directly.
+     * @deprecated write options are configured directly on BigtableIO.write(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
