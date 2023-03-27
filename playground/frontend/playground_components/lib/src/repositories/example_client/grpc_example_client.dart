@@ -45,11 +45,9 @@ class GrpcExampleClient implements ExampleClient {
   final grpc.PlaygroundServiceClient _defaultClient;
 
   factory GrpcExampleClient({
-    required String url,
+    required Uri url,
   }) {
-    final channel = IisWorkaroundChannel.xhr(
-      Uri.parse(url),
-    );
+    final channel = IisWorkaroundChannel.xhr(url);
 
     return GrpcExampleClient._(
       client: grpc.PlaygroundServiceClient(channel),
@@ -59,6 +57,15 @@ class GrpcExampleClient implements ExampleClient {
   GrpcExampleClient._({
     required grpc.PlaygroundServiceClient client,
   }) : _defaultClient = client;
+
+  @override
+  Future<grpc.GetMetadataResponse> getMetadata() async {
+    return _runSafely(
+      () => _defaultClient.getMetadata(
+        grpc.GetMetadataRequest(),
+      ),
+    );
+  }
 
   @override
   Future<GetPrecompiledObjectsResponse> getPrecompiledObjects(

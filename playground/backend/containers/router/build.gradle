@@ -19,6 +19,7 @@
 
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'base'
+apply from: "$project.rootDir/playground/backend/containers/git-functions.gradle"
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
@@ -67,7 +68,9 @@ docker {
   tags containerImageTags()
   buildArgs(['BASE_IMAGE': project.rootProject.hasProperty(["base-image"]) ?
                            project.rootProject["base-image"] :
-                           "golang:1.18-bullseye" ])
+                           "golang:1.18-bullseye",
+             'GIT_COMMIT': getGitCommitHash(),
+             'GIT_TIMESTAMP': getGitCommitTimestamp()])
 }
 
 task dockerComposeLocalUp() {

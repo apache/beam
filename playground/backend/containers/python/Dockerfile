@@ -19,6 +19,8 @@ ARG GO_BASE_IMAGE=golang:1.18-bullseye
 ARG SDK_TAG
 ARG BASE_IMAGE=apache/beam_python3.7_sdk:$SDK_TAG
 FROM $GO_BASE_IMAGE AS build
+ARG GIT_COMMIT="<unknown>"
+ARG GIT_TIMESTAMP="0"
 
 # Setup Go Environment
 ENV GOPATH /go
@@ -36,9 +38,11 @@ RUN ls
 RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
-    go build -o /go/bin/server_python_backend
+    go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_python_backend
 
 FROM $BASE_IMAGE
+ARG SDK_TAG
+ENV BEAM_VERSION=$SDK_TAG
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/

@@ -19,6 +19,8 @@
 ARG py_version
 FROM python:"${py_version}"-bullseye as beam
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
 
 # Install native bindings required for dependencies.
 RUN apt-get update && \
@@ -78,7 +80,7 @@ RUN pip freeze --all
 COPY target/LICENSE /opt/apache/beam/
 COPY target/LICENSE.python /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
-COPY target/launcher/linux_amd64/boot /opt/apache/beam/
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 

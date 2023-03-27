@@ -119,6 +119,8 @@ docker {
                     project.rootProject.hasProperty(["isRelease"]),
             'java_version': imageJavaVersion,
     ])
+    buildx project.containerPlatforms() != [project.nativeArchitecture()]
+    platform(*project.containerPlatforms())
 }
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||

@@ -442,6 +442,26 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.allFlinkVersions = project.flink_versions.split(',')
     project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
 
+    project.ext.nativeArchitecture = {
+      // Best guess as to this system's normalized native architecture name.
+      System.getProperty('os.arch') == 'aarch64' || System.getProperty('os.arch').contains('arm') ? "arm64" : "amd64"
+    }
+
+    project.ext.containerArchitectures = {
+      if (isRelease(project)) {
+        // Ensure we always publish the expected containers.
+        return ["amd64"];
+      } else if (project.rootProject.findProperty("container-architecture-list") != null) {
+        return project.rootProject.findProperty("container-architecture-list").split(',')
+      } else {
+        return [project.nativeArchitecture()]
+      }
+    }
+
+    project.ext.containerPlatforms = {
+      return project.containerArchitectures().collect { arch -> "linux/" + arch }
+    }
+
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -2034,15 +2054,17 @@ class BeamModulePlugin implements Plugin<Project> {
         ext.goTargets = './...'
         ext.outputLocation = './build/bin/${GOOS}_${GOARCH}/'
         doLast {
-          project.exec {
-            // Set these so the substitutions work.
-            // May cause issues for the folks running gradle commands on other architectures
-            // and operating systems.
-            environment "GOOS", "linux"
-            environment "GOARCH", "amd64"
+          for (goarch in project.containerArchitectures()) {
+            project.exec {
+              // Set these so the substitutions work.
+              // May cause issues for the folks running gradle commands on other architectures
+              // and operating systems.
+              environment "GOOS", "linux"
+              environment "GOARCH", goarch
 
-            executable 'sh'
-            args '-c', "${project.ext.goCmd} build -o "+ ext.outputLocation + ' ' + ext.goTargets
+              executable 'sh'
+              args '-c', "${project.ext.goCmd} build -o "+ ext.outputLocation + ' ' + ext.goTargets
+            }
           }
         }
       }
