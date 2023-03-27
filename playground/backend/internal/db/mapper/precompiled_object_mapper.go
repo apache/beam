@@ -202,7 +202,7 @@ func appendPrecompiledObject(objectInfo dto.ObjectInfo, sdkToCategories *dto.Sdk
 	categoryToPrecompiledObjects[categoryName] = append(objects, objectInfo)
 }
 
-// precompiledObjectsToCategory adds categories with precompiled objects to protobuf object
+// precompiledObjectsToCategory create category protobuf object from precompiled objects
 func precompiledObjectsToCategory(categoryName string, precompiledObjects dto.PrecompiledObjects) *pb.Categories_Category {
 	category := pb.Categories_Category{
 		CategoryName:       categoryName,
