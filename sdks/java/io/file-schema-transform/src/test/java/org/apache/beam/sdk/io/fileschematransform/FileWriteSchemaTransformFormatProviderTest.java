@@ -346,7 +346,7 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
 
   @Test
   public void byteTypes() {
-    List<String> formatsThatSupportSingleByteType = Arrays.asList("csv", "json", "xml");
+    List<String> formatsThatSupportSingleByteType = Arrays.asList("json", "xml");
     assumeTrue(formatsThatSupportSingleByteType.contains(getFormat()));
 
     String to = folder(SchemaAwareJavaBeans.ByteType.class);

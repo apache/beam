@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.fileschematransform;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.BYTE_TYPE_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DOUBLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
@@ -27,11 +28,15 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ByteType;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TimeContaining;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.Select;
@@ -143,7 +148,7 @@ public class CsvWriteSchemaTransformFormatProviderTest
   @Override
   public void arrayPrimitiveDataTypes() {
     assertThrowsWith(
-        "columns in header match fields in Schema with invalid types: shortList,integerList,stringList,doubleList,floatList,booleanList,longList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
+        "columns in header match fields in Schema with invalid types: integerList,stringList,doubleList,floatList,booleanList,longList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
         "arrayPrimitiveDataTypes",
         DATA.arrayPrimitiveDataTypesRows,
         ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA);
@@ -241,6 +246,35 @@ public class CsvWriteSchemaTransformFormatProviderTest
     DateTimeFormatter formatter = ISODateTimeFormat.dateTime();
     for (Row row : DATA.timeContainingRows) {
       expected.add(formatter.print(row.getDateTime(validField)));
+    }
+    PAssert.that(csv).containsInAnyOrder(expected);
+    readPipeline.run();
+  }
+
+  @Test
+  public void byteTypeNonRepeated() {
+    System.out.println("BYTE TYPE NON REPEATED");
+    String prefix =
+        folder(ByteType.class, "byteTypeNonRepeated");
+    String validField = "byte";
+    PCollection<Row> input =
+        writePipeline.apply(
+            Create.of(DATA.byteTypeRows).withRowSchema(BYTE_TYPE_SCHEMA));
+    PCollection<Row> modifiedInput = input.apply(Select.fieldNames(validField));
+    Schema modifiedSchema = modifiedInput.getSchema();
+    FileWriteSchemaTransformConfiguration configuration = buildConfiguration(prefix);
+    PCollection<String> result =
+        modifiedInput.apply(getProvider().buildTransform(configuration, modifiedSchema));
+    PCollection<Long> numFiles = result.apply(Count.globally());
+    PAssert.thatSingleton(numFiles).isEqualTo(1L);
+    writePipeline.run().waitUntilFinish();
+
+    PCollection<String> csv =
+        readPipeline.apply(TextIO.read().from(configuration.getFilenamePrefix() + "*"));
+    List<String> expected = new ArrayList<>();
+    expected.add(validField);
+    for (Row row : DATA.byteTypeRows) {
+      expected.add(row.getByte(validField).toString());
     }
     PAssert.that(csv).containsInAnyOrder(expected);
     readPipeline.run();
