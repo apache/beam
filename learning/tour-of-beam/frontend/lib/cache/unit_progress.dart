@@ -163,11 +163,11 @@ class UnitProgressCache extends ChangeNotifier {
     );
   }
 
-  Future<ExampleLoadingDescriptor> getSavedSnippet({
+  Future<ExampleLoadingDescriptor> getSavedExampleLoadingDescriptor({
     required Sdk sdk,
     required String unitId,
   }) async {
-    return _getUserProgressRepository().getSavedSnippet(
+    return _getUserProgressRepository().getSavedExampleLoadingDescriptor(
       sdk: sdk,
       unitId: unitId,
     );

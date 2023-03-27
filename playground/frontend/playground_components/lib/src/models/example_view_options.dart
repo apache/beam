@@ -39,6 +39,7 @@ class ExampleViewOptions with EquatableMixin {
     this.foldImports = true,
   });
 
+  // fromJson and toJson are used for json serialization.
   factory ExampleViewOptions.fromJson(Map<String, dynamic> json) =>
       _$ExampleViewOptionsFromJson(json);
 

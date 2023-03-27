@@ -36,7 +36,7 @@ class CloudUserProgressRepository extends AbstractUserProgressRepository {
   }
 
   @override
-  Future<ExampleLoadingDescriptor> getSavedSnippet({
+  Future<ExampleLoadingDescriptor> getSavedExampleLoadingDescriptor({
     required Sdk sdk,
     required String unitId,
   }) async {

@@ -127,7 +127,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       await _emptyPlayground();
     } else {
       final sdk = contentTreeController.sdk;
-      final content = _unitContentCache.getUnitContent(
+      final content = await _unitContentCache.getUnitContent(
         sdk.id,
         currentNode.id,
       );
@@ -220,28 +220,24 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _loadSnippetByType() async {
-    final unitContent = _currentUnitContent;
-    if (unitContent == null) {
-      return;
-    }
     final ExampleLoadingDescriptor descriptor;
     switch (_snippetType) {
       case SnippetType.original:
         descriptor = _getSharedOrEmptyDescriptor(
           currentSdk,
-          unitContent.taskSnippetId,
+          _currentUnitContent!.taskSnippetId,
         );
         break;
       case SnippetType.saved:
-        descriptor = await _unitProgressCache.getSavedSnippet(
+        descriptor = await _unitProgressCache.getSavedExampleLoadingDescriptor(
           sdk: currentSdk,
-          unitId: unitContent.id,
+          unitId: _currentUnitContent!.id,
         );
         break;
       case SnippetType.solution:
         descriptor = _getSharedOrEmptyDescriptor(
           currentSdk,
-          unitContent.solutionSnippetId,
+          _currentUnitContent!.solutionSnippetId,
         );
         break;
     }
