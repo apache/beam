@@ -15,22 +15,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Use Slowly-Updating Side Input Pattern to Auto Update Models in RunInference Transform
+# Use slowly-updating side input patterns to auto-update models
 
-The pipeline in this example uses [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) PTransform with a `side input` PCollection that emits `ModelMetadata` to run inferences on images using open source Tensorflow models trained on `imagenet`.
+The pipeline in this example uses a [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) `PTransform` with a side input `PCollection` that emits `ModelMetadata` to run inferences on images using open source Tensorflow models trained on `imagenet`.
 
-In this example, we will use `WatchFilePattern` as a side input. `WatchFilePattern` is used to watch for the file updates matching the `file_pattern`
-based on timestamps and emits the latest [ModelMetadata](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/), which is used in
-`RunInference` PTransform for the dynamic auto model updates without the need for stopping the beam pipeline.
+This example uses `WatchFilePattern` as a side input. `WatchFilePattern` is used to watch for the file updates matching the `file_pattern`
+based on timestamps. It emits the latest [ModelMetadata](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/), which is used in
+the RunInference `PTransform` to dynamically update the model without stopping the Beam pipeline.
 
-**Note**: Slowly-updating side input pattern is non-deterministic.
+**Note**: Slowly-updating side input patterns are non-deterministic.
 
 ### Setting up source
 
-We will use PubSub topic as a source to read the image names. 
- * PubSub topic emits a `UTF-8` encoded model path that will be used read and preprocess images for running the inference.
+To read the image names, use a Pub/Sub topic as the source. 
+ * The Pub/Sub topic emits a `UTF-8` encoded model path that is used to read and preprocess images to run the inference.
 
-### Models for image segmentation
+## Models for image segmentation
 
 For the purpose of this example, use models saved in [HDF5](https://www.tensorflow.org/tutorials/keras/save_and_load#hdf5_format) format. Initially, pass a model to the Tensorflow ModelHandler for predictions until there is an update via side input. 
 After a while, upload a model that matches the `file_pattern` to the GCS bucket. The bucket path will be used a glob pattern and is passed to the `WatchFilePattern`.
@@ -126,13 +126,13 @@ class PostProcessor(beam.DoFn):
 post_processor_pcoll = (inference_pcoll | "PostProcessor" >> PostProcessor())
 ```
 
-### Run the pipeline
+## Run the pipeline
 ```python
 result = pipeline.run().wait_until_finish()
 ```
-Once the pipeline is run with initial settings, upload a model matching the `file_pattern` to GCS bucket. After some time, you will see that your pipeline starts to use the updated model instead of the initial model. 
+After you run the pipeline with the initial settings, upload a model matching the `file_pattern` to the Google Cloud Storage bucket. Your pipeline will use the updated model instead of the initial model. 
 
 **Note**: `model_name` of the `ModelMetaData` object will be attached as prefix to the [metrics](https://beam.apache.org/documentation/ml/runinference-metrics/) calculated by the RunInference PTransform. 
 
 ## Final remarks
-Use this example as a pattern on how to use side inputs with RunInference PTransform to auto update the models without the need to stop the pipeline. A similar example for PyTorch can be found on [GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py).
+Use this example as a pattern when using side inputs with the RunInference `PTransform` to auto-update the models without stopping the pipeline. You can see a similar example for PyTorch on [GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py).
