@@ -334,6 +334,7 @@ To use this transform, you need a dataset and model for language modeling.
 ...
 ```
 2. Create a file named `MODEL_PATH` that contains the pickled file of a scikit-learn model trained on MNIST data. Please refer to this scikit-learn [model persistence documentation](https://scikit-learn.org/stable/model_persistence.html) on how to serialize models.
+3. Update sklearn_examples_requirements.txt to match the version of sklearn used to train the model. Sklearn doesn't guarantee model compatability between versions.
 
 
 ### Running `sklearn_mnist_classification.py`
