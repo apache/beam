@@ -223,7 +223,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     final ExampleLoadingDescriptor descriptor;
     switch (_snippetType) {
       case SnippetType.original:
-        descriptor = _getSharedOrEmptyDescriptor(
+        descriptor = _getStandardOrEmptyDescriptor(
           currentSdk,
           _currentUnitContent!.taskSnippetId,
         );
@@ -235,7 +235,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         );
         break;
       case SnippetType.solution:
-        descriptor = _getSharedOrEmptyDescriptor(
+        descriptor = _getStandardOrEmptyDescriptor(
           currentSdk,
           _currentUnitContent!.solutionSnippetId,
         );
@@ -250,7 +250,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     );
   }
 
-  ExampleLoadingDescriptor _getSharedOrEmptyDescriptor(
+  ExampleLoadingDescriptor _getStandardOrEmptyDescriptor(
     Sdk sdk,
     String? snippetId,
   ) {
@@ -259,9 +259,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         sdk: currentSdk,
       );
     }
-    return UserSharedExampleLoadingDescriptor(
-      sdk: currentSdk,
-      snippetId: snippetId,
+    return StandardExampleLoadingDescriptor(
+      path: snippetId,
+      sdk: sdk,
     );
   }
 
