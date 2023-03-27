@@ -66,7 +66,7 @@ project_id           = "project_id"          #GCP Project ID
 network_name         = "network_name"        #GCP VPC Network Name for Playground deployment
 gke_name             = "playground-backend"  #Playground GKE Cluster name
 region               = "us-east1"            #Set the deployment region
-location             = "us-east1-b"          #Select the deployment location from available in the specified region
+zone                 = "us-east1-b"          #Select the deployment zone from available in the specified region
 state_bucket         = "bucket_name"         #GCS bucket name for Beam Playground temp files
 redis_name           = "playground_redis"    #Choose the name for redis instance
 min_count            = 2                     #Min node count for GKE cluster
@@ -112,7 +112,7 @@ Where "playground.zone" is the registered DNS zone<br>
 ```
 2. Run the following command to authenticate in GKE:
 ```
-gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
+gcloud container clusters get-credentials --region `chosen_zone` `gke_name` --project `project_id`
 ```
 Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```

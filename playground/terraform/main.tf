@@ -24,7 +24,7 @@ module "infrastructure" {
   region                        = var.region
   network_region                = var.region
   redis_region                  = var.region
-  location                      = var.location
+  location                      = var.zone
   #Artifact Registry
   repository_id                 = var.repository_id
   repository_location           = var.region

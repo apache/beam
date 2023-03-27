@@ -31,7 +31,9 @@ variable "region" {
   description = "Infrastructure Region"
 }
 
-variable "location" {}
+variable "zone" {
+  description = "Infrastructure Zone"
+}
 
 # Infrastructure variables
 
