@@ -45,6 +45,7 @@ class ContentExampleLoader extends ExampleLoader {
         files: descriptor.files,
         name: descriptor.name ?? 'Untitled Example',
         path: '',
+        pipelineOptions: descriptor.pipelineOptions,
         sdk: descriptor.sdk,
         type: ExampleType.example,
         viewOptions: descriptor.viewOptions,

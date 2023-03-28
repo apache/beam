@@ -335,6 +335,7 @@ class GrpcExampleClient implements ExampleClient {
 
   ExampleBase _toExampleModel(Sdk sdk, grpc.PrecompiledObject example) {
     return ExampleBase(
+      alwaysRun: example.alwaysRun,
       complexity: example.complexity.model,
       contextLine: example.contextLine,
       description: example.description,
