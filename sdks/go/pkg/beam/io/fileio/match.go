@@ -51,6 +51,14 @@ type matchOption struct {
 // matching files.
 type MatchOptionFn func(*matchOption)
 
+// MatchEmptyAllowIfWildcard specifies that empty matches are allowed if the pattern contains a
+// wildcard.
+func MatchEmptyAllowIfWildcard() MatchOptionFn {
+	return func(o *matchOption) {
+		o.EmptyTreatment = emptyAllowIfWildcard
+	}
+}
+
 // MatchEmptyAllow specifies that empty matches are allowed.
 func MatchEmptyAllow() MatchOptionFn {
 	return func(o *matchOption) {

@@ -47,6 +47,13 @@ type readOption struct {
 // reading files.
 type ReadOptionFn func(*readOption)
 
+// ReadAutoCompression specifies that the compression type of files should be auto-detected.
+func ReadAutoCompression() ReadOptionFn {
+	return func(o *readOption) {
+		o.Compression = compressionAuto
+	}
+}
+
 // ReadGzip specifies that files have been compressed using gzip.
 func ReadGzip() ReadOptionFn {
 	return func(o *readOption) {
@@ -58,6 +65,13 @@ func ReadGzip() ReadOptionFn {
 func ReadUncompressed() ReadOptionFn {
 	return func(o *readOption) {
 		o.Compression = compressionUncompressed
+	}
+}
+
+// ReadDirectorySkip specifies that directories are skipped.
+func ReadDirectorySkip() ReadOptionFn {
+	return func(o *readOption) {
+		o.DirectoryTreatment = directorySkip
 	}
 }
 
