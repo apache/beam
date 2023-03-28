@@ -19,14 +19,16 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getDefaultLocalParallelism;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
@@ -56,6 +58,8 @@ import org.slf4j.LoggerFactory;
 public class FlinkExecutionEnvironments {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutionEnvironments.class);
+
+  private static final ObjectMapper mapper = new ObjectMapper();
 
   /**
    * If the submitted job is a batch processing job, this method creates the adequate Flink {@link
@@ -138,7 +142,8 @@ public class FlinkExecutionEnvironments {
 
     applyLatencyTrackingInterval(flinkBatchEnv.getConfig(), options);
 
-    configureWebUIOptions(flinkBatchEnv.getConfig());
+    configureWebUIOptions(
+        flinkBatchEnv.getConfig(), options.as(org.apache.beam.sdk.options.PipelineOptions.class));
 
     return flinkBatchEnv;
   }
@@ -245,33 +250,32 @@ public class FlinkExecutionEnvironments {
 
     configureStateBackend(options, flinkStreamEnv);
 
-    configureWebUIOptions(flinkStreamEnv.getConfig());
+    configureWebUIOptions(
+        flinkStreamEnv.getConfig(), options.as(org.apache.beam.sdk.options.PipelineOptions.class));
 
     return flinkStreamEnv;
   }
 
-  private static void configureWebUIOptions(ExecutionConfig config) {
-    // Attempts to capture command line arguments passed to the job.
-    String commandLineArgs = System.getProperty("sun.java.command");
+  private static void configureWebUIOptions(
+      ExecutionConfig config, org.apache.beam.sdk.options.PipelineOptions options) {
+    SerializablePipelineOptions serializablePipelineOptions =
+        new SerializablePipelineOptions(options);
+    String optionsAsString = serializablePipelineOptions.toString();
 
-    if (commandLineArgs != null) {
-      String[] cliOptions =
-          Arrays.stream(commandLineArgs.split(" "))
-              .filter(s -> s.contains("--"))
-              .toArray(String[]::new);
-
-      ListMultimap<String, String> optionMultiMap =
-          PipelineOptionsFactory.fromArgs(cliOptions).commandLineOptions();
-
+    try {
+      JsonNode node = mapper.readTree(optionsAsString);
+      JsonNode optionsNode = node.get("options");
       Map<String, String> output =
-          optionMultiMap.asMap().entrySet().stream()
-              .map(
-                  e ->
-                      new AbstractMap.SimpleEntry<String, String>(
-                          e.getKey(), String.join(",", e.getValue())))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+          Streams.stream(optionsNode.fields())
+              .filter(
+                  entry ->
+                      !entry.getValue().asText().isEmpty()
+                          && !"null".equals(entry.getValue().asText()))
+              .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().asText()));
 
       config.setGlobalJobParameters(new GlobalJobParametersImpl(output));
+    } catch (Exception e) {
+      LOG.warn("Unable to configure web ui options", e);
     }
   }
 

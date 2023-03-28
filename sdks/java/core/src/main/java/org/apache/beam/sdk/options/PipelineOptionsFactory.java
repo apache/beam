@@ -310,16 +310,6 @@ public class PipelineOptionsFactory {
     }
 
     /**
-     * Returns multiMap key/value pair of all command line {@link PipelineOptions} passed by the
-     * user.
-     *
-     * @return A multiMap of key/value pair of {@link PipelineOptions}.
-     */
-    public ListMultimap<String, String> commandLineOptions() {
-      return parseCommandLine(args, strictParsing);
-    }
-
-    /**
      * Creates and returns an object that implements {@code <T>} using the values configured on this
      * builder during construction.
      *
@@ -333,7 +323,7 @@ public class PipelineOptionsFactory {
 
       // Attempt to parse the arguments into the set of initial options to use
       if (args != null) {
-        ListMultimap<String, String> options = commandLineOptions();
+        ListMultimap<String, String> options = parseCommandLine(args, strictParsing);
         LOG.debug("Provided Arguments: {}", options);
         printHelpUsageAndExitIfNeeded(options, System.out, true /* exit */);
         initialOptions = parseObjects(klass, options, strictParsing);
