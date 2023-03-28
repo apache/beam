@@ -70,6 +70,8 @@
   like `df | (Transform1 | Transform2 | ...)` to avoid excessive conversions.)
 * The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
   for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
+* Protobuf for Python SDK is updated to `protobuf>=4.21.1,<4.23.0`. Beam doesn't support protobuf 3.x anymore. ([#24599](https://github.com/apache/beam/pull/24599))
+* Several Google client libraties are updated to major versions for Python SDK. ([#24599](https://github.com/apache/beam/pull/24599))
 
 ## Breaking Changes
 
