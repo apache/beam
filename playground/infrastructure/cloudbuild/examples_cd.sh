@@ -145,8 +145,9 @@ do
         LogOutput "Error: Checker is broken. Exiting the script."
         exit 1
     fi
+    echo "${sdk}_example_changed"
 
-    if [[ ${sdk}_example_changed == 1 ]]; then
+    if [[ ${sdk}_example_changed == True ]]; then
       echo "Running ci_cd.py for SDK $sdk"
 
       cd $BEAM_ROOT_DIR/playground/infrastructure
@@ -168,4 +169,4 @@ do
     else
       LogOutput "Checker has not found relevant examples"
     fi
-        done
+done
