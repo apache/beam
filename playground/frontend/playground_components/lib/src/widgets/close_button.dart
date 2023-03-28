@@ -16,16 +16,28 @@
  * limitations under the License.
  */
 
-import 'package:playground_components/playground_components.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
 
-import '../example_descriptor.dart';
+class BeamCloseButton extends StatelessWidget {
+  static const _width = 120.0;
+  static const _height = 40.0;
 
-const pythonAggregationMean = ExampleDescriptor(
-  //
-  'AggregationMean',
-  dbPath: 'SDK_PYTHON_AggregationMean',
-  path: '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py',
-  sdk: Sdk.python,
-
-  outputContains: ['5.5'],
-);
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: const ButtonStyle(
+        elevation: MaterialStatePropertyAll<double>(0),
+        fixedSize: MaterialStatePropertyAll<Size>(
+          Size(_width, _height),
+        ),
+        shape: MaterialStatePropertyAll<StadiumBorder>(
+          StadiumBorder(),
+        ),
+        padding: MaterialStatePropertyAll(EdgeInsets.only(bottom: 2)),
+      ),
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text('widgets.closeButton.label'.tr().toUpperCase()),
+    );
+  }
+}

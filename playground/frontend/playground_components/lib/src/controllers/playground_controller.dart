@@ -312,10 +312,10 @@ class PlaygroundController with ChangeNotifier {
   }
 
   late BeamShortcut runShortcut = BeamShortcut(
-    shortcuts: LogicalKeySet(
+    keys: [
       LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.enter,
-    ),
+    ],
     actionIntent: const RunIntent(),
     createAction: (BuildContext context) => CallbackAction(
       onInvoke: (_) => codeRunner.runCode(),
@@ -323,11 +323,11 @@ class PlaygroundController with ChangeNotifier {
   );
 
   late BeamShortcut resetShortcut = BeamShortcut(
-    shortcuts: LogicalKeySet(
+    keys: [
       LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.shift,
       LogicalKeyboardKey.keyE,
-    ),
+    ],
     actionIntent: const ResetIntent(),
     createAction: (BuildContext context) => CallbackAction(
       onInvoke: (_) => reset(),
@@ -335,11 +335,11 @@ class PlaygroundController with ChangeNotifier {
   );
 
   late BeamShortcut showSuggestionsShortcut = BeamShortcut(
-    shortcuts: LogicalKeySet(
+    keys: [
       LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.shift,
       LogicalKeyboardKey.keyS,
-    ),
+    ],
     actionIntent: const ShowSuggestionsIntent(),
     createAction: (BuildContext context) => CallbackAction(
       onInvoke: (_) => showSuggestions(),

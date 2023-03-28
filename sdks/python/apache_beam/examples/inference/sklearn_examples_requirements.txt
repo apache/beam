@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -12,6 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-tfx==1.9.0
-tensorflow==2.11.1
+# This should match the saved version of your trained model.
+# Beam's tests use sklearn 1.0.2 for their saved models.
+scikit-learn==1.0.2
