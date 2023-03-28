@@ -138,8 +138,8 @@ abstract class BatchSpannerRead
       BatchReadOnlyTransaction batchTx =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
       ReadOperation op = c.element();
-      boolean databoostEnabled = config.getDataboostEnabled() != null &&
-          Boolean.TRUE.equals(config.getDataboostEnabled().get());
+      boolean dataBoostEnabled = config.getDataBoostEnabled() != null &&
+          Boolean.TRUE.equals(config.getDataBoostEnabled().get());
 
       // While this creates a ServiceCallMetric for every input element, in reality, the number
       // of input elements will either be very few (normally 1!), or they will differ and
@@ -155,7 +155,7 @@ abstract class BatchSpannerRead
                   op.getPartitionOptions(),
                   op.getQuery(),
                   Options.priority(config.getRpcPriority().get()),
-                  Options.dataBoostEnabled(databoostEnabled));
+                  Options.dataBoostEnabled(dataBoostEnabled));
         } else if (op.getIndex() != null) {
           // Read with index was selected.
           partitions =
@@ -166,7 +166,7 @@ abstract class BatchSpannerRead
                   op.getKeySet(),
                   op.getColumns(),
                   Options.priority(config.getRpcPriority().get()),
-                  Options.dataBoostEnabled(databoostEnabled));
+                  Options.dataBoostEnabled(dataBoostEnabled));
         } else {
           // Read from table was selected.
           partitions =
@@ -176,7 +176,7 @@ abstract class BatchSpannerRead
                   op.getKeySet(),
                   op.getColumns(),
                   Options.priority(config.getRpcPriority().get()),
-                  Options.dataBoostEnabled(databoostEnabled));
+                  Options.dataBoostEnabled(dataBoostEnabled));
         }
         metric.call("ok");
       } catch (SpannerException e) {
