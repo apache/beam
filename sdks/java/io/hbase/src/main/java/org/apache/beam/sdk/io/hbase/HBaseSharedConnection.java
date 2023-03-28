@@ -19,10 +19,15 @@ package org.apache.beam.sdk.io.hbase;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.apache.hadoop.hbase.shaded.com.google.common.base.Preconditions;
+import org.apache.hadoop.hbase.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,11 +41,23 @@ class HBaseSharedConnection implements Serializable {
   private static final long serialVersionUID = 5252999807656940415L;
   private static final Logger LOG = LoggerFactory.getLogger(HBaseSharedConnection.class);
 
-  // Transient connection to be initialized per worker
-  // Wrap Connection in array because static Connection cannot be non-null in beam repo
-  private static @MonotonicNonNull Connection connection = null;
-  // Number of threads using the shared connection, close connection if connectionCount goes to 0
-  private static int connectionCount;
+  // Transient connection pool to be initialized per worker
+  // Integer represents number of threads connected, close connection if connectionCount goes to 0
+  private static HashMap<String, Pair<Connection, Integer>> connectionPool = new HashMap<>();
+
+  /**
+   * Hash configuration to a string.
+   *
+   * <p>Zookeeper quorum is guaranteed to be unique per hbase cluster.
+   *
+   * @param configuration
+   * @return
+   */
+  private static String hash(Configuration configuration) {
+    Preconditions.checkNotNull(configuration);
+
+    return configuration.get("hbase.zookeeper.quorum");
+  }
 
   /**
    * Create or return existing Hbase connection.
@@ -51,12 +68,31 @@ class HBaseSharedConnection implements Serializable {
    */
   public static synchronized Connection getOrCreate(Configuration configuration)
       throws IOException {
-    if (connection == null || connection.isClosed()) {
-      connection = ConnectionFactory.createConnection(configuration);
-      connectionCount = 0;
+    String confString = hash(configuration);
+
+    // Initialize connection if it didn't exist before
+    if (!connectionPool.containsKey(confString)) {
+      connectionPool.put(
+          confString, new Pair<>(ConnectionFactory.createConnection(configuration), 0));
     }
-    connectionCount++;
-    return connection;
+
+    // Increment connection count
+    connectionPool.get(confString).setSecond(connectionPool.get(confString).getSecond() + 1);
+
+    return connectionPool.get(confString).getFirst();
+  }
+
+  /**
+   * Closes all open connections in pool.
+   *
+   * @throws IOException
+   */
+  @Internal
+  static synchronized void closeAll() throws IOException {
+    Set<String> set = new HashSet<>(connectionPool.keySet());
+    for (String confString : set) {
+      closeAll(confString);
+    }
   }
 
   /**
@@ -64,26 +100,54 @@ class HBaseSharedConnection implements Serializable {
    *
    * @throws IOException
    */
-  public static synchronized void close() throws IOException {
-    connectionCount--;
-    if (connectionCount == 0) {
-      if (connection != null) {
-        connection.close();
-      }
-    }
-    if (connectionCount < 0) {
-      LOG.warn("Connection count at " + connectionCount + ", should not be possible");
-      connectionCount = 0;
+  public static synchronized void close(Configuration configuration) throws IOException {
+    String confString = hash(configuration);
+    close(confString);
+  }
+
+  private static synchronized void closeAll(String confString) throws IOException {
+    while (connectionPool.containsKey(confString)) {
+      close(confString);
     }
   }
 
-  public String getDebugString() {
-    return String.format(
-        "Connection down: %s%n" + "Connectors: %s%n",
-        (connection == null || connection.isClosed()), connectionCount);
+  private static synchronized void close(String confString) throws IOException {
+    if (!connectionPool.containsKey(confString)) {
+      return;
+    }
+    // Decrement connection count
+    connectionPool.get(confString).setSecond(connectionPool.get(confString).getSecond() - 1);
+
+    // Warn if connection count is not 0 and reset connection count
+    if (connectionPool.get(confString).getSecond() < 0) {
+      LOG.warn("Connection count for + " + confString + " at below 0, " + getDebugString());
+      connectionPool.get(confString).setSecond(0);
+    }
+
+    // Close connection and remove entry from connection pool and count
+    if (connectionPool.get(confString).getSecond() == 0) {
+      connectionPool.get(confString).getFirst().close();
+
+      // Remove entry from pool
+      connectionPool.remove(confString);
+    }
   }
 
-  public int getConnectionCount() {
-    return connectionCount;
+  public static String getDebugString() {
+    return String.format("Connection pool status: %s%n", connectionPool);
+  }
+
+  public static int getConnectionPoolSize() {
+    return connectionPool.size();
+  }
+
+  public static int getConnectionCount(Configuration configuration) {
+    String confString = hash(configuration);
+
+    if (!connectionPool.containsKey(confString)) {
+      return 0;
+    }
+
+    return connectionPool.get(confString).getSecond();
   }
 }

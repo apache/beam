@@ -945,7 +945,7 @@ public class HBaseIO {
           table = null;
         }
 
-        HBaseSharedConnection.close();
+        HBaseSharedConnection.close(configuration);
       }
 
       @ProcessElement
