@@ -117,7 +117,7 @@ diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
 
 echo $diff
 for file in "${diff[@]}"; do
-    if [[ $file == *learning/katas/* ]] || [[ $file == *examples/* ]] || [[ $file == *sdks/* ]]
+    if [[ $file == *learning/katas/* ]] || [[ $file == *examples* ]] || [[ $file == *sdks/* ]]
     then
         LogOutput "At least one changed file is in the allowlist"
 
