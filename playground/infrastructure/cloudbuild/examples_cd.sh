@@ -135,11 +135,11 @@ do
     if [ $checker_status -eq 0 ]
     then
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        declare "${sdk}_example_changed=True"
+        declare "${sdk}_example_changed"='True'
     elif [ $checker_status -eq 11 ]
   then
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        declare "${sdk}_example_changed=False"
+        declare "${sdk}_example_changed"='False'
         exit 1
     else
         LogOutput "Error: Checker is broken. Exiting the script."
