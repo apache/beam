@@ -25,7 +25,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../constants/links.dart';
 import '../../../modules/analytics/analytics_service.dart';
-import '../../../modules/shortcuts/components/shortcuts_modal.dart';
+import '../../../modules/shortcuts/components/shortcuts_dialog.dart';
 import '../../../src/assets/assets.gen.dart';
 
 enum HeaderAction {
@@ -85,9 +85,11 @@ class _MoreActionsState extends State<MoreActions> {
               title: Text(appLocale.shortcuts),
               onTap: () {
                 AnalyticsService.get(context).trackOpenShortcutsModal();
-                showDialog<void>(
+                BeamDialog.show(
+                  actions: [BeamCloseButton()],
                   context: context,
-                  builder: (BuildContext context) => ShortcutsModal(
+                  title: Text(appLocale.shortcuts),
+                  child: ShortcutsDialogContent(
                     playgroundController: widget.playgroundController,
                   ),
                 );

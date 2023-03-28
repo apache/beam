@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BASE_IMAGE=openjdk:8
+ARG BASE_IMAGE=openjdk:11
 FROM golang:1.18-bullseye AS build
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"

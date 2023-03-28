@@ -38,7 +38,7 @@ class PostProcessor(beam.DoFn):
   Returns predicted label.
   """
   def process(self, element: PredictionResult) -> Iterable[str]:
-    predicted_class = numpy.argmax(element.inference[0], axis=-1)
+    predicted_class = numpy.argmax(element.inference, axis=-1)
     labels_path = tf.keras.utils.get_file(
         'ImageNetLabels.txt',
         'https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt'  # pylint: disable=line-too-long
@@ -116,7 +116,7 @@ def run(
       | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
 
   _ = predictions | "WriteOutput" >> beam.io.WriteToText(
-      known_args.output, shard_name_template='', append_trailing_newlines=False)
+      known_args.output, shard_name_template='', append_trailing_newlines=True)
 
   result = pipeline.run()
   result.wait_until_finish()
