@@ -115,11 +115,14 @@ git fetch --all > /dev/null 2>&1
 
 diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
 
+java_example_changed=False
+python_example_changed=False
+go_example_changed=False
+
 LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
 allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
 do
-    eval "${sdk}_example_changed"='False'
     LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
     cd $BEAM_ROOT_DIR/playground/infrastructure
     python3 checker.py \
