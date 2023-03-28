@@ -69,7 +69,7 @@ function LogOutput ()
 
 LogOutput "Input variables:
  ORIGIN=$ORIGIN
- STEP=$STEP
+ STEP=${_STEP}
  SUBDIRS=$SUBDIRS
  BEAM_ROOT_DIR=$BEAM_ROOT_DIR
  PROJECT_ID=$PROJECT_ID
