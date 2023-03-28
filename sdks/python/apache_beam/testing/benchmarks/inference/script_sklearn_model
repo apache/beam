@@ -24,6 +24,8 @@ BUCKET_NAME = "your-bucket-name"
 MODEL_NAME = "linear_regression_model.pkl"
 TRAINING_DATA = "gs://{}/data/housing_train.csv".format(BUCKET_NAME)
 """
+#loading the training data from local storage
+housing_data = pd.read_csv("housing_train.csv")
 
 # loading the training data
 housing_data = pd.read_csv(TRAINING_DATA)
@@ -35,6 +37,11 @@ y_train = housing_data["median_house_value"].values
 # training the model
 model = LinearRegression()
 model.fit(X_train, y_train)
+
+#saving the trained model to a local storage
+with open("linear_regression_model.pkl", "wb") as f:
+    pickle.dump(model, f)
+print("Trained model saved to local folder.")
 
 # saving the trained model to GCS
 """
