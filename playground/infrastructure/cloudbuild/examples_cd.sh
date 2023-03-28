@@ -111,7 +111,9 @@ LogOutput "All packages and dependencies have been successfully installed. Start
 
 LogOutput "Checking changed files in the PR"
 
-diff=($(git diff --name-only $DIFF_BASE $SOURCE_BRANCH | tr '\n' ' '))
+git fetch --all > /dev/null
+
+diff=($(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH | tr '\n' ' '))
 
 echo $diff
 for file in "${diff[@]}"; do
