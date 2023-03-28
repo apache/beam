@@ -16,11 +16,19 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
+import '../enums/complexity.dart';
+import 'dataset.dart';
 import 'example_base.dart';
+import 'example_view_options.dart';
 import 'sdk.dart';
 import 'snippet_file.dart';
 
+part 'example.g.dart';
+
 /// A [ExampleBase] that also has all large fields fetched.
+@JsonSerializable()
 class Example extends ExampleBase {
   final List<SnippetFile> files;
   final String? graph;
@@ -47,6 +55,12 @@ class Example extends ExampleBase {
     super.urlVcs,
     super.viewOptions,
   });
+
+  factory Example.fromJson(Map<String, dynamic> json) =>
+      _$ExampleFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$ExampleToJson(this);
 
   Example.fromBase(
     ExampleBase example, {

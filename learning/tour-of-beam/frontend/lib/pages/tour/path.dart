@@ -26,7 +26,8 @@ class TourPath extends PagePath {
   final String sdkId;
   final List<String> treeIds;
 
-  static final _regExp = RegExp(r'^/tour/([a-z]+)((/[-a-zA-Z0-9]+)*)$');
+  static final _regExp =
+      RegExp(r'^/tour/([a-z]+)/?([-a-zA-Z0-9]+(/[-a-zA-Z0-9]+)*)?/?$');
 
   TourPath({
     required this.sdkId,
@@ -49,10 +50,8 @@ class TourPath extends PagePath {
     final sdkId = matches[1] ?? (throw Error());
     final treeIdsString = matches[2];
 
-    final treeIds = (treeIdsString == null)
-        ? const <String>[]
-        // TODO(nausharipov): use RegExp to remove the slash
-        : treeIdsString.substring(1).split('/');
+    final treeIds =
+        treeIdsString == null ? const <String>[] : treeIdsString.split('/');
 
     return TourPath(
       sdkId: sdkId,

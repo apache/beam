@@ -391,7 +391,10 @@ class _ModuleHeader extends StatelessWidget {
                 padding: const EdgeInsets.all(BeamSizes.size4),
                 child: SvgPicture.asset(
                   Assets.svg.welcomeProgress0,
-                  color: BeamColors.grey4,
+                  colorFilter: const ColorFilter.mode(
+                    BeamColors.grey4,
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
               const SizedBox(width: BeamSizes.size16),

@@ -27,10 +27,33 @@ class MarkdownCodeBuilder extends MarkdownElementBuilder {
     final String textContent = element.textContent;
     final bool isCodeBlock = textContent.contains('\n');
     if (isCodeBlock) {
-      /// codeblockDecoration is applied
-      return null;
+      return _CodeBlock(text: textContent);
     }
     return _InlineCode(text: textContent);
+  }
+}
+
+class _CodeBlock extends StatelessWidget {
+  final String text;
+  const _CodeBlock({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final scrollController = ScrollController();
+    return Padding(
+      padding: const EdgeInsets.all(BeamSizes.size4),
+      child: Scrollbar(
+        controller: scrollController,
+        scrollbarOrientation: ScrollbarOrientation.bottom,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(BeamSizes.size10),
+          scrollDirection: Axis.horizontal,
+          child: Text(text),
+        ),
+      ),
+    );
   }
 }
 

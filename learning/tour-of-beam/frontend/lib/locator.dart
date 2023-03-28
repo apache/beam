@@ -45,11 +45,13 @@ void _initializeAuth() {
 }
 
 void _initializeCaches() {
-  GetIt.instance.registerSingleton<TobClient>(_client);
-  GetIt.instance.registerSingleton(ContentTreeCache(client: _client));
-  GetIt.instance.registerSingleton(SdkCache(client: _client));
-  GetIt.instance.registerSingleton(UnitContentCache(client: _client));
-  GetIt.instance.registerSingleton(UnitProgressCache(client: _client));
+  final client = CloudFunctionsTobClient();
+
+  GetIt.instance.registerSingleton<TobClient>(client);
+  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
+  GetIt.instance.registerSingleton(SdkCache(client: client));
+  GetIt.instance.registerSingleton(UnitContentCache(client: client));
+  GetIt.instance.registerSingleton(UnitProgressCache());
 }
 
 void _initializeState() {

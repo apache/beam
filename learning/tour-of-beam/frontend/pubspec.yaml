@@ -24,7 +24,7 @@ version: 0.1.0
 
 environment:
   sdk: '>=2.19.2 <4.0.0'
-  flutter: '>=3.3.2'
+  flutter: '>=3.7.3'
 
 dependencies:
   app_state: ^0.9.2
@@ -41,12 +41,13 @@ dependencies:
   flutter_svg: ^2.0.1
   get_it: ^7.2.0
   google_fonts: ^4.0.3
-  google_sign_in: ^6.0.0
+  hive: ^2.2.3
   http: ^0.13.5
   json_annotation: ^4.7.0
   markdown: ^7.0.1
   playground_components: { path: ../../../playground/frontend/playground_components }
   provider: ^6.0.3
+  rate_limiter: ^1.0.0
   shared_preferences: ^2.0.15
   url_launcher: ^6.1.5
   url_strategy: ^0.2.0

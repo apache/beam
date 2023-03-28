@@ -64,20 +64,22 @@ class _Popup extends StatelessWidget {
       child: Container(
         width: BeamSizes.popupWidth,
         padding: const EdgeInsets.all(BeamSizes.size16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'pages.tour.hint',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ).tr(),
-            const SizedBox(height: BeamSizes.size8),
-            TobMarkdown(
-              padding: EdgeInsets.zero,
-              data: hint,
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'pages.tour.hint',
+                style: Theme.of(context).textTheme.headlineLarge,
+              ).tr(),
+              const SizedBox(height: BeamSizes.size8),
+              TobMarkdown(
+                padding: EdgeInsets.zero,
+                data: hint,
+              ),
+            ],
+          ),
         ),
       ),
     );

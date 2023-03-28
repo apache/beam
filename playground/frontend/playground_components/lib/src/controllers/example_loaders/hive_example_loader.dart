@@ -16,53 +16,34 @@
  * limitations under the License.
  */
 
-import 'dart:async';
+import 'dart:convert';
+
+import 'package:hive/hive.dart';
 
 import '../../cache/example_cache.dart';
 import '../../models/example.dart';
-import '../../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
+import '../../models/example_loading_descriptors/hive_example_loading_descriptor.dart';
 import '../../models/sdk.dart';
 import 'example_loader.dart';
 
-/// Loads a given example from the local cache, then adds info from network.
-///
-/// This loader assumes that [ExampleCache] is loading all examples to
-/// its cache. So it only completes if this is successful.
-class StandardExampleLoader extends ExampleLoader {
+class HiveExampleLoader extends ExampleLoader {
   @override
-  final StandardExampleLoadingDescriptor descriptor;
+  final HiveExampleLoadingDescriptor descriptor;
 
   final ExampleCache exampleCache;
-  final _completer = Completer<Example>();
+
+  HiveExampleLoader({
+    required this.descriptor,
+    required this.exampleCache,
+  });
 
   @override
   Sdk? get sdk => descriptor.sdk;
 
   @override
-  Future<Example> get future => _completer.future;
-
-  StandardExampleLoader({
-    required this.descriptor,
-    required this.exampleCache,
-  }) {
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    try {
-      final example = await exampleCache.getPrecompiledObject(
-        descriptor.path,
-        descriptor.sdk,
-      );
-
-      _completer.complete(
-        exampleCache.loadExampleInfo(example),
-      );
-
-      // ignore: avoid_catches_without_on_clauses
-    } catch (ex, trace) {
-      _completer.completeError(ex, trace);
-      return;
-    }
+  Future<Example> get future async {
+    final box = await Hive.openBox(descriptor.boxName);
+    final Map<String, dynamic> map = jsonDecode(box.get(descriptor.snippetId));
+    return Example.fromJson(map);
   }
 }
