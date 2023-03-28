@@ -193,6 +193,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     required List<SnippetFile> snippetFiles,
     required String unitId,
   }) async {
+    if (snippetType == SnippetType.solution) {
+      return;
+    }
     saveCodeStatus = SaveCodeStatus.saving;
     try {
       await _unitProgressCache.saveSnippet(
