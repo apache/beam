@@ -143,7 +143,7 @@ do
         exit 1
     fi
 
-    if [[ ${sdk}_example_changed == True ]]; then
+    if [[ "${sdk}_example_changed" == 'True' ]]; then
       echo "Running ci_cd.py for SDK $sdk"
 
       export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
