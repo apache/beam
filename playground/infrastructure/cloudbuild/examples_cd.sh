@@ -125,7 +125,7 @@ for file in "${diff[@]}"; do
           result=$(python -c "
 import logging
 from pathlib import Path
-from checker import check_sdk_examples
+from ../checker.py import check_sdk_examples
 
 sdk = ${sdk}
 result = check_sdk_examples(${file}, [sdk], '/workspace/beam')
