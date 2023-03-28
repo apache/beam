@@ -404,3 +404,19 @@ class GetSnippetResponse(_message.Message):
     pipeline_options: str
     complexity: Complexity
     def __init__(self, files: _Optional[_Iterable[_Union[SnippetFile, _Mapping]]] = ..., sdk: _Optional[_Union[Sdk, str]] = ..., pipeline_options: _Optional[str] = ..., complexity: _Optional[_Union[Complexity, str]] = ...) -> None: ...
+
+class GetMetadataRequest(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
+
+class GetMetadataResponse(_message.Message):
+    __slots__ = ["runner_sdk", "build_commit_hash", "build_commit_timestamp_seconds_since_epoch", "beam_sdk_version"]
+    RUNNER_SDK_FIELD_NUMBER: _ClassVar[int]
+    BUILD_COMMIT_HASH_FIELD_NUMBER: _ClassVar[int]
+    BUILD_COMMIT_TIMESTAMP_SECONDS_SINCE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    BEAM_SDK_VERSION_FIELD_NUMBER: _ClassVar[int]
+    runner_sdk: str
+    build_commit_hash: str
+    build_commit_timestamp_seconds_since_epoch: int
+    beam_sdk_version: str
+    def __init__(self, runner_sdk: _Optional[str] = ..., build_commit_hash: _Optional[str] = ..., build_commit_timestamp_seconds_since_epoch: _Optional[int] = ..., beam_sdk_version: _Optional[str] = ...) -> None: ...

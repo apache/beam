@@ -148,7 +148,12 @@ func GetPublicClassName(filePath, pattern string) (string, error) {
 		return "", err
 	}
 	re := regexp.MustCompile(pattern)
-	className := re.FindStringSubmatch(string(code))[1]
+	classNameMatch := re.FindStringSubmatch(string(code))
+	if len(classNameMatch) == 0 {
+		return "", errors.New(fmt.Sprintf("unable to find main class name in file %s", filePath))
+	}
+
+	className := classNameMatch[1]
 	return className, err
 }
 

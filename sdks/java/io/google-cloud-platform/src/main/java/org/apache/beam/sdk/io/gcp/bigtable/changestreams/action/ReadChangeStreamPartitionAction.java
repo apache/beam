@@ -138,6 +138,24 @@ public class ReadChangeStreamPartitionAction {
               + tracker.currentRestriction());
     }
 
+    // Lock the partition
+    if (!metadataTableDao.lockPartition(
+        partitionRecord.getPartition(), partitionRecord.getUuid())) {
+      LOG.info(
+          "RCSP: Could not acquire lock for partition: {}, with uid: {}, because this is a "
+              + "duplicate and another worker is working on this partition already.",
+          formatByteStringRange(partitionRecord.getPartition()),
+          partitionRecord.getUuid());
+      StreamProgress streamProgress = new StreamProgress();
+      streamProgress.setFailToLock(true);
+      metrics.decPartitionStreamCount();
+      if (!tracker.tryClaim(streamProgress)) {
+        LOG.debug("RCSP: Failed to claim tracker after failing to lock partition.");
+        return ProcessContinuation.stop();
+      }
+      return ProcessContinuation.stop();
+    }
+
     // Process CloseStream if it exists
     CloseStream closeStream = tracker.currentRestriction().getCloseStream();
     if (closeStream != null) {

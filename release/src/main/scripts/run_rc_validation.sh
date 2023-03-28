@@ -34,6 +34,10 @@ function clean_up(){
   echo "====================Final Steps===================="
   echo "-----------------Stopping Pubsub Java Injector-----------------"
   echo "Please stop java injector manually."
+  echo "-----------------Stopping multi-language quickstart services-----------------"
+  echo "Please stop the Java expansion service manually."
+  echo "Please stop the Python expansion service manually."
+  echo "Please stop the Python portable runner Job server manually."
   echo "-----------------Signing up Spreadsheet-----------------"
   echo "Please open this spreadsheet: https://s.apache.org/beam-release-validation"
   echo "Please sign up your name in the tests you have ran."
@@ -216,6 +220,19 @@ if [[ -z `which kubectl` ]]; then
 fi
 kubectl version
 
+if [[ ("$python_xlang_quickstart" = true) \
+      || ("$java_xlang_quickstart" = true) ]]; then
+  echo "[Confirmation Required] Multi-language quickstart tests require generating
+  final Docker tags for several candidate Docker images. This should be safe to do
+  so since these tags will be overridden during the Docker image finalization step
+  of the Beam release.
+  Continue with the release validation ? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Cannot continue with the validation. Exiting."
+    exit
+  fi
+fi
 
 echo ""
 echo "====================Starting Python Quickstart and MobileGame==================="
@@ -484,8 +501,236 @@ else
   echo "* Skipping Python Leaderboard & GameStates Validations"
 fi
 
+# Setting up Docker images for multi-language quickstart tests.
+if [[ ("$python_xlang_quickstart" = true) \
+      || ("$java_xlang_quickstart" = true) ]]; then
+  echo ""
+  echo "====================Generating Docker tags for multi-language quickstart tests==============="
+
+  RC_DOCKER_TAG=${RELEASE_VER}rc${RC_NUM}
+  FINAL_DOCKER_TAG=${RELEASE_VER}
+
+  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
+  do
+    PYTHON_DOCKER_IMAGE_REPO=apache/beam_${py_version}_sdk
+    PYTHON_RC_DOCKER_IMAGE=${PYTHON_DOCKER_IMAGE_REPO}:${RC_DOCKER_TAG}
+    PYTHON_FINAL_DOCKER_IMAGE=${PYTHON_DOCKER_IMAGE_REPO}:${FINAL_DOCKER_TAG}
+    docker pull ${PYTHON_DOCKER_IMAGE_REPO}:${RC_DOCKER_TAG}
+    echo "Creating Docker tag ${FINAL_DOCKER_TAG} from image ${PYTHON_RC_DOCKER_IMAGE}"
+    docker tag ${PYTHON_RC_DOCKER_IMAGE} ${PYTHON_FINAL_DOCKER_IMAGE}
+  done
+
+  JAVA_DOCKER_IMAGE_REPO=apache/beam_java11_sdk  # Using the default Java version.
+  JAVA_RC_DOCKER_IMAGE=${JAVA_DOCKER_IMAGE_REPO}:${RC_DOCKER_TAG}
+  JAVA_FINAL_DOCKER_IMAGE=${JAVA_DOCKER_IMAGE_REPO}:${FINAL_DOCKER_TAG}
+  docker pull ${JAVA_DOCKER_IMAGE_REPO}:${RC_DOCKER_TAG}
+  echo "Creating Docker tag ${FINAL_DOCKER_TAG} from image ${JAVA_RC_DOCKER_IMAGE}"
+  docker tag ${JAVA_RC_DOCKER_IMAGE} ${JAVA_FINAL_DOCKER_IMAGE}
+fi
+
 echo ""
-echo "====================Starting Python Cross-language Validations==============="
+echo "====================Starting Python Multi-language Quickstart Validations==============="
+if [[ ("$python_xlang_quickstart" = true) \
+      && ! -z `which gnome-terminal` && ! -z `which kubectl` ]]; then
+  cd ${LOCAL_BEAM_DIR}
+
+  echo "---------------------Downloading Python Staging RC----------------------------"
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+    { echo "Failed to download Python Staging RC files." ;exit 1; }
+  fi
+
+  echo "--------------------------Verifying Hashes------------------------------------"
+  sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+
+  `which pip` install --upgrade pip
+  `which pip` install --upgrade setuptools
+
+  echo "-----------------------Setting up Shell Env Vars------------------------------"
+  set_bashrc
+
+  # Run Python Multi-language pipelines under multiple versions of Python using DirectRunner
+  cd ${LOCAL_BEAM_DIR}
+  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
+  do
+    rm -rf ./beam_env_${py_version}
+    echo "--------------Setting up virtualenv with $py_version interpreter----------------"
+    $py_version -m venv beam_env_${py_version}
+    . ./beam_env_${py_version}/bin/activate
+    pip install --upgrade pip setuptools wheel
+    ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
+
+    echo "--------------------------Installing Python SDK-------------------------------"
+    pip install apache-beam-${RELEASE_VER}.zip
+
+    echo '************************************************************';
+    echo '* Running Python Multi-language Quickstart with DirectRunner';
+    echo '************************************************************';
+
+    PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX=python_multilang_quickstart
+    PYTHON_MULTILANG_QUICKSTART_INPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_input
+    PYTHON_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_output
+    PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_expected_output
+    PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_sorted_output
+    
+    # Cleaning up data from any previous runs.
+    rm ${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}*
+    rm ./beam-examples-multi-language-${RELEASE_VER}.jar
+
+    # Generating an input file.
+    input_data=( aaa bbb ccc ddd eee)
+
+    touch $PYTHON_MULTILANG_QUICKSTART_INPUT_FILE_NAME
+    touch $PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME
+
+    for item in ${input_data[*]}
+      do
+        echo $item >> $PYTHON_MULTILANG_QUICKSTART_INPUT_FILE_NAME
+        echo python:java:$item >> $PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME
+      done
+
+    # Downloading the expansion service jar.
+    wget ${REPO_URL}/org/apache/beam/beam-examples-multi-language/${RELEASE_VER}/beam-examples-multi-language-${RELEASE_VER}.jar
+    JAVA_EXPANSION_SERVICE_PORT=33333
+    
+    # Starting up the expansion service in a seperate shell.
+    echo "A new terminal will pop up and start a java expansion service."
+    gnome-terminal -x sh -c \
+    "echo '******************************************************';
+     echo '* Running Java expansion service in port ${JAVA_EXPANSION_SERVICE_PORT}';
+     echo '******************************************************';
+     java -jar ./beam-examples-multi-language-${RELEASE_VER}.jar ${JAVA_EXPANSION_SERVICE_PORT};
+    exec bash"
+
+    echo "Sleeping 10 seconds for the expansion service to start up."
+    sleep 10s
+
+    # Running the pipeline
+    python ${LOCAL_BEAM_DIR}/examples/multi-language/python/addprefix.py \
+        --runner DirectRunner \
+        --environment_type=DOCKER \
+        --input $PYTHON_MULTILANG_QUICKSTART_INPUT_FILE_NAME \
+        --output $PYTHON_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME \
+        --expansion_service_port $JAVA_EXPANSION_SERVICE_PORT
+
+    # Validating output
+    cat ${PYTHON_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME}* | sort >> ${PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME}
+
+    if cmp --silent -- $PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME $PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME; then
+      echo "Successfully validated Python multi-language quickstart example. No additional manual validation needed."
+    else
+      echo "Python multi-language quickstart output validation failed. Since the output of the pipeline did not match the expected output"
+      echo "Expected output:\n"
+      cat $PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME
+      echo "\n"
+      echo "Pipeline output:\n"
+      cat $PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME
+      echo "\n"
+      exit 1
+    fi
+  done # Loop over Python versions.
+else
+  echo "* Skipping Python Multi-language Quickstart Validations"
+fi
+
+echo ""
+echo "====================Starting Java Multi-language Quickstart Validations==============="
+if [[ ("$java_xlang_quickstart" = true) \
+      && ! -z `which gnome-terminal` && ! -z `which kubectl` ]]; then
+  cd ${LOCAL_BEAM_DIR}
+
+  echo "---------------------Downloading Python Staging RC----------------------------"
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+    { echo "Failed to download Python Staging RC files." ;exit 1; }
+  fi
+
+  echo "--------------------------Verifying Hashes------------------------------------"
+  sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+
+  `which pip` install --upgrade pip
+  `which pip` install --upgrade setuptools
+
+  echo "-----------------------Setting up Shell Env Vars------------------------------"
+  set_bashrc
+
+  # Run Java Multi-language pipelines under multiple versions of Python using DirectRunner
+  cd ${LOCAL_BEAM_DIR}
+  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
+  do
+    rm -rf ./beam_env_${py_version}
+    echo "--------------Setting up virtualenv with $py_version interpreter----------------"
+    $py_version -m venv beam_env_${py_version}
+    . ./beam_env_${py_version}/bin/activate
+    pip install --upgrade pip setuptools wheel
+    ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
+
+    echo "--------------------------Installing Python SDK-------------------------------"
+    pip install apache-beam-${RELEASE_VER}.zip[dataframe]
+
+    # Deacrivating in the main shell. We will reactivate the virtual environment new shells
+    # for the expansion service and the job server.
+    deactivate
+
+    PYTHON_PORTABLE_RUNNER_JOB_SERVER_PORT=44443
+    PYTHON_EXPANSION_SERVICE_PORT=44444
+
+    # Starting up the Job Server
+    echo "A new terminal will pop up and start a Python PortableRunner job server."
+    gnome-terminal -x sh -c \
+    "echo '******************************************************';
+     echo '* Running Python PortableRunner in port ${PYTHON_PORTABLE_RUNNER_JOB_SERVER_PORT}';
+     echo '******************************************************';
+     . ./beam_env_${py_version}/bin/activate;
+     python -m apache_beam.runners.portability.local_job_service_main -p ${PYTHON_PORTABLE_RUNNER_JOB_SERVER_PORT};
+    exec bash"
+
+    # Starting up the Python expansion service
+    echo "A new terminal will pop up and start a Python expansion service."
+    gnome-terminal -x sh -c \
+    "echo '******************************************************';
+     echo '* Running Python Portabexpansion service in port ${PYTHON_EXPANSION_SERVICE_PORT}';
+     echo '******************************************************';
+     . ./beam_env_${py_version}/bin/activate;
+     python -m apache_beam.runners.portability.expansion_service_main --port=${PYTHON_EXPANSION_SERVICE_PORT} \
+         --fully_qualified_name_glob=* \
+         --pickle_library=cloudpickle;
+    exec bash"
+
+    echo "Sleeping 10 seconds for the job server and the expansion service to start up."
+    sleep 10s
+
+    echo '************************************************************';
+    echo '* Running Java Multi-language Quickstart with DirectRunner';
+    echo '************************************************************';
+
+    JAVA_MULTILANG_QUICKSTART_FILE_PREFIX=java_multilang_quickstart
+    JAVA_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME=${JAVA_MULTILANG_QUICKSTART_FILE_PREFIX}_output
+
+    ./gradlew :examples:multi-language:pythonDataframeWordCount -Pver=${RELEASE_VER} -Prepourl=${REPO_URL} --args=" \
+    --runner=PortableRunner \
+    --jobEndpoint=localhost:${PYTHON_PORTABLE_RUNNER_JOB_SERVER_PORT} \
+    --expansionService=localhost:${PYTHON_EXPANSION_SERVICE_PORT} \
+    --output=${JAVA_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME}"
+
+    # We cannot validate local output since 
+    # TODO: Write output to GCS and validate when Python portable runner can forward credentials to GCS appropriately.
+
+    java_xlang_quickstart_status=$?
+    if [[ $java_xlang_quickstart_status -eq 0 ]]; then
+      echo "Successfully completed Java multi-language quickstart example. No manual validation needed."
+    else
+      { echo "Java multi-language quickstart failed since the pipeline execution failed." ;exit 1; }
+    fi
+  done # Loop over Python versions.
+else
+  echo "* Skipping Java Multi-language Quickstart Validations"
+fi
+
+echo ""
+echo "====================Starting Python Multi-language Validations with DataflowRunner==============="
 if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       || "$python_xlang_sql_taxi_dataflow" = true) \
       && ! -z `which gnome-terminal` && ! -z `which kubectl` ]]; then
@@ -519,7 +764,7 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
     echo "* Skipping Kafka cluster setup"
   fi
 
-  # Run Python XLang pipelines under multiple versions of Python
+  # Run Python multi-language pipelines under multiple versions of Python using Dataflow Runner
   cd ${LOCAL_BEAM_DIR}
   for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
   do
@@ -630,7 +875,7 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
     fi
   done # Loop over Python versions.
 else
-  echo "* Skipping Python Cross-language Validations"
+  echo "* Skipping Python Multi-language Dataflow Validations"
 fi
 echo "*************************************************************"
 echo " NOTE: Streaming pipelines are not automatically canceled.   "
