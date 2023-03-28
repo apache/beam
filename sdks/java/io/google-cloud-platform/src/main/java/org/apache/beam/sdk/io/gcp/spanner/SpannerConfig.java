@@ -280,7 +280,7 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies if the pipeline has to be run on the independent compute resource. */
   public SpannerConfig withDataboostEnabled(ValueProvider<Boolean> databoostEnabled) {
-    return toBuilder().setDataboostEnabled(databoostEnabled);
+    return toBuilder().setDataboostEnabled(databoostEnabled).build();
   }
 
   /** Specifies the PartitionQuery timeout. */
