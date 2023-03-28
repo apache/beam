@@ -198,7 +198,7 @@ def aliasMap = [
 
 ioModulesMap.forEach {cases, ioModules ->
   def hasDefaultTrigger = (cases == "true")
-  ioModulesMap.forEach {
+  ioModules.forEach {
     def triggerPaths = [
       '^sdks/java/io/' + it + '/.*$',
     ]

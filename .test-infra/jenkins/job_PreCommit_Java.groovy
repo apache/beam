@@ -77,7 +77,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^release/.*$',
     ],
     excludePathPatterns: excludePaths.collect {entry ->
-      "^$entry/.*\$"}
+      "^" + entry + '/.*$'}
     )
 builder.build {
   publishers {
