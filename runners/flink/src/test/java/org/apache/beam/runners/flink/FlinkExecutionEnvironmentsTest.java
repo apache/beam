@@ -20,8 +20,7 @@ package org.apache.beam.runners.flink;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,6 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
@@ -542,8 +542,8 @@ public class FlinkExecutionEnvironmentsTest {
     expectedBatchMap.put("executionModeForBatch", "PIPELINED");
     expectedBatchMap.put("gcsPerformanceMetrics", "false");
 
-    assertEquals(expectedMap, actualMap);
-    assertEquals(expectedBatchMap, actualBatchMap);
+    assertTrue(Maps.difference(expectedMap, actualMap).areEqual());
+    assertTrue(Maps.difference(expectedBatchMap, actualBatchMap).areEqual());
   }
 
   private void checkHostAndPort(Object env, String expectedHost, int expectedPort) {
