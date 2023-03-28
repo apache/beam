@@ -113,7 +113,7 @@ LogOutput "Checking changed files in the PR"
 
 git fetch --all > /dev/null
 
-diff=($(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH | tr '\n' ' '))
+diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
 
 echo $diff
 for file in "${diff[@]}"; do
