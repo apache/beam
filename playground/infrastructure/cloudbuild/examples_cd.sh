@@ -119,7 +119,7 @@ LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
 allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
 do
-    example_for_${sdk}_has_changed="UNKNOWN"
+    eval "${sdk}_example_changed"='False'
     LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
     cd $BEAM_ROOT_DIR/playground/infrastructure
     python3 checker.py \
@@ -132,11 +132,11 @@ do
     if [ $checker_status -eq 0 ]
     then
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        example_for_${sdk}_has_changed=True
+        "${sdk}_example_changed"=True
     elif [ $checker_status -eq 11 ]
   then
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        example_for_${sdk}_has_changed=False
+        "${sdk}_example_changed"=False
         exit 1
     else
         LogOutput "Error: Checker is broken. Exiting the script."
