@@ -41,6 +41,8 @@ package org.apache.beam.examples;
 //       location: local
 //       format: avro
 
+// Some comment
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
