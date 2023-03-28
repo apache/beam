@@ -41,6 +41,8 @@
 // with --input.
 package main
 
+// Comment to delete
+
 // beam-playground:
 //   name: DebuggingWordCount
 //   description: An example that counts words in Shakespeare's works includes regex filter("Flourish|stomach").
