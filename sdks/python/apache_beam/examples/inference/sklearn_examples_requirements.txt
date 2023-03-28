@@ -1,4 +1,4 @@
-#!/bin/bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,15 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-nohup /opt/mitmproxy/mitmdump -s /opt/mitmproxy/allow_list_proxy.py -p 8081 &
-while [ ! -f /home/appuser/.mitmproxy/mitmproxy-ca.pem ] ;
-do
-      sleep 2
-done
-openssl x509 -in /home/appuser/.mitmproxy/mitmproxy-ca.pem -inform PEM -out /home/appuser/.mitmproxy/mitmproxy-ca.crt
-cp /home/appuser/.mitmproxy/mitmproxy-ca.crt /usr/local/share/ca-certificates/extra/
-update-ca-certificates
-cat /home/appuser/.mitmproxy/mitmproxy-ca.pem >> /usr/local/lib/python3.10/site-packages/certifi/cacert.pem
-
-/opt/playground/backend/server_python_backend
+# This should match the saved version of your trained model.
+# Beam's tests use sklearn 1.0.2 for their saved models.
+scikit-learn==1.0.2

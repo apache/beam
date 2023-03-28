@@ -26,7 +26,7 @@ import 'package:playground/modules/examples/components/description_popover/descr
 import 'package:playground/modules/examples/example_selector.dart';
 import 'package:playground/modules/sdk/components/sdk_selector.dart';
 import 'package:playground/modules/sdk/components/sdk_selector_row.dart';
-import 'package:playground/modules/shortcuts/components/shortcuts_modal.dart';
+import 'package:playground/modules/shortcuts/components/shortcuts_dialog.dart';
 import 'package:playground/pages/standalone_playground/widgets/editor_textarea_wrapper.dart';
 import 'package:playground/pages/standalone_playground/widgets/feedback/feedback_dropdown_content.dart';
 import 'package:playground/pages/standalone_playground/widgets/feedback/playground_feedback.dart';
@@ -117,6 +117,6 @@ extension CommonFindersExtension on CommonFinders {
   }
 
   Finder shortcutsModal() {
-    return byType(ShortcutsModal);
+    return byType(ShortcutsDialogContent);
   }
 }
