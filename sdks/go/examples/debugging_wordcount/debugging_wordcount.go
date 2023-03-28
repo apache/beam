@@ -65,6 +65,7 @@ import (
 	"flag"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
