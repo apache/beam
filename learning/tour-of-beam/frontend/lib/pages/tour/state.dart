@@ -173,8 +173,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetEditingController.activeFileController?.isChanged ?? false;
     final snippetFiles = snippetEditingController.getFiles();
 
-    final doSave =
-        isCodeChanged && _currentUnitContent != null && snippetFiles.isNotEmpty;
+    final doSave = _isSnippetTypeSavable() &&
+        isCodeChanged &&
+        _currentUnitContent != null &&
+        snippetFiles.isNotEmpty;
 
     if (doSave) {
       // Snapshot of sdk and unitId at the moment of editing.
@@ -188,14 +190,15 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
   }
 
+  bool _isSnippetTypeSavable() {
+    return snippetType != SnippetType.solution;
+  }
+
   Future<void> _saveCode({
     required Sdk sdk,
     required List<SnippetFile> snippetFiles,
     required String unitId,
   }) async {
-    if (snippetType == SnippetType.solution) {
-      return;
-    }
     saveCodeStatus = SaveCodeStatus.saving;
     try {
       await _unitProgressCache.saveSnippet(
