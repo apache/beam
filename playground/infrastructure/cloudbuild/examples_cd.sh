@@ -160,6 +160,6 @@ do
           LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
       fi
     else
-      LogOutput "Checker has not found relevant examples"
+      LogOutput "Checker has not found any changed examples"
     fi
 done
