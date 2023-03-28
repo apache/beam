@@ -47,15 +47,15 @@ type readOption struct {
 // reading files.
 type ReadOptionFn func(*readOption)
 
-// ReadCompressionGzip specifies that files have been compressed using gzip.
-func ReadCompressionGzip() ReadOptionFn {
+// ReadGzip specifies that files have been compressed using gzip.
+func ReadGzip() ReadOptionFn {
 	return func(o *readOption) {
 		o.Compression = compressionGzip
 	}
 }
 
-// ReadCompressionUncompressed specifies that files have not been compressed.
-func ReadCompressionUncompressed() ReadOptionFn {
+// ReadUncompressed specifies that files have not been compressed.
+func ReadUncompressed() ReadOptionFn {
 	return func(o *readOption) {
 		o.Compression = compressionUncompressed
 	}

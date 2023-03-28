@@ -63,7 +63,7 @@ func TestReadMatches(t *testing.T) {
 		{
 			name: "Read matches with specified compression",
 			opts: []ReadOptionFn{
-				ReadCompressionGzip(),
+				ReadGzip(),
 			},
 			input: []any{
 				FileMetadata{
