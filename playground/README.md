@@ -19,8 +19,6 @@
 
 # Playground
 
-# Test
-
 The Beam Playground is a web application to run Beam code snippets in a modern browser. This directory holds code to
 build, test, and deploy the frontend and backend services.
 
