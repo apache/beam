@@ -24,8 +24,6 @@ BUCKET_NAME = "your-bucket-name"
 MODEL_NAME = "linear_regression_model.pkl"
 TRAINING_DATA = "gs://{}/data/housing_train.csv".format(BUCKET_NAME)
 """
-#loading the training data from local storage
-housing_data = pd.read_csv("housing_train.csv")
 
 # loading the training data
 housing_data = pd.read_csv(TRAINING_DATA)
