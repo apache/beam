@@ -242,9 +242,12 @@ public class XmlRowValueTest {
 
       XmlRowValue byteListValue = new XmlRowValue();
       byteListValue.setValue(byteList, row);
-      assertEquals(singleByte, row.getArray(byteList), byteListValue.getValueList().stream()
-          .map(XmlRowValue::getPrimitiveValue)
-          .collect(Collectors.toList()));
+      assertEquals(
+          singleByte,
+          row.getArray(byteList),
+          byteListValue.getValueList().stream()
+              .map(XmlRowValue::getPrimitiveValue)
+              .collect(Collectors.toList()));
     }
   }
 

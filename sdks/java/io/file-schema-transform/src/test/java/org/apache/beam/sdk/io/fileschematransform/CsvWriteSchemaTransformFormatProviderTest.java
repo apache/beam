@@ -28,14 +28,11 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assume.assumeTrue;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ByteType;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TimeContaining;
 import org.apache.beam.sdk.schemas.Schema;
@@ -254,12 +251,10 @@ public class CsvWriteSchemaTransformFormatProviderTest
   @Test
   public void byteTypeNonRepeated() {
     System.out.println("BYTE TYPE NON REPEATED");
-    String prefix =
-        folder(ByteType.class, "byteTypeNonRepeated");
+    String prefix = folder(ByteType.class, "byteTypeNonRepeated");
     String validField = "byte";
     PCollection<Row> input =
-        writePipeline.apply(
-            Create.of(DATA.byteTypeRows).withRowSchema(BYTE_TYPE_SCHEMA));
+        writePipeline.apply(Create.of(DATA.byteTypeRows).withRowSchema(BYTE_TYPE_SCHEMA));
     PCollection<Row> modifiedInput = input.apply(Select.fieldNames(validField));
     Schema modifiedSchema = modifiedInput.getSchema();
     FileWriteSchemaTransformConfiguration configuration = buildConfiguration(prefix);
