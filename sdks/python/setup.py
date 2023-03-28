@@ -36,7 +36,7 @@ from setuptools import Command
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.errors import DistutilsError # isort:skip
+from distutils.errors import DistutilsError  # isort:skip
 
 
 class mypy(Command):
@@ -127,6 +127,7 @@ except DistributionNotFound:
 try:
   # pylint: disable=wrong-import-position
   from Cython.Build import cythonize as cythonize0
+
   def cythonize(*args, **kwargs):
     import numpy
     extensions = cythonize0(*args, **kwargs)
@@ -141,6 +142,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
   pyarrow_dependency = 'pyarrow>=3.0.0,<10.0.0'
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
