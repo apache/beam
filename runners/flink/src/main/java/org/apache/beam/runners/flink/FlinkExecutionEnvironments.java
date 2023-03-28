@@ -19,23 +19,21 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getDefaultLocalParallelism;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
@@ -139,6 +137,8 @@ public class FlinkExecutionEnvironments {
     }
 
     applyLatencyTrackingInterval(flinkBatchEnv.getConfig(), options);
+
+    configureWebUIOptions(flinkBatchEnv.getConfig());
 
     return flinkBatchEnv;
   }
@@ -245,7 +245,47 @@ public class FlinkExecutionEnvironments {
 
     configureStateBackend(options, flinkStreamEnv);
 
+    configureWebUIOptions(flinkStreamEnv.getConfig());
+
     return flinkStreamEnv;
+  }
+
+  private static void configureWebUIOptions(ExecutionConfig config) {
+    // Attempts to capture command line arguments passed to the job.
+    String commandLineArgs = System.getProperty("sun.java.command");
+
+    if (commandLineArgs != null) {
+      String[] cliOptions =
+          Arrays.stream(commandLineArgs.split(" "))
+              .filter(s -> s.contains("--"))
+              .toArray(String[]::new);
+
+      ListMultimap<String, String> optionMultiMap =
+          PipelineOptionsFactory.fromArgs(cliOptions).commandLineOptions();
+
+      Map<String, String> output =
+          optionMultiMap.asMap().entrySet().stream()
+              .map(
+                  e ->
+                      new AbstractMap.SimpleEntry<String, String>(
+                          e.getKey(), String.join(",", e.getValue())))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+      config.setGlobalJobParameters(new GlobalJobParametersImpl(output));
+    }
+  }
+
+  private static class GlobalJobParametersImpl extends ExecutionConfig.GlobalJobParameters {
+    private final Map<String, String> jobOptions;
+
+    private GlobalJobParametersImpl(Map<String, String> jobOptions) {
+      this.jobOptions = jobOptions;
+    }
+
+    @Override
+    public Map<String, String> toMap() {
+      return jobOptions;
+    }
   }
 
   private static void configureCheckpointing(

@@ -29,6 +29,8 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
@@ -473,6 +475,30 @@ public class FlinkExecutionEnvironmentsTest {
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(sev.getStateBackend(), instanceOf(RocksDBStateBackend.class));
+  }
+
+  @Test
+  public void shouldSetWebUIOptions() {
+    System.setProperty(
+        "sun.java.command", "--key1=value1 --key2 random --key1=value2 --key3=value3");
+
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
+
+    ExecutionEnvironment ev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
+
+    Map<String, String> actualMap = sev.getConfig().getGlobalJobParameters().toMap();
+    Map<String, String> actualMap2 = ev.getConfig().getGlobalJobParameters().toMap();
+
+    Map<String, String> expectedMap = new HashMap<>();
+    expectedMap.put("key1", "value1,value2");
+    expectedMap.put("key2", "true");
+    expectedMap.put("key3", "value3");
+
+    assertEquals(expectedMap, actualMap);
+    assertEquals(expectedMap, actualMap2);
   }
 
   private void checkHostAndPort(Object env, String expectedHost, int expectedPort) {
