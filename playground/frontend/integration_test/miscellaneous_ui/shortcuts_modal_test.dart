@@ -40,7 +40,8 @@ Future<void> checkShortcutsModal(WidgetTester wt) async {
   expect(find.shortcutsModal(), findsOneWidget);
   expectLastAnalyticsEvent(const ShortcutsClickedAnalyticsEvent());
 
-  await wt.tapAndSettle(find.text(appLocale.close));
+  await wt.sendKeyEvent(LogicalKeyboardKey.escape);
+  await wt.pumpAndSettle();
 
   expect(find.shortcutsModal(), findsNothing);
 }

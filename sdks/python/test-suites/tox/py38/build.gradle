@@ -102,22 +102,15 @@ toxTask "testPy38pytorch-113", "py38-pytorch-113", "${posargs}"
 test.dependsOn "testPy38pytorch-113"
 preCommitPyCoverage.dependsOn "testPy38pytorch-113"
 
+// TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
 // Create a test task for each minor version of onnx
-toxTask "testPy38onnx-113", "py38-onnx-113", "${posargs}"
-test.dependsOn "testPy38onnx-113"
-preCommitPyCoverage.dependsOn "testPy38onnx-113"
+// toxTask "testPy38onnx-113", "py38-onnx-113", "${posargs}"
+// test.dependsOn "testPy38onnx-113"
+// preCommitPyCoverage.dependsOn "testPy38onnx-113"
 // Create a test task for each minor version of tensorflow
-toxTask "testPy38tensorflow-29", "py38-tensorflow-29", "${posargs}"
-test.dependsOn "testPy38tensorflow-29"
-preCommitPyCoverage.dependsOn "testPy38tensorflow-29"
-
-toxTask "testPy38tensorflow-210", "py38-tensorflow-210", "${posargs}"
-test.dependsOn "testPy38tensorflow-210"
-preCommitPyCoverage.dependsOn "testPy38tensorflow-210"
-
-toxTask "testPy38tensorflow-211", "py38-tensorflow-211", "${posargs}"
-test.dependsOn "testPy38tensorflow-211"
-preCommitPyCoverage.dependsOn "testPy38tensorflow-211"
+toxTask "testPy38tensorflow-212", "py38-tensorflow-212", "${posargs}"
+test.dependsOn "testPy38tensorflow-212"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-212"
 
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 

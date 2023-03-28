@@ -57,8 +57,11 @@ export 'src/models/toast_type.dart';
 
 export 'src/playground_components.dart';
 
+export 'src/repositories/backend_urls.dart';
+export 'src/repositories/code_client/code_client.dart';
 export 'src/repositories/code_client/grpc_code_client.dart';
 export 'src/repositories/code_repository.dart';
+export 'src/repositories/example_client/example_client.dart';
 export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';
 
@@ -84,6 +87,8 @@ export 'src/services/symbols/loaders/yaml.dart';
 export 'src/theme/switch_notifier.dart';
 export 'src/theme/theme.dart';
 
+export 'src/util/async.dart';
+export 'src/util/iterable.dart';
 export 'src/util/logical_keyboard_key.dart';
 export 'src/util/pipeline_options.dart';
 export 'src/util/string.dart';
@@ -92,8 +97,10 @@ export 'src/widgets/bubble.dart';
 export 'src/widgets/buttons/privacy_policy.dart';
 export 'src/widgets/buttons/report_issue.dart';
 export 'src/widgets/clickable.dart';
+export 'src/widgets/close_button.dart';
 export 'src/widgets/complexity.dart';
 export 'src/widgets/copyright.dart';
+export 'src/widgets/dialog.dart';
 export 'src/widgets/divider.dart';
 export 'src/widgets/header_icon_button.dart';
 export 'src/widgets/loading_error.dart';
@@ -116,3 +123,4 @@ export 'src/widgets/tabs/tab_bar.dart';
 export 'src/widgets/toasts/toast_listener.dart';
 export 'src/widgets/toggle_theme_button.dart';
 export 'src/widgets/toggle_theme_icon_button.dart';
+export 'src/widgets/versions/versions.dart';

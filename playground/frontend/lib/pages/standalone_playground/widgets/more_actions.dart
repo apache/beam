@@ -16,17 +16,19 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../modules/shortcuts/components/shortcuts_modal.dart';
+import '../../../modules/shortcuts/components/shortcuts_dialog.dart';
 import '../../../services/analytics/events/shortcuts_clicked.dart';
 import '../../../src/assets/assets.gen.dart';
 
 enum HeaderAction {
+  versions,
   shortcuts,
   beamPlaygroundGithub,
   apacheBeamGithub,
@@ -59,6 +61,21 @@ class _MoreActionsState extends State<MoreActions> {
           color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
         ),
         itemBuilder: (BuildContext context) => <PopupMenuEntry<HeaderAction>>[
+          //
+          PopupMenuItem<HeaderAction>(
+            padding: EdgeInsets.zero,
+            value: HeaderAction.versions,
+            child: ListTile(
+              leading: const Icon(Icons.watch_later_outlined),
+              title: const Text('widgets.versions.title').tr(),
+              onTap: () => BeamDialog.show(
+                context: context,
+                title: const Text('widgets.versions.title').tr(),
+                child: const VersionsWidget(sdks: Sdk.known),
+              ),
+            ),
+          ),
+
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.shortcuts,
@@ -70,15 +87,18 @@ class _MoreActionsState extends State<MoreActions> {
                 PlaygroundComponents.analyticsService.sendUnawaited(
                   const ShortcutsClickedAnalyticsEvent(),
                 );
-                showDialog<void>(
+                BeamDialog.show(
+                  actions: [BeamCloseButton()],
                   context: context,
-                  builder: (BuildContext context) => ShortcutsModal(
+                  title: Text(appLocale.shortcuts),
+                  child: ShortcutsDialogContent(
                     playgroundController: widget.playgroundController,
                   ),
                 );
               },
             ),
           ),
+
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.beamPlaygroundGithub,
@@ -88,6 +108,7 @@ class _MoreActionsState extends State<MoreActions> {
               onTap: () => _openLink(BeamLinks.playgroundGitHub, context),
             ),
           ),
+
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.apacheBeamGithub,
@@ -97,6 +118,7 @@ class _MoreActionsState extends State<MoreActions> {
               onTap: () => _openLink(BeamLinks.github, context),
             ),
           ),
+
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.scioGithub,
@@ -106,7 +128,9 @@ class _MoreActionsState extends State<MoreActions> {
               onTap: () => _openLink(BeamLinks.scioGitHub, context),
             ),
           ),
+
           const PopupMenuDivider(height: 16.0),
+
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.beamWebsite,
@@ -116,6 +140,7 @@ class _MoreActionsState extends State<MoreActions> {
               onTap: () => _openLink(BeamLinks.website, context),
             ),
           ),
+
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.aboutBeam,

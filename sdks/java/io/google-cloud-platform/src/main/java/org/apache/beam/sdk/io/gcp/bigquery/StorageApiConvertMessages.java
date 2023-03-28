@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /**
  * A transform that converts messages to protocol buffers in preparation for writing to BigQuery.
@@ -129,6 +130,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         ProcessContext c,
         PipelineOptions pipelineOptions,
         @Element KV<DestinationT, ElementT> element,
+        @Timestamp Instant timestamp,
         MultiOutputReceiver o)
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
@@ -136,7 +138,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
           messageConverters.get(
               element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
       try {
-        StorageApiWritePayload payload = messageConverter.toMessage(element.getValue());
+        StorageApiWritePayload payload =
+            messageConverter.toMessage(element.getValue()).withTimestamp(timestamp);
         o.get(successfulWritesTag).output(KV.of(element.getKey(), payload));
       } catch (TableRowToStorageApiProto.SchemaConversionException e) {
         TableRow tableRow = messageConverter.toTableRow(element.getValue());

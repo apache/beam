@@ -27,5 +27,5 @@ const pythonAggregationMean = ExampleDescriptor(
   path: '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py',
   sdk: Sdk.python,
 
-  outputContains: ['16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]'],
+  outputContains: ['5.5'],
 );

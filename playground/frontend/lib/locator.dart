@@ -26,26 +26,31 @@ import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
 
 Future<void> initializeServiceLocator() async {
-  _initializeRepositories();
+  await _initializeRepositories();
   _initializeRouter();
   _initializeServices();
 }
 
-void _initializeRepositories() {
+Future<void> _initializeRepositories() async {
+  final routerUrl = await getRouterUrl();
+  final runnerUrls = await waitMap({
+    for (final sdk in Sdk.known) sdk.id: getRunnerUrl(sdk),
+  });
+
+  final codeClient = GrpcCodeClient(
+    url: routerUrl,
+    runnerUrlsById: runnerUrls,
+  );
+
+  GetIt.instance.registerSingleton<CodeClient>(codeClient);
   GetIt.instance.registerSingleton(CodeRepository(
-    client: GrpcCodeClient(
-      url: kApiClientURL,
-      runnerUrlsById: {
-        Sdk.java.id: kApiJavaClientURL,
-        Sdk.go.id: kApiGoClientURL,
-        Sdk.python.id: kApiPythonClientURL,
-        Sdk.scio.id: kApiScioClientURL,
-      },
-    ),
+    client: codeClient,
   ));
 
+  final exampleClient = GrpcExampleClient(url: routerUrl);
+  GetIt.instance.registerSingleton<ExampleClient>(exampleClient);
   GetIt.instance.registerSingleton(ExampleRepository(
-    client: GrpcExampleClient(url: kApiClientURL),
+    client: exampleClient,
   ));
 }
 

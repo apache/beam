@@ -18,16 +18,21 @@
 package org.apache.beam.runners.dataflow.options;
 
 import com.google.api.services.clouddebugger.v2.model.Debuggee;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Options for controlling Cloud Debugger. */
-@Description("[Experimental] Used to configure the Cloud Debugger")
-@Experimental
+/**
+ * Options for controlling Cloud Debugger.
+ *
+ * @deprecated The cloud debugger service is turning down (<a
+ *     href="https://cloud.google.com/debugger/docs/deprecations">announcement</a>). Cloud Debugger
+ *     support and its options are deprecated in Beam and will be removed in Beam v2.48.0.
+ */
+@Description("[Deprecated] Used to configure the Cloud Debugger")
+@Deprecated
 @Hidden
 public interface CloudDebuggerOptions extends PipelineOptions {
 

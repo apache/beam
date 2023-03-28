@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../util/logical_keyboard_key.dart';
 import 'intents.dart';
 import 'shortcut.dart';
 
@@ -28,7 +29,10 @@ class BeamRunShortcut extends BeamShortcut {
   BeamRunShortcut({
     required this.onInvoke,
   }) : super(
-          shortcuts: keySet,
+          keys: [
+            LogicalKeyboardKeyExtension.metaOrControl,
+            LogicalKeyboardKey.enter,
+          ],
           actionIntent: const RunIntent(),
           createAction: (BuildContext context) => CallbackAction(
             onInvoke: (_) {
@@ -37,9 +41,4 @@ class BeamRunShortcut extends BeamShortcut {
             },
           ),
         );
-
-  static final keySet = LogicalKeySet(
-    LogicalKeyboardKey.meta,
-    LogicalKeyboardKey.enter,
-  );
 }

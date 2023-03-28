@@ -50,7 +50,7 @@ Future<void> _checkResetShortcut(
 
   expect(controller.source, isNot(startSource));
 
-  await wt.runShortcut(controller.resetShortcut.shortcuts);
+  await wt.runShortcut(controller.resetShortcut);
   await wt.pumpAndSettle();
 
   expect(startSource, controller.source);
@@ -74,7 +74,7 @@ Future<void> _checkClearOutputShortcut(
   expect(controller.codeRunner.resultLogOutput, isNotEmpty);
   expect(controller.codeRunner.resultLogOutput, isNotNull);
 
-  await wt.runShortcut(kClearOutputShortcut.shortcuts);
+  await wt.runShortcut(kClearOutputShortcut);
   await wt.pumpAndSettle();
 
   expect(controller.codeRunner.resultLogOutput, isEmpty);

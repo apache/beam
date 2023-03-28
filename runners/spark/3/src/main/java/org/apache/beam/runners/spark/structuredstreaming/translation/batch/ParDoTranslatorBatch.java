@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.simple;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.oneOfEncoder;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -29,14 +30,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.UnresolvedTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -104,8 +108,6 @@ class ParDoTranslatorBatch<InputT, OutputT>
       throws IOException {
 
     PCollection<InputT> input = (PCollection<InputT>) cxt.getInput();
-
-    Dataset<WindowedValue<InputT>> inputDs = cxt.getDataset(input);
     SideInputReader sideInputReader =
         createSideInputReader(transform.getSideInputs().values(), cxt);
     MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
@@ -124,11 +126,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
       DoFnPartitionIteratorFactory<InputT, ?, Tuple2<Integer, WindowedValue<Object>>> doFnMapper =
           DoFnPartitionIteratorFactory.multiOutput(
-              cxt.getCurrentTransform(),
               cxt.getOptionsSupplier(),
-              input,
-              sideInputReader,
               metrics,
+              simple(cxt.getCurrentTransform(), input, sideInputReader, false),
               tagColIdx);
 
       // FIXME What's the strategy to unpersist Datasets / RDDs?
@@ -138,7 +138,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
       // Persist as wide rows with one column per TupleTag to support different schemas
       Dataset<Tuple2<Integer, WindowedValue<Object>>> allTagsDS =
-          inputDs.mapPartitions(doFnMapper, oneOfEncoder(encoders));
+          cxt.getDataset(input).mapPartitions(doFnMapper, oneOfEncoder(encoders));
       allTagsDS.persist(storageLevel);
 
       // divide into separate output datasets per tag
@@ -154,14 +154,54 @@ class ParDoTranslatorBatch<InputT, OutputT>
       }
     } else {
       PCollection<OutputT> output = cxt.getOutput(mainOut);
-      DoFnPartitionIteratorFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
-          DoFnPartitionIteratorFactory.singleOutput(
-              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader, metrics);
+      // Obsolete outputs might have to be filtered out
+      boolean filterMainOutput = cxt.getOutputs().size() > 1;
+      // Provide unresolved translation so that can be fused if possible
+      UnresolvedParDo<InputT, OutputT> unresolvedParDo =
+          new UnresolvedParDo<>(
+              input,
+              simple(cxt.getCurrentTransform(), input, sideInputReader, filterMainOutput),
+              () -> cxt.windowedEncoder(output.getCoder()));
+      cxt.putUnresolved(output, unresolvedParDo);
+    }
+  }
 
-      Dataset<WindowedValue<OutputT>> mainDS =
-          inputDs.mapPartitions(doFnMapper, cxt.windowedEncoder(output.getCoder()));
+  /**
+   * An unresolved {@link ParDo} translation that can be fused with previous / following ParDos for
+   * better performance.
+   */
+  private static class UnresolvedParDo<InT, T> implements UnresolvedTranslation<InT, T> {
+    private final PCollection<InT> input;
+    private final DoFnRunnerFactory<InT, T> doFnFact;
+    private final Supplier<Encoder<WindowedValue<T>>> encoder;
 
-      cxt.putDataset(output, mainDS);
+    UnresolvedParDo(
+        PCollection<InT> input,
+        DoFnRunnerFactory<InT, T> doFnFact,
+        Supplier<Encoder<WindowedValue<T>>> encoder) {
+      this.input = input;
+      this.doFnFact = doFnFact;
+      this.encoder = encoder;
+    }
+
+    @Override
+    public PCollection<InT> getInput() {
+      return input;
+    }
+
+    @Override
+    public <T2> UnresolvedTranslation<InT, T2> fuse(UnresolvedTranslation<T, T2> next) {
+      UnresolvedParDo<T, T2> nextParDo = (UnresolvedParDo<T, T2>) next;
+      return new UnresolvedParDo<>(input, doFnFact.fuse(nextParDo.doFnFact), nextParDo.encoder);
+    }
+
+    @Override
+    public Dataset<WindowedValue<T>> resolve(
+        Supplier<PipelineOptions> options, Dataset<WindowedValue<InT>> input) {
+      MetricsAccumulator metrics = MetricsAccumulator.getInstance(input.sparkSession());
+      DoFnPartitionIteratorFactory<InT, ?, WindowedValue<T>> doFnMapper =
+          DoFnPartitionIteratorFactory.singleOutput(options, metrics, doFnFact);
+      return input.mapPartitions(doFnMapper, encoder.get());
     }
   }
 

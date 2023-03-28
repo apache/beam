@@ -63,7 +63,7 @@ class AnnotateVideo(PTransform):
       context_side_input=None):
     """
     Args:
-      features: (List[``videointelligence_v1.enums.Feature``]) Required.
+      features: (List[``videointelligence_v1.Feature``]) Required.
         The Video Intelligence API features to detect
       location_id: (str) Optional.
         Cloud region where annotation should take place.
@@ -82,9 +82,9 @@ class AnnotateVideo(PTransform):
 
           video_contexts =
             [('gs://cloud-samples-data/video/cat.mp4', Union[dict,
-            ``videointelligence_v1.types.VideoContext``]),
+            ``videointelligence_v1.VideoContext``]),
             ('gs://some-other-video/sample.mp4', Union[dict,
-            ``videointelligence_v1.types.VideoContext``]),]
+            ``videointelligence_v1.VideoContext``]),]
 
           context_side_input =
             (
@@ -113,11 +113,11 @@ class AnnotateVideo(PTransform):
 
 
 @typehints.with_input_types(
-    Union[str, bytes], Optional[videointelligence.types.VideoContext])
+    Union[str, bytes], Optional[videointelligence.VideoContext])
 class _VideoAnnotateFn(DoFn):
   """A DoFn that sends each input element to the GCP Video Intelligence API
   service and outputs an element with the return result of the API
-  (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
+  (``google.cloud.videointelligence_v1.AnnotateVideoResponse``).
   """
   def __init__(self, features, location_id, metadata, timeout):
     super().__init__()
@@ -166,7 +166,7 @@ class AnnotateVideoWithContext(AnnotateVideo):
   Element is a tuple of
 
     (Union[str, bytes],
-    Optional[videointelligence.types.VideoContext])
+    Optional[videointelligence.VideoContext])
 
   where the former is either an URI (e.g. a GCS URI) or
   bytes base64-encoded video data
@@ -174,7 +174,7 @@ class AnnotateVideoWithContext(AnnotateVideo):
   def __init__(self, features, location_id=None, metadata=None, timeout=120):
     """
       Args:
-        features: (List[``videointelligence_v1.enums.Feature``]) Required.
+        features: (List[``videointelligence_v1.Feature``]) Required.
           the Video Intelligence API features to detect
         location_id: (str) Optional.
           Cloud region where annotation should take place.
@@ -202,12 +202,12 @@ class AnnotateVideoWithContext(AnnotateVideo):
 
 
 @typehints.with_input_types(
-    Tuple[Union[str, bytes], Optional[videointelligence.types.VideoContext]])
+    Tuple[Union[str, bytes], Optional[videointelligence.VideoContext]])
 class _VideoAnnotateFnWithContext(_VideoAnnotateFn):
   """A DoFn that unpacks each input tuple to element, video_context variables
   and sends these to the GCP Video Intelligence API service and outputs
   an element with the return result of the API
-  (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
+  (``google.cloud.videointelligence_v1.AnnotateVideoResponse``).
   """
   def __init__(self, features, location_id, metadata, timeout):
     super().__init__(
