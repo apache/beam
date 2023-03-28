@@ -35,9 +35,6 @@ import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.RowMutations;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos.MutationProto.MutationType;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 /**
  * Row mutations coder to provide serialization support for Hbase RowMutations object, which isn't
@@ -65,7 +62,7 @@ class HBaseRowMutationsCoder extends StructuredCoder<RowMutations> implements Se
   }
 
   @Override
-  public RowMutations decode(InputStream inStream) throws IOException {
+  public RowMutations decode(InputStream inStream) throws IOException, IllegalArgumentException {
 
     byte[] rowKey = byteArrayCoder.decode(inStream);
     List<Mutation> mutations = listCoder.decode(inStream);
@@ -78,16 +75,15 @@ class HBaseRowMutationsCoder extends StructuredCoder<RowMutations> implements Se
         rowMutations.add((Put) m);
       } else if (type == MutationType.DELETE) {
         rowMutations.add((Delete) m);
+      } else {
+        throw new IllegalArgumentException("Mutation type not supported.");
       }
     }
     return rowMutations;
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<
-          ? extends
-              @UnknownKeyFor @NonNull @Initialized Coder<@UnknownKeyFor @NonNull @Initialized ?>>
-      getCoderArguments() {
+  public List<? extends Coder<?>> getCoderArguments() {
     return Arrays.asList(listCoder, byteArrayCoder);
   }
 
@@ -99,8 +95,7 @@ class HBaseRowMutationsCoder extends StructuredCoder<RowMutations> implements Se
    * @throws @UnknownKeyFor@NonNull@Initialized NonDeterministicException
    */
   @Override
-  public void verifyDeterministic()
-      throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
+  public void verifyDeterministic() {
     return;
   }
 

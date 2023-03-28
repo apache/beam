@@ -49,7 +49,7 @@ class HBaseSharedConnection implements Serializable {
    * @return Hbase connection
    * @throws IOException
    */
-  public static synchronized @MonotonicNonNull Connection getOrCreate(Configuration configuration)
+  public static synchronized Connection getOrCreate(Configuration configuration)
       throws IOException {
     if (connection == null || connection.isClosed()) {
       connection = ConnectionFactory.createConnection(configuration);
@@ -73,6 +73,7 @@ class HBaseSharedConnection implements Serializable {
     }
     if (connectionCount < 0) {
       LOG.warn("Connection count at " + connectionCount + ", should not be possible");
+      connectionCount = 0;
     }
   }
 
