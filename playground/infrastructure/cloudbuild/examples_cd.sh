@@ -56,7 +56,7 @@ if [[ -z "${SOURCE_BRANCH}" ]]; then
   echo "PR Source Branch is empty or not set. Exiting"
   exit 1
 fi
-export ALLOWLIST=${ALLOWLIST-"learning/katas sdks/ examples/"}
+export ALLOWLIST=${ALLOWLIST-"playground/infrastructure learning/katas sdks/ examples/"}
 export DIFF_BASE=${DIFF_BASE-"origin/master"}
 
 # This function logs the given message to a file and outputs it to the console.
