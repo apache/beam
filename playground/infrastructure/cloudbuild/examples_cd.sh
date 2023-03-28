@@ -131,26 +131,21 @@ do
     --allowlist "${allowlist_array[@]}" \
     --paths "${diff[@]}"
     checker_status=$?
-    cd $BEAM_ROOT_DIR
-    if [ $checker_status -eq 0 ]
-    then
+    if [ $checker_status -eq 0 ]; then
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        declare "${sdk}_example_changed"='True'
-    elif [ $checker_status -eq 11 ]
-  then
+        eval "${sdk}_example_changed"='True'
+    elif [ $checker_status -eq 11 ]; then
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        declare "${sdk}_example_changed"='False'
+        eval "${sdk}_example_changed"='False'
         exit 1
     else
         LogOutput "Error: Checker is broken. Exiting the script."
         exit 1
     fi
-    echo "${sdk}_example_changed"
 
     if [[ ${sdk}_example_changed == True ]]; then
       echo "Running ci_cd.py for SDK $sdk"
 
-      cd $BEAM_ROOT_DIR/playground/infrastructure
       export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
       python3 ci_cd.py \
       --datastore-project ${PROJECT_ID} \
@@ -159,11 +154,9 @@ do
       --sdk SDK_"${sdk^^}" \
       --origin ${ORIGIN} \
       --subdirs ${SUBDIRS}
-      if [ $? -eq 0 ]
-        then
+      if [ $? -eq 0 ]; then
           LogOutput "Examples for $sdk SDK have been successfully deployed."
-          eval "cd_${sdk}_passed"='True'
-        else
+      else
           LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
       fi
     else
