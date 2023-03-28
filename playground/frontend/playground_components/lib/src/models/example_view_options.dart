@@ -39,12 +39,16 @@ class ExampleViewOptions with EquatableMixin {
     this.foldImports = true,
   });
 
-  // fromJson and toJson are used for json serialization.
+  /// Parses a fully normalized map.
   factory ExampleViewOptions.fromJson(Map<String, dynamic> json) =>
       _$ExampleViewOptionsFromJson(json);
 
   Map<String, dynamic> toJson() => _$ExampleViewOptionsToJson(this);
 
+  /// Parses a simplified map that comes from a URL.
+  ///
+  /// This map has CSV strings instead of JSON arrays
+  /// and cannot override folding parameters' defaults.
   factory ExampleViewOptions.fromShortMap(Map<String, dynamic> map) {
     return ExampleViewOptions(
       readOnlySectionNames: _split(map['readonly']),
