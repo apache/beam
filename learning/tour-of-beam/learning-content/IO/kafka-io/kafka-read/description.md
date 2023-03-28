@@ -15,6 +15,18 @@ limitations under the License.
 
 `KafkaIO` is a part of the Apache Beam SDK that provides a way to read data from Apache Kafka and write data to it. It allows for the creation of Beam pipelines that can consume data from a Kafka topic, process the data and write the processed data back to another Kafka topic. This makes it possible to build data processing pipelines using Apache Beam that can easily integrate with a Kafka-based data architecture.
 
+When reading data from Kafka topics using Apache Beam, developers can use the `ReadFromKafka` transform to create a `PCollection` of Kafka messages. This transform takes the following parameters:
+
+When the `ReadFromKafka` transform is executed, it creates a `PCollection` of Kafka messages, where each message is represented as a tuple containing the key, value, and metadata fields. If the with_metadata flag is set to True, the metadata fields are included in the tuple as well.
+
+Developers can then use other Apache Beam transforms to process and analyze the Kafka messages, such as filtering, aggregating, and joining them with other data sources. Once the data processing pipeline is defined, it can be executed on a distributed processing engine, such as **Apache Flink**, **Apache Spark**, or **Google Cloud Dataflow**, to process the Kafka messages in parallel and at scale.
+
+* **consumer_config**: a dictionary that contains the Kafka consumer configuration properties, such as the Kafka broker addresses, the group ID of the consumer group, and the deserializer classes for the key and value of the Kafka messages.
+* **bootstrap.servers**: is a configuration property in Apache Kafka that specifies the list of bootstrap servers that the Kafka clients should use to connect to the Kafka cluster.
+* **topic**: the name of the Kafka topic to write the data to.
+* **with_metadata**: a boolean flag that specifies whether to include the Kafka metadata for each message, such as the topic, partition, and offset.
+
+
 {{if (eq .Sdk "go")}}
 ```
 var (

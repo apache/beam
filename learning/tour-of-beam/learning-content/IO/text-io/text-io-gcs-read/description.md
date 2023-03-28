@@ -49,3 +49,7 @@ p | beam.io.ReadFromText('gs://mybucket/myfile.txt') | beam.Map(print)
 p.run()
 ```
 {{end}}
+
+### Playground exercise
+
+In the playground window, you can find an example that reads from a text file and outputs individual words found in the text. Can you modify this example to output found words to another file in reverse form?

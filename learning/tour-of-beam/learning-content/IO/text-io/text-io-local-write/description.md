@@ -82,3 +82,7 @@ p.run()
 ```
 {{end}}
 It is important to note that the `Read` and `Write` methods only read and write to local file systems and not the distributed file systems like **HDFS**, **GCS**, **S3** etc.
+
+### Playground exercise
+
+You can write `PCollection` to a file. Use `DoFn` to generate numbers and write them down by filtering.

@@ -81,3 +81,7 @@ It is important to note that in order to interact with **GCS** you will need to 
 --tempLocation=gs://my-bucket/temp
 ```
 {{end}}
+
+### Playground exercise
+
+You can write PCollection to a file. Use DoFn to generate numbers and write them down by filtering.

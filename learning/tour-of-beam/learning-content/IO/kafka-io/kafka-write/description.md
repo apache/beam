@@ -13,8 +13,17 @@ limitations under the License.
 -->
 ### Writing to Kafka using KafkaIO
 
-`KafkaIO` is a part of the Apache Beam SDK that provides a way to read data from Apache Kafka and write data to it. It allows for the creation of Beam pipelines that can consume data from a Kafka topic, process the data and write the processed data back to another Kafka topic. This makes it possible to build data processing pipelines using Apache Beam that can easily integrate with a Kafka-based data architecture.
+When writing data processing pipelines using Apache Beam, developers can use the `WriteToKafka` transform to write data to Kafka topics. This transform takes a PCollection of data as input and writes the data to a specified Kafka topic using a Kafka producer.
 
+To use the `WriteToKafka` transform, developers need to provide the following parameters:
+
+* **producer_config**: a dictionary that contains the Kafka producer configuration properties, such as the Kafka broker addresses and the number of acknowledgments to wait for before considering a message as sent.
+* **bootstrap.servers**: is a configuration property in Apache Kafka that specifies the list of bootstrap servers that the Kafka clients should use to connect to the Kafka cluster.
+* **topic**: the name of the Kafka topic to write the data to.
+* **key**: a function that takes an element from the input PCollection and returns the key to use for the Kafka message. The key is optional and can be None.
+* **value**: a function that takes an element from the input PCollection and returns the value to use for the Kafka message.
+
+When writing data to Kafka using Apache Beam, it is important to ensure that the pipeline is fault-tolerant and can handle failures, such as network errors, broker failures, or message serialization errors. Apache Beam provides features such as checkpointing, retries, and dead-letter queues to help developers build robust and reliable data processing pipelines that can handle these types of failures.
 {{if (eq .Sdk "go")}}
 ```
 data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
