@@ -656,7 +656,7 @@ func (w *timerWriter) send(msg *fnpb.Elements) error {
 	recordStreamSend(msg)
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
-			log.Warnf(context.TODO(), "dataWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)
+			log.Warnf(context.TODO(), "timerWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)
 			err = nil
 			for err == nil {
 				// Per GRPC stream documentation, if there's an EOF, we must call Recv
@@ -665,7 +665,7 @@ func (w *timerWriter) send(msg *fnpb.Elements) error {
 				_, err = w.ch.client.Recv()
 			}
 		}
-		log.Warnf(context.TODO(), "dataWriter[%v;%v] error on send: %v", w.id, w.ch.id, err)
+		log.Warnf(context.TODO(), "timerWriter[%v;%v] error on send: %v", w.id, w.ch.id, err)
 		w.ch.terminateStreamOnError(err)
 		return err
 	}
