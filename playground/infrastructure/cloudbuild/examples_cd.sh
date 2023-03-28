@@ -117,21 +117,21 @@ diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
 
 echo $diff
 for file in "${diff[@]}"; do
-    if echo $file == *learning/katas/ || echo $file == *examples/* || echo $file == *sdks/*
+    if echo $file == *learning/katas/* || echo $file == *examples/* || echo $file == *sdks/*
     then
         LogOutput "At least one changed file is in the allowlist"
 
         for sdk in $SDKS; do
           result=$(python -c "
-            import logging
-            from pathlib import Path
-            from checker import check_sdk_examples
+          import logging
+          from pathlib import Path
+          from checker import check_sdk_examples
 
-            paths = ${file}
-            sdk = ${sdk}
-            root_dir = ${BEAM_ROOT_DIR}
-            result = check_sdk_examples(paths, [sdk], root_dir)
-            print(result[sdk])
+          paths = ${file}
+          sdk = ${sdk}
+          root_dir = ${BEAM_ROOT_DIR}
+          result = check_sdk_examples(paths, [sdk], root_dir)
+          print(result[sdk])
           ")
           echo "$sdk: $result"
 
