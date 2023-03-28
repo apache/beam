@@ -127,10 +127,8 @@ import logging
 from pathlib import Path
 from checker import check_sdk_examples
 
-paths = ${file}
 sdk = ${sdk}
-root_dir = ${BEAM_ROOT_DIR}
-result = check_sdk_examples(paths, [sdk], root_dir)
+result = check_sdk_examples(${file}, [sdk], '/workspace/beam')
 print(result[sdk])
                             ")
           echo "$sdk: $result"
