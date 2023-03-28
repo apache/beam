@@ -175,17 +175,17 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   static PlaygroundController _createPlaygroundController(String initialSdkId) {
     final exampleRepository = ExampleRepository(
-      client: GrpcExampleClient(url: kApiClientURL),
+      client: GrpcExampleClient(url: Uri.parse(kApiClientURL)),
     );
 
     final codeRepository = CodeRepository(
       client: GrpcCodeClient(
-        url: kApiClientURL,
+        url: Uri.parse(kApiClientURL),
         runnerUrlsById: {
-          Sdk.java.id: kApiJavaClientURL,
-          Sdk.go.id: kApiGoClientURL,
-          Sdk.python.id: kApiPythonClientURL,
-          Sdk.scio.id: kApiScioClientURL,
+          Sdk.java.id: Uri.parse(kApiJavaClientURL),
+          Sdk.go.id: Uri.parse(kApiGoClientURL),
+          Sdk.python.id: Uri.parse(kApiPythonClientURL),
+          Sdk.scio.id: Uri.parse(kApiScioClientURL),
         },
       ),
     );
