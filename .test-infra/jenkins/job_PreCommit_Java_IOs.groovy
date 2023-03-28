@@ -189,8 +189,8 @@ def additionalTasks = [
 
 // In case the test suite name is different from the project folder name
 def aliasMap = [
-  'amazon-web-services': 'AWS',
-  'amazon-web-services2': 'AWS2',
+  'amazon-web-services': 'Amazon-Web-Services',
+  'amazon-web-services2': 'Amazon-Web-Services2',
   'jdbc': 'JDBC',
   'hadoop-file-system': 'hadoop',
   'mongodb': 'MongoDb',
