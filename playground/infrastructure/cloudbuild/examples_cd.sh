@@ -124,6 +124,7 @@ for file in "${diff[@]}"; do
         for sdk in $SDKS; do
           result=$(python -c "
 import logging
+import google
 from pathlib import Path
 import sys
 sys.path.append('/workspace/beam/playground/infrastructure')
