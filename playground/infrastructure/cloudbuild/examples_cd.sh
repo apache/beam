@@ -56,7 +56,7 @@ if [[ -z "${SOURCE_BRANCH}" ]]; then
   echo "PR Source Branch is empty or not set. Exiting"
   exit 1
 fi
-export ALLOWLIST=${ALLOWLIST-"playground/infrastructure playground/backend sdks/ examples/"}
+export ALLOWLIST=${ALLOWLIST-"learning/katas sdks/ examples/"}
 export DIFF_BASE=${DIFF_BASE-"origin/master"}
 
 # This function logs the given message to a file and outputs it to the console.
@@ -115,53 +115,52 @@ git fetch --all > /dev/null 2>&1
 
 diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
 
-echo $diff
-for file in "${diff[@]}"; do
-    if [[ $file == *learning/katas/* ]] || [[ $file == *examples* ]] || [[ $file == *sdks/* ]]
+LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
+allowlist_array=($ALLOWLIST)
+for sdk in $SDKS
+do
+    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
+    cd $BEAM_ROOT_DIR/playground/infrastructure
+    python3 checker.py \
+    --verbose \
+    --sdk SDK_"${sdk^^}" \
+    --allowlist "${allowlist_array[@]}" \
+    --paths "${diff[@]}" >> ${LOG_PATH} 2>&1
+    checker_status=$?
+    cd $BEAM_ROOT_DIR
+    if [ $checker_status -eq 0 ]
     then
-        LogOutput "At least one changed file is in the allowlist"
-
-        for sdk in $SDKS; do
-          result=$(python -c "
-import logging
-import google.protobuf.internal
-import google.protobuf
-from pathlib import Path
-import sys
-sys.path.append('/workspace/beam/playground/infrastructure')
-from checker import check_sdk_examples
-
-sdk = ${sdk}
-result = check_sdk_examples(${file}, [sdk], '/workspace/beam')
-print(result[sdk])
-                            ")
-          echo "$sdk: $result"
-
-          if [[ "$result" == "True" ]]; then
-            echo "Running ci_cd.py for SDK $sdk"
-
-            cd $BEAM_ROOT_DIR/playground/infrastructure
-            export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-            python3 ci_cd.py \
-            --datastore-project ${PROJECT_ID} \
-            --namespace ${NAMESPACE} \
-            --step ${STEP} \
-            --sdk SDK_"${sdk^^}" \
-            --origin ${ORIGIN} \
-            --subdirs ${SUBDIRS}
-            if [ $? -eq 0 ]
-              then
-                LogOutput "Examples for $sdk SDK have been successfully deployed."
-                eval "cd_${sdk}_passed"='True'
-              else
-                LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
-            fi
-          else
-            LogOutput "Checker has not found relevant examples"
-          fi
-        done
+        LogOutput "Checker found changed examples for SDK_${sdk^^}"
+        ${sdk}_example_has_changed=True
+    elif [ $checker_status -eq 11 ]
+    then
+        LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
+        exit 1
     else
-      LogOutput "Checker has not found any changed examples for $sdk in examples directories"
-      exit 1
+        LogOutput "Error: Checker is broken. Exiting the script."
+        exit 1
     fi
-done
+
+    if [[ "${sdk}_example_has_changed" == "True" ]]; then
+      echo "Running ci_cd.py for SDK $sdk"
+
+      cd $BEAM_ROOT_DIR/playground/infrastructure
+      export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
+      python3 ci_cd.py \
+      --datastore-project ${PROJECT_ID} \
+      --namespace ${NAMESPACE} \
+      --step ${STEP} \
+      --sdk SDK_"${sdk^^}" \
+      --origin ${ORIGIN} \
+      --subdirs ${SUBDIRS}
+      if [ $? -eq 0 ]
+        then
+          LogOutput "Examples for $sdk SDK have been successfully deployed."
+          eval "cd_${sdk}_passed"='True'
+        else
+          LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
+      fi
+    else
+      LogOutput "Checker has not found relevant examples"
+    fi
+        done
