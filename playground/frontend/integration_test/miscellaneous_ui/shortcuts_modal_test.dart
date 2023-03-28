@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground/pages/standalone_playground/widgets/more_actions.dart';
@@ -26,9 +27,6 @@ import '../common/common_finders.dart';
 
 Future<void> checkShortcutsModal(WidgetTester wt) async {
   expect(find.shortcutsModal(), findsNothing);
-
-  AppLocalizations appLocale =
-      AppLocalizations.of(wt.element(find.moreActions()))!;
 
   await wt.tapAndSettle(find.moreActions());
 
