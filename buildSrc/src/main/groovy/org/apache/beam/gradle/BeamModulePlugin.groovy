@@ -2788,53 +2788,12 @@ class BeamModulePlugin implements Plugin<Project> {
       def installGcpTest = project.tasks.register('installGcpTest')  {
         dependsOn setupVirtualenv
         dependsOn ':sdks:python:sdist'
-
-        // if host system wheel compatible with dataflow runner
-        def compatibleWithDataflow = ("amd64".equalsIgnoreCase(System.getProperty("os.arch"))
-            && "linux".equalsIgnoreCase(System.getProperty("os.name"))
-            && !project.hasProperty('sdistForceTarball'))
-
-        // Set sdistFiles project ext at execution time as the path to the
-        // generated installable Python SDK package. If project property
-        // sdistUseWheel is set, targets to wheel, otherwise a tarball.
-        project.ext.sdistFiles = project.files()
-
         doLast {
-          def packageFile = "${pythonRootDir}/build/apache-beam.tar.gz"
-          if (compatibleWithDataflow) {
-            // build wheel in separate folder to avoid racing conditions
-            project.copy {
-              from project.tarTree(project.resources.gzip(packageFile))
-              into project.buildDir
-            }
-            def srcDirs = project.files()
-            project.buildDir.eachDirMatch({it.startsWith('apache-beam')}, {srcDirs.from it})
-            def srcDir = srcDirs.singleFile
-            project.exec {
-              executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && pip install 'Cython<1' " +
-                  "&& cd ${srcDir} && python setup.py -q sdist bdist_wheel --dist-dir ${project.buildDir}"
-            }
-            def collection = project.fileTree(project.buildDir){
-              include "**/*${project.ext.pythonVersion.replace('.', '')}*.whl"
-              exclude 'srcs/**'
-            }
-            def packageFilename = collection.singleFile.getName()
-            def renamed = packageFilename.replace('linux_x86_64', 'manylinux_2_17_x86_64.manylinux2014_x86_64')
-
-            if (renamed != packageFilename) {
-              project.copy {
-                from collection.singleFile; into project.buildDir;
-                rename { renamed } }
-            }
-            packageFile = project.file("${project.buildDir}/$renamed")
-            logger.warn('Create distribution wheel file {} in {}', packageFilename, project.buildDir)
-          }
+          def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${packageFile}[gcp,test,aws,azure,dataframe]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${distTarBall}[gcp,test,aws,azure,dataframe]"
           }
-          project.ext.sdistFiles.from packageFile
         }
       }
 
