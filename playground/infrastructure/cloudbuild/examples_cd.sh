@@ -69,7 +69,7 @@ function LogOutput ()
 
 LogOutput "Input variables:
  ORIGIN=$ORIGIN
- STEP=${_STEP}
+ STEP=${STEP}
  SUBDIRS=$SUBDIRS
  BEAM_ROOT_DIR=$BEAM_ROOT_DIR
  PROJECT_ID=$PROJECT_ID
@@ -111,7 +111,10 @@ LogOutput "All packages and dependencies have been successfully installed. Start
 
 LogOutput "Checking changed files in the PR"
 
-diff=($(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH | tr '\n' ' '))
+# diff=($(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH | tr '\n' ' '))
+
+diff_log=$(git diff --name-only $DIFF_BASE...$COMMIT)
+diff=($(echo "$diff_log" | tr '\n' ' '))
 
 for file in "${diff[@]}"; do
     if echo $file == *learning/katas/ || echo $file == *examples/* || echo $file == *sdks/*
