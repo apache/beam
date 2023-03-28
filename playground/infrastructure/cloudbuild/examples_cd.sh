@@ -111,10 +111,11 @@ LogOutput "All packages and dependencies have been successfully installed. Start
 
 LogOutput "Checking changed files in the PR"
 
-diff=$(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH)
+git diff --name-only $DIFF_BASE...$SOURCE_BRANCH
+
+diff=($(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH | tr '\n' ' '))
 
 echo $diff
-
 for file in "${diff[@]}"; do
     if echo $file == *learning/katas/ || echo $file == *examples/* || echo $file == *sdks/*
     then
