@@ -113,6 +113,8 @@ LogOutput "Checking changed files in the PR"
 
 diff=($(git diff --name-only $DIFF_BASE...$SOURCE_BRANCH -- | tr '\n' ' '))
 
+echo $diff
+
 for file in "${diff[@]}"; do
     if echo $file == *learning/katas/ || echo $file == *examples/* || echo $file == *sdks/*
     then
@@ -143,7 +145,7 @@ for file in "${diff[@]}"; do
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
-            --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
+            --subdirs ${SUBDIRS}
             if [ $? -eq 0 ]
               then
                 LogOutput "Examples for $sdk SDK have been successfully deployed."
