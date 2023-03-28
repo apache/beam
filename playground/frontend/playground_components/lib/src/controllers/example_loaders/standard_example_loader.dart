@@ -20,7 +20,6 @@ import 'dart:async';
 
 import '../../cache/example_cache.dart';
 import '../../models/example.dart';
-import '../../models/example_base.dart';
 import '../../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../../models/sdk.dart';
 import 'example_loader.dart';
@@ -35,10 +34,9 @@ class StandardExampleLoader extends ExampleLoader {
 
   final ExampleCache exampleCache;
   final _completer = Completer<Example>();
-  Sdk? _sdk;
 
   @override
-  Sdk? get sdk => _sdk;
+  Sdk? get sdk => descriptor.sdk;
 
   @override
   Future<Example> get future => _completer.future;
@@ -52,12 +50,10 @@ class StandardExampleLoader extends ExampleLoader {
 
   Future<void> _load() async {
     try {
-      final example = await _loadExampleBase();
-
-      if (example == null) {
-        _completer.completeError(Exception('Example not found: $descriptor'));
-        return;
-      }
+      final example = await exampleCache.getPrecompiledObject(
+        descriptor.path,
+        descriptor.sdk,
+      );
 
       _completer.complete(
         exampleCache.loadExampleInfo(example),
@@ -68,15 +64,5 @@ class StandardExampleLoader extends ExampleLoader {
       _completer.completeError(ex, trace);
       return;
     }
-  }
-
-  Future<ExampleBase?> _loadExampleBase() async {
-    _sdk = Sdk.tryParseExamplePath(descriptor.path);
-
-    if (_sdk == null) {
-      return null;
-    }
-
-    return exampleCache.getPrecompiledObject(descriptor.path, _sdk!);
   }
 }

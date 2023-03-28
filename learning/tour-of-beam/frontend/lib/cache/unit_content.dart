@@ -29,13 +29,16 @@ class UnitContentCache extends Cache {
   final _unitContents = <String, Map<String, UnitContentModel>>{};
   final _futures = <String, Map<String, Future<UnitContentModel>>>{};
 
-  UnitContentModel? getUnitContent(String sdkId, String unitId) {
+  Future<UnitContentModel> getUnitContent(
+    String sdkId,
+    String unitId,
+  ) async {
     final future = _futures[sdkId]?[unitId];
     if (future == null) {
-      unawaited(_loadUnitContent(sdkId, unitId));
+      await _loadUnitContent(sdkId, unitId);
     }
 
-    return _unitContents[sdkId]?[unitId];
+    return _unitContents[sdkId]![unitId]!;
   }
 
   Future<UnitContentModel> _loadUnitContent(String sdkId, String unitId) async {

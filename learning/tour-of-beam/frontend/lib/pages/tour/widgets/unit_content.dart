@@ -185,41 +185,45 @@ class _SnippetTypeSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: tourNotifier,
-      builder: (context, child) => Row(
-        children: [
-          if (tourNotifier.hasSolution)
-            _SnippetTypeButton(
-              groupValue: tourNotifier.snippetType,
-              title: 'pages.tour.solution'.tr(),
-              value: SnippetType.solution,
-              onChanged: () async {
-                await _setSnippetByType(SnippetType.solution);
-              },
-            ),
-          if (tourNotifier.hasSolution || tourNotifier.hasSavedSnippet)
-            _SnippetTypeButton(
-              groupValue: tourNotifier.snippetType,
-              title: unitContent.isChallenge
-                  ? 'pages.tour.assignment'.tr()
-                  : 'pages.tour.example'.tr(),
-              value: SnippetType.original,
-              onChanged: () async {
-                await _setSnippetByType(SnippetType.original);
-              },
-            ),
-          if (tourNotifier.hasSavedSnippet)
-            _SnippetTypeButton(
-              groupValue: tourNotifier.snippetType,
-              title: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
-                  ? 'pages.tour.saving'.tr()
-                  : 'pages.tour.myCode'.tr(),
-              value: SnippetType.saved,
-              onChanged: () async {
-                await _setSnippetByType(SnippetType.saved);
-              },
-            ),
-        ],
-      ),
+      builder: (context, child) {
+        final groupValue = tourNotifier.snippetType;
+
+        return Row(
+          children: [
+            if (tourNotifier.hasSolution)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: 'pages.tour.solution'.tr(),
+                value: SnippetType.solution,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.solution);
+                },
+              ),
+            if (tourNotifier.hasSolution || tourNotifier.isCodeSaved)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: unitContent.isChallenge
+                    ? 'pages.tour.assignment'.tr()
+                    : 'pages.tour.example'.tr(),
+                value: SnippetType.original,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.original);
+                },
+              ),
+            if (tourNotifier.isCodeSaved)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
+                    ? 'pages.tour.saving'.tr()
+                    : 'pages.tour.myCode'.tr(),
+                value: SnippetType.saved,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.saved);
+                },
+              ),
+          ],
+        );
+      },
     );
   }
 }

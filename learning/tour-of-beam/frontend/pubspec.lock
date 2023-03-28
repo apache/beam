@@ -559,54 +559,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.3"
-  google_identity_services_web:
-    dependency: transitive
-    description:
-      name: google_identity_services_web
-      sha256: "5d9af2f1fa192f2629a266d038ee9307b0abe729a4f1b454dd21b414f5e7d381"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.0"
-  google_sign_in:
-    dependency: "direct main"
-    description:
-      name: google_sign_in
-      sha256: "4f7177a6116738b0c54230a864f1d44d5d2bbec3e43b4d00c16735e32bb8e8da"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.0.0"
-  google_sign_in_android:
-    dependency: transitive
-    description:
-      name: google_sign_in_android
-      sha256: "612bf44d5de01f32bf127ea1c8114281075c7a39f621d1e34cf70aa069840c5c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.1.6"
-  google_sign_in_ios:
-    dependency: transitive
-    description:
-      name: google_sign_in_ios
-      sha256: "1116aff5e87f89837b052a81abe6259be7c4dd418275786864d27b74cb2a4e70"
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.5.1"
-  google_sign_in_platform_interface:
-    dependency: transitive
-    description:
-      name: google_sign_in_platform_interface
-      sha256: "61306213c76bb8170c3aa20017df296c0131c24d7f6c0cc7e2eeaeac34c9f457"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.3.0"
-  google_sign_in_web:
-    dependency: transitive
-    description:
-      name: google_sign_in_web
-      sha256: a33778787257c348f1ec8f0ab51bc680af7dc224ad7a71fb5a5d49177dca3c49
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.11.0"
   googleapis_auth:
     dependency: transitive
     description:
@@ -640,13 +592,21 @@ packages:
     source: hosted
     version: "0.7.0"
   hive:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: hive
       sha256: "8dcf6db979d7933da8217edcec84e9df1bdb4e4edc7fc77dbd5aa74356d6d941"
       url: "https://pub.dev"
     source: hosted
     version: "2.2.3"
+  hive_test:
+    dependency: transitive
+    description:
+      name: hive_test
+      sha256: dd7a5cf0be7af288566a96180b5d07574023777aa947ef252b69046ec36d8eb2
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   http:
     dependency: "direct main"
     description:
@@ -962,14 +922,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
-  quiver:
-    dependency: transitive
-    description:
-      name: quiver
-      sha256: b1c1ac5ce6688d77f65f3375a9abb9319b3cb32486bdc7a1e0fdf004d7ba4e47
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.2.1"
   rate_limiter:
     dependency: "direct main"
     description:

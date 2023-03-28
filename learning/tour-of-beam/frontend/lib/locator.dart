@@ -48,7 +48,7 @@ void _initializeCaches() {
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));
-  GetIt.instance.registerSingleton(UnitProgressCache(client: client));
+  GetIt.instance.registerSingleton(UnitProgressCache());
 }
 
 void _initializeState() {

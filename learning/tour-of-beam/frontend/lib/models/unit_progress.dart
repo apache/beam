@@ -20,7 +20,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'unit_progress.g.dart';
 
-@JsonSerializable(createToJson: false)
+@JsonSerializable()
 class UnitProgressModel {
   final String id;
   final bool isCompleted;
@@ -34,4 +34,6 @@ class UnitProgressModel {
 
   factory UnitProgressModel.fromJson(Map<String, dynamic> json) =>
       _$UnitProgressModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$UnitProgressModelToJson(this);
 }

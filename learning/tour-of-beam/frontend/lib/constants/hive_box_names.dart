@@ -16,16 +16,13 @@
  * limitations under the License.
  */
 
-class TobSizes {
-  static const double footerHeight = 35;
-  static const double authOverlayWidth = 260;
-  static const double hintPopupWidth = 510;
-}
+import 'package:playground_components/playground_components.dart';
 
-class ScreenSizes {
-  static const medium = 1024;
-}
+class HiveBoxNames {
+  static const unitProgress = 'unit_progress';
+  static const snippets = 'snippets';
 
-class ScreenBreakpoints {
-  static const twoColumns = ScreenSizes.medium;
+  static String getSdkBoxName(Sdk sdk, String boxName) {
+    return '${sdk.id}_$boxName';
+  }
 }

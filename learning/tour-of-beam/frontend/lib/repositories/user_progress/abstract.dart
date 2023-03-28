@@ -16,16 +16,30 @@
  * limitations under the License.
  */
 
-class TobSizes {
-  static const double footerHeight = 35;
-  static const double authOverlayWidth = 260;
-  static const double hintPopupWidth = 510;
-}
+import 'package:playground_components/playground_components.dart';
 
-class ScreenSizes {
-  static const medium = 1024;
-}
+import '../../enums/snippet_type.dart';
+import '../models/get_user_progress_response.dart';
 
-class ScreenBreakpoints {
-  static const twoColumns = ScreenSizes.medium;
+abstract class AbstractUserProgressRepository {
+  Future<GetUserProgressResponse?> getUserProgress(
+    Sdk sdk,
+  );
+
+  Future<void> completeUnit(
+    String sdkId,
+    String unitId,
+  );
+
+  Future<void> saveUnitSnippet({
+    required Sdk sdk,
+    required List<SnippetFile> snippetFiles,
+    required SnippetType snippetType,
+    required String unitId,
+  });
+
+  Future<ExampleLoadingDescriptor> getSavedDescriptor({
+    required Sdk sdk,
+    required String unitId,
+  });
 }

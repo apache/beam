@@ -16,30 +16,34 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+import 'dart:convert';
 
-import '../../../cache/unit_progress.dart';
-import '../../../repositories/client/client.dart';
+import 'package:hive/hive.dart';
 
-class UnitController extends ChangeNotifier {
-  final String unitId;
-  final String sdkId;
+import '../../cache/example_cache.dart';
+import '../../models/example.dart';
+import '../../models/example_loading_descriptors/hive_example_loading_descriptor.dart';
+import '../../models/sdk.dart';
+import 'example_loader.dart';
 
-  UnitController({
-    required this.unitId,
-    required this.sdkId,
+class HiveExampleLoader extends ExampleLoader {
+  @override
+  final HiveExampleLoadingDescriptor descriptor;
+
+  final ExampleCache exampleCache;
+
+  HiveExampleLoader({
+    required this.descriptor,
+    required this.exampleCache,
   });
 
-  Future<void> completeUnit() async {
-    final client = GetIt.instance.get<TobClient>();
-    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
-    try {
-      unitProgressCache.addUpdatingUnitId(unitId);
-      await client.postUnitComplete(sdkId, unitId);
-    } finally {
-      await unitProgressCache.updateUnitProgress();
-      unitProgressCache.clearUpdatingUnitId(unitId);
-    }
+  @override
+  Sdk? get sdk => descriptor.sdk;
+
+  @override
+  Future<Example> get future async {
+    final box = await Hive.openBox(descriptor.boxName);
+    final Map<String, dynamic> map = jsonDecode(box.get(descriptor.snippetId));
+    return Example.fromJson(map);
   }
 }
