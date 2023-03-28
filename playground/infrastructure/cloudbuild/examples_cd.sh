@@ -125,7 +125,7 @@ do
     --verbose \
     --sdk SDK_"${sdk^^}" \
     --allowlist "${allowlist_array[@]}" \
-    --paths "${diff[@]}" >> ${LOG_PATH} 2>&1
+    --paths "${diff[@]}"
     checker_status=$?
     cd $BEAM_ROOT_DIR
     if [ $checker_status -eq 0 ]
