@@ -145,7 +145,7 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table")
  *         .withKeyRange(keyRange)
  *         .withAttemptTimeout(attemptTimeout)
- *         .withOperationTimeout(attemptTimeout);
+ *         .withOperationTimeout(operationTimeout);
  * }</pre>
  *
  * <h3>Writing to Cloud Bigtable</h3>
@@ -346,7 +346,8 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      *
-     * @deprecated please use {@link #getBigtableReadOptions()}.
+     * @deprecated read options are configured directly on BigtableIO.read(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -729,7 +730,8 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being written to, and other parameters.
      *
-     * @deprecated please configure the write options directly.
+     * @deprecated write options are configured directly on BigtableIO.write(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
