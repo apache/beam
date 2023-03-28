@@ -17,10 +17,12 @@ limitations under the License.
 
 # Use slowly-updating side input patterns to auto-update models
 
-The pipeline in this example uses a [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) `PTransform` with a side input `PCollection` that emits `ModelMetadata` to run inferences on images using open source Tensorflow models trained on `imagenet`.
+The pipeline in this example uses a [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) `PTransform` with a [side input](https://beam.apache.org/documentation/programming-guide/#side-inputs) `PCollection` that emits `ModelMetadata` to run inferences on images using TensorFlow models.
 
 Using side inputs, you can update your model (which is passed in the `ModelHandler`) in real-time, even while the Beam pipeline is still running. This can be done either by leveraging one of Beam's pre-built side inputs, such as the `WatchFilePattern`,
 or by configuring a custom side input PCollection that defines the logic for the model update.
+
+**More about `side inputs` can be found at https://beam.apache.org/documentation/programming-guide/#side-inputs.**
 
 This example uses [WatchFilePattern](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.utils.html#apache_beam.ml.inference.utils.WatchFilePattern) as a side input. `WatchFilePattern` is used to watch for the file updates matching the `file_pattern`
 based on timestamps. It emits the latest [ModelMetadata](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/), which is used in
@@ -72,9 +74,12 @@ tf_model_handler = TFModelHandlerTensor(model_uri='gs://<your-bucket>/<model_pat
 The `model_metadata_pcoll` is a [side input](https://beam.apache.org/documentation/programming-guide/#side-inputs) PCollection to the RunInference PTransform. This is used to update the models in the `model_handler` without needing to stop the beam pipeline.
 We will use `WatchFilePattern` as side input to watch a glob pattern matching `.h5` files.
 
-Once the pipeline starts processing data, upload a `.h5` `TensorFlow` model that matches the `file_pattern` to the Google Cloud Storage bucket. RunInference will update the `model_uri` of `TFModelHandlerTensor` using `WatchFilePattern` as side input.
+`model_metadata_pcoll` expects a `PCollection[ModelMetadata]` compatible with [AsSingleton](https://beam.apache.org/releases/pydoc/2.4.0/apache_beam.pvalue.html#apache_beam.pvalue.AsSingleton) view. Since the pipeline uses `WatchFilePattern` as side input, it will take care of windowing and wrapping the output into `ModelMetadata`.
 
-**Note**: Side input update frequency is non-deterministic.
+
+Once the pipeline starts processing data and when you see some outputs emitted from the `RunInference` PTransform, upload a `.h5` `TensorFlow` model that matches the `file_pattern` to the Google Cloud Storage bucket. RunInference will update the `model_uri` of `TFModelHandlerTensor` using `WatchFilePattern` as side input.
+
+**Note**: Side input update frequency is non-deterministic and can have longer interval between updates.
 
 ```python
 import apache_beam as beam
@@ -104,7 +109,6 @@ with beam.Pipeline() as pipeline:
 
 ```
 
-`model_metadata_pcoll` expects a PCollection of `ModelMetadata` compatible with [AsSingleton](https://beam.apache.org/releases/pydoc/2.4.0/apache_beam.pvalue.html#apache_beam.pvalue.AsSingleton) view. Since the pipeline uses `WatchFilePattern` as side input, it will take care of windowing and wrapping the output into `ModelMetadata`.
 
 ### Post-process `PredictionResult` object
 
