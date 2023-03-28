@@ -115,6 +115,7 @@ class BigtableServiceImpl implements BigtableService {
                   .toBuilder()
                   .setInitialRpcTimeout(
                       org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
+                  .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
                   .build());
     }
     this.client = BigtableDataClient.create(builder.build());
