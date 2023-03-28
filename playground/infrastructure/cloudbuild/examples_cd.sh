@@ -131,9 +131,9 @@ do
     if [ $checker_status -eq 0 ]
     then
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        ${sdk}_example_has_changed=True
+        example_for_${sdk}_has_changed=True
     elif [ $checker_status -eq 11 ]
-    then
+  then
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
         exit 1
     else
@@ -141,7 +141,7 @@ do
         exit 1
     fi
 
-    if [[ "${sdk}_example_has_changed" == "True" ]]; then
+    if [[ example_for_${sdk}_has_changed == True ]]; then
       echo "Running ci_cd.py for SDK $sdk"
 
       cd $BEAM_ROOT_DIR/playground/infrastructure
