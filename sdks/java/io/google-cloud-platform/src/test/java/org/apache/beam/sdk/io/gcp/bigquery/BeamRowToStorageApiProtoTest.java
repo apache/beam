@@ -258,7 +258,7 @@ public class BeamRowToStorageApiProtoTest {
                   BASE_ROW.getLogicalTypeValue("sqlTimeValue", LocalTime.class)))
           .put(
               "sqldatetimevalue",
-              CivilTimeEncoder.encodePacked64DatetimeSeconds(
+              CivilTimeEncoder.encodePacked64DatetimeMicros(
                   BASE_ROW.getLogicalTypeValue("sqlDatetimeValue", LocalDateTime.class)))
           .put(
               "sqltimestampvalue",

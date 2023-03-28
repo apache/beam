@@ -24,6 +24,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -90,7 +91,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   private static final Duration DEFAULT_TRIGGERING_FREQUENCY =
       Duration.standardSeconds(DEFAULT_TRIGGER_FREQUENCY_SECS);
   private static final String INPUT_ROWS_TAG = "input";
-  private static final String OUTPUT_ERRORS_TAG = "errors";
+  private static final String FAILED_ROWS_TAG = "FailedRows";
+  private static final String FAILED_ROWS_WITH_ERRORS_TAG = "FailedRowsWithErrors";
 
   @Override
   protected Class<BigQueryStorageWriteApiSchemaTransformConfiguration> configurationClass() {
@@ -115,7 +117,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.singletonList(OUTPUT_ERRORS_TAG);
+    return Arrays.asList(FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG);
   }
 
   /** Configuration for writing to BigQuery with Storage Write API. */
@@ -147,17 +149,19 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       // validate create and write dispositions
       if (!Strings.isNullOrEmpty(this.getCreateDisposition())) {
-        checkArgument(
-            CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()) != null,
+        checkNotNull(
+            CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()),
             invalidConfigMessage
-                + "Invalid create disposition was specified. Available dispositions are: ",
+                + "Invalid create disposition (%s) was specified. Available dispositions are: %s",
+            this.getCreateDisposition(),
             CREATE_DISPOSITIONS.keySet());
       }
       if (!Strings.isNullOrEmpty(this.getWriteDisposition())) {
         checkNotNull(
             WRITE_DISPOSITIONS.get(this.getWriteDisposition().toUpperCase()),
             invalidConfigMessage
-                + "Invalid write disposition was specified. Available dispositions are: ",
+                + "Invalid write disposition (%s) was specified. Available dispositions are: %s",
+            this.getWriteDisposition(),
             WRITE_DISPOSITIONS.keySet());
       }
     }
@@ -329,32 +333,48 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .setRowSchema(inputSchema)
               .apply(write);
 
+      Schema rowSchema = inputRows.getSchema();
       Schema errorSchema =
           Schema.of(
-              Field.of("failed_row", FieldType.STRING),
+              Field.of("failed_row", FieldType.row(rowSchema)),
               Field.of("error_message", FieldType.STRING));
 
-      // Errors consisting of failed rows along with their error message
-      PCollection<Row> errorRows =
+      // Failed rows
+      PCollection<Row> failedRows =
           result
               .getFailedStorageApiInserts()
               .apply(
-                  "Extract Errors",
-                  MapElements.into(TypeDescriptor.of(Row.class))
+                  "Construct failed rows",
+                  MapElements.into(TypeDescriptors.rows())
+                      .via(
+                          (storageError) ->
+                              BigQueryUtils.toBeamRow(rowSchema, storageError.getRow())))
+              .setRowSchema(rowSchema);
+
+      // Failed rows with error message
+      PCollection<Row> failedRowsWithErrors =
+          result
+              .getFailedStorageApiInserts()
+              .apply(
+                  "Construct failed rows and errors",
+                  MapElements.into(TypeDescriptors.rows())
                       .via(
                           (storageError) ->
                               Row.withSchema(errorSchema)
                                   .withFieldValue("error_message", storageError.getErrorMessage())
-                                  .withFieldValue("failed_row", storageError.getRow().toString())
+                                  .withFieldValue(
+                                      "failed_row",
+                                      BigQueryUtils.toBeamRow(rowSchema, storageError.getRow()))
                                   .build()))
               .setRowSchema(errorSchema);
 
-      PCollection<Row> errorOutput =
-          errorRows
+      PCollection<Row> failedRowsOutput =
+          failedRows
               .apply("error-count", ParDo.of(new ElementCounterFn("BigQuery-write-error-counter")))
-              .setRowSchema(errorSchema);
+              .setRowSchema(rowSchema);
 
-      return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorOutput);
+      return PCollectionRowTuple.of(FAILED_ROWS_TAG, failedRowsOutput)
+          .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors);
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {
@@ -375,13 +395,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
             BigQueryStorageWriteApiSchemaTransformConfiguration.CREATE_DISPOSITIONS.get(
-                configuration.getCreateDisposition());
+                configuration.getCreateDisposition().toUpperCase());
         write = write.withCreateDisposition(createDisposition);
       }
       if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
         WriteDisposition writeDisposition =
             BigQueryStorageWriteApiSchemaTransformConfiguration.WRITE_DISPOSITIONS.get(
-                configuration.getWriteDisposition());
+                configuration.getWriteDisposition().toUpperCase());
         write = write.withWriteDisposition(writeDisposition);
       }
 
@@ -407,7 +427,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
           table = BigQueryHelpers.getTable(options, tableRef);
         }
         if (table == null) {
-          LOG.info("Table not found and skipped schema validation: " + tableRef.getTableId());
+          LOG.info("Table [{}] not found, skipping schema validation.", tableRef.getTableId());
           return;
         }
         Schema outputSchema = BigQueryUtils.fromTableSchema(table.getSchema());
