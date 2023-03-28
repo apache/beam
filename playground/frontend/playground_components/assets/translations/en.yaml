@@ -15,6 +15,9 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
+dialogs:
+  cancel: Cancel
+
 errors:
   error: 'Error'
   failedParseOptions: >
@@ -40,7 +43,6 @@ intents:
     reset: 'Reset Code'
 
 widgets:
-
   codeEditor:
     label: 'Code Text Area'
   

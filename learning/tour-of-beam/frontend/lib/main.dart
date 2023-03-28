@@ -42,7 +42,7 @@ void main() async {
   const englishLocale = Locale('en');
 
   final pageStack = GetIt.instance.get<PageStack>();
-  final routerDelegate = PageStackRouterDelegate(pageStack);
+  final routerDelegate = GetIt.instance.get<BeamRouterDelegate>();
   final routeInformationParser = TobRouteInformationParser();
   final backButtonDispatcher = PageStackBackButtonDispatcher(pageStack);
 

@@ -18,24 +18,29 @@
 
 import 'package:flutter/material.dart';
 
-import '../../controllers/public_notifier.dart';
-import 'widget.dart';
+class BeamOverlay extends StatelessWidget {
+  final VoidCallback close;
+  final bool isDismissible;
+  final Positioned child;
 
-void showOverlay({
-  required BuildContext context,
-  required PublicNotifier closeNotifier,
-  required Positioned positioned,
-  bool barrierDismissible = true,
-}) {
-  final overlay = OverlayEntry(
-    builder: (context) {
-      return BeamOverlay(
-        close: closeNotifier.notifyPublic,
-        isDismissible: barrierDismissible,
-        child: positioned,
-      );
-    },
-  );
-  closeNotifier.addListener(overlay.remove);
-  Overlay.of(context)?.insert(overlay);
+  const BeamOverlay({
+    required this.close,
+    required this.isDismissible,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        if (isDismissible)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: close,
+            ),
+          ),
+        child,
+      ],
+    );
+  }
 }

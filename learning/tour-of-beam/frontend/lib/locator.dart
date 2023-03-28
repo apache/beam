@@ -18,6 +18,7 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
 import 'auth/notifier.dart';
 import 'cache/content_tree.dart';
@@ -31,6 +32,8 @@ import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
 import 'state.dart';
 
+final _client = CloudFunctionsTobClient();
+
 Future<void> initializeServiceLocator() async {
   _initializeAuth();
   _initializeState();
@@ -38,26 +41,24 @@ Future<void> initializeServiceLocator() async {
 }
 
 void _initializeAuth() {
-  GetIt.instance.registerSingleton(AuthNotifier());
+  GetIt.instance.registerSingleton(AuthNotifier(client: _client));
 }
 
 void _initializeCaches() {
-  final client = CloudFunctionsTobClient();
-
-  GetIt.instance.registerSingleton<TobClient>(client);
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
-  GetIt.instance.registerSingleton(UnitContentCache(client: client));
-  GetIt.instance.registerSingleton(UnitProgressCache(client: client));
+  GetIt.instance.registerSingleton<TobClient>(_client);
+  GetIt.instance.registerSingleton(ContentTreeCache(client: _client));
+  GetIt.instance.registerSingleton(SdkCache(client: _client));
+  GetIt.instance.registerSingleton(UnitContentCache(client: _client));
+  GetIt.instance.registerSingleton(UnitProgressCache(client: _client));
 }
 
 void _initializeState() {
-  GetIt.instance.registerSingleton(AppNotifier());
-  GetIt.instance.registerSingleton(
-    PageStack(
-      bottomPage: WelcomePage(),
-      createPage: PageFactory.createPage,
-      routeInformationParser: TobRouteInformationParser(),
-    ),
+  final pageStack = PageStack(
+    bottomPage: WelcomePage(),
+    createPage: PageFactory.createPage,
+    routeInformationParser: TobRouteInformationParser(),
   );
+  GetIt.instance.registerSingleton(AppNotifier());
+  GetIt.instance.registerSingleton(pageStack);
+  GetIt.instance.registerSingleton(BeamRouterDelegate(pageStack));
 }

@@ -16,28 +16,44 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-class DismissibleOverlay extends StatelessWidget {
-  final VoidCallback close;
-  final Positioned child;
+class ProgressDialog extends StatelessWidget {
+  const ProgressDialog();
 
-  const DismissibleOverlay({
-    required this.close,
-    required this.child,
-  });
+  /// Shows a dialog with [CircularProgressIndicator] until [future] completes.
+  static void show({
+    required Future future,
+    required GlobalKey<NavigatorState> navigatorKey,
+  }) {
+    var shown = true;
+    unawaited(
+      showDialog(
+        barrierDismissible: false,
+        context: navigatorKey.currentContext!,
+        builder: (_) => const ProgressDialog(),
+      ).whenComplete(() {
+        shown = false;
+      }),
+    );
+    unawaited(
+      future.whenComplete(() {
+        if (shown) {
+          navigatorKey.currentState!.pop();
+        }
+      }),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: close,
-          ),
-        ),
-        child,
-      ],
+    return const Dialog(
+      backgroundColor: Colors.transparent,
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
     );
   }
 }

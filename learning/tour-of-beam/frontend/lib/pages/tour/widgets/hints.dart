@@ -22,7 +22,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../assets/assets.gen.dart';
-import '../../../constants/sizes.dart';
 import 'markdown/tob_markdown.dart';
 
 class HintsWidget extends StatelessWidget {
@@ -47,7 +46,7 @@ class HintsWidget extends StatelessWidget {
         }
       },
       icon: SvgPicture.asset(Assets.svg.hint),
-      label: const Text('ui.hint').tr(),
+      label: const Text('pages.tour.hint').tr(),
     );
   }
 }
@@ -63,14 +62,14 @@ class _Popup extends StatelessWidget {
   Widget build(BuildContext context) {
     return OverlayBody(
       child: Container(
-        width: TobSizes.hintPopupWidth,
+        width: BeamSizes.popupWidth,
         padding: const EdgeInsets.all(BeamSizes.size16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'ui.hint',
+              'pages.tour.hint',
               style: Theme.of(context).textTheme.headlineLarge,
             ).tr(),
             const SizedBox(height: BeamSizes.size8),

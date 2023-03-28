@@ -43,6 +43,7 @@ class BeamSizes {
   static const double loadingIndicator = 40;
   static const double splitViewSeparator = BeamSizes.size8;
   static const double tabBarHeight = 50;
+  static const double popupWidth = 420;
 }
 
 class BeamBorderRadius {

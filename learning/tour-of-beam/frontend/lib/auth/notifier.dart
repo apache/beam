@@ -21,9 +21,14 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
 import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
+
+import '../repositories/client/client.dart';
 
 class AuthNotifier extends ChangeNotifier {
-  AuthNotifier() {
+  final TobClient client;
+
+  AuthNotifier({required this.client}) {
     FirebaseAuth.instance.authStateChanges().listen((user) {
       notifyListeners();
     });
@@ -36,10 +41,23 @@ class AuthNotifier extends ChangeNotifier {
   }
 
   Future<void> logIn(AuthProvider authProvider) async {
-    await FirebaseAuth.instance.signInWithPopup(authProvider);
+    try {
+      await FirebaseAuth.instance.signInWithPopup(authProvider);
+    } on Exception catch (e) {
+      PlaygroundComponents.toastNotifier.addException(e);
+    }
   }
 
   Future<void> logOut() async {
     await FirebaseAuth.instance.signOut();
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      await client.postDeleteUserProgress();
+      await FirebaseAuth.instance.currentUser?.delete();
+    } on Exception catch (e) {
+      PlaygroundComponents.toastNotifier.addException(e);
+    }
   }
 }
