@@ -243,7 +243,7 @@ For more information, see the [`PredictionResult` documentation](https://github.
 For detailed instructions explaining how to build and run a Python pipeline that uses ML models, see the
 [Example RunInference API pipelines](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) on GitHub.
 
-## Slowly-updating side input pattern to update models used by ModelHandler
+## Slowly-updating side input pattern to auto update models used in RunInference
 To perform auto updates of the models used in `RunInference` PTransform without stopping the Beam pipeline, pass a [`ModelMetadata`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelMetadata) side input PCollection to the input parameter `model_metadata_pcoll` of RunInference.
 
 `ModelMetdata` is a `NamedTuple` containing:

@@ -15,18 +15,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Use slowly-updating side input patterns to auto-update models
+# Use WatchFilePattern as side input to auto-update ML models in RunInference
 
 The pipeline in this example uses a [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) `PTransform` with a [side input](https://beam.apache.org/documentation/programming-guide/#side-inputs) `PCollection` that emits `ModelMetadata` to run inferences on images using TensorFlow models.
 
-Using side inputs, you can update your model (which is passed in the `ModelHandler`) in real-time, even while the Beam pipeline is still running. This can be done either by leveraging one of Beam's pre-built side inputs, such as the `WatchFilePattern`,
+Using side inputs, you can update your model (which is passed in the `ModelHandler`) in real-time, even while the Beam pipeline is still running. This can be done either by leveraging one of Beam's provided patterns, such as the `WatchFilePattern`,
 or by configuring a custom side input PCollection that defines the logic for the model update.
 
 **More about `side inputs` can be found at https://beam.apache.org/documentation/programming-guide/#side-inputs.**
 
 This example uses [WatchFilePattern](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.utils.html#apache_beam.ml.inference.utils.WatchFilePattern) as a side input. `WatchFilePattern` is used to watch for the file updates matching the `file_pattern`
 based on timestamps. It emits the latest [ModelMetadata](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/), which is used in
-the RunInference `PTransform` to dynamically update the model without stopping the Beam pipeline.
+the RunInference `PTransform` to auto update the ML model without stopping the Beam pipeline.
 
 ### Setting up source
 
