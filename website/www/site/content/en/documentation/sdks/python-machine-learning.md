@@ -254,7 +254,7 @@ To perform auto updates of the models used in `RunInference` PTransform without 
 
 Use cases:
  * Use `WatchFilePattern` as side input to the RunInference PTransform for the auto updates of the ML model. More details can be found [here](/website/www/site/content/en/documentation/ml/side-input-updates.md).
- 
+
 The side input PCollection must follow [AsSingleton](https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html?highlight=assingleton#apache_beam.pvalue.AsSingleton) view or the pipeline will result in error.
 
 **Note**: If the main PCollection emits inputs and a side input has yet to receive inputs, the main PCollection is buffered until there is
