@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-// Comment
-
 import groovy.json.JsonOutput
 
 plugins {
