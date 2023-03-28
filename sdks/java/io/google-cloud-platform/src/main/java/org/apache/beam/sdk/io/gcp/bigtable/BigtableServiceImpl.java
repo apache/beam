@@ -96,6 +96,9 @@ class BigtableServiceImpl implements BigtableService {
     this(settings, null);
   }
 
+  // TODO remove this constructor once https://github.com/googleapis/gapic-generator-java/pull/1473
+  // is resolved. readWaitTimeout is a hack to workaround incorrect mapping from attempt timeout to
+  // Watchdog's wait timeout.
   BigtableServiceImpl(BigtableDataSettings settings, Duration readWaitTimeout) throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
@@ -104,9 +107,6 @@ class BigtableServiceImpl implements BigtableService {
     this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
     BigtableDataSettings.Builder builder = settings.toBuilder();
     if (readWaitTimeout != null) {
-      // TODO: a hack to workaround incorrect mapping from attempt timeout to watchdogs wait
-      // timeout. This can be removed once
-      // https://github.com/googleapis/gapic-generator-java/pull/1473 is resolved.
       builder
           .stubSettings()
           .readRowsSettings()
