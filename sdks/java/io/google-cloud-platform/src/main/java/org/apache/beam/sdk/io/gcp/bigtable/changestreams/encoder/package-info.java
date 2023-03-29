@@ -18,7 +18,9 @@
 /**
  * Encoders for writing and reading from Metadata Table for Google Cloud Bigtable Change Streams.
  */
+@Internal
 @Experimental
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;

@@ -27,16 +27,6 @@ without having to install/initialize a Beam environment.
 
 ## Getting Started
 
-### Copy the configuration file
-
-After checkout, run:
-
-```bash
-cp playground/frontend/lib/config.example.dart playground/frontend/lib/config.g.dart
-```
-
-This is a temporarily required step. See more: https://github.com/apache/beam/issues/24200
-
 ### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.
@@ -56,6 +46,18 @@ flutter build web
 ```
 
 This produces `build/web` directory with static files. Deploy them to your web server.
+
+### Backend Lookup
+
+The file [playground_components/lib/src/constants/backend_urls.dart](playground_components/lib/src/constants/backend_urls.dart)
+is the location for backend-related constants.
+
+If the `backendUrlOverrides` map contains a URL for a server then only it will be attempted
+for the given container. This is useful for running backend locally.
+
+Otherwise following patterns are tried when looking up the backend servers:
+1. Prepending the frontend host with `router.`, `go.`, `java.`, `python.`, `scio.`.
+2. Prepending the the default production frontend URL with the same.
 
 ### Docker
 
@@ -146,7 +148,7 @@ flutter format ./lib
 To delete all generated files and re-generate them again and then run tests:
 
 ```bash
-./gradlew :playground:frontend:playground_components::test
+./gradlew :playground:frontend:playground_components:test
 ./gradlew :playground:frontend:test
 ```
 
@@ -218,7 +220,7 @@ To add a new localization (using `fr` as an example):
 
 #### 1. Linking to a catalog example by path
 
-`https://play.beam.apache.org/?path=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax&sdk=java`
+`https://play.beam.apache.org/?path=SDK_JAVA_AggregationMax&sdk=java`
 
 Handled by `StandardExampleLoader`.
 
@@ -311,7 +313,7 @@ are allowed for loading single examples, for instance:
 [
    {
       "sdk": "java",
-      "path": "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"
+      "path": "SDK_JAVA_AggregationMax"
    },
    {
       "sdk": "go",
@@ -323,7 +325,7 @@ are allowed for loading single examples, for instance:
 
 Then pass it in`examples` query parameter like this:
 
-`https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"},{"sdk":"go","url":"https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go","readonly":"iam_get_role"}]`
+`https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA_AggregationMax"},{"sdk":"go","url":"https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go","readonly":"iam_get_role"}]`
 
 This starts with the Go example loaded from the URL.
 If SDK is then switched to Java, the `AggregationMax` catalog example is loaded for it.
@@ -348,7 +350,7 @@ Use the `<iframe>` tag to embed playground with any of the above URL patterns, f
 
 ```html
 <iframe
-  src="https://play-dev.beam.apache.org/embedded?path=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax&sdk=java"
+  src="https://play-dev.beam.apache.org/embedded?path=SDK_JAVA_AggregationMax&sdk=java"
   width="800px"
   height="500px"
   allow="clipboard-write"

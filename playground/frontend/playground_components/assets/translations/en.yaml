@@ -17,12 +17,17 @@
 
 errors:
   error: 'Error'
+  failedParseOptions: >
+    Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,',. symbols are allowed
+  internetUnavailable: 'Internet connection is unavailable'
   loading: 'Error while loading.'
   loadingCatalog: 'Cannot load the example catalog.'
   loadingExample: 'Cannot load the example.'
   savingSnippet: 'Cannot create a shareable link.'
+  unknownError: 'Unknown error. Possibly internet connection problem or CORS issue'
 
 examples:
+  defaultTitle: 'Catalog'
   userSharedName: 'User Shared Code'
 
 ui:
@@ -38,6 +43,9 @@ widgets:
 
   codeEditor:
     label: 'Code Text Area'
+  
+  closeButton:
+    label: 'Close'
 
   output:
     filter:
@@ -46,6 +54,9 @@ widgets:
       output: 'Output'
     filterTitle: 'Display at this tab'
     graph: 'Graph'
+    messages:
+      cachedResult: 'The results of this example are taken from the Apache Beam Playground cache'
+      pipelineCancelled: 'Pipeline cancelled'
     result: 'Result'
 
   resetButton:
@@ -58,3 +69,12 @@ widgets:
     notificationTitles:
       run: 'Run Code'
       cancelExecution: 'Cancel Execution'
+
+  versions:
+    beam: 'Beam {version}'
+    commit: 'Commit {hash} from {date}'
+    title: 'Versions'
+    titles:
+      frontend: 'Frontend'
+      router: 'Router'
+      runner: '{sdk} Runner'

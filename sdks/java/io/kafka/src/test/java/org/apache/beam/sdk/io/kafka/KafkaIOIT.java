@@ -623,7 +623,7 @@ public class KafkaIOIT {
                             true, options.isWithTestcontainers() ? 30 : 120)
                         .from(
                             KafkaReadSchemaTransformConfiguration.builder()
-                                .setDataFormat(format)
+                                .setFormat(format)
                                 .setAutoOffsetResetConfig("earliest")
                                 .setSchema(schemaDefinition)
                                 .setTopic(topicName)

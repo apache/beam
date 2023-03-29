@@ -428,7 +428,7 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
       worker_id = dict(context.invocation_metadata())['worker_id']
       worker = self._worker_manager.get_worker(worker_id)
       info = copy.copy(worker.provision_info.provision_info)
-      info.logging_endpoint.CopyFrom(worker.logging_api_service_descriptor())  # type: ignore
+      info.logging_endpoint.CopyFrom(worker.logging_api_service_descriptor())
       info.artifact_endpoint.CopyFrom(worker.artifact_api_service_descriptor())
       info.control_endpoint.CopyFrom(worker.control_api_service_descriptor())
     else:

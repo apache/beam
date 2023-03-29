@@ -109,7 +109,7 @@ void main() {
       '- notify all listeners,'
       'but should NOT:'
       '- affect Example state categories', () {
-    final state = ExampleSelectorState(
+    state = ExampleSelectorState(
       playgroundController,
       categoriesMock,
     );
@@ -126,7 +126,7 @@ void main() {
       '- notify all listeners,'
       'but should NOT:'
       '- affect Example state categories', () {
-    final state = ExampleSelectorState(
+    state = ExampleSelectorState(
       playgroundController,
       categoriesMock,
     );
@@ -145,7 +145,7 @@ void main() {
       '- wait for full name of example,'
       '- be sensitive for register,'
       '- affect Example state categories', () {
-    final state = ExampleSelectorState(
+    state = ExampleSelectorState(
       playgroundController,
       categoriesMock,
     );
@@ -157,11 +157,21 @@ void main() {
   });
 
   test('ExampleSelectorState sorts tags by example count', () {
-    final state = ExampleSelectorState(
+    state = ExampleSelectorState(
       playgroundController,
       categoriesMock,
     );
     const popularTag = 'tag2';
     expect(state.tags.first == popularTag, true);
+  });
+
+  test('ExampleSelectorState sorts first selected tags ', () {
+    state = ExampleSelectorState(
+      playgroundController,
+      categoriesMock,
+    );
+    const selectedTag = 'tag1';
+    state.addSelectedTag(selectedTag);
+    expect(state.tags.first == selectedTag, true);
   });
 }

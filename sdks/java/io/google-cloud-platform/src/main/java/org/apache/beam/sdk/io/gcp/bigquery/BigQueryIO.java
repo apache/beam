@@ -2094,6 +2094,7 @@ public class BigQueryIO {
         .setAutoSchemaUpdate(false)
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
+        .setPropagateSuccessfulStorageApiWrites(false)
         .build();
   }
 
@@ -2211,6 +2212,8 @@ public class BigQueryIO {
 
     abstract int getNumStorageWriteApiStreams();
 
+    abstract boolean getPropagateSuccessfulStorageApiWrites();
+
     abstract int getMaxFilesPerPartition();
 
     abstract long getMaxBytesPerPartition();
@@ -2305,6 +2308,9 @@ public class BigQueryIO {
       abstract Builder<T> setNumFileShards(int numFileShards);
 
       abstract Builder<T> setNumStorageWriteApiStreams(int numStorageApiStreams);
+
+      abstract Builder<T> setPropagateSuccessfulStorageApiWrites(
+          boolean propagateSuccessfulStorageApiWrites);
 
       abstract Builder<T> setMaxFilesPerPartition(int maxFilesPerPartition);
 
@@ -2761,6 +2767,17 @@ public class BigQueryIO {
           "numStorageWriteApiStreams must be > 0, but was: %s",
           numStorageWriteApiStreams);
       return toBuilder().setNumStorageWriteApiStreams(numStorageWriteApiStreams).build();
+    }
+
+    /**
+     * If set to true, then all successful writes will be propagated to {@link WriteResult} and
+     * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method.
+     */
+    public Write<T> withPropagateSuccessfulStorageApiWrites(
+        boolean propagateSuccessfulStorageApiWrites) {
+      return toBuilder()
+          .setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites)
+          .build();
     }
 
     /**
@@ -3270,6 +3287,9 @@ public class BigQueryIO {
         checkArgument(
             getSchemaUpdateOptions() == null || getSchemaUpdateOptions().isEmpty(),
             "SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
+        checkArgument(
+            !getPropagateSuccessfulStorageApiWrites(),
+            "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
 
         RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
             (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
@@ -3301,6 +3321,9 @@ public class BigQueryIO {
               rowWriterFactory.getOutputType() == OutputType.AvroGenericRecord,
               "useAvroLogicalTypes can only be set with Avro output.");
         }
+        checkArgument(
+            !getPropagateSuccessfulStorageApiWrites(),
+            "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
 
         // Batch load jobs currently support JSON data insertion only with CSV files
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
@@ -3406,7 +3429,8 @@ public class BigQueryIO {
                 method == Method.STORAGE_API_AT_LEAST_ONCE,
                 getAutoSharding(),
                 getAutoSchemaUpdate(),
-                getIgnoreUnknownValues());
+                getIgnoreUnknownValues(),
+                getPropagateSuccessfulStorageApiWrites());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

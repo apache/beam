@@ -20,6 +20,8 @@ ARG BASE_IMAGE
 FROM $BASE_IMAGE
 ARG SDK_TAG
 ARG SDK_TAG_LOCAL
+ARG GIT_COMMIT="<unknown>"
+ARG GIT_TIMESTAMP="0"
 
 # Setup Go Environment
 ENV GOPATH /go
@@ -48,8 +50,9 @@ WORKDIR /go/src/playground/backend
 RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
-    go build -o /opt/playground/backend/server_go_backend
+    go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /opt/playground/backend/server_go_backend
 
+ENV BEAM_VERSION=$SDK_TAG
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
@@ -71,6 +74,13 @@ ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
+
+# Install Kafka emulator
+COPY kafka-emulator/kafka-emulator.tar /opt/playground/backend/kafka-emulator/
+RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar && rm kafka-emulator.tar &&\
+    mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
+    mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
+RUN apt-get update && apt-get install -y openjdk-11-jre-headless
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \

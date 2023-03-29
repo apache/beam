@@ -416,7 +416,7 @@ public class PackageUtilTest {
           fastNanoClockAndSleeper::sleep,
           createOptions);
     } finally {
-      verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
+      verify(mockGcsUtil, times(5)).getObjects(anyListOf(GcsPath.class));
       verify(mockGcsUtil, times(5)).create(any(GcsPath.class), any(GcsUtil.CreateOptions.class));
       verifyNoMoreInteractions(mockGcsUtil);
     }
@@ -477,7 +477,9 @@ public class PackageUtilTest {
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
     when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .thenThrow(new IOException("Fake Exception: 410 Gone")) // First attempt fails
-        .thenReturn(pipe.sink()); // second attempt succeeds
+        .thenThrow(
+            new IOException("Fake Exception: 412 Precondition Failed")) // Second attempt fails
+        .thenReturn(pipe.sink()); // Third attempt succeeds
 
     try (PackageUtil directPackageUtil =
         PackageUtil.withExecutorService(MoreExecutors.newDirectExecutorService())) {
@@ -487,8 +489,8 @@ public class PackageUtilTest {
           fastNanoClockAndSleeper::sleep,
           createOptions);
     } finally {
-      verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-      verify(mockGcsUtil, times(2)).create(any(GcsPath.class), any(GcsUtil.CreateOptions.class));
+      verify(mockGcsUtil, times(3)).getObjects(anyListOf(GcsPath.class));
+      verify(mockGcsUtil, times(3)).create(any(GcsPath.class), any(GcsUtil.CreateOptions.class));
       verifyNoMoreInteractions(mockGcsUtil);
     }
   }

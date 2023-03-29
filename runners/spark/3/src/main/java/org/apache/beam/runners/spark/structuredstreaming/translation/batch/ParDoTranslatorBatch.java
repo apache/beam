@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.simple;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.oneOfEncoder;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.emptyList;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.listOf;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.spark.sql.functions.col;
@@ -27,18 +26,21 @@ import static org.apache.spark.sql.functions.col;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.UnresolvedTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
-import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -55,7 +58,6 @@ import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.TypedColumn;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
-import scala.collection.TraversableOnce;
 
 /**
  * Translator for {@link ParDo.MultiOutput} based on {@link DoFnRunners#simpleRunner}.
@@ -71,7 +73,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
         PCollection<? extends InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
 
   ParDoTranslatorBatch() {
-    super(0.2f);
+    super(0);
   }
 
   @Override
@@ -106,19 +108,15 @@ class ParDoTranslatorBatch<InputT, OutputT>
       throws IOException {
 
     PCollection<InputT> input = (PCollection<InputT>) cxt.getInput();
-
-    Dataset<WindowedValue<InputT>> inputDs = cxt.getDataset(input);
     SideInputReader sideInputReader =
         createSideInputReader(transform.getSideInputs().values(), cxt);
     MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
 
     TupleTag<OutputT> mainOut = transform.getMainOutputTag();
-    // Filter out unconsumed PCollections (except mainOut) to potentially avoid the costs of caching
-    // if not really beneficial.
+
+    // Filter out obsolete PCollections to only cache when absolutely necessary
     Map<TupleTag<?>, PCollection<?>> outputs =
-        Maps.filterEntries(
-            cxt.getOutputs(),
-            e -> e != null && (e.getKey().equals(mainOut) || !cxt.isLeaf(e.getValue())));
+        skipObsoleteOutputs(cxt.getOutputs(), mainOut, transform.getAdditionalOutputTags(), cxt);
 
     if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.
@@ -128,11 +126,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
       DoFnPartitionIteratorFactory<InputT, ?, Tuple2<Integer, WindowedValue<Object>>> doFnMapper =
           DoFnPartitionIteratorFactory.multiOutput(
-              cxt.getCurrentTransform(),
               cxt.getOptionsSupplier(),
-              input,
-              sideInputReader,
               metrics,
+              simple(cxt.getCurrentTransform(), input, sideInputReader, false),
               tagColIdx);
 
       // FIXME What's the strategy to unpersist Datasets / RDDs?
@@ -142,7 +138,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
       // Persist as wide rows with one column per TupleTag to support different schemas
       Dataset<Tuple2<Integer, WindowedValue<Object>>> allTagsDS =
-          inputDs.mapPartitions(doFnMapper, oneOfEncoder(encoders));
+          cxt.getDataset(input).mapPartitions(doFnMapper, oneOfEncoder(encoders));
       allTagsDS.persist(storageLevel);
 
       // divide into separate output datasets per tag
@@ -158,19 +154,85 @@ class ParDoTranslatorBatch<InputT, OutputT>
       }
     } else {
       PCollection<OutputT> output = cxt.getOutput(mainOut);
-      DoFnPartitionIteratorFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
-          DoFnPartitionIteratorFactory.singleOutput(
-              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader, metrics);
-
-      Dataset<WindowedValue<OutputT>> mainDS =
-          inputDs.mapPartitions(doFnMapper, cxt.windowedEncoder(output.getCoder()));
-
-      cxt.putDataset(output, mainDS);
+      // Obsolete outputs might have to be filtered out
+      boolean filterMainOutput = cxt.getOutputs().size() > 1;
+      // Provide unresolved translation so that can be fused if possible
+      UnresolvedParDo<InputT, OutputT> unresolvedParDo =
+          new UnresolvedParDo<>(
+              input,
+              simple(cxt.getCurrentTransform(), input, sideInputReader, filterMainOutput),
+              () -> cxt.windowedEncoder(output.getCoder()));
+      cxt.putUnresolved(output, unresolvedParDo);
     }
   }
 
-  static <T> Fun1<Tuple2<Integer, T>, TraversableOnce<T>> selectByColumnIdx(int idx) {
-    return t -> idx == t._1 ? listOf(t._2) : emptyList();
+  /**
+   * An unresolved {@link ParDo} translation that can be fused with previous / following ParDos for
+   * better performance.
+   */
+  private static class UnresolvedParDo<InT, T> implements UnresolvedTranslation<InT, T> {
+    private final PCollection<InT> input;
+    private final DoFnRunnerFactory<InT, T> doFnFact;
+    private final Supplier<Encoder<WindowedValue<T>>> encoder;
+
+    UnresolvedParDo(
+        PCollection<InT> input,
+        DoFnRunnerFactory<InT, T> doFnFact,
+        Supplier<Encoder<WindowedValue<T>>> encoder) {
+      this.input = input;
+      this.doFnFact = doFnFact;
+      this.encoder = encoder;
+    }
+
+    @Override
+    public PCollection<InT> getInput() {
+      return input;
+    }
+
+    @Override
+    public <T2> UnresolvedTranslation<InT, T2> fuse(UnresolvedTranslation<T, T2> next) {
+      UnresolvedParDo<T, T2> nextParDo = (UnresolvedParDo<T, T2>) next;
+      return new UnresolvedParDo<>(input, doFnFact.fuse(nextParDo.doFnFact), nextParDo.encoder);
+    }
+
+    @Override
+    public Dataset<WindowedValue<T>> resolve(
+        Supplier<PipelineOptions> options, Dataset<WindowedValue<InT>> input) {
+      MetricsAccumulator metrics = MetricsAccumulator.getInstance(input.sparkSession());
+      DoFnPartitionIteratorFactory<InT, ?, WindowedValue<T>> doFnMapper =
+          DoFnPartitionIteratorFactory.singleOutput(options, metrics, doFnFact);
+      return input.mapPartitions(doFnMapper, encoder.get());
+    }
+  }
+
+  /**
+   * Filter out obsolete, unused output tags except for {@code mainTag}.
+   *
+   * <p>This can help to avoid unnecessary caching in case of multiple outputs if only {@code
+   * mainTag} is consumed.
+   */
+  private Map<TupleTag<?>, PCollection<?>> skipObsoleteOutputs(
+      Map<TupleTag<?>, PCollection<?>> outputs,
+      TupleTag<?> mainTag,
+      TupleTagList otherTags,
+      Context cxt) {
+    switch (outputs.size()) {
+      case 1:
+        return outputs; // always keep main output
+      case 2:
+        TupleTag<?> otherTag = otherTags.get(0);
+        return cxt.isLeaf(checkStateNotNull(outputs.get(otherTag)))
+            ? Collections.singletonMap(mainTag, checkStateNotNull(outputs.get(mainTag)))
+            : outputs;
+      default:
+        Map<TupleTag<?>, PCollection<?>> filtered = Maps.newHashMapWithExpectedSize(outputs.size());
+        for (Map.Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
+          if (e.getKey().equals(mainTag) || !cxt.isLeaf(e.getValue())) {
+            filtered.put(e.getKey(), e.getValue());
+          }
+        }
+        return filtered;
+    }
   }
 
   private Map<String, Integer> tagsColumnIndex(Collection<TupleTag<?>> tags) {

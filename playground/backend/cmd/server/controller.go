@@ -15,11 +15,11 @@
 package main
 
 import (
+	"cloud.google.com/go/datastore"
 	"context"
 	"errors"
-
-	"cloud.google.com/go/datastore"
 	"github.com/google/uuid"
+	"strconv"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
@@ -88,16 +88,6 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	var kafkaMockCluster emulators.EmulatorMockCluster
-	var prepareParams = make(map[string]string)
-	if len(info.Datasets) != 0 {
-		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(info)
-		if err != nil {
-			return nil, cerrors.InternalError(errorTitleRunCode, "Failed to prepare a mock emulator cluster")
-		}
-		kafkaMockCluster = kafkaMockClusters[0]
-		prepareParams = prepareParamsVal
-	}
 	sources := make([]entity.FileEntity, 0)
 	if len(info.Files) > 0 {
 		for _, file := range info.Files {
@@ -121,35 +111,41 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		})
 	}
 
-	lc, err := life_cycle.Setup(info.Sdk, sources, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), kafkaMockCluster)
+	emulatorConfiguration := emulators.EmulatorConfiguration{
+		Datasets:                    info.Datasets,
+		DatasetsPath:                controller.env.ApplicationEnvs.DatasetsPath(),
+		KafkaEmulatorExecutablePath: controller.env.ApplicationEnvs.KafkaExecutablePath(),
+	}
+
+	lc, err := life_cycle.Setup(info.Sdk, sources, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), emulatorConfiguration)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, cerrors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
 	}
 
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving status of the code processing")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial run output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving value for the logs output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial cancel flag")
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
-		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
+		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Internal error")
 	}
 
-	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions, kafkaMockCluster, prepareParams)
+	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
@@ -531,5 +527,23 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 			IsMain:  file.IsMain,
 		})
 	}
+	return &response, nil
+}
+
+// GetMetadata returns runner metadata
+func (controller *playgroundController) GetMetadata(_ context.Context, _ *pb.GetMetadataRequest) (*pb.GetMetadataResponse, error) {
+	commitTimestampInteger, err := strconv.ParseInt(BuildCommitTimestamp, 10, 64)
+	if err != nil {
+		logger.Errorf("GetMetadata(): failed to parse BuildCommitTimestamp (\"%s\"): %s", BuildCommitTimestamp, err.Error())
+		commitTimestampInteger = 0
+	}
+
+	response := pb.GetMetadataResponse{
+		RunnerSdk:                             controller.env.BeamSdkEnvs.ApacheBeamSdk.String(),
+		BuildCommitHash:                       BuildCommitHash,
+		BuildCommitTimestampSecondsSinceEpoch: commitTimestampInteger,
+		BeamSdkVersion:                        controller.env.BeamSdkEnvs.BeamVersion,
+	}
+
 	return &response, nil
 }

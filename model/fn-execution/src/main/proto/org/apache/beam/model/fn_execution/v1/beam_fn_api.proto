@@ -663,7 +663,7 @@ message Elements {
     // (Optional) Represents a part of a logical byte stream. Elements within
     // the logical byte stream are encoded in the nested context and
     // concatenated together.
-    bytes data = 3;
+    bytes data = 3 [ctype = CORD];
 
     // (Optional) Set this bit to indicate the this is the last data block
     // for the given instruction and transform, ending the stream.

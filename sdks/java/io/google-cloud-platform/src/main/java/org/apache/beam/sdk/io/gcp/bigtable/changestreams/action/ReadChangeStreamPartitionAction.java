@@ -17,11 +17,24 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isSuperset;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
+
+import com.google.api.gax.rpc.ServerStream;
+import com.google.cloud.bigtable.common.Status;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
+import com.google.cloud.bigtable.data.v2.models.CloseStream;
+import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
@@ -50,19 +63,19 @@ public class ReadChangeStreamPartitionAction {
   private final ChangeStreamDao changeStreamDao;
   private final ChangeStreamMetrics metrics;
   private final ChangeStreamAction changeStreamAction;
-  private final Duration heartbeatDurationSeconds;
+  private final Duration heartbeatDuration;
 
   public ReadChangeStreamPartitionAction(
       MetadataTableDao metadataTableDao,
       ChangeStreamDao changeStreamDao,
       ChangeStreamMetrics metrics,
       ChangeStreamAction changeStreamAction,
-      Duration heartbeatDurationSeconds) {
+      Duration heartbeatDuration) {
     this.metadataTableDao = metadataTableDao;
     this.changeStreamDao = changeStreamDao;
     this.metrics = metrics;
     this.changeStreamAction = changeStreamAction;
-    this.heartbeatDurationSeconds = heartbeatDurationSeconds;
+    this.heartbeatDuration = heartbeatDuration;
   }
 
   /**
@@ -84,20 +97,12 @@ public class ReadChangeStreamPartitionAction {
    *   <li>Process CloseStream if it exists. In order to solve a possible inconsistent state
    *       problem, we do not process CloseStream after receiving it. We claim the CloseStream in
    *       the RestrictionTracker so it persists after a checkpoint. We checkpoint to flush all the
-   *       DataChanges. Then on resume, we process the CloseStream. There are only 2 expected Status
-   *       for CloseStream: OK and Out of Range.
-   *       <ol>
-   *         <li>OK status is returned when the predetermined endTime has been reached. In this
-   *             case, we update the watermark and update the metadata table. {@link
-   *             DetectNewPartitionsDoFn} aggregates the watermark from all the streams to ensure
-   *             all the streams have reached beyond endTime so it can also terminate and end the
-   *             beam job.
-   *         <li>Out of Range is returned when the partition has either been split into more
-   *             partitions or merged into a larger partition. In this case, we write to the
-   *             metadata table the new partitions' information so that {@link
-   *             DetectNewPartitionsDoFn} can read and output those new partitions to be streamed.
-   *             We also need to ensure we clean up this partition's metadata to release the lock.
-   *       </ol>
+   *       DataChanges. Then on resume, we process the CloseStream. There is only 1 expected Status
+   *       for CloseStream: Out of Range. Out of Range is returned when the partition has either
+   *       been split into more partitions or merged into a larger partition. In this case, we write
+   *       to the metadata table the new partitions' information so that {@link
+   *       DetectNewPartitionsDoFn} can read and output those new partitions to be streamed. We also
+   *       need to ensure we clean up this partition's metadata to release the lock.
    *   <li>Update the metadata table with the watermark and additional debugging info.
    *   <li>Stream the partition.
    * </ol>
@@ -119,7 +124,108 @@ public class ReadChangeStreamPartitionAction {
       DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator)
       throws IOException {
+    // Watermark being delayed beyond 5 minutes signals a possible problem.
+    boolean shouldDebug =
+        watermarkEstimator.getState().plus(Duration.standardMinutes(5)).isBeforeNow();
 
-    return ProcessContinuation.stop();
+    if (shouldDebug) {
+      LOG.info(
+          "RCSP: Partition: "
+              + partitionRecord
+              + "\n Watermark: "
+              + watermarkEstimator.getState()
+              + "\n RestrictionTracker: "
+              + tracker.currentRestriction());
+    }
+
+    // Lock the partition
+    if (!metadataTableDao.lockPartition(
+        partitionRecord.getPartition(), partitionRecord.getUuid())) {
+      LOG.info(
+          "RCSP: Could not acquire lock for partition: {}, with uid: {}, because this is a "
+              + "duplicate and another worker is working on this partition already.",
+          formatByteStringRange(partitionRecord.getPartition()),
+          partitionRecord.getUuid());
+      StreamProgress streamProgress = new StreamProgress();
+      streamProgress.setFailToLock(true);
+      metrics.decPartitionStreamCount();
+      if (!tracker.tryClaim(streamProgress)) {
+        LOG.debug("RCSP: Failed to claim tracker after failing to lock partition.");
+        return ProcessContinuation.stop();
+      }
+      return ProcessContinuation.stop();
+    }
+
+    // Process CloseStream if it exists
+    CloseStream closeStream = tracker.currentRestriction().getCloseStream();
+    if (closeStream != null) {
+      if (closeStream.getStatus().getCode() != Status.Code.OUT_OF_RANGE) {
+        LOG.error(
+            "RCSP {}: Reached unexpected terminal state: {}",
+            formatByteStringRange(partitionRecord.getPartition()),
+            closeStream.getStatus());
+        metrics.decPartitionStreamCount();
+        return ProcessContinuation.stop();
+      }
+      // The partitions in the continuation tokens should be a superset of this partition.
+      // If there's only 1 token, then the token's partition should be a superset of this partition.
+      // If there are more than 1 tokens, then the tokens should form a continuous row range that is
+      // a superset of this partition.
+      List<Range.ByteStringRange> partitions = new ArrayList<>();
+      for (ChangeStreamContinuationToken changeStreamContinuationToken :
+          closeStream.getChangeStreamContinuationTokens()) {
+        partitions.add(changeStreamContinuationToken.getPartition());
+        metadataTableDao.writeNewPartition(
+            changeStreamContinuationToken,
+            partitionRecord.getPartition(),
+            watermarkEstimator.getState());
+      }
+      if (shouldDebug) {
+        LOG.info(
+            "RCSP {}: Split/Merge into {}",
+            formatByteStringRange(partitionRecord.getPartition()),
+            partitionsToString(partitions));
+      }
+      if (!isSuperset(partitions, partitionRecord.getPartition())) {
+        LOG.warn(
+            "RCSP {}: CloseStream has child partition(s) {} that doesn't cover the keyspace",
+            formatByteStringRange(partitionRecord.getPartition()),
+            partitionsToString(partitions));
+      }
+      metadataTableDao.deleteStreamPartitionRow(partitionRecord.getPartition());
+      metrics.decPartitionStreamCount();
+      return ProcessContinuation.stop();
+    }
+
+    // Update the metadata table with the watermark
+    metadataTableDao.updateWatermark(
+        partitionRecord.getPartition(),
+        watermarkEstimator.getState(),
+        tracker.currentRestriction().getCurrentToken());
+
+    // Start to stream the partition.
+    ServerStream<ChangeStreamRecord> stream = null;
+    try {
+      stream =
+          changeStreamDao.readChangeStreamPartition(
+              partitionRecord, tracker.currentRestriction(), heartbeatDuration, shouldDebug);
+      for (ChangeStreamRecord record : stream) {
+        Optional<ProcessContinuation> result =
+            changeStreamAction.run(
+                partitionRecord, record, tracker, receiver, watermarkEstimator, shouldDebug);
+        // changeStreamAction will usually return Optional.empty() except for when a checkpoint
+        // (either runner or pipeline initiated) is required.
+        if (result.isPresent()) {
+          return result.get();
+        }
+      }
+    } catch (Exception e) {
+      throw e;
+    } finally {
+      if (stream != null) {
+        stream.cancel();
+      }
+    }
+    return ProcessContinuation.resume();
   }
 }
