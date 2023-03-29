@@ -127,6 +127,7 @@ do
     python3 checker.py \
     --verbose \
     --sdk SDK_"${sdk^^}" \
+    --allowlist "" \
     --paths "${diff[@]}"
     checker_status=$?
     if [ $checker_status -eq 0 ]; then
