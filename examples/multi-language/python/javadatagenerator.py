@@ -49,7 +49,6 @@ $ python javadatagenerator.py \
       --expansion_service_port <PORT>
 """
 
-# Comment to delete
 
 def run(output_path, expansion_service_port, pipeline_args):
   pipeline_options = PipelineOptions(pipeline_args)
