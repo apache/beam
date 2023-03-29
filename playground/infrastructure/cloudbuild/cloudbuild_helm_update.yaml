@@ -1,0 +1,86 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+steps:
+  - name: ubuntu
+    args:
+      - '-c'
+      - >-
+        apt update > /dev/null
+
+        apt-get install -y git curl apt-transport-https ca-certificates gnupg jq
+        > /dev/null
+
+        echo "deb https://packages.cloud.google.com/apt cloud-sdk main" | tee -a
+        /etc/apt/sources.list.d/google-cloud-sdk.list
+
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add
+        -
+
+        apt-get update && apt-get install -y google-cloud-sdk openjdk-11-jdk > /dev/null
+
+        git clone https://github.com/apache/beam.git
+
+        cd beam
+        
+        ./gradlew playground:terraform:gkebackend -Pproject_environment=$_PROJECT_ENVIRONMENT
+        -Pdocker-tag=$_TAG_NAME -Pdns-name=$_DNS_NAME -Psdk-tag=$_SDK_TAG
+        -Pdocker-repository-root=$_ARTIFACT_REGISTRY_NAME
+        -Pdatastore-namespace=$_DATASTORE_NAMESPACE
+
+        json_output=$(gsutil cat
+        gs://$_PLAYGROUND_TFSTATE_BUCKET/default.tfstate)
+
+        playground_redis_ip=$(echo "$json_output" | jq -r
+        '.outputs.playground_redis_ip.value')
+        playground_static_ip_address=$(echo "$json_output" | jq -r
+        '.outputs.playground_static_ip_address.value')
+        playground_static_ip_address_name=$(echo "$json_output" | jq -r
+        '.outputs.playground_static_ip_address_name.value')
+
+        cat <<EOT >> playground/infrastructure/helm-playground/values.yaml
+
+
+        static_ip: $playground_static_ip_address 
+
+        redis_ip: $playground_redis_ip:6379  
+
+        project_id: $PROJECT_ID  
+
+        registry: $_ARTIFACT_REGISTRY_NAME
+
+        static_ip_name: $playground_static_ip_address_name 
+
+        tag: $_TAG_NAME
+
+        dns_name: $_DNS_NAME
+
+        datastore_name: $_DATASTORE_NAME
+
+        EOT
+
+        cat playground/infrastructure/helm-playground/values.yaml
+    
+
+    entrypoint: bash
+timeout: 7200s
+logsBucket: 'gs://playground-cloudbuild-logs-private'
+options:
+  machineType: E2_HIGHCPU_32
+  logging: GCS_ONLY
+substitutions:
+  _PLAYGROUND_TFSTATE_BUCKET: stg3-beam-playground-us-west
