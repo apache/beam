@@ -347,7 +347,7 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	instID := instructionID(req.GetInstructionId())
-	ctx = setInstID(ctx, instID)
+	ctx = metrics.SetBundleID(ctx, string(instID))
 
 	switch {
 	case req.GetRegister() != nil:
@@ -381,7 +381,6 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.inactive.Remove(instID)
 		c.active[instID] = plan
 		// Get the user metrics store for this bundle.
-		ctx = metrics.SetBundleID(ctx, string(instID))
 		store := metrics.GetStore(ctx)
 		c.metStore[instID] = store
 		c.mu.Unlock()
