@@ -57,11 +57,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -78,6 +80,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -86,6 +89,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
@@ -950,6 +954,45 @@ public class TextIOReadTest {
               .apply(FileIO.readMatches().withCompression(AUTO))
               .apply(TextIO.readFiles().withDesiredBundleSizeBytes(10));
       PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
+      p.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testReadFilesWithFilename() throws IOException {
+      Path tempFolderPath = tempFolder.getRoot().toPath();
+      writeToFile(TINY, tempFolder, "readAllTiny1.zip", ZIP);
+      writeToFile(TINY, tempFolder, "readAllTiny2.txt", UNCOMPRESSED);
+      writeToFile(LARGE, tempFolder, "readAllLarge1.zip", ZIP);
+      writeToFile(LARGE, tempFolder, "readAllLarge2.txt", UNCOMPRESSED);
+
+      SerializableFunction<String, ? extends FileBasedSource<String>> createSource =
+          input -> new TextSource(ValueProvider.StaticValueProvider.of(input),
+              EmptyMatchTreatment.DISALLOW, new byte[] {'\n'});
+
+      PCollection<KV<String, String>> lines =
+          p.apply(
+                  Create.of(
+                      tempFolderPath.resolve("readAllTiny*").toString(),
+                      tempFolderPath.resolve("readAllLarge*").toString()))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches().withCompression(AUTO))
+              .apply(
+                new ReadAllViaFileBasedSourceWithFilename<String>(
+                  10,
+                  createSource,
+                  KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())
+                )
+              );
+
+      PAssert.that(lines).containsInAnyOrder(
+          Iterables.concat(
+              TINY.stream().map(l -> KV.of("readAllTiny1.zip", l)).collect(Collectors.toList()),
+              TINY.stream().map(l -> KV.of("readAllTiny2.txt", l)).collect(Collectors.toList()),
+              LARGE.stream().map(l -> KV.of("readAllLarge1.zip", l)).collect(Collectors.toList()),
+              LARGE.stream().map(l -> KV.of("readAllLarge2.txt", l)).collect(Collectors.toList())
+          )
+      );
       p.run();
     }
 

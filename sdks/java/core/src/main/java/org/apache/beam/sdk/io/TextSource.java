@@ -53,16 +53,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class TextSource extends FileBasedSource<String> {
+public class TextSource extends FileBasedSource<String> {
   byte[] delimiter;
 
-  TextSource(
+  public TextSource(
       ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
   }
 
-  private TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
+  public TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
     super(metadata, 1L, start, end);
     this.delimiter = delimiter;
   }
