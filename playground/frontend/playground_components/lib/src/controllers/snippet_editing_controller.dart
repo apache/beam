@@ -154,6 +154,7 @@ class SnippetEditingController extends ChangeNotifier {
       complexity: example.complexity,
       files: getFiles(),
       name: example.name,
+      pipelineOptions: _pipelineOptions,
       sdk: sdk,
     );
   }

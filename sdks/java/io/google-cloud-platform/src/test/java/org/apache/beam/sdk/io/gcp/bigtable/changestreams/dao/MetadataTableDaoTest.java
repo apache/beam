@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
@@ -26,13 +27,16 @@ import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
 import org.joda.time.Instant;
@@ -42,9 +46,12 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class MetadataTableDaoTest {
+  private static final Logger LOG = LoggerFactory.getLogger(MetadataTableDaoTest.class);
 
   @ClassRule
   public static final BigtableEmulatorRule BIGTABLE_EMULATOR_RULE = BigtableEmulatorRule.create();
@@ -101,6 +108,87 @@ public class MetadataTableDaoTest {
     ByteStringRange rowRange = ByteStringRange.create(nonUtf8RowKey, nonUtf8RowKey);
     ByteString rowKey = metadataTableDao.convertPartitionToStreamPartitionRowKey(rowRange);
     assertEquals(rowRange, metadataTableDao.convertStreamPartitionRowKeyToPartition(rowKey));
+  }
+
+  @Test
+  public void testLockPartitionRace() throws InterruptedException {
+    ByteStringRange partition = ByteStringRange.create("", "");
+    ByteString rowKey = metadataTableDao.convertPartitionToStreamPartitionRowKey(partition);
+    // Class to try to lock the partition in a separate thread.
+    class LockPartition implements Runnable {
+      final String id;
+      boolean locked = false;
+
+      LockPartition(String id) {
+        this.id = id;
+      }
+
+      @Override
+      public void run() {
+        try {
+          // Sleep for a random amount before trying to lock the partition to add variability to the
+          // race.
+          int sleep = (int) (Math.random() * 1000);
+          Thread.sleep(sleep);
+          if (metadataTableDao.lockPartition(partition, id)) {
+            locked = true;
+          }
+        } catch (InterruptedException e) {
+          LOG.error(e.toString());
+        }
+      }
+    }
+
+    List<LockPartition> lockPartitions = new ArrayList<>();
+    List<Thread> threads = new ArrayList<>();
+
+    int competingThreadCount = 1000;
+
+    // Create and start the threads to lock the partition.
+    for (int i = 0; i < competingThreadCount; i++) {
+      lockPartitions.add(new LockPartition(Integer.toString(i)));
+      threads.add(new Thread(lockPartitions.get(i)));
+    }
+    for (int i = 0; i < competingThreadCount; i++) {
+      threads.get(i).start();
+    }
+    for (int i = 0; i < competingThreadCount; i++) {
+      threads.get(i).join();
+    }
+    int lockOwner = -1;
+    for (int i = 0; i < competingThreadCount; i++) {
+      if (lockPartitions.get(i).locked) {
+        // There can be only 1 owner for the lock.
+        if (lockOwner == -1) {
+          lockOwner = i;
+        } else {
+          fail(
+              "Multiple owner on the lock. Both "
+                  + lockOwner
+                  + " and "
+                  + i
+                  + " (and possibly more) think they hold the lock.");
+        }
+      }
+    }
+    // Verify that the owner is indeed the owner of the locker.
+    Row row =
+        dataClient.readRow(
+            metadataTableAdminDao.getTableId(),
+            rowKey,
+            Filters.FILTERS
+                .chain()
+                .filter(Filters.FILTERS.family().exactMatch(MetadataTableAdminDao.CF_LOCK))
+                .filter(
+                    Filters.FILTERS
+                        .qualifier()
+                        .exactMatch(MetadataTableAdminDao.QUALIFIER_DEFAULT)));
+    assertEquals(1, row.getCells().size());
+    assertEquals(Integer.toString(lockOwner), row.getCells().get(0).getValue().toStringUtf8());
+    // Clean up the locked partition row.
+    RowMutation rowMutation =
+        RowMutation.create(metadataTableAdminDao.getTableId(), rowKey).deleteRow();
+    dataClient.mutateRow(rowMutation);
   }
 
   @Test

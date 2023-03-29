@@ -43,9 +43,7 @@ Future<void> _checkAutocomplete(WidgetTester wt) async {
   await wt.enterCodeFieldText('\n\n\n\n\nsdk');
 
   final playgroundController = wt.findPlaygroundController();
-  await wt.runShortcut(
-    playgroundController.showSuggestionsShortcut.shortcuts,
-  );
+  await wt.runShortcut(playgroundController.showSuggestionsShortcut);
   await wt.pumpAndSettle();
 
   expect(find.text('sdkHttpMetadata'), findsOneWidget);

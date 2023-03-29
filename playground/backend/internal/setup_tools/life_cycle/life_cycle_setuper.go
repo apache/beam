@@ -206,7 +206,7 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 	absLogFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, logFileName))
 	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, utils.GraphFileName))
 	projectFolder, _ := filepath.Abs(filepath.Join(pipelineFolder, scioProjectName))
-	executableName := lc.Paths.ExecutableName
+	executableName := lc.Paths.FindExecutableName
 
 	err = os.Remove(filepath.Join(absFileFolderPath, defaultExampleInSbt))
 	if err != nil {
@@ -229,7 +229,7 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 		AbsoluteLogFilePath:              absLogFilePath,
 		AbsoluteGraphFilePath:            absGraphFilePath,
 		ProjectDir:                       projectFolder,
-		ExecutableName:                   executableName,
+		FindExecutableName:               executableName,
 	}
 
 	return lc, nil

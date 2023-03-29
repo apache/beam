@@ -18,6 +18,8 @@
 
 FROM node:16
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
 
 ENV NODE_ENV=development
 
@@ -29,5 +31,5 @@ COPY target/apache-beam.tgz ./apache-beam.tgz
 # Install dependencies and compile
 RUN npm install apache-beam.tgz
 
-COPY target/launcher/linux_amd64/boot /opt/apache/beam/
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam
 ENTRYPOINT ["/opt/apache/beam/boot"]

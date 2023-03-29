@@ -60,6 +60,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* BigQuery Storage Write API is now available in Python SDK via cross-language ([#21961](https://github.com/apache/beam/issues/21961)).
 
 ## New Features / Improvements
 
@@ -67,7 +68,7 @@
 * Schema'd PTransforms can now be directly applied to Beam dataframes just like PCollections.
   (Note that when doing multiple operations, it may be more efficient to explicitly chain the operations
   like `df | (Transform1 | Transform2 | ...)` to avoid excessive conversions.)
-* The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support 
+* The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
   for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
 
 ## Breaking Changes
@@ -78,6 +79,9 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Cloud Debugger support and its pipeline options are deprecated and will be removed in the next Beam version,
+  in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations).
+  (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
 
 ## Bugfixes
 
