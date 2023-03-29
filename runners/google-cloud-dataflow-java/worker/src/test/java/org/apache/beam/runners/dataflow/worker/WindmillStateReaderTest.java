@@ -153,12 +153,9 @@ public class WindmillStateReaderTest {
 
     Iterable<Integer> results = future.get();
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
-    for (Integer unused : results) {
-      // Iterate over the results to force loading all the pages.
-    }
-    Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(results, Matchers.containsInAnyOrder(5, 6));
+    Mockito.verifyNoMoreInteractions(mockWindmill);
     assertNoReader(future);
   }
 
@@ -267,16 +264,15 @@ public class WindmillStateReaderTest {
         .thenReturn(response3.build());
 
     Iterable<Integer> results = future.get();
+
+    assertThat(results, Matchers.contains(5, 6, 7, 8, 9, 10));
+
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest1.build());
-    for (Integer unused : results) {
-      // Iterate over the results to force loading all the pages.
-    }
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest2.build());
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest3.build());
     Mockito.verifyNoMoreInteractions(mockWindmill);
-
-    assertThat(results, Matchers.contains(5, 6, 7, 8, 9, 10));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader, thus not calling
+    // assertNoReader(future).
   }
 
   // check whether the two TagMultimapFetchRequests equal to each other, ignoring the order of
@@ -369,13 +365,10 @@ public class WindmillStateReaderTest {
         expectedRequest.build().getMultimapsToFetch(0),
         requestCaptor.getValue().getMultimapsToFetch(0));
 
-    // Iterate over the results to force loading all the pages.
-    for (Integer unused : results1) {}
-    for (Integer unused : results2) {}
-    Mockito.verifyNoMoreInteractions(mockWindmill);
-
     assertThat(results1, Matchers.containsInAnyOrder(5, 6));
     assertThat(results2, Matchers.containsInAnyOrder(15, 16));
+
+    Mockito.verifyNoMoreInteractions(mockWindmill);
     assertNoReader(future1);
     assertNoReader(future2);
   }
@@ -464,9 +457,8 @@ public class WindmillStateReaderTest {
     Iterable<Integer> results1 = future1.get();
     Iterable<Integer> results2 = future2.get();
 
-    // Iterate over the results to force loading all the pages.
-    for (Integer unused : results1) {}
-    for (Integer unused : results2) {}
+    assertThat(results1, Matchers.containsInAnyOrder(5, 6, 7, 8));
+    assertThat(results2, Matchers.containsInAnyOrder(15, 16));
 
     final ArgumentCaptor<Windmill.KeyedGetDataRequest> requestCaptor =
         ArgumentCaptor.forClass(Windmill.KeyedGetDataRequest.class);
@@ -479,10 +471,8 @@ public class WindmillStateReaderTest {
         expectedRequest2.build().getMultimapsToFetch(0),
         requestCaptor.getAllValues().get(1).getMultimapsToFetch(0));
     Mockito.verifyNoMoreInteractions(mockWindmill);
-
-    assertThat(results1, Matchers.containsInAnyOrder(5, 6, 7, 8));
-    assertThat(results2, Matchers.containsInAnyOrder(15, 16));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader, thus not calling
+    // assertNoReader(future).
   }
 
   @Test
@@ -632,7 +622,8 @@ public class WindmillStateReaderTest {
         keys,
         Matchers.containsInAnyOrder(
             STATE_MULTIMAP_KEY_1, STATE_MULTIMAP_KEY_2, STATE_MULTIMAP_KEY_3));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader, thus not calling
+    // assertNoReader(future).
   }
 
   @Test
@@ -702,6 +693,7 @@ public class WindmillStateReaderTest {
       entry.getValue().forEach(expectedMap.get(key)::add);
     }
     for (Map.Entry<ByteString, List<Integer>> entry : actual) {
+      assertTrue(expectedMap.containsKey(entry.getKey()));
       assertThat(
           entry.getValue(),
           Matchers.containsInAnyOrder(expectedMap.remove(entry.getKey()).toArray()));
@@ -817,7 +809,8 @@ public class WindmillStateReaderTest {
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest2.build());
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest3.build());
     Mockito.verifyNoMoreInteractions(mockWindmill);
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader , thus not calling
+    // assertNoReader(future).
   }
 
   @Test
@@ -927,7 +920,8 @@ public class WindmillStateReaderTest {
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(results, Matchers.contains(5, 6, 7, 8));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader , thus not calling
+    // assertNoReader(future).
   }
 
   @Test
@@ -1222,7 +1216,8 @@ public class WindmillStateReaderTest {
             TimestampedValue.of(5, Instant.ofEpochMilli(5)),
             TimestampedValue.of(6, Instant.ofEpochMilli(6)),
             TimestampedValue.of(7, Instant.ofEpochMilli(7))));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader , thus not calling
+    // assertNoReader(future).
   }
 
   @Test
@@ -1355,7 +1350,8 @@ public class WindmillStateReaderTest {
         Matchers.containsInAnyOrder(
             new AbstractMap.SimpleEntry<>(STATE_KEY_1, 8),
             new AbstractMap.SimpleEntry<>(STATE_KEY_2, 9)));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader , thus not calling
+    // assertNoReader(future).
   }
 
   @Test

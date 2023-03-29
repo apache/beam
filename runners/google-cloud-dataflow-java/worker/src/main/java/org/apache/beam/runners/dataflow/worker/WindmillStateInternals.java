@@ -1616,7 +1616,7 @@ class WindmillStateInternals<K> implements StateInternals {
       // this key is known to be nonexistent, it has 0 value in both localAdditions and windmill
       KNOWN_NONEXISTENT,
       // we don't know if this key is in this multimap, it has exact 0 value in localAddition, but
-      // may have 0 or any number of values in windmill. This is just to provide a mapping between
+      // may have no or any number of values in windmill. This is just to provide a mapping between
       // the original key and the structural key.
       UNKNOWN_EXISTENCE
     }
@@ -1821,7 +1821,7 @@ class WindmillStateInternals<K> implements StateInternals {
           ByteString encodedKey = keyStream.toByteStringAndReset();
           Windmill.TagMultimapEntry.Builder entryBuilder = builder.addUpdatesBuilder();
           entryBuilder.setEntryName(encodedKey);
-          entryBuilder.setDeleteAll(keyState.removedLocally);
+          if (keyState.removedLocally) entryBuilder.setDeleteAll(true);
           keyState.removedLocally = false;
           if (!keyState.localAdditions.isEmpty()) {
             for (V value : keyState.localAdditions) {
@@ -1864,16 +1864,16 @@ class WindmillStateInternals<K> implements StateInternals {
       if (keyState == null || keyState.existence == KeyExistence.KNOWN_NONEXISTENT) {
         return;
       }
-      if (!keyState.valuesCached || keyState.valuesSize > 0) {
+      if (keyState.valuesCached && keyState.valuesSize == 0) {
+        // no data in windmill, deleting from local cache is sufficient.
+        keyStateMap.remove(structuralKey);
+      } else {
         // there may be data in windmill that need to be removed.
         hasLocalRemovals = true;
         keyState.removedLocally = true;
         keyState.values = new ConcatIterables<>();
         keyState.valuesSize = 0;
         keyState.existence = KeyExistence.KNOWN_NONEXISTENT;
-      } else {
-        // no data in windmill, deleting from local cache is sufficient.
-        keyStateMap.remove(structuralKey);
       }
       if (!keyState.localAdditions.isEmpty()) {
         keyState.localAdditions = Lists.newArrayList();
@@ -2028,10 +2028,7 @@ class WindmillStateInternals<K> implements StateInternals {
                     keyState.existence = KeyExistence.KNOWN_EXIST;
                     keyState.values.extendWith(entry.getValue());
                     keyState.valuesSize += Iterables.size(entry.getValue());
-                    // We can't set keyState.valuesCached to true here, because there may be more
-                    // paginated values that should not be filtered out in above if statement.
-                    // keyState.valuesCached will be set to true in later call of
-                    // mergedCachedEntries.
+                    keyState.valuesCached = true;
                   } catch (IOException e) {
                     throw new RuntimeException(e);
                   }

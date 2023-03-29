@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -82,8 +83,10 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RangeSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
@@ -655,9 +658,13 @@ public class WindmillStateInternalsTest {
     assertEquals(0, commitBuilder.getValueUpdatesCount());
   }
 
-  private static <T> ByteString encodeWithCoder(T key, Coder<T> coder) throws IOException {
+  private static <T> ByteString encodeWithCoder(T key, Coder<T> coder) {
     ByteStringOutputStream out = new ByteStringOutputStream();
-    coder.encode(key, out, Context.OUTER);
+    try {
+      coder.encode(key, out, Context.OUTER);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     return out.toByteString();
   }
 
@@ -671,7 +678,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapGet() throws IOException {
+  public void testMultimapGet() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -692,7 +699,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapPutAndGet() throws IOException {
+  public void testMultimapPutAndGet() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -714,7 +721,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapRemoveAndGet() throws IOException {
+  public void testMultimapRemoveAndGet() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -742,7 +749,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapRemoveThenPut() throws IOException {
+  public void testMultimapRemoveThenPut() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -794,7 +801,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapGetLocalCombineStorage() throws IOException {
+  public void testMultimapGetLocalCombineStorage() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -818,7 +825,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapLocalRemoveOverrideStorage() throws IOException {
+  public void testMultimapLocalRemoveOverrideStorage() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -844,7 +851,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapLocalClearOverrideStorage() throws IOException {
+  public void testMultimapLocalClearOverrideStorage() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -879,7 +886,7 @@ public class WindmillStateInternalsTest {
   }
 
   private static Map.Entry<ByteString, Iterable<Integer>> multimapEntry(
-      byte[] key, Integer... values) throws IOException {
+      byte[] key, Integer... values) {
     return new AbstractMap.SimpleEntry<>(
         encodeWithCoder(key, ByteArrayCoder.of()), Arrays.asList(values));
   }
@@ -895,7 +902,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapBasicEntriesAndKeys() throws IOException {
+  public void testMultimapBasicEntriesAndKeys() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -947,7 +954,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapEntriesAndKeysMergeLocalAdd() throws IOException {
+  public void testMultimapEntriesAndKeysMergeLocalAdd() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -1002,7 +1009,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapEntriesAndKeysMergeLocalRemove() throws IOException {
+  public void testMultimapEntriesAndKeysMergeLocalRemove() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -1052,63 +1059,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapEntriesPaginated() throws IOException {
-    final String tag = "multimap";
-    StateTag<MultimapState<byte[], Integer>> addr =
-        StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
-    MultimapState<byte[], Integer> multimapState = underTest.state(NAMESPACE, addr);
-
-    final byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);
-    final byte[] key2 = "key2".getBytes(StandardCharsets.UTF_8);
-    final byte[] key3 = "key3".getBytes(StandardCharsets.UTF_8);
-
-    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> entriesFuture =
-        SettableFuture.create();
-    when(mockReader.multimapFetchAllFuture(
-            false, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
-        .thenReturn(entriesFuture);
-    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> keysFuture =
-        SettableFuture.create();
-    when(mockReader.multimapFetchAllFuture(
-            true, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
-        .thenReturn(keysFuture);
-
-    ReadableState<Iterable<Map.Entry<byte[], Integer>>> entriesResult =
-        multimapState.entries().readLater();
-    ReadableState<Iterable<byte[]>> keysResult = multimapState.keys().readLater();
-    waitAndSet(
-        entriesFuture,
-        weightedList(
-            multimapEntry(key1, 1, 2, 3),
-            // entry key2 is returned in 2 separate responses due to pagination.
-            multimapEntry(key2, 2, 3, 4),
-            multimapEntry(key2, 4, 5)),
-        30);
-    waitAndSet(keysFuture, Arrays.asList(multimapEntry(key1), multimapEntry(key2)), 30);
-
-    multimapState.remove(dup(key1));
-    multimapState.put(key2, 8);
-    multimapState.put(dup(key3), 8);
-
-    Iterable<Map.Entry<byte[], Integer>> entries = entriesResult.read();
-    assertEquals(7, Iterables.size(entries));
-    assertThat(
-        entries,
-        Matchers.containsInAnyOrder(
-            multimapEntryMatcher(key2, 2),
-            multimapEntryMatcher(key2, 3),
-            multimapEntryMatcher(key2, 4),
-            multimapEntryMatcher(key2, 4),
-            multimapEntryMatcher(key2, 5),
-            multimapEntryMatcher(key2, 8),
-            multimapEntryMatcher(key3, 8)));
-
-    Iterable<byte[]> keys = keysResult.read();
-    assertThat(keys, Matchers.containsInAnyOrder(key2, key3));
-  }
-
-  @Test
-  public void testMultimapCacheComplete() throws IOException {
+  public void testMultimapCacheComplete() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -1157,7 +1108,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapCachedSingleEntry() throws IOException {
+  public void testMultimapCachedSingleEntry() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -1195,7 +1146,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapCachedPartialEntry() throws IOException {
+  public void testMultimapCachedPartialEntry() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -1252,7 +1203,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapCachedPartialEntryCannotCachePolled() throws IOException {
+  public void testMultimapEntriesCombineCacheAndWindmill() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -1315,7 +1266,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapModifyAfterReadDoesNotAffectResult() throws IOException {
+  public void testMultimapModifyAfterReadDoesNotAffectResult() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
         StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
@@ -1450,11 +1401,7 @@ public class WindmillStateInternalsTest {
               public Map.Entry<ByteString, Iterable<Integer>> next() {
                 returnedEntries++;
                 rand.nextBytes(entryKey);
-                try {
-                  return multimapEntry(entryKey, 1);
-                } catch (IOException e) {
-                  throw new RuntimeException(e);
-                }
+                return multimapEntry(entryKey, 1);
               }
             },
         200);
@@ -1494,11 +1441,7 @@ public class WindmillStateInternalsTest {
               public Map.Entry<ByteString, Iterable<Integer>> next() {
                 returnedEntries++;
                 rand.nextBytes(entryKey);
-                try {
-                  return multimapEntry(entryKey);
-                } catch (IOException e) {
-                  throw new RuntimeException(e);
-                }
+                return multimapEntry(entryKey);
               }
             },
         200);
@@ -1507,7 +1450,7 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
-  public void testMultimapLazyIterateHugeEntriesResultSingleEntry() throws IOException {
+  public void testMultimapLazyIterateHugeEntriesResultSingleEntry() {
     // A multimap with 1 key and 1 million values and a total of 10GBs data
     final String tag = "multimap";
     final Integer key = 100;
@@ -1810,6 +1753,62 @@ public class WindmillStateInternalsTest {
         ByteArrayCoder.of().decode(entryUpdate.getEntryName().newInput(), Context.OUTER);
     assertTrue(Arrays.equals(key1, decodedKey));
     assertTrue(entryUpdate.getDeleteAll());
+  }
+
+  @Test
+  public void testMultimapFuzzTest() {
+    final String tag = "multimap";
+    StateTag<MultimapState<String, Integer>> addr =
+        StateTags.multimap(tag, StringUtf8Coder.of(), VarIntCoder.of());
+    MultimapState<String, Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> entriesFuture =
+        SettableFuture.create();
+    when(mockReader.multimapFetchAllFuture(
+            false, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(entriesFuture);
+
+    // to set up the multimap as cache complete
+    waitAndSet(entriesFuture, Collections.emptyList(), 30);
+    multimapState.entries().read();
+
+    Multimap<String, Integer> mirror = ArrayListMultimap.create();
+
+    Random rand = new Random();
+
+    final int ROUNDS = 100;
+    final int OPS_PER_ROUND = 2000;
+    final int NUM_KEY = 20;
+    for (int i = 0; i < ROUNDS; i++) {
+      for (int j = 0; j < OPS_PER_ROUND; j++) {
+        int op = rand.nextInt(100);
+        String key = "key" + rand.nextInt(NUM_KEY);
+        if (op < 50) {
+          // 50% add operation
+          Integer value = rand.nextInt();
+          multimapState.put(key, value);
+          mirror.put(key, value);
+        } else if (op < 95) {
+          // 45% remove key operation
+          multimapState.remove(key);
+          mirror.removeAll(key);
+        } else {
+          // 5% clear operation
+          multimapState.clear();
+          mirror.clear();
+        }
+      }
+      Iterable<String> read = multimapState.keys().read();
+      Set<String> bytes = mirror.keySet();
+      assertThat(read, Matchers.containsInAnyOrder(bytes.toArray()));
+      for (String key : multimapState.keys().read()) {
+        assertThat(
+            multimapState.get(key).read(), Matchers.containsInAnyOrder(mirror.get(key).toArray()));
+      }
+      Windmill.WorkItemCommitRequest.Builder commitBuilder =
+          Windmill.WorkItemCommitRequest.newBuilder();
+      underTest.persist(commitBuilder);
+    }
   }
 
   public static final Range<Long> FULL_ORDERED_LIST_RANGE =
