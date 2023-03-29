@@ -15,11 +15,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Use WatchFilePattern as side input to auto-update ML models in RunInference
+# Use WatchFilePattern to auto-update ML models in RunInference
 
-The pipeline in this example uses a [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) `PTransform` with a [side input](https://beam.apache.org/documentation/programming-guide/#side-inputs) `PCollection` that emits `ModelMetadata` to run inferences on images using TensorFlow models.
+The pipeline in this example uses a [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) `PTransform` to run inference on images using TensorFlow models. It uses a [side input](https://beam.apache.org/documentation/programming-guide/#side-inputs) `PCollection` that emits `ModelMetadata` to update the model.
 
-Using side inputs, you can update your model (which is passed in the `ModelHandler`) in real-time, even while the Beam pipeline is still running. This can be done either by leveraging one of Beam's provided patterns, such as the `WatchFilePattern`,
+Using side inputs, you can update your model (which is passed in a `ModelHandler` configuration object) in real-time, even while the Beam pipeline is still running. This can be done either by leveraging one of Beam's provided patterns, such as the `WatchFilePattern`,
 or by configuring a custom side input `PCollection` that defines the logic for the model update.
 
 For more information about side inputs, see the [Side inputs](https://beam.apache.org/documentation/programming-guide/#side-inputs) section in the Apache Beam Programming Guide.
@@ -74,7 +74,7 @@ tf_model_handler = TFModelHandlerTensor(model_uri='gs://<your-bucket>/<model_pat
 The `model_metadata_pcoll` is a [side input](https://beam.apache.org/documentation/programming-guide/#side-inputs) `PCollection` to the RunInference `PTransform`. This side input is used to update the models in the `model_handler` without needing to stop the beam pipeline.
 We will use `WatchFilePattern` as side input to watch a glob pattern matching `.h5` files.
 
-`model_metadata_pcoll` expects a `PCollection[ModelMetadata]` compatible with [`AsSingleton`](https://beam.apache.org/releases/pydoc/2.4.0/apache_beam.pvalue.html#apache_beam.pvalue.AsSingleton) view. Because the pipeline uses `WatchFilePattern` as side input, it will take care of windowing and wrapping the output into `ModelMetadata`.
+`model_metadata_pcoll` expects a `PCollection` of ModelMetadata compatible with [AsSingleton](https://beam.apache.org/releases/pydoc/2.4.0/apache_beam.pvalue.html#apache_beam.pvalue.AsSingleton) view. Because the pipeline uses `WatchFilePattern` as side input, it will take care of windowing and wrapping the output into `ModelMetadata`.
 
 
 After the pipeline starts processing data and when you see some outputs emitted from the RunInference `PTransform`, upload a `.h5` `TensorFlow` model that matches the `file_pattern` to the Google Cloud Storage bucket. RunInference will update the `model_uri` of `TFModelHandlerTensor` using `WatchFilePattern` as a side input.
@@ -112,7 +112,7 @@ with beam.Pipeline() as pipeline:
 
 ## Post-process the `PredictionResult` object
 
-When the inference is complete, RunInference outputs a `PredictionResult` object that contains `example`, `inference`, and `model_id`. Here, the `model_id` is used to identify which model is used for running the inference.
+When the inference is complete, RunInference outputs a `PredictionResult` object that contains `example`, `inference`, and `model_id` fields. The `model_id` is used to identify which model is used for running the inference.
 
 ```python
 from apache_beam.ml.inference.base import PredictionResult
@@ -141,4 +141,4 @@ result = pipeline.run().wait_until_finish()
 **Note**: The `model_name` of the `ModelMetaData` object will be attached as prefix to the [metrics](https://beam.apache.org/documentation/ml/runinference-metrics/) calculated by the RunInference `PTransform`.
 
 ## Final remarks
-Use this example as a pattern when using side inputs with the RunInference `PTransform` to auto-update the models without stopping the pipeline. You can see a similar example for PyTorch on [GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py).
+You can use this example as a pattern when using side inputs with the RunInference `PTransform` to auto-update the models without stopping the pipeline. You can see a similar example for PyTorch on [GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py).
