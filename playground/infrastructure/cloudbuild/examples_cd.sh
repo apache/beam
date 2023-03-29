@@ -32,7 +32,7 @@ export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
 export PROJECT_ID=${PROJECT_ID}
 if [[ -z "${PROJECT_ID}" ]]; then
-  echo "PROJECT_ID is empty or not set. Exiting"
+  LogOutput "PROJECT_ID is empty or not set. Exiting"
   exit 1
 fi
 export SDK_CONFIG=${SDK_CONFIG-"$BEAM_ROOT_DIR/playground/sdks.yaml"}
@@ -56,7 +56,7 @@ if [[ -z "${SOURCE_BRANCH}" ]]; then
   echo "PR Source Branch is empty or not set. Exiting"
   exit 1
 fi
-export ALLOWLIST=${ALLOWLIST-"playground/infrastructure learning/katas sdks/ examples/"}
+export ALLOWLIST=${ALLOWLIST-"learning/katas sdks/ examples/"}
 export DIFF_BASE=${DIFF_BASE-"origin/master"}
 
 # This function logs the given message to a file and outputs it to the console.
@@ -91,12 +91,11 @@ if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
 
-LogOutput "Installing python and dependencies"
+LogOutput "Installing python and dependencies."
 # Install Python 3 and dependencies
 set -e  # Exit immediately if any command fails
 apt update > /dev/null 2>&1
 export DEBIAN_FRONTEND=noninteractive
-
 apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null 2>&1
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null 2>&1
@@ -107,17 +106,15 @@ ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
 apt install -y python3.8-venv > /dev/null 2>&1
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
-LogOutput "All packages and dependencies have been successfully installed. Starting Playground examples Deployment to https://${DNS_NAME}."
+LogOutput "Python and dependencies have been successfully installed."
 
-LogOutput "Checking changed files in the PR"
+LogOutput "Checking what files were changed in the PR."
 
 git fetch --all > /dev/null 2>&1
 
-# diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
-
 diff_log=$(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH)
 diff=($(echo "$diff_log" | tr '\n' ' '))
-LogOutput "Discovered changes in PR from $SOURCE_BRANCH to $DIFF_BASE in files:
+LogOutput "List of changed files in PR $SOURCE_BRANCH merging into $DIFF_BASE are:
 $diff_log"
 
 LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
@@ -125,7 +122,6 @@ allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
 do
     eval "example_for_${sdk}_changed"='False'
-    # cd_example_has_changed="UNKNOWN"
     LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
     cd $BEAM_ROOT_DIR/playground/infrastructure
     python3 checker.py \
@@ -135,30 +131,20 @@ do
     --paths "${diff[@]}"
     checker_status=$?
     if [ $checker_status -eq 0 ]; then
-        echo "Status zero"
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
         eval "example_for_${sdk}_changed"='True'
-        # cd_example_has_changed=True
     elif [ $checker_status -eq 11 ]; then
-        echo "Status 11"
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
         eval "example_for_${sdk}_changed"='False'
-        # cd_example_has_changed=False
-        exit 1
+        continue
     else
-        echo "Status else"
         LogOutput "Error: Checker is broken. Exiting the script."
         exit 1
     fi
 
     result=$(eval echo '$'"example_for_${sdk}_changed")
-    if [[ $result != True ]]; then
-      LogOutput "No changes for ${sdk} examples"
-      continue
-    fi
 
     if [[ $result == True ]]; then
-
         LogOutput "Running ci_cd.py for SDK $sdk"
 
         export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
@@ -172,7 +158,7 @@ do
         if [ $? -eq 0 ]; then
             LogOutput "Examples for $sdk SDK have been successfully deployed."
         else
-            LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
+            LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
         fi
     fi
 done
