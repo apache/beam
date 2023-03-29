@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 
@@ -35,7 +36,6 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
@@ -58,7 +58,7 @@ const (
 	enableGoogleCloudProfilerOption = "enable_google_cloud_profiler"
 )
 
-func configureGoogleCloudProfilerEnvVars(metadata map[string]string) error {
+func configureGoogleCloudProfilerEnvVars(ctx context.Context, logger *tools.Logger, metadata map[string]string) error {
 	if metadata == nil {
 		return errors.New("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled")
 	}
@@ -72,7 +72,7 @@ func configureGoogleCloudProfilerEnvVars(metadata map[string]string) error {
 	}
 	os.Setenv(cloudProfilingJobName, jobName)
 	os.Setenv(cloudProfilingJobID, jobID)
-	log.Printf("Cloud Profiling Job Name: %v, Job IDL %v", jobName, jobID)
+	logger.Printf(ctx, "Cloud Profiling Job Name: %v, Job IDL %v", jobName, jobID)
 	return nil
 }
 
@@ -87,7 +87,7 @@ func main() {
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
-	info, err := provision.Info(ctx, *provisionEndpoint)
+	info, err := tools.ProvisionInfo(ctx, *provisionEndpoint)
 	if err != nil {
 		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
@@ -97,13 +97,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("Endpoint not set: %v", err)
 	}
-	log.Printf("Initializing Go harness: %v", strings.Join(os.Args, " "))
+	logger := &tools.Logger{Endpoint: *loggingEndpoint}
+	logger.Printf(ctx, "Initializing Go harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
 
-	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
+	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
-		log.Fatalf("Failed to convert pipeline options: %v", err)
+		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
 	// (2) Retrieve the staged files.
@@ -115,19 +116,19 @@ func main() {
 	dir := filepath.Join(*semiPersistDir, "staged")
 	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
-		log.Fatalf("Failed to retrieve staged files: %v", err)
+		logger.Fatalf(ctx, "Failed to retrieve staged files: %v", err)
 	}
 
-	name, err := getGoWorkerArtifactName(artifacts)
+	name, err := getGoWorkerArtifactName(ctx, logger, artifacts)
 	if err != nil {
-		log.Fatalf("Failed to get Go Worker Artifact Name: %v", err)
+		logger.Fatalf(ctx, "Failed to get Go Worker Artifact Name: %v", err)
 	}
 
 	// (3) The persist dir may be on a noexec volume, so we must
 	// copy the binary to a different location to execute.
 	const prog = "/bin/worker"
 	if err := copyExe(filepath.Join(dir, name), prog); err != nil {
-		log.Fatalf("Failed to copy worker binary: %v", err)
+		logger.Fatalf(ctx, "Failed to copy worker binary: %v", err)
 	}
 
 	args := []string{
@@ -148,9 +149,9 @@ func main() {
 
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
 	if enableGoogleCloudProfiler {
-		err := configureGoogleCloudProfilerEnvVars(info.Metadata)
+		err := configureGoogleCloudProfilerEnvVars(ctx, logger, info.Metadata)
 		if err != nil {
-			log.Printf("could not configure Google Cloud Profiler variables, got %v", err)
+			logger.Printf(ctx, "could not configure Google Cloud Profiler variables, got %v", err)
 		}
 	}
 
@@ -166,10 +167,10 @@ func main() {
 		}
 	}
 
-	log.Fatalf("User program exited: %v", err)
+	logger.Fatalf(ctx, "User program exited: %v", err)
 }
 
-func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, error) {
+func getGoWorkerArtifactName(ctx context.Context, logger *tools.Logger, artifacts []*pipepb.ArtifactInformation) (string, error) {
 	const worker = "worker"
 	name := worker
 
@@ -190,7 +191,7 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 		for _, a := range artifacts {
 			n, _ := artifact.MustExtractFilePayload(a)
 			if n == worker {
-				log.Printf("Go worker binary found with legacy name '%v'", worker)
+				logger.Printf(ctx, "Go worker binary found with legacy name '%v'", worker)
 				return n, nil
 			}
 		}
