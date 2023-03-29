@@ -130,17 +130,19 @@ do
     checker_status=$?
     if [ $checker_status -eq 0 ]; then
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        eval "${sdk}_example_changed"='True'
+        # eval "${sdk}_example_changed"='True'
+        cd_example_has_changed=True
     elif [ $checker_status -eq 11 ]; then
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        eval "${sdk}_example_changed"='False'
+        # eval "${sdk}_example_changed"='False'
+        cd_example_has_changed=False
         exit 1
     else
         LogOutput "Error: Checker is broken. Exiting the script."
         exit 1
     fi
 
-    if [[ "${sdk}_example_changed" == 'True' ]]; then
+    if [[ cd_example_has_changed == True ]]; then
       echo "Running ci_cd.py for SDK $sdk"
 
       export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
