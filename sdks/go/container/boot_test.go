@@ -16,10 +16,12 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -75,7 +77,7 @@ func TestEnsureEndpointsSet_OneMissing(t *testing.T) {
 }
 
 func TestGetGoWorkerArtifactName_NoArtifacts(t *testing.T) {
-	_, err := getGoWorkerArtifactName([]*pipepb.ArtifactInformation{})
+	_, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, []*pipepb.ArtifactInformation{})
 	if err == nil {
 		t.Fatalf("getGoWorkerArtifactName() = nil, want non-nil error")
 	}
@@ -85,7 +87,7 @@ func TestGetGoWorkerArtifactName_OneArtifact(t *testing.T) {
 	artifact := constructArtifactInformation(t, artifact.URNGoWorkerBinaryRole, "test/path", "sha")
 	artifacts := []*pipepb.ArtifactInformation{&artifact}
 
-	val, err := getGoWorkerArtifactName(artifacts)
+	val, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err != nil {
 		t.Fatalf("getGoWorkerArtifactName() = %v, want nil", err)
 	}
@@ -99,7 +101,7 @@ func TestGetGoWorkerArtifactName_MultipleArtifactsFirstIsWorker(t *testing.T) {
 	artifact2 := constructArtifactInformation(t, "other role", "test/path2", "sha")
 	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
 
-	val, err := getGoWorkerArtifactName(artifacts)
+	val, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err != nil {
 		t.Fatalf("getGoWorkerArtifactName() = %v, want nil", err)
 	}
@@ -113,7 +115,7 @@ func TestGetGoWorkerArtifactName_MultipleArtifactsSecondIsWorker(t *testing.T) {
 	artifact2 := constructArtifactInformation(t, artifact.URNGoWorkerBinaryRole, "test/path2", "sha")
 	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
 
-	val, err := getGoWorkerArtifactName(artifacts)
+	val, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err != nil {
 		t.Fatalf("getGoWorkerArtifactName() = %v, want nil", err)
 	}
@@ -127,7 +129,7 @@ func TestGetGoWorkerArtifactName_MultipleArtifactsLegacyWay(t *testing.T) {
 	artifact2 := constructArtifactInformation(t, "other role", "worker", "sha")
 	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
 
-	val, err := getGoWorkerArtifactName(artifacts)
+	val, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err != nil {
 		t.Fatalf("getGoWorkerArtifactName() = %v, want nil", err)
 	}
@@ -141,7 +143,7 @@ func TestGetGoWorkerArtifactName_MultipleArtifactsNoneMatch(t *testing.T) {
 	artifact2 := constructArtifactInformation(t, "other role", "test/path2", "sha")
 	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
 
-	_, err := getGoWorkerArtifactName(artifacts)
+	_, err := getGoWorkerArtifactName(context.Background(), &tools.Logger{}, artifacts)
 	if err == nil {
 		t.Fatalf("getGoWorkerArtifactName() = nil, want non-nil error")
 	}
@@ -243,7 +245,7 @@ func TestConfigureGoogleCloudProfilerEnvVars(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Cleanup(os.Clearenv)
-			err := configureGoogleCloudProfilerEnvVars(test.inputMetadata)
+			err := configureGoogleCloudProfilerEnvVars(context.Background(), &tools.Logger{}, test.inputMetadata)
 			if err != nil {
 				if got, want := err.Error(), test.expectedError; got != want {
 					t.Errorf("got error %v, want error %v", got, want)
