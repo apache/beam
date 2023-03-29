@@ -26,7 +26,7 @@ set -e
 
 echo "==> Launching the Docker daemon..."
 
-dind dockerd $DOCKER_EXTRA_OPTS &
+dind dockerd --iptables=false &
 while(! docker info > /dev/null 2>&1); do
     echo "==> Waiting for the Docker daemon to come online...???"
     sleep 1
