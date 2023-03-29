@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
 
-import org.apache.beam.model.expansion.v1.ExpansionApi;
+/**
+ * TODO: add Javadoc.
+ *
+ * <p>TODO: details
+ */
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.transformservice.controller;
 
-/** A high-level client for a cross-language expansion service. */
-public interface ExpansionServiceClient extends AutoCloseable {
-  ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request);
-
-  ExpansionApi.DiscoverSchemaTransformResponse discover(ExpansionApi.DiscoverSchemaTransformRequest request);
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import org.checkerframework.checker.nullness.qual.NonNull;

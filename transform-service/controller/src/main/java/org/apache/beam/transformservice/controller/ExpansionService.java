@@ -1,0 +1,94 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.transformservice.controller;
+
+import java.util.List;
+import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.construction.DefaultExpansionServiceClientFactory;
+import org.apache.beam.runners.core.construction.ExpansionServiceClientFactory;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+
+@SuppressWarnings("nullness")
+public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase
+    implements AutoCloseable {
+
+  private static final ExpansionServiceClientFactory EXPANSION_SERVICE_CLIENT_FACTORY =
+      DefaultExpansionServiceClientFactory.create(
+          endPoint -> ManagedChannelBuilder.forTarget(endPoint.getUrl()).usePlaintext().build());
+
+  private final ExpansionServiceClientFactory expansionServiceClientFactory;
+
+  final List<Endpoints.ApiServiceDescriptor> endpoints;
+
+  ExpansionService(List<Endpoints.ApiServiceDescriptor> endpoints) {
+    this.endpoints = endpoints;
+    this.expansionServiceClientFactory = EXPANSION_SERVICE_CLIENT_FACTORY;
+  }
+
+  @Override
+  public void expand(
+      ExpansionApi.ExpansionRequest request,
+      StreamObserver<ExpansionApi.ExpansionResponse> responseObserver) {
+    try {
+      responseObserver.onNext(processExpand(request));
+      responseObserver.onCompleted();
+    } catch (RuntimeException exn) {
+      responseObserver.onNext(
+          ExpansionApi.ExpansionResponse.newBuilder()
+              .setError(Throwables.getStackTraceAsString(exn))
+              .build());
+      responseObserver.onCompleted();
+    }
+  }
+
+  @Override
+  public void discoverSchemaTransform(
+      ExpansionApi.DiscoverSchemaTransformRequest request,
+      StreamObserver<ExpansionApi.DiscoverSchemaTransformResponse> responseObserver) {
+    try {
+      responseObserver.onNext(processDiscover(request));
+      responseObserver.onCompleted();
+    } catch (RuntimeException exn) {
+      responseObserver.onNext(
+          ExpansionApi.DiscoverSchemaTransformResponse.newBuilder()
+              .setError(Throwables.getStackTraceAsString(exn))
+              .build());
+      responseObserver.onCompleted();
+    }
+  }
+
+  /*package*/ ExpansionApi.ExpansionResponse processExpand(ExpansionApi.ExpansionRequest request) {
+    // TODO: Add logic to handle multiple expansion services.
+    Endpoints.ApiServiceDescriptor endpoint = endpoints.get(0);
+    return expansionServiceClientFactory.getExpansionServiceClient(endpoint).expand(request);
+  }
+
+  ExpansionApi.DiscoverSchemaTransformResponse processDiscover(
+      ExpansionApi.DiscoverSchemaTransformRequest request) {
+    // TODO: Add logic to handle multiple expansion services.
+    Endpoints.ApiServiceDescriptor endpoint = endpoints.get(0);
+    return expansionServiceClientFactory.getExpansionServiceClient(endpoint).discover(request);
+  }
+
+  @Override
+  public void close() throws Exception {}
+}

@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options used to configure the {@link ExpansionService}. */
 public interface ExpansionServiceOptions extends PipelineOptions {
@@ -41,6 +42,19 @@ public interface ExpansionServiceOptions extends PipelineOptions {
   String getJavaClassLookupAllowlistFile();
 
   void setJavaClassLookupAllowlistFile(String file);
+
+  @Description(
+          "Expansion service configuration file.")
+  String getExpansionServiceConfigFile();
+
+  void setExpansionServiceConfigFile(String configFile);
+
+  @Description(
+          "Expansion service configuration.")
+  @Default.InstanceFactory(ExpansionServiceConfigFactory.class)
+  ExpansionServiceConfig getExpansionServiceConfig();
+
+  void setExpansionServiceConfig(ExpansionServiceConfig configFile);
 
   /**
    * Loads the allow list from {@link #getJavaClassLookupAllowlistFile}, defaulting to an empty
@@ -72,6 +86,35 @@ public interface ExpansionServiceOptions extends PipelineOptions {
 
       // By default produces an empty allow-list.
       return AllowList.nothing();
+    }
+  }
+
+  /**
+   * Loads the ExpansionService config.
+   */
+  class ExpansionServiceConfigFactory implements DefaultValueFactory<ExpansionServiceConfig> {
+
+    @Override
+    public ExpansionServiceConfig create(PipelineOptions options) {
+      String configFile =
+              options.as(ExpansionServiceOptions.class).getExpansionServiceConfigFile();
+      if (configFile != null) {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        File configFileObj = new File(configFile);
+        if (!configFileObj.exists()) {
+          throw new IllegalArgumentException(
+                  "Config file " + configFile + " does not exist");
+        }
+        try {
+          return mapper.readValue(configFileObj, ExpansionServiceConfig.class);
+        } catch (IOException e) {
+          throw new IllegalArgumentException(
+                  "Could not load the provided config file " + configFile, e);
+        }
+      }
+
+      // By default produces null.
+      return ExpansionServiceConfig.empty();
     }
   }
 }

@@ -400,8 +400,22 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           Pipeline.applyTransform(name, createInput(p, inputs), getTransform(spec)));
     }
 
+    default String getTransformUniqueID(RunnerApi.FunctionSpec spec) {
+      // TODO: Update to support other expansion methods.
+      return spec.getUrn();
+    }
+
     default List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
+
+      ExpansionServiceConfig config = options.as(ExpansionServiceOptions.class).getExpansionServiceConfig();
+      String transformUniqueID = getTransformUniqueID(spec);
+      if (config.getDependencies().containsKey(transformUniqueID)) {
+        List<String> updatedDependencies = config.getDependencies().get(transformUniqueID).stream().map(dependency -> dependency.getPath()).collect(Collectors.toList());
+        return updatedDependencies;
+      }
+
       List<String> filesToStage = options.as(PortablePipelineOptions.class).getFilesToStage();
+
       if (filesToStage == null || filesToStage.isEmpty()) {
         ClassLoader classLoader = Environments.class.getClassLoader();
         if (classLoader == null) {
@@ -595,6 +609,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .as(ExperimentalOptions.class)
         .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
     effectiveOpts.setRunner(NotRunnableRunner.class);
+    effectiveOpts.as(ExpansionServiceOptions.class).setExpansionServiceConfig(
+            pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
     return Pipeline.create(effectiveOpts);
   }
 
@@ -664,7 +680,6 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     @SuppressWarnings("nullness")
     ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
-
     StringBuilder registeredTransformsLog = new StringBuilder();
     boolean registeredTransformsFound = false;
     registeredTransformsLog.append("\n");
