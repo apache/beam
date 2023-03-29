@@ -53,7 +53,7 @@ const (
 	defaultProtocol                    = "HTTP"
 	defaultIp                          = "localhost"
 	defaultPort                        = 8080
-	defaultSdk                         = pb.Sdk_SDK_JAVA
+	defaultSdk                         = pb.Sdk_SDK_UNSPECIFIED
 	defaultBeamVersion                 = "<unknown>"
 	defaultBeamJarsPath                = "/opt/apache/beam/jars/*"
 	defaultDatasetsPath                = "/opt/playground/backend/datasets"
