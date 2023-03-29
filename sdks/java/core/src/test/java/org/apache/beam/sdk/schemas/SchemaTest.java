@@ -221,7 +221,6 @@ public class SchemaTest {
             .addStringField("d")
             .build()
             .withOptions(testOptions);
-    sortedSchema.setEncodingPositions(unorderedSchema.getEncodingPositions());
 
     assertEquals(true, unorderedSchema.equivalent(unorderedSchemaAfterSorting));
     assertEquals(

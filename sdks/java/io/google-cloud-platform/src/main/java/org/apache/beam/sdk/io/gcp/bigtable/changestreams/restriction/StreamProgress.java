@@ -17,8 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
 
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /**
  * Position for {@link ReadChangeStreamPartitionProgressTracker}. This represents contains
@@ -32,7 +37,76 @@ import org.apache.beam.sdk.annotations.Internal;
  */
 @Internal
 public class StreamProgress implements Serializable {
-  private static final long serialVersionUID = -5384329262726188695L;
+  private static final long serialVersionUID = -8597355120329526194L;
+
+  private @Nullable ChangeStreamContinuationToken currentToken;
+  private @Nullable Instant estimatedLowWatermark;
+  private @Nullable CloseStream closeStream;
+  private boolean failToLock;
 
   public StreamProgress() {}
+
+  public StreamProgress(
+      @Nullable ChangeStreamContinuationToken token, Instant estimatedLowWatermark) {
+    this.currentToken = token;
+    this.estimatedLowWatermark = estimatedLowWatermark;
+  }
+
+  public StreamProgress(@Nullable CloseStream closeStream) {
+    this.closeStream = closeStream;
+  }
+
+  public @Nullable ChangeStreamContinuationToken getCurrentToken() {
+    return currentToken;
+  }
+
+  public @Nullable Instant getEstimatedLowWatermark() {
+    return estimatedLowWatermark;
+  }
+
+  public @Nullable CloseStream getCloseStream() {
+    return closeStream;
+  }
+
+  public boolean isFailToLock() {
+    return failToLock;
+  }
+
+  public void setFailToLock(boolean failToLock) {
+    this.failToLock = failToLock;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof StreamProgress)) {
+      return false;
+    }
+    StreamProgress that = (StreamProgress) o;
+    return Objects.equals(getCurrentToken(), that.getCurrentToken())
+        && Objects.equals(getEstimatedLowWatermark(), that.getEstimatedLowWatermark())
+        && Objects.equals(getCloseStream(), that.getCloseStream())
+        && (isFailToLock() == that.isFailToLock());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getCurrentToken());
+  }
+
+  @Override
+  public String toString() {
+    return "StreamProgress{"
+        + "currentToken="
+        + currentToken
+        + ", estimatedLowWatermark="
+        + estimatedLowWatermark
+        + ", closeStream="
+        + closeStream
+        + ", failToLock="
+        + failToLock
+        + '}';
+  }
 }

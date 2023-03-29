@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-// To build and run the app, copy this file to './config.g.dart'
-// This is a temporary solution while we cannot have 'config.g.dart'
-// in the repository.
-// TODO: https://github.com/apache/beam/issues/24200
-
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL = 'https://router.play-dev.beam.apache.org';
-const String kApiJavaClientURL = 'https://java.play-dev.beam.apache.org';
-const String kApiGoClientURL = 'https://go.play-dev.beam.apache.org';
-const String kApiPythonClientURL = 'https://python.play-dev.beam.apache.org';
-const String kApiScioClientURL = 'https://scio.play-dev.beam.apache.org';
+extension IterableExtension on Iterable {
+  Iterable<T> alternateWith<T>(T separator) {
+    return expand<T>((item) sync* {
+      yield separator;
+      yield item as T;
+    }).skip(1);
+  }
+}

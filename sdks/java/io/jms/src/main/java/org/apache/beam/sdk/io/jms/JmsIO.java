@@ -1020,7 +1020,8 @@ public class JmsIO {
           } else if (spec.getTopic() != null) {
             this.destination = session.createTopic(spec.getTopic());
           }
-          this.producer = this.session.createProducer(this.destination);
+          // Create producer with null destination. Destination will be set with producer.send().
+          this.producer = this.session.createProducer(null);
           this.isProducerNeedsToBeCreated = false;
         }
       }

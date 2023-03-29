@@ -146,15 +146,22 @@ public class DetectNewPartitionsAction {
       OutputReceiver<PartitionMetadata> receiver,
       Timestamp minWatermark,
       TreeMap<Timestamp, List<PartitionMetadata>> batches) {
+    List<PartitionMetadata> batchPartitionsDifferentCreatedAt = new ArrayList<>();
+    int numTimestampsHandledSofar = 0;
     for (Map.Entry<Timestamp, List<PartitionMetadata>> batch : batches.entrySet()) {
+      numTimestampsHandledSofar++;
       final Timestamp batchCreatedAt = batch.getKey();
-      final List<PartitionMetadata> batchPartitions = batch.getValue();
-
-      final Timestamp scheduledAt = updateBatchToScheduled(batchPartitions);
-      if (!tracker.tryClaim(batchCreatedAt)) {
-        return ProcessContinuation.stop();
+      final List<PartitionMetadata> batchPartitionsSameCreatedAt = batch.getValue();
+      batchPartitionsDifferentCreatedAt.addAll(batchPartitionsSameCreatedAt);
+      if (batchPartitionsDifferentCreatedAt.size() >= 200
+          || numTimestampsHandledSofar == batches.size()) {
+        final Timestamp scheduledAt = updateBatchToScheduled(batchPartitionsDifferentCreatedAt);
+        if (!tracker.tryClaim(batchCreatedAt)) {
+          return ProcessContinuation.stop();
+        }
+        outputBatch(receiver, minWatermark, batchPartitionsDifferentCreatedAt, scheduledAt);
+        batchPartitionsDifferentCreatedAt = new ArrayList<>();
       }
-      outputBatch(receiver, minWatermark, batchPartitions, scheduledAt);
     }
 
     return ProcessContinuation.resume().withResumeDelay(resumeDuration);

@@ -15,73 +15,76 @@ var _ PlaygroundServiceClient = &PlaygroundServiceClientMock{}
 
 // PlaygroundServiceClientMock is a mock implementation of PlaygroundServiceClient.
 //
-// 	func TestSomethingThatUsesPlaygroundServiceClient(t *testing.T) {
+//	func TestSomethingThatUsesPlaygroundServiceClient(t *testing.T) {
 //
-// 		// make and configure a mocked PlaygroundServiceClient
-// 		mockedPlaygroundServiceClient := &PlaygroundServiceClientMock{
-// 			CancelFunc: func(ctx context.Context, in *CancelRequest, opts ...grpc.CallOption) (*CancelResponse, error) {
-// 				panic("mock out the Cancel method")
-// 			},
-// 			CheckStatusFunc: func(ctx context.Context, in *CheckStatusRequest, opts ...grpc.CallOption) (*CheckStatusResponse, error) {
-// 				panic("mock out the CheckStatus method")
-// 			},
-// 			GetCompileOutputFunc: func(ctx context.Context, in *GetCompileOutputRequest, opts ...grpc.CallOption) (*GetCompileOutputResponse, error) {
-// 				panic("mock out the GetCompileOutput method")
-// 			},
-// 			GetDefaultPrecompiledObjectFunc: func(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error) {
-// 				panic("mock out the GetDefaultPrecompiledObject method")
-// 			},
-// 			GetGraphFunc: func(ctx context.Context, in *GetGraphRequest, opts ...grpc.CallOption) (*GetGraphResponse, error) {
-// 				panic("mock out the GetGraph method")
-// 			},
-// 			GetLogsFunc: func(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error) {
-// 				panic("mock out the GetLogs method")
-// 			},
-// 			GetPrecompiledObjectFunc: func(ctx context.Context, in *GetPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectResponse, error) {
-// 				panic("mock out the GetPrecompiledObject method")
-// 			},
-// 			GetPrecompiledObjectCodeFunc: func(ctx context.Context, in *GetPrecompiledObjectCodeRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectCodeResponse, error) {
-// 				panic("mock out the GetPrecompiledObjectCode method")
-// 			},
-// 			GetPrecompiledObjectGraphFunc: func(ctx context.Context, in *GetPrecompiledObjectGraphRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectGraphResponse, error) {
-// 				panic("mock out the GetPrecompiledObjectGraph method")
-// 			},
-// 			GetPrecompiledObjectLogsFunc: func(ctx context.Context, in *GetPrecompiledObjectLogsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectLogsResponse, error) {
-// 				panic("mock out the GetPrecompiledObjectLogs method")
-// 			},
-// 			GetPrecompiledObjectOutputFunc: func(ctx context.Context, in *GetPrecompiledObjectOutputRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectOutputResponse, error) {
-// 				panic("mock out the GetPrecompiledObjectOutput method")
-// 			},
-// 			GetPrecompiledObjectsFunc: func(ctx context.Context, in *GetPrecompiledObjectsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectsResponse, error) {
-// 				panic("mock out the GetPrecompiledObjects method")
-// 			},
-// 			GetPreparationOutputFunc: func(ctx context.Context, in *GetPreparationOutputRequest, opts ...grpc.CallOption) (*GetPreparationOutputResponse, error) {
-// 				panic("mock out the GetPreparationOutput method")
-// 			},
-// 			GetRunErrorFunc: func(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error) {
-// 				panic("mock out the GetRunError method")
-// 			},
-// 			GetRunOutputFunc: func(ctx context.Context, in *GetRunOutputRequest, opts ...grpc.CallOption) (*GetRunOutputResponse, error) {
-// 				panic("mock out the GetRunOutput method")
-// 			},
-// 			GetSnippetFunc: func(ctx context.Context, in *GetSnippetRequest, opts ...grpc.CallOption) (*GetSnippetResponse, error) {
-// 				panic("mock out the GetSnippet method")
-// 			},
-// 			GetValidationOutputFunc: func(ctx context.Context, in *GetValidationOutputRequest, opts ...grpc.CallOption) (*GetValidationOutputResponse, error) {
-// 				panic("mock out the GetValidationOutput method")
-// 			},
-// 			RunCodeFunc: func(ctx context.Context, in *RunCodeRequest, opts ...grpc.CallOption) (*RunCodeResponse, error) {
-// 				panic("mock out the RunCode method")
-// 			},
-// 			SaveSnippetFunc: func(ctx context.Context, in *SaveSnippetRequest, opts ...grpc.CallOption) (*SaveSnippetResponse, error) {
-// 				panic("mock out the SaveSnippet method")
-// 			},
-// 		}
+//		// make and configure a mocked PlaygroundServiceClient
+//		mockedPlaygroundServiceClient := &PlaygroundServiceClientMock{
+//			CancelFunc: func(ctx context.Context, in *CancelRequest, opts ...grpc.CallOption) (*CancelResponse, error) {
+//				panic("mock out the Cancel method")
+//			},
+//			CheckStatusFunc: func(ctx context.Context, in *CheckStatusRequest, opts ...grpc.CallOption) (*CheckStatusResponse, error) {
+//				panic("mock out the CheckStatus method")
+//			},
+//			GetCompileOutputFunc: func(ctx context.Context, in *GetCompileOutputRequest, opts ...grpc.CallOption) (*GetCompileOutputResponse, error) {
+//				panic("mock out the GetCompileOutput method")
+//			},
+//			GetDefaultPrecompiledObjectFunc: func(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error) {
+//				panic("mock out the GetDefaultPrecompiledObject method")
+//			},
+//			GetGraphFunc: func(ctx context.Context, in *GetGraphRequest, opts ...grpc.CallOption) (*GetGraphResponse, error) {
+//				panic("mock out the GetGraph method")
+//			},
+//			GetLogsFunc: func(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error) {
+//				panic("mock out the GetLogs method")
+//			},
+//			GetMetadataFunc: func(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error) {
+//				panic("mock out the GetMetadata method")
+//			},
+//			GetPrecompiledObjectFunc: func(ctx context.Context, in *GetPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectResponse, error) {
+//				panic("mock out the GetPrecompiledObject method")
+//			},
+//			GetPrecompiledObjectCodeFunc: func(ctx context.Context, in *GetPrecompiledObjectCodeRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectCodeResponse, error) {
+//				panic("mock out the GetPrecompiledObjectCode method")
+//			},
+//			GetPrecompiledObjectGraphFunc: func(ctx context.Context, in *GetPrecompiledObjectGraphRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectGraphResponse, error) {
+//				panic("mock out the GetPrecompiledObjectGraph method")
+//			},
+//			GetPrecompiledObjectLogsFunc: func(ctx context.Context, in *GetPrecompiledObjectLogsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectLogsResponse, error) {
+//				panic("mock out the GetPrecompiledObjectLogs method")
+//			},
+//			GetPrecompiledObjectOutputFunc: func(ctx context.Context, in *GetPrecompiledObjectOutputRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectOutputResponse, error) {
+//				panic("mock out the GetPrecompiledObjectOutput method")
+//			},
+//			GetPrecompiledObjectsFunc: func(ctx context.Context, in *GetPrecompiledObjectsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectsResponse, error) {
+//				panic("mock out the GetPrecompiledObjects method")
+//			},
+//			GetPreparationOutputFunc: func(ctx context.Context, in *GetPreparationOutputRequest, opts ...grpc.CallOption) (*GetPreparationOutputResponse, error) {
+//				panic("mock out the GetPreparationOutput method")
+//			},
+//			GetRunErrorFunc: func(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error) {
+//				panic("mock out the GetRunError method")
+//			},
+//			GetRunOutputFunc: func(ctx context.Context, in *GetRunOutputRequest, opts ...grpc.CallOption) (*GetRunOutputResponse, error) {
+//				panic("mock out the GetRunOutput method")
+//			},
+//			GetSnippetFunc: func(ctx context.Context, in *GetSnippetRequest, opts ...grpc.CallOption) (*GetSnippetResponse, error) {
+//				panic("mock out the GetSnippet method")
+//			},
+//			GetValidationOutputFunc: func(ctx context.Context, in *GetValidationOutputRequest, opts ...grpc.CallOption) (*GetValidationOutputResponse, error) {
+//				panic("mock out the GetValidationOutput method")
+//			},
+//			RunCodeFunc: func(ctx context.Context, in *RunCodeRequest, opts ...grpc.CallOption) (*RunCodeResponse, error) {
+//				panic("mock out the RunCode method")
+//			},
+//			SaveSnippetFunc: func(ctx context.Context, in *SaveSnippetRequest, opts ...grpc.CallOption) (*SaveSnippetResponse, error) {
+//				panic("mock out the SaveSnippet method")
+//			},
+//		}
 //
-// 		// use mockedPlaygroundServiceClient in code that requires PlaygroundServiceClient
-// 		// and then make assertions.
+//		// use mockedPlaygroundServiceClient in code that requires PlaygroundServiceClient
+//		// and then make assertions.
 //
-// 	}
+//	}
 type PlaygroundServiceClientMock struct {
 	// CancelFunc mocks the Cancel method.
 	CancelFunc func(ctx context.Context, in *CancelRequest, opts ...grpc.CallOption) (*CancelResponse, error)
@@ -100,6 +103,9 @@ type PlaygroundServiceClientMock struct {
 
 	// GetLogsFunc mocks the GetLogs method.
 	GetLogsFunc func(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error)
+
+	// GetMetadataFunc mocks the GetMetadata method.
+	GetMetadataFunc func(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error)
 
 	// GetPrecompiledObjectFunc mocks the GetPrecompiledObject method.
 	GetPrecompiledObjectFunc func(ctx context.Context, in *GetPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectResponse, error)
@@ -193,6 +199,15 @@ type PlaygroundServiceClientMock struct {
 			Ctx context.Context
 			// In is the in argument value.
 			In *GetLogsRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
+		// GetMetadata holds details about calls to the GetMetadata method.
+		GetMetadata []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *GetMetadataRequest
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
@@ -320,6 +335,7 @@ type PlaygroundServiceClientMock struct {
 	lockGetDefaultPrecompiledObject sync.RWMutex
 	lockGetGraph                    sync.RWMutex
 	lockGetLogs                     sync.RWMutex
+	lockGetMetadata                 sync.RWMutex
 	lockGetPrecompiledObject        sync.RWMutex
 	lockGetPrecompiledObjectCode    sync.RWMutex
 	lockGetPrecompiledObjectGraph   sync.RWMutex
@@ -357,7 +373,8 @@ func (mock *PlaygroundServiceClientMock) Cancel(ctx context.Context, in *CancelR
 
 // CancelCalls gets all the calls that were made to Cancel.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.CancelCalls())
+//
+//	len(mockedPlaygroundServiceClient.CancelCalls())
 func (mock *PlaygroundServiceClientMock) CancelCalls() []struct {
 	Ctx  context.Context
 	In   *CancelRequest
@@ -396,7 +413,8 @@ func (mock *PlaygroundServiceClientMock) CheckStatus(ctx context.Context, in *Ch
 
 // CheckStatusCalls gets all the calls that were made to CheckStatus.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.CheckStatusCalls())
+//
+//	len(mockedPlaygroundServiceClient.CheckStatusCalls())
 func (mock *PlaygroundServiceClientMock) CheckStatusCalls() []struct {
 	Ctx  context.Context
 	In   *CheckStatusRequest
@@ -435,7 +453,8 @@ func (mock *PlaygroundServiceClientMock) GetCompileOutput(ctx context.Context, i
 
 // GetCompileOutputCalls gets all the calls that were made to GetCompileOutput.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetCompileOutputCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetCompileOutputCalls())
 func (mock *PlaygroundServiceClientMock) GetCompileOutputCalls() []struct {
 	Ctx  context.Context
 	In   *GetCompileOutputRequest
@@ -474,7 +493,8 @@ func (mock *PlaygroundServiceClientMock) GetDefaultPrecompiledObject(ctx context
 
 // GetDefaultPrecompiledObjectCalls gets all the calls that were made to GetDefaultPrecompiledObject.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetDefaultPrecompiledObjectCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetDefaultPrecompiledObjectCalls())
 func (mock *PlaygroundServiceClientMock) GetDefaultPrecompiledObjectCalls() []struct {
 	Ctx  context.Context
 	In   *GetDefaultPrecompiledObjectRequest
@@ -513,7 +533,8 @@ func (mock *PlaygroundServiceClientMock) GetGraph(ctx context.Context, in *GetGr
 
 // GetGraphCalls gets all the calls that were made to GetGraph.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetGraphCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetGraphCalls())
 func (mock *PlaygroundServiceClientMock) GetGraphCalls() []struct {
 	Ctx  context.Context
 	In   *GetGraphRequest
@@ -552,7 +573,8 @@ func (mock *PlaygroundServiceClientMock) GetLogs(ctx context.Context, in *GetLog
 
 // GetLogsCalls gets all the calls that were made to GetLogs.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetLogsCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetLogsCalls())
 func (mock *PlaygroundServiceClientMock) GetLogsCalls() []struct {
 	Ctx  context.Context
 	In   *GetLogsRequest
@@ -566,6 +588,46 @@ func (mock *PlaygroundServiceClientMock) GetLogsCalls() []struct {
 	mock.lockGetLogs.RLock()
 	calls = mock.calls.GetLogs
 	mock.lockGetLogs.RUnlock()
+	return calls
+}
+
+// GetMetadata calls GetMetadataFunc.
+func (mock *PlaygroundServiceClientMock) GetMetadata(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error) {
+	if mock.GetMetadataFunc == nil {
+		panic("PlaygroundServiceClientMock.GetMetadataFunc: method is nil but PlaygroundServiceClient.GetMetadata was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *GetMetadataRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockGetMetadata.Lock()
+	mock.calls.GetMetadata = append(mock.calls.GetMetadata, callInfo)
+	mock.lockGetMetadata.Unlock()
+	return mock.GetMetadataFunc(ctx, in, opts...)
+}
+
+// GetMetadataCalls gets all the calls that were made to GetMetadata.
+// Check the length with:
+//
+//	len(mockedPlaygroundServiceClient.GetMetadataCalls())
+func (mock *PlaygroundServiceClientMock) GetMetadataCalls() []struct {
+	Ctx  context.Context
+	In   *GetMetadataRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *GetMetadataRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockGetMetadata.RLock()
+	calls = mock.calls.GetMetadata
+	mock.lockGetMetadata.RUnlock()
 	return calls
 }
 
@@ -591,7 +653,8 @@ func (mock *PlaygroundServiceClientMock) GetPrecompiledObject(ctx context.Contex
 
 // GetPrecompiledObjectCalls gets all the calls that were made to GetPrecompiledObject.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetPrecompiledObjectCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetPrecompiledObjectCalls())
 func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectCalls() []struct {
 	Ctx  context.Context
 	In   *GetPrecompiledObjectRequest
@@ -630,7 +693,8 @@ func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectCode(ctx context.Co
 
 // GetPrecompiledObjectCodeCalls gets all the calls that were made to GetPrecompiledObjectCode.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetPrecompiledObjectCodeCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetPrecompiledObjectCodeCalls())
 func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectCodeCalls() []struct {
 	Ctx  context.Context
 	In   *GetPrecompiledObjectCodeRequest
@@ -669,7 +733,8 @@ func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectGraph(ctx context.C
 
 // GetPrecompiledObjectGraphCalls gets all the calls that were made to GetPrecompiledObjectGraph.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetPrecompiledObjectGraphCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetPrecompiledObjectGraphCalls())
 func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectGraphCalls() []struct {
 	Ctx  context.Context
 	In   *GetPrecompiledObjectGraphRequest
@@ -708,7 +773,8 @@ func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectLogs(ctx context.Co
 
 // GetPrecompiledObjectLogsCalls gets all the calls that were made to GetPrecompiledObjectLogs.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetPrecompiledObjectLogsCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetPrecompiledObjectLogsCalls())
 func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectLogsCalls() []struct {
 	Ctx  context.Context
 	In   *GetPrecompiledObjectLogsRequest
@@ -747,7 +813,8 @@ func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectOutput(ctx context.
 
 // GetPrecompiledObjectOutputCalls gets all the calls that were made to GetPrecompiledObjectOutput.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetPrecompiledObjectOutputCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetPrecompiledObjectOutputCalls())
 func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectOutputCalls() []struct {
 	Ctx  context.Context
 	In   *GetPrecompiledObjectOutputRequest
@@ -786,7 +853,8 @@ func (mock *PlaygroundServiceClientMock) GetPrecompiledObjects(ctx context.Conte
 
 // GetPrecompiledObjectsCalls gets all the calls that were made to GetPrecompiledObjects.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetPrecompiledObjectsCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetPrecompiledObjectsCalls())
 func (mock *PlaygroundServiceClientMock) GetPrecompiledObjectsCalls() []struct {
 	Ctx  context.Context
 	In   *GetPrecompiledObjectsRequest
@@ -825,7 +893,8 @@ func (mock *PlaygroundServiceClientMock) GetPreparationOutput(ctx context.Contex
 
 // GetPreparationOutputCalls gets all the calls that were made to GetPreparationOutput.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetPreparationOutputCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetPreparationOutputCalls())
 func (mock *PlaygroundServiceClientMock) GetPreparationOutputCalls() []struct {
 	Ctx  context.Context
 	In   *GetPreparationOutputRequest
@@ -864,7 +933,8 @@ func (mock *PlaygroundServiceClientMock) GetRunError(ctx context.Context, in *Ge
 
 // GetRunErrorCalls gets all the calls that were made to GetRunError.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetRunErrorCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetRunErrorCalls())
 func (mock *PlaygroundServiceClientMock) GetRunErrorCalls() []struct {
 	Ctx  context.Context
 	In   *GetRunErrorRequest
@@ -903,7 +973,8 @@ func (mock *PlaygroundServiceClientMock) GetRunOutput(ctx context.Context, in *G
 
 // GetRunOutputCalls gets all the calls that were made to GetRunOutput.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetRunOutputCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetRunOutputCalls())
 func (mock *PlaygroundServiceClientMock) GetRunOutputCalls() []struct {
 	Ctx  context.Context
 	In   *GetRunOutputRequest
@@ -942,7 +1013,8 @@ func (mock *PlaygroundServiceClientMock) GetSnippet(ctx context.Context, in *Get
 
 // GetSnippetCalls gets all the calls that were made to GetSnippet.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetSnippetCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetSnippetCalls())
 func (mock *PlaygroundServiceClientMock) GetSnippetCalls() []struct {
 	Ctx  context.Context
 	In   *GetSnippetRequest
@@ -981,7 +1053,8 @@ func (mock *PlaygroundServiceClientMock) GetValidationOutput(ctx context.Context
 
 // GetValidationOutputCalls gets all the calls that were made to GetValidationOutput.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.GetValidationOutputCalls())
+//
+//	len(mockedPlaygroundServiceClient.GetValidationOutputCalls())
 func (mock *PlaygroundServiceClientMock) GetValidationOutputCalls() []struct {
 	Ctx  context.Context
 	In   *GetValidationOutputRequest
@@ -1020,7 +1093,8 @@ func (mock *PlaygroundServiceClientMock) RunCode(ctx context.Context, in *RunCod
 
 // RunCodeCalls gets all the calls that were made to RunCode.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.RunCodeCalls())
+//
+//	len(mockedPlaygroundServiceClient.RunCodeCalls())
 func (mock *PlaygroundServiceClientMock) RunCodeCalls() []struct {
 	Ctx  context.Context
 	In   *RunCodeRequest
@@ -1059,7 +1133,8 @@ func (mock *PlaygroundServiceClientMock) SaveSnippet(ctx context.Context, in *Sa
 
 // SaveSnippetCalls gets all the calls that were made to SaveSnippet.
 // Check the length with:
-//     len(mockedPlaygroundServiceClient.SaveSnippetCalls())
+//
+//	len(mockedPlaygroundServiceClient.SaveSnippetCalls())
 func (mock *PlaygroundServiceClientMock) SaveSnippetCalls() []struct {
 	Ctx  context.Context
 	In   *SaveSnippetRequest

@@ -500,7 +500,7 @@ class GenericMergingWindowFn(window.WindowFn):
     self._counter = 0
     # Lazily created in make_process_bundle_descriptor()
     self._process_bundle_descriptor = None
-    self._bundle_processor_id = None  # type: Optional[str]
+    self._bundle_processor_id = ''  # type: str
     self.windowed_input_coder_impl = None  # type: Optional[CoderImpl]
     self.windowed_output_coder_impl = None  # type: Optional[CoderImpl]
 
@@ -677,7 +677,7 @@ class GenericMergingWindowFn(window.WindowFn):
                 windowing_strategy_id=global_windowing_strategy_id,
                 coder_id=output_coder_id),
         },
-        coders=coders,  # type: ignore
+        coders=coders,
         windowing_strategies={
             global_windowing_strategy_id: global_windowing_strategy_proto,
         },
