@@ -121,6 +121,7 @@ LogOutput "Discovered changes in PR from $SOURCE_BRANCH to $DIFF_BASE in files:
 $diff_log"
 
 LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
+allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
 do
     eval "${sdk}_example_changed"='False'
@@ -130,7 +131,7 @@ do
     python3 checker.py \
     --verbose \
     --sdk SDK_"${sdk^^}" \
-    --allowlist "${ALLOWLIST[@]}" \
+    --allowlist "${allowlist_array[@]}" \
     --paths "${diff[@]}"
     checker_status=$?
     if [ $checker_status -eq 0 ]; then
