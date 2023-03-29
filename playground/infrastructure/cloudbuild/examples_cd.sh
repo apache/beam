@@ -120,6 +120,7 @@ allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
 do
     eval "${sdk}_example_changed"='False'
+    cd_example_has_changed="UNKNOWN"
     LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
     cd $BEAM_ROOT_DIR/playground/infrastructure
     python3 checker.py \
