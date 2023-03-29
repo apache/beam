@@ -48,6 +48,7 @@ from apache_beam.io import WriteToText
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.options.pipeline_options import PipelineOptions
 
+# comment
 
 def run(input_path, output_path, expansion_service_port, pipeline_args):
   pipeline_options = PipelineOptions(pipeline_args)

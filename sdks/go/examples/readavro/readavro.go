@@ -16,6 +16,8 @@
 // readavro is a simple Avro read/write Example
 // This example uses a 500 Byte sample avro file [twitter.avro]
 // download here: https://s3-eu-west-1.amazonaws.com/daidokoro-dev/apache/twitter.avro
+
+// comment
 package main
 
 import (
