@@ -39,7 +39,6 @@ class BeamSizes {
 
   static const double appBarHeight = 55;
   static const double buttonHeight = 40;
-  static const double containerHeight = 40;
   static const double elevation = 2;
   static const double headerButtonHeight = 46;
   static const double loadingIndicator = 40;

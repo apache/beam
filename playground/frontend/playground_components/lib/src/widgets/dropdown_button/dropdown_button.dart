@@ -93,7 +93,7 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
     final ext = Theme.of(context).extension<BeamThemeExtension>()!;
 
     return Container(
-      height: BeamSizes.containerHeight,
+      height: BeamSizes.buttonHeight,
       decoration: BoxDecoration(
         color: ext.fieldBackgroundColor,
         borderRadius: BorderRadius.circular(BeamBorderRadius.small),
