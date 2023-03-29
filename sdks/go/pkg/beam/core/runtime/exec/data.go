@@ -57,10 +57,12 @@ type SideCache interface {
 // DataManager manages external data byte streams. Each data stream can be
 // opened by one consumer only.
 type DataManager interface {
-	// OpenRead opens a closable byte stream for reading.
-	OpenRead(ctx context.Context, id StreamID) (io.ReadCloser, error)
-	// OpenWrite opens a closable byte stream for writing.
+	// OpenElementChan opens a channel for data and timers.
+	OpenElementChan(ctx context.Context, id StreamID, expectedTimerTransforms []string) (<-chan Elements, error)
+	// OpenWrite opens a closable byte stream for data writing.
 	OpenWrite(ctx context.Context, id StreamID) (io.WriteCloser, error)
+	// OpenTimerWrite opens a byte stream for writing timers
+	OpenTimerWrite(ctx context.Context, id StreamID, family string) (io.WriteCloser, error)
 }
 
 // StateReader is the interface for reading side input data.
@@ -91,4 +93,10 @@ type StateReader interface {
 	GetSideInputCache() SideCache
 }
 
-// TODO(herohde) 7/20/2018: user state management
+// Elements holds data or timers sent across the data channel.
+// If TimerFamilyID is populated, it's a timer, otherwise it's
+// data elements.
+type Elements struct {
+	Data, Timers                []byte
+	TimerFamilyID, PtransformID string
+}
