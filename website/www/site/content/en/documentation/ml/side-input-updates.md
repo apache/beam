@@ -1,5 +1,5 @@
 ---
-title: "Auto Model Updates in RunInference Transforms using SideInputs"
+title: "Auto Update ML models using WatchFilePattern"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
