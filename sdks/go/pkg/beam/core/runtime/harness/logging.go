@@ -183,8 +183,6 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 			LogEntries: []*fnpb.LogEntry{msg},
 		}
 
-		recordLogEntries(list)
-
 		if err := client.Send(list); err != nil {
 			if err == io.EOF {
 				(&log.Standard{}).Log(ctx, log.SevInfo, 0, msg.GetMessage())
