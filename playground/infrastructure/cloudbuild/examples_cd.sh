@@ -116,34 +116,33 @@ git fetch --all > /dev/null 2>&1
 diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
 
 LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
-allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
 do
     eval "${sdk}_example_changed"='False'
-    cd_example_has_changed="UNKNOWN"
+    # cd_example_has_changed="UNKNOWN"
     LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
     cd $BEAM_ROOT_DIR/playground/infrastructure
     python3 checker.py \
     --verbose \
     --sdk SDK_"${sdk^^}" \
-    --allowlist "${allowlist_array[@]}" \
+    --allowlist "${ALLOWLIST[@]}" \
     --paths "${diff[@]}"
     checker_status=$?
     if [ $checker_status -eq 0 ]; then
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        # eval "${sdk}_example_changed"='True'
-        cd_example_has_changed=True
+        eval "${sdk}_example_changed"='True'
+        # cd_example_has_changed=True
     elif [ $checker_status -eq 11 ]; then
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        # eval "${sdk}_example_changed"='False'
-        cd_example_has_changed=False
+        eval "${sdk}_example_changed"='False'
+        # cd_example_has_changed=False
         exit 1
     else
         LogOutput "Error: Checker is broken. Exiting the script."
         exit 1
     fi
 
-    if [[ cd_example_has_changed == True ]]; then
+    if [[ $(${sdk}_example_changed) == True ]]; then
       echo "Running ci_cd.py for SDK $sdk"
 
       export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
