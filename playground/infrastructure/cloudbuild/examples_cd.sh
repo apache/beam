@@ -113,7 +113,12 @@ LogOutput "Checking changed files in the PR"
 
 git fetch --all > /dev/null 2>&1
 
-diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
+# diff=($(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH | tr '\n' ' '))
+
+diff_log=$(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH)
+diff=($(echo "$diff_log" | tr '\n' ' '))
+LogOutput "Discovered changes in PR from $SOURCE_BRANCH to $DIFF_BASE in files:
+$diff_log"
 
 LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
 for sdk in $SDKS
@@ -129,36 +134,46 @@ do
     --paths "${diff[@]}"
     checker_status=$?
     if [ $checker_status -eq 0 ]; then
+        echo "Status zero"
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
         eval "${sdk}_example_changed"='True'
         # cd_example_has_changed=True
     elif [ $checker_status -eq 11 ]; then
+        echo "Status 11"
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
         eval "${sdk}_example_changed"='False'
         # cd_example_has_changed=False
         exit 1
     else
+        echo "Status else"
         LogOutput "Error: Checker is broken. Exiting the script."
         exit 1
     fi
 
-    if [[ $(${sdk}_example_changed) == True ]]; then
-      echo "Running ci_cd.py for SDK $sdk"
+    echo "$(${sdk}_example_changed)"
+    if [[ $(${sdk}_example_changed) != True ]]; then
+      LogOutput "No changes for ${sdk} examples"
+      continue
+    fi
 
-      export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-      python3 ci_cd.py \
-      --datastore-project ${PROJECT_ID} \
-      --namespace ${NAMESPACE} \
-      --step ${STEP} \
-      --sdk SDK_"${sdk^^}" \
-      --origin ${ORIGIN} \
-      --subdirs ${SUBDIRS}
-      if [ $? -eq 0 ]; then
-          LogOutput "Examples for $sdk SDK have been successfully deployed."
-      else
-          LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
-      fi
-    else
-      LogOutput "Checker has not found any changed examples"
+    if [[ $(${sdk}_example_changed) == True ]]; then
+
+        LogOutput "Running ci_cd.py for SDK $sdk"
+
+
+
+        export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
+        python3 ci_cd.py \
+        --datastore-project ${PROJECT_ID} \
+        --namespace ${NAMESPACE} \
+        --step ${STEP} \
+        --sdk SDK_"${sdk^^}" \
+        --origin ${ORIGIN} \
+        --subdirs ${SUBDIRS}
+        if [ $? -eq 0 ]; then
+            LogOutput "Examples for $sdk SDK have been successfully deployed."
+        else
+            LogOutput "Examples for $sdk SDK were not deployed. Please see the logs"
+        fi
     fi
 done
