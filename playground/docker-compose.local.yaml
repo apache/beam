@@ -91,6 +91,10 @@ services:
       - "8090:8090"
     depends_on:
       - redis
+    # Impose limits on container to better mimic real deployment environment
+    mem_limit: 2048M
+    ulimits:
+      rss: 1073741824
 
   frontend:
     image: apache/beam_playground-frontend
