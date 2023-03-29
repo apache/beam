@@ -69,10 +69,7 @@ var dbClient db.Database
 var ctx context.Context
 
 func TestMain(m *testing.M) {
-	//server := setup()
-	//opt = goleak.IgnoreCurrent()
 	exitValue := m.Run()
-	//teardown(server)
 	os.Exit(exitValue)
 }
 
