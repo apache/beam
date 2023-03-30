@@ -506,7 +506,8 @@ public class FlinkExecutionEnvironmentsTest {
                 "--maxParallelism=1",
                 "--minPauseBetweenCheckpoints=1",
                 "--numberOfExecutionRetries=1",
-                "--shutdownSourcesAfterIdleMs=10")
+                "--shutdownSourcesAfterIdleMs=10",
+                "--optionsId=100")
             .as(FlinkPipelineOptions.class);
 
     StreamExecutionEnvironment sev =
@@ -537,6 +538,7 @@ public class FlinkExecutionEnvironmentsTest {
     expectedMap.put("objectReuse", "false");
     expectedMap.put("externalizedCheckpointsEnabled", "false");
     expectedMap.put("flinkMaster", "[auto]");
+    expectedMap.put("optionsId", "100");
 
     Map<String, String> expectedBatchMap = new HashMap<>(expectedMap);
     expectedBatchMap.put("executionModeForBatch", "PIPELINED");
