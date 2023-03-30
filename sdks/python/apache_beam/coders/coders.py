@@ -83,9 +83,9 @@ try:
   # occurs.
   from apache_beam.internal.dill_pickler import dill
 except ImportError:
-  # We fall back to using the stock dill library in tests that don't use the
+  # We fall back to using the vendored dill library in tests that don't use the
   # full Python SDK.
-  import dill
+  from apache_beam.internal import dill
 
 __all__ = [
     'Coder',

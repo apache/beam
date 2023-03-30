@@ -281,7 +281,7 @@ def baditems(obj, exact=False, safe=False): #XXX: obj=globals() ?
 
 def badobjects(obj, depth=0, exact=False, safe=False):
     """get objects that fail to pickle"""
-    from dill import pickles
+    from apache_beam.internal.dill import pickles
     if not depth:
         if pickles(obj,exact,safe): return None
         return obj
@@ -290,7 +290,7 @@ def badobjects(obj, depth=0, exact=False, safe=False):
 
 def badtypes(obj, depth=0, exact=False, safe=False):
     """get types for objects that fail to pickle"""
-    from dill import pickles
+    from apache_beam.internal.dill import pickles
     if not depth:
         if pickles(obj,exact,safe): return None
         return type(obj)
@@ -299,7 +299,7 @@ def badtypes(obj, depth=0, exact=False, safe=False):
 
 def errors(obj, depth=0, exact=False, safe=False):
     """get errors for objects that fail to pickle"""
-    from dill import pickles, copy
+    from apache_beam.internal.dill import pickles, copy
     if not depth:
         try:
             pik = copy(obj)

@@ -52,7 +52,6 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 
-import dill
 import numpy as np
 from fastavro import parse_schema
 from fastavro import schemaless_reader
@@ -60,6 +59,7 @@ from fastavro import schemaless_writer
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.internal import dill
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value

@@ -478,7 +478,7 @@ class Unpickler(StockUnpickler):
             return self._main.__dict__ #XXX: above set w/save_module_dict
         elif (module, name) == ('__builtin__', 'NoneType'):
             return type(None) #XXX: special case: NoneType missing
-        if module == 'dill.dill': module = 'dill._dill'
+        if module == 'dill.dill': module = 'apache_beam.internal.dill._dill'
         return StockUnpickler.find_class(self, module, name)
 
     def __init__(self, *args, **kwds):
