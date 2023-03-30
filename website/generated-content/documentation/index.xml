@@ -4067,7 +4067,102 @@ limitations under the License.
 &lt;h1 id="approximateunique">ApproximateUnique&lt;/h1>
 &lt;h2 id="examples">Examples&lt;/h2>
 &lt;p>See &lt;a href="https://github.com/apache/beam/issues/19547">Issue 19547&lt;/a> for updates.&lt;/p>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: Basics of the Beam model</title><link>/documentation/basics/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/basics/</guid><description>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: Auto Update ML models using WatchFilePattern</title><link>/documentation/ml/side-input-updates/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/side-input-updates/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="use-watchfilepattern-to-auto-update-ml-models-in-runinference">Use WatchFilePattern to auto-update ML models in RunInference&lt;/h1>
+&lt;p>The pipeline in this example uses a &lt;a href="https://beam.apache.org/documentation/transforms/python/elementwise/runinference/">RunInference&lt;/a> &lt;code>PTransform&lt;/code> to run inference on images using TensorFlow models. It uses a &lt;a href="https://beam.apache.org/documentation/programming-guide/#side-inputs">side input&lt;/a> &lt;code>PCollection&lt;/code> that emits &lt;code>ModelMetadata&lt;/code> to update the model.&lt;/p>
+&lt;p>Using side inputs, you can update your model (which is passed in a &lt;code>ModelHandler&lt;/code> configuration object) in real-time, even while the Beam pipeline is still running. This can be done either by leveraging one of Beam&amp;rsquo;s provided patterns, such as the &lt;code>WatchFilePattern&lt;/code>,
+or by configuring a custom side input &lt;code>PCollection&lt;/code> that defines the logic for the model update.&lt;/p>
+&lt;p>For more information about side inputs, see the &lt;a href="https://beam.apache.org/documentation/programming-guide/#side-inputs">Side inputs&lt;/a> section in the Apache Beam Programming Guide.&lt;/p>
+&lt;p>This example uses &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.utils.html#apache_beam.ml.inference.utils.WatchFilePattern">&lt;code>WatchFilePattern&lt;/code>&lt;/a> as a side input. &lt;code>WatchFilePattern&lt;/code> is used to watch for the file updates matching the &lt;code>file_pattern&lt;/code>
+based on timestamps. It emits the latest &lt;a href="https://beam.apache.org/documentation/transforms/python/elementwise/runinference/">&lt;code>ModelMetadata&lt;/code>&lt;/a>, which is used in
+the RunInference &lt;code>PTransform&lt;/code> to automatically update the ML model without stopping the Beam pipeline.&lt;/p>
+&lt;h2 id="set-up-the-source">Set up the source&lt;/h2>
+&lt;p>To read the image names, use a Pub/Sub topic as the source. The Pub/Sub topic emits a &lt;code>UTF-8&lt;/code> encoded model path that is used to read and preprocess images to run the inference.&lt;/p>
+&lt;h2 id="models-for-image-segmentation">Models for image segmentation&lt;/h2>
+&lt;p>For the purpose of this example, use TensorFlow models saved in &lt;a href="https://www.tensorflow.org/tutorials/keras/save_and_load#hdf5_format">HDF5&lt;/a> format.&lt;/p>
+&lt;h2 id="pre-process-images-for-inference">Pre-process images for inference&lt;/h2>
+&lt;p>The Pub/Sub topic emits an image path. We need to read and preprocess the image to use it for RunInference. The &lt;code>read_image&lt;/code> function is used to read the image for inference.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="kn">import&lt;/span> &lt;span class="nn">io&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">PIL&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Image&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.io.filesystems&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">FileSystems&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">numpy&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">tensorflow&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">tf&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">read_image&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">image_file_name&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">FileSystems&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">image_file_name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;r&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nb">file&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Image&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BytesIO&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">file&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">()))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">convert&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;RGB&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">img&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">resize&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="mi">224&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">224&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="n">img&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">numpy&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">array&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">img&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="mf">255.0&lt;/span>
+&lt;span class="n">img_tensor&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cast&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">convert_to_tensor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">img&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">]),&lt;/span> &lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float32&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">img_tensor&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now, let&amp;rsquo;s jump into the pipeline code.&lt;/p>
+&lt;p>&lt;strong>Pipeline steps&lt;/strong>:&lt;/p>
+&lt;ol>
+&lt;li>Get the image names from the Pub/Sub topic.&lt;/li>
+&lt;li>Read and pre-process the images using the &lt;code>read_image&lt;/code> function.&lt;/li>
+&lt;li>Pass the images to the RunInference &lt;code>PTransform&lt;/code>. RunInference takes &lt;code>model_handler&lt;/code> and &lt;code>model_metadata_pcoll&lt;/code> as input parameters.&lt;/li>
+&lt;/ol>
+&lt;p>For the &lt;a href="https://github.com/apache/beam/blob/07f52a478174f8733c7efedb7189955142faa5fa/sdks/python/apache_beam/ml/inference/base.py#L308">&lt;code>model_handler&lt;/code>&lt;/a>, we use &lt;a href="https://github.com/apache/beam/blob/186973b110d82838fb8e5ba27f0225a67c336591/sdks/python/apache_beam/ml/inference/tensorflow_inference.py#L184">TFModelHandlerTensor&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.inference.tensorflow_inference&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">TFModelHandlerTensor&lt;/span>
+&lt;span class="c1"># initialize TFModelHandlerTensor with a .h5 model saved in a directory accessible by the pipeline.&lt;/span>
+&lt;span class="n">tf_model_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TFModelHandlerTensor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_uri&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://&amp;lt;your-bucket&amp;gt;/&amp;lt;model_path.h5&amp;gt;&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The &lt;code>model_metadata_pcoll&lt;/code> is a &lt;a href="https://beam.apache.org/documentation/programming-guide/#side-inputs">side input&lt;/a> &lt;code>PCollection&lt;/code> to the RunInference &lt;code>PTransform&lt;/code>. This side input is used to update the models in the &lt;code>model_handler&lt;/code> without needing to stop the beam pipeline.
+We will use &lt;code>WatchFilePattern&lt;/code> as side input to watch a glob pattern matching &lt;code>.h5&lt;/code> files.&lt;/p>
+&lt;p>&lt;code>model_metadata_pcoll&lt;/code> expects a &lt;code>PCollection&lt;/code> of ModelMetadata compatible with &lt;a href="https://beam.apache.org/releases/pydoc/2.4.0/apache_beam.pvalue.html#apache_beam.pvalue.AsSingleton">AsSingleton&lt;/a>. Because the pipeline uses &lt;code>WatchFilePattern&lt;/code> as side input, it will take care of windowing and wrapping the output into &lt;code>ModelMetadata&lt;/code>.&lt;/p>
+&lt;p>After the pipeline starts processing data and when you see some outputs emitted from the RunInference &lt;code>PTransform&lt;/code>, upload a &lt;code>.h5&lt;/code> &lt;code>TensorFlow&lt;/code> model that matches the &lt;code>file_pattern&lt;/code> to the Google Cloud Storage bucket. RunInference will update the &lt;code>model_uri&lt;/code> of &lt;code>TFModelHandlerTensor&lt;/code> using &lt;code>WatchFilePattern&lt;/code> as a side input.&lt;/p>
+&lt;p>&lt;strong>Note&lt;/strong>: Side input update frequency is non-deterministic and can have longer intervals between updates.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.inference.utils&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">WatchFilePattern&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.inference.base&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">RunInference&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">file_pattern&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;gs://&amp;lt;your-bucket&amp;gt;/*.h5&amp;#39;&lt;/span>
+&lt;span class="n">pubsub_topic&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;&amp;lt;topic_emitting_image_names&amp;gt;&amp;#39;&lt;/span>
+&lt;span class="n">side_input_pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;FilePatternUpdates&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">WatchFilePattern&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_pattern&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">file_pattern&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="n">images_pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;ReadFromPubSub&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromPubSub&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">topic&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">pubsub_topic&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;DecodeBytes&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">decode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;utf-8&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;PreProcessImage&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">read_image&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="n">inference_pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">images_pcoll&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;RunInference&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">RunInference&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">model_handler&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">tf_model_handler&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">model_metadata_pcoll&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">side_input_pcoll&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="post-process-the-predictionresult-object">Post-process the &lt;code>PredictionResult&lt;/code> object&lt;/h2>
+&lt;p>When the inference is complete, RunInference outputs a &lt;code>PredictionResult&lt;/code> object that contains &lt;code>example&lt;/code>, &lt;code>inference&lt;/code>, and &lt;code>model_id&lt;/code> fields. The &lt;code>model_id&lt;/code> is used to identify which model is used for running the inference.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.inference.base&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PredictionResult&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">PostProcessor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;
+&lt;/span>&lt;span class="s2"> Process the PredictionResult to get the predicted label and model id used for inference.
+&lt;/span>&lt;span class="s2"> &amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">PredictionResult&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Iterable&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">]:&lt;/span>
+&lt;span class="n">predicted_class&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">numpy&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">argmax&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inference&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">axis&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">labels_path&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">keras&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">utils&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_file&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;ImageNetLabels.txt&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s1">&amp;#39;https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt&amp;#39;&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="n">imagenet_labels&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">numpy&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">array&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">labels_path&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">splitlines&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="n">predicted_class_name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">imagenet_labels&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">predicted_class&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">predicted_class_name&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">title&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">model_id&lt;/span>
+&lt;span class="n">post_processor_pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">inference_pcoll&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;PostProcessor&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">PostProcessor&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="run-the-pipeline">Run the pipeline&lt;/h2>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">run&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">wait_until_finish&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Note&lt;/strong>: The &lt;code>model_name&lt;/code> of the &lt;code>ModelMetaData&lt;/code> object will be attached as prefix to the &lt;a href="https://beam.apache.org/documentation/ml/runinference-metrics/">metrics&lt;/a> calculated by the RunInference &lt;code>PTransform&lt;/code>.&lt;/p>
+&lt;h2 id="final-remarks">Final remarks&lt;/h2>
+&lt;p>You can use this example as a pattern when using side inputs with the RunInference &lt;code>PTransform&lt;/code> to auto-update the models without stopping the pipeline. You can see a similar example for PyTorch on &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification_with_side_inputs.py">GitHub&lt;/a>.&lt;/p></description></item><item><title>Documentation: Basics of the Beam model</title><link>/documentation/basics/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/basics/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18939,205 +19034,4 @@ that store the same data type.&lt;/p>
 &lt;li>&lt;a href="/documentation/transforms/python/elementwise/flatmap">FlatMap&lt;/a> applies a simple 1-to-many mapping
 function over each element in the collection. This transform might produce zero
 or more outputs.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: Get Started with ML</title><link>/documentation/ml/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/overview/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="get-started-with-aiml-pipelines">Get started with AI/ML pipelines&lt;/h1>
-&lt;table>
-&lt;tr>
-&lt;td>
-&lt;a>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;/a>
-&lt;/td>
-&lt;td>
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/extensions/python/transforms/RunInference.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="30px"
-alt="Javadoc" />
-Javadoc
-&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/table>
-&lt;p>Being productive and successful as a machine learning practitioner is often dependent on your ability to efficiently leverage large volumes of data in a way that is uniquely tailored to your resources, requirements, and budget. Whether starting your next AI/ML project or upscaling an existing project, consider adding Apache Beam to your project.&lt;/p>
-&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen>&lt;/iframe>
-&lt;h2 id="use-beam-ml">Use Beam ML&lt;/h2>
-&lt;p>I want use Beam ML to do:&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="#prediction-and-inference">Prediction and inference&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#data-processing">Data processing&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#workflow-orchestration">Workflow orchestration&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#model-training">Model training&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#use-cases">Anomaly detection&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="prediction-and-inference">Prediction and inference&lt;/h2>
-&lt;p>Beam provides different ways to implement inference as part of your pipeline. You can run your ML model directly in your pipeline and apply it on big scale datasets, both in batch and streaming pipelines.&lt;/p>
-&lt;h3 id="runinference">RunInference&lt;/h3>
-&lt;p>The RunInfernce API is available with the Beam Python SDK versions 2.40.0 and later. You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through &lt;code>tfx-bsl&lt;/code>. For more deatils about using RunInference with Python, see &lt;a href="/documentation/sdks/python-machine-learning/">Machine Learning with Python&lt;/a>.&lt;/p>
-&lt;p>The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam&amp;rsquo;s &lt;a href="/documentation/programming-guide/#multi-language-pipelines">Multi-language Pipelines framework&lt;/a>. For information about the Java wrapper transform, see &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java">RunInference.java&lt;/a>. To try it out, see the &lt;a href="https://github.com/apache/beam/tree/master/examples/multi-language">Java Sklearn Mnist Classification example&lt;/a>.&lt;/p>
-&lt;p>You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.&lt;/p>
-&lt;div class="table-wrapper">&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th>Task&lt;/th>
-&lt;th>Example&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>I want to use the RunInference transform&lt;/td>
-&lt;td>&lt;a href="/documentation/sdks/python-machine-learning/#modify-a-python-pipeline-to-use-an-ml-model">Modify a Python pipeline to use an ML model&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to use RunInference with PyTorch&lt;/td>
-&lt;td>&lt;a href="/documentation/transforms/python/elementwise/runinference-pytorch/">Use RunInference with PyTorch&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to use RunInference with Sklearn&lt;/td>
-&lt;td>&lt;a href="/documentation/transforms/python/elementwise/runinference-sklearn/">Use RunInference with Sklearn&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to use pre-trained models (PyTorch, Scikit-learn, or TensorFlow)&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/about-ml/#use-pre-trained-models">Use pre-trained models&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>&lt;/div>
-&lt;h3 id="prediction-and-inference-examples">Prediction and inference examples&lt;/h3>
-&lt;div class="table-wrapper">&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th>Task&lt;/th>
-&lt;th>Example&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>I want to build a pipeline with multiple models&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/multi-model-pipelines">Multi-Model Pipelines&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to build a custom model handler with TensorRT&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/tensorrt-runinference">Use TensorRT with RunInference&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to use LLM inference&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/large-language-modeling/">Large Language Model Inference&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to build a multi-language inference pipeline&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/multi-language-inference/">Using RunInference from Java SDK&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>&lt;/div>
-&lt;h2 id="data-processing">Data processing&lt;/h2>
-&lt;p>You can use Apache Beam for data validation and preprocessing by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of &lt;a href="/documentation/io/built-in/">I/O connectors&lt;/a> for ingesting and writing data, which allows you to integrate it with your existing file system, database, or messaging queue.&lt;/p>
-&lt;div class="table-wrapper">&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th>Task&lt;/th>
-&lt;th>Example&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>I want to explore my data&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/data-processing">Data Processing Example&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>&lt;/div>
-&lt;h2 id="workflow-orchestration">Workflow orchestration&lt;/h2>
-&lt;p>In order to automate and track the AI/ML workflows throughout your project, you can use orchestrators such as &lt;a href="https://www.kubeflow.org/docs/components/pipelines/introduction/">Kubeflow pipelines&lt;/a> (KFP) or &lt;a href="https://www.tensorflow.org/tfx">TensorFlow Extended&lt;/a> (TFX). These orchestrators automate your different building blocks and handle the transitions between them.&lt;/p>
-&lt;div class="table-wrapper">&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th>Task&lt;/th>
-&lt;th>Example&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>I want to use ML-OPS workflow orchestrators&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/orchestration/">Workflow Orchestration&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to use Beam with TensorFlow Extended (TFX)&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/orchestration/#tensorflow-extended-tfx">Tensorflow Extended (TFX)&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to use Beam with Kubeflow&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/orchestration/#kubeflow-pipelines-kfp">Kubeflow pipelines (KFP)&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>&lt;/div>
-&lt;p>When you use Apache Beam as one of the building blocks in your project, these orchestrators are able to launch your Apache Beam job and to keep track of the input and output of your pipeline. These tasks are essential when moving your AI/ML solution into production, because they allow you to handle your model and data over time and improve the quality and reproducibility of results.&lt;/p>
-&lt;h2 id="model-training">Model training&lt;/h2>
-&lt;div class="table-wrapper">&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th>Task&lt;/th>
-&lt;th>Example&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>I want to use per-entity training&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/per-entity-training">Per Entity Training&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to cluster text&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/online-clustering">Online Clustering Example&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>I want to benchmark model performance&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/model-evaluation/">ML Model Evaluation&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>&lt;/div>
-&lt;h2 id="use-cases">Use cases&lt;/h2>
-&lt;div class="table-wrapper">&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th>Task&lt;/th>
-&lt;th>Example&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>I want to build an anomaly detection pipeline&lt;/td>
-&lt;td>&lt;a href="/documentation/ml/anomaly-detection/">Anomaly Detection Example&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>&lt;/div>
-&lt;h2 id="reference">Reference&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/ml/runinference-metrics/">RunInference metrics&lt;/a>&lt;/li>
-&lt;li>&lt;a href="/documentation/ml/model-evaluation/">ML model evaluation&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_basic.ipynb">RunInference public codelab&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml">RunInference notebooks&lt;/a>&lt;/li>
 &lt;/ul></description></item></channel></rss>
