@@ -29,6 +29,7 @@ type ExampleEntity struct {
 	SchVer      *datastore.Key `datastore:"schVer"`
 	UrlVCS      string         `datastore:"urlVCS"`
 	UrlNotebook string         `datastore:"urlNotebook"`
+	AlwaysRun   bool           `datastore:"alwaysRun"`
 }
 
 type PrecompiledObjectEntity struct {

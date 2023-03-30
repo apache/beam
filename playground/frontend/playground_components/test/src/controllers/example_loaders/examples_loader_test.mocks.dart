@@ -11,10 +11,10 @@ import 'package:playground_components/src/cache/example_cache.dart' as _i2;
 import 'package:playground_components/src/controllers/code_runner.dart' as _i5;
 import 'package:playground_components/src/controllers/example_loaders/examples_loader.dart'
     as _i3;
-import 'package:playground_components/src/controllers/output_filter_type_controller.dart'
-    as _i4;
 import 'package:playground_components/src/controllers/playground_controller.dart'
     as _i12;
+import 'package:playground_components/src/controllers/result_filter_controller.dart'
+    as _i4;
 import 'package:playground_components/src/controllers/snippet_editing_controller.dart'
     as _i7;
 import 'package:playground_components/src/models/category_with_examples.dart'
@@ -66,9 +66,9 @@ class _FakeExamplesLoader_1 extends _i1.SmartFake
         );
 }
 
-class _FakeOutputFilterTypeController_2 extends _i1.SmartFake
-    implements _i4.OutputFilterTypeController {
-  _FakeOutputFilterTypeController_2(
+class _FakeResultFilterController_2 extends _i1.SmartFake
+    implements _i4.ResultFilterController {
+  _FakeResultFilterController_2(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -176,14 +176,13 @@ class MockPlaygroundController extends _i1.Mock
         ),
       ) as _i3.ExamplesLoader);
   @override
-  _i4.OutputFilterTypeController get outputTypeController =>
-      (super.noSuchMethod(
-        Invocation.getter(#outputTypeController),
-        returnValue: _FakeOutputFilterTypeController_2(
+  _i4.ResultFilterController get resultFilterController => (super.noSuchMethod(
+        Invocation.getter(#resultFilterController),
+        returnValue: _FakeResultFilterController_2(
           this,
-          Invocation.getter(#outputTypeController),
+          Invocation.getter(#resultFilterController),
         ),
-      ) as _i4.OutputFilterTypeController);
+      ) as _i4.ResultFilterController);
   @override
   _i5.CodeRunner get codeRunner => (super.noSuchMethod(
         Invocation.getter(#codeRunner),
@@ -229,6 +228,23 @@ class MockPlaygroundController extends _i1.Mock
         Invocation.setter(
           #resetShortcut,
           _resetShortcut,
+        ),
+        returnValueForMissingStub: null,
+      );
+  @override
+  _i6.BeamShortcut get showSuggestionsShortcut => (super.noSuchMethod(
+        Invocation.getter(#showSuggestionsShortcut),
+        returnValue: _FakeBeamShortcut_4(
+          this,
+          Invocation.getter(#showSuggestionsShortcut),
+        ),
+      ) as _i6.BeamShortcut);
+  @override
+  set showSuggestionsShortcut(_i6.BeamShortcut? _showSuggestionsShortcut) =>
+      super.noSuchMethod(
+        Invocation.setter(
+          #showSuggestionsShortcut,
+          _showSuggestionsShortcut,
         ),
         returnValueForMissingStub: null,
       );
@@ -337,6 +353,14 @@ class MockPlaygroundController extends _i1.Mock
         returnValue: _i14.Future<void>.value(),
         returnValueForMissingStub: _i14.Future<void>.value(),
       ) as _i14.Future<void>);
+  @override
+  void showSuggestions() => super.noSuchMethod(
+        Invocation.method(
+          #showSuggestions,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
   @override
   void resetErrorMessageText() => super.noSuchMethod(
         Invocation.method(

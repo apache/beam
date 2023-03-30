@@ -19,6 +19,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -37,18 +38,15 @@ import '../models/shortcut.dart';
 import '../repositories/code_repository.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
+import '../util/logical_keyboard_key.dart';
 import 'code_runner.dart';
 import 'example_loaders/examples_loader.dart';
-import 'output_filter_type_controller.dart';
+import 'result_filter_controller.dart';
 import 'snippet_editing_controller.dart';
 
 const kTitleLength = 25;
 const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
-const kTitle = 'Catalog';
-const kExecutionCancelledText = '\nPipeline cancelled';
-const kPipelineOptionsParseError =
-    'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\',. symbols are allowed';
 const kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache.\n';
 
@@ -56,8 +54,7 @@ const kCachedResultsLog =
 class PlaygroundController with ChangeNotifier {
   final ExampleCache exampleCache;
   final ExamplesLoader examplesLoader;
-  final OutputFilterTypeController outputTypeController =
-      OutputFilterTypeController();
+  final resultFilterController = ResultFilterController();
 
   late final CodeRunner codeRunner;
 
@@ -101,7 +98,8 @@ class PlaygroundController with ChangeNotifier {
 
   // TODO(alexeyinkin): Return full, then shorten, https://github.com/apache/beam/issues/23250
   String get examplesTitle {
-    final name = snippetEditingController?.example?.name ?? kTitle;
+    final name =
+        snippetEditingController?.example?.name ?? 'examples.defaultTitle'.tr();
     return name.substring(0, min(kTitleLength, name.length));
   }
 
@@ -218,7 +216,7 @@ class PlaygroundController with ChangeNotifier {
       controller.setExample(example, descriptor: descriptor);
     }
 
-    codeRunner.clearResult();
+    codeRunner.reset();
     notifyListeners();
   }
 
@@ -250,9 +248,15 @@ class PlaygroundController with ChangeNotifier {
   }
 
   Future<void> reset() async {
-    await codeRunner.cancelRun();
     snippetEditingController?.reset();
-    codeRunner.clearResult();
+    codeRunner.reset();
+    notifyListeners();
+  }
+
+  void showSuggestions() {
+    snippetEditingController?.activeFileController?.codeController
+        .generateSuggestions();
+    notifyListeners();
   }
 
   void resetErrorMessageText() {
@@ -308,10 +312,10 @@ class PlaygroundController with ChangeNotifier {
   }
 
   late BeamShortcut runShortcut = BeamShortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
+    keys: [
+      LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.enter,
-    ),
+    ],
     actionIntent: const RunIntent(),
     createAction: (BuildContext context) => CallbackAction(
       onInvoke: (_) => codeRunner.runCode(),
@@ -319,20 +323,33 @@ class PlaygroundController with ChangeNotifier {
   );
 
   late BeamShortcut resetShortcut = BeamShortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
+    keys: [
+      LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.shift,
       LogicalKeyboardKey.keyE,
-    ),
+    ],
     actionIntent: const ResetIntent(),
     createAction: (BuildContext context) => CallbackAction(
       onInvoke: (_) => reset(),
     ),
   );
 
+  late BeamShortcut showSuggestionsShortcut = BeamShortcut(
+    keys: [
+      LogicalKeyboardKeyExtension.metaOrControl,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.keyS,
+    ],
+    actionIntent: const ShowSuggestionsIntent(),
+    createAction: (BuildContext context) => CallbackAction(
+      onInvoke: (_) => showSuggestions(),
+    ),
+  );
+
   List<BeamShortcut> get shortcuts => [
         runShortcut,
         resetShortcut,
+        showSuggestionsShortcut,
       ];
 
   @override

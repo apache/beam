@@ -14,3 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+# TODO(https://github.com/apache/beam/issues/25625)
+
+# update code. For example,
+# use class something(beam.PTransform) instead of decorator @beam.ptransform_fn
+# on a function.
+
+# update type annotations to follow pep 484 https://peps.python.org/pep-0484/
+# and also update doc strings.

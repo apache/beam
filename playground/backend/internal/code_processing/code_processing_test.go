@@ -306,7 +306,7 @@ func Test_Process(t *testing.T) {
 					cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
 				}(tt.args.ctx, tt.args.pipelineId)
 			}
-			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions, nil, nil)
+			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if !reflect.DeepEqual(status, tt.expectedStatus) {
@@ -593,7 +593,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 		Build()
 
 	wantRunExec := exec.CommandContext(context.Background(), "runCommand", "arg1")
-	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1", "")
+	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1")
 
 	type args struct {
 		isUnitTest     bool
@@ -736,7 +736,7 @@ func Benchmark_ProcessJava(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "", nil, nil)
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
 	}
 }
 
@@ -766,7 +766,7 @@ func Benchmark_ProcessPython(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions, nil, nil)
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions)
 	}
 }
 
@@ -796,7 +796,7 @@ func Benchmark_ProcessGo(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "", nil, nil)
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
 	}
 }
 

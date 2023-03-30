@@ -165,7 +165,7 @@ func (d *Datastore) PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
 	return nil
 }
 
-//GetFiles returns the file entities by a snippet identifier
+// GetFiles returns the file entities by a snippet identifier
 func (d *Datastore) GetFiles(ctx context.Context, snipId string, numberOfFiles int) ([]*entity.FileEntity, error) {
 	if numberOfFiles == 0 {
 		logger.Errorf("The number of files must be more than zero")
@@ -190,7 +190,7 @@ func (d *Datastore) GetFiles(ctx context.Context, snipId string, numberOfFiles i
 	return files, nil
 }
 
-//GetSDKs returns sdk entities by an identifier
+// GetSDKs returns sdk entities by an identifier
 func (d *Datastore) GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error) {
 	var sdkKeys []*datastore.Key
 	for sdkName := range pb.Sdk_value {
@@ -209,7 +209,7 @@ func (d *Datastore) GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error) {
 	return sdks, nil
 }
 
-//GetCatalog returns all examples
+// GetCatalog returns all examples
 func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEntity) ([]*pb.Categories, error) {
 	//Retrieving examples
 	exampleQuery := datastore.NewQuery(constants.ExampleKind).Namespace(utils.GetNamespace(ctx)).FilterField("origin", "=", constants.ExampleOrigin)
@@ -270,7 +270,7 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 	}), nil
 }
 
-//GetDefaultExamples returns the default examples
+// GetDefaultExamples returns the default examples
 func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEntity) (map[pb.Sdk]*pb.PrecompiledObject, error) {
 	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
 	if err != nil {
@@ -387,7 +387,7 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 		}
 	}
 
-	return d.ResponseMapper.ToPrecompiledObj(&dto.ExampleDTO{
+	return d.ResponseMapper.ToPrecompiledObj(id, &dto.ExampleDTO{
 		Example:            example,
 		Snippet:            snippet,
 		Files:              []*entity.FileEntity{file},
@@ -502,7 +502,7 @@ func (d *Datastore) deleteSnippets(ctx context.Context, snippetQuery *datastore.
 	return nil
 }
 
-//DeleteUnusedSnippets deletes all unused snippets
+// DeleteUnusedSnippets deletes all unused snippets
 func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error {
 	var hoursDiff = dayDiff * 24
 	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))

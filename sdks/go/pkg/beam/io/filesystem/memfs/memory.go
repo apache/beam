@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -59,7 +59,7 @@ func (f *fs) List(_ context.Context, glob string) ([]string, error) {
 
 	var ret []string
 	for k := range f.m {
-		matched, err := filepath.Match(globNoScheme, strings.TrimPrefix(k, "memfs://"))
+		matched, err := filesystem.Match(globNoScheme, strings.TrimPrefix(k, "memfs://"))
 		if err != nil {
 			return nil, fmt.Errorf("invalid glob pattern: %w", err)
 		}
@@ -145,6 +145,9 @@ func Write(key string, value []byte) {
 }
 
 func normalize(key string) string {
+	if runtime.GOOS == "windows" {
+		key = strings.ReplaceAll(key, "\\", "/")
+	}
 	if strings.HasPrefix(key, "memfs://") {
 		return key
 	}

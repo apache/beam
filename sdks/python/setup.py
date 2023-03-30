@@ -36,7 +36,7 @@ from setuptools import Command
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.errors import DistutilsError # isort:skip
+from distutils.errors import DistutilsError  # isort:skip
 
 
 class mypy(Command):
@@ -127,6 +127,7 @@ except DistributionNotFound:
 try:
   # pylint: disable=wrong-import-position
   from Cython.Build import cythonize as cythonize0
+
   def cythonize(*args, **kwargs):
     import numpy
     extensions = cythonize0(*args, **kwargs)
@@ -141,6 +142,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
   pyarrow_dependency = 'pyarrow>=3.0.0,<10.0.0'
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -180,16 +182,6 @@ if __name__ == '__main__':
   generate_protos_first()
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
-  if sys.platform == 'darwin' and (
-          sys.version_info.major == 3 and sys.version_info.minor == 10):
-    # TODO (https://github.com/apache/beam/issues/23585): Protobuf wheels
-    # for version 3.19.5, 3.19.6 and 3.20.x on Python 3.10 and MacOS are
-    # rolled back due to some errors on MacOS. So, for Python 3.10 on MacOS
-    # restrict the protobuf with tight upper bound(3.19.4)
-    protobuf_dependency = ['protobuf>3.12.2,<3.19.5']
-  else:
-    protobuf_dependency = ['protobuf>3.12.2,<4']
-
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
@@ -213,7 +205,6 @@ if __name__ == '__main__':
           ]
       },
       ext_modules=cythonize([
-          # Make sure to use language_level=3 cython directive in files below.
           'apache_beam/**/*.pyx',
           'apache_beam/coders/coder_impl.py',
           'apache_beam/metrics/cells.py',
@@ -226,8 +217,8 @@ if __name__ == '__main__':
           'apache_beam/transforms/stats.py',
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
-      ]),
-      install_requires= protobuf_dependency + [
+      ], language_level=3),
+      install_requires = [
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
@@ -250,8 +241,14 @@ if __name__ == '__main__':
         # Use a strict upper bound.
         'numpy>=1.14.3,<1.25.0',   # Update build-requirements.txt as well.
         'objsize>=0.6.1,<0.7.0',
-        'pymongo>=3.8.0,<4.0.0',
+        'pymongo>=3.8.0,<5.0.0',
         'proto-plus>=1.7.1,<2',
+        # use a tighter upper bound in protobuf dependency
+        # to make sure the minor version at job submission
+        # does not exceed the minor version at runtime.
+        # To avoid depending on an old dependency, update the minor version on
+        # every Beam release, see: https://github.com/apache/beam/issues/25590
+        'protobuf>=4.21.1,<4.23.0',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
@@ -284,7 +281,7 @@ if __name__ == '__main__':
             'requests_mock>=1.7,<2.0',
             'tenacity>=5.0.2,<6.0',
             'pytest>=7.1.2,<8.0',
-            'pytest-xdist>=2.5.0,<3',
+            'pytest-xdist>=2.5.0,<4',
             'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
             'sqlalchemy>=1.3,<2.0',
@@ -301,25 +298,25 @@ if __name__ == '__main__':
             # https://github.com/googleapis/google-cloud-python/issues/10566
             'google-auth>=1.18.0,<3',
             'google-auth-httplib2>=0.1.0,<0.2.0',
-            'google-cloud-datastore>=1.8.0,<2',
+            'google-cloud-datastore>=2.0.0,<3',
             'google-cloud-pubsub>=2.1.0,<3',
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
-            'google-cloud-bigquery>=1.6.0,<4',
-            'google-cloud-bigquery-storage>=2.6.3,<2.17',
-            'google-cloud-core>=0.28.1,<3',
-            'google-cloud-bigtable>=0.31.1,<2',
+            'google-cloud-bigquery>=2.0.0,<4',
+            'google-cloud-bigquery-storage>=2.6.3,<3',
+            'google-cloud-core>=2.0.0,<3',
+            'google-cloud-bigtable>=2.0.0,<3',
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
-            'google-cloud-language>=1.3.0,<2',
-            'google-cloud-videointelligence>=1.8.0,<2',
+            'google-cloud-language>=2.0,<3',
+            'google-cloud-videointelligence>=2.0,<3',
             'google-cloud-vision>=2,<4',
-            'google-cloud-recommendations-ai>=0.1.0,<0.8.0'
+            'google-cloud-recommendations-ai>=0.1.0,<0.11.0'
           ],
           'interactive': [
-            'facets-overview>=1.0.0,<2',
-            'google-cloud-dataproc>=3.0.0,<3.2.0',
+            'facets-overview>=1.1.0,<2',
+            'google-cloud-dataproc>=5.0.0,<6',
             # IPython>=8 is not compatible with Python<=3.7
             'ipython>=7,<8;python_version<="3.7"',
             'ipython>=8,<9;python_version>"3.7"',
@@ -327,7 +324,7 @@ if __name__ == '__main__':
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,<8.0.3',
+            'jupyter-client>=6.1.11,!=6.1.13,<8.0.4',
             'timeloop>=1.0.2,<2',
           ],
           'interactive_test': [
@@ -336,9 +333,9 @@ if __name__ == '__main__':
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<111',
+            'chromedriver-binary>=100,<113',
             # use a fixed major version of PIL for different python versions
-            'pillow>=7.1.1,<8',
+            'pillow>=7.1.1,<10',
           ],
           'aws': ['boto3 >=1.9'],
           'azure': [
@@ -350,7 +347,7 @@ if __name__ == '__main__':
         # Exclude 1.5.0 and 1.5.1 because of
         # https://github.com/pandas-dev/pandas/issues/45725
           'dataframe': [
-            'pandas<1.4.0;python_version=="3.7"',
+            'pandas<1.6.0;python_version=="3.7"',
             'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
           ],
           'dask': [

@@ -30,9 +30,9 @@ const (
 	Test ExecutionType = "RunTest"
 )
 
-//CmdConfiguration for base cmd code execution
+// CmdConfiguration for base cmd code execution
 type CmdConfiguration struct {
-	fileName        string
+	fileNames       []string
 	workingDir      string
 	commandName     string
 	commandArgs     []string
@@ -94,7 +94,7 @@ func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map) {
 // Compile prepares the Cmd for code compilation
 // Returns Cmd instance
 func (ex *Executor) Compile(ctx context.Context) *exec.Cmd {
-	args := append(ex.compileArgs.commandArgs, ex.compileArgs.fileName)
+	args := append(ex.compileArgs.commandArgs, ex.compileArgs.fileNames...)
 	cmd := exec.CommandContext(ctx, ex.compileArgs.commandName, args...)
 	cmd.Dir = ex.compileArgs.workingDir
 	return cmd
@@ -104,8 +104,8 @@ func (ex *Executor) Compile(ctx context.Context) *exec.Cmd {
 // Returns Cmd instance
 func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
 	args := ex.runArgs.commandArgs
-	if ex.runArgs.fileName != "" {
-		args = append(args, ex.runArgs.fileName)
+	if len(ex.runArgs.fileNames) > 0 {
+		args = append(args, ex.runArgs.fileNames...)
 	}
 	if ex.runArgs.pipelineOptions != nil && ex.runArgs.pipelineOptions[0] != "" {
 		args = append(args, ex.runArgs.pipelineOptions...)
@@ -118,7 +118,7 @@ func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
 // RunTest prepares the Cmd for execution of the unit test
 // Returns Cmd instance
 func (ex *Executor) RunTest(ctx context.Context) *exec.Cmd {
-	args := append(ex.testArgs.commandArgs, ex.testArgs.fileName)
+	args := append(ex.testArgs.commandArgs, ex.testArgs.fileNames...)
 	cmd := exec.CommandContext(ctx, ex.testArgs.commandName, args...)
 	cmd.Dir = ex.testArgs.workingDir
 	return cmd

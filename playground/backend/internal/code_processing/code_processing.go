@@ -30,7 +30,6 @@ import (
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
-	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/executors"
@@ -56,11 +55,11 @@ const (
 // - In case of run step is failed saves playground.Status_STATUS_RUN_ERROR as cache.Status and run logs as cache.RunError into cache.
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
-func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string, mockCluster emulators.EmulatorMockCluster, prepareParams map[string]string) {
+func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string) {
 	pipelineLifeCycleCtx, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
-		DeleteResources(pipelineId, lc, mockCluster)
+		DeleteResources(pipelineId, lc)
 	}(lc)
 
 	cancelChannel := make(chan bool, 1)
@@ -74,7 +73,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel, prepareParams)
+	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel, lc.GetPreparerParameters())
 	if executor == nil {
 		return
 	}
@@ -100,9 +99,9 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	var executorBuilder *executors.ExecutorBuilder
 	err := error(nil)
 	if isUnitTest {
-		executorBuilder, err = builder.TestRunner(paths, sdkEnv)
+		executorBuilder, err = builder.TestRunner(pipelineLifeCycleCtx, paths, sdkEnv)
 	} else {
-		executorBuilder, err = builder.Runner(paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
+		executorBuilder, err = builder.Runner(pipelineLifeCycleCtx, paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
 	}
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
@@ -172,7 +171,11 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 			return nil
 		}
 	} else { // in case of Java, Go (not unit test), Scala - need compile step
-		executorBuilder := builder.Compiler(paths, sdkEnv)
+		executorBuilder, err := builder.Compiler(paths, sdkEnv)
+		if err != nil {
+			logger.Errorf("compileStep(): failed creating ExecutorBuilder = %v", executorBuilder)
+			return nil
+		}
 		executor := executorBuilder.Build()
 		logger.Infof("%s: Compile() ...\n", pipelineId)
 		compileCmd := executor.Compile(pipelineLifeCycleCtx)
@@ -370,9 +373,12 @@ func runCmdWithOutput(cmd *exec.Cmd, stdOutput io.Writer, stdError io.Writer, su
 // reconcileBackgroundTask waits when first background task finishes.
 // If finishes by canceling, timeout or context is done - returns error.
 // If cmd operation (Validate/Prepare/Compile/Run/RunTest) finishes successfully with no error
-//  during step processing - returns true.
+//
+//	during step processing - returns true.
+//
 // If cmd operation (Validate/Prepare/Compile/Run/RunTest) finishes successfully but with some error
-//  during step processing - returns false.
+//
+//	during step processing - returns false.
 func reconcileBackgroundTask(pipelineLifeCycleCtx, backgroundCtx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool) (bool, error) {
 	select {
 	case <-pipelineLifeCycleCtx.Done():
@@ -422,21 +428,21 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 		case <-ticker.C:
 			if _, err := os.Stat(graphFilePath); err == nil {
 				ticker.Stop()
-				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
 				}
-				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, string(graph))
 			}
 		// in case of timeout or cancel
 		case <-pipelineLifeCycleCtx.Done():
 			ticker.Stop()
 			if _, err := os.Stat(graphFilePath); err == nil {
-				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
 				}
-				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, string(graph))
 			}
 			return
 		}
@@ -446,8 +452,10 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 // readLogFile reads logs from the log file and keeps it to the cache.
 // If context is done it means that the code processing was finished (successfully/with error/timeout). Write last logs to the cache.
 // If <-stopReadLogsChannel it means that the code processing was finished (canceled/timeout)
-// 	and it waits until the method stops the work to change status to the pb.Status_STATUS_FINISHED. Write last logs
+//
+//	and it waits until the method stops the work to change status to the pb.Status_STATUS_FINISHED. Write last logs
 //	to the cache and set value to the finishReadLogChannel channel to unblock the code processing.
+//
 // In other case each pauseDuration write to cache logs of the code processing.
 func readLogFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID, stopReadLogsChannel, finishReadLogChannel chan bool) {
 	ticker := time.NewTicker(pauseDuration)
@@ -476,8 +484,10 @@ func finishReadLogFile(ctx context.Context, ticker *time.Ticker, cacheService ca
 
 // writeLogsToCache write all logs from the log file to the cache.
 // If log file doesn't exist, return nil.
+//
 //	Reading logs works as a parallel with code processing so when program tries to read file
 //	it could be that the file doesn't exist yet.
+//
 // If log file exists, read all from the log file and keep it to the cache using cache.Logs subKey.
 // If some error occurs, log the error and return the error.
 func writeLogsToCache(ctx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID) error {
@@ -493,14 +503,12 @@ func writeLogsToCache(ctx context.Context, cacheService cache.Cache, logFilePath
 }
 
 // DeleteResources removes all prepared resources for received LifeCycle
-func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle, mockCluster emulators.EmulatorMockCluster) {
+func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 	logger.Infof("%s: DeleteResources() ...\n", pipelineId)
 	if err := lc.DeleteFolders(); err != nil {
 		logger.Error("%s: DeleteResources(): %s\n", pipelineId, err.Error())
 	}
-	if mockCluster != nil {
-		mockCluster.Stop()
-	}
+	lc.StopEmulators()
 	logger.Infof("%s: DeleteResources() complete\n", pipelineId)
 	logger.Infof("%s: complete\n", pipelineId)
 
@@ -527,6 +535,7 @@ func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput []
 
 // processRunError processes error received during processing run step.
 // This method sets error output to the cache and after that sets value to channel to stop goroutine which writes logs.
+//
 //	After receiving a signal that goroutine was finished (read value from finishReadLogsChannel) this method
 //	sets corresponding status to the cache.
 func processRunError(ctx context.Context, errorChannel chan error, errorOutput []byte, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool) error {
@@ -553,6 +562,7 @@ func processSuccess(ctx context.Context, pipelineId uuid.UUID, cacheService cach
 
 // processCompileSuccess processes case after successful compile step.
 // This method sets output of the compile step, sets empty string as output of the run step and
+//
 //	sets corresponding status to the cache.
 func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, cacheService cache.Cache) error {
 	logger.Infof("%s: Compile() finish\n", pipelineId)
@@ -577,6 +587,7 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 
 // processRunSuccess processes case after successful run step.
 // This method sets value to channel to stop goroutine which writes logs.
+//
 //	After receiving a signal that goroutine was finished (read value from finishReadLogsChannel) this method
 //	sets corresponding status to the cache.
 func processRunSuccess(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool) error {

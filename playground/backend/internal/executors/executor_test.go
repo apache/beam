@@ -44,7 +44,7 @@ func TestExecutor_Compile(t *testing.T) {
 			name: "TestCompile",
 			fields: fields{
 				compileArgs: CmdConfiguration{
-					fileName:        "filePath",
+					fileNames:       []string{"filePath"},
 					workingDir:      "./",
 					commandName:     "testCommand",
 					commandArgs:     []string{"-d", "bin", "-parameters", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
@@ -97,7 +97,7 @@ func TestExecutor_Run(t *testing.T) {
 			name: "TestRun",
 			fields: fields{
 				runArgs: CmdConfiguration{
-					fileName:    "HelloWorld",
+					fileNames:   []string{"HelloWorld"},
 					workingDir:  "./",
 					commandName: "runCommand",
 					commandArgs: []string{"-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
@@ -124,7 +124,7 @@ func TestExecutor_Run(t *testing.T) {
 			name: "TestRun with pipelineOptions",
 			fields: fields{
 				runArgs: CmdConfiguration{
-					fileName:    "HelloWorld",
+					fileNames:   []string{"HelloWorld"},
 					workingDir:  "./",
 					commandName: "runCommand",
 					commandArgs: []string{"-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
@@ -185,7 +185,7 @@ func TestExecutor_RunTest(t *testing.T) {
 			name: "TestRunTest",
 			fields: fields{
 				testArgs: CmdConfiguration{
-					fileName:        "HelloWorld",
+					fileNames:       []string{"HelloWorld"},
 					workingDir:      "./",
 					commandName:     "testCommand",
 					commandArgs:     []string{"-cp", "option1:option2"},

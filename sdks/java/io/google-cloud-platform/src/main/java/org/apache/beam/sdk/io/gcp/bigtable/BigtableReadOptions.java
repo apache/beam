@@ -28,13 +28,17 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
-/** Configuration for which values to read from Bigtable. */
+/** Configuration for read from Bigtable. */
 @AutoValue
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 abstract class BigtableReadOptions implements Serializable {
+
+  /** Returns the table id. */
+  abstract ValueProvider<String> getTableId();
 
   /** Returns the row filter to use. */
   abstract @Nullable ValueProvider<RowFilter> getRowFilter();
@@ -45,6 +49,17 @@ abstract class BigtableReadOptions implements Serializable {
   /** Returns the size limit for reading segements. */
   abstract @Nullable Integer getMaxBufferElementCount();
 
+  /** Returns the attempt timeout of the reads. */
+  abstract @Nullable Duration getAttemptTimeout();
+
+  /** Returns the operation timeout of the reads. */
+  abstract @Nullable Duration getOperationTimeout();
+
+  /**
+   * Watchdog will kill the stream after waiting this much time for the next response from server.
+   */
+  abstract @Nullable Duration getWaitTimeout();
+
   abstract Builder toBuilder();
 
   static BigtableReadOptions.Builder builder() {
@@ -54,11 +69,19 @@ abstract class BigtableReadOptions implements Serializable {
   @AutoValue.Builder
   abstract static class Builder {
 
+    abstract Builder setTableId(ValueProvider<String> tableId);
+
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
 
     abstract Builder setMaxBufferElementCount(@Nullable Integer maxBufferElementCount);
 
     abstract Builder setKeyRanges(ValueProvider<List<ByteKeyRange>> keyRanges);
+
+    abstract Builder setAttemptTimeout(Duration timeout);
+
+    abstract Builder setOperationTimeout(Duration timeout);
+
+    abstract Builder setWaitTimeout(Duration timeout);
 
     abstract BigtableReadOptions build();
   }
@@ -79,13 +102,28 @@ abstract class BigtableReadOptions implements Serializable {
     return withKeyRanges(Collections.singletonList(keyRange));
   }
 
+  boolean isDataAccessible() {
+    return getTableId() != null && getTableId().isAccessible();
+  }
+
   void populateDisplayData(DisplayData.Builder builder) {
     builder
+        .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
         .addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
-        .addIfNotNull(DisplayData.item("keyRanges", getKeyRanges()).withLabel("Key Ranges"));
+        .addIfNotNull(DisplayData.item("keyRanges", getKeyRanges()).withLabel("Key Ranges"))
+        .addIfNotNull(
+            DisplayData.item("attemptTimeout", getAttemptTimeout())
+                .withLabel("Read Attempt Timeout"))
+        .addIfNotNull(
+            DisplayData.item("operationTimeout", getOperationTimeout())
+                .withLabel("Read Operation Timeout"));
   }
 
   void validate() {
+    checkArgument(
+        getTableId() != null && (!getTableId().isAccessible() || !getTableId().get().isEmpty()),
+        "Could not obtain Bigtable table id");
+
     if (getRowFilter() != null && getRowFilter().isAccessible()) {
       checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
     }
@@ -100,6 +138,12 @@ abstract class BigtableReadOptions implements Serializable {
       for (ByteKeyRange range : getKeyRanges().get()) {
         checkArgument(range != null, "keyRanges cannot hold null range");
       }
+    }
+
+    if (getAttemptTimeout() != null && getOperationTimeout() != null) {
+      checkArgument(
+          getAttemptTimeout().isShorterThan(getOperationTimeout()),
+          "attempt timeout can't be longer than operation timeout");
     }
   }
 }

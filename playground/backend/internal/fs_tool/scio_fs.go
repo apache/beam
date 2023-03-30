@@ -26,6 +26,6 @@ const (
 // newScioLifeCycle creates LifeCycle with scala SDK environment.
 func newScioLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
 	lc := newInterpretedLifeCycle(pipelineId, pipelinesFolder, scioExecutableFileExtension)
-	lc.Paths.ExecutableName = executableName
+	lc.Paths.FindExecutableName = findExecutableName
 	return lc
 }

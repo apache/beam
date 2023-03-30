@@ -113,7 +113,7 @@ jobs:
       - uses: actions/setup-java@v3.8.0
         with:
             distribution: 'zulu'
-            java-version: '8'
+            java-version: '11'
 
       - name: install deps
         run: pip install -r requirements.txt
@@ -139,8 +139,8 @@ jobs:
              set -uex
              # TODO make this a part of playground:backend:containers:python:docker task
              if [ "$SDK" == "python" ]; then
-               # builds apache/beam_python3.7_sdk:$DOCKERTAG image
-               ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
+               # builds apache/beam_python3.10_sdk:$DOCKERTAG image
+               ./gradlew -i :sdks:python:container:py310:docker -Pdocker-tag="$DOCKERTAG" -Pdocker-pull-licenses=true
                # and set SDK_TAG to DOCKERTAG so that the next step would find it
                echo "SDK_TAG=${DOCKERTAG}" >> $GITHUB_ENV
              fi

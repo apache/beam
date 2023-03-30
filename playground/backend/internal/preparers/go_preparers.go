@@ -30,17 +30,17 @@ const (
 	sep     = "."
 )
 
-//GoPreparersBuilder facet of PreparersBuilder
+// GoPreparersBuilder facet of PreparersBuilder
 type GoPreparersBuilder struct {
 	PreparersBuilder
 }
 
-//GoPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
+// GoPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
 func (builder *PreparersBuilder) GoPreparers() *GoPreparersBuilder {
 	return &GoPreparersBuilder{*builder}
 }
 
-//WithCodeFormatter adds code formatter preparer
+// WithCodeFormatter adds code formatter preparer
 func (builder *GoPreparersBuilder) WithCodeFormatter() *GoPreparersBuilder {
 	formatCodePreparer := Preparer{
 		Prepare: formatCode,
@@ -50,7 +50,7 @@ func (builder *GoPreparersBuilder) WithCodeFormatter() *GoPreparersBuilder {
 	return builder
 }
 
-//WithFileNameChanger adds preparer to change file name
+// WithFileNameChanger adds preparer to change file name
 func (builder *GoPreparersBuilder) WithFileNameChanger() *GoPreparersBuilder {
 	changeTestFileName := Preparer{
 		Prepare: changeGoTestFileName,

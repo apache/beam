@@ -396,7 +396,7 @@ public abstract class PubsubClient implements Closeable {
    * serialization is never used for non-test clients.
    */
   @AutoValue
-  abstract static class IncomingMessage implements Serializable {
+  public abstract static class IncomingMessage implements Serializable {
 
     /** Underlying Message. */
     public abstract PubsubMessage message();

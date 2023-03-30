@@ -18,22 +18,11 @@
 # TODO(https://github.com/apache/beam/issues/20051): Consider PEP-517/PEP-518 instead of this file.
 
 setuptools
-# grpcio-tools depends on grpcio and the grpcio>1.50.0 results in error(ImportModuleError six)
-# when installing Apache Beam source via pip install -e .
-# Adding six as part of build dependencies.
-# https://github.com/apache/beam/issues/24432
-six
 wheel>=0.36.0
-
-grpcio-tools==1.37.0
-# TODO(https://github.com/apache/beam/issues/23734): the sdist for grpcio==1.50.0 is failing on GH workers
-# pin grpcio to the previous version.
-grpcio==1.49.1;sys_platform=="darwin"
-mypy-protobuf==1.18
-protobuf==3.19.4;python_version=="3.10" and sys_platform=="darwin"
-
+grpcio-tools==1.51.3
+mypy-protobuf==3.4.0
 # Avoid https://github.com/pypa/virtualenv/issues/2006
-distlib==0.3.1
+distlib==0.3.6
 
 # Numpy headers
 numpy>=1.14.3,<1.25

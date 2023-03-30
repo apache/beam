@@ -60,19 +60,33 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* BigQuery Storage Write API is now available in Python SDK via cross-language ([#21961](https://github.com/apache/beam/issues/21961)).
+* Added HbaseIO support for writing RowMutations (ordered by rowkey) to Hbase (Java) ([#25830](https://github.com/apache/beam/issues/25830)).
+* Added fileio transforms MatchFiles, MatchAll and ReadMatches (Go) ([#25779](https://github.com/apache/beam/issues/25779)).
 
 ## New Features / Improvements
 
 * The Flink runner now supports Flink 1.16.x ([#25046](https://github.com/apache/beam/issues/25046)).
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Schema'd PTransforms can now be directly applied to Beam dataframes just like PCollections.
+  (Note that when doing multiple operations, it may be more efficient to explicitly chain the operations
+  like `df | (Transform1 | Transform2 | ...)` to avoid excessive conversions.)
+* The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
+  for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
+* Python SDK now requires `protobuf>=4.21.1,<4.23.0` and no longer supports protobuf 3.x. ([#24599](https://github.com/apache/beam/pull/24599))
+* Several Google client libraries in Python SDK dependency chain were updated to latest available major versions. ([#24599](https://github.com/apache/beam/pull/24599))
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* If a main session fails to load, the pipeline will now fail at worker startup. ([#25401](https://github.com/apache/beam/issues/25401)).
+* Python pipeline options will now ignore unparsed command line flags prefixed with a single dash. ([#25943](https://github.com/apache/beam/issues/25943)).
+* The SmallestPerKey combiner now requires keyword-only arguments for specifying optional parameters, such as `key` and `reverse`. ([#25888](https://github.com/apache/beam/issues/25888)).
 
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Cloud Debugger support and its pipeline options are deprecated and will be removed in the next Beam version,
+  in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations).
+  (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
 
 ## Bugfixes
 
@@ -82,7 +96,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.46.0] - Unreleased
+# [2.46.0] - 2023-03-10
 
 ## Highlights
 
@@ -97,7 +111,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added in JmsIO a retry policy for failed publications (Java) ([#24971](https://github.com/apache/beam/issues/24971)).
 * Support for `LZMA` compression/decompression of text files added to the Python SDK ([#25316](https://github.com/apache/beam/issues/25316))
 * Added ReadFrom/WriteTo Csv/Json as top-level transforms to the Python SDK.
@@ -139,11 +152,6 @@
 
 # [2.45.0] - 2023-02-15
 
-## Highlights
-
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
@@ -173,11 +181,6 @@
 * Fixed Python BigQuery Batch Load write may truncate valid data when deposition sets to WRITE_TRUNCATE and incoming data is large (Python) ([#24623](https://github.com/apache/beam/issues/24535)).
 
 # [2.44.0] - 2023-01-12
-
-## Highlights
-
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
 ## I/Os
 

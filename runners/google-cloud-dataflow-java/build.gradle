@@ -531,6 +531,9 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+      // TODO(https://github.com/apache/beam/issues/22592)
+      // Reenable once UW supports autosharding
+      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }
@@ -599,7 +602,6 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'

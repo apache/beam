@@ -19,6 +19,8 @@
 ARG py_version
 FROM python:"${py_version}"-bullseye as beam
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
 
 # Install native bindings required for dependencies.
 RUN apt-get update && \
@@ -42,8 +44,8 @@ RUN \
     pip install --no-deps -r /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
-    # Check that the fast implementation of protobuf is used.
-    python -c "from google.protobuf.internal import api_implementation; assert api_implementation._default_implementation_type == 'cpp'; print ('Verified fast protobuf used.')" && \
+    # Check that the protobuf upb(also called micro protobuf) is used.
+    python -c "from google.protobuf.internal import api_implementation; assert api_implementation._implementation_type == 'upb'; print ('Verified fast protobuf used.')" && \
     # Remove pip cache.
     rm -rf /root/.cache/pip && \
     rm -rf /tmp/base_image_requirements.txt
@@ -78,7 +80,7 @@ RUN pip freeze --all
 COPY target/LICENSE /opt/apache/beam/
 COPY target/LICENSE.python /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
-COPY target/launcher/linux_amd64/boot /opt/apache/beam/
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
@@ -99,7 +101,7 @@ RUN rm /opt/apache/beam/third_party_licenses/golang/LICENSE
 
 COPY target/license_scripts /tmp/license_scripts/
 RUN if [ "$pull_licenses" = "true" ] ; then \
-      pip install 'pip-licenses<4.0.0' pyyaml tenacity && \
+      pip install 'pip-licenses<5' pyyaml tenacity && \
       python /tmp/license_scripts/pull_licenses_py.py ; \
     fi
 

@@ -33,6 +33,7 @@ import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,6 +46,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -121,8 +123,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
+
   private final Duration streamIdleTime = DEFAULT_STREAM_IDLE_TIME;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
+  private final @Nullable TupleTag<TableRow> successfulRowsTag;
+  private final Coder<TableRow> succussfulRowsCoder;
+
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
@@ -136,9 +142,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     long tryIteration = 0;
     ProtoRows protoRows;
 
-    AppendRowsContext(ShardedKey<DestinationT> key, ProtoRows protoRows) {
+    List<org.joda.time.Instant> timestamps;
+
+    AppendRowsContext(
+        ShardedKey<DestinationT> key, ProtoRows protoRows, List<org.joda.time.Instant> timestamps) {
       this.key = key;
       this.protoRows = protoRows;
+      this.timestamps = timestamps;
     }
 
     @Override
@@ -183,7 +193,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           try {
             task.run();
           } catch (Exception e) {
-            System.err.println("Exception happened while executing async task. Ignoring: " + e);
+            String msg =
+                e.toString()
+                    + "\n"
+                    + Arrays.stream(e.getStackTrace())
+                        .map(StackTraceElement::toString)
+                        .collect(Collectors.joining("\n"));
+            System.err.println("Exception happened while executing async task. Ignoring: " + msg);
           }
         });
   }
@@ -195,7 +211,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       BigQueryServices bqServices,
       Coder<DestinationT> destinationCoder,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
+      Coder<TableRow> successfulRowsCoder,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
+      @Nullable TupleTag<TableRow> successfulRowsTag,
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues) {
     this.dynamicDestinations = dynamicDestinations;
@@ -205,6 +223,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     this.destinationCoder = destinationCoder;
     this.failedRowsCoder = failedRowsCoder;
     this.failedRowsTag = failedRowsTag;
+    this.successfulRowsTag = successfulRowsTag;
+    this.succussfulRowsCoder = successfulRowsCoder;
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
   }
@@ -217,13 +237,17 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     final long maxRequestSize = bigQueryOptions.getStorageWriteApiMaxRequestSize();
 
     String operationName = input.getName() + "/" + getName();
+    TupleTagList tupleTagList = TupleTagList.of(failedRowsTag);
+    if (successfulRowsTag != null) {
+      tupleTagList = tupleTagList.and(successfulRowsTag);
+    }
     // Append records to the Storage API streams.
     PCollectionTuple writeRecordsResult =
         input.apply(
             "Write Records",
             ParDo.of(new WriteRecordsDoFn(operationName, streamIdleTime, splitSize, maxRequestSize))
                 .withSideInputs(dynamicDestinations.getSideInputs())
-                .withOutputTags(flushTag, TupleTagList.of(failedRowsTag)));
+                .withOutputTags(flushTag, tupleTagList));
 
     SchemaCoder<Operation> operationCoder;
     try {
@@ -253,6 +277,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         .apply(
             "Flush and finalize writes", ParDo.of(new StorageApiFlushAndFinalizeDoFn(bqServices)));
     writeRecordsResult.get(failedRowsTag).setCoder(failedRowsCoder);
+    if (successfulRowsTag != null) {
+      writeRecordsResult.get(successfulRowsTag).setCoder(succussfulRowsCoder);
+    }
     return writeRecordsResult;
   }
 
@@ -369,6 +396,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         ProcessContext c,
         final PipelineOptions pipelineOptions,
         @Element KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>> element,
+        @Timestamp org.joda.time.Instant elementTs,
         final @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         final @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
         final @StateId("updatedSchema") ValueState<TableSchema> updatedSchema,
@@ -460,7 +488,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       // Each ProtoRows object contains at most 1MB of rows.
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
       // already proto or already schema.
-      Iterable<ProtoRows> messages =
+      Iterable<SplittingIterable.Value> messages =
           new SplittingIterable(
               element.getValue(),
               splitSize,
@@ -468,9 +496,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               bytes -> appendClientInfo.get().toTableRow(bytes),
               (failedRow, errorMessage) ->
                   o.get(failedRowsTag)
-                      .output(new BigQueryStorageApiInsertError(failedRow, errorMessage)),
+                      .outputWithTimestamp(
+                          new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
+                          failedRow.getTimestamp()),
               autoUpdateSchema,
-              ignoreUnknownValues);
+              ignoreUnknownValues,
+              elementTs);
 
       // Initialize stream names and offsets for all contexts. This will be called initially, but
       // will also be called if we roll over to a new stream on a retry.
@@ -558,23 +589,28 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 // Convert the message to a TableRow and send it to the failedRows collection.
                 ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
                 TableRow failedRow = appendClientInfo.get().toTableRow(protoBytes);
+                org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
                 o.get(failedRowsTag)
-                    .output(
+                    .outputWithTimestamp(
                         new BigQueryStorageApiInsertError(
-                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex)));
+                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex)),
+                        timestamp);
               }
               rowsSentToFailedRowsCollection.inc(failedRowIndices.size());
 
               // Remove the failed row from the payload, so we retry the batch without the failed
               // rows.
               ProtoRows.Builder retryRows = ProtoRows.newBuilder();
+              @Nullable List<org.joda.time.Instant> timestamps = Lists.newArrayList();
               for (int i = 0; i < failedContext.protoRows.getSerializedRowsCount(); ++i) {
                 if (!failedRowIndices.contains(i)) {
                   ByteString rowBytes = failedContext.protoRows.getSerializedRows(i);
                   retryRows.addSerializedRows(rowBytes);
+                  timestamps.add(failedContext.timestamps.get(i));
                 }
               }
               failedContext.protoRows = retryRows.build();
+              failedContext.timestamps = timestamps;
 
               // Since we removed rows, we need to update the insert offsets for all remaining rows.
               long offset = failedContext.offset;
@@ -647,16 +683,25 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                             context.offset + context.protoRows.getSerializedRowsCount() - 1,
                             false)));
             flushesScheduled.inc(context.protoRows.getSerializedRowsCount());
+
+            if (successfulRowsTag != null) {
+              for (int i = 0; i < context.protoRows.getSerializedRowsCount(); ++i) {
+                ByteString protoBytes = context.protoRows.getSerializedRows(i);
+                org.joda.time.Instant timestamp = context.timestamps.get(i);
+                o.get(successfulRowsTag)
+                    .outputWithTimestamp(appendClientInfo.get().toTableRow(protoBytes), timestamp);
+              }
+            }
           };
       Instant now = Instant.now();
       List<AppendRowsContext> contexts = Lists.newArrayList();
       RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
           new RetryManager<>(Duration.standardSeconds(1), Duration.standardSeconds(10), 1000);
       int numAppends = 0;
-      for (ProtoRows protoRows : messages) {
+      for (SplittingIterable.Value splitValue : messages) {
         // Handle the case of a row that is too large.
-        if (protoRows.getSerializedSize() >= maxRequestSize) {
-          if (protoRows.getSerializedRowsCount() > 1) {
+        if (splitValue.getProtoRows().getSerializedSize() >= maxRequestSize) {
+          if (splitValue.getProtoRows().getSerializedRowsCount() > 1) {
             // TODO(reuvenlax): Is it worth trying to handle this case by splitting the protoRows?
             // Given that we split
             // the ProtoRows iterable at 2MB and the max request size is 10MB, this scenario seems
@@ -666,20 +711,25 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     + maxRequestSize
                     + ". This is unexpected. All rows in the request will be sent to the failed-rows PCollection.");
           }
-          for (ByteString rowBytes : protoRows.getSerializedRowsList()) {
+          for (int i = 0; i < splitValue.getProtoRows().getSerializedRowsCount(); ++i) {
+            ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
+            org.joda.time.Instant timestamp = splitValue.getTimestamps().get(i);
             TableRow failedRow = appendClientInfo.get().toTableRow(rowBytes);
             o.get(failedRowsTag)
-                .output(
+                .outputWithTimestamp(
                     new BigQueryStorageApiInsertError(
-                        failedRow, "Row payload too large. Maximum size " + maxRequestSize));
+                        failedRow, "Row payload too large. Maximum size " + maxRequestSize),
+                    timestamp);
           }
         } else {
           ++numAppends;
           // RetryManager
-          AppendRowsContext context = new AppendRowsContext(element.getKey(), protoRows);
+          AppendRowsContext context =
+              new AppendRowsContext(
+                  element.getKey(), splitValue.getProtoRows(), splitValue.getTimestamps());
           contexts.add(context);
           retryManager.addOperation(runOperation, onError, onSuccess, context);
-          recordsAppended.inc(protoRows.getSerializedRowsCount());
+          recordsAppended.inc(splitValue.getProtoRows().getSerializedRowsCount());
           appendSizeDistribution.update(context.protoRows.getSerializedRowsCount());
         }
       }
@@ -701,7 +751,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         if (autoUpdateSchema) {
           @Nullable
           StreamAppendClient streamAppendClient = appendClientInfo.get().getStreamAppendClient();
-          ;
           @Nullable
           TableSchema newSchema =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;

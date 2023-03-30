@@ -18,12 +18,15 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:playground/modules/actions/components/reset_action.dart';
+import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown.dart';
+import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_body.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/example_selector.dart';
 import 'package:playground/modules/sdk/components/sdk_selector.dart';
 import 'package:playground/modules/sdk/components/sdk_selector_row.dart';
-import 'package:playground/modules/shortcuts/components/shortcuts_modal.dart';
+import 'package:playground/modules/shortcuts/components/shortcuts_dialog.dart';
 import 'package:playground/pages/standalone_playground/widgets/editor_textarea_wrapper.dart';
 import 'package:playground/pages/standalone_playground/widgets/feedback/feedback_dropdown_content.dart';
 import 'package:playground/pages/standalone_playground/widgets/feedback/playground_feedback.dart';
@@ -85,6 +88,26 @@ extension CommonFindersExtension on CommonFinders {
     return byType(MoreActions);
   }
 
+  Finder pipelineOptionsDropdown() {
+    return find.byType(PipelineOptionsDropdown);
+  }
+  
+  Finder pipelineOptionsListTab() {
+    return find.byKey(PipelineOptionsDropdownBody.optionsTabKey);
+  }
+
+  Finder pipelineOptionsRawTab() {
+    return find.byKey(PipelineOptionsDropdownBody.rawTabKey);
+  }
+
+  Finder pipelineOptionsSaveAndCloseButton() {
+    return find.byKey(PipelineOptionsDropdownBody.saveAndCloseButtonKey);
+  }
+
+  Finder resetButton() {
+    return find.byType(ResetAction);
+  }
+
   Finder sdkItemInDropdown(Sdk sdk) {
     return find.byType(SdkSelectorRow).and(find.byKey(ValueKey(sdk)));
   }
@@ -94,6 +117,6 @@ extension CommonFindersExtension on CommonFinders {
   }
 
   Finder shortcutsModal() {
-    return byType(ShortcutsModal);
+    return byType(ShortcutsDialogContent);
   }
 }

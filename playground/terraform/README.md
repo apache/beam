@@ -106,17 +106,20 @@ Where "playground.zone" is the registered DNS zone<br>
 [More about A records in DNS](https://support.google.com/a/answer/2579934?hl=en)
 
 # Deploy Playground to Kubernetes:
+
 1. Run the following command to authenticate in the Docker registry:
 ```
- gcloud auth configure-docker `chosen_region`-docker.pkg.dev
+gcloud auth configure-docker <chosen_region>-docker.pkg.dev
 ```
 2. Run the following command to authenticate in GKE:
 ```
-gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
+gcloud container clusters get-credentials --region <chosen_location> <gke_name> --project <project_id>
 ```
 Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone" -Psdk-tag=2.43.0
+./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" \
+  -Pdns-name="playground.zone" -Psdk-tag=2.44.0 \
+   -Pdocker-repository-root="<chosen_region>-docker.pkg.dev/<project_id>/playground-repository"
 ```
 Where tag - image tag for backend, playground.zone - chosen DNS for Playground, Psdk-tag - current BEAM version
 

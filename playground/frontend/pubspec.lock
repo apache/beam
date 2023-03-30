@@ -37,10 +37,10 @@ packages:
     dependency: "direct main"
     description:
       name: app_state
-      sha256: "1024c48f723b02e726976143361020bf44b4a351bc2180c77764ac7aa191356c"
+      sha256: "8f363b17492dccf720cc70e896a367726171bee8dad047acd8f69f2cc2cf7e9c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.1"
+    version: "0.9.3"
   archive:
     dependency: transitive
     description:
@@ -394,10 +394,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_code_editor
-      sha256: a5d46c1740709997bbf6c2d21168b54db2a521606cbec7b1a01b79339ad4359e
+      sha256: a220a7dcd197d793f46f2c2132551128bb41b1ccc08f7afb781223e1b5e400a1
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.10"
+    version: "0.2.12"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -444,10 +444,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_svg
-      sha256: f999d84ad2efda1c4c3956e7968b713b3a24b06f0a0e4798e844e16bbb9bb70b
+      sha256: b9be7260c1fdbe0090a11d9d356fc2c88e14cf33407fc0c1829d76ab13808035
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.0+1"
+    version: "2.0.1"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -740,6 +740,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.0"
+  os_detect:
+    dependency: transitive
+    description:
+      name: os_detect
+      sha256: faf3bcf39515e64da8ff76b2f2805b20a6ff47ae515393e535f8579ff91d6b7f
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.1"
   package_config:
     dependency: transitive
     description:
@@ -1163,10 +1171,10 @@ packages:
     dependency: "direct main"
     description:
       name: url_launcher
-      sha256: e8f2efc804810c0f2f5b485f49e7942179f56eabcfe81dce3387fec4bb55876b
+      sha256: "75f2846facd11168d007529d6cd8fcb2b750186bea046af9711f10b907e1587e"
       url: "https://pub.dev"
     source: hosted
-    version: "6.1.9"
+    version: "6.1.10"
   url_launcher_android:
     dependency: transitive
     description:
@@ -1271,6 +1279,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
+  visibility_detector:
+    dependency: transitive
+    description:
+      name: visibility_detector
+      sha256: "15c54a459ec2c17b4705450483f3d5a2858e733aee893dcee9d75fd04814940d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.3"
   vm_service:
     dependency: transitive
     description:

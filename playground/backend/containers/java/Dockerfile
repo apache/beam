@@ -18,6 +18,8 @@
 ARG BEAM_VERSION=2.44.0
 FROM golang:1.18-bullseye AS build
 ARG BEAM_VERSION
+ARG GIT_COMMIT="<unknown>"
+ARG GIT_TIMESTAMP="0"
 # Setup Go Environment
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
@@ -29,32 +31,33 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
 COPY src /go/src/playground/backend
 #COPY playground /go/src/playground/playground
 WORKDIR /go/src/playground/backend
-RUN ls
+
 # Build Application
 RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
-    go build -o /go/bin/server_java_backend
+    go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_java_backend
 
-FROM maven:3.8.6-openjdk-8 as dep
+FROM maven:3.8.6-openjdk-11 as dep
 ARG BEAM_VERSION
 RUN mvn archetype:generate \
     -DinteractiveMode=false \
     -DarchetypeGroupId=org.apache.beam \
     -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-gcp-bom-examples \
     -DarchetypeVersion=$BEAM_VERSION \
-    -DtargetPlatform=8 \
+    -DtargetPlatform=11 \
     -DartifactId=pipeline-dependencies \
     -DgroupId=org.apache.beam.samples
 WORKDIR /pipeline-dependencies/
 RUN mvn dependency:resolve && mvn -o dependency:list
 RUN mvn dependency:copy-dependencies
 
-FROM apache/beam_java8_sdk:$BEAM_VERSION
+FROM apache/beam_java11_sdk:$BEAM_VERSION
 
 ARG BEAM_VERSION
 ARG SPRING_VERSION=5.3.25
 ARG KAFKA_CLIENTS_VERSION=2.3.1
+ENV BEAM_VERSION=$BEAM_VERSION
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
@@ -76,9 +79,6 @@ RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-constr
     mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
-# Downgrade Apache Kafka Client to support mock kafka cluster
-RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/$KAFKA_CLIENTS_VERSION/kafka-clients-$KAFKA_CLIENTS_VERSION.jar &&\
-    mv kafka-clients-$KAFKA_CLIENTS_VERSION.jar /opt/apache/beam/jars/kafka-clients.jar
 # Install Spring Expression
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-expression/$SPRING_VERSION/spring-expression-$SPRING_VERSION.jar &&\
     mv spring-expression-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-expression.jar
@@ -107,6 +107,10 @@ ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
+COPY kafka-emulator/kafka-emulator.tar /opt/playground/backend/kafka-emulator/
+RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar && rm kafka-emulator.tar &&\
+    mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
+    mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \
@@ -116,7 +120,7 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod -R 775 /opt/apache/beam/jars/ \
-  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-8/jre/lib/security/ \
+  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-11/lib/security/ \
   && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
 
 # Switch to appuser
