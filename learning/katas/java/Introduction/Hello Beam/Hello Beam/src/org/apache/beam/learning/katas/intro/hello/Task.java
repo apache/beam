@@ -24,11 +24,9 @@ package org.apache.beam.learning.katas.intro.hello;
 //   multifile: false
 //   context_line: 37
 //   categories:
-//     - Testing
 //     - Quickstart
 //   complexity: BASIC
 //   tags:
-//     - test
 //     - hellobeam
 
 import org.apache.beam.learning.katas.util.Log;
