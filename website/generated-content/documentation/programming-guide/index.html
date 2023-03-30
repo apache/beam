@@ -571,9 +571,10 @@ the actual processing logic. You don&rsquo;t need to manually extract the elemen
 from the input collection; the Beam SDKs handle that for you. Your <code>process</code> method
 should accept an argument <code>element</code>, which is the input element, and return an
 iterable with its output values. You can accomplish this by emitting individual
-elements with <code>yield</code> statements. You can also use a <code>return</code> statement
-with an iterable, like a list or a generator. Don&rsquo;t mix <code>yield</code> and
-<code>return</code> statements in the same <code>process</code> method - this leads to <a href=https://github.com/apache/beam/issues/22969>undefined behavior</a>.</p><p class=language-go>For your <code>DoFn</code> type, you&rsquo;ll write a method <code>ProcessElement</code> where you provide
+elements with <code>yield</code> statements, and use <code>yield from</code> to emit all elements from
+an iterable, such as a list or a generator. Using <code>return</code> statement
+with an iterable is also acceptable as long as you don&rsquo;t mix <code>yield</code> and
+<code>return</code> statements in the same <code>process</code> method, since that leads to <a href=https://github.com/apache/beam/issues/22969>incorrect behavior</a>.</p><p class=language-go>For your <code>DoFn</code> type, you&rsquo;ll write a method <code>ProcessElement</code> where you provide
 the actual processing logic. You don&rsquo;t need to manually extract the elements
 from the input collection; the Beam SDKs handle that for you. Your <code>ProcessElement</code> method
 should accept a parameter <code>element</code>, which is the input element. In order to output elements,
