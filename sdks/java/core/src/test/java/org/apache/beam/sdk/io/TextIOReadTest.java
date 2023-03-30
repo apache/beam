@@ -957,6 +957,13 @@ public class TextIOReadTest {
       p.run();
     }
 
+    private List<KV<String, String>> filenameKV(Path path, String fn, List<String> input) {
+      return input
+          .stream()
+          .map(l -> KV.of(path.resolve(fn).toString(), l))
+          .collect(Collectors.toList());
+    }
+
     @Test
     @Category(NeedsRunner.class)
     public void testReadFilesWithFilename() throws IOException {
@@ -978,7 +985,7 @@ public class TextIOReadTest {
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches().withCompression(AUTO))
               .apply(
-                new ReadAllViaFileBasedSourceWithFilename<String>(
+                new ReadAllViaFileBasedSourceWithFilename<>(
                   10,
                   createSource,
                   KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())
@@ -987,10 +994,10 @@ public class TextIOReadTest {
 
       PAssert.that(lines).containsInAnyOrder(
           Iterables.concat(
-              TINY.stream().map(l -> KV.of("readAllTiny1.zip", l)).collect(Collectors.toList()),
-              TINY.stream().map(l -> KV.of("readAllTiny2.txt", l)).collect(Collectors.toList()),
-              LARGE.stream().map(l -> KV.of("readAllLarge1.zip", l)).collect(Collectors.toList()),
-              LARGE.stream().map(l -> KV.of("readAllLarge2.txt", l)).collect(Collectors.toList())
+              filenameKV(tempFolderPath, "readAllTiny1.zip", TINY),
+              filenameKV(tempFolderPath, "readAllTiny2.txt", TINY),
+              filenameKV(tempFolderPath, "readAllLarge1.zip", LARGE),
+              filenameKV(tempFolderPath, "readAllLarge2.txt", LARGE)
           )
       );
       p.run();
