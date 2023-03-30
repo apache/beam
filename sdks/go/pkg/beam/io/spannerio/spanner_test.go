@@ -81,7 +81,10 @@ func TestRead(t *testing.T) {
 			srv, srvCleanup := newServer(t)
 			defer srvCleanup()
 
-			client, cleanup := createFakeClient(t, srv.Addr, testCase.database)
+			client, cleanup, err := createFakeClient(srv.Addr, testCase.database)
+			if err != nil {
+				t.Fatalf("Unable to create fake client: %v", err)
+			}
 			defer cleanup()
 
 			ddl, err := spansql.ParseDDL("",
@@ -115,7 +118,7 @@ func TestRead(t *testing.T) {
 
 			p := beam.NewPipeline()
 			s := p.Root()
-			rows := query(s, "", client, "SELECT * from Test", reflect.TypeOf(TestDto{}))
+			rows := Query(s, &SpannerDatabase{Client: client}, "SELECT * from Test", reflect.TypeOf(TestDto{}))
 
 			passert.Count(s, rows, "", len(testCase.rows))
 			ptest.RunAndValidate(t, p)
@@ -159,7 +162,10 @@ func TestWrite(t *testing.T) {
 			srv, srvCleanup := newServer(t)
 			defer srvCleanup()
 
-			client, cleanup := createFakeClient(t, srv.Addr, testCase.database)
+			client, cleanup, err := createFakeClient(srv.Addr, testCase.database)
+			if err != nil {
+				t.Fatalf("Unable to create fake client: %v", err)
+			}
 			defer cleanup()
 
 			ddl, err := spansql.ParseDDL("",
@@ -178,11 +184,14 @@ func TestWrite(t *testing.T) {
 
 			p, s, col := ptest.CreateList(testCase.rows)
 
-			write(s, "", client, "Test", col)
+			Write(s, &SpannerDatabase{Client: client}, "Test", col)
 
 			ptest.RunAndValidate(t, p)
 
-			verifyClient, verifyClientCleanup := createFakeClient(t, srv.Addr, testCase.database)
+			verifyClient, verifyClientCleanup, err := createFakeClient(srv.Addr, testCase.database)
+			if err != nil {
+				t.Fatalf("Unable to create fake client: %v", err)
+			}
 			defer verifyClientCleanup()
 
 			stmt := spanner.Statement{SQL: "SELECT * FROM Test"}
@@ -218,21 +227,21 @@ func newServer(t *testing.T) (*spannertest.Server, func()) {
 	}
 }
 
-func createFakeClient(t *testing.T, address string, database string) (*spanner.Client, func()) {
+func createFakeClient(address string, database string) (*spanner.Client, func(), error) {
 	ctx := context.Background()
 
 	conn, err := grpc.DialContext(ctx, address, grpc.WithInsecure())
 	if err != nil {
-		t.Fatalf("Dialling in-memory fake spanner: %v", err)
+		return nil, nil, err
 	}
 
 	client, err := spanner.NewClient(ctx, database, option.WithGRPCConn(conn))
 	if err != nil {
-		t.Fatalf("Connecting to in-memory fake spanner: %v", err)
+		return nil, nil, err
 	}
 
 	return client, func() {
 		client.Close()
 		conn.Close()
-	}
+	}, nil
 }
