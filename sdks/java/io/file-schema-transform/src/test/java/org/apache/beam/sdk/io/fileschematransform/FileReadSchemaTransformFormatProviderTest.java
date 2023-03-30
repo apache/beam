@@ -85,6 +85,9 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
 
   @Test
   public void testTimeContaining() {
+    // JSON schemas don't support DATETIME or other logical types
+    assumeTrue(!getFormat().equals("json"));
+
     Schema schema = TIME_CONTAINING_SCHEMA;
     List<Row> rows = DATA.timeContainingRows;
     String filePath = getFilePath();

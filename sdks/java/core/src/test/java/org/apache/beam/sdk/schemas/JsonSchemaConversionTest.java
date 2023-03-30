@@ -32,7 +32,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.everit.json.schema.ValidationException;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -184,7 +183,6 @@ public class JsonSchemaConversionTest {
   }
 
   @Test
-  @Ignore
   public void testBasicJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/basic_json_schema.json")) {
@@ -205,7 +203,6 @@ public class JsonSchemaConversionTest {
   }
 
   @Test
-  @Ignore
   public void testNestedStructsJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/nested_arrays_objects_json_schema.json")) {
@@ -227,7 +224,6 @@ public class JsonSchemaConversionTest {
   }
 
   @Test
-  @Ignore
   public void testArrayNestedArrayObjectJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/array_nested_array_json_schema.json")) {
@@ -249,7 +245,6 @@ public class JsonSchemaConversionTest {
   }
 
   @Test
-  @Ignore
   public void testObjectNestedObjectArrayJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass()
@@ -263,7 +258,6 @@ public class JsonSchemaConversionTest {
           containsInAnyOrder(
               Schema.FieldType.row(
                       Schema.of(
-                          Schema.Field.nullable("teacher", Schema.FieldType.STRING),
                           Schema.Field.nullable(
                               "classroom",
                               Schema.FieldType.row(
@@ -278,14 +272,13 @@ public class JsonSchemaConversionTest {
                                                           Schema.Field.nullable(
                                                               "age", Schema.FieldType.INT64))))
                                               .withNullable(true)),
-                                      Schema.Field.nullable(
-                                          "building", Schema.FieldType.STRING))))))
+                                      Schema.Field.nullable("building", Schema.FieldType.STRING)))),
+                          Schema.Field.nullable("teacher", Schema.FieldType.STRING)))
                   .withNullable(true)));
     }
   }
 
   @Test
-  @Ignore
   public void testArrayWithNestedRefsBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/ref_with_ref_json_schema.json")) {
@@ -314,7 +307,6 @@ public class JsonSchemaConversionTest {
   }
 
   @Test
-  @Ignore
   public void testUnsupportedTupleArrays() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/unsupported_tuple_arrays.json")) {
@@ -335,7 +327,6 @@ public class JsonSchemaConversionTest {
   }
 
   @Test
-  @Ignore
   public void testUnsupportedNestedTupleArrays() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/unsupported_nested_tuple_array.json")) {

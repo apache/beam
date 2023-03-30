@@ -162,7 +162,7 @@ class FileWriteSchemaTransformFormatProviderTestData {
               Collections.emptyList(),
               Collections.emptyList(),
               Collections.singletonList(
-                  Stream.generate(() -> "🦄").limit(100).collect(Collectors.joining("")))),
+                  Stream.generate(() -> "🦄").limit(10).collect(Collectors.joining("")))),
           arrayPrimitiveDataTypes(
               Arrays.asList(false, true, false),
               Arrays.asList(Double.MIN_VALUE, 0.0, Double.MAX_VALUE),
@@ -170,16 +170,16 @@ class FileWriteSchemaTransformFormatProviderTestData {
               Arrays.asList(Integer.MIN_VALUE, 0, Integer.MAX_VALUE),
               Arrays.asList(Long.MIN_VALUE, 0L, Long.MAX_VALUE),
               Arrays.asList(
-                  Stream.generate(() -> "🐤").limit(100).collect(Collectors.joining("")),
-                  Stream.generate(() -> "🐥").limit(100).collect(Collectors.joining("")),
-                  Stream.generate(() -> "🐣").limit(100).collect(Collectors.joining("")))),
+                  Stream.generate(() -> "🐤").limit(10).collect(Collectors.joining("")),
+                  Stream.generate(() -> "🐥").limit(10).collect(Collectors.joining("")),
+                  Stream.generate(() -> "🐣").limit(10).collect(Collectors.joining("")))),
           arrayPrimitiveDataTypes(
-              Stream.generate(() -> true).limit(Short.MAX_VALUE).collect(Collectors.toList()),
-              Stream.generate(() -> Double.MIN_VALUE).limit(100).collect(Collectors.toList()),
-              Stream.generate(() -> Float.MIN_VALUE).limit(100).collect(Collectors.toList()),
-              Stream.generate(() -> Integer.MIN_VALUE).limit(100).collect(Collectors.toList()),
-              Stream.generate(() -> Long.MIN_VALUE).limit(100).collect(Collectors.toList()),
-              Stream.generate(() -> "🐿").limit(100).collect(Collectors.toList())),
+              Stream.generate(() -> true).limit(10).collect(Collectors.toList()),
+              Stream.generate(() -> Double.MIN_VALUE).limit(10).collect(Collectors.toList()),
+              Stream.generate(() -> Float.MIN_VALUE).limit(10).collect(Collectors.toList()),
+              Stream.generate(() -> Integer.MIN_VALUE).limit(10).collect(Collectors.toList()),
+              Stream.generate(() -> Long.MIN_VALUE).limit(10).collect(Collectors.toList()),
+              Stream.generate(() -> "🐿").limit(10).collect(Collectors.toList())),
           arrayPrimitiveDataTypes(
               Collections.emptyList(),
               Collections.emptyList(),

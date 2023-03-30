@@ -24,8 +24,8 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.commons.compress.utils.Sets;
-import org.apache.parquet.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -33,7 +33,7 @@ import org.apache.parquet.Strings;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class FileReadSchemaTransformConfiguration {
-  static final Set<String> VALID_FORMATS = Sets.newHashSet("avro", "parquet");
+  static final Set<String> VALID_FORMATS = Sets.newHashSet("avro", "parquet", "json");
 
   public void validate() {
     checkArgument(
