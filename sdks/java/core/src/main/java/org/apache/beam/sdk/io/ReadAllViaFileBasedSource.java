@@ -38,13 +38,17 @@ import org.apache.beam.sdk.values.PCollection;
  * FileIO#readMatches()}.
  */
 @Experimental(Kind.SOURCE_SINK)
-public class ReadAllViaFileBasedSource<T>
-    extends ReadAllViaFileBasedSourceTransform<T, T> {
+public class ReadAllViaFileBasedSource<T> extends ReadAllViaFileBasedSourceTransform<T, T> {
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder) {
-    super(desiredBundleSizeBytes, createSource, coder, DEFAULT_USES_RESHUFFLE, new ReadFileRangesFnExceptionHandler());
+    super(
+        desiredBundleSizeBytes,
+        createSource,
+        coder,
+        DEFAULT_USES_RESHUFFLE,
+        new ReadFileRangesFnExceptionHandler());
   }
 
   public ReadAllViaFileBasedSource(
@@ -60,9 +64,11 @@ public class ReadAllViaFileBasedSource<T>
   protected DoFn<KV<ReadableFile, OffsetRange>, T> readRangesFn() {
     return new AbstractReadFileRangesFn<T, T>(createSource, exceptionHandler) {
       @Override
-      protected T makeOutput(final ReadableFile file, final OffsetRange range,
-                             final FileBasedSource<T> fileBasedSource,
-                             final BoundedSource.BoundedReader<T> reader) {
+      protected T makeOutput(
+          final ReadableFile file,
+          final OffsetRange range,
+          final FileBasedSource<T> fileBasedSource,
+          final BoundedSource.BoundedReader<T> reader) {
         return reader.getCurrent();
       }
     };

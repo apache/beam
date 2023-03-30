@@ -326,10 +326,8 @@ public class AvroIOTest implements Serializable {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithFilename() throws Throwable {
-      List<GenericClass> values = ImmutableList.of(
-          new GenericClass(3, "hi"),
-          new GenericClass(5, "bar")
-      );
+      List<GenericClass> values =
+          ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
       File outputFile = tmpFolder.newFile("output.avro");
 
       writePipeline
@@ -341,27 +339,26 @@ public class AvroIOTest implements Serializable {
       writePipeline.run();
 
       SerializableFunction<String, ? extends FileBasedSource<GenericClass>> createSource =
-          input -> AvroSource.from(ValueProvider.StaticValueProvider.of(input))
-              .withSchema(GenericClass.class);
+          input ->
+              AvroSource.from(ValueProvider.StaticValueProvider.of(input))
+                  .withSchema(GenericClass.class);
 
-      final PCollection<KV<String, GenericClass>> lines = readPipeline
-          .apply(Create.of(Collections.singletonList(outputFile.getAbsolutePath())))
-          .apply(FileIO.matchAll())
-          .apply(FileIO.readMatches().withCompression(AUTO))
-          .apply(
-              new ReadAllViaFileBasedSourceWithFilename<>(
-                  10,
-                  createSource,
-                  KvCoder.of(StringUtf8Coder.of(), AvroCoder.of(GenericClass.class))
-              )
-          );
+      final PCollection<KV<String, GenericClass>> lines =
+          readPipeline
+              .apply(Create.of(Collections.singletonList(outputFile.getAbsolutePath())))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches().withCompression(AUTO))
+              .apply(
+                  new ReadAllViaFileBasedSourceWithFilename<>(
+                      10,
+                      createSource,
+                      KvCoder.of(StringUtf8Coder.of(), AvroCoder.of(GenericClass.class))));
 
       PAssert.that(lines)
           .containsInAnyOrder(
               values.stream()
                   .map(v -> KV.of(outputFile.getAbsolutePath(), v))
-                  .collect(Collectors.toList())
-          );
+                  .collect(Collectors.toList()));
       readPipeline.run();
     }
 

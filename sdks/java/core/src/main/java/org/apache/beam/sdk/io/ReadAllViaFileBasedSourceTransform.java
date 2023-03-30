@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -56,15 +73,13 @@ public abstract class ReadAllViaFileBasedSourceTransform<I, T>
     if (usesReshuffle) {
       ranges = ranges.apply("Reshuffle", Reshuffle.viaRandomKey());
     }
-    return ranges
-        .apply("Read ranges", ParDo.of(readRangesFn()))
-        .setCoder(coder);
+    return ranges.apply("Read ranges", ParDo.of(readRangesFn())).setCoder(coder);
   }
 
   protected abstract DoFn<KV<FileIO.ReadableFile, OffsetRange>, T> readRangesFn();
 
-  public static class SplitIntoRangesFn extends
-                                         DoFn<FileIO.ReadableFile, KV<FileIO.ReadableFile, OffsetRange>> {
+  public static class SplitIntoRangesFn
+      extends DoFn<FileIO.ReadableFile, KV<FileIO.ReadableFile, OffsetRange>> {
     private final long desiredBundleSizeBytes;
 
     public SplitIntoRangesFn(long desiredBundleSizeBytes) {
@@ -85,8 +100,8 @@ public abstract class ReadAllViaFileBasedSourceTransform<I, T>
     }
   }
 
-  public static abstract class AbstractReadFileRangesFn<I, T> extends DoFn<KV<FileIO.ReadableFile,
-      OffsetRange>, T> {
+  public abstract static class AbstractReadFileRangesFn<I, T>
+      extends DoFn<KV<FileIO.ReadableFile, OffsetRange>, T> {
     private final SerializableFunction<String, ? extends FileBasedSource<I>> createSource;
     private final ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler exceptionHandler;
 
@@ -97,8 +112,11 @@ public abstract class ReadAllViaFileBasedSourceTransform<I, T>
       this.exceptionHandler = exceptionHandler;
     }
 
-    protected abstract T makeOutput(FileIO.ReadableFile file, OffsetRange range,
-                       FileBasedSource<I> fileBasedSource, BoundedSource.BoundedReader<I> reader);
+    protected abstract T makeOutput(
+        FileIO.ReadableFile file,
+        OffsetRange range,
+        FileBasedSource<I> fileBasedSource,
+        BoundedSource.BoundedReader<I> reader);
 
     @ProcessElement
     @SuppressFBWarnings(
@@ -111,9 +129,9 @@ public abstract class ReadAllViaFileBasedSourceTransform<I, T>
           CompressedSource.from(createSource.apply(file.getMetadata().resourceId().toString()))
               .withCompression(file.getCompression());
       try (BoundedSource.BoundedReader<I> reader =
-               source
-                   .createForSubrangeOfFile(file.getMetadata(), range.getFrom(), range.getTo())
-                   .createReader(c.getPipelineOptions())) {
+          source
+              .createForSubrangeOfFile(file.getMetadata(), range.getFrom(), range.getTo())
+              .createReader(c.getPipelineOptions())) {
         for (boolean more = reader.start(); more; more = reader.advance()) {
           c.output(makeOutput(file, range, source, reader));
         }

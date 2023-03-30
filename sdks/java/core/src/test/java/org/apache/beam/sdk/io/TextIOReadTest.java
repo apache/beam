@@ -958,8 +958,7 @@ public class TextIOReadTest {
     }
 
     private List<KV<String, String>> filenameKV(Path path, String fn, List<String> input) {
-      return input
-          .stream()
+      return input.stream()
           .map(l -> KV.of(path.resolve(fn).toString(), l))
           .collect(Collectors.toList());
     }
@@ -974,8 +973,11 @@ public class TextIOReadTest {
       writeToFile(LARGE, tempFolder, "readAllLarge2.txt", UNCOMPRESSED);
 
       SerializableFunction<String, ? extends FileBasedSource<String>> createSource =
-          input -> new TextSource(ValueProvider.StaticValueProvider.of(input),
-              EmptyMatchTreatment.DISALLOW, new byte[] {'\n'});
+          input ->
+              new TextSource(
+                  ValueProvider.StaticValueProvider.of(input),
+                  EmptyMatchTreatment.DISALLOW,
+                  new byte[] {'\n'});
 
       PCollection<KV<String, String>> lines =
           p.apply(
@@ -985,21 +987,16 @@ public class TextIOReadTest {
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches().withCompression(AUTO))
               .apply(
-                new ReadAllViaFileBasedSourceWithFilename<>(
-                  10,
-                  createSource,
-                  KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())
-                )
-              );
+                  new ReadAllViaFileBasedSourceWithFilename<>(
+                      10, createSource, KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())));
 
-      PAssert.that(lines).containsInAnyOrder(
-          Iterables.concat(
-              filenameKV(tempFolderPath, "readAllTiny1.zip", TINY),
-              filenameKV(tempFolderPath, "readAllTiny2.txt", TINY),
-              filenameKV(tempFolderPath, "readAllLarge1.zip", LARGE),
-              filenameKV(tempFolderPath, "readAllLarge2.txt", LARGE)
-          )
-      );
+      PAssert.that(lines)
+          .containsInAnyOrder(
+              Iterables.concat(
+                  filenameKV(tempFolderPath, "readAllTiny1.zip", TINY),
+                  filenameKV(tempFolderPath, "readAllTiny2.txt", TINY),
+                  filenameKV(tempFolderPath, "readAllLarge1.zip", LARGE),
+                  filenameKV(tempFolderPath, "readAllLarge2.txt", LARGE)));
       p.run();
     }
 
