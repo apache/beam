@@ -13,14 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package spannerio provides an API for reading and writing resouces to
+// Package spannerio provides an API for reading and writing resources to
 // Google Spanner datastores.
 package spannerio
 
 import (
 	"cloud.google.com/go/spanner"
 	"context"
-	"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"google.golang.org/api/iterator"
@@ -30,8 +29,6 @@ import (
 func init() {
 	register.DoFn3x1[context.Context, *PartitionedRead, func(beam.X), error]((*queryBatchFn)(nil))
 	register.Emitter1[beam.X]()
-	register.DoFn3x1[context.Context, []byte, func(read *PartitionedRead), error]((*generatePartitionsFn)(nil))
-	register.Emitter1[*PartitionedRead]()
 }
 
 // Options when Batch Querying
@@ -124,12 +121,6 @@ func (f *queryBatchFn) ProcessElement(ctx context.Context, read *PartitionedRead
 	return nil
 }
 
-type generatePartitionsFn struct {
-	Db      *SpannerDatabase  `json:"db"`      // Spanner database
-	Query   string            `json:"query"`   // Table is the table identifier.
-	Options queryBatchOptions `json:"options"` // Options specifies additional query execution options.
-}
-
 // PartitionedRead holds relevant partition information to support partitioned reading from Spanner.
 type PartitionedRead struct {
 	BatchTransactionId spanner.BatchReadOnlyTransactionID `json:"batchTransactionId"` // The Spanner Batch Transaction Id
@@ -142,68 +133,4 @@ func NewPartitionedRead(batchTransactionId spanner.BatchReadOnlyTransactionID, p
 		BatchTransactionId: batchTransactionId,
 		Partition:          partition,
 	}
-}
-
-func (f *generatePartitionsFn) Setup(ctx context.Context) error {
-	return f.Db.Setup(ctx)
-}
-
-func (f *generatePartitionsFn) Teardown() {
-	f.Db.Close()
-}
-
-func partitionOptions(options queryBatchOptions) spanner.PartitionOptions {
-	partitionOptions := spanner.PartitionOptions{}
-
-	if options.MaxPartitions != 0 {
-		partitionOptions.MaxPartitions = options.MaxPartitions
-	}
-
-	return partitionOptions
-}
-
-// GeneratePartitions generates read partitions to support batched reading from Spanner.
-func GeneratePartitions(s beam.Scope, db *SpannerDatabase, query string, options ...func(*queryBatchOptions) error) beam.PCollection {
-	if db == nil {
-		panic("spanner.GeneratePartitions no database provided!")
-	}
-
-	s.Scope("spanner.GeneratePartitions")
-
-	opts := queryBatchOptions{}
-	for _, opt := range options {
-		if err := opt(&opts); err != nil {
-			panic(err)
-		}
-	}
-
-	imp := beam.Impulse(s)
-	return beam.ParDo(
-		s,
-		&generatePartitionsFn{
-			Db:      db,
-			Query:   query,
-			Options: opts,
-		},
-		imp,
-	)
-}
-
-func (f *generatePartitionsFn) ProcessElement(ctx context.Context, _ []byte, emit func(*PartitionedRead)) error {
-	txn, err := f.Db.Client.BatchReadOnlyTransaction(ctx, f.Options.TimestampBound)
-	if err != nil {
-		panic("spanner.QueryBatch: unable to create batch read only transaction: " + err.Error())
-	}
-	defer txn.Close()
-
-	partitions, err := txn.PartitionQuery(ctx, spanner.Statement{SQL: f.Query}, partitionOptions(f.Options))
-	if err != nil {
-		panic(fmt.Sprintf("spanner.QueryBatch: unable to partition query: %v", err))
-	}
-
-	for _, p := range partitions {
-		emit(NewPartitionedRead(txn.ID, p))
-	}
-
-	return nil
 }

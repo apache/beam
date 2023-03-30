@@ -23,7 +23,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/structx"
 
 	"cloud.google.com/go/spanner"
@@ -38,8 +37,6 @@ const spannerTag = "spanner"
 func init() {
 	register.DoFn3x1[context.Context, []byte, func(beam.X), error]((*queryFn)(nil))
 	register.Emitter1[beam.X]()
-	register.DoFn3x1[context.Context, int, func(*beam.X) bool, error]((*writeFn)(nil))
-	register.Iter1[beam.X]()
 }
 
 // Read reads all rows from the given table. The table must have a schema
@@ -123,95 +120,5 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 
 		emit(reflect.ValueOf(val).Elem().Interface()) // emit(*val)
 	}
-	return nil
-}
-
-type writeOptions struct {
-	BatchSize int
-}
-
-// UseBatchSize explicitly sets the batch size per transaction for writes
-func UseBatchSize(batchSize int) func(qo *writeOptions) error {
-	return func(qo *writeOptions) error {
-		qo.BatchSize = batchSize
-		return nil
-	}
-}
-
-// Write writes the elements of the given PCollection<T> to spanner. T is required
-// to be the schema type.
-// Note: Writes occur against a single worker machine.
-func Write(s beam.Scope, db *SpannerDatabase, table string, col beam.PCollection, options ...func(*writeOptions) error) {
-	if db == nil {
-		panic("spanner.Write no database provided!")
-	}
-
-	if typex.IsCoGBK(col.Type()) || typex.IsKV(col.Type()) {
-		panic("Unsupported collection type - only normal structs supported for writing.")
-	}
-
-	s = s.Scope("spanner.Write")
-
-	writeOptions := writeOptions{
-		BatchSize: 1000, // default
-	}
-
-	for _, opt := range options {
-		if err := opt(&writeOptions); err != nil {
-			panic(err)
-		}
-	}
-
-	t := col.Type().Type()
-
-	pre := beam.AddFixedKey(s, col)
-	post := beam.GroupByKey(s, pre)
-	beam.ParDo0(s, &writeFn{Db: db, Table: table, Type: beam.EncodedType{T: t}, Options: writeOptions}, post)
-}
-
-type writeFn struct {
-	Db      *SpannerDatabase `json:"db"`      // Spanner database
-	Table   string           `json:"table"`   // The table to write to
-	Type    beam.EncodedType `json:"type"`    // Type is the encoded schema type.
-	Options writeOptions     `json:"options"` // Spanner write options
-}
-
-func (f *writeFn) Setup(ctx context.Context) error {
-	return f.Db.Setup(ctx)
-}
-
-func (f *writeFn) Teardown() {
-	f.Db.Close()
-}
-
-func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
-	var mutations []*spanner.Mutation
-
-	var val beam.X
-	for iter(&val) {
-		mutation, err := spanner.InsertOrUpdateStruct(f.Table, val)
-		if err != nil {
-			return err
-		}
-
-		mutations = append(mutations, mutation)
-
-		if len(mutations)+1 > f.Options.BatchSize {
-			_, err := f.Db.Client.Apply(ctx, mutations)
-			if err != nil {
-				return err
-			}
-
-			mutations = nil
-		}
-	}
-
-	if mutations != nil {
-		_, err := f.Db.Client.Apply(ctx, mutations)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
