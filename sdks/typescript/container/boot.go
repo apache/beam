@@ -27,7 +27,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 )
@@ -87,7 +86,7 @@ func main() {
 
 	// (1) Obtain the pipeline options
 
-	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
+	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
