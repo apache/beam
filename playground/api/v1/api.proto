@@ -194,6 +194,7 @@ message PrecompiledObject{
   // Link to the example in the Beam repository
   string url_vcs = 14;
   string url_notebook = 15;
+  bool always_run = 16;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk

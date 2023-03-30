@@ -52,7 +52,7 @@ func setup() error {
 	if err != nil {
 		return err
 	}
-	javaConfigPath := filepath.Join(configFolderName, defaultSdk.String()+jsonExt)
+	javaConfigPath := filepath.Join(configFolderName, pb.Sdk_SDK_JAVA.String()+jsonExt)
 	err = os.WriteFile(javaConfigPath, []byte(javaConfig), dirPermission)
 	goConfigPath := filepath.Join(configFolderName, pb.Sdk_SDK_GO.String()+jsonExt)
 	err = os.WriteFile(goConfigPath, []byte(goConfig), dirPermission)
@@ -137,13 +137,13 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "Default beam envs",
-			want:      NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, defaultNumOfParallelJobs),
-			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
+			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
+			envsToSet: map[string]string{beamSdkKey: "SDK_UNSPECIFIED"},
 			wantErr:   false,
 		},
 		{
 			name:      "Specific sdk key in os envs",
-			want:      NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_JAVA, defaultBeamVersion, executorConfig, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
@@ -161,11 +161,11 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 			}
 			got, err := ConfigureBeamEnvs(workingDir)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getSdkEnvsFromOsEnvs() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ConfigureBeamEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getSdkEnvsFromOsEnvs() got = %v, want %v", got, tt.want)
+				t.Errorf("ConfigureBeamEnvs() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -291,7 +291,7 @@ func Test_createExecutorConfig(t *testing.T) {
 	}{
 		{
 			name:    "Create executor configuration from json file",
-			args:    args{apacheBeamSdk: defaultSdk, configPath: filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
+			args:    args{apacheBeamSdk: pb.Sdk_SDK_JAVA, configPath: filepath.Join(configFolderName, pb.Sdk_SDK_JAVA.String()+jsonExt)},
 			want:    executorConfig,
 			wantErr: false,
 		},
@@ -322,13 +322,13 @@ func Test_getConfigFromJson(t *testing.T) {
 	}{
 		{
 			name:    "Get object from json",
-			args:    args{filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
+			args:    args{filepath.Join(configFolderName, pb.Sdk_SDK_JAVA.String()+jsonExt)},
 			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-parameters", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}),
 			wantErr: false,
 		},
 		{
 			name:    "Error if wrong json path",
-			args:    args{filepath.Join("wrong_folder", defaultSdk.String()+jsonExt)},
+			args:    args{filepath.Join("wrong_folder", pb.Sdk_SDK_JAVA.String()+jsonExt)},
 			want:    nil,
 			wantErr: true,
 		},

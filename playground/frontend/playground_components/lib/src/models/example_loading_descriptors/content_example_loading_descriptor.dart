@@ -26,12 +26,14 @@ import 'example_loading_descriptor.dart';
 
 /// Fully contains an example data to be loaded.
 class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  final Complexity? complexity;
+
   final List<SnippetFile> files;
 
   /// The name of the example, if any, to show in the dropdown.
   final String? name;
 
-  final Complexity? complexity;
+  final String pipelineOptions;
 
   final Sdk sdk;
 
@@ -40,6 +42,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     required this.sdk,
     this.complexity,
     this.name,
+    this.pipelineOptions = '',
     super.viewOptions,
   });
 
@@ -55,12 +58,13 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     }
 
     return ContentExampleLoadingDescriptor(
+      complexity: Complexity.fromString(map['complexity']),
       files: files
           .map((file) => SnippetFile.fromJson(file as Map<String, dynamic>))
           .toList(growable: false),
       name: map['name']?.toString(),
+      pipelineOptions: map['pipelineOptions'] ?? '',
       sdk: sdk,
-      complexity: Complexity.fromString(map['complexity']),
       viewOptions: ExampleViewOptions.fromShortMap(map),
     );
   }
@@ -87,6 +91,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         complexity,
         files,
         name,
+        pipelineOptions,
         sdk.id,
         viewOptions,
       ];
@@ -97,6 +102,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         complexity: complexity,
         files: files,
         name: name,
+        pipelineOptions: pipelineOptions,
         sdk: sdk,
       );
 
@@ -105,6 +111,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         'complexity': complexity?.name,
         'files': files.map((e) => e.toJson()).toList(growable: false),
         'name': name,
+        'pipelineOptions': pipelineOptions,
         'sdk': sdk.id,
         ...viewOptions.toShortMap(),
       };

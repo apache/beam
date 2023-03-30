@@ -16,7 +16,7 @@
 package fs_tool
 
 import (
-	"beam.apache.org/playground/backend/internal/logger"
+	"context"
 	"fmt"
 	"github.com/google/uuid"
 	"io/fs"
@@ -25,6 +25,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/emulators"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 const (
@@ -44,7 +45,8 @@ type LifeCyclePaths struct {
 	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
 	AbsoluteGraphFilePath            string // /path/to/workingDir/pipelinesFolder/{pipelineId}/graph.dot
 	ProjectDir                       string // /path/to/workingDir/
-	ExecutableName                   func(string) (string, error)
+	FindExecutableName               func(context.Context, string) (string, error)
+	FindTestExecutableName           func(context.Context, string) (string, error)
 }
 
 // LifeCycle is used for preparing folders and files to process code for one code processing request.

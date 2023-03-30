@@ -43,6 +43,9 @@ widgets:
 
   codeEditor:
     label: 'Code Text Area'
+  
+  closeButton:
+    label: 'Close'
 
   output:
     filter:

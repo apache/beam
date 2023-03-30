@@ -842,11 +842,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       throw new RuntimeException("Should not specify the debuggee");
     }
 
+    LOG.warn(
+        "The cloud debugger service is deprecated and will be turned down. Please remove "
+            + "`enableCloudDebugger` pipeline option as it will be removed in a future version.");
+
     CloudDebugger debuggerClient = DataflowTransport.newClouddebuggerClient(options).build();
     Debuggee debuggee = registerDebuggee(debuggerClient, uniquifier);
     options.setDebuggee(debuggee);
 
-    System.out.println(debuggerMessage(options.getProject(), debuggee.getUniquifier()));
+    LOG.info(debuggerMessage(options.getProject(), debuggee.getUniquifier()));
   }
 
   private Debuggee registerDebuggee(CloudDebugger debuggerClient, String uniquifier) {

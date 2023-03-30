@@ -25,6 +25,9 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTabl
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
+import com.google.cloud.bigtable.data.v2.models.Filters.Filter;
+import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
@@ -120,6 +123,21 @@ public class MetadataTableDao {
   }
 
   /**
+   * Convert new partition row key to partition to process metadata read from Bigtable.
+   *
+   * <p>RowKey should be directly from Cloud Bigtable and not altered in any way.
+   *
+   * @param rowKey row key from Cloud Bigtable
+   * @return partition extracted from rowKey
+   * @throws InvalidProtocolBufferException if conversion from rowKey to partition fails
+   */
+  public ByteStringRange convertNewPartitionRowKeyToPartition(ByteString rowKey)
+      throws InvalidProtocolBufferException {
+    int prefixLength = changeStreamNamePrefix.size() + NEW_PARTITION_PREFIX.size();
+    return ByteStringRange.toByteStringRange(rowKey.substring(prefixLength));
+  }
+
+  /**
    * Convert partition to a New Partition row key to query for partitions ready to be streamed as
    * the result of splits and merges.
    *
@@ -150,19 +168,21 @@ public class MetadataTableDao {
    * After a split or merge from a close stream, write the new partition's information to the
    * metadata table.
    *
+   * @param newPartition the new partition
    * @param changeStreamContinuationToken the token that can be used to pick up from where the
    *     parent left off
    * @param parentPartition the parent that stopped and split or merged
    * @param lowWatermark the low watermark of the parent stream
    */
   public void writeNewPartition(
+      ByteStringRange newPartition,
       ChangeStreamContinuationToken changeStreamContinuationToken,
-      Range.ByteStringRange parentPartition,
+      ByteStringRange parentPartition,
       Instant lowWatermark) {
     writeNewPartition(
-        changeStreamContinuationToken.getPartition(),
+        newPartition,
         changeStreamContinuationToken.toByteString(),
-        Range.ByteStringRange.serializeToByteString(parentPartition),
+        ByteStringRange.serializeToByteString(parentPartition),
         lowWatermark);
   }
 
@@ -176,10 +196,11 @@ public class MetadataTableDao {
    * @param lowWatermark low watermark of the parent
    */
   private void writeNewPartition(
-      Range.ByteStringRange newPartition,
+      ByteStringRange newPartition,
       ByteString newPartitionContinuationToken,
       ByteString parentPartition,
       Instant lowWatermark) {
+    LOG.debug("Insert new partition");
     ByteString rowKey = convertPartitionToNewPartitionRowKey(newPartition);
     RowMutation rowMutation =
         RowMutation.create(tableId, rowKey)
@@ -188,7 +209,7 @@ public class MetadataTableDao {
             .setCell(
                 MetadataTableAdminDao.CF_PARENT_LOW_WATERMARKS,
                 parentPartition,
-                ByteString.copyFromUtf8(Long.toString(lowWatermark.getMillis())));
+                lowWatermark.getMillis());
     dataClient.mutateRow(rowMutation);
   }
 
@@ -243,7 +264,7 @@ public class MetadataTableDao {
    * @param currentToken continuation token to set for the cell
    */
   public void updateWatermark(
-      Range.ByteStringRange partition,
+      ByteStringRange partition,
       Instant watermark,
       @Nullable ChangeStreamContinuationToken currentToken) {
     writeToMdTableWatermarkHelper(
@@ -260,6 +281,63 @@ public class MetadataTableDao {
     ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
     RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
     dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * Delete the row.
+   *
+   * @param rowKey row key of the row to delete
+   */
+  public void deleteRowKey(ByteString rowKey) {
+    RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
+    dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * Lock the partition in the metadata table for the DoFn streaming it. Only one DoFn is allowed to
+   * stream a specific partition at any time. Each DoFn has an uuid and will try to lock the
+   * partition at the very start of the stream. If another DoFn has already locked the partition
+   * (i.e. the uuid in the cell for the partition belongs to the DoFn), any future DoFn trying to
+   * lock the same partition will and terminate.
+   *
+   * @param partition form the row key in the metadata table to lock
+   * @param uuid id of the DoFn
+   * @return true if uuid holds the lock, otherwise false.
+   */
+  public boolean lockPartition(ByteStringRange partition, String uuid) {
+    LOG.debug("Locking partition before processing stream");
+
+    ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
+    Filter lockCellFilter =
+        FILTERS
+            .chain()
+            .filter(FILTERS.family().exactMatch(MetadataTableAdminDao.CF_LOCK))
+            .filter(FILTERS.qualifier().exactMatch(MetadataTableAdminDao.QUALIFIER_DEFAULT))
+            .filter(FILTERS.limit().cellsPerRow(1));
+    Row row = dataClient.readRow(tableId, rowKey, lockCellFilter);
+
+    // If the query returns non-null row, that means the lock is being held. Check if the owner is
+    // same as uuid.
+    if (row != null) {
+      return row.getCells().get(0).getValue().toStringUtf8().equals(uuid);
+    }
+
+    // We cannot check whether a cell is empty, We can check if the cell matches any value. If it
+    // does not, we perform the mutation to set the cell.
+    Mutation mutation =
+        Mutation.create()
+            .setCell(MetadataTableAdminDao.CF_LOCK, MetadataTableAdminDao.QUALIFIER_DEFAULT, uuid);
+    Filter matchAnyString =
+        FILTERS
+            .chain()
+            .filter(FILTERS.family().exactMatch(MetadataTableAdminDao.CF_LOCK))
+            .filter(FILTERS.qualifier().exactMatch(MetadataTableAdminDao.QUALIFIER_DEFAULT))
+            .filter(FILTERS.value().regex("\\C*"));
+    ConditionalRowMutation rowMutation =
+        ConditionalRowMutation.create(tableId, rowKey)
+            .condition(matchAnyString)
+            .otherwise(mutation);
+    return !dataClient.checkAndMutateRow(rowMutation);
   }
 
   /**

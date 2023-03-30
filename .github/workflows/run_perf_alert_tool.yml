@@ -27,6 +27,8 @@ jobs:
   python_run_change_point_analysis:
     name: Run Change Point Analysis.
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

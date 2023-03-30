@@ -22,6 +22,6 @@ done
 openssl x509 -in /home/appuser/.mitmproxy/mitmproxy-ca.pem -inform PEM -out /home/appuser/.mitmproxy/mitmproxy-ca.crt
 cp /home/appuser/.mitmproxy/mitmproxy-ca.crt /usr/local/share/ca-certificates/extra/
 update-ca-certificates
-cat /home/appuser/.mitmproxy/mitmproxy-ca.pem >> /usr/local/lib/python3.7/site-packages/certifi/cacert.pem
+cat /home/appuser/.mitmproxy/mitmproxy-ca.pem >> /usr/local/lib/python3.10/site-packages/certifi/cacert.pem
 
 /opt/playground/backend/server_python_backend
