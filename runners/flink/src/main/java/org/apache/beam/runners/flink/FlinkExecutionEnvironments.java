@@ -21,13 +21,17 @@ import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironm
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -35,7 +39,11 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
-import org.apache.flink.configuration.*;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
@@ -289,6 +297,21 @@ public class FlinkExecutionEnvironments {
     @Override
     public Map<String, String> toMap() {
       return jobOptions;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == null || this.getClass() != obj.getClass()) {
+        return false;
+      }
+
+      ExecutionConfig.GlobalJobParameters jobParams = (ExecutionConfig.GlobalJobParameters) obj;
+      return Maps.difference(jobParams.toMap(), this.jobOptions).areEqual();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(jobOptions);
     }
   }
 
