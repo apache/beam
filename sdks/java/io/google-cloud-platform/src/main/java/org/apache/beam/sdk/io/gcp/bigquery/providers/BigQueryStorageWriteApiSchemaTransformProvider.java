@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.services.bigquery.model.Table;
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
@@ -36,15 +34,12 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -67,8 +62,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery Storage Write API jobs
@@ -85,8 +78,6 @@ import org.slf4j.LoggerFactory;
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(BigQueryStorageWriteApiSchemaTransformProvider.class);
   private static final Integer DEFAULT_TRIGGER_FREQUENCY_SECS = 5;
   private static final Duration DEFAULT_TRIGGERING_FREQUENCY =
       Duration.standardSeconds(DEFAULT_TRIGGER_FREQUENCY_SECS);
@@ -124,7 +115,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class BigQueryStorageWriteApiSchemaTransformConfiguration {
-
     static final Map<String, CreateDisposition> CREATE_DISPOSITIONS =
         ImmutableMap.<String, CreateDisposition>builder()
             .put(CreateDisposition.CREATE_IF_NEEDED.name(), CreateDisposition.CREATE_IF_NEEDED)
@@ -214,7 +204,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
-
       public abstract Builder setTable(String table);
 
       public abstract Builder setCreateDisposition(String createDisposition);
@@ -240,7 +229,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
    * BigQueryStorageWriteApiSchemaTransformProvider}.
    */
   private static class BigQueryStorageWriteApiSchemaTransform implements SchemaTransform {
-
     private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
 
     BigQueryStorageWriteApiSchemaTransform(
@@ -257,7 +245,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   static class BigQueryStorageWriteApiPCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
     private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
     private BigQueryServices testBigQueryServices = null;
 
@@ -274,7 +261,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     // A generic counter for PCollection of Row. Will be initialized with the given
     // name argument. Performs element-wise counter of the input PCollection.
     private static class ElementCounterFn extends DoFn<Row, Row> {
-
       private Counter bqGenericElementCounter;
       private Long elementsInBundle = 0L;
 
@@ -319,13 +305,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
 
       Schema inputSchema = inputRows.getSchema();
-
-      // check if input schema is assignable to the output schema with nullability
-      // check disabled for field
-      if (write.getTable() != null) {
-        TableReference tableRef = write.getTable().get();
-        validateSchema(input.getPipeline().getOptions(), inputSchema, tableRef);
-      }
       WriteResult result =
           inputRows
               .apply(
@@ -410,37 +389,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
 
       return write;
-    }
-
-    private void validateSchema(
-        PipelineOptions pipelineOptions, Schema inputSchema, TableReference tableRef) {
-      LOG.info("Validating schema ...");
-      BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
-      try {
-        Table table = null;
-        if (this.testBigQueryServices != null) {
-          DatasetService datasetService = testBigQueryServices.getDatasetService(options);
-          if (datasetService != null) {
-            table = datasetService.getTable(tableRef);
-          }
-        } else {
-          table = BigQueryHelpers.getTable(options, tableRef);
-        }
-        if (table == null) {
-          LOG.info("Table [{}] not found, skipping schema validation.", tableRef.getTableId());
-          return;
-        }
-        Schema outputSchema = BigQueryUtils.fromTableSchema(table.getSchema());
-        if (!inputSchema.assignableToIgnoreNullable(outputSchema)) {
-          throw new IllegalArgumentException(
-              "Input schema is not assignable to output schema. Input schema="
-                  + inputSchema
-                  + ", Output schema="
-                  + outputSchema);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
     }
   }
 }
