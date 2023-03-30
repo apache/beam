@@ -267,6 +267,51 @@ tasks.register<TerraformTask>("setPlaygroundStaticIpAddressName") {
     }
 }
 
+tasks.register<TerraformTask>("setPlaygroundFunctionCleanupUrl") {
+    group = "deploy"
+
+    dependsOn("terraformInit")
+    dependsOn("terraformRef")
+
+    args("output", "playground_function_cleanup_url")
+    standardOutput = ByteArrayOutputStream()
+
+    doLast {
+        project.rootProject.extra["playground_function_cleanup_url"] =
+            standardOutput.toString().trim().replace("\"", "")
+    }
+}
+
+tasks.register<TerraformTask>("setPlaygroundFunctionDeleteUrl") {
+    group = "deploy"
+
+    dependsOn("terraformInit")
+    dependsOn("terraformRef")
+
+    args("output", "playground_function_delete_url")
+    standardOutput = ByteArrayOutputStream()
+
+    doLast {
+        project.rootProject.extra["playground_function_delete_url"] =
+            standardOutput.toString().trim().replace("\"", "")
+    }
+}
+
+tasks.register<TerraformTask>("setPlaygroundFunctionViewUrl") {
+    group = "deploy"
+
+    dependsOn("terraformInit")
+    dependsOn("terraformRef")
+
+    args("output", "playground_function_view_url")
+    standardOutput = ByteArrayOutputStream()
+
+    doLast {
+        project.rootProject.extra["playground_function_view_url"] =
+            standardOutput.toString().trim().replace("\"", "")
+    }
+}
+
 tasks.register("takeConfig") {
     group = "deploy"
 
@@ -274,6 +319,9 @@ tasks.register("takeConfig") {
     dependsOn("setPlaygroundRedisIp")
     dependsOn("setPlaygroundGkeProject")
     dependsOn("setPlaygroundStaticIpAddressName")
+    dependsOn("setPlaygroundFunctionCleanupUrl")
+    dependsOn("setPlaygroundFunctionDeleteUrl")
+    dependsOn("setPlaygroundFunctionViewUrl")
 
     doLast {
         var d_tag = ""
@@ -314,6 +362,9 @@ tasks.register("takeConfig") {
         val registry = project.rootProject.extra["docker-repository-root"]
         val ipaddrname = project.rootProject.extra["playground_static_ip_address_name"]
         val datastore_name = if (project.hasProperty("datastore-namespace")) (project.property("datastore-namespace") as String) else ""
+        val pgfuncclean = project.rootProject.extra["playground_function_cleanup_url"]
+        val pgfuncdelete = project.rootProject.extra["playground_function_delete_url"]
+        val pgfuncview = project.rootProject.extra["playground_function_view_url"]
 
         file.appendText(
             """
@@ -325,6 +376,9 @@ static_ip_name: ${ipaddrname}
 tag: $d_tag
 datastore_name: ${datastore_name}
 dns_name: ${dns_name}
+func_clean: ${pgfuncclean}
+func_delete: ${pgfuncdelete}
+func_view: ${pgfuncview}
     """
         )
     }

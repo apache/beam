@@ -35,6 +35,7 @@ variable "zone" {
   description = "Infrastructure Zone"
 }
 
+variable "state_bucket" {}
 # Infrastructure variables
 
 #GKE

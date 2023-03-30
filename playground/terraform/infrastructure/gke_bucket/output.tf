@@ -17,11 +17,6 @@
 # under the License.
 #
 
-variable "project_id" {
- description = "project_id"
-}
-
-variable "services" {
- description = "Enable necessary APIs in GCP"
- default = ["cloudresourcemanager.googleapis.com","iam.googleapis.com","compute.googleapis.com","appengine.googleapis.com","artifactregistry.googleapis.com","redis.googleapis.com","cloudfunctions.googleapis.com","cloudbuild.googleapis.com","dns.googleapis.com","certificatemanager.googleapis.com"]
+output "playground_google_storage_bucket" {
+    value = google_storage_bucket.bucket.name
 }

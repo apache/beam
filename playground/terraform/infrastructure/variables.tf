@@ -31,6 +31,8 @@ variable "region" {
   description = "Infrastructure Region"
 }
 
+variable "state_bucket" {}
+
 #IAM
 
 variable "service_account_id" {

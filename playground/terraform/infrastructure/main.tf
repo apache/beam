@@ -49,6 +49,23 @@ module "artifact_registry" {
   location   = var.repository_location
 }
 
+module "gke_bucket" {
+  depends_on   = [module.setup, module.network, module.api_enable, module.ip_address]
+  source       = "./gke_bucket"
+  region       = var.region
+  bucket_name  = var.state_bucket
+
+}
+
+module "cloudfunctions" {
+  depends_on               = [module.setup, module.network, module.api_enable, module.ip_address, module.gke_bucket]
+  source                   = "./cloudfunctions"
+  gkebucket                = module.gke_bucket.playground_google_storage_bucket
+  project_id               = var.project_id
+  service_account_email_cf = module.setup.service_account_email_cf
+  region                   = var.region
+}
+
 module "memorystore" {
   depends_on     = [module.setup, module.network, module.api_enable, module.ip_address]
   source         = "./memorystore"
@@ -106,6 +123,7 @@ module "private_dns" {
   private_zones     = [
     "gcr.io",
     "pkg.dev",
-    "cloud.google.com"
+    "cloud.google.com",
+    "cloudfunctions.net"
   ]
 }

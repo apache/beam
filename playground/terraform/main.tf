@@ -26,6 +26,7 @@ module "infrastructure" {
   redis_region                  = var.region
   location                      = var.zone
   service_account_id            = var.service_account_id
+  state_bucket                  = var.state_bucket
   #Artifact Registry
   repository_id                 = var.repository_id
   repository_location           = var.region
