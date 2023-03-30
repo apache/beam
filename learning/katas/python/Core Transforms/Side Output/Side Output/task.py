@@ -24,7 +24,7 @@
 #     - Multiple Outputs
 #   complexity: BASIC
 #   tags:
-#     - transform
+#     - transforms
 #     - map
 #     - output
 #     - strings

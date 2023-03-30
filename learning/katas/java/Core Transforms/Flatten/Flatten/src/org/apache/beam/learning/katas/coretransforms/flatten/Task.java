@@ -29,7 +29,7 @@ package org.apache.beam.learning.katas.coretransforms.flatten;
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
-//     - transform
+//     - transforms
 //     - join
 //     - strings
 

@@ -28,7 +28,7 @@ package org.apache.beam.learning.katas.coretransforms.groupbykey;
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
-//     - transform
+//     - transforms
 //     - map
 //     - strings
 

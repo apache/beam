@@ -30,7 +30,7 @@ package org.apache.beam.learning.katas.coretransforms.partition;
 //   complexity: BASIC
 //   tags:
 //     - split
-//     - transform
+//     - transforms
 //     - numbers
 
 import org.apache.beam.learning.katas.util.Log;

@@ -23,7 +23,7 @@
 #     - Core Transforms
 #   complexity: BASIC
 #   tags:
-#     - transform
+#     - transforms
 #     - numbers
 
 import apache_beam as beam

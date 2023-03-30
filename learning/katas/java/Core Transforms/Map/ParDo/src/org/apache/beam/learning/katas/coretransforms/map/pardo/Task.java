@@ -27,7 +27,7 @@ package org.apache.beam.learning.katas.coretransforms.map.pardo;
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
-//     - transform
+//     - transforms
 //     - numbers
 
 import org.apache.beam.learning.katas.util.Log;

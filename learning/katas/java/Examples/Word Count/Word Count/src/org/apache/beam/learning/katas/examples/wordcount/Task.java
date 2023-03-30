@@ -28,7 +28,7 @@ package org.apache.beam.learning.katas.examples.wordcount;
 //   complexity: BASIC
 //   tags:
 //     - count
-//     - transform
+//     - transforms
 //     - numbers
 
 import java.util.Arrays;

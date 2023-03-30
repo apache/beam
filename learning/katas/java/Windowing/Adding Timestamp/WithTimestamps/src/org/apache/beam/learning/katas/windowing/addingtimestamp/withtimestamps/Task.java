@@ -28,7 +28,7 @@ package org.apache.beam.learning.katas.windowing.addingtimestamp.withtimestamps;
 //   complexity: MEDIUM
 //   tags:
 //     - timestamp
-//     - transform
+//     - transforms
 //     - event
 
 import org.apache.beam.learning.katas.util.Log;

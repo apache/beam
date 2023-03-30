@@ -30,7 +30,7 @@ package org.apache.beam.learning.katas.coretransforms.branching;
 //   complexity: BASIC
 //   tags:
 //     - branch
-//     - transform
+//     - transforms
 //     - numbers
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;

@@ -27,7 +27,7 @@ package org.apache.beam.learning.katas.coretransforms.map.mapelements;
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
-//     - transform
+//     - transforms
 //     - map
 //     - numbers
 

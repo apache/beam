@@ -29,7 +29,7 @@ package org.apache.beam.learning.katas.coretransforms.sideoutput;
 //     - Multiple Outputs
 //   complexity: BASIC
 //   tags:
-//     - transform
+//     - transforms
 //     - numbers
 //     - output
 

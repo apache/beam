@@ -23,7 +23,7 @@
 #     - Side Input
 #   complexity: MEDIUM
 #   tags:
-#     - transform
+#     - transforms
 #     - map
 #     - strings
 
