@@ -32,18 +32,18 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public abstract class ReadAllViaFileBasedSourceTransform<I, T>
+public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
     extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
   public static final boolean DEFAULT_USES_RESHUFFLE = true;
   protected final long desiredBundleSizeBytes;
-  protected final SerializableFunction<String, ? extends FileBasedSource<I>> createSource;
+  protected final SerializableFunction<String, ? extends FileBasedSource<InT>> createSource;
   protected final Coder<T> coder;
   protected final ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler exceptionHandler;
   protected final boolean usesReshuffle;
 
   public ReadAllViaFileBasedSourceTransform(
       long desiredBundleSizeBytes,
-      SerializableFunction<String, ? extends FileBasedSource<I>> createSource,
+      SerializableFunction<String, ? extends FileBasedSource<InT>> createSource,
       Coder<T> coder) {
     this(
         desiredBundleSizeBytes,
@@ -55,7 +55,7 @@ public abstract class ReadAllViaFileBasedSourceTransform<I, T>
 
   public ReadAllViaFileBasedSourceTransform(
       long desiredBundleSizeBytes,
-      SerializableFunction<String, ? extends FileBasedSource<I>> createSource,
+      SerializableFunction<String, ? extends FileBasedSource<InT>> createSource,
       Coder<T> coder,
       boolean usesReshuffle,
       ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler exceptionHandler) {
@@ -100,13 +100,13 @@ public abstract class ReadAllViaFileBasedSourceTransform<I, T>
     }
   }
 
-  public abstract static class AbstractReadFileRangesFn<I, T>
+  public abstract static class AbstractReadFileRangesFn<InT, T>
       extends DoFn<KV<FileIO.ReadableFile, OffsetRange>, T> {
-    private final SerializableFunction<String, ? extends FileBasedSource<I>> createSource;
+    private final SerializableFunction<String, ? extends FileBasedSource<InT>> createSource;
     private final ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler exceptionHandler;
 
     public AbstractReadFileRangesFn(
-        SerializableFunction<String, ? extends FileBasedSource<I>> createSource,
+        SerializableFunction<String, ? extends FileBasedSource<InT>> createSource,
         ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler exceptionHandler) {
       this.createSource = createSource;
       this.exceptionHandler = exceptionHandler;
@@ -115,8 +115,8 @@ public abstract class ReadAllViaFileBasedSourceTransform<I, T>
     protected abstract T makeOutput(
         FileIO.ReadableFile file,
         OffsetRange range,
-        FileBasedSource<I> fileBasedSource,
-        BoundedSource.BoundedReader<I> reader);
+        FileBasedSource<InT> fileBasedSource,
+        BoundedSource.BoundedReader<InT> reader);
 
     @ProcessElement
     @SuppressFBWarnings(
@@ -125,10 +125,10 @@ public abstract class ReadAllViaFileBasedSourceTransform<I, T>
     public void process(ProcessContext c) throws IOException {
       FileIO.ReadableFile file = c.element().getKey();
       OffsetRange range = c.element().getValue();
-      FileBasedSource<I> source =
+      FileBasedSource<InT> source =
           CompressedSource.from(createSource.apply(file.getMetadata().resourceId().toString()))
               .withCompression(file.getCompression());
-      try (BoundedSource.BoundedReader<I> reader =
+      try (BoundedSource.BoundedReader<InT> reader =
           source
               .createForSubrangeOfFile(file.getMetadata(), range.getFrom(), range.getTo())
               .createReader(c.getPipelineOptions())) {
