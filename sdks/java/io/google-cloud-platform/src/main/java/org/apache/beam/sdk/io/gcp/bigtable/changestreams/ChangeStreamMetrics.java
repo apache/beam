@@ -38,6 +38,24 @@ public class ChangeStreamMetrics implements Serializable {
           org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
           "list_partitions_count");
 
+  /**
+   * Counter for the total number of partition splits / moves identified during the execution of the
+   * Connector.
+   */
+  public static final Counter PARTITION_SPLIT_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "partition_record_split_count");
+
+  /**
+   * Counter for the total number of partition merges identified during the execution of the
+   * Connector.
+   */
+  public static final Counter PARTITION_MERGE_COUNT =
+      Metrics.counter(
+          org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics.class,
+          "partition_record_merge_count");
+
   // -------------------
   // Read change stream metrics
 
@@ -94,6 +112,24 @@ public class ChangeStreamMetrics implements Serializable {
    */
   public void incListPartitionsCount() {
     inc(LIST_PARTITIONS_COUNT);
+  }
+
+  /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#PARTITION_SPLIT_COUNT} by
+   * 1 if the metric is enabled.
+   */
+  public void incPartitionSplitCount() {
+    inc(PARTITION_SPLIT_COUNT);
+  }
+
+  /**
+   * Increments the {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics#PARTITION_MERGE_COUNT} by
+   * 1 if the metric is enabled.
+   */
+  public void incPartitionMergeCount() {
+    inc(PARTITION_MERGE_COUNT);
   }
 
   /**

@@ -18,20 +18,27 @@
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingAndOverlappingPartitionsFromKeySpace;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isSuperset;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
 
 import com.google.api.gax.rpc.ServerStream;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowCell;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
@@ -42,6 +49,8 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -156,6 +165,139 @@ public class DetectNewPartitionsAction {
   }
 
   /**
+   * Process a single new partition. New partition resulting from split and merges need to be
+   * outputted to be streamed. Regardless if it's a split or a merge, we have the same verification
+   * process in order to ensure the new partition can actually be streamed.
+   *
+   * <p>When a parent partition splits, it receives two or more new partitions. It will write a new
+   * row, with the new row ranges as row key, for each new partition. These new partitions can be
+   * immediately streamed.
+   *
+   * <p>The complicated scenario is merges. Two or more parent partitions will merge into one new
+   * partition. Each parent partition receives the same new partition (row range) but each parent
+   * partition will have a different continuation token. The parent partitions will all write to the
+   * same row key form by the new row range. Each parent will record its continuation token, and
+   * watermark. Parent partitions may not receive the message to stop at the same time. So when we
+   * try to process the new partition, we need to ensure that all the parent partitions have stopped
+   * and recorded their metadata table. We do so by verifying that the row ranges of the parents
+   * covers a contiguous block of row range that is same or wider (superset) of the new row range.
+   *
+   * <p>For example, partition1, A-B, and partition2, B-C, merges into partition3, A-C.
+   *
+   * <ol>
+   *   <li>p1 writes to row A-C in metadata table
+   *   <li>processNewPartition process A-C seeing that only A-B has been recorded and A-B does not
+   *       cover A-C. Do Nothing
+   *   <li>p2 writes to row A-C in metadata table
+   *   <li>processNewPartition process A-C again, seeing that A-B and B-C has been recorded and
+   *       outputs new partition A-C to be streamed.
+   * </ol>
+   *
+   * <p>Note that, the algorithm to verify if a merge is valid, also correctly verifies if a split
+   * is valid. A split is immediately valid as long as the row exists because there's only one
+   * parent that needs to write to that row.
+   *
+   * @param row new partition to be processed
+   * @param receiver to output new partitions
+   * @param recordedPartitionRecords add the partition if it's been processed
+   * @throws InvalidProtocolBufferException if partition can't be converted from row key.
+   */
+  private void processNewPartition(
+      Row row, OutputReceiver<PartitionRecord> receiver, List<ByteString> recordedPartitionRecords)
+      throws Exception {
+    Range.ByteStringRange partition =
+        metadataTableDao.convertNewPartitionRowKeyToPartition(row.getKey());
+
+    // Ensure all parent partitions have stopped and updated the metadata table with the new
+    // partition continuation token.
+    List<Range.ByteStringRange> parentPartitions = new ArrayList<>();
+    for (RowCell cell : row.getCells(MetadataTableAdminDao.CF_PARENT_PARTITIONS)) {
+      Range.ByteStringRange parentPartition =
+          Range.ByteStringRange.toByteStringRange(cell.getQualifier());
+      parentPartitions.add(parentPartition);
+    }
+    if (!isSuperset(parentPartitions, partition)) {
+      LOG.warn(
+          "DNP: New partition: {} does not have all the parents {}",
+          ByteStringRangeHelper.formatByteStringRange(partition),
+          partitionsToString(parentPartitions));
+      return;
+    }
+
+    // Capture all the initial continuation tokens to request for the new partition.
+    ImmutableList.Builder<ChangeStreamContinuationToken> changeStreamContinuationTokensBuilder =
+        ImmutableList.builder();
+    for (RowCell cell : row.getCells(MetadataTableAdminDao.CF_INITIAL_TOKEN)) {
+      ChangeStreamContinuationToken changeStreamContinuationToken =
+          ChangeStreamContinuationToken.fromByteString(cell.getQualifier());
+      changeStreamContinuationTokensBuilder.add(changeStreamContinuationToken);
+    }
+    ImmutableList<ChangeStreamContinuationToken> changeStreamContinuationTokens =
+        changeStreamContinuationTokensBuilder.build();
+
+    // If parent and continuation token count are not the same, it's possible the same parent wrote
+    // multiple continuation tokens or there's an inconsistent state.
+    if (parentPartitions.size() != changeStreamContinuationTokens.size()) {
+      LOG.warn(
+          "DNP: New partition {} parent partitions count {} != continuation token count {}",
+          ByteStringRangeHelper.formatByteStringRange(partition),
+          parentPartitions.size(),
+          changeStreamContinuationTokens.size());
+    }
+
+    // Capture all the low watermark and calculate the low watermark among all the parents.
+    List<Long> parentLowWatermark = new ArrayList<>();
+    for (RowCell cell : row.getCells(MetadataTableAdminDao.CF_PARENT_LOW_WATERMARKS)) {
+      parentLowWatermark.add(Longs.fromByteArray(cell.getValue().toByteArray()));
+    }
+    Long lowWatermarkMilli = Collections.min(parentLowWatermark);
+    Instant lowWatermark = Instant.ofEpochMilli(lowWatermarkMilli);
+
+    String uid = UniqueIdGenerator.getNextId();
+    PartitionRecord partitionRecord =
+        new PartitionRecord(partition, changeStreamContinuationTokens, uid, lowWatermark);
+    if (parentPartitions.size() > 1) {
+      metrics.incPartitionMergeCount();
+    } else {
+      metrics.incPartitionSplitCount();
+    }
+    LOG.info(
+        "DNP: Split/Merge {} into {}",
+        parentPartitions.stream()
+            .map(ByteStringRangeHelper::formatByteStringRange)
+            .collect(Collectors.joining(",", "{", "}")),
+        ByteStringRangeHelper.formatByteStringRange(partition));
+    // We are outputting elements with timestamp of 0 to prevent reliance on event time. This limits
+    // the ability to window on commit time of any data changes. It is still possible to window on
+    // processing time.
+    receiver.outputWithTimestamp(partitionRecord, Instant.EPOCH);
+    recordedPartitionRecords.add(row.getKey());
+  }
+
+  /**
+   * After processing new partitions and if it was outputted successfully, we need to clean up the
+   * metadata table so that we don't try to process the same new partition again.
+   *
+   * <p>This is performed at a best effort basis. If some clean up is unsuccessful, the new
+   * partition will be processed and output again in subsequent runs. This is OK because the DoFn
+   * that stream partitions performs locking to prevent multiple DoFn from streaming the same
+   * partition.
+   *
+   * @param bundleFinalizer finalizer that registered the callback to perform the cleanup
+   * @param recordedPartitionRecords the list of row keys that needs to be cleaned up
+   */
+  private void cleanUpAfterCommit(
+      BundleFinalizer bundleFinalizer, List<ByteString> recordedPartitionRecords) {
+    bundleFinalizer.afterBundleCommit(
+        Instant.ofEpochMilli(Long.MAX_VALUE),
+        () -> {
+          for (ByteString rowKey : recordedPartitionRecords) {
+            metadataTableDao.deleteRowKey(rowKey);
+          }
+        });
+  }
+
+  /**
    * Perform the necessary steps to manage initial set of partitions and new partitions. Currently,
    * we set to process new partitions every second.
    *
@@ -184,15 +326,29 @@ public class DetectNewPartitionsAction {
       BundleFinalizer bundleFinalizer,
       Instant startTime)
       throws Exception {
+    LOG.debug("DNP: Watermark: " + watermarkEstimator.getState());
+    LOG.debug("DNP: CurrentTracker: " + tracker.currentRestriction().getFrom());
     if (tracker.currentRestriction().getFrom() == 0L) {
       return generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime);
     }
 
+    advanceWatermark(tracker, watermarkEstimator);
+
     if (!tracker.tryClaim(tracker.currentRestriction().getFrom())) {
+      LOG.error(
+          "DNP: Couldn't continue because we failed to claim tracker: "
+              + tracker.currentRestriction());
       return ProcessContinuation.stop();
     }
 
-    advanceWatermark(tracker, watermarkEstimator);
+    List<ByteString> recordedPartitionRecords = new ArrayList<>();
+
+    ServerStream<Row> rows = metadataTableDao.readNewPartitions();
+    for (Row row : rows) {
+      processNewPartition(row, receiver, recordedPartitionRecords);
+    }
+
+    cleanUpAfterCommit(bundleFinalizer, recordedPartitionRecords);
 
     return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
   }
