@@ -50,15 +50,23 @@ public class ReadAllViaFileBasedSourceWithFilename<T>
 
   @Override
   protected DoFn<KV<FileIO.ReadableFile, OffsetRange>, KV<String, T>> readRangesFn() {
-    return new AbstractReadFileRangesFn<T, KV<String, T>>(createSource, exceptionHandler) {
-      @Override
-      protected KV<String, T> makeOutput(
-          final FileIO.ReadableFile file,
-          final OffsetRange range,
-          final FileBasedSource<T> fileBasedSource,
-          final BoundedSource.BoundedReader<T> reader) {
-        return KV.of(file.getMetadata().resourceId().toString(), reader.getCurrent());
-      }
-    };
+    return new ReadFileRangesFn<>(createSource, exceptionHandler);
+  }
+
+  private static class ReadFileRangesFn<T> extends AbstractReadFileRangesFn<T, KV<String, T>> {
+    public ReadFileRangesFn(
+        final SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
+        final ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler exceptionHandler) {
+      super(createSource, exceptionHandler);
+    }
+
+    @Override
+    protected KV<String, T> makeOutput(
+        final FileIO.ReadableFile file,
+        final OffsetRange range,
+        final FileBasedSource<T> fileBasedSource,
+        final BoundedSource.BoundedReader<T> reader) {
+      return KV.of(file.getMetadata().resourceId().toString(), reader.getCurrent());
+    }
   }
 }

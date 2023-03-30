@@ -62,16 +62,24 @@ public class ReadAllViaFileBasedSource<T> extends ReadAllViaFileBasedSourceTrans
 
   @Override
   protected DoFn<KV<ReadableFile, OffsetRange>, T> readRangesFn() {
-    return new AbstractReadFileRangesFn<T, T>(createSource, exceptionHandler) {
-      @Override
-      protected T makeOutput(
-          final ReadableFile file,
-          final OffsetRange range,
-          final FileBasedSource<T> fileBasedSource,
-          final BoundedSource.BoundedReader<T> reader) {
-        return reader.getCurrent();
-      }
-    };
+    return new ReadFileRangesFn<>(createSource, exceptionHandler);
+  }
+
+  private static class ReadFileRangesFn<T> extends AbstractReadFileRangesFn<T, T> {
+    public ReadFileRangesFn(
+        final SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
+        final ReadFileRangesFnExceptionHandler exceptionHandler) {
+      super(createSource, exceptionHandler);
+    }
+
+    @Override
+    protected T makeOutput(
+        final ReadableFile file,
+        final OffsetRange range,
+        final FileBasedSource<T> fileBasedSource,
+        final BoundedSource.BoundedReader<T> reader) {
+      return reader.getCurrent();
+    }
   }
 
   /** A class to handle errors which occur during file reads. */
