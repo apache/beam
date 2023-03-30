@@ -43,7 +43,6 @@ func UseBatchSize(batchSize int) func(qo *writeOptions) error {
 
 // Write writes the elements of the given PCollection<T> to spanner. T is required
 // to be the schema type.
-// Note: Writes occur against a single worker machine.
 func Write(s beam.Scope, db *SpannerDatabase, table string, col beam.PCollection, options ...func(*writeOptions) error) {
 	if db == nil {
 		panic("spanner.Write no database provided!")
@@ -67,7 +66,7 @@ func Write(s beam.Scope, db *SpannerDatabase, table string, col beam.PCollection
 
 	t := col.Type().Type()
 
-	beam.ParDo(s, &writeFn{Db: db, Table: table, Type: beam.EncodedType{T: t}, Options: writeOptions}, col)
+	beam.ParDo0(s, &writeFn{Db: db, Table: table, Type: beam.EncodedType{T: t}, Options: writeOptions}, col)
 }
 
 type writeFn struct {
@@ -101,7 +100,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, value beam.X) error {
 	return nil
 }
 
-func (f *writeFn) FinishBundle(ctx context.Context, _ func(beam.X)) error {
+func (f *writeFn) FinishBundle(ctx context.Context) error {
 	if len(f.mutations) > 0 {
 		return f.flush(ctx)
 	}
