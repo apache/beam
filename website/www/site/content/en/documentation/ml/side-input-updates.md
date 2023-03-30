@@ -30,8 +30,7 @@ the RunInference `PTransform` to automatically update the ML model without stopp
 
 ## Set up the source
 
-To read the image names, use a Pub/Sub topic as the source.
- * The Pub/Sub topic emits a `UTF-8` encoded model path that is used to read and preprocess images to run the inference.
+To read the image names, use a Pub/Sub topic as the source. The Pub/Sub topic emits a `UTF-8` encoded model path that is used to read and preprocess images to run the inference.
 
 ## Models for image segmentation
 
