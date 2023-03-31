@@ -25,19 +25,19 @@ const (
 	KatasValidatorName    = "Katas"
 )
 
-type ValidatorResult int
+type ValidationOutcome int
 
 const (
-	Unknown ValidatorResult = iota
-	No
-	Yes
+	Unknown ValidationOutcome = iota
+	Invalid
+	Valid
 	Error
 )
 
 type ValidationResult struct {
-	IsUnitTest  ValidatorResult
-	IsKatas     ValidatorResult
-	IsValidPath ValidatorResult
+	IsUnitTest  ValidationOutcome
+	IsKatas     ValidationOutcome
+	IsValidPath ValidationOutcome
 }
 
 type Validator interface {
@@ -59,20 +59,20 @@ func GetValidator(sdk pb.Sdk, filepath string) (Validator, error) {
 	}
 }
 
-func resultFromBool(val bool) ValidatorResult {
+func resultFromBool(val bool) ValidationOutcome {
 	if val {
-		return Yes
+		return Valid
 	} else {
-		return No
+		return Invalid
 	}
 }
 
-func (r ValidatorResult) ToBool() (bool, error) {
+func (r ValidationOutcome) ToBool() (bool, error) {
 	if r == Unknown {
 		return false, fmt.Errorf("result is unknown")
 	}
 	if r == Error {
 		return false, fmt.Errorf("result indicated error")
 	}
-	return r == Yes, nil
+	return r == Valid, nil
 }

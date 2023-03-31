@@ -31,19 +31,19 @@ func TestCheckIsUnitTestPy(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    ValidatorResult
+		want    ValidationOutcome
 		wantErr bool
 	}{
 		{
 			name:    "Check that file is a python unit test",
 			args:    args{filePath: pyUnitTestFilePath},
-			want:    Yes,
+			want:    Valid,
 			wantErr: false,
 		},
 		{
 			name:    "Check that file is not a python unit test",
 			args:    args{filePath: pyCodeFilePath},
-			want:    No,
+			want:    Invalid,
 			wantErr: false,
 		},
 		{

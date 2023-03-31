@@ -35,7 +35,7 @@ func TestCheckIsUnitTestJava(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    ValidatorResult
+		want    ValidationOutcome
 		wantErr bool
 	}{
 		{
@@ -44,7 +44,7 @@ func TestCheckIsUnitTestJava(t *testing.T) {
 			args: args{
 				javaUnitTestFilePath,
 			},
-			want:    Yes,
+			want:    Valid,
 			wantErr: false,
 		},
 		{
@@ -53,7 +53,7 @@ func TestCheckIsUnitTestJava(t *testing.T) {
 			args: args{
 				javaCodePath,
 			},
-			want:    No,
+			want:    Invalid,
 			wantErr: false,
 		},
 	}
@@ -78,7 +78,7 @@ func TestCheckIsKataJava(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    ValidatorResult
+		want    ValidationOutcome
 		wantErr bool
 	}{
 		{
@@ -87,7 +87,7 @@ func TestCheckIsKataJava(t *testing.T) {
 			args: args{
 				javaKataFilePath,
 			},
-			want:    Yes,
+			want:    Valid,
 			wantErr: false,
 		},
 		{
@@ -96,7 +96,7 @@ func TestCheckIsKataJava(t *testing.T) {
 			args: args{
 				javaCodePath,
 			},
-			want:    No,
+			want:    Invalid,
 			wantErr: false,
 		},
 	}

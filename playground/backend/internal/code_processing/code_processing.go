@@ -76,7 +76,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	isUnitTest := validationResults.IsUnitTest == validators.Yes
+	isUnitTest := validationResults.IsUnitTest == validators.Valid
 
 	err = compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
 	if err != nil {

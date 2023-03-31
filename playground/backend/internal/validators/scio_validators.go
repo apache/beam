@@ -37,7 +37,7 @@ func (v scioValidator) Validate() (ValidationResult, error) {
 }
 
 // checkIsUnitTestScio checks if the pipeline is a UnitTest
-func checkIsUnitTestScio(args ...interface{}) (ValidatorResult, error) {
-	return No, nil
+func checkIsUnitTestScio(_ ...interface{}) (ValidationOutcome, error) {
+	return Invalid, nil
 	//TODO BEAM-13702
 }

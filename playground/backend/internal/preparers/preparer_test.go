@@ -82,8 +82,8 @@ func teardown() {
 func TestGetPreparers(t *testing.T) {
 	filepath := ""
 	validationResults := validators.ValidationResult{
-		IsUnitTest: validators.No,
-		IsKatas:    validators.No,
+		IsUnitTest: validators.Invalid,
+		IsKatas:    validators.Invalid,
 	}
 	emulatorParameters := &emulators.EmulatorParameters{
 		BootstrapServer: "",

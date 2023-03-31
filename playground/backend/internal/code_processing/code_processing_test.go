@@ -818,9 +818,9 @@ func Test_validateStep(t *testing.T) {
 				sdkEnv:       javaSdkEnv,
 			},
 			want: validators.ValidationResult{
-				IsUnitTest:  validators.No,
-				IsKatas:     validators.No,
-				IsValidPath: validators.Yes,
+				IsUnitTest:  validators.Invalid,
+				IsKatas:     validators.Invalid,
+				IsValidPath: validators.Valid,
 			},
 			code: helloWordJava,
 		},
@@ -866,8 +866,8 @@ func Test_prepareStep(t *testing.T) {
 		ApacheBeamSdk: pb.Sdk_SDK_UNSPECIFIED,
 	}
 	validationResults := validators.ValidationResult{
-		IsUnitTest: validators.No,
-		IsKatas:    validators.No,
+		IsUnitTest: validators.Invalid,
+		IsKatas:    validators.Invalid,
 	}
 	pipelineLifeCycleCtx, cancel := context.WithTimeout(context.Background(), 1)
 	defer cancel()

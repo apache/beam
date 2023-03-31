@@ -33,7 +33,7 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    ValidatorResult
+		want    ValidationOutcome
 		wantErr bool
 	}{
 		{
@@ -41,7 +41,7 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 			args: args{
 				goUnitTestFilePath,
 			},
-			want:    Yes,
+			want:    Valid,
 			wantErr: false,
 		},
 		{
@@ -49,7 +49,7 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 			args: args{
 				goCodePath,
 			},
-			want:    No,
+			want:    Invalid,
 			wantErr: false,
 		},
 		{

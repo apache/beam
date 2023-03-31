@@ -55,7 +55,7 @@ func (v javaValidator) Validate() (ValidationResult, error) {
 }
 
 // checkIsUnitTestJava checks if the pipeline is a UnitTest
-func checkIsUnitTestJava(filePath string) (ValidatorResult, error) {
+func checkIsUnitTestJava(filePath string) (ValidationOutcome, error) {
 	ok, err := checkPipelineType(filePath, javaUnitTestPattern)
 	if err != nil {
 		return Error, err
@@ -64,7 +64,7 @@ func checkIsUnitTestJava(filePath string) (ValidatorResult, error) {
 }
 
 // checkIsKataJava checks if the pipeline is a kata
-func checkIsKataJava(filePath string) (ValidatorResult, error) {
+func checkIsKataJava(filePath string) (ValidationOutcome, error) {
 	ok, err := checkPipelineType(filePath, javaKatasPattern)
 	if err != nil {
 		return Error, err
@@ -72,7 +72,7 @@ func checkIsKataJava(filePath string) (ValidatorResult, error) {
 	return ok, nil
 }
 
-func checkPipelineType(filePath, pattern string) (ValidatorResult, error) {
+func checkPipelineType(filePath, pattern string) (ValidationOutcome, error) {
 	code, err := os.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())

@@ -40,7 +40,7 @@ func (v pythonValidator) Validate() (ValidationResult, error) {
 	return result, nil
 }
 
-func CheckIsUnitTestPy(filePath string) (ValidatorResult, error) {
+func CheckIsUnitTestPy(filePath string) (ValidationOutcome, error) {
 	code, err := os.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())

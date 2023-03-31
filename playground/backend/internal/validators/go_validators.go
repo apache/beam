@@ -40,7 +40,7 @@ func (v goValidator) Validate() (ValidationResult, error) {
 	return result, nil
 }
 
-func CheckIsUnitTestGo(filepath string) (ValidatorResult, error) {
+func CheckIsUnitTestGo(filepath string) (ValidationOutcome, error) {
 	code, err := os.ReadFile(filepath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filepath, err.Error())
