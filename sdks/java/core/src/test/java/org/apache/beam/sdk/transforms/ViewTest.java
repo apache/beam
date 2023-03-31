@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -34,9 +34,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -46,15 +44,18 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -272,6 +273,58 @@ public class ViewTest implements Serializable {
 
     // As long as we get an error, be flexible with how a runner surfaces it
     thrown.expect(Exception.class);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testTriggeredLatestSingleton() {
+    IntervalWindow zeroWindow = new IntervalWindow(new Instant(0), new Instant(1000));
+
+    PCollectionView<Long> view =
+        pipeline
+            .apply(
+                GenerateSequence.from(0)
+                    .withRate(1, Duration.millis(100))
+                    .withTimestampFn(x -> new Instant(x)))
+            .apply(
+                "Window side input",
+                Window.<Long>into(FixedWindows.of(Duration.standardSeconds(1)))
+                    .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes())
+            .apply(Reify.timestamps())
+            .apply(Combine.globally(Latest.<Long>combineFn()).withoutDefaults())
+            .apply(View.asSingleton());
+
+    final String tag = "singleton";
+    PCollection<Long> pc =
+        pipeline
+            .apply(Impulse.create())
+            .apply(WithTimestamps.of(impulse -> new Instant(0)))
+            .apply("Window main input", Window.into(FixedWindows.of(Duration.standardSeconds(1))))
+            .apply(
+                ParDo.of(
+                        new DoFn<byte[], Long>() {
+                          @ProcessElement
+                          public void process(
+                              @SideInput(tag) Long sideInput, OutputReceiver<Long> out)
+                              throws InterruptedException {
+                            // waiting to ensure multiple outputs to side input before reading it
+                            Thread.sleep(1000L);
+                            out.output(sideInput);
+                          }
+                        })
+                    .withSideInput(tag, view));
+
+    PAssert.that(pc)
+        .inWindow(zeroWindow)
+        .satisfies(
+            (Iterable<Long> values) -> {
+              assertThat(values, Matchers.iterableWithSize(1));
+              return null;
+            });
 
     pipeline.run();
   }
