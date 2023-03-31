@@ -78,7 +78,7 @@ func NewStateful() *Stateful {
 	}
 }
 
-func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider) {
+func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Provider) {
 	log.Infof(ctx, "timer fired  on stateful")
 }
 

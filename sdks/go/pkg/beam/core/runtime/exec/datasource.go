@@ -266,10 +266,10 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			tmap, err := decodeTimer(cp, wc, bcr)
 			log.Infof(ctx, "DEBUGLOG: timer received for: %v and %v - %+v  err: %v", ptransformID, timerFamilyID, tmap, err)
 			log.Infof(ctx, "OnTimerTransforms = %+v", n.OnTimerTransforms[ptransformID].Fn)
-			// if fn, ok := n.OnTimerTransforms[ptransformID].Fn.OnTimerFn(); ok {
-			// log.Infof(ctx, "found ontimer method, invoking callback")
-			n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, n.OnTimerTransforms[ptransformID].Fn.Fn, timerFamilyID, tmap)
-			// }
+			if fn, ok := n.OnTimerTransforms[ptransformID].Fn.OnTimerFn(); ok {
+				log.Infof(ctx, "found ontimer method, invoking callback")
+				n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, fn, timerFamilyID, tmap)
+			}
 			return nil
 		})
 

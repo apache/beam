@@ -363,14 +363,15 @@ func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID s
 		return nil, nil
 	}
 	log.Info(ctx, "InvokeTimerFn invoked")
+
 	val, err := InvokeWithOpts(ctx, fn, typex.NoFiringPane(), nil, mtime.FromTime(time.Now()), InvokeOpts{
-		bf:    n.bf,
-		we:    n.we,
-		sa:    n.UState,
-		sr:    n.reader,
-		ta:    n.Timer,
-		tm:    n.timerManager,
-		extra: n.cache.extra,
+		// opt: &MainInput{Key: FullValue{Elm: string(tmap.Key)}},
+		bf: n.bf,
+		we: n.we,
+		sa: n.UState,
+		sr: n.reader,
+		ta: n.Timer,
+		tm: n.timerManager,
 	})
 	if err != nil {
 		return nil, err

@@ -185,6 +185,7 @@ var doFnNames = []string{
 	processElementName,
 	finishBundleName,
 	teardownName,
+	onTimerName,
 	createInitialRestrictionName,
 	splitRestrictionName,
 	restrictionSizeName,
