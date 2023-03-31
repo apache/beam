@@ -20,10 +20,12 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/sizes.dart';
+import '../state.dart';
 
 class Footer extends StatelessWidget {
   const Footer();
@@ -44,13 +46,7 @@ class Footer extends StatelessWidget {
               const Text('ui.copyright').tr(),
             ],
           ),
-          // TODO(nausharipov): get version, https://github.com/apache/beam/issues/23038
-          Text(
-            '${'ui.builtWith'.tr()} (TODO: Version)',
-            style: const TextStyle(
-              color: BeamColors.grey3,
-            ),
-          ),
+          const _BeamVersion(),
         ],
       ),
     );
@@ -110,6 +106,44 @@ class _PrivacyPolicyButton extends StatelessWidget {
         unawaited(launchUrl(Uri.parse(BeamLinks.privacyPolicy)));
       },
       child: const Text('ui.privacyPolicy').tr(),
+    );
+  }
+}
+
+class _BeamVersion extends StatelessWidget {
+  const _BeamVersion();
+
+  Future<String?> _getBeamSdkVersion() async {
+    final sdk = GetIt.instance.get<AppNotifier>().sdk;
+    if (sdk == null) {
+      return null;
+    }
+    final runnerVersion = await GetIt.instance
+        .get<BuildMetadataController>()
+        .getRunnerVersion(sdk);
+    return runnerVersion.beamSdkVersion;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: GetIt.instance.get<AppNotifier>(),
+      builder: (context, child) => FutureBuilder<String?>(
+        // ignore: discarded_futures
+        future: _getBeamSdkVersion(),
+        builder: (context, snapshot) => snapshot.hasData
+            ? Text(
+                'ui.builtWith'.tr(
+                  namedArgs: {
+                    'beamSdkVersion': snapshot.data!,
+                  },
+                ),
+                style: const TextStyle(
+                  color: BeamColors.grey3,
+                ),
+              )
+            : Container(),
+      ),
     );
   }
 }

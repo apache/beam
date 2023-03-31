@@ -17,7 +17,7 @@
 
 ui:
   about: About Tour of Beam
-  builtWith: Built with Apache Beam
+  builtWith: Built with Apache Beam {beamSdkVersion}
   cancel: Cancel
   continueGitHub: Continue with GitHub
   continueGoogle: Continue with Google

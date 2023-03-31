@@ -105,6 +105,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     await _unitProgressCache.loadUnitProgress(currentSdk);
     // The local changes are preserved if the user signs in.
     if (_snippetType != SnippetType.saved || !isAuthenticated) {
+      _trySetSnippetType(SnippetType.saved);
       await _loadSnippetByType();
     }
     notifyListeners();
@@ -285,29 +286,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   // Playground controller.
 
   static PlaygroundController _createPlaygroundController(String initialSdkId) {
-    final exampleRepository = ExampleRepository(
-      client: GrpcExampleClient(url: kApiClientURL),
-    );
-
-    final codeRepository = CodeRepository(
-      client: GrpcCodeClient(
-        url: kApiClientURL,
-        runnerUrlsById: {
-          Sdk.java.id: kApiJavaClientURL,
-          Sdk.go.id: kApiGoClientURL,
-          Sdk.python.id: kApiPythonClientURL,
-          Sdk.scio.id: kApiScioClientURL,
-        },
-      ),
-    );
-
-    final exampleCache = ExampleCache(
-      exampleRepository: exampleRepository,
-    );
-
     final playgroundController = PlaygroundController(
-      codeRepository: codeRepository,
-      exampleCache: exampleCache,
+      codeRepository: GetIt.instance.get<CodeRepository>(),
+      exampleCache: ExampleCache(
+        exampleRepository: GetIt.instance.get<ExampleRepository>(),
+      ),
       examplesLoader: ExamplesLoader(),
     );
 

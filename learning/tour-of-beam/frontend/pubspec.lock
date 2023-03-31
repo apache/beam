@@ -442,10 +442,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_code_editor
-      sha256: a220a7dcd197d793f46f2c2132551128bb41b1ccc08f7afb781223e1b5e400a1
+      sha256: "85d0d159ce4f33f3aabedea92c0bdc1ad05c6931bba80ac46660f90c7ab6255c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.12"
+    version: "0.2.14"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -764,11 +764,28 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
+  nm:
+    dependency: transitive
+    description:
+      name: nm
+      sha256: "2c9aae4127bdc8993206464fcc063611e0e36e72018696cd9631023a31b24254"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.0"
+  node_preamble:
+    dependency: transitive
+    description:
+      name: node_preamble
+      sha256: "6e7eac89047ab8a8d26cf16127b5ed26de65209847630400f9aefd7cd5c730db"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.2"
   os_detect:
     dependency: transitive
     description:
       name: os_detect
-      url: "https://pub.dartlang.org"
+      sha256: faf3bcf39515e64da8ff76b2f2805b20a6ff47ae515393e535f8579ff91d6b7f
+      url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
   package_config:
@@ -1195,10 +1212,10 @@ packages:
     dependency: "direct main"
     description:
       name: url_launcher
-      sha256: e8f2efc804810c0f2f5b485f49e7942179f56eabcfe81dce3387fec4bb55876b
+      sha256: "75f2846facd11168d007529d6cd8fcb2b750186bea046af9711f10b907e1587e"
       url: "https://pub.dev"
     source: hosted
-    version: "6.1.9"
+    version: "6.1.10"
   url_launcher_android:
     dependency: transitive
     description:
@@ -1295,6 +1312,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
+  visibility_detector:
+    dependency: transitive
+    description:
+      name: visibility_detector
+      sha256: "15c54a459ec2c17b4705450483f3d5a2858e733aee893dcee9d75fd04814940d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.3"
   vm_service:
     dependency: transitive
     description:

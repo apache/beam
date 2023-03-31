@@ -19,6 +19,7 @@
 import 'dart:async';
 
 import '../../cache/example_cache.dart';
+import '../../exceptions/multiple_exceptions.dart';
 import '../../models/example.dart';
 import '../../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../../models/sdk.dart';
@@ -50,19 +51,39 @@ class StandardExampleLoader extends ExampleLoader {
 
   Future<void> _load() async {
     try {
-      final example = await exampleCache.getPrecompiledObject(
+      final exampleBase = await exampleCache.getPrecompiledObject(
         descriptor.path,
         descriptor.sdk,
       );
 
       _completer.complete(
-        exampleCache.loadExampleInfo(example),
+        await exampleCache.loadExampleInfo(exampleBase),
       );
+    } on Exception catch (ex, trace) {
+      await _tryLoadSharedExample(
+        previousExceptions: [ex],
+        previousStackTraces: [trace],
+      );
+    }
+  }
 
-      // ignore: avoid_catches_without_on_clauses
-    } catch (ex, trace) {
-      _completer.completeError(ex, trace);
-      return;
+  Future<void> _tryLoadSharedExample({
+    required List<Exception> previousExceptions,
+    required List<StackTrace> previousStackTraces,
+  }) async {
+    try {
+      final example = await exampleCache.loadSharedExample(
+        descriptor.path,
+        viewOptions: descriptor.viewOptions,
+      );
+      _completer.complete(example);
+    } on Exception catch (ex, trace) {
+      _completer.completeError(
+        MultipleExceptions(
+          exceptions: [...previousExceptions, ex],
+          stackTraces: [...previousStackTraces, trace],
+        ),
+      );
     }
   }
 }
