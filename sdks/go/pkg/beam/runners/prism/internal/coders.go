@@ -84,7 +84,7 @@ func makeWindowCoders(wc *pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder)
 	case urns.CoderIntervalWindow:
 		cwc = coder.NewIntervalWindow()
 	default:
-		slog.Log(slog.LevelError, "makeWindowCoders: unknown urn", slog.String("urn", wc.GetSpec().GetUrn()))
+		slog.LogAttrs(nil, slog.LevelError, "makeWindowCoders: unknown urn", slog.String("urn", wc.GetSpec().GetUrn()))
 		panic(fmt.Sprintf("makeWindowCoders, unknown urn: %v", prototext.Format(wc)))
 	}
 	return exec.MakeWindowDecoder(cwc), exec.MakeWindowEncoder(cwc)
