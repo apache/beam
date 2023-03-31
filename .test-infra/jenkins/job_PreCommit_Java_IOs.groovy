@@ -67,11 +67,8 @@ def ioModulesMap = [
     'amazon-web-services2',
     'azure',
     'hadoop-file-system',
-    'jdbc',
-    'kafka',
     'kinesis',
     'mongodb',
-    'parquet',
     'pulsar',
   ],
 
@@ -88,10 +85,13 @@ def ioModulesMap = [
     'hbase',
     'hcatalog',
     'influxdb',
+    'jdbc',
     'jms',
+    'kafka',
     'kudu',
     'mqtt',
     'neo4j',
+    'parquet',
     'rabbitmq',
     'redis',
     'singlestore',
@@ -238,6 +238,7 @@ ioModulesMap.forEach {cases, ioModules ->
         }
         jacocoCodeCoverage {
           execPattern('**/build/jacoco/*.exec')
+          exclusionPattern('**/AutoValue_*')
           inclusionPattern("**/sdks/java/io/$it/**")
         }
       }
