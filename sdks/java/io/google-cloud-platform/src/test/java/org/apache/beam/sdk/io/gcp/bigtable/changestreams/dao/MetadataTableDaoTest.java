@@ -36,6 +36,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
@@ -295,5 +296,45 @@ public class MetadataTableDaoTest {
             metadataTableDao.convertPartitionToStreamPartitionRowKey(partition));
     assertEquals(token.getToken(), MetadataTableEncoder.getTokenFromRow(row));
     assertEquals(watermark, MetadataTableEncoder.parseWatermarkFromRow(row));
+  }
+
+  @Test
+  public void readAndWriteValidMissingPartitionsDuration() {
+    HashMap<ByteStringRange, Long> missingPartitionsDuration = new HashMap<>();
+    missingPartitionsDuration.put(ByteStringRange.create("A", "B"), 100L);
+    metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionsDuration);
+    HashMap<ByteStringRange, Long> actualMissingPartitionsDuration =
+        metadataTableDao.readDetectNewPartitionMissingPartitions();
+    assertEquals(missingPartitionsDuration, actualMissingPartitionsDuration);
+  }
+
+  @Test
+  public void readAndWriteInvalidMissingPartitionsDuration() {
+    HashMap<ByteStringRange, Long> missingPartitionsDuration = new HashMap<>();
+
+    RowMutation rowMutation =
+        RowMutation.create(
+                metadataTableAdminDao.getTableId(),
+                metadataTableAdminDao
+                    .getChangeStreamNamePrefix()
+                    .concat(MetadataTableAdminDao.DETECT_NEW_PARTITION_SUFFIX))
+            .setCell(
+                MetadataTableAdminDao.CF_MISSING_PARTITIONS,
+                ByteString.copyFromUtf8(MetadataTableAdminDao.QUALIFIER_DEFAULT),
+                ByteString.copyFromUtf8("Invalid serialization"));
+    dataClient.mutateRow(rowMutation);
+
+    // We should still be able to read the invalid serialization and return an empty map.
+    HashMap<ByteStringRange, Long> actualMissingPartitionsDuration =
+        metadataTableDao.readDetectNewPartitionMissingPartitions();
+    assertEquals(missingPartitionsDuration, actualMissingPartitionsDuration);
+  }
+
+  @Test
+  public void readMissingPartitionsWithoutDNPRow() {
+    HashMap<ByteStringRange, Long> missingPartitionsDuration = new HashMap<>();
+    HashMap<ByteStringRange, Long> actualMissingPartitionsDuration =
+        metadataTableDao.readDetectNewPartitionMissingPartitions();
+    assertEquals(missingPartitionsDuration, actualMissingPartitionsDuration);
   }
 }

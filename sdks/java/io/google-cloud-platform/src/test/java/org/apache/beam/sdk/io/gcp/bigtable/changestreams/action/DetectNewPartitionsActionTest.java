@@ -32,11 +32,11 @@ import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
-import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
@@ -45,7 +45,6 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminD
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -149,15 +148,15 @@ public class DetectNewPartitionsActionTest {
     assertEquals(startTime, watermarkEstimator.currentWatermark());
 
     // Write 2 partitions to the table that covers entire keyspace.
-    Range.ByteStringRange partition1 = Range.ByteStringRange.create("", "b");
+    ByteStringRange partition1 = ByteStringRange.create("", "b");
     Instant watermark1 = partitionTime.plus(Duration.millis(100));
     metadataTableDao.updateWatermark(partition1, watermark1, null);
-    Range.ByteStringRange partition2 = Range.ByteStringRange.create("b", "");
+    ByteStringRange partition2 = ByteStringRange.create("b", "");
     Instant watermark2 = partitionTime.plus(Duration.millis(1));
     metadataTableDao.updateWatermark(partition2, watermark2, null);
 
     assertEquals(
-        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
         action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
 
     // Because the 2 partitions cover the entire keyspace, the watermark should have advanced.
@@ -179,15 +178,15 @@ public class DetectNewPartitionsActionTest {
     assertEquals(startTime, watermarkEstimator.currentWatermark());
 
     // Write 2 partitions to the table that DO NOT cover the entire keyspace.
-    Range.ByteStringRange partition1 = Range.ByteStringRange.create("", "b");
+    ByteStringRange partition1 = ByteStringRange.create("", "b");
     Instant watermark1 = partitionTime.plus(Duration.millis(100));
     metadataTableDao.updateWatermark(partition1, watermark1, null);
-    Range.ByteStringRange partition2 = Range.ByteStringRange.create("b", "c");
+    ByteStringRange partition2 = ByteStringRange.create("b", "c");
     Instant watermark2 = partitionTime.plus(Duration.millis(1));
     metadataTableDao.updateWatermark(partition2, watermark2, null);
 
     assertEquals(
-        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
         action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
 
     // Because the 2 partitions DO NOT cover the entire keyspace, watermark stays at startTime.
@@ -227,7 +226,7 @@ public class DetectNewPartitionsActionTest {
         watermark);
 
     assertEquals(
-        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
         action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
 
     // Check what parameters were passed to OutputReceiver to verify the new partitions created by
@@ -277,7 +276,7 @@ public class DetectNewPartitionsActionTest {
     metadataTableDao.writeNewPartition(childPartition, token2, parentPartition2, watermark2);
 
     assertEquals(
-        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
         action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
     // The partition is outputted with watermark1 because that is the lowest of the 2 forming the
     // parent low watermark.
@@ -310,7 +309,7 @@ public class DetectNewPartitionsActionTest {
     metadataTableDao.writeNewPartition(childPartition, token1, parentPartition1, watermark1);
 
     assertEquals(
-        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
         action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
     // The partition is outputted with watermark1 because that is the lowest of the 2 forming the
     // parent low watermark.
@@ -324,7 +323,7 @@ public class DetectNewPartitionsActionTest {
     metadataTableDao.writeNewPartition(childPartition, token2, parentPartition2, watermark2);
 
     assertEquals(
-        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
         action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
     // The partition is outputted with watermark1 because that is the lowest of the 2 forming the
     // parent low watermark.
@@ -336,5 +335,66 @@ public class DetectNewPartitionsActionTest {
     assertThat(
         partitionRecordArgumentCaptor.getValue().getChangeStreamContinuationTokens(),
         Matchers.containsInAnyOrder(token1, token2));
+  }
+
+  @Test
+  public void testMissingPartitionReconciled() throws Exception {
+    // We advance watermark on every 10 restriction tracker advancement
+    OffsetRange offsetRange = new OffsetRange(10, Long.MAX_VALUE);
+    when(tracker.currentRestriction()).thenReturn(offsetRange);
+    when(tracker.tryClaim(offsetRange.getFrom())).thenReturn(true);
+
+    // Write 2 partitions to the table, missing [a, b)
+    ByteStringRange partition1 = ByteStringRange.create("", "a");
+    Instant watermark1 = partitionTime.plus(Duration.millis(100));
+    metadataTableDao.updateWatermark(partition1, watermark1, null);
+    ByteStringRange partition2 = ByteStringRange.create("b", "");
+    Instant watermark2 = partitionTime.plus(Duration.millis(1));
+    metadataTableDao.updateWatermark(partition2, watermark2, null);
+
+    HashMap<ByteStringRange, Long> missingPartitionDurations = new HashMap<>();
+    ByteStringRange partitionAB = ByteStringRange.create("a", "b");
+    // Partition missing for 5 minutes less 1 seconds.
+    missingPartitionDurations.put(partitionAB, Instant.now().getMillis() - (5 * 60 - 1) * 1000L);
+    metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
+
+    // No new partitions and missing partition has not been missing for long enough.
+    assertEquals(
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
+    verify(receiver, never()).outputWithTimestamp(any(), any());
+
+    // Sleep for 1 second, enough that the missing partition needs to be reconciled.
+    Thread.sleep(1000);
+
+    // We advance the restriction tracker by 1. Because it is not a multiple of 10, we don't
+    // evaluate missing partitions, which means we don't perform reconciliation.
+    offsetRange = new OffsetRange(11, Long.MAX_VALUE);
+    when(tracker.currentRestriction()).thenReturn(offsetRange);
+    when(tracker.tryClaim(offsetRange.getFrom())).thenReturn(true);
+
+    assertEquals(
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
+    verify(receiver, never()).outputWithTimestamp(any(), any());
+
+    // Multiple of 10, reconciliation should happen.
+    offsetRange = new OffsetRange(20, Long.MAX_VALUE);
+    when(tracker.currentRestriction()).thenReturn(offsetRange);
+    when(tracker.tryClaim(offsetRange.getFrom())).thenReturn(true);
+
+    assertEquals(
+        ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1)),
+        action.run(tracker, receiver, watermarkEstimator, bundleFinalizer, startTime));
+    verify(receiver, times(1))
+        .outputWithTimestamp(partitionRecordArgumentCaptor.capture(), eq(Instant.EPOCH));
+    assertEquals(partitionAB, partitionRecordArgumentCaptor.getValue().getPartition());
+    assertEquals(
+        watermarkEstimator.currentWatermark(),
+        partitionRecordArgumentCaptor.getValue().getParentLowWatermark());
+    assertNotNull(partitionRecordArgumentCaptor.getValue().getStartTime());
+    assertEquals(
+        watermarkEstimator.currentWatermark(),
+        partitionRecordArgumentCaptor.getValue().getStartTime());
   }
 }
