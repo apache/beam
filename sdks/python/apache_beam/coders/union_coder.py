@@ -44,11 +44,12 @@ class UnionCoder(coders.FastCoder):
     """
       Encodes the given Union value into bytes.
       """
-    for v_type, (tag, coder) in self._coders.items():
-      if isinstance(value, v_type):
-        return str(tag).encode("utf-8") + coder.encode(value)
-    raise ValueError(
-        "Unknown type {} for UnionCoder with {}".format(type(value), value))
+    coder = self._coders.get(type(value), None)
+    if coder is None:
+      raise ValueError(
+          "Unknown type {} for UnionCoder with {}".format(type(value), value))
+
+    return str(coder[0]).encode("utf-8") + coder[1].encode(value)
 
   def decode(self, encoded: bytes):
     """
