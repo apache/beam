@@ -84,4 +84,4 @@ It is important to note that in order to interact with **GCS** you will need to 
 
 ### Playground exercise
 
-You can write PCollection to a file. Use DoFn to generate numbers and write them down by filtering.
+In the playground window, you can find an example that writes data to **GCS**. Can you modify this example to generate numbers and write them to **GCS** sorted?

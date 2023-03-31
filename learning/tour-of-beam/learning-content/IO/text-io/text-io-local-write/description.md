@@ -85,4 +85,4 @@ It is important to note that the `Read` and `Write` methods only read and write 
 
 ### Playground exercise
 
-You can write `PCollection` to a file. Use `DoFn` to generate numbers and write them down by filtering.
+In the playground window, you can find an example that writes data to local file. Can you modify this example to generate numbers and write them to local file sorted?

@@ -13,7 +13,7 @@ limitations under the License.
 -->
 ### Writing to Kafka using KafkaIO
 
-When writing data processing pipelines using Apache Beam, developers can use the `WriteToKafka` transform to write data to Kafka topics. This transform takes a PCollection of data as input and writes the data to a specified Kafka topic using a Kafka producer.
+When writing data processing pipelines using Apache Beam, developers can use the `WriteToKafka` transform to write data to Kafka topics. This transform takes a `PCollection` of data as input and writes the data to a specified Kafka topic using a Kafka producer.
 
 To use the `WriteToKafka` transform, developers need to provide the following parameters:
 
@@ -24,6 +24,8 @@ To use the `WriteToKafka` transform, developers need to provide the following pa
 * **value**: a function that takes an element from the input PCollection and returns the value to use for the Kafka message.
 
 When writing data to Kafka using Apache Beam, it is important to ensure that the pipeline is fault-tolerant and can handle failures, such as network errors, broker failures, or message serialization errors. Apache Beam provides features such as checkpointing, retries, and dead-letter queues to help developers build robust and reliable data processing pipelines that can handle these types of failures.
+
+For detailed [information](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/io/kafka/KafkaIO.html)
 {{if (eq .Sdk "go")}}
 ```
 data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
