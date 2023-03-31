@@ -31,10 +31,9 @@ import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
-  PlaygroundController? playgroundController;
+  final PlaygroundController? playgroundController;
 
-  TobScaffold({
-    super.key,
+  const TobScaffold({
     required this.child,
     this.playgroundController,
   });
@@ -46,11 +45,12 @@ class TobScaffold extends StatelessWidget {
         automaticallyImplyLeading: false,
         title: const Logo(),
         actions: [
-          _ActionVerticalPadding(
-            child: PipelineOptionsButton(
-              controller: playgroundController,
+          if (playgroundController != null)
+            _ActionVerticalPadding(
+              child: PipelineOptionsButton(
+                controller: playgroundController!,
+              ),
             ),
-          ),
           const SizedBox(width: BeamSizes.size12),
           const _ActionVerticalPadding(child: _SdkSelector()),
           const SizedBox(width: BeamSizes.size12),
