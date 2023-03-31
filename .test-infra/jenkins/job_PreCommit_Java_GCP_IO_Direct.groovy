@@ -28,7 +28,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
-      '-PdisableCheckStyle=true'
+      '-PdisableCheckStyle=true',
+      '-PenableJacocoReport'
     ], // spotless checked in separate pre-commit
     timeoutMins: 120,
     triggerPathPatterns: [
@@ -59,6 +60,7 @@ builder.build {
     }
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
+      exclusionPattern('**/AutoValue_*')
       inclusionPattern("**/sdks/java/io/google-cloud-platform/**")
     }
   }

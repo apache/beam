@@ -68,7 +68,6 @@ def ioModulesMap = [
     'azure',
     'hadoop-file-system',
     'kinesis',
-    'mongodb',
     'pulsar',
   ],
 
@@ -89,6 +88,7 @@ def ioModulesMap = [
     'jms',
     'kafka',
     'kudu',
+    'mongodb',
     'mqtt',
     'neo4j',
     'parquet',
@@ -217,7 +217,8 @@ ioModulesMap.forEach {cases, ioModules ->
         gradleTasks: tasks,
         gradleSwitches: [
           '-PdisableSpotlessCheck=true',
-          '-PdisableCheckStyle=true'
+          '-PdisableCheckStyle=true',
+          '-PenableJacocoReport'
         ], // spotless checked in separate pre-commit
         triggerPathPatterns: triggerPaths,
         defaultPathTriggering: hasDefaultTrigger,

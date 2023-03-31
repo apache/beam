@@ -126,3 +126,12 @@ dependencies {
 project.tasks.compileTestJava {
   options.compilerArgs += ['-Xlint:-rawtypes'] // generated avro uses rawtypes without suppression
 }
+
+tasks.register("debugTask") {
+  gradle.taskGraph.whenReady { graph ->
+    logger.warn("$graph")
+    graph.allTasks.each {
+      logger.warn("it: ${it.project.class}, it.name: ${it.name}")
+    }
+  }
+}
