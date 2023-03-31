@@ -15,24 +15,37 @@
 # limitations under the License.
 #
 
-import argparse
-import logging
-import time
+"""A streaming pipeline that uses RunInference API and windowing that classifies
+the quality of milk as good, bad or medium based on based pH, temperature,
+taste, odor, fat, turbidity and Color.Each minute a new measurements come in and
+a sliding window aggregates the number of good, bad and medium samples.
+
+This example uses the milk quality prediction dataset from kaggle.
+https://www.kaggle.com/datasets/cpluzshrijayan/milkquality
+
+
+In order to set this example up, you will need two things.
+1. Download the data in csv format from kaggle and host it.
+2. Split the dataset in a training set and test set (preprocess_data function).
+3. Train the classifier.
+"""
+
 from typing import NamedTuple
 
 import pandas
-import xgboost
-
 from sklearn.model_selection import train_test_split
 
 import apache_beam as beam
+import xgboost
+
+from apache_beam import window
 from apache_beam.ml.inference import RunInference
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerPandas
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.testing.test_stream import TestStream
-from apache_beam import window
 
 
 def parse_known_args(argv):
