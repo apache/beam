@@ -17,6 +17,7 @@
  */
 
 evaluationDependsOn(':runners:google-cloud-dataflow-java:worker')
+evaluationDependsOn(':sdks:python:test-suites:xlang')
 enablePythonPerformanceTest()
 
 String pythonVersionSuffix = project.ext.pythonVersion
@@ -406,4 +407,27 @@ project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'tensorRTtests',
   ]
+}
+
+
+// Create cross-language tasks for running tests against Java expansion service(s)
+def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+
+project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
+    createCrossLanguageUsingJavaExpansionTask(
+      name: taskMetadata.name,
+      expansionProjectPath: taskMetadata.expansionProjectPath,
+      collectMarker: taskMetadata.collectMarker,
+      startJobServer: taskMetadata.startJobServer,
+      cleanupJobServer: taskMetadata.cleanupJobServer,
+      needsSdkLocation: true,
+      pythonPipelineOptions: [
+        "--runner=TestDataflowRunner",
+        "--project=${dataflowProject}",
+        "--region=${dataflowRegion}",
+        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest",
+      ],
+      pytestOptions: basicPytestOpts
+    )
 }

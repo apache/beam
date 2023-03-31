@@ -109,6 +109,11 @@ class PlaygroundServiceStub(object):
                 request_serializer=api_dot_v1_dot_api__pb2.GetSnippetRequest.SerializeToString,
                 response_deserializer=api_dot_v1_dot_api__pb2.GetSnippetResponse.FromString,
                 )
+        self.GetMetadata = channel.unary_unary(
+                '/api.v1.PlaygroundService/GetMetadata',
+                request_serializer=api_dot_v1_dot_api__pb2.GetMetadataRequest.SerializeToString,
+                response_deserializer=api_dot_v1_dot_api__pb2.GetMetadataResponse.FromString,
+                )
 
 
 class PlaygroundServiceServicer(object):
@@ -247,6 +252,13 @@ class PlaygroundServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetMetadata(self, request, context):
+        """Get the runner metadata.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_PlaygroundServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -344,6 +356,11 @@ def add_PlaygroundServiceServicer_to_server(servicer, server):
                     servicer.GetSnippet,
                     request_deserializer=api_dot_v1_dot_api__pb2.GetSnippetRequest.FromString,
                     response_serializer=api_dot_v1_dot_api__pb2.GetSnippetResponse.SerializeToString,
+            ),
+            'GetMetadata': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetMetadata,
+                    request_deserializer=api_dot_v1_dot_api__pb2.GetMetadataRequest.FromString,
+                    response_serializer=api_dot_v1_dot_api__pb2.GetMetadataResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -675,5 +692,22 @@ class PlaygroundService(object):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetSnippet',
             api_dot_v1_dot_api__pb2.GetSnippetRequest.SerializeToString,
             api_dot_v1_dot_api__pb2.GetSnippetResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetMetadata(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetMetadata',
+            api_dot_v1_dot_api__pb2.GetMetadataRequest.SerializeToString,
+            api_dot_v1_dot_api__pb2.GetMetadataResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

@@ -129,6 +129,11 @@ class Tag(BaseModel):
           source_dataset: CountWords
     """
 
+    always_run: bool = False
+    """
+    The example output will not be cached and playground will always run its code when user clicks 'Run' if this is set to 'True'
+    """
+    
     multifile: bool = False
     """
     Whether this is a file of a multi-file example.

@@ -41,6 +41,7 @@ To update mocks for tests, run:
 $ go generate -x ./...
 ```
 
+> Note: [`moq`](https://github.com/matryer/moq) tool to be installed
 
 ### Datastore schema
 
