@@ -33,12 +33,10 @@ interface for streaming integration with CDAP plugins."""
 
 configurations.all {
     exclude group: 'ch.qos.logback', module: 'logback-classic'
-    exclude group: 'org.slf4j', module: 'slf4j-simple'
-//    exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+    exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'org.slf4j', module: 'slf4j-log4j12'
     exclude group: 'org.slf4j', module: 'slf4j-reload4j'
     exclude group: "org.slf4j", module: "jul-to-slf4j"
-    exclude group: "org.slf4j", module: "log4j-over-slf4j"
 }
 
 dependencies {
@@ -50,7 +48,6 @@ dependencies {
     implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     compileOnly "org.scala-lang:scala-library:2.11.12"
-//    runtimeOnly library.java.slf4j_jdk14
     testImplementation library.java.junit
     testImplementation library.java.testcontainers_rabbitmq
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")

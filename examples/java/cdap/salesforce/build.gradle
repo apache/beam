@@ -70,16 +70,16 @@ dependencies {
     implementation library.java.hadoop_common
     implementation library.java.slf4j_api
     implementation library.java.vendored_guava_26_0_jre
-//    runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
     // Add dependencies for the PreCommit configurations
     // For each runner a project level dependency on the examples project.
-//    for (String runner : preCommitRunners) {
-//        delegate.add(runner + "PreCommit", project(":examples:java:cdap:salesforce"))
-//        delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap:salesforce", configuration: "testRuntimeMigration"))
-//    }
-//    directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
-//    flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
+    for (String runner : preCommitRunners) {
+        delegate.add(runner + "PreCommit", project(":examples:java:cdap:salesforce"))
+        delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap:salesforce", configuration: "testRuntimeMigration"))
+    }
+    directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
+    flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
 }
 
 /*
@@ -91,24 +91,24 @@ def preCommitRunnerClass = [
         flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner"
 ]
 
-//for (String runner : preCommitRunners) {
-//    tasks.create(name: runner + "PreCommit", type: Test) {
-//        def preCommitBeamTestPipelineOptions = [
-//                "--runner=" + preCommitRunnerClass[runner],
-//        ]
-//        classpath = configurations."${runner}PreCommit"
-//        forkEvery 1
-//        maxParallelForks 4
-//        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
-//    }
-//}
+for (String runner : preCommitRunners) {
+    tasks.create(name: runner + "PreCommit", type: Test) {
+        def preCommitBeamTestPipelineOptions = [
+                "--runner=" + preCommitRunnerClass[runner],
+        ]
+        classpath = configurations."${runner}PreCommit"
+        forkEvery 1
+        maxParallelForks 4
+        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+    }
+}
 
 /* Define a common precommit task which depends on all the individual precommits. */
-//task preCommit() {
-//    for (String runner : preCommitRunners) {
-//        dependsOn runner + "PreCommit"
-//    }
-//}
+task preCommit() {
+    for (String runner : preCommitRunners) {
+        dependsOn runner + "PreCommit"
+    }
+}
 
 task executeCdapSalesforce (type:JavaExec) {
     mainClass = System.getProperty("mainClass")

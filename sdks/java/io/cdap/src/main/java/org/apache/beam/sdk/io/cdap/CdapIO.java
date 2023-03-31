@@ -298,7 +298,6 @@ public class CdapIO {
     }
 
     @Override
-    @SuppressWarnings({"nullness", "unchecked"})
     public PCollection<KV<K, V>> expand(PBegin input) {
       Plugin<K, V> cdapPlugin = getCdapPlugin();
       checkStateNotNull(cdapPlugin, "withCdapPluginClass() is required");
@@ -335,13 +334,7 @@ public class CdapIO {
         try {
           Coder<V> coder = input.getPipeline().getCoderRegistry().getCoder(valueClass);
           PCollection<V> values = input.apply(reader).setCoder(coder);
-          SerializableFunction<V, KV<K, V>> fn = input1 -> {
-            if (String.class.equals(keyClass)) {
-              return KV.of((K) "1", input1);
-            } else {
-              return KV.of(null, input1);
-            }
-          };
+          SerializableFunction<V, KV<K, V>> fn = input1 -> KV.of(null, input1);
           return values.apply(MapElements.into(new TypeDescriptor<KV<K, V>>() {}).via(fn));
         } catch (CannotProvideCoderException e) {
           throw new IllegalStateException("Could not get value Coder", e);
