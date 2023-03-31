@@ -564,7 +564,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/gcp/spanner/changestreams/it/*.class'
   // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
   exclude '**/FirestoreV1IT.class'
-  
+
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
