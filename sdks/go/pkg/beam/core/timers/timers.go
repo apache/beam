@@ -18,6 +18,7 @@ package timers
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
@@ -56,9 +57,9 @@ func WithTag(tag string) timerOptions {
 }
 
 // WithOutputTimestamp sets the output timestamp for the timer.
-func WithOutputTimestamp(outputTimestamp mtime.Time) timerOptions {
+func WithOutputTimestamp(outputTimestamp time.Time) timerOptions {
 	return func(tm *timerConfig) {
-		tm.HoldTimestamp = outputTimestamp
+		tm.HoldTimestamp = mtime.FromTime(outputTimestamp)
 	}
 }
 
@@ -71,14 +72,22 @@ type EventTime struct {
 	Family string
 }
 
+func (et EventTime) TimerFamily() string {
+	return et.Family
+}
+
+func (et EventTime) TimerDomain() TimeDomainEnum {
+	return TimeDomainEventTime
+}
+
 // Set sets the timer for a event-time timestamp. Calling this method repeatedly for the same key
 // will cause it overwrite previously set timer.
-func (et *EventTime) Set(p Provider, FiringTimestamp mtime.Time, opts ...timerOptions) {
+func (et *EventTime) Set(p Provider, FiringTimestamp time.Time, opts ...timerOptions) {
 	tc := timerConfig{}
 	for _, opt := range opts {
 		opt(&tc)
 	}
-	tm := TimerMap{Family: et.Family, Tag: tc.Tag, FireTimestamp: FiringTimestamp, HoldTimestamp: FiringTimestamp}
+	tm := TimerMap{Family: et.Family, Tag: tc.Tag, FireTimestamp: mtime.FromTime(FiringTimestamp), HoldTimestamp: mtime.FromTime(FiringTimestamp)}
 	if !tc.HoldTimestamp.ToTime().IsZero() {
 		tm.HoldTimestamp = tc.HoldTimestamp
 	}
@@ -95,14 +104,22 @@ type ProcessingTime struct {
 	Family string
 }
 
+func (pt ProcessingTime) TimerFamily() string {
+	return pt.Family
+}
+
+func (pt ProcessingTime) TimerDomain() TimeDomainEnum {
+	return TimeDomainProcessingTime
+}
+
 // Set sets the timer for processing time domain. Calling this method repeatedly for the same key
 // will cause it overwrite previously set timer.
-func (pt *ProcessingTime) Set(p Provider, FiringTimestamp mtime.Time, opts ...timerOptions) {
+func (pt *ProcessingTime) Set(p Provider, FiringTimestamp time.Time, opts ...timerOptions) {
 	tc := timerConfig{}
 	for _, opt := range opts {
 		opt(&tc)
 	}
-	tm := TimerMap{Family: pt.Family, Tag: tc.Tag, FireTimestamp: FiringTimestamp, HoldTimestamp: FiringTimestamp}
+	tm := TimerMap{Family: pt.Family, Tag: tc.Tag, FireTimestamp: mtime.FromTime(FiringTimestamp), HoldTimestamp: mtime.FromTime(FiringTimestamp)}
 	if !tc.HoldTimestamp.ToTime().IsZero() {
 		tm.HoldTimestamp = tc.HoldTimestamp
 	}

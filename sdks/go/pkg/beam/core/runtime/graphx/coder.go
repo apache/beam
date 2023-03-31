@@ -73,7 +73,7 @@ func knownStandardCoders() []string {
 		urnIntervalWindow,
 		urnRowCoder,
 		urnNullableCoder,
-		// TODO(https://github.com/apache/beam/issues/20510): Add urnTimerCoder once finalized.
+		urnTimerCoder,
 	}
 }
 

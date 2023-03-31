@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -29,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 )
 
@@ -48,8 +50,10 @@ type ParDo struct {
 	bf       *bundleFinalizer
 	we       sdf.WatermarkEstimator
 
-	reader StateReader
-	cache  *cacheElm
+	Timer        UserTimerAdapter
+	timerManager DataManager
+	reader       StateReader
+	cache        *cacheElm
 
 	status Status
 	err    errorx.GuardedError
@@ -74,6 +78,11 @@ func (n *ParDo) ID() UnitID {
 	return n.UID
 }
 
+// HasOnTimer returns if this ParDo wraps a DoFn that has an OnTimer method.
+func (n *ParDo) HasOnTimer() bool {
+	return n.Timer != nil
+}
+
 // Up initializes this ParDo and does one-time DoFn setup.
 func (n *ParDo) Up(ctx context.Context) error {
 	if n.status != Initializing {
@@ -88,7 +97,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
-	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil, nil, nil, nil); err != nil {
+	if _, err := InvokeWithOptsWithoutEventTime(setupCtx, n.Fn.SetupFn(), InvokeOpts{}); err != nil {
 		return n.fail(err)
 	}
 
@@ -111,6 +120,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	}
 	n.status = Active
 	n.reader = data.State
+	n.timerManager = data.Data
 	// Allocating contexts all the time is expensive, but we seldom re-write them,
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.
@@ -236,6 +246,7 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	}
 	n.reader = nil
 	n.cache = nil
+	n.timerManager = nil
 
 	if err := MultiFinishBundle(n.ctx, n.Out...); err != nil {
 		return n.fail(err)
@@ -251,8 +262,9 @@ func (n *ParDo) Down(ctx context.Context) error {
 	n.status = Down
 	n.reader = nil
 	n.cache = nil
+	n.timerManager = nil
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil, nil, nil); err != nil {
+	if _, err := InvokeWithOptsWithoutEventTime(ctx, n.Fn.TeardownFn(), InvokeOpts{}); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -345,6 +357,27 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	return val, nil
 }
 
+func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, tmap typex.TimerMap) (*FullValue, error) {
+	if fn == nil {
+		log.Infof(ctx, "timer function is not attached to pardo")
+		return nil, nil
+	}
+	log.Info(ctx, "InvokeTimerFn invoked")
+	val, err := InvokeWithOpts(ctx, fn, typex.NoFiringPane(), nil, mtime.FromTime(time.Now()), InvokeOpts{
+		bf:    n.bf,
+		we:    n.we,
+		sa:    n.UState,
+		sr:    n.reader,
+		ta:    n.Timer,
+		tm:    n.timerManager,
+		extra: n.cache.extra,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return val, err
+}
+
 // invokeProcessFn handles the per element invocations
 func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput) (val *FullValue, err error) {
 	// Defer side input clean-up in case of panic
@@ -356,7 +389,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.we, n.UState, n.reader, n.cache.extra...)
+	val, err = n.inv.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: n.bf, we: n.we, sa: n.UState, sr: n.reader, ta: n.Timer, tm: n.timerManager, extra: n.cache.extra})
 	if err != nil {
 		return nil, err
 	}

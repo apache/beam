@@ -116,6 +116,18 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 		}
 	}
 
+	wc := inWfn.Coder()
+	pipelineTimers := fn.PipelineTimers()
+	if len(pipelineTimers) > 0 {
+		// TODO(riteshghorse): replace the coder with type of key
+		c := coder.NewString()
+		edge.TimerCoders = make(map[string]*coder.Coder)
+		for _, pt := range pipelineTimers {
+			tc := coder.NewT(c, wc)
+			edge.TimerCoders[pt.TimerFamily()] = tc
+		}
+	}
+
 	var ret []PCollection
 	for _, out := range edge.Output {
 		c := PCollection{out.To}

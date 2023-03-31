@@ -332,7 +332,7 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 
 			switch item.Key.(string) {
 			case "userKey":
-				if want := item.Value.(string); want != tm.Key {
+				if want := item.Value.(string); want != string(tm.Key) {
 					pass = false
 				}
 			case "dynamicTimerTag":

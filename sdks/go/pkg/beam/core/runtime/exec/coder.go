@@ -1258,8 +1258,11 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.Writer) error {
 	var b bytes.Buffer
 
-	elm.Encode(&FullValue{Elm: tm.Key}, &b)
-
+	// elm.Encode(&FullValue{Elm: tm.Key}, &b)
+	_, err := b.Write(tm.Key)
+	if err != nil {
+		return errors.WithContext(err, "error encoding key")
+	}
 	if err := coder.EncodeStringUTF8(tm.Tag, &b); err != nil {
 		return errors.WithContext(err, "error encoding tag")
 	}
@@ -1291,12 +1294,18 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (typex.TimerMap, error) {
 	tm := typex.TimerMap{}
 
-	fv, err := dec.Decode(r)
-	if err != nil {
-		return tm, errors.WithContext(err, "error decoding timer key")
-	}
-	tm.Key = fv.Elm.(string)
+	// fv, err := dec.Decode(r)
+	// if err != nil {
+	// 	return tm, errors.WithContext(err, "error decoding timer key")
+	// }
+	// // TODO Change to not type assert once general timers key fix is done.
+	// tm.Key = fv.Elm.([]byte)
 
+	key, err := coder.DecodeBytes(r)
+	if err != nil {
+		return tm, errors.WithContext(err, "error decoding key")
+	}
+	tm.Key = key
 	s, err := coder.DecodeStringUTF8(r)
 	if err != nil && err != io.EOF {
 		return tm, errors.WithContext(err, "error decoding timer tag")
