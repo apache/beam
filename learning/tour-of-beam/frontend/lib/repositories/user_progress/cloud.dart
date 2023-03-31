@@ -72,4 +72,9 @@ class CloudUserProgressRepository extends AbstractUserProgressRepository {
       unitId: unitId,
     );
   }
+
+  @override
+  Future<void> deleteUserProgress() async {
+    await client.postDeleteUserProgress();
+  }
 }

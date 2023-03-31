@@ -18,9 +18,11 @@
 
 import 'dart:convert';
 
+import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../cache/sdk.dart';
 import '../../constants/hive_box_names.dart';
 import '../../enums/snippet_type.dart';
 import '../../models/unit_progress.dart';
@@ -118,6 +120,21 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
           ).toJson(),
         ),
       );
+    }
+  }
+
+  @override
+  Future<void> deleteUserProgress() async {
+    final sdks = GetIt.instance.get<SdkCache>().getSdks();
+    for (final sdk in sdks) {
+      final unitProgress = await Hive.openBox(
+        HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.unitProgress),
+      );
+      final snippetsBox = await Hive.openBox(
+        HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.snippets),
+      );
+      await unitProgress.clear();
+      await snippetsBox.clear();
     }
   }
 }

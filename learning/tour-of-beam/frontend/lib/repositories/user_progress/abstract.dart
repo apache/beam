@@ -42,4 +42,6 @@ abstract class AbstractUserProgressRepository {
     required Sdk sdk,
     required String unitId,
   });
+
+  Future<void> deleteUserProgress();
 }
