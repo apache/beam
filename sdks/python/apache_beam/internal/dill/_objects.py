@@ -1,4 +1,24 @@
-#!/usr/bin/env python
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This code is based on its counterpart in dill==0.3.1.1 distribution,
+# which was forked and incorporated in Apache Beam codebase.
+# The original source file is copyright and licensed as follows;
+
 #
 # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
 # Copyright (c) 2008-2016 California Institute of Technology.
@@ -300,9 +320,9 @@ if not IS_PYPY:
     a['WrapperDescriptorType2'] = type.__dict__['__module__']
     d['ClassMethodDescriptorType'] = type.__dict__['__prepare__' if PY3 else 'mro']
 # built-in functions (CH 2)
-if PY3 or IS_PYPY: 
+if PY3 or IS_PYPY:
     _methodwrap = (1).__lt__
-else: 
+else:
     _methodwrap = (1).__cmp__
 d['MethodWrapperType'] = _methodwrap
 a['StaticMethodType'] = staticmethod(_method)
@@ -310,9 +330,9 @@ a['ClassMethodType'] = classmethod(_method)
 a['PropertyType'] = property()
 d['SuperType'] = super(Exception, _exception)
 # string services (CH 7)
-if PY3: 
+if PY3:
     _in = _bytes
-else: 
+else:
     _in = _str
 a['InputType'] = _cstrI = StringIO(_in)
 a['OutputType'] = _cstrO = StringIO()

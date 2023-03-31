@@ -1,4 +1,23 @@
-#!/usr/bin/env python
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This code is based on its counterpart in dill==0.3.1.1 distribution,
+# which was forked and incorporated in Apache Beam codebase.
+# The original source file is copyright and licensed as follows;
 #
 # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
 # Copyright (c) 2008-2016 California Institute of Technology.
@@ -12,7 +31,7 @@
 """
 Extensions to python's 'inspect' module, which can be used
 to retrieve information from live python objects. The methods
-defined in this module are augmented to facilitate access to 
+defined in this module are augmented to facilitate access to
 source code of interactively defined functions and classes,
 as well as provide access to source code for objects defined
 in a file.
@@ -43,7 +62,7 @@ def isfrommain(obj):
 def isdynamic(obj):
     "check if object was built in the interpreter"
     try: file = getfile(obj)
-    except TypeError: file = None 
+    except TypeError: file = None
     if file == '<stdin>' and isfrommain(obj):
         return True
     return False
@@ -114,10 +133,10 @@ def findsource(object):
 
     module = getmodule(object)
     try: file = getfile(module)
-    except TypeError: file = None 
+    except TypeError: file = None
     # use readline when working in interpreter (i.e. __main__ and not file)
     if module and module.__name__ == '__main__' and not file:
-        try: 
+        try:
             import readline
             err = ''
         except:
@@ -132,7 +151,7 @@ def findsource(object):
     else:
         try: # special handling for class instances
             if not isclass(object) and isclass(type(object)): # __class__
-                file = getfile(module)        
+                file = getfile(module)
                 sourcefile = getsourcefile(module)
             else: # builtins fail with a TypeError
                 file = getfile(object)
@@ -461,7 +480,7 @@ def _isstring(object): #XXX: isstringlike better?
 
 def indent(code, spaces=4):
     '''indent a block of code with whitespace (default is 4 spaces)'''
-    indent = indentsize(code) 
+    indent = indentsize(code)
     if type(spaces) is int: spaces = ' '*spaces
     # if '\t' is provided, will indent with a tab
     nspaces = indentsize(spaces)
@@ -491,7 +510,7 @@ def indent(code, spaces=4):
 
 def _outdent(lines, spaces=None, all=True):
     '''outdent lines of code, accounting for docs and line continuations'''
-    indent = indentsize(lines[0]) 
+    indent = indentsize(lines[0])
     if spaces is None or spaces > indent or spaces < 0: spaces = indent
     for i in range(len(lines) if all else 1):
         #FIXME: works... but shouldn't outdent 2nd+ lines of multiline doc
@@ -503,7 +522,7 @@ def _outdent(lines, spaces=None, all=True):
 
 def outdent(code, spaces=None, all=True):
     '''outdent a block of code (default is to strip all leading whitespace)'''
-    indent = indentsize(code) 
+    indent = indentsize(code)
     if spaces is None or spaces > indent or spaces < 0: spaces = indent
     #XXX: will this delete '\n' in some cases?
     if not all: return code[spaces:]
@@ -581,7 +600,7 @@ def dumpsource(object, alias='', new=False, enclose=True):
     else:
         stub = alias
         pre = '%s = ' % stub if alias else alias
-    
+
     # if a 'new' instance is not needed, then just dump and load
     if not new or not _isinstance(object):
         code += pre + 'dill.loads(%s)\n' % pik
@@ -859,7 +878,7 @@ def _closuredimport(func, alias='', builtin=False):
                          re.match(pat, line)]
             if not candidate:
                 mod = getname(getmodule(fobj))
-                #HACK: get file containing 'inner' function; is func there? 
+                #HACK: get file containing 'inner' function; is func there?
                 lines,_ = findsource(fobj)
                 candidate = [line for line in lines \
                              if getname(fobj) in line and re.match(pat, line)]

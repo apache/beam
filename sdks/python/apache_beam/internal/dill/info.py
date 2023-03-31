@@ -1,3 +1,26 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This code is based on its counterpart in dill==0.3.1.1 distribution,
+# which was forked and incorporated in Apache Beam codebase.
+
+# The forked dill library is copyright and licensed as provided at the bottom
+# of this file.
+
+
 # THIS FILE GENERATED FROM SETUP.PY
 this_version = '0.3.1.1'
 stable_version = '0.3.1.1'
@@ -82,7 +105,7 @@ The latest released version of ``dill`` is available from:
     >>> print (dill.license())
 
 
-Development Version 
+Development Version
 ===================
 
 You can get the latest development version with all the shiny new features at:
@@ -105,7 +128,7 @@ download the tarball, unzip, and run the installer::
     $ python setup py install
 
 You will be warned of any missing dependencies and/or settings
-after you run the "build" step above. 
+after you run the "build" step above.
 
 Alternately, ``dill`` can be installed with ``pip`` or ``easy_install``::
 
