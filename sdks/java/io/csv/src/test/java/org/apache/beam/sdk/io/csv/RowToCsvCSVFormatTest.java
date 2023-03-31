@@ -166,7 +166,7 @@ public class RowToCsvCSVFormatTest {
   @Test
   public void withDelimiterDrivesCellBorders() {
     assertEquals(
-        "false~1~10~1.0~1.0~1~1~a~1",
+        "false~10~1.0~1.0~1~a~1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withDelimiter('~')));
@@ -203,7 +203,7 @@ public class RowToCsvCSVFormatTest {
   @Test
   public void withHeaderCommentsDoesNotEffectConversion() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
@@ -213,12 +213,12 @@ public class RowToCsvCSVFormatTest {
   @Test
   public void withIgnoreEmptyLinesDoesNotEffectOutput() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withIgnoreEmptyLines(true)));
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withIgnoreEmptyLines(false)));
@@ -261,7 +261,7 @@ public class RowToCsvCSVFormatTest {
   @Test
   public void withQuoteDrivesConversion() {
     assertEquals(
-        "@false@,1,10,1.0,1.0,1,1,@a@,1",
+        "@false@,10,1.0,1.0,1,@a@,1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
@@ -272,17 +272,17 @@ public class RowToCsvCSVFormatTest {
   @Test
   public void withQuoteModeDrivesCellBoundaries() {
     assertEquals(
-        "\"false\",\"1\",\"10\",\"1.0\",\"1.0\",\"1\",\"1\",\"a\",\"1\"",
+        "\"false\",\"10\",\"1.0\",\"1.0\",\"1\",\"a\",\"1\"",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withQuoteMode(QuoteMode.ALL)));
     assertEquals(
-        "\"false\",1,10,1.0,1.0,1,1,\"a\",1",
+        "\"false\",10,1.0,1.0,1,\"a\",1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withQuoteMode(QuoteMode.NON_NUMERIC)));
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withQuoteMode(QuoteMode.MINIMAL)));
@@ -299,7 +299,7 @@ public class RowToCsvCSVFormatTest {
             csvFormat(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
                 .withQuoteMode(QuoteMode.ALL_NON_NULL)));
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
@@ -319,7 +319,7 @@ public class RowToCsvCSVFormatTest {
   @Test
   public void withTrailingDelimiterAppendsToLineEnd() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1,",
+        "false,10,1.0,1.0,1,a,1,",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withTrailingDelimiter(true)));
@@ -328,11 +328,11 @@ public class RowToCsvCSVFormatTest {
   @Test
   public void withTrimRemovesCellPadding() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,\"       a           \",1",
+        "false,10,1.0,1.0,1,\"       a           \",1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRowWithPadding, csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)));
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         rowToCsv(
             DATA.allPrimitiveDataTypesRowWithPadding,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withTrim(true)));
