@@ -66,7 +66,7 @@ func TestGetScioRunCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getScioRunCmd(ctx, tt.args.paths, tt.args.pipelineOptions)
+			got, err := getScioExecutor(tt.args.paths).GetRunCmd(ctx, tt.args.pipelineOptions)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getScioRunCmd() expected error, got %v", got)
 			}
@@ -112,7 +112,7 @@ func TestGetScioRunTestCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getScioRunTestCmd(ctx, tt.args.paths)
+			got, err := getScioExecutor(tt.args.paths).GetRunTestCmd(ctx)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getScioRunTestCmd() expected error, got %v", got)
 			}

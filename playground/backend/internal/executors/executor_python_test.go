@@ -63,7 +63,7 @@ func TestGetPythonRunCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getPythonRunCmd(ctx, tt.args.paths, tt.args.pipelineOptions)
+			got, err := getPythonExecutor(tt.args.paths).GetRunCmd(ctx, tt.args.pipelineOptions)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getPythonRunCmd() expected error, got %v", got)
 			}
@@ -109,7 +109,7 @@ func TestGetPythonRunTestCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getPythonRunTestCmd(ctx, tt.args.paths)
+			got, err := getPythonExecutor(tt.args.paths).GetRunTestCmd(ctx)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getPythonRunTestCmd() expected error, got %v", got)
 			}

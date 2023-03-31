@@ -73,7 +73,7 @@ func TestGetGoCompileCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getGoCompileCmd(ctx, tt.args)
+			got, err := getGoExecutor(tt.args).GetCompileCmd(ctx)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getGoCompileCmd() expected error, got %v", got)
 			}
@@ -123,7 +123,7 @@ func TestGetGoRunCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getGoRunCmd(ctx, tt.args.paths, tt.args.pipelineOptions)
+			got, err := getGoExecutor(tt.args.paths).GetRunCmd(ctx, tt.args.pipelineOptions)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getGoRunCmd() expected error, got %v", got)
 			}
@@ -167,7 +167,7 @@ func TestGetGoRunTestCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getGoRunTestCmd(ctx, tt.args.paths)
+			got, err := getGoExecutor(tt.args.paths).GetRunTestCmd(ctx)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getGoRunTestCmd() expected error, got %v", got)
 			}

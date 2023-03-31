@@ -16,9 +16,11 @@
 package executors
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 )
@@ -29,8 +31,20 @@ const (
 	scioTestCmd = "sbt"
 )
 
-func getScioRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string) (*exec.Cmd, error) {
-	className, err := paths.FindExecutableName(ctx)
+type scioExecutor struct {
+	executor
+}
+
+func getScioExecutor(paths *fs_tool.LifeCyclePaths) Executor {
+	return scioExecutor{executor{paths: paths, sdk: pb.Sdk_SDK_SCIO}}
+}
+
+func (e scioExecutor) GetCompileCmd(_ context.Context) (*exec.Cmd, error) {
+	return nil, errors.New("compile step is not supported for scio")
+}
+
+func (e scioExecutor) GetRunCmd(ctx context.Context, pipelineOptions string) (*exec.Cmd, error) {
+	className, err := e.paths.FindExecutableName(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -38,13 +52,13 @@ func getScioRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineO
 	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
 
 	cmd := exec.CommandContext(ctx, scioRunCmd, fmt.Sprintf("%s %s %s", scioRunArg, className, pipelineOptions))
-	cmd.Dir = paths.ProjectDir
+	cmd.Dir = e.paths.ProjectDir
 
 	return cmd, nil
 }
 
-func getScioRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, scioTestCmd, paths.AbsoluteSourceFilePath)
-	cmd.Dir = paths.AbsoluteSourceFileFolderPath
+func (e scioExecutor) GetRunTestCmd(ctx context.Context) (*exec.Cmd, error) {
+	cmd := exec.CommandContext(ctx, scioTestCmd, e.paths.AbsoluteSourceFilePath)
+	cmd.Dir = e.paths.AbsoluteSourceFileFolderPath
 	return cmd, nil
 }

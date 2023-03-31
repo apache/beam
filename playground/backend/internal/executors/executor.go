@@ -17,54 +17,35 @@ package executors
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"context"
 	"fmt"
 	"os/exec"
 )
 
-// GetCompileCmd prepares the Cmd for code compilation
-// Returns Cmd instance
-func GetCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
-	switch sdkEnv.ApacheBeamSdk {
+type Executor interface {
+	GetCompileCmd(ctx context.Context) (*exec.Cmd, error)
+	GetRunCmd(ctx context.Context, pipelineOptions string) (*exec.Cmd, error)
+	GetRunTestCmd(ctx context.Context) (*exec.Cmd, error)
+}
+
+type executor struct {
+	paths *fs_tool.LifeCyclePaths
+	sdk   pb.Sdk
+}
+
+// GetExecutor returns Executor instance for the given SDK
+func GetExecutor(paths *fs_tool.LifeCyclePaths, sdk pb.Sdk) (Executor, error) {
+	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		return getJavaCompileCmd(ctx, paths)
+		return getJavaExecutor(paths), nil
 	case pb.Sdk_SDK_GO:
-		return getGoCompileCmd(ctx, paths)
+		return getGoExecutor(paths), nil
+	case pb.Sdk_SDK_PYTHON:
+		return getPythonExecutor(paths), nil
+	case pb.Sdk_SDK_SCIO:
+		return getScioExecutor(paths), nil
 	default:
-		return nil, fmt.Errorf("sdk '%s' doesn't support compilation", sdkEnv.ApacheBeamSdk.String())
+		return nil, fmt.Errorf("unsupported sdk '%s'", sdk.String())
 	}
-}
-
-// GetRunCmd prepares the Cmd for execution of the code
-// Returns Cmd instance
-func GetRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
-	switch sdkEnv.ApacheBeamSdk {
-	case pb.Sdk_SDK_JAVA:
-		return getJavaRunCmd(ctx, paths, pipelineOptions)
-	case pb.Sdk_SDK_GO:
-		return getGoRunCmd(ctx, paths, pipelineOptions)
-	case pb.Sdk_SDK_PYTHON:
-		return getPythonRunCmd(ctx, paths, pipelineOptions)
-	case pb.Sdk_SDK_SCIO:
-		return getScioRunCmd(ctx, paths, pipelineOptions)
-	}
-
-	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
-}
-
-func GetRunTest(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exec.Cmd, error) {
-	switch sdkEnv.ApacheBeamSdk {
-	case pb.Sdk_SDK_JAVA:
-		return getJavaRunTestCmd(ctx, paths)
-	case pb.Sdk_SDK_GO:
-		return getGoRunTestCmd(ctx, paths)
-	case pb.Sdk_SDK_PYTHON:
-		return getPythonRunTestCmd(ctx, paths)
-	case pb.Sdk_SDK_SCIO:
-		return getScioRunTestCmd(ctx, paths)
-	}
-
-	return nil, fmt.Errorf("unsupported sdk '%s'", sdkEnv.ApacheBeamSdk.String())
 }

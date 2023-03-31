@@ -16,6 +16,7 @@
 package executors
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/utils"
@@ -34,7 +35,15 @@ const (
 	javaTestCmd           = "java"
 )
 
+type javaExecutor struct {
+	executor
+}
+
 var getBeamJars = environment.ConcatBeamJarsToString
+
+func getJavaExecutor(paths *fs_tool.LifeCyclePaths) Executor {
+	return javaExecutor{executor{paths: paths, sdk: pb.Sdk_SDK_JAVA}}
+}
 
 func getJavaCompileArgs() ([]string, error) {
 	classpath, err := getBeamJars()
@@ -60,8 +69,8 @@ func getJavaTestArgs() ([]string, error) {
 	return []string{"-cp", fmt.Sprintf("bin:%s", classpath), "org.junit.runner.JUnitCore"}, nil
 }
 
-func getJavaCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	javaSources, err := paths.GetSourceFiles()
+func (e javaExecutor) GetCompileCmd(ctx context.Context) (*exec.Cmd, error) {
+	javaSources, err := e.paths.GetSourceFiles()
 	if err != nil {
 		return nil, err
 	}
@@ -71,21 +80,21 @@ func getJavaCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exe
 		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, javaCompileCmd, append(compileArgs, javaSources...)...)
-	cmd.Dir = paths.AbsoluteBaseFolderPath
+	cmd.Dir = e.paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }
 
-func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string) (*exec.Cmd, error) {
+func (e javaExecutor) GetRunCmd(ctx context.Context, pipelineOptions string) (*exec.Cmd, error) {
 	pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
 
-	logConfigFilePath := filepath.Join(paths.AbsoluteBaseFolderPath, javaLogConfigFileName)
+	logConfigFilePath := filepath.Join(e.paths.AbsoluteBaseFolderPath, javaLogConfigFileName)
 	runArgs, err := getJavaRunArgs()
 	if err != nil {
 		return nil, err
 	}
 	args := append(runArgs, fmt.Sprintf("%s=%s", javaLoggConfigOption, logConfigFilePath))
 
-	className, err := paths.FindExecutableName(ctx)
+	className, err := e.paths.FindExecutableName(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -95,12 +104,12 @@ func getJavaRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineO
 	args = append(args, pipelineOptionsSplit...)
 
 	cmd := exec.CommandContext(ctx, javaRunCmd, args...)
-	cmd.Dir = paths.AbsoluteBaseFolderPath
+	cmd.Dir = e.paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }
 
-func getJavaRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	className, err := paths.FindTestExecutableName(ctx)
+func (e javaExecutor) GetRunTestCmd(ctx context.Context) (*exec.Cmd, error) {
+	className, err := e.paths.FindTestExecutableName(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +120,6 @@ func getJavaRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exe
 	}
 
 	cmd := exec.CommandContext(ctx, javaTestCmd, append(testArgs, className)...)
-	cmd.Dir = paths.AbsoluteBaseFolderPath
+	cmd.Dir = e.paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }

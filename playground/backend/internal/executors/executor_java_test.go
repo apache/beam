@@ -77,7 +77,7 @@ func TestGetJavaCompileCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getJavaCompileCmd(ctx, tt.args.paths)
+			got, err := getJavaExecutor(tt.args.paths).GetCompileCmd(ctx)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getJavaCompileCmd() expected error, got %v", got)
 			}
@@ -143,7 +143,7 @@ func TestGetJavaRunCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getJavaRunCmd(ctx, tt.args.paths, tt.args.pipelineOptions)
+			got, err := getJavaExecutor(tt.args.paths).GetRunCmd(ctx, tt.args.pipelineOptions)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getJavaRunCmd() expected error, got %v", got)
 			}
@@ -198,7 +198,7 @@ func TestGetJavaRunTestCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getJavaRunTestCmd(ctx, tt.args.paths)
+			got, err := getJavaExecutor(tt.args.paths).GetRunTestCmd(ctx)
 			if tt.wantErr && (err == nil || err.Error() != "test error") {
 				t.Errorf("getJavaRunTestCmd() expected error, got %v", got)
 			}

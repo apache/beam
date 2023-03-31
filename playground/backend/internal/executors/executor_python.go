@@ -16,8 +16,10 @@
 package executors
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"context"
+	"errors"
 	"os/exec"
 	"strings"
 )
@@ -27,18 +29,35 @@ const (
 	pythonTestCmd = "pytest"
 )
 
-func getPythonRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string) (*exec.Cmd, error) {
+type pythonExecutor struct {
+	executor
+}
+
+func getPythonExecutor(paths *fs_tool.LifeCyclePaths) Executor {
+	return pythonExecutor{
+		executor: executor{
+			paths: paths,
+			sdk:   pb.Sdk_SDK_PYTHON,
+		},
+	}
+}
+
+func (e pythonExecutor) GetCompileCmd(_ context.Context) (*exec.Cmd, error) {
+	return nil, errors.New("compile step is not supported for python")
+}
+
+func (e pythonExecutor) GetRunCmd(ctx context.Context, pipelineOptions string) (*exec.Cmd, error) {
 	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
 
-	args := append([]string{paths.AbsoluteExecutableFilePath}, pipelineOptionsSplit...)
+	args := append([]string{e.paths.AbsoluteExecutableFilePath}, pipelineOptionsSplit...)
 
 	cmd := exec.CommandContext(ctx, pythonRunCmd, args...)
-	cmd.Dir = paths.AbsoluteBaseFolderPath
+	cmd.Dir = e.paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }
 
-func getPythonRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, pythonTestCmd, paths.AbsoluteSourceFilePath)
-	cmd.Dir = paths.AbsoluteSourceFileFolderPath
+func (e pythonExecutor) GetRunTestCmd(ctx context.Context) (*exec.Cmd, error) {
+	cmd := exec.CommandContext(ctx, pythonTestCmd, e.paths.AbsoluteSourceFilePath)
+	cmd.Dir = e.paths.AbsoluteSourceFileFolderPath
 	return cmd, nil
 }

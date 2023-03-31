@@ -96,11 +96,16 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
 
+	executor, err := executors.GetExecutor(paths, sdkEnv.ApacheBeamSdk)
+	if err != nil {
+		return err
+	}
+
 	runCmd, err := func() (*exec.Cmd, error) {
 		if isUnitTest {
-			return executors.GetRunTest(ctx, paths, sdkEnv)
+			return executor.GetRunTestCmd(ctx)
 		} else {
-			return executors.GetRunCmd(ctx, paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
+			return executor.GetRunCmd(ctx, utils.ReduceWhiteSpacesToSinge(pipelineOptions))
 		}
 	}()
 
@@ -172,13 +177,17 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 
 func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool) error {
 	errorChannel, successChannel := createStatusChannels()
+	executor, err := executors.GetExecutor(paths, sdkEnv.ApacheBeamSdk)
+	if err != nil {
+		return err
+	}
 	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_SCIO || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
 		if err := processCompileSuccess([]byte(""), pipelineId, cacheService); err != nil {
 			return err
 		}
 	} else { // in case of Java, Go (not unit test), Scala - need compile step
-		compileCmd, err := executors.GetCompileCmd(ctx, paths, sdkEnv)
+		compileCmd, err := executor.GetCompileCmd(ctx)
 		if err != nil {
 			logger.Errorf("%s: failed to get compile cmd: %s", pipelineId, err.Error())
 			return err

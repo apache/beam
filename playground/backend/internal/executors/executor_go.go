@@ -16,6 +16,7 @@
 package executors
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"context"
 	"os/exec"
@@ -27,31 +28,44 @@ const (
 	goTestCmd    = "go"
 )
 
+type goExecutor struct {
+	executor
+}
+
 var goCompileArgs = []string{"build", "-o", "bin"}
 var goTestArgs = []string{"test", "-v"}
 
-func getGoCompileCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	goSources, err := paths.GetSourceFiles()
+func getGoExecutor(paths *fs_tool.LifeCyclePaths) Executor {
+	return &goExecutor{
+		executor: executor{
+			paths: paths,
+			sdk:   pb.Sdk_SDK_GO,
+		},
+	}
+}
+
+func (e goExecutor) GetCompileCmd(ctx context.Context) (*exec.Cmd, error) {
+	goSources, err := e.paths.GetSourceFiles()
 	if err != nil {
 		return nil, err
 	}
 	args := append(goCompileArgs, goSources...)
 
 	cmd := exec.CommandContext(ctx, goCompileCmd, args...)
-	cmd.Dir = paths.AbsoluteBaseFolderPath
+	cmd.Dir = e.paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }
 
-func getGoRunCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string) (*exec.Cmd, error) {
+func (e goExecutor) GetRunCmd(ctx context.Context, pipelineOptions string) (*exec.Cmd, error) {
 	pipelineOptionsSplit := strings.Split(pipelineOptions, " ")
 
-	cmd := exec.CommandContext(ctx, paths.AbsoluteExecutableFilePath, pipelineOptionsSplit...)
-	cmd.Dir = paths.AbsoluteBaseFolderPath
+	cmd := exec.CommandContext(ctx, e.paths.AbsoluteExecutableFilePath, pipelineOptionsSplit...)
+	cmd.Dir = e.paths.AbsoluteBaseFolderPath
 	return cmd, nil
 }
 
-func getGoRunTestCmd(ctx context.Context, paths *fs_tool.LifeCyclePaths) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, goTestCmd, append(goTestArgs, paths.AbsoluteSourceFileFolderPath)...)
-	cmd.Dir = paths.AbsoluteSourceFileFolderPath
+func (e goExecutor) GetRunTestCmd(ctx context.Context) (*exec.Cmd, error) {
+	cmd := exec.CommandContext(ctx, goTestCmd, append(goTestArgs, e.paths.AbsoluteSourceFileFolderPath)...)
+	cmd.Dir = e.paths.AbsoluteSourceFileFolderPath
 	return cmd, nil
 }
