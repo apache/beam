@@ -16,8 +16,8 @@
 #
 
 [MASTER]
-# Ignore auto-generated files.
-ignore=clients
+# Ignore auto-generated files and vendored code.
+ignore=clients,apache_beam/internal/dill
 
 [BASIC]
 # Regular expression which should only match the name
