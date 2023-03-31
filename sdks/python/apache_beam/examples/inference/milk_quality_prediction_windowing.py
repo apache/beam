@@ -30,6 +30,10 @@ In order to set this example up, you will need two things.
 3. Train the classifier.
 """
 
+import argparse
+import logging
+import time
+
 from typing import NamedTuple
 
 import pandas
