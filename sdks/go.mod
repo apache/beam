@@ -23,7 +23,7 @@ module github.com/apache/beam/sdks/v2
 go 1.19
 
 require (
-	cloud.google.com/go/bigquery v1.48.0
+	cloud.google.com/go/bigquery v1.49.0
 	cloud.google.com/go/bigtable v1.18.1
 	cloud.google.com/go/datastore v1.10.0
 	cloud.google.com/go/profiler v0.3.1
@@ -78,7 +78,7 @@ require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20200730104253-651201b0f516 // indirect
-	github.com/apache/arrow/go/v10 v10.0.1 // indirect
+	github.com/apache/arrow/go/v11 v11.0.0 // indirect
 	github.com/apache/thrift v0.16.0 // indirect
 	github.com/aws/aws-sdk-go v1.34.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.10 // indirect
