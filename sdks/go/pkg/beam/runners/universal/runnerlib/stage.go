@@ -52,13 +52,22 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	return StageViaLegacyApi(ctx, cc, binary, st)
 }
 
-func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {
+func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retErr error) {
 	client := jobpb.NewArtifactStagingServiceClient(cc)
 
 	stream, err := client.ReverseArtifactRetrievalService(context.Background())
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if retErr != nil {
+			log.Error(ctx, "StageViaPortableApi error: ", retErr)
+		}
+		if err := stream.CloseSend(); err != nil {
+			log.Error(ctx, "StageViaPortableApi CloseSend error: ", err)
+			retErr = err
+		}
+	}()
 
 	if err := stream.Send(&jobpb.ArtifactResponseWrapper{StagingToken: st}); err != nil {
 		return err
@@ -128,6 +137,9 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 						Data: data[:n],
 					},
 				}})
+			if sendErr == io.EOF {
+				return sendErr
+			}
 
 			if sendErr != nil {
 				return errors.Wrap(sendErr, "chunk send failed")
@@ -152,7 +164,7 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 func StageViaLegacyApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
 	client := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 
-	files := []artifact.KeyedFile{artifact.KeyedFile{Key: "worker", Filename: binary}}
+	files := []artifact.KeyedFile{{Key: "worker", Filename: binary}}
 
 	md, err := artifact.MultiStage(ctx, client, 10, files, st)
 	if err != nil {
