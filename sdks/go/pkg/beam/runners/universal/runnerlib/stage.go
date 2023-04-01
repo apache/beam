@@ -103,7 +103,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 			case graphx.URNArtifactGoWorker:
 				if err := StageFile(binary, stream); err != nil {
 					if err == io.EOF {
-						log.Infof(ctx, "failed to Go worker binary %v:", binary, err)
+						log.Infof(ctx, "failed to Go worker binary %v due to server side close.", binary)
 						continue // so we can get the real error from stream.Recv.
 					}
 					return errors.Wrap(err, "failed to stage Go worker binary")
@@ -115,7 +115,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 				}
 				if err := StageFile(typePl.GetPath(), stream); err != nil {
 					if err == io.EOF {
-						log.Infof(ctx, "failed to stage file %v:", typePl.GetPath(), err)
+						log.Infof(ctx, "failed to stage file %v due to server side close.", typePl.GetPath())
 						continue // so we can get the real error from stream.Recv.
 					}
 					return errors.Wrapf(err, "failed to stage file %v", typePl.GetPath())
