@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
@@ -41,8 +42,11 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 	defer cc.Close()
 
-	if err := StageViaPortableApi(ctx, cc, binary, st); err == nil {
+	err = StageViaPortableApi(ctx, cc, binary, st)
+	if err == nil {
 		return "", nil
+	} else {
+		log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 	}
 
 	return StageViaLegacyApi(ctx, cc, binary, st)
