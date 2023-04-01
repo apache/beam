@@ -102,6 +102,10 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 			// To be removed later in 2022, once thoroughly obsolete.
 			case graphx.URNArtifactGoWorker:
 				if err := StageFile(binary, stream); err != nil {
+					if err == io.EOF {
+						log.Infof(ctx, "failed to Go worker binary %v:", binary, err)
+						continue // so we can get the real error from stream.Recv.
+					}
 					return errors.Wrap(err, "failed to stage Go worker binary")
 				}
 			case graphx.URNArtifactFileType:
@@ -110,7 +114,12 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 					return errors.Wrap(err, "failed to parse artifact file payload")
 				}
 				if err := StageFile(typePl.GetPath(), stream); err != nil {
+					if err == io.EOF {
+						log.Infof(ctx, "failed to stage file %v:", typePl.GetPath(), err)
+						continue // so we can get the real error from stream.Recv.
+					}
 					return errors.Wrapf(err, "failed to stage file %v", typePl.GetPath())
+
 				}
 			default:
 				return errors.Errorf("request has unexpected artifact type %s", typeUrn)
