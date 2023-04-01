@@ -140,11 +140,12 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 					},
 				}})
 			if sendErr == io.EOF {
+				log.Infof(context.TODO(), "StageFile error on Send of len %v for %v: %v", n, filename, sendErr)
 				return sendErr
 			}
 
 			if sendErr != nil {
-				return errors.Wrap(sendErr, "chunk send failed")
+				return errors.Wrap(sendErr, "StageFile chunk send failed")
 			}
 		}
 
@@ -156,7 +157,7 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 				}})
 
 			if sendErr != nil {
-				log.Infof(context.TODO(), "error on Final Send for %v: %v", filename, sendErr)
+				log.Infof(context.TODO(), "StageFile error on Final Send for %v: %v", filename, sendErr)
 			}
 			return sendErr
 		}
