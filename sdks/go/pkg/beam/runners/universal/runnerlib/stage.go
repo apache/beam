@@ -62,14 +62,15 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 	defer func() {
 		if retErr != nil {
 			log.Error(ctx, "StageViaPortableApi error: ", retErr)
-		}
-		if err := stream.CloseSend(); err != nil {
-			log.Error(ctx, "StageViaPortableApi CloseSend error: ", err)
-			retErr = err
+			if err := stream.CloseSend(); err != nil {
+				log.Error(ctx, "StageViaPortableApi CloseSend error: ", err)
+				retErr = err
+			}
 		}
 	}()
 
 	if err := stream.Send(&jobpb.ArtifactResponseWrapper{StagingToken: st}); err != nil {
+		log.Error(ctx, "StageViaPortableApi staging token send error: ", err)
 		return err
 	}
 
@@ -79,6 +80,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 			return nil
 		}
 		if err != nil {
+			log.Error(ctx, "StageViaPortableApi Recv error: ", err)
 			return err
 		}
 
@@ -123,7 +125,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtifactRetrievalServiceClient) error {
 	fd, err := os.Open(filename)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "unable to open file %v", filename)
 	}
 	defer fd.Close()
 
@@ -152,6 +154,10 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
 					GetArtifactResponse: &jobpb.GetArtifactResponse{},
 				}})
+
+			if sendErr != nil {
+				log.Infof(context.TODO(), "error on Final Send for %v: %v", filename, sendErr)
+			}
 			return sendErr
 		}
 
