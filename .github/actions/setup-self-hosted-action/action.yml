@@ -34,9 +34,9 @@ inputs:
     required: false
     description: 'Set as false if does not require java-8 setup'
     default: 'true'
-  requires-go-19:
+  requires-go:
     required: false
-    description: 'Set as false if does not require go-19 setup'
+    description: 'Set as false if does not require go setup'
     default: 'true'
 
 runs:
@@ -64,7 +64,7 @@ runs:
         distribution: 'temurin'
         java-version: 8
     - name: Set Go Version
-      if: ${{ inputs.requires-go-19 == 'true'  }}
+      if: ${{ inputs.requires-go == 'true'  }}
       uses: actions/setup-go@v3
       with:
-        go-version: '1.19.0'
+        go-version: '1.20' # never set patch, to get latest patch releases.
