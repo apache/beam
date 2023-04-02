@@ -40,7 +40,6 @@ from sklearn.model_selection import train_test_split
 
 import apache_beam as beam
 import xgboost
-
 from apache_beam import window
 from apache_beam.ml.inference import RunInference
 from apache_beam.ml.inference.base import PredictionResult
