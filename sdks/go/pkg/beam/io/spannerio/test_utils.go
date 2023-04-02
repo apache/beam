@@ -17,6 +17,7 @@ package spannerio
 
 import (
 	"cloud.google.com/go/spanner"
+	db "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/spannertest"
 	"context"
 	"google.golang.org/api/option"
@@ -40,21 +41,27 @@ func newServer(t *testing.T) (*spannertest.Server, func()) {
 	}
 }
 
-func createFakeClient(address string, database string) (*spanner.Client, func(), error) {
+func createFakeClient(address string, database string) (*spanner.Client, *db.DatabaseAdminClient, func(), error) {
 	ctx := context.Background()
 
 	conn, err := grpc.DialContext(ctx, address, grpc.WithInsecure())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	client, err := spanner.NewClient(ctx, database, option.WithGRPCConn(conn))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return client, func() {
+	admin, err := db.NewDatabaseAdminClient(ctx, option.WithGRPCConn(conn))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return client, admin, func() {
 		client.Close()
+		admin.Close()
 		conn.Close()
 	}, nil
 }

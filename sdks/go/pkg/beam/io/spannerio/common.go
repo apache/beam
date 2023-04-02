@@ -23,33 +23,36 @@ import (
 	"fmt"
 )
 
-type SpannerDatabase struct {
-	Database string `json:"database"` // Database is the spanner connection string
-
-	Client *spanner.Client // Spanner Client
+type spannerFn struct {
+	Database string          `json:"database"` // Database is the spanner connection string
+	client   *spanner.Client // Spanner Client
 }
 
-func WithDatabase(database string) *SpannerDatabase {
-	return &SpannerDatabase{
-		Database: database,
+func newSpannerFn(db string) spannerFn {
+	if db == "" {
+		panic("database not provided!")
+	}
+
+	return spannerFn{
+		Database: db,
 	}
 }
 
-func (db *SpannerDatabase) Setup(ctx context.Context) error {
-	if db.Client == nil {
-		client, err := spanner.NewClient(ctx, db.Database)
+func (f *spannerFn) Setup(ctx context.Context) error {
+	if f.client == nil {
+		client, err := spanner.NewClient(ctx, f.Database)
 		if err != nil {
 			return fmt.Errorf("failed to initialise Spanner client: %v", err)
 		}
 
-		db.Client = client
+		f.client = client
 	}
 
 	return nil
 }
 
-func (db *SpannerDatabase) Close() {
-	if db.Client != nil {
-		db.Client.Close()
+func (f *spannerFn) Teardown() {
+	if f.client != nil {
+		f.client.Close()
 	}
 }

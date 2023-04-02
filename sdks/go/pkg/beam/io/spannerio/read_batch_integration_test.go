@@ -40,17 +40,18 @@ func TestExampleQueryBatch(t *testing.T) {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	db := WithDatabase("projects/test-project/instances/test-instance/databases/test-database")
+	db := "projects/test-project/instances/test-instance/databases/test-database"
 
-	client, cleanup, err := createFakeClient("localhost:9010", db.Database)
+	srv, srvCleanup := newServer(t)
+	defer srvCleanup()
+
+	client, admin, cleanup, err := createFakeClient(srv.Addr, db)
 	if err != nil {
 		t.Fatalf("Unable to create fake client: %v", err)
 	}
 	defer cleanup()
 
-	db.Client = client
-
-	populateSpanner(context.Background(), db.Database, client)
+	populateSpanner(context.Background(), admin, db, client)
 
 	rows := QueryBatch(s, db, "SELECT * FROM TEST", reflect.TypeOf(TestDto{}))
 
@@ -58,19 +59,13 @@ func TestExampleQueryBatch(t *testing.T) {
 	passert.Count(s, rows, "Should have 4 rows", 4)
 }
 
-func populateSpanner(ctx context.Context, db string, client *spanner.Client) error {
+func populateSpanner(ctx context.Context, admin *database.DatabaseAdminClient, db string, client *spanner.Client) error {
 	iter := client.Single().Query(ctx, spanner.Statement{SQL: "SELECT 1 FROM Test"})
 	defer iter.Stop()
 
 	if _, err := iter.Next(); err == nil {
 		return nil
 	}
-
-	admin, err := database.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		return nil
-	}
-	defer admin.Close()
 
 	op, err := admin.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database: db,

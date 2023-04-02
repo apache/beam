@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"reflect"
 )
 
 func init() {
@@ -43,17 +44,30 @@ func UseBatchSize(batchSize int) func(qo *writeOptions) error {
 
 // Write writes the elements of the given PCollection<T> to spanner. T is required
 // to be the schema type.
-func Write(s beam.Scope, db *SpannerDatabase, table string, col beam.PCollection, options ...func(*writeOptions) error) {
-	if db == nil {
-		panic("spanner.Write no database provided!")
+func Write(s beam.Scope, db string, table string, col beam.PCollection, options ...func(*writeOptions) error) {
+	if db == "" {
+		panic("no database provided!")
 	}
 
 	if typex.IsCoGBK(col.Type()) || typex.IsKV(col.Type()) {
-		panic("Unsupported collection type - only normal structs supported for writing.")
+		panic("unsupported collection type - only normal structs supported for writing.")
 	}
 
 	s = s.Scope("spanner.Write")
 
+	beam.ParDo0(s, newWriteFn(db, table, col.Type().Type(), options...), col)
+}
+
+type writeFn struct {
+	spannerFn
+	Table     string           `json:"table"`   // The table to write to
+	Type      beam.EncodedType `json:"type"`    // Type is the encoded schema type.
+	Options   writeOptions     `json:"options"` // Spanner write options
+	mutations []*spanner.Mutation
+	client    *spanner.Client
+}
+
+func newWriteFn(db string, table string, t reflect.Type, options ...func(*writeOptions) error) *writeFn {
 	writeOptions := writeOptions{
 		BatchSize: 1000, // default
 	}
@@ -64,25 +78,15 @@ func Write(s beam.Scope, db *SpannerDatabase, table string, col beam.PCollection
 		}
 	}
 
-	t := col.Type().Type()
-
-	beam.ParDo0(s, &writeFn{Db: db, Table: table, Type: beam.EncodedType{T: t}, Options: writeOptions}, col)
-}
-
-type writeFn struct {
-	Db        *SpannerDatabase `json:"db"`      // Spanner database
-	Table     string           `json:"table"`   // The table to write to
-	Type      beam.EncodedType `json:"type"`    // Type is the encoded schema type.
-	Options   writeOptions     `json:"options"` // Spanner write options
-	mutations []*spanner.Mutation
+	return &writeFn{spannerFn: newSpannerFn(db), Table: table, Type: beam.EncodedType{T: t}, Options: writeOptions}
 }
 
 func (f *writeFn) Setup(ctx context.Context) error {
-	return f.Db.Setup(ctx)
+	return f.spannerFn.Setup(ctx)
 }
 
 func (f *writeFn) Teardown() {
-	f.Db.Close()
+	f.spannerFn.Teardown()
 }
 
 func (f *writeFn) ProcessElement(ctx context.Context, value beam.X) error {
@@ -109,7 +113,7 @@ func (f *writeFn) FinishBundle(ctx context.Context) error {
 }
 
 func (f *writeFn) flush(ctx context.Context) error {
-	_, err := f.Db.Client.Apply(ctx, f.mutations)
+	_, err := f.client.Apply(ctx, f.mutations)
 	if err != nil {
 		return err
 	}

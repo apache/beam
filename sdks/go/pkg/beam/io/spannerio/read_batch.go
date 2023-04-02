@@ -54,20 +54,12 @@ func UseTimestampBound(timestampBound spanner.TimestampBound) func(opts *queryBa
 }
 
 type queryBatchFn struct {
-	Db      *SpannerDatabase  `json:"db"`      // Spanner database
+	spannerFn
 	Type    beam.EncodedType  `json:"type"`    // Type is the encoded schema type.
 	Options queryBatchOptions `json:"options"` // Options specifies additional query execution options.
 }
 
-// QueryBatch executes a query using Spanners ability to do batched queries.
-// The output must have a schema compatible with the given type, t. It returns a PCollection<t>.
-func QueryBatch(s beam.Scope, db *SpannerDatabase, query string, t reflect.Type, options ...func(*queryBatchOptions) error) beam.PCollection {
-	if db == nil {
-		panic("spanner.QueryBatch no database provided!")
-	}
-
-	s = s.Scope("spanner.QueryBatch")
-
+func newQueryBatchFn(db string, t reflect.Type, options ...func(*queryBatchOptions) error) *queryBatchFn {
 	opts := queryBatchOptions{}
 	for _, opt := range options {
 		if err := opt(&opts); err != nil {
@@ -75,30 +67,42 @@ func QueryBatch(s beam.Scope, db *SpannerDatabase, query string, t reflect.Type,
 		}
 	}
 
+	return &queryBatchFn{
+		spannerFn: newSpannerFn(db),
+		Type:      beam.EncodedType{T: t},
+		Options:   opts,
+	}
+}
+
+// QueryBatch executes a query using Spanners ability to do batched queries.
+// The output must have a schema compatible with the given type, t. It returns a PCollection<t>.
+func QueryBatch(s beam.Scope, db string, query string, t reflect.Type, options ...func(*queryBatchOptions) error) beam.PCollection {
+	if db == "" {
+		panic("no database provided!")
+	}
+
+	s = s.Scope("spanner.QueryBatch")
+
 	partitions := GeneratePartitions(s, db, query, options...)
 
 	return beam.ParDo(
 		s,
-		&queryBatchFn{
-			Db:      db,
-			Type:    beam.EncodedType{T: t},
-			Options: opts,
-		},
+		newQueryBatchFn(db, t, options...),
 		partitions,
 		beam.TypeDefinition{Var: beam.XType, T: t},
 	)
 }
 
 func (f *queryBatchFn) Setup(ctx context.Context) error {
-	return f.Db.Setup(ctx)
+	return f.spannerFn.Setup(ctx)
 }
 
 func (f *queryBatchFn) Teardown() {
-	f.Db.Close()
+	f.spannerFn.Teardown()
 }
 
 func (f *queryBatchFn) ProcessElement(ctx context.Context, read *PartitionedRead, emit func(beam.X)) error {
-	txn := f.Db.Client.BatchReadOnlyTransactionFromID(read.BatchTransactionId)
+	txn := f.client.BatchReadOnlyTransactionFromID(read.BatchTransactionId)
 	iter := txn.Execute(ctx, read.Partition)
 	defer iter.Stop()
 

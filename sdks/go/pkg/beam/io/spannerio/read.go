@@ -42,9 +42,9 @@ func init() {
 // Read reads all rows from the given table. The table must have a schema
 // compatible with the given type, t, and Read returns a PCollection<t>. If the
 // table has more rows than t, then Read is implicitly a projection.
-func Read(s beam.Scope, db *SpannerDatabase, table string, t reflect.Type) beam.PCollection {
-	if db == nil {
-		panic("spanner.Read no database provided!")
+func Read(s beam.Scope, db string, table string, t reflect.Type) beam.PCollection {
+	if db == "" {
+		panic("no database provided!")
 	}
 
 	s = s.Scope("spanner.Read")
@@ -62,9 +62,9 @@ type queryOptions struct {
 // type, t. It returns a PCollection<t>.
 // Note: Query will be executed on a single worker. Consider performance of query
 // and if downstream splitting is required add beam.Reshuffle.
-func Query(s beam.Scope, db *SpannerDatabase, q string, t reflect.Type, options ...func(*queryOptions) error) beam.PCollection {
-	if db == nil {
-		panic("spanner.Query no database provided!")
+func Query(s beam.Scope, db string, q string, t reflect.Type, options ...func(*queryOptions) error) beam.PCollection {
+	if db == "" {
+		panic("no database provided!")
 	}
 
 	s = s.Scope("spanner.Query")
@@ -72,7 +72,25 @@ func Query(s beam.Scope, db *SpannerDatabase, q string, t reflect.Type, options 
 }
 
 // Entrypoint for testing with spanner client injectable.
-func query(s beam.Scope, db *SpannerDatabase, query string, t reflect.Type, options ...func(*queryOptions) error) beam.PCollection {
+func query(s beam.Scope, db string, query string, t reflect.Type, options ...func(*queryOptions) error) beam.PCollection {
+	imp := beam.Impulse(s)
+	return beam.ParDo(s, newQueryFn(db, query, t, options...), imp, beam.TypeDefinition{Var: beam.XType, T: t})
+}
+
+type queryFn struct {
+	spannerFn
+	Query   string           `json:"query"`   // Table is the table identifier.
+	Type    beam.EncodedType `json:"type"`    // Type is the encoded schema type.
+	Options queryOptions     `json:"options"` // Options specifies additional query execution options.
+	client  *spanner.Client
+}
+
+func newQueryFn(
+	db string,
+	query string,
+	t reflect.Type,
+	options ...func(*queryOptions) error,
+) *queryFn {
 	queryOptions := queryOptions{}
 	for _, opt := range options {
 		if err := opt(&queryOptions); err != nil {
@@ -80,28 +98,20 @@ func query(s beam.Scope, db *SpannerDatabase, query string, t reflect.Type, opti
 		}
 	}
 
-	imp := beam.Impulse(s)
-	return beam.ParDo(s, &queryFn{Db: db, Query: query, Type: beam.EncodedType{T: t}, Options: queryOptions}, imp, beam.TypeDefinition{Var: beam.XType, T: t})
-}
-
-type queryFn struct {
-	Db      *SpannerDatabase `json:"db"`      // Spanner database
-	Query   string           `json:"query"`   // Table is the table identifier.
-	Type    beam.EncodedType `json:"type"`    // Type is the encoded schema type.
-	Options queryOptions     `json:"options"` // Options specifies additional query execution options.
+	return &queryFn{spannerFn: newSpannerFn(db), Query: query, Type: beam.EncodedType{T: t}, Options: queryOptions}
 }
 
 func (f *queryFn) Setup(ctx context.Context) error {
-	return f.Db.Setup(ctx)
+	return f.spannerFn.Setup(ctx)
 }
 
 func (f *queryFn) Teardown() {
-	f.Db.Close()
+	f.spannerFn.Teardown()
 }
 
 func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X)) error {
 	stmt := spanner.Statement{SQL: f.Query}
-	it := f.Db.Client.Single().Query(ctx, stmt)
+	it := f.client.Single().Query(ctx, stmt)
 	defer it.Stop()
 
 	for {

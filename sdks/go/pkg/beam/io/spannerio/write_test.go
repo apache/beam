@@ -19,6 +19,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/spanner/spansql"
 	"context"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"google.golang.org/api/iterator"
 	"testing"
@@ -60,7 +61,7 @@ func TestWrite(t *testing.T) {
 			srv, srvCleanup := newServer(t)
 			defer srvCleanup()
 
-			client, cleanup, err := createFakeClient(srv.Addr, testCase.database)
+			client, _, cleanup, err := createFakeClient(srv.Addr, testCase.database)
 			if err != nil {
 				t.Fatalf("Unable to create fake client: %v", err)
 			}
@@ -82,11 +83,14 @@ func TestWrite(t *testing.T) {
 
 			p, s, col := ptest.CreateList(testCase.rows)
 
-			Write(s, &SpannerDatabase{Client: client}, "Test", col)
+			fn := newWriteFn(testCase.database, "Test", col.Type().Type())
+			fn.client = client
+
+			beam.ParDo0(s, fn, col)
 
 			ptest.RunAndValidate(t, p)
 
-			verifyClient, verifyClientCleanup, err := createFakeClient(srv.Addr, testCase.database)
+			verifyClient, _, verifyClientCleanup, err := createFakeClient(srv.Addr, testCase.database)
 			if err != nil {
 				t.Fatalf("Unable to create fake client: %v", err)
 			}

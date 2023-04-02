@@ -72,7 +72,7 @@ func TestRead(t *testing.T) {
 			srv, srvCleanup := newServer(t)
 			defer srvCleanup()
 
-			client, cleanup, err := createFakeClient(srv.Addr, testCase.database)
+			client, _, cleanup, err := createFakeClient(srv.Addr, testCase.database)
 			if err != nil {
 				t.Fatalf("Unable to create fake client: %v", err)
 			}
@@ -109,7 +109,11 @@ func TestRead(t *testing.T) {
 
 			p := beam.NewPipeline()
 			s := p.Root()
-			rows := Query(s, &SpannerDatabase{Client: client}, "SELECT * from Test", reflect.TypeOf(TestDto{}))
+			fn := newQueryFn(testCase.database, "SELECT * from Test", reflect.TypeOf(TestDto{}))
+			fn.client = client
+
+			imp := beam.Impulse(s)
+			rows := beam.ParDo(s, fn, imp, beam.TypeDefinition{Var: beam.XType, T: reflect.TypeOf(TestDto{})})
 
 			passert.Count(s, rows, "", len(testCase.rows))
 			ptest.RunAndValidate(t, p)
