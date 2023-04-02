@@ -210,8 +210,12 @@ func main() {
 
 	// (2) Add classpath: "-cp foo.jar:bar.jar:.."
 	if len(javaOptions.Classpath) > 0 {
+		pathingjar, err := makePathingJar(javaOptions.Classpath)
+		if err != nil {
+			logger.Fatalf(ctx, "makePathingJar failed: %v", err)
+		}
 		args = append(args, "-cp")
-		args = append(args, strings.Join(javaOptions.Classpath, ":"))
+		args = append(args, pathingjar)
 	}
 
 	// (3) Add (sorted) properties: "-Dbar=baz -Dfoo=bar .."

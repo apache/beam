@@ -48,7 +48,7 @@ jobs:
       - name: Delete old coverage
         run: "cd sdks/go/pkg && rm -rf .coverage || :"
       - name: Run coverage
-        run: cd sdks/go/pkg && go test -coverprofile=coverage.txt -covermode=atomic ./...
+        run: cd sdks && go test -coverprofile=coverage.txt -covermode=atomic ./go/pkg/... ./go/container/... ./java/container/... ./python/container/... ./typescript/container/...
       - uses: codecov/codecov-action@v3
         with:
           flags: go 
