@@ -95,7 +95,6 @@ tasks.rat {
 
     // Ignore third-party LICENSE files.
     "LICENSE.python",
-    "LICENSE.dill",
 
     // Json doesn't support comments.
 

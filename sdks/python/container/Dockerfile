@@ -79,7 +79,6 @@ RUN pip freeze --all
 
 COPY target/LICENSE /opt/apache/beam/
 COPY target/LICENSE.python /opt/apache/beam/
-COPY target/LICENSE.dill /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
 COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 

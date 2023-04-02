@@ -20,4 +20,3 @@ include README.md
 include NOTICE
 include LICENSE
 include LICENSE.python
-include LICENSE.dill
