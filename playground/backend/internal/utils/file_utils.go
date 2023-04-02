@@ -171,3 +171,7 @@ func ToSDKFromExt(ext string) pb.Sdk {
 		return pb.Sdk_SDK_UNSPECIFIED
 	}
 }
+
+func TrimExtension(filename string) string {
+	return strings.TrimSuffix(filename, filepath.Ext(filename))
+}

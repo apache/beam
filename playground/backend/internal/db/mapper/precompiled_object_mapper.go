@@ -44,6 +44,7 @@ func (pom *PrecompiledObjectMapper) ToObjectInfo(exampleDTO *dto.ExampleDTO) *dt
 		Link:            exampleDTO.Example.Path,
 		UrlVCS:          exampleDTO.Example.UrlVCS,
 		UrlNotebook:     exampleDTO.Example.UrlNotebook,
+		AlwaysRun:       exampleDTO.Example.AlwaysRun,
 		Multifile:       exampleDTO.HasMultiFiles(),
 		ContextLine:     exampleDTO.GetContextLine(),
 		DefaultExample:  exampleDTO.IsDefault(),
@@ -80,9 +81,13 @@ func (pom *PrecompiledObjectMapper) ToArrayCategories(catalogDTO *dto.CatalogDTO
 	}
 	sdkCategories := make([]*pb.Categories, 0)
 	for sdkName, categories := range sdkToCategories {
-		sdkCategory := pb.Categories{Sdk: pb.Sdk(pb.Sdk_value[sdkName]), Categories: make([]*pb.Categories_Category, 0)}
+		sdkCategory := pb.Categories{
+			Sdk:        pb.Sdk(pb.Sdk_value[sdkName]),
+			Categories: make([]*pb.Categories_Category, 0),
+		}
 		for categoryName, precompiledObjects := range categories {
-			putPrecompiledObjectsToCategory(categoryName, &precompiledObjects, &sdkCategory)
+			category := precompiledObjectsToCategory(categoryName, precompiledObjects)
+			sdkCategory.Categories = append(sdkCategory.Categories, category)
 		}
 		sdkCategories = append(sdkCategories, &sdkCategory)
 	}
@@ -113,9 +118,9 @@ func (pom *PrecompiledObjectMapper) ToDefaultPrecompiledObjects(defaultExamplesD
 	return result
 }
 
-func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO) *pb.PrecompiledObject {
+func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleId string, exampleDTO *dto.ExampleDTO) *pb.PrecompiledObject {
 	return &pb.PrecompiledObject{
-		CloudPath:       getCloudPath(exampleDTO.Example),
+		CloudPath:       exampleId,
 		Name:            exampleDTO.Example.Name,
 		Description:     exampleDTO.Example.Descr,
 		Type:            exampleDTO.GetType(),
@@ -123,6 +128,7 @@ func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO)
 		Link:            exampleDTO.Example.Path,
 		UrlVcs:          exampleDTO.Example.UrlVCS,
 		UrlNotebook:     exampleDTO.Example.UrlNotebook,
+		AlwaysRun:       exampleDTO.Example.AlwaysRun,
 		Multifile:       exampleDTO.HasMultiFiles(),
 		ContextLine:     exampleDTO.GetContextLine(),
 		DefaultExample:  exampleDTO.IsDefault(),
@@ -196,13 +202,13 @@ func appendPrecompiledObject(objectInfo dto.ObjectInfo, sdkToCategories *dto.Sdk
 	categoryToPrecompiledObjects[categoryName] = append(objects, objectInfo)
 }
 
-// putPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
-func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dto.PrecompiledObjects, sdkCategory *pb.Categories) {
+// precompiledObjectsToCategory create category protobuf object from precompiled objects
+func precompiledObjectsToCategory(categoryName string, precompiledObjects dto.PrecompiledObjects) *pb.Categories_Category {
 	category := pb.Categories_Category{
 		CategoryName:       categoryName,
 		PrecompiledObjects: make([]*pb.PrecompiledObject, 0),
 	}
-	for _, object := range *precompiledObjects {
+	for _, object := range precompiledObjects {
 		category.PrecompiledObjects = append(category.PrecompiledObjects, &pb.PrecompiledObject{
 			CloudPath:       object.CloudPath,
 			Name:            object.Name,
@@ -212,6 +218,7 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 			Link:            object.Link,
 			UrlVcs:          object.UrlVCS,
 			UrlNotebook:     object.UrlNotebook,
+			AlwaysRun:       object.AlwaysRun,
 			Multifile:       object.Multifile,
 			ContextLine:     object.ContextLine,
 			DefaultExample:  object.DefaultExample,
@@ -221,7 +228,7 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 			Datasets:        object.Datasets,
 		})
 	}
-	sdkCategory.Categories = append(sdkCategory.Categories, &category)
+	return &category
 }
 
 // getCloudPath returns the cloud path by example entity

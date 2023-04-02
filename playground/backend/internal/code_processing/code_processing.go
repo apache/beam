@@ -99,9 +99,9 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	var executorBuilder *executors.ExecutorBuilder
 	err := error(nil)
 	if isUnitTest {
-		executorBuilder, err = builder.TestRunner(paths, sdkEnv)
+		executorBuilder, err = builder.TestRunner(pipelineLifeCycleCtx, paths, sdkEnv)
 	} else {
-		executorBuilder, err = builder.Runner(paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
+		executorBuilder, err = builder.Runner(pipelineLifeCycleCtx, paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
 	}
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
@@ -171,7 +171,11 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 			return nil
 		}
 	} else { // in case of Java, Go (not unit test), Scala - need compile step
-		executorBuilder := builder.Compiler(paths, sdkEnv)
+		executorBuilder, err := builder.Compiler(paths, sdkEnv)
+		if err != nil {
+			logger.Errorf("compileStep(): failed creating ExecutorBuilder = %v", executorBuilder)
+			return nil
+		}
 		executor := executorBuilder.Build()
 		logger.Infof("%s: Compile() ...\n", pipelineId)
 		compileCmd := executor.Compile(pipelineLifeCycleCtx)
@@ -424,21 +428,21 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 		case <-ticker.C:
 			if _, err := os.Stat(graphFilePath); err == nil {
 				ticker.Stop()
-				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
 				}
-				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, string(graph))
 			}
 		// in case of timeout or cancel
 		case <-pipelineLifeCycleCtx.Done():
 			ticker.Stop()
 			if _, err := os.Stat(graphFilePath); err == nil {
-				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
 				}
-				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, string(graph))
 			}
 			return
 		}

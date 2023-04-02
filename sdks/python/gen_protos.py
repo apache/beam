@@ -123,8 +123,29 @@ def generate_urn_files(out_dir, api_path):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
-  from google._upb import _message
   from google.protobuf import message
+  from google.protobuf.internal import api_implementation
+  if api_implementation.Type() == 'python':
+    from google.protobuf.internal import containers
+    repeated_types = (
+        list,
+        containers.RepeatedScalarFieldContainer,
+        containers.RepeatedCompositeFieldContainer)
+  elif api_implementation.Type() == 'upb':
+    from google._upb import _message
+    repeated_types = (
+        list,
+        _message.RepeatedScalarContainer,
+        _message.RepeatedCompositeContainer)
+  elif api_implementation.Type() == 'cpp':
+    from google.protobuf.pyext import _message
+    repeated_types = (
+        list,
+        _message.RepeatedScalarContainer,
+        _message.RepeatedCompositeContainer)
+  else:
+    raise TypeError(
+        "Unknown proto implementation: " + api_implementation.Type())
 
   class Context(object):
     INDENT = '  '
@@ -175,13 +196,7 @@ def generate_urn_files(out_dir, api_path):
     def python_repr(self, obj):
       if isinstance(obj, message.Message):
         return self.message_repr(obj)
-      elif isinstance(
-          obj,
-          (
-              list,
-              _message.RepeatedScalarContainer,
-              _message.RepeatedCompositeContainer,
-          )):  # pylint: disable=c-extension-no-member
+      elif isinstance(obj, repeated_types):
         return '[%s]' % ', '.join(self.python_repr(x) for x in obj)
       else:
         return repr(obj)
@@ -311,12 +326,6 @@ def ensure_grpcio_exists():
   try:
     from grpc_tools import protoc  # pylint: disable=unused-import
   except ImportError:
-    if platform.system() == 'Windows':
-      # For Windows, grpcio-tools has to be installed manually.
-      raise RuntimeError(
-          'Cannot generate protos for Windows since grpcio-tools package is '
-          'not installed. Please install this package manually '
-          'using \'pip install grpcio-tools\'.')
     return _install_grpcio_tools()
 
 
@@ -507,20 +516,21 @@ def generate_proto_files(force=False):
   with PythonPath(grpcio_install_loc):
     from grpc_tools import protoc
     builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
-    args = ([sys.executable] +  # expecting to be called from command line
-            ['--proto_path=%s' % builtin_protos] +
-            ['--proto_path=%s' % d
-             for d in proto_dirs] + ['--python_out=%s' % PYTHON_OUTPUT_PATH] +
-            ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
-            # new version of mypy-protobuf converts None to zero default value
-            # and remove Optional from the param type annotation. This causes
-            # some mypy errors. So to mitigate and fall back to old behavior,
-            # use `relax_strict_optional_primitives` flag. more at
-            # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint:disable=line-too-long
-            ['--mypy_out=relax_strict_optional_primitives:%s' % PYTHON_OUTPUT_PATH] +
-            # TODO(robertwb): Remove the prefix once it's the default.
-            ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] +
-            proto_files)
+    args = (
+        [sys.executable] +  # expecting to be called from command line
+        ['--proto_path=%s' % builtin_protos] +
+        ['--proto_path=%s' % d
+         for d in proto_dirs] + ['--python_out=%s' % PYTHON_OUTPUT_PATH] +
+        ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
+        # new version of mypy-protobuf converts None to zero default value
+        # and remove Optional from the param type annotation. This causes
+        # some mypy errors. So to mitigate and fall back to old behavior,
+        # use `relax_strict_optional_primitives` flag. more at
+        # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint:disable=line-too-long
+        ['--mypy_out=relax_strict_optional_primitives:%s' % PYTHON_OUTPUT_PATH
+         ] +
+        # TODO(robertwb): Remove the prefix once it's the default.
+        ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] + proto_files)
 
     LOG.info('Regenerating Python proto definitions (%s).' % regenerate_reason)
     ret_code = protoc.main(args)
@@ -556,10 +566,11 @@ def generate_proto_files(force=False):
       f.writelines(lines)
 
   generate_init_files_lite(PYTHON_OUTPUT_PATH)
-  for proto_package in proto_packages:
-    generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
+  with PythonPath(grpcio_install_loc):
+    for proto_package in proto_packages:
+      generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
 
-  generate_init_files_full(PYTHON_OUTPUT_PATH)
+    generate_init_files_full(PYTHON_OUTPUT_PATH)
 
 
 if __name__ == '__main__':

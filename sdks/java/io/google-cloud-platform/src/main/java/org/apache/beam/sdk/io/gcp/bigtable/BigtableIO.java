@@ -28,15 +28,13 @@ import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +48,6 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
@@ -82,6 +79,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,7 +145,7 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table")
  *         .withKeyRange(keyRange)
  *         .withAttemptTimeout(attemptTimeout)
- *         .withOperationTimeout(attemptTimeout);
+ *         .withOperationTimeout(operationTimeout);
  * }</pre>
  *
  * <h3>Writing to Cloud Bigtable</h3>
@@ -207,6 +205,49 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  *
+ * <h3>Streaming Changes from Cloud Bigtable</h3>
+ *
+ * <p>Cloud Bigtable change streams enable users to capture and stream out mutations from their
+ * Cloud Bigtable tables in real-time. Cloud Bigtable change streams enable many use cases including
+ * integrating with a user's data analytics pipelines, support audit and archival requirements as
+ * well as triggering downstream application logic on specific database changes.
+ *
+ * <p>Change stream connector creates and manages a metadata table to manage the state of the
+ * connector. By default, the table is created in the same instance as the table being streamed.
+ * However, it can be overridden with {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableProjectId}, {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableInstanceId}, {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableTableId}, and {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableAppProfileId}. The app profile for the metadata
+ * table must be a single cluster app profile with single row transaction enabled.
+ *
+ * <p>Note - To prevent unforeseen stream stalls, the BigtableIO connector outputs all data with an
+ * output timestamp of zero, making all data late, which will ensure that the stream will not stall.
+ * However, it means that you may have to deal with all data as late data, and features that depend
+ * on watermarks will not function. This means that Windowing functions and States and Timers are no
+ * longer effectively usable. Example use cases that are not possible because of this include:
+ *
+ * <ul>
+ *   <li>Completeness in a replicated cluster with writes to a row on multiple clusters.
+ *   <li>Ordering at the row level in a replicated cluster where the row is being written through
+ *       multiple-clusters.
+ * </ul>
+ *
+ * Users can use GlobalWindows with (non-event time) Triggers to group this late data into Panes.
+ * You can see an example of this in the pipeline below.
+ *
+ * <pre>{@code
+ * Pipeline pipeline = ...;
+ * pipeline
+ *    .apply(
+ *        BigtableIO.readChangeStream()
+ *            .withProjectId(projectId)
+ *            .withInstanceId(instanceId)
+ *            .withTableId(tableId)
+ *            .withAppProfileId(appProfileId)
+ *            .withStartTime(startTime));
+ * }</pre>
+ *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
@@ -262,7 +303,6 @@ public class BigtableIO {
    *
    * <ul>
    *   <li>{@link BigtableIO.ReadChangeStream#withStartTime} which defaults to now.
-   *   <li>{@link BigtableIO.ReadChangeStream#withEndTime} which defaults to empty.
    *   <li>{@link BigtableIO.ReadChangeStream#withHeartbeatDuration} with defaults to 1 seconds.
    *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableProjectId} which defaults to value
    *       from {@link BigtableIO.ReadChangeStream#withProjectId}
@@ -306,7 +346,8 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      *
-     * @deprecated please use {@link #getBigtableReadOptions()}.
+     * @deprecated read options are configured directly on BigtableIO.read(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -689,7 +730,8 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being written to, and other parameters.
      *
-     * @deprecated please configure the write options directly.
+     * @deprecated write options are configured directly on BigtableIO.write(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -1738,9 +1780,7 @@ public class BigtableIO {
 
     abstract @Nullable String getTableId();
 
-    abstract @Nullable Timestamp getStartTime();
-
-    abstract @Nullable Timestamp getEndTime();
+    abstract @Nullable Instant getStartTime();
 
     abstract @Nullable Duration getHeartbeatDuration();
 
@@ -1811,18 +1851,8 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public ReadChangeStream withStartTime(Timestamp startTime) {
+    public ReadChangeStream withStartTime(Instant startTime) {
       return toBuilder().setStartTime(startTime).build();
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will stop streaming at the specified
-     * end time.
-     *
-     * <p>Does not modify this object.
-     */
-    public ReadChangeStream withEndTime(Timestamp endTime) {
-      return toBuilder().setEndTime(endTime).build();
     }
 
     /**
@@ -1933,9 +1963,9 @@ public class BigtableIO {
             metadataTableConfig.withAppProfileId(getBigtableConfig().getAppProfileId());
       }
 
-      Timestamp startTime = getStartTime();
+      Instant startTime = getStartTime();
       if (startTime == null) {
-        startTime = Timestamp.of(Date.from(Instant.now()));
+        startTime = Instant.now();
       }
       Duration heartbeatDuration = getHeartbeatDuration();
       if (heartbeatDuration == null) {
@@ -1958,7 +1988,7 @@ public class BigtableIO {
       InitializeDoFn initializeDoFn =
           new InitializeDoFn(daoFactory, metadataTableConfig.getAppProfileId().get(), startTime);
       DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
+          new DetectNewPartitionsDoFn(actionFactory, daoFactory, metrics);
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
 
@@ -1981,9 +2011,7 @@ public class BigtableIO {
 
       abstract ReadChangeStream.Builder setMetadataTableId(String tableId);
 
-      abstract ReadChangeStream.Builder setStartTime(Timestamp startTime);
-
-      abstract ReadChangeStream.Builder setEndTime(Timestamp endTime);
+      abstract ReadChangeStream.Builder setStartTime(Instant startTime);
 
       abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
 

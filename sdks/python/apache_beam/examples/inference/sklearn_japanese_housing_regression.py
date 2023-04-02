@@ -30,6 +30,7 @@ In order to set this example up, you will need two things.
 """
 
 import argparse
+import os
 from typing import Iterable
 
 import pandas
@@ -137,6 +138,12 @@ def run(
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+  requirements_dir = os.path.dirname(os.path.realpath(__file__))
+  # Pin to the version that we trained the model on.
+  # Sklearn doesn't guarantee compatability between versions.
+  pipeline_options.view_as(
+      SetupOptions
+  ).requirements_file = f'{requirements_dir}/sklearn_examples_requirements.txt'
 
   pipeline = test_pipeline
   if not test_pipeline:

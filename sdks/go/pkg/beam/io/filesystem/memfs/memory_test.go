@@ -151,6 +151,12 @@ func TestListTable(t *testing.T) {
 			want:    []string{"memfs://foo"},
 		},
 		{
+			name:    "no-matches",
+			files:   []string{"fizzbuzz", "foo", "foobar", "baz", "bazfoo"},
+			pattern: "memfs://non-existent",
+			want:    nil,
+		},
+		{
 			name: "dirs",
 			files: []string{
 				"fizzbuzz",

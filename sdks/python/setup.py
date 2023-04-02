@@ -36,7 +36,7 @@ from setuptools import Command
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.errors import DistutilsError # isort:skip
+from distutils.errors import DistutilsError  # isort:skip
 
 
 class mypy(Command):
@@ -127,6 +127,7 @@ except DistributionNotFound:
 try:
   # pylint: disable=wrong-import-position
   from Cython.Build import cythonize as cythonize0
+
   def cythonize(*args, **kwargs):
     import numpy
     extensions = cythonize0(*args, **kwargs)
@@ -141,6 +142,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
   pyarrow_dependency = 'pyarrow>=3.0.0,<10.0.0'
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -203,7 +205,6 @@ if __name__ == '__main__':
           ]
       },
       ext_modules=cythonize([
-          # Make sure to use language_level=3 cython directive in files below.
           'apache_beam/**/*.pyx',
           'apache_beam/coders/coder_impl.py',
           'apache_beam/metrics/cells.py',
@@ -216,7 +217,7 @@ if __name__ == '__main__':
           'apache_beam/transforms/stats.py',
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
-      ]),
+      ], language_level=3),
       install_requires = [
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
@@ -280,10 +281,10 @@ if __name__ == '__main__':
             'requests_mock>=1.7,<2.0',
             'tenacity>=5.0.2,<6.0',
             'pytest>=7.1.2,<8.0',
-            'pytest-xdist>=2.5.0,<3',
+            'pytest-xdist>=2.5.0,<4',
             'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
-            'sqlalchemy>=1.3,<3.0',
+            'sqlalchemy>=1.3,<2.0',
             'psycopg2-binary>=2.8.5,<3.0.0',
             'testcontainers[mysql]>=3.0.3,<4.0.0',
             'cryptography>=36.0.0',
@@ -332,9 +333,9 @@ if __name__ == '__main__':
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<112',
+            'chromedriver-binary>=100,<113',
             # use a fixed major version of PIL for different python versions
-            'pillow>=7.1.1,<8',
+            'pillow>=7.1.1,<10',
           ],
           'aws': ['boto3 >=1.9'],
           'azure': [

@@ -76,7 +76,8 @@ You can create multiple types of transforms using the RunInference API: the API 
 | ------- | ---------------|
 | I want to build a pipeline with multiple models | [Multi-Model Pipelines](/documentation/ml/multi-model-pipelines) |
 | I want to build a custom model handler with TensorRT | [Use TensorRT with RunInference](/documentation/ml/tensorrt-runinference) |
-| I want to use LLM inference | [Large Language Model Inference](/documentation/ml/large-language-modeling/) |:
+| I want to use LLM inference | [Large Language Model Inference](/documentation/ml/large-language-modeling/) |
+| I want to build a multi-language inference pipeline | [Using RunInference from Java SDK](/documentation/ml/multi-language-inference/) |:
 {{< /table >}}
 
 ## Data processing

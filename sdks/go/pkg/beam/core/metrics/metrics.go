@@ -68,8 +68,10 @@ import (
 type ctxKey string
 
 const (
-	counterSetKey ctxKey = "beam:counterset"
-	storeKey      ctxKey = "beam:bundlestore"
+	counterSetKey   ctxKey = "beam:counterset"
+	storeKey        ctxKey = "beam:bundlestore"
+	bundleIDKey     ctxKey = "beam:instructionID"
+	ptransformIDKey ctxKey = "beam:transformID"
 )
 
 // beamCtx is a caching context for IDs necessary to place metric updates.
@@ -113,6 +115,10 @@ func (ctx *beamCtx) Value(key any) any {
 			}
 		}
 		return ctx.store
+	case bundleIDKey:
+		return ctx.bundleID
+	case ptransformIDKey:
+		return ctx.ptransformID
 	}
 	return ctx.Context.Value(key)
 }
@@ -146,6 +152,28 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	}
 	// Avoid breaking if the bundle is unset in testing.
 	return &beamCtx{Context: ctx, bundleID: bundleIDUnset, store: newStore(), ptransformID: id}
+}
+
+// GetTransformID sources the TransformID from a context, if available.
+//
+// For Beam internal use only. Subject to change.
+func GetTransformID(ctx context.Context) string {
+	ret := ctx.Value(ptransformIDKey)
+	if id, ok := ret.(string); ok {
+		return id
+	}
+	return ""
+}
+
+// GetBundleID sources the Bundle's instruction ID from a context, if available.
+//
+// For Beam internal use only. Subject to change.
+func GetBundleID(ctx context.Context) string {
+	ret := ctx.Value(bundleIDKey)
+	if id, ok := ret.(string); ok {
+		return id
+	}
+	return ""
 }
 
 // GetStore extracts the metrics Store for the given context for a bundle.

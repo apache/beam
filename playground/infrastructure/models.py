@@ -83,6 +83,7 @@ class Tag(BaseModel):
     pipeline_options: str = ""
     datasets: Dict[str, Dataset] = {}
     emulators: List[Emulator] = []
+    always_run: bool = False
     multifile: bool = False
     default_example: bool = False
     tags: List[str] = []

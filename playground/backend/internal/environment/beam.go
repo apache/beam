@@ -43,14 +43,15 @@ func NewExecutorConfig(compileCmd, runCmd, testCmd string, compileArgs, runArgs,
 // BeamEnvs contains all environments related of ApacheBeam. These will use to run pipelines
 type BeamEnvs struct {
 	ApacheBeamSdk     pb.Sdk
+	BeamVersion       string
 	ExecutorConfig    *ExecutorConfig
 	preparedModDir    string
 	numOfParallelJobs int
 }
 
 // NewBeamEnvs is a BeamEnvs constructor
-func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig, preparedModDir string, numOfParallelJobs int) *BeamEnvs {
-	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig, preparedModDir: preparedModDir, numOfParallelJobs: numOfParallelJobs}
+func NewBeamEnvs(apacheBeamSdk pb.Sdk, beamVersion string, executorConfig *ExecutorConfig, preparedModDir string, numOfParallelJobs int) *BeamEnvs {
+	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, BeamVersion: beamVersion, ExecutorConfig: executorConfig, preparedModDir: preparedModDir, numOfParallelJobs: numOfParallelJobs}
 }
 
 // PreparedModDir returns the path to the directory where prepared go.mod and go.sum are located

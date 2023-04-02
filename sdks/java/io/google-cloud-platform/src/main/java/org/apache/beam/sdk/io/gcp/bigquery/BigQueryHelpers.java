@@ -244,26 +244,26 @@ public class BigQueryHelpers {
             // This might happen if BigQuery's job listing is slow. Retry with the same
             // job id.
             LOG.info(
-                "Load job {} finished in unknown state: {}: {}",
+                "Load job {} finished in unknown state, {}: {}",
                 currentJobId,
-                job.getStatus(),
-                shouldRetry() ? "will retry" : "will not retry");
+                shouldRetry() ? "will retry" : "will not retry",
+                statusToPrettyString(job.getStatus()));
             return false;
           case FAILED:
             String oldJobId = currentJobId.getJobId();
-            currentJobId = BigQueryHelpers.getRetryJobId(currentJobId, lookupJob).jobId;
+            currentJobId = getRetryJobId(currentJobId, lookupJob).jobId;
             LOG.warn(
                 "Load job {} failed, {}: {}. Next job id {}",
                 oldJobId,
                 shouldRetry() ? "will retry" : "will not retry",
-                job.getStatus(),
+                statusToPrettyString(job.getStatus()),
                 currentJobId);
             return false;
           default:
             throw new IllegalStateException(
                 String.format(
                     "Unexpected status [%s] of load job: %s.",
-                    job.getStatus(), BigQueryHelpers.jobToPrettyString(job)));
+                    job.getStatus(), jobToPrettyString(job)));
         }
       }
       return false;
@@ -567,6 +567,17 @@ public class BigQueryHelpers {
         return null;
       }
       return table.getNumRows();
+    } catch (IOException | InterruptedException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static @Nullable Table getTable(BigQueryOptions options, TableReference tableRef)
+      throws InterruptedException, IOException {
+    try (DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options)) {
+      return datasetService.getTable(tableRef);
     } catch (IOException | InterruptedException e) {
       throw e;
     } catch (Exception e) {
