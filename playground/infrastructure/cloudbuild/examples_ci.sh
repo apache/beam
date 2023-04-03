@@ -42,7 +42,7 @@ done
 
 export LOG_PATH=${LOG_PATH-"/dev/null"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
-export PROJECT_ID=${PROJECT_ID-"test"}
+export PROJECT_ID=${PROJECT_ID}
 export BEAM_VERSION=${BEAM_VERSION-"2.44.0"}
 export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
 export SDKS=${SDKS-"java python go"}
@@ -80,6 +80,7 @@ fi
 if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
+
 export STEP=CI
 export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
 export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"

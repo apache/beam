@@ -26,15 +26,10 @@ do
 done
 
 # This block sets default values for several environment variables to run CD script.
-export LOG_PATH=${LOG_PATH-"/dev/null"}
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
 export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
 export PROJECT_ID=${PROJECT_ID}
-if [[ -z "${PROJECT_ID}" ]]; then
-  LogOutput "PROJECT_ID is empty or not set. Exiting"
-  exit 1
-fi
 export SDK_CONFIG=${SDK_CONFIG-"$BEAM_ROOT_DIR/playground/sdks.yaml"}
 export BEAM_EXAMPLE_CATEGORIES=${BEAM_EXAMPLE_CATEGORIES-"$BEAM_ROOT_DIR/playground/categories.yaml"}
 export BEAM_USE_WEBGRPC=${BEAM_USE_WEBGRPC-"yes"}

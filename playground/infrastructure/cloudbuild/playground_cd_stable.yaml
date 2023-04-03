@@ -28,7 +28,7 @@ steps:
          Merged to: $_TARGET_PR_REPO_BRANCH; 
          Playground DNS: $_DNS_NAME; "
         if [[ ${_TARGET_PR_REPO_BRANCH} != "apache:master" ]]; then
-            echo "CDLOG Merge to branch apache/${_TARGET_PR_REPO_BRANCH}. Exiting"
+            echo "CDLOG Merging not into the master, but into the branch apache/${_TARGET_PR_REPO_BRANCH}. Exiting"
             exit 0
         fi
         
@@ -57,11 +57,12 @@ steps:
   
             git remote add forked https://github.com/${_FORK_REPO}.git > /dev/null 2>&1
   
-            curl -O --output-dir /tmp https://raw.githubusercontent.com/akvelon/beam/master/playground/infrastructure/cloudbuild/examples_cd.sh
+            curl -O --output-dir /tmp https://raw.githubusercontent.com/apache/beam/master/playground/infrastructure/cloudbuild/examples_cd.sh
   
             chmod +x /tmp/examples_cd.sh
             
-            env -i bash -c "/tmp/examples_cd.sh NAMESPACE='"'${_NAMESPACE}'"' PROJECT_ID='"'${PROJECT_ID}'"' DNS_NAME='"'${_DNS_NAME}'"' COMMIT='"'${_PR_COMMIT}'"' "
+            env -i bash -c "/tmp/examples_cd.sh STEP='"'${_STEP}'"' SOURCE_BRANCH='"'${_PR_BRANCH}'"' NAMESPACE='"'${_NAMESPACE}'"' PROJECT_ID='"'${PROJECT_ID}'"' DNS_NAME='"'${_DNS_NAME}'"' COMMIT='"'${_PR_COMMIT}'"' "
+
             cd_script_status=$?
 
             if [ $cd_script_status -eq 0 ]; then
@@ -81,15 +82,15 @@ options:
   machineType: E2_HIGHCPU_32
   logging: GCS_ONLY
 substitutions:
-  _PR_URL: $(body.pull_request._links.html.href)
-  _MERGE_STATUS: $(body.pull_request.merged)
-  _TARGET_PR_REPO_BRANCH: $(body.pull_request.base.label)
   _PR_BRANCH: $(body.pull_request.head.ref)
+  _TARGET_PR_REPO_BRANCH: $(body.pull_request.base.label)
+  _PR_NUMBER: $(body.number)
   _LOG_LOCATION: '/tmp/build-log-${_PR_NUMBER}-${_COMMIT_SHA}-${BUILD_ID}.txt'
-  _FORK_REPO: $(body.pull_request.head.repo.full_name)
   _PR_TYPE: $(body.action)
   _PR_COMMIT: $(body.pull_request.head.sha)
-  _PR_NUMBER: $(body.number)
+  _PR_URL: $(body.pull_request._links.html.href)
+  _MERGE_STATUS: $(body.pull_request.merged)
+  _FORK_REPO: $(body.pull_request.head.repo.full_name)
 availableSecrets:
   secretManager:
     - versionName: >-
