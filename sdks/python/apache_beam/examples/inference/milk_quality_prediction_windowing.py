@@ -64,19 +64,19 @@ def parse_known_args(argv):
       dest='pipeline_input_data',
       required=True,
       help='Path to store the csv containing input data for the pipeline.'
-           'This will be generated as part of preprocessing the data.')
+      'This will be generated as part of preprocessing the data.')
   parser.add_argument(
       '--training_set',
       dest='training_set',
       required=True,
       help='Path to store the csv containing the training set.'
-           'This will be generated as part of preprocessing the data.')
+      'This will be generated as part of preprocessing the data.')
   parser.add_argument(
       '--labels',
       dest='labels',
       required=True,
       help='Path to store the csv containing the labels used in training.'
-           'This will be generated as part of preprocessing the data.')
+      'This will be generated as part of preprocessing the data.')
   parser.add_argument(
       '--model_state',
       dest='model_state',
