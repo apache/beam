@@ -110,7 +110,7 @@ public class LineReadSchemaTransformFormatProviderTest {
     readPipeline.run().waitUntilFinish();
   }
 
-  private static class CreateRow extends SimpleFunction<Long, KV<Integer, String>> {
+  private static class CreateKeyStringPair extends SimpleFunction<Long, KV<Integer, String>> {
     @Override
     public KV<Integer, String> apply(Long l) {
       String line = "dynamic destination line #" + l.intValue();
@@ -144,7 +144,7 @@ public class LineReadSchemaTransformFormatProviderTest {
                 .withAllowedLateness(Duration.ZERO)
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                 .discardingFiredPanes())
-        .apply(MapElements.via(new CreateRow()))
+        .apply("Create Key-String pairs", MapElements.via(new CreateKeyStringPair()))
         .setCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
         .apply(
             FileIO.<Integer, KV<Integer, String>>writeDynamic()
@@ -158,7 +158,7 @@ public class LineReadSchemaTransformFormatProviderTest {
     PCollection<String> outputStrings =
         output
             .get(FileReadSchemaTransformProvider.OUTPUT_TAG)
-            .apply(MapElements.into(TypeDescriptors.strings()).via(row -> row.getString("line")));
+            .apply("Get strings", MapElements.into(TypeDescriptors.strings()).via(row -> row.getString("line")));
 
     List<String> expectedStrings =
         Arrays.asList(0, 1, 2).stream()
@@ -176,7 +176,7 @@ public class LineReadSchemaTransformFormatProviderTest {
     // Write rows to dynamic destinations (test_1.., test_2.., test_3..)
     writePipeline
         .apply(Create.of(Arrays.asList(0L, 1L, 2L)))
-        .apply(MapElements.via(new CreateRow()))
+        .apply(MapElements.via(new CreateKeyStringPair()))
         .setCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
         .apply(
             FileIO.<Integer, KV<Integer, String>>writeDynamic()
