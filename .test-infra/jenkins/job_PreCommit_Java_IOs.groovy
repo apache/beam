@@ -211,6 +211,7 @@ ioModulesMap.forEach {cases, ioModules ->
     ]
     tasks.addAll(additionalTasks.get(it, []))
     def testName = aliasMap.get(it, it.capitalize())
+    String jacocoPattern = "**/org/apache/beam/sdk/io/${it}/**"
     PrecommitJobBuilder builderSingle = new PrecommitJobBuilder(
         scope: this,
         nameBase: 'Java_' + testName + '_IO_Direct',
@@ -240,7 +241,7 @@ ioModulesMap.forEach {cases, ioModules ->
         jacocoCodeCoverage {
           execPattern('**/build/jacoco/*.exec')
           exclusionPattern('**/AutoValue_*')
-          inclusionPattern("**/sdks/java/io/$it/**")
+          inclusionPattern(jacocoPattern)
         }
       }
     }

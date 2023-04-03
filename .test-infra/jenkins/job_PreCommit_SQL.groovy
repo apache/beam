@@ -46,7 +46,7 @@ builder.build {
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
       exclusionPattern('**/AutoValue_*')
-      inclusionPattern("**/sdks/java/extensions/sql/**")
+      inclusionPattern("**/org/apache/beam/sdk/extensions/sql/**")
     }
   }
 }
