@@ -54,6 +54,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -70,7 +71,12 @@ public class JsonReadSchemaTransformFormatProviderTest
     return new JsonReadSchemaTransformFormatProvider().identifier();
   }
 
-  // Formats the schema to have the expected Beam FieldTypes that JSON schema supports
+  @Override
+  public String getStringSchemaFromBeamSchema(Schema beamSchema) {
+    return JsonUtils.jsonSchemaStringFromBeamSchema(beamSchema);
+  }
+
+  // Formats input schema to have the expected Beam FieldTypes that JSON schema supports
   private static Schema getExpectedSchema(Schema inputRowSchema) {
     Schema.Builder outputSchemaBuilder = Schema.builder();
     for (Field field : inputRowSchema.getFields()) {
@@ -118,7 +124,7 @@ public class JsonReadSchemaTransformFormatProviderTest
   // schema supports.
   // JSON schemas don't make a distinction between different integer types (ie int32 vs int64)
   // or different floating-point types (ie float vs double).
-  // When converting to Bema Rows, we default to choosing the type that is less likely to overflow.
+  // When converting to Beam Rows, we default to choosing the type that is less likely to overflow.
   // The following line reformats the expected rows to account for this.
   private static Row getExpectedRow(Row inputRow) {
     Schema outputSchema = getExpectedSchema(inputRow.getSchema());
@@ -161,8 +167,12 @@ public class JsonReadSchemaTransformFormatProviderTest
   }
 
   @Override
-  public void runWriteAndReadTest(Schema schema, List<Row> rows, String filePath) {
-    String jsonStringSchema = JsonUtils.jsonSchemaStringFromBeamSchema(schema);
+  public void runWriteAndReadTest(
+      Schema schema, List<Row> rows, String filePath, String schemaFilePath) {
+    String jsonStringSchema =
+        Strings.isNullOrEmpty(schemaFilePath)
+            ? JsonUtils.jsonSchemaStringFromBeamSchema(schema)
+            : schemaFilePath;
 
     PayloadSerializer payloadSerializer =
         new JsonPayloadSerializerProvider().getSerializer(schema, ImmutableMap.of());

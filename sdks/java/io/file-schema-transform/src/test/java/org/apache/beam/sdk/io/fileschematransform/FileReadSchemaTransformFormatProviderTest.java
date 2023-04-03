@@ -28,6 +28,8 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
@@ -42,12 +44,16 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
   /** Returns the format of the {@linke FileReadSchemaTransformFormatProviderTest} subclass. */
   protected abstract String getFormat();
 
+  /** Given a Beam Schema, returns the relevant source's String schema representation. */
+  protected abstract String getStringSchemaFromBeamSchema(Schema beamSchema);
+
   /**
    * Writes {@link Row}s to files then reads from those files. Performs a {@link
    * org.apache.beam.sdk.testing.PAssert} check to validate the written and read {@link Row}s are
    * equal.
    */
-  protected abstract void runWriteAndReadTest(Schema schema, List<Row> rows, String filePath);
+  protected abstract void runWriteAndReadTest(
+      Schema schema, List<Row> rows, String filePath, String schemaFilePath);
 
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -71,7 +77,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     List<Row> rows = DATA.allPrimitiveDataTypesRows;
     String filePath = getFilePath();
 
-    runWriteAndReadTest(schema, rows, filePath);
+    runWriteAndReadTest(schema, rows, filePath, null);
   }
 
   @Test
@@ -80,7 +86,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     List<Row> rows = DATA.nullableAllPrimitiveDataTypesRows;
     String filePath = getFilePath();
 
-    runWriteAndReadTest(schema, rows, filePath);
+    runWriteAndReadTest(schema, rows, filePath, null);
   }
 
   @Test
@@ -92,7 +98,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     List<Row> rows = DATA.timeContainingRows;
     String filePath = getFilePath();
 
-    runWriteAndReadTest(schema, rows, filePath);
+    runWriteAndReadTest(schema, rows, filePath, null);
   }
 
   @Test
@@ -104,7 +110,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     List<Row> rows = DATA.byteTypeRows;
     String filePath = getFilePath();
 
-    runWriteAndReadTest(schema, rows, filePath);
+    runWriteAndReadTest(schema, rows, filePath, null);
   }
 
   @Test
@@ -116,7 +122,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     List<Row> rows = DATA.byteSequenceTypeRows;
     String filePath = getFilePath();
 
-    runWriteAndReadTest(schema, rows, filePath);
+    runWriteAndReadTest(schema, rows, filePath, null);
   }
 
   @Test
@@ -125,7 +131,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     List<Row> rows = DATA.arrayPrimitiveDataTypesRows;
     String filePath = getFilePath();
 
-    runWriteAndReadTest(schema, rows, filePath);
+    runWriteAndReadTest(schema, rows, filePath, null);
   }
 
   @Test
@@ -134,6 +140,21 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     List<Row> rows = DATA.singlyNestedDataTypesRepeatedRows;
     String filePath = getFilePath();
 
-    runWriteAndReadTest(schema, rows, filePath);
+    runWriteAndReadTest(schema, rows, filePath, null);
+  }
+
+  @Test
+  public void testReadWithSchemaFilePath() throws Exception {
+    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.allPrimitiveDataTypesRows;
+    String folder = getFolder();
+    String filePath = folder + "/test";
+    String schemaFilePath = folder + "all_primitive_data_types_schema";
+
+    String schemaString = getStringSchemaFromBeamSchema(schema);
+    PrintWriter writer = new PrintWriter(schemaFilePath, StandardCharsets.UTF_8.name());
+    writer.println(schemaString);
+    writer.close();
+    runWriteAndReadTest(schema, rows, filePath, null);
   }
 }

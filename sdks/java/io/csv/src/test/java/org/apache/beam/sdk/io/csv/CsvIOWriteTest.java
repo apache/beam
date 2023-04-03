@@ -227,9 +227,7 @@ public class CsvIOWriteTest {
 
     PAssert.that(readPipeline.apply(TextIO.read().from(toFilenamePrefix(folder) + "*")))
         .containsInAnyOrder(
-            "false,10,1.0,1.0,1,a,1",
-            "false,20,2.0,2.0,2,b,2",
-            "false,30,3.0,3.0,3,c,3");
+            "false,10,1.0,1.0,1,a,1", "false,20,2.0,2.0,2,b,2", "false,30,3.0,3.0,3,c,3");
 
     readPipeline.run();
   }

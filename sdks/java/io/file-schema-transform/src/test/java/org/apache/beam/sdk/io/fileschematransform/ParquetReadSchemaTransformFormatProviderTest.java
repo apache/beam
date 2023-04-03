@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,9 +65,16 @@ public class ParquetReadSchemaTransformFormatProviderTest
   }
 
   @Override
-  public void runWriteAndReadTest(Schema schema, List<Row> rows, String folderPath) {
+  public String getStringSchemaFromBeamSchema(Schema beamSchema) {
+    return AvroUtils.toAvroSchema(beamSchema).toString();
+  }
+
+  @Override
+  public void runWriteAndReadTest(
+      Schema schema, List<Row> rows, String folderPath, String schemaFilePath) {
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
-    String stringSchema = avroSchema.toString();
+    String stringSchema =
+        Strings.isNullOrEmpty(schemaFilePath) ? avroSchema.toString() : schemaFilePath;
 
     writePipeline
         .apply(Create.of(rows).withRowSchema(schema))
