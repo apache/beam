@@ -19,6 +19,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
@@ -42,8 +43,7 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 	defer cc.Close()
 
-	err = StageViaPortableApi(ctx, cc, binary, st)
-	if err == nil {
+	if err := StageViaPortableApi(ctx, cc, binary, st); err == nil {
 		return "", nil
 	} else {
 		log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
@@ -53,25 +53,36 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 }
 
 func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retErr error) {
-	client := jobpb.NewArtifactStagingServiceClient(cc)
+	const attempts = 3
+	var failures []string
+	for {
+		err := stageFiles(ctx, cc, binary, st)
+		if err == nil {
+			return nil // success!
+		}
+		if err != nil {
+			failures = append(failures, err.Error())
+		}
+		if len(failures) > attempts {
+			return errors.Errorf("failed to stage artifacts for token %v in %v attempts: %v", st, attempts, strings.Join(failures, ";\n"))
+		}
+	}
+}
 
-	stream, err := client.ReverseArtifactRetrievalService(context.Background())
+func stageFiles(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {
+	client := jobpb.NewArtifactStagingServiceClient(cc)
+	stream, err := client.ReverseArtifactRetrievalService(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if retErr != nil {
-			log.Error(ctx, "StageViaPortableApi error: ", retErr)
-			if err := stream.CloseSend(); err != nil {
-				log.Error(ctx, "StageViaPortableApi CloseSend error: ", err)
-				retErr = err
-			}
+		if err := stream.CloseSend(); err != nil {
+			log.Error(ctx, "StageViaPortableApi CloseSend error: ", err)
 		}
 	}()
 
 	if err := stream.Send(&jobpb.ArtifactResponseWrapper{StagingToken: st}); err != nil {
-		log.Error(ctx, "StageViaPortableApi staging token send error: ", err)
-		return err
+		return errors.Wrapf(err, "failed to send staging token")
 	}
 
 	for {
@@ -80,7 +91,6 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 			return nil
 		}
 		if err != nil {
-			log.Error(ctx, "StageViaPortableApi Recv error: ", err)
 			return err
 		}
 
@@ -101,21 +111,19 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 			// TODO(https://github.com/apache/beam/issues/21459): Legacy Type URN. If requested, provide the binary.
 			// To be removed later in 2022, once thoroughly obsolete.
 			case graphx.URNArtifactGoWorker:
-				if err := StageFile(binary, stream); err != nil {
+				if err := stageFile(binary, stream); err != nil {
 					if err == io.EOF {
-						log.Infof(ctx, "failed to Go worker binary %v due to server side close.", binary)
 						continue // so we can get the real error from stream.Recv.
 					}
-					return errors.Wrap(err, "failed to stage Go worker binary")
+					return errors.Wrapf(err, "failed to stage Go worker binary: %v", binary)
 				}
 			case graphx.URNArtifactFileType:
 				typePl := pipepb.ArtifactFilePayload{}
 				if err := proto.Unmarshal(request.GetArtifact.Artifact.TypePayload, &typePl); err != nil {
 					return errors.Wrap(err, "failed to parse artifact file payload")
 				}
-				if err := StageFile(typePl.GetPath(), stream); err != nil {
+				if err := stageFile(typePl.GetPath(), stream); err != nil {
 					if err == io.EOF {
-						log.Infof(ctx, "failed to stage file %v due to server side close.", typePl.GetPath())
 						continue // so we can get the real error from stream.Recv.
 					}
 					return errors.Wrapf(err, "failed to stage file %v", typePl.GetPath())
@@ -131,7 +139,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 	}
 }
 
-func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtifactRetrievalServiceClient) error {
+func stageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtifactRetrievalServiceClient) error {
 	fd, err := os.Open(filename)
 	if err != nil {
 		return errors.Wrapf(err, "unable to open file %v", filename)
@@ -149,7 +157,6 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 					},
 				}})
 			if sendErr == io.EOF {
-				log.Infof(context.TODO(), "StageFile error on Send of len %v for %v: %v", n, filename, sendErr)
 				return sendErr
 			}
 
@@ -164,10 +171,6 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
 					GetArtifactResponse: &jobpb.GetArtifactResponse{},
 				}})
-
-			if sendErr != nil {
-				log.Infof(context.TODO(), "StageFile error on Final Send for %v: %v", filename, sendErr)
-			}
 			return sendErr
 		}
 
