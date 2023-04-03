@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import avro.shaded.com.google.common.collect.ImmutableMap;
 import com.google.auto.service.AutoService;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
@@ -31,8 +30,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** A {@link FileReadSchemaTransformFormatProvider} that reads newline-delimited JSONs */
+/** A {@link FileReadSchemaTransformFormatProvider} that reads newline-delimited JSONs. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
