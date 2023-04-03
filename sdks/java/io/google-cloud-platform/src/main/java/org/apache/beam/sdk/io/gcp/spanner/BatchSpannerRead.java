@@ -138,7 +138,8 @@ abstract class BatchSpannerRead
       BatchReadOnlyTransaction batchTx =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
       ReadOperation op = c.element();
-      boolean dataBoostEnabled = config.getDataBoostEnabled() != null && config.getDataBoostEnabled().get();
+      boolean dataBoostEnabled =
+          config.getDataBoostEnabled() != null && config.getDataBoostEnabled().get();
 
       // While this creates a ServiceCallMetric for every input element, in reality, the number
       // of input elements will either be very few (normally 1!), or they will differ and
