@@ -135,6 +135,10 @@
   fixed cost in this computation to better handle cases where the fixed cost
   is larger than a single second. To get the old behavior, one can pass
   `target_batch_duration_secs_including_fixed_cost=1` to BatchElements.
+* Dataflow runner enables sibling SDK protocol for Python pipelines using custom containers starting with Beam 2.46.0.
+  If your Python pipeline starts to stall after you switch to 2.46.0 and you use a custom container, please verify
+  that your custom container does not include artifacts from older Beam SDK releases. In particular, check in your `Dockerfile`
+  that the Beam container entrypoint and/or Beam base image version match the Beam SDK version used at job submission.
 
 ## Deprecations
 
