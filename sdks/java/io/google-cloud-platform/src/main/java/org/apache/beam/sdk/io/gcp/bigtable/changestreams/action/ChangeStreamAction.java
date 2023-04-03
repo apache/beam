@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toJodaTime;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
@@ -209,7 +208,7 @@ public class ChangeStreamAction {
 
       KV<ByteString, ChangeStreamMutation> outputRecord =
           KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
-      throughputEstimator.update(Timestamp.now(), outputRecord);
+      throughputEstimator.update(Instant.now(), outputRecord);
       // We are outputting elements with timestamp of 0 to prevent reliance on event time. This
       // limits the ability to window on commit time of any data changes. It is still possible to
       // window on processing time.

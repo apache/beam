@@ -35,4 +35,10 @@ public class TimestampConverterTest {
     org.threeten.bp.Instant threetenInstant = org.threeten.bp.Instant.ofEpochMilli(1_000_000_000L);
     assertEquals(1_000_000_000L, toJodaTime(threetenInstant).getMillis());
   }
+
+  @Test
+  public void testToSeconds() {
+    assertEquals(1, TimestampConverter.toSeconds(org.joda.time.Instant.ofEpochSecond(1)));
+    assertEquals(1000, TimestampConverter.toSeconds(org.joda.time.Instant.ofEpochSecond(1000)));
+  }
 }

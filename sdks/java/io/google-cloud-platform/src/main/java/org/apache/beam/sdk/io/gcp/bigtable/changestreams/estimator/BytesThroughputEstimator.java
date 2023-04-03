@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -25,7 +24,9 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Random;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.joda.time.Instant;
 
 /**
  * An estimator to provide an estimate on the byte throughput of the outputted elements.
@@ -52,20 +53,20 @@ public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
 
     private static final long serialVersionUID = 3752325891215855332L;
 
-    private final Timestamp timestamp;
+    private final Instant instant;
     private BigDecimal bytes;
 
-    public ThroughputEntry(Timestamp timestamp, long bytes) {
-      this.timestamp = timestamp;
+    public ThroughputEntry(Instant instant, long bytes) {
+      this.instant = instant;
       this.bytes = BigDecimal.valueOf(bytes);
     }
 
-    public Timestamp getTimestamp() {
-      return timestamp;
+    public Instant getTimestamp() {
+      return instant;
     }
 
     public long getSeconds() {
-      return timestamp.getSeconds();
+      return TimestampConverter.toSeconds(instant);
     }
 
     public BigDecimal getBytes() {
@@ -109,11 +110,12 @@ public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
    */
   @SuppressWarnings("nullness") // queue is never null, nor the peeked element
   @Override
-  public void update(Timestamp timeOfRecords, T element) {
+  public void update(Instant timeOfRecords, T element) {
     if (random.nextInt(sampleRate) == 0) {
       long bytes = sizeEstimator.sizeOf(element);
       synchronized (deque) {
-        if (deque.isEmpty() || timeOfRecords.getSeconds() > deque.getLast().getSeconds()) {
+        if (deque.isEmpty()
+            || TimestampConverter.toSeconds(timeOfRecords) > deque.getLast().getSeconds()) {
           deque.addLast(new ThroughputEntry(timeOfRecords, bytes));
         } else {
           deque.getLast().addBytes(bytes);
@@ -126,7 +128,7 @@ public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
   /** Returns the estimated throughput bytes for now. */
   @Override
   public double get() {
-    return getFrom(Timestamp.now());
+    return getFrom(Instant.now());
   }
 
   /**
@@ -135,7 +137,7 @@ public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
    * @param time the specified timestamp to check throughput
    */
   @Override
-  public double getFrom(Timestamp time) {
+  public double getFrom(Instant time) {
     synchronized (deque) {
       cleanQueue(time);
       if (deque.size() == 0) {
@@ -156,10 +158,11 @@ public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
     }
   }
 
-  private void cleanQueue(Timestamp time) {
+  private void cleanQueue(Instant time) {
     while (deque.size() > 0) {
       final ThroughputEntry entry = deque.getFirst();
-      if (entry != null && entry.getSeconds() >= time.getSeconds() - windowSizeSeconds) {
+      if (entry != null
+          && entry.getSeconds() >= TimestampConverter.toSeconds(time) - windowSizeSeconds) {
         break;
       }
       // Remove the element if the timestamp of the first element is beyond

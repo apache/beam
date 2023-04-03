@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.joda.time.Instant;
 
 /** An estimator to calculate the throughput of the outputted elements from a DoFn. */
 @Internal
@@ -30,11 +30,11 @@ public interface ThroughputEstimator<T> extends Serializable {
    * @param timeOfRecords the committed timestamp of the records
    * @param element the element to estimate the byte size of
    */
-  void update(Timestamp timeOfRecords, T element);
+  void update(Instant timeOfRecords, T element);
 
   /** Returns the estimated throughput for now. */
   default double get() {
-    return getFrom(Timestamp.now());
+    return getFrom(Instant.now());
   }
 
   /**
@@ -42,5 +42,5 @@ public interface ThroughputEstimator<T> extends Serializable {
    *
    * @param time the specified timestamp to check throughput
    */
-  double getFrom(Timestamp time);
+  double getFrom(Instant time);
 }

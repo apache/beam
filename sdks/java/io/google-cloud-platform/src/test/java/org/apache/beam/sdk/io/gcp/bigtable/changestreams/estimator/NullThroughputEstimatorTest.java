@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.Timestamp;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 public class NullThroughputEstimatorTest {
@@ -30,9 +30,9 @@ public class NullThroughputEstimatorTest {
     final NullThroughputEstimator<byte[]> estimator = new NullThroughputEstimator<>();
     assertEquals(estimator.get(), 0D, DELTA);
 
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(1, 0), new byte[10]);
-    assertEquals(estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(1, 0)), 0D, DELTA);
-    estimator.update(Timestamp.ofTimeSecondsAndNanos(2, 0), new byte[20]);
-    assertEquals(estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(2, 0)), 0D, DELTA);
+    estimator.update(Instant.ofEpochSecond(1), new byte[10]);
+    assertEquals(estimator.getFrom(Instant.ofEpochSecond(1)), 0D, DELTA);
+    estimator.update(Instant.ofEpochSecond(2), new byte[20]);
+    assertEquals(estimator.getFrom(Instant.ofEpochSecond(2)), 0D, DELTA);
   }
 }

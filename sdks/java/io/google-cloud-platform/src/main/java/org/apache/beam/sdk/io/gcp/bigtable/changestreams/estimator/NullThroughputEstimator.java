@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import com.google.cloud.Timestamp;
 import org.apache.beam.sdk.annotations.Internal;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ public class NullThroughputEstimator<T> implements ThroughputEstimator<T> {
    * @param element ignored
    */
   @Override
-  public void update(Timestamp timeOfRecords, T element) {
+  public void update(Instant timeOfRecords, T element) {
     LOG.warn(
         "Trying to update throughput using {}, this operation will have no effect",
         this.getClass().getSimpleName());
@@ -52,7 +52,7 @@ public class NullThroughputEstimator<T> implements ThroughputEstimator<T> {
    * @return 0
    */
   @Override
-  public double getFrom(Timestamp time) {
+  public double getFrom(Instant time) {
     LOG.warn(
         "Trying to retrieve throughput using {}, this operation will always return 0",
         this.getClass().getSimpleName());
