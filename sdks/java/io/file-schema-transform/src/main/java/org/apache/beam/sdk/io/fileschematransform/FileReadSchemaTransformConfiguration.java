@@ -33,7 +33,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class FileReadSchemaTransformConfiguration {
-  static final Set<String> VALID_FORMATS = Sets.newHashSet("avro", "parquet", "json");
+  static final Set<String> VALID_FORMATS = Sets.newHashSet("avro", "parquet", "json", "line");
 
   public void validate() {
     checkArgument(
@@ -41,11 +41,11 @@ public abstract class FileReadSchemaTransformConfiguration {
         "A valid file format must be specified. Please specify one of: "
             + VALID_FORMATS.toString());
 
-    if (!this.getFormat().equals("lines")) {
+    if (!this.getFormat().equals("line")) {
       checkArgument(
           !Strings.isNullOrEmpty(this.getSchema()),
           String.format(
-              "A schema must be specified when reading files with format %s. You may provide a schema string or a path to a file containing the schema.",
+              "A schema must be specified when reading files with %s format. You may provide a schema string or a path to a file containing the schema.",
               this.getFormat()));
     }
 

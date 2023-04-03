@@ -217,7 +217,7 @@ public class FileReadSchemaTransformProvider
       checkArgument(
           providers.containsKey(format),
           String.format(
-              "Received unsupported file format %s. Supported formats are %s",
+              "Received unsupported file format: %s. Supported formats are %s",
               format, FileReadSchemaTransformConfiguration.VALID_FORMATS));
 
       return providers.get(format);
