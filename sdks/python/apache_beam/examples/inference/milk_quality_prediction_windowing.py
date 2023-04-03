@@ -16,9 +16,10 @@
 #
 
 """A streaming pipeline that uses RunInference API and windowing that classifies
-the quality of milk as good, bad or medium based on based pH, temperature,
-taste, odor, fat, turbidity and Color.Each minute a new measurements come in and
-a sliding window aggregates the number of good, bad and medium samples.
+the quality of milk as good, bad or medium based on pH, temperature,
+taste, odor, fat, turbidity and color. Each minute new measurements come in
+and a sliding window aggregates the number of good, bad and medium
+samples.
 
 This example uses the milk quality prediction dataset from kaggle.
 https://www.kaggle.com/datasets/cpluzshrijayan/milkquality
@@ -62,17 +63,20 @@ def parse_known_args(argv):
       '--pipeline_input_data',
       dest='pipeline_input_data',
       required=True,
-      help='Path to store the csv containing input data for the pipeline.')
+      help='Path to store the csv containing input data for the pipeline.'
+           'This will be generated as part of preprocessing the data.')
   parser.add_argument(
       '--training_set',
       dest='training_set',
       required=True,
-      help='Path to store the csv containing the training set')
+      help='Path to store the csv containing the training set.'
+           'This will be generated as part of preprocessing the data.')
   parser.add_argument(
       '--labels',
       dest='labels',
       required=True,
-      help='Path to store the csv containing the labels used in training.')
+      help='Path to store the csv containing the labels used in training.'
+           'This will be generated as part of preprocessing the data.')
   parser.add_argument(
       '--model_state',
       dest='model_state',

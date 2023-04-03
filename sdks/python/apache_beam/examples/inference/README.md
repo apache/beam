@@ -674,10 +674,10 @@ python -m apache_beam.examples.inference.milk_quality_prediction_windowing.py \
     <MODEL_STATE>
 ```
 
-Where `<DATASET>` is the path to a csv file containing the Kaggle Milk Quality prediction dataset, `<INPUT_DATA>` the data that will be used as input for the streaming pipeline (test set), `<TRAINING_SET>` the path to store the training set in csv format, `<LABELS>` the path to store the csv containing the labels used to train the model and  `<MODEL_STATE>` the path to the JSON file containing the trained model.
+Where `<DATASET>` is the path to a csv file containing the Kaggle Milk Quality prediction dataset, `<INPUT_DATA>` a filepath to save the data that will be used as input for the streaming pipeline (test set), `<TRAINING_SET>` a filepath to store the training set in csv format, `<LABELS>` a filepath to store the csv containing the labels used to train the model and  `<MODEL_STATE>` the path to the JSON file containing the trained model.
+`<INPUT_DATA>`, `<TRAINING_SET>`, and `<LABELS>` will all be parsed from `<DATASET>` and saved before pipeline execution.
 
-Using the test set, we simulate a streaming pipeline that a receives a new measurement of the milk quality parameters every minute. A sliding window keeps track of the measurement of the last 30 minutes and new window starts every 5 minutes. The model predicts the quality of each measurement. After 30 minutes the results are aggregated in a tuple contains the number of measurements that were predicted as bad, medium and high quality samples. The output of each window looks as follows:
-
+Using the test set, we simulate a streaming pipeline that a receives a new measurement of the milk quality parameters every minute. A sliding window keeps track of the measurement of the last 30 minutes and new window starts every 5 minutes. The model predicts the quality of each measurement. After 30 minutes the results are aggregated in a tuple containing the number of measurements that were predicted as bad, medium and high quality samples. The output of each window looks as follows:
 ```
 MilkQualityAggregation(bad_quality_measurements=10, medium_quality_measurements=13, high_quality_measurements=6)
 MilkQualityAggregation(bad_quality_measurements=9, medium_quality_measurements=11, high_quality_measurements=4)
