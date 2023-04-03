@@ -61,7 +61,7 @@ builder.build {
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
       exclusionPattern('**/AutoValue_*')
-      inclusionPattern("**/sdks/java/io/google-cloud-platform/**")
+      inclusionPattern("**/org/apache/beam/sdk/io/gcp/**")
     }
   }
 }
