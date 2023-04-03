@@ -116,8 +116,7 @@ public class SpannerAccessor implements AutoCloseable {
     if (spannerConfig.getRetryableCodes() != null) {
       retryableCodes.addAll(spannerConfig.getRetryableCodes());
     }
-    if (spannerConfig.getDataBoostEnabled() != null
-        && Boolean.TRUE.equals(spannerConfig.getDataBoostEnabled().get())) {
+    if (spannerConfig.getDataBoostEnabled() != null && spannerConfig.getDataBoostEnabled().get()) {
       retryableCodes.add(Code.RESOURCE_EXHAUSTED);
     }
     // Set retryable codes for all API methods
