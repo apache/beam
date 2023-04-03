@@ -50,6 +50,7 @@ extension ExampleTypeToString on ExampleType {
 /// and other large fields.
 /// These objects are fetched as lists from [ExampleRepository].
 class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
+  final bool alwaysRun;
   final Complexity? complexity;
 
   /// Index of the line to focus, 1-based.
@@ -72,6 +73,7 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
     required this.path,
     required this.sdk,
     required this.type,
+    this.alwaysRun = false,
     this.complexity,
     this.contextLine = 1,
     this.datasets = const [],

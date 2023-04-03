@@ -18,10 +18,15 @@
 
 FROM debian:11 as build
 ARG FLUTTER_VERSION=3.7.3
+ARG BUILD_COMMIT_HASH
+ARG BUILD_COMMIT_SECONDS_SINCE_EPOCH
 
 # ------------------------------------------------
 # Setting up.
 # ------------------------------------------------
+
+COPY . /app
+WORKDIR /app
 
 RUN apt-get update && apt-get install -y wget xz-utils git
 
@@ -34,12 +39,11 @@ RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/li
     dart pub global activate protoc_plugin &&\
     ln -s /root/.pub-cache/bin/protoc-gen-dart /usr/bin/
 
-COPY . /app
-WORKDIR /app
-
 # ------------------------------------------------
 # Building the application.
 # ------------------------------------------------
+
+RUN /app/playground_components/tools/generate_build_metadata.sh $BUILD_COMMIT_HASH $BUILD_COMMIT_SECONDS_SINCE_EPOCH
 
 RUN cd /app/playground_components &&\
     flutter pub get -v

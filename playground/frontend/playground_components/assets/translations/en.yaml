@@ -43,6 +43,9 @@ widgets:
 
   codeEditor:
     label: 'Code Text Area'
+  
+  closeButton:
+    label: 'Close'
 
   output:
     filter:
@@ -66,3 +69,12 @@ widgets:
     notificationTitles:
       run: 'Run Code'
       cancelExecution: 'Cancel Execution'
+
+  versions:
+    beam: 'Beam {version}'
+    commit: 'Commit {hash} from {date}'
+    title: 'Versions'
+    titles:
+      frontend: 'Frontend'
+      router: 'Router'
+      runner: '{sdk} Runner'

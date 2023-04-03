@@ -19,6 +19,8 @@
 ARG py_version
 FROM python:"${py_version}"-bullseye as beam
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
 
 # Install native bindings required for dependencies.
 RUN apt-get update && \
@@ -78,7 +80,7 @@ RUN pip freeze --all
 COPY target/LICENSE /opt/apache/beam/
 COPY target/LICENSE.python /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
-COPY target/launcher/linux_amd64/boot /opt/apache/beam/
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
@@ -99,7 +101,7 @@ RUN rm /opt/apache/beam/third_party_licenses/golang/LICENSE
 
 COPY target/license_scripts /tmp/license_scripts/
 RUN if [ "$pull_licenses" = "true" ] ; then \
-      pip install 'pip-licenses<4.0.0' pyyaml tenacity && \
+      pip install 'pip-licenses<5' pyyaml tenacity && \
       python /tmp/license_scripts/pull_licenses_py.py ; \
     fi
 

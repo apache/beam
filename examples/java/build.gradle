@@ -112,6 +112,11 @@ dependencies {
   flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
   sparkRunnerPreCommit project(":runners:spark:3")
   sparkRunnerPreCommit project(":sdks:java:io:hadoop-file-system")
+
+  // Add dependency if requested on command line for runner
+  if (project.hasProperty("runnerDependency")) {
+    runtimeOnly project(path: project.getProperty("runnerDependency"))
+  }
 }
 
 /*
@@ -151,11 +156,11 @@ task preCommit() {
   }
 }
 
-task execute (type:JavaExec) {
-  mainClass = System.getProperty("mainClass")
+tasks.create(name:"execute", type:JavaExec) {
+  main = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "NONE"
   classpath = sourceSets.main.runtimeClasspath
   systemProperties System.getProperties()
-  args System.getProperty("exec.args", "").split()
+  args project.hasProperty("exec.args") ? project.getProperty("exec.args").split() : []
 }
 
 // Run this task to validate the Java environment setup for contributors

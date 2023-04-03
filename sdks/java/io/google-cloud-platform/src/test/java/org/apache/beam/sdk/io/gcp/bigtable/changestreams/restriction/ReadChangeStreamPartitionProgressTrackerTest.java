@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
@@ -80,5 +81,23 @@ public class ReadChangeStreamPartitionProgressTrackerTest {
     assertNull(tracker.trySplit(0));
     assertNull(tracker.trySplit(0));
     tracker.checkDone();
+  }
+
+  @Test
+  public void testDoneOnFailToLockTrue() {
+    StreamProgress streamProgress = new StreamProgress();
+    streamProgress.setFailToLock(true);
+    ReadChangeStreamPartitionProgressTracker tracker =
+        new ReadChangeStreamPartitionProgressTracker(streamProgress);
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testNotDoneOnFailToLockFalse() {
+    StreamProgress streamProgress = new StreamProgress();
+    streamProgress.setFailToLock(false);
+    ReadChangeStreamPartitionProgressTracker tracker =
+        new ReadChangeStreamPartitionProgressTracker(streamProgress);
+    assertThrows(java.lang.IllegalStateException.class, tracker::checkDone);
   }
 }

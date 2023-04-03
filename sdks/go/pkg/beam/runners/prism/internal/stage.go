@@ -17,6 +17,7 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -115,7 +116,7 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 		ba := rr.GetApplication()
 		residualData = append(residualData, ba.GetElement())
 		if len(ba.GetElement()) == 0 {
-			slog.Log(slog.LevelError, "returned empty residual application", "bundle", rb)
+			slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
 			panic("sdk returned empty residual application")
 		}
 		for col, wm := range ba.GetOutputWatermarks() {

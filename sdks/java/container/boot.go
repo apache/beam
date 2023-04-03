@@ -30,10 +30,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/syscallx"
@@ -71,7 +71,7 @@ func main() {
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
-	info, err := provision.Info(ctx, *provisionEndpoint)
+	info, err := tools.ProvisionInfo(ctx, *provisionEndpoint)
 	if err != nil {
 		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
@@ -97,13 +97,14 @@ func main() {
 	if *controlEndpoint == "" {
 		log.Fatal("No control endpoint provided.")
 	}
+	logger := &tools.Logger{Endpoint: *loggingEndpoint}
 
-	log.Printf("Initializing java harness: %v", strings.Join(os.Args, " "))
+	logger.Printf(ctx, "Initializing java harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
-	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
+	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
-		log.Fatalf("Failed to convert pipeline options: %v", err)
+		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
 	// (2) Retrieve the staged user jars. We ignore any disk limit,
@@ -118,7 +119,7 @@ func main() {
 
 	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
-		log.Fatalf("Failed to retrieve staged files: %v", err)
+		logger.Fatalf(ctx, "Failed to retrieve staged files: %v", err)
 	}
 
 	// (3) Invoke the Java harness, preserving artifact ordering in classpath.
@@ -178,28 +179,32 @@ func main() {
 					} else {
 						args = append(args, fmt.Sprintf(googleCloudProfilerAgentBaseArgs, jobName, jobId))
 					}
-					log.Printf("Turning on Cloud Profiling. Profile heap: %t", enableGoogleCloudHeapSampling)
+					logger.Printf(ctx, "Turning on Cloud Profiling. Profile heap: %t", enableGoogleCloudHeapSampling)
 				} else {
-					log.Println("Required job_id missing from metadata, profiling will not be enabled without it.")
+					logger.Printf(ctx, "Required job_id missing from metadata, profiling will not be enabled without it.")
 				}
 			} else {
-				log.Println("Required job_name missing from metadata, profiling will not be enabled without it.")
+				logger.Printf(ctx, "Required job_name missing from metadata, profiling will not be enabled without it.")
 			}
 		} else {
-			log.Println("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled.")
+			logger.Printf(ctx, "enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled.")
 		}
 	}
 
 	disableJammAgent := strings.Contains(options, disableJammAgentOption)
 	if disableJammAgent {
-		log.Printf("Disabling Jamm agent. Measuring object size will be inaccurate.")
+		logger.Printf(ctx, "Disabling Jamm agent. Measuring object size will be inaccurate.")
 	} else {
 		args = append(args, jammAgentArgs)
 	}
 	// Apply meta options
 	const metaDir = "/opt/apache/beam/options"
-	metaOptions, err := LoadMetaOptions(metaDir)
-	javaOptions := BuildOptions(metaOptions)
+
+	// Note: Error is unchecked, so parsing errors won't abort container.
+	// TODO: verify if it's intentional or not.
+	metaOptions, _ := LoadMetaOptions(ctx, logger, metaDir)
+
+	javaOptions := BuildOptions(ctx, logger, metaOptions)
 	// (1) Add custom jvm arguments: "-server -Xmx1324 -XXfoo .."
 	args = append(args, javaOptions.JavaArguments...)
 
@@ -221,19 +226,19 @@ func main() {
 	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
 		if modules, ok := pipelineOptions.GetStructValue().GetFields()["jdkAddOpenModules"]; ok {
 			for _, module := range modules.GetListValue().GetValues() {
-				args = append(args, "--add-opens=" + module.GetStringValue())
+				args = append(args, "--add-opens="+module.GetStringValue())
 			}
 		}
 	}
 	// Automatically open modules for Java 11+
 	openModuleAgentJar := "/opt/apache/beam/jars/open-module-agent.jar"
 	if _, err := os.Stat(openModuleAgentJar); err == nil {
-		args = append(args, "-javaagent:" + openModuleAgentJar)
+		args = append(args, "-javaagent:"+openModuleAgentJar)
 	}
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
-	log.Printf("Executing: java %v", strings.Join(args, " "))
+	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
 
-	log.Fatalf("Java exited: %v", execx.Execute("java", args...))
+	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
 }
 
 // heapSizeLimit returns 80% of the runner limit, if provided. If not provided,
@@ -301,7 +306,7 @@ func (f byPriority) Less(i, j int) bool { return f[i].Priority > f[j].Priority }
 //
 // Loading meta-options from disk allows extra files and their
 // configuration be kept together and defined externally.
-func LoadMetaOptions(dir string) ([]*MetaOption, error) {
+func LoadMetaOptions(ctx context.Context, logger *tools.Logger, dir string) ([]*MetaOption, error) {
 	var meta []*MetaOption
 
 	worker := func(path string, info os.FileInfo, err error) error {
@@ -328,7 +333,7 @@ func LoadMetaOptions(dir string) ([]*MetaOption, error) {
 			return fmt.Errorf("failed to parse %s: %v", path, err)
 		}
 
-		log.Printf("Loaded meta-option '%s'", option.Name)
+		logger.Printf(ctx, "Loaded meta-option '%s'", option.Name)
 
 		meta = append(meta, &option)
 		return nil
@@ -340,7 +345,7 @@ func LoadMetaOptions(dir string) ([]*MetaOption, error) {
 	return meta, nil
 }
 
-func BuildOptions(metaOptions []*MetaOption) *Options {
+func BuildOptions(ctx context.Context, logger *tools.Logger, metaOptions []*MetaOption) *Options {
 	options := &Options{Properties: make(map[string]string)}
 
 	sort.Sort(byPriority(metaOptions))
@@ -357,7 +362,7 @@ func BuildOptions(metaOptions []*MetaOption) *Options {
 			if !exists {
 				options.Properties[key] = value
 			} else {
-				log.Printf("Warning: %s property -D%s=%s was redefined", meta.Name, key, value)
+				logger.Warnf(ctx, "Warning: %s property -D%s=%s was redefined", meta.Name, key, value)
 			}
 		}
 

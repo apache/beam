@@ -20,9 +20,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -34,9 +34,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/jsonpb"
@@ -81,7 +81,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if *workerPool == true {
+	if *workerPool {
 		workerPoolId := fmt.Sprintf("%d", os.Getpid())
 		os.Setenv(workerPoolIdEnv, workerPoolId)
 		args := []string{
@@ -113,7 +113,7 @@ func main() {
 func launchSDKProcess() error {
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
-	info, err := provision.Info(ctx, *provisionEndpoint)
+	info, err := tools.ProvisionInfo(ctx, *provisionEndpoint)
 	if err != nil {
 		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
@@ -139,14 +139,14 @@ func launchSDKProcess() error {
 	if *controlEndpoint == "" {
 		log.Fatalf("No control endpoint provided.")
 	}
-
-	log.Printf("Initializing python harness: %v", strings.Join(os.Args, " "))
+	logger := &tools.Logger{Endpoint: *loggingEndpoint}
+	logger.Printf(ctx, "Initializing python harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
 
-	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
+	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
-		log.Fatalf("Failed to convert pipeline options: %v", err)
+		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
 	// (2) Retrieve and install the staged packages.
@@ -157,20 +157,20 @@ func launchSDKProcess() error {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
-	venvDir, err := setupVenv("/opt/apache/beam-venv", *id)
+	venvDir, err := setupVenv(ctx, logger, "/opt/apache/beam-venv", *id)
 	if err != nil {
-		return fmt.Errorf("Failed to initialize Python venv.")
+		return errors.New("failed to initialize Python venv")
 	}
 	cleanupFunc := func() {
 		os.RemoveAll(venvDir)
-		log.Printf("Cleaned up temporary venv for worker %v.", *id)
+		logger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
 	}
 	defer cleanupFunc()
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve staged files: %v", err)
+		return fmt.Errorf("failed to retrieve staged files: %v", err)
 	}
 
 	// TODO(herohde): the packages to install should be specified explicitly. It
@@ -179,7 +179,7 @@ func launchSDKProcess() error {
 	requirementsFiles := []string{requirementsFile}
 	for i, v := range files {
 		name, _ := artifact.MustExtractFilePayload(v)
-		log.Printf("Found artifact: %s", name)
+		logger.Printf(ctx, "Found artifact: %s", name)
 		fileNames[i] = name
 
 		if v.RoleUrn == artifact.URNPipRequirementsFile {
@@ -188,7 +188,7 @@ func launchSDKProcess() error {
 	}
 
 	if setupErr := installSetupPackages(fileNames, dir, requirementsFiles); setupErr != nil {
-		return fmt.Errorf("Failed to install required packages: %v", setupErr)
+		return fmt.Errorf("failed to install required packages: %v", setupErr)
 	}
 
 	// (3) Invoke python
@@ -223,7 +223,7 @@ func launchSDKProcess() error {
 
 	// Forward trapped signals to child process groups in order to terminate them gracefully and avoid zombies
 	go func() {
-		log.Printf("Received signal: %v", <-signalChannel)
+		logger.Printf(ctx, "Received signal: %v", <-signalChannel)
 		childPids.mu.Lock()
 		childPids.canceled = true
 		for _, pid := range childPids.v {
@@ -232,7 +232,7 @@ func launchSDKProcess() error {
 				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
 				time.Sleep(5 * time.Second)
 				if err := syscall.Kill(-pid, syscall.SIGKILL); err == nil {
-					log.Printf("Worker process %v did not respond, killed it.", pid)
+					logger.Printf(ctx, "Worker process %v did not respond, killed it.", pid)
 				}
 			}(pid)
 			syscall.Kill(-pid, syscall.SIGTERM)
@@ -258,7 +258,7 @@ func launchSDKProcess() error {
 					childPids.mu.Unlock()
 					return
 				}
-				log.Printf("Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
+				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
 				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, "python", args...)
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
@@ -268,14 +268,14 @@ func launchSDKProcess() error {
 					// DoFns throwing exceptions.
 					errorCount += 1
 					if errorCount < 4 {
-						log.Printf("Python (worker %v) exited %v times: %v\nrestarting SDK process",
+						logger.Printf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
 					} else {
-						log.Fatalf("Python (worker %v) exited %v times: %v\nout of retries, failing container",
+						logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
 							workerId, errorCount, err)
 					}
 				} else {
-					log.Printf("Python (worker %v) exited.", workerId)
+					logger.Printf(ctx, "Python (worker %v) exited.", workerId)
 					break
 				}
 			}
@@ -307,22 +307,22 @@ func StartCommandEnv(env map[string]string, prog string, args ...string) *exec.C
 }
 
 // setupVenv initializes a local Python venv and sets the corresponding env variables
-func setupVenv(baseDir, workerId string) (string, error) {
-	log.Printf("Initializing temporary Python venv ...")
+func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId string) (string, error) {
+	logger.Printf(ctx, "Initializing temporary Python venv ...")
 
 	dir := filepath.Join(baseDir, "beam-venv-worker-"+workerId)
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		// Probably leftovers from a previous run
-		log.Printf("Cleaning up previous venv ...")
+		logger.Printf(ctx, "Cleaning up previous venv ...")
 		if err := os.RemoveAll(dir); err != nil {
 			return "", err
 		}
 	}
 	if err := os.MkdirAll(dir, 0750); err != nil {
-		return "", fmt.Errorf("Failed to create Python venv directory: %s", err)
+		return "", fmt.Errorf("failed to create Python venv directory: %s", err)
 	}
 	if err := execx.Execute("python", "-m", "venv", "--system-site-packages", dir); err != nil {
-		return "", fmt.Errorf("Python venv initialization failed: %s", err)
+		return "", fmt.Errorf("python venv initialization failed: %s", err)
 	}
 
 	os.Setenv("VIRTUAL_ENV", dir)
@@ -385,16 +385,6 @@ func installSetupPackages(files []string, workDir string, requirementsFiles []st
 	return nil
 }
 
-// joinPaths joins the dir to every artifact path. Each / in the path is
-// interpreted as a directory separator.
-func joinPaths(dir string, paths ...string) []string {
-	var ret []string
-	for _, p := range paths {
-		ret = append(ret, filepath.Join(dir, filepath.FromSlash(p)))
-	}
-	return ret
-}
-
 // processArtifactsInSetupOnlyMode installs the dependencies found in artifacts
 // when flag --setup_only and --artifacts exist. The setup mode will only
 // process the provided artifacts and skip the actual worker program start up.
@@ -405,7 +395,7 @@ func processArtifactsInSetupOnlyMode() {
 		log.Fatal("No --artifacts provided along with --setup_only flag.")
 	}
 	workDir := filepath.Dir(*artifacts)
-	metadata, err := ioutil.ReadFile(*artifacts)
+	metadata, err := os.ReadFile(*artifacts)
 	if err != nil {
 		log.Fatalf("Unable to open artifacts metadata file %v with error %v", *artifacts, err)
 	}
