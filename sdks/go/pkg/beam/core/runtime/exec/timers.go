@@ -34,7 +34,8 @@ type userTimerAdapter struct {
 	SID            StreamID
 	wc             WindowEncoder
 	kc             ElementEncoder
-	timerIDToCoder map[string]*coder.Coder
+	Dc             ElementDecoder
+	TimerIDToCoder map[string]*coder.Coder
 	C              *coder.Coder
 }
 
@@ -45,11 +46,13 @@ func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoders map[string]*c
 
 	wc := MakeWindowEncoder(c.Window)
 	var kc ElementEncoder
+	var dc ElementDecoder
 	if coder.IsKV(coder.SkipW(c)) {
 		kc = MakeElementEncoder(coder.SkipW(c).Components[0])
+		dc = MakeElementDecoder(coder.SkipW(c).Components[0])
 	}
 
-	return &userTimerAdapter{SID: sID, wc: wc, kc: kc, C: c, timerIDToCoder: timerCoders}
+	return &userTimerAdapter{SID: sID, wc: wc, kc: kc, Dc: dc, C: c, TimerIDToCoder: timerCoders}
 }
 
 func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataManager, inputTs typex.EventTime, w []typex.Window, element *MainInput) (timerProvider, error) {
@@ -73,7 +76,7 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataMan
 		SID:             u.SID,
 		window:          w,
 		writersByFamily: make(map[string]io.Writer),
-		codersByFamily:  u.timerIDToCoder,
+		codersByFamily:  u.TimerIDToCoder,
 	}
 
 	return tp, nil

@@ -78,8 +78,17 @@ func NewStateful() *Stateful {
 	}
 }
 
-func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Provider) {
+func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Provider, key, timerKey, timerTag string) {
 	log.Infof(ctx, "timer fired  on stateful")
+	switch timerKey {
+	case "outputState":
+		log.Infof(ctx, "outputState fired on stateful")
+		s.OutputState.Clear(tp)
+		switch timerTag {
+		case "001":
+			log.Infof(ctx, "001 tag fired on outputState stateful")
+		}
+	}
 }
 
 func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key, word string, emit func(string, string)) error {

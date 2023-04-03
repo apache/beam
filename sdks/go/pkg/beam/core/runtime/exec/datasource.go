@@ -268,8 +268,27 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			log.Infof(ctx, "OnTimerTransforms = %+v", n.OnTimerTransforms[ptransformID].Fn)
 			if fn, ok := n.OnTimerTransforms[ptransformID].Fn.OnTimerFn(); ok {
 				log.Infof(ctx, "found ontimer method, invoking callback")
-				n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, fn, timerFamilyID, tmap)
+				_, err := n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, fn, timerFamilyID, tmap)
+				if err != nil {
+					return errors.WithContext(err, "ontimer callback invocation failed")
+				}
 			}
+			// Check if there's a continuation and return residuals
+			// Needs to be done immediately after processing to not lose the element.
+			// if c := n.getProcessContinuation(); c != nil {
+			// 	cp, err := n.checkpointThis(ctx, c)
+			// 	if err != nil {
+			// 		// Errors during checkpointing should fail a bundle.
+			// 		return err
+			// 	}
+			// 	if cp != nil {
+			// 		checkpoints = append(checkpoints, cp)
+			// 	}
+			// }
+			//	We've finished processing an element, check if we have finished a split.
+			// if n.incrementIndexAndCheckSplit() {
+			// 	return splitSuccess
+			// }
 			return nil
 		})
 

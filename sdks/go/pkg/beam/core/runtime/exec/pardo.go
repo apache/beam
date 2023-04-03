@@ -16,11 +16,11 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"path"
 	"reflect"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -364,14 +364,35 @@ func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID s
 	}
 	log.Info(ctx, "InvokeTimerFn invoked")
 
-	val, err := InvokeWithOpts(ctx, fn, typex.NoFiringPane(), nil, mtime.FromTime(time.Now()), InvokeOpts{
-		// opt: &MainInput{Key: FullValue{Elm: string(tmap.Key)}},
-		bf: n.bf,
-		we: n.we,
-		sa: n.UState,
-		sr: n.reader,
-		ta: n.Timer,
-		tm: n.timerManager,
+	var extra []any
+	extra = append(extra, timerFamilyID)
+	if tmap.Tag != "" {
+		extra = append(extra, tmap.Tag)
+	}
+	log.Infof(ctx, "timercoder map: %+v", n.Timer.(*userTimerAdapter).TimerIDToCoder)
+	c := n.Timer.(*userTimerAdapter).TimerIDToCoder[timerFamilyID]
+	log.Infof(ctx, "timerFamily: %v, timer key: %v, coder: %+v", timerFamilyID, tmap.Key, c)
+
+	// dec := MakeElementDecoder(coder.SkipW(c))
+
+	b := bytes.NewBuffer(tmap.Key)
+
+	// fv, err := dec.Decode(b)
+	fv, err := n.Timer.(*userTimerAdapter).Dc.Decode(b)
+	if err != nil {
+		return nil, errors.WithContext(err, "error decoding timer key")
+	}
+	log.Infof(ctx, "decoded timer key: %+v", fv.Elm)
+	val, err := InvokeWithOpts(ctx, fn, tmap.Pane, nil, tmap.HoldTimestamp, InvokeOpts{
+		// decode with timer coder from graph/fn.go
+		opt:   &MainInput{Key: FullValue{Elm: fv.Elm, Timestamp: tmap.HoldTimestamp, Windows: tmap.Windows, Pane: tmap.Pane}},
+		bf:    n.bf,
+		we:    n.we,
+		sa:    n.UState,
+		sr:    n.reader,
+		ta:    n.Timer,
+		tm:    n.timerManager,
+		extra: extra,
 	})
 	if err != nil {
 		return nil, err
