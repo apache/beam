@@ -158,7 +158,9 @@ public class LineReadSchemaTransformFormatProviderTest {
     PCollection<String> outputStrings =
         output
             .get(FileReadSchemaTransformProvider.OUTPUT_TAG)
-            .apply("Get strings", MapElements.into(TypeDescriptors.strings()).via(row -> row.getString("line")));
+            .apply(
+                "Get strings",
+                MapElements.into(TypeDescriptors.strings()).via(row -> row.getString("line")));
 
     List<String> expectedStrings =
         Arrays.asList(0, 1, 2).stream()
