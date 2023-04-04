@@ -60,6 +60,7 @@ resource "google_project_iam_member" "playground_helm_updater_roles" {
     "roles/container.admin",
     "roles/storage.admin",
     "roles/iam.serviceAccountUser",
+    "roles/iam.roleAdmin",
     "roles/logging.logWriter"
   ])
   role    = each.key
