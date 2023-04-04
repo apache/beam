@@ -140,18 +140,14 @@ class DirectRunnerRetryTests(unittest.TestCase):
     # currently does not currently support retries.
     p = beam.Pipeline(runner='BundleBasedDirectRunner')
 
-    # TODO(mariagh): Remove the use of globals from the test.
-    global count_b, count_c  # pylint: disable=global-variable-undefined
-    count_b, count_c = 0, 0
+    DirectRunnerRetryTests.count_b, DirectRunnerRetryTests.count_c = 0, 0
 
     def f_b(x):
-      global count_b  # pylint: disable=global-variable-undefined
-      count_b += 1
+      DirectRunnerRetryTests.count_b += 1
       raise Exception('exception in f_b')
 
     def f_c(x):
-      global count_c  # pylint: disable=global-variable-undefined
-      count_c += 1
+      DirectRunnerRetryTests.count_c += 1
       raise Exception('exception in f_c')
 
     names = p | 'CreateNodeA' >> beam.Create(['Ann', 'Joe'])
@@ -161,7 +157,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
     with self.assertRaises(Exception):
       p.run().wait_until_finish()
-    assert count_b == count_c == 4
+    assert DirectRunnerRetryTests.count_b == DirectRunnerRetryTests.count_c == 4
 
   def test_no_partial_writeouts(self):
     class TestTransformEvaluator(_TransformEvaluator):
