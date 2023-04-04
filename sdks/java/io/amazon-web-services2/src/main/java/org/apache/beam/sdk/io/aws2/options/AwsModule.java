@@ -65,7 +65,9 @@ import software.amazon.awssdk.profiles.ProfileFileSystemSetting;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
@@ -175,6 +177,14 @@ public class AwsModule extends SimpleModule {
             .refreshRequest(jsonParser.getCodec().treeToValue(json, clazz).build())
             .stsClient(StsClient.create())
             .build();
+      } else if (typeName.equals(
+          StsAssumeRoleWithWebIdentityCredentialsProvider.class.getSimpleName())) {
+        Class<? extends AssumeRoleWithWebIdentityRequest.Builder> clazz =
+            AssumeRoleWithWebIdentityRequest.serializableBuilderClass();
+        return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
+            .refreshRequest(jsonParser.getCodec().treeToValue(json, clazz).build())
+            .stsClient(StsClient.create())
+            .build();
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
@@ -255,6 +265,14 @@ public class AwsModule extends SimpleModule {
                 readField(credentialsProvider, "assumeRoleRequestSupplier");
         serializer
             .findValueSerializer(AssumeRoleRequest.serializableBuilderClass())
+            .unwrappingSerializer(NameTransformer.NOP)
+            .serialize(reqSupplier.get().toBuilder(), jsonGenerator, serializer);
+      } else if (providerClass.equals(StsAssumeRoleWithWebIdentityCredentialsProvider.class)) {
+        Supplier<AssumeRoleWithWebIdentityRequest> reqSupplier =
+            (Supplier<AssumeRoleWithWebIdentityRequest>)
+                readField(credentialsProvider, "assumeRoleWithWebIdentityRequest");
+        serializer
+            .findValueSerializer(AssumeRoleWithWebIdentityRequest.serializableBuilderClass())
             .unwrappingSerializer(NameTransformer.NOP)
             .serialize(reqSupplier.get().toBuilder(), jsonGenerator, serializer);
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(providerClass)) {

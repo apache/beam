@@ -63,7 +63,9 @@ import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest;
 
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
@@ -231,6 +233,36 @@ public class AwsModuleTest {
     Supplier<AssumeRoleRequest> requestSupplier =
         (Supplier<AssumeRoleRequest>)
             readField(deserializedProvider, "assumeRoleRequestSupplier", true);
+    assertThat(requestSupplier.get()).isEqualTo(req);
+  }
+
+  @Test
+  public void testStsAssumeRoleWithWebIdentityCredentialsProviderSerDe() throws Exception {
+    AssumeRoleWithWebIdentityRequest req =
+        AssumeRoleWithWebIdentityRequest.builder()
+            .roleArn("roleArn")
+            .policy("policy")
+            .webIdentityToken("idToken")
+            .build();
+    Supplier<AwsCredentialsProvider> provider =
+        () ->
+            StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
+                .stsClient(StsClient.create())
+                .refreshRequest(req)
+                .build();
+
+    Properties overrides = new Properties();
+    overrides.setProperty(AWS_REGION.property(), Regions.US_EAST_1.getName());
+    overrides.setProperty(AWS_ACCESS_KEY_ID.property(), "key");
+    overrides.setProperty(AWS_SECRET_ACCESS_KEY.property(), "secret");
+
+    // Region and credentials for STS client are resolved using default providers
+    AwsCredentialsProvider deserializedProvider =
+        withSystemProperties(overrides, () -> serializeAndDeserialize(provider.get()));
+
+    Supplier<AssumeRoleWithWebIdentityRequest> requestSupplier =
+        (Supplier<AssumeRoleWithWebIdentityRequest>)
+            readField(deserializedProvider, "assumeRoleWithWebIdentityRequest", true);
     assertThat(requestSupplier.get()).isEqualTo(req);
   }
 
