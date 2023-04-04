@@ -25,16 +25,22 @@ variable "region" {
   description = "The Google Cloud Platform (GCP) region (For example: us-central1) where Cloud Build triggers will be created at"
 }
 
-variable "infra_trigger_name" {
+variable "pg_infra_trigger_name" {
   type        = string
   description = "The name of the trigger that will deploy Playground infrastructure"
   default     = "playground-infrastructure-trigger"
 }
 
-variable "gke_trigger_name" {
+variable "pg_gke_trigger_name" {
   type        = string
   description = "The name of the trigger that will deploy Playground to GKE"
   default     = "playground-to-gke-trigger"
+}
+
+variable "pg_helm_upd_trigger_name" {
+  type        = string
+  description = "The name of the trigger that run Helm update"
+  default     = "playground-helm-update-trigger"
 }
 
 variable "cloudbuild_service_account_id" {
@@ -43,37 +49,20 @@ variable "cloudbuild_service_account_id" {
   default     = "playground-cloudbuild-sa"
 }
 
-variable "github_repository_name" {
-  type        = string
-  description = "The name of the GitHub repository. For example the repository name for https://github.com/example/foo is 'foo'."
-}
-
-variable "github_repository_owner" {
-  type        = string
-  description = "The owner of the GitHub repository. For example the owner for https://github.com/example/foo is 'example'."
-}
-
-variable "github_repository_branch" {
-  type        = string
-  description = "The GitHub repository branch regex to match cloud build trigger"
-}
-
 variable "playground_environment_name" {
-  description = <<EOF
-Environment name where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod.
-More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bplayground/playground/terraform/README.md#prepare-deployment-configuration"
-  EOF
+  description = "To define environment name which will have it is own configuration of Playground"
 }
 
 variable "playground_dns_name" {
-  description = <<EOF
-The DNS record name for Playground website.
-More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
-  EOF
+  description = "The DNS record name for Playground website"
 }
 
 variable "playground_network_name" {
   description = "The Google Cloud Platform (GCP) VPC Network Name for Playground deployment"
+}
+
+variable "playground_subnetwork_name" {
+  description = "The GCP VPC Subnetwork Name for Playground deployment"
 }
 
 variable "playground_gke_name" {
@@ -105,4 +94,44 @@ variable "sdk_tag" {
 Apache Beam Golang and Python images SDK tag. (For example: 2.43.0)
 See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hub.docker.com/r/apache/beam_go_sdk"
   EOF
+}
+
+variable "appengine_flag" {
+  description = "Boolean. If AppEngine and Datastore need to be installed. Put 'false' if AppEngine and Datastore already installed"
+}
+
+variable "gke_machine_type" {
+  description = "Machine type for GKE Nodes"
+  default = "e2-standard-8"
+}
+
+variable "ipaddress_name" {
+  description = "Defines Static IP Address name for Playground"
+  default = "playground-static-ip"
+}
+
+variable "max_count" {
+  description = "Max node count for GKE cluster"
+  default = 4
+}
+
+variable "min_count" {
+  description = "Min node count for GKE cluster"
+  default = 2
+}
+
+variable "redis_name" {
+  description = "The name of redis instance"
+}
+
+variable "redis_tier" {
+  description = "The tier of the redis instance (BASIC, STANDARD)"
+}
+
+variable "playground_service_account" {
+  description = "Service account name for Playground GKE"
+}
+
+variable "datastore_namespace" {
+  description = "The name of Datastore namespace"
 }

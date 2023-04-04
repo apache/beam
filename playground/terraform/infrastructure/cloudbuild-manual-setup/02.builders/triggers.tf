@@ -15,67 +15,116 @@
 # specific language governing permissions and limitations
 # under the License.
 
-data "google_service_account" "cloudbuild_sa" {
+data "google_service_account" "playground_infra_deploy_sa" {
   account_id = var.cloudbuild_service_account_id
 }
 
 resource "google_cloudbuild_trigger" "playground_infrastructure" {
-  name     = var.infra_trigger_name
+  name     = var.pg_infra_trigger_name
   project  = var.project_id
 
-  description = "Builds the base image and then runs cloud build config file to deploy Playground infrastructure"
+  description = "Creates cloud build manual trigger to deploy Playground infrastructure"
 
-  github {
-    owner = var.github_repository_owner
-    name  = var.github_repository_name
-    push {
-      branch = var.github_repository_branch
-    }
+  source_to_build {
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
   }
 
   substitutions = {
+    _APP_ENGINE_FLAG : var.appengine_flag
+    _GKE_MACHINE_TYPE : var.gke_machine_type
+    _ENVIRONMENT_NAME : var.playground_environment_name
+    _GKE_NAME : var.playground_gke_name
+    _IPADDRESS_NAME : var.ipaddress_name
+    _MAX_COUNT : var.max_count
+    _MIN_COUNT : var.min_count
+    _NETWORK_NAME : var.playground_network_name
     _PLAYGROUND_REGION : var.playground_region
     _PLAYGROUND_ZONE : var.playground_zone
-    _ENVIRONMENT_NAME : var.playground_environment_name
-    _DNS_NAME : var.playground_dns_name
-    _NETWORK_NAME : var.playground_network_name
-    _GKE_NAME : var.playground_gke_name
-    _STATE_BUCKET : var.state_bucket
+    _REDIS_NAME: var.redis_name
+    _REDIS_TIER: var.redis_tier
+    _REPOSITORY_ID: var.docker_repository_root
+    _SERVICE_ACCOUNT_ID: var.playground_service_account
+    _STATE_BUCKET: var.state_bucket
+    _SUBNETWORK_NAME: var.playground_subnetwork_name
   }
 
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
-
-  service_account = data.google_service_account.cloudbuild_sa.id
+  service_account = data.google_service_account.playground_infra_deploy_sa.id
 }
 
 resource "google_cloudbuild_trigger" "playground_to_gke" {
-  name     = var.gke_trigger_name
+  name     = var.pg_gke_trigger_name
   project  = var.project_id
 
-  description = "Builds the base image and then runs cloud build config file to deploy Playground to GKE"
+  description = "Creates cloud build manual trigger to update Playground GKE using Helm Update"
 
-  github {
-    owner = var.github_repository_owner
-    name  = var.github_repository_name
-    push {
-      branch = var.github_repository_branch
-    }
+  source_to_build {
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
   }
 
   substitutions = {
+    _APP_ENGINE_FLAG : var.appengine_flag
+    _DATASTORE_NAMESPACE: var.datastore_namespace
+    _DNS_NAME: var.playground_dns_name
+    _GKE_MACHINE_TYPE : var.gke_machine_type
+    _ENVIRONMENT_NAME : var.playground_environment_name
+    _GKE_NAME : var.playground_gke_name
+    _IP_ADDRESS_NAME : var.ipaddress_name
+    _MAX_COUNT : var.max_count
+    _MIN_COUNT : var.min_count
+    _NETWORK_NAME : var.playground_network_name
     _PLAYGROUND_REGION : var.playground_region
     _PLAYGROUND_ZONE : var.playground_zone
-    _ENVIRONMENT_NAME : var.playground_environment_name
-    _DNS_NAME : var.playground_dns_name
-    _NETWORK_NAME : var.playground_network_name
-    _GKE_NAME : var.playground_gke_name
-    _STATE_BUCKET : var.state_bucket
-    _TAG : var.image_tag
-    _DOCKER_REPOSITORY_ROOT : var.docker_repository_root
-    _SDK_TAG : var.sdk_tag
+    _REDIS_NAME: var.redis_name
+    _REDIS_TIER: var.redis_tier
+    _REPOSITORY_ID: var.docker_repository_root
+    _SDK_TAG: var.sdk_tag
+    _SERVICE_ACCOUNT_ID: var.playground_service_account
+    _STATE_BUCKET: var.state_bucket
+    _SUBNETWORK_NAME: var.playground_subnetwork_name
+    _TAG_NAME: var.image_tag
   }
 
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
+  service_account = data.google_service_account.playground_infra_deploy_sa.id
+}
 
-  service_account = data.google_service_account.cloudbuild_sa.id
+resource "google_cloudbuild_trigger" "playground_helm_update" {
+  name     = var.pg_helm_upd_trigger_name
+  project  = var.project_id
+
+  description = "Creates cloud build manual trigger to create Playground GKE Cluster"
+
+  source_to_build {
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
+  substitutions = {
+    _APP_ENGINE_FLAG : var.appengine_flag
+    _DATASTORE_NAMESPACE: var.datastore_namespace
+    _DNS_NAME: var.playground_dns_name
+    _GKE_MACHINE_TYPE : var.gke_machine_type
+    _ENVIRONMENT_NAME : var.playground_environment_name
+    _GKE_NAME : var.playground_gke_name
+    _IP_ADDRESS_NAME : var.ipaddress_name
+    _MAX_COUNT : var.max_count
+    _MIN_COUNT : var.min_count
+    _NETWORK_NAME : var.playground_network_name
+    _PLAYGROUND_REGION : var.playground_region
+    _PLAYGROUND_ZONE : var.playground_zone
+    _REDIS_NAME: var.redis_name
+    _REDIS_TIER: var.redis_tier
+    _REPOSITORY_ID: var.docker_repository_root
+    _SDK_TAG: var.sdk_tag
+    _SERVICE_ACCOUNT_ID: var.playground_service_account
+    _STATE_BUCKET: var.state_bucket
+    _SUBNETWORK_NAME: var.playground_subnetwork_name
+    _TAG_NAME: var.image_tag
+  }
+
+  service_account = data.google_service_account.playground_infra_deploy_sa.id
 }
