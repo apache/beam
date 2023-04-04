@@ -63,6 +63,7 @@ resource "google_project_iam_member" "playground_helm_updater_roles" {
     "roles/iam.serviceAccountUser",
     "roles/iam.roleAdmin",
     "roles/appengine.appAdmin",
+    "roles/datastore.indexAdmin",
     "roles/redis.admin",
     "roles/dns.admin",
     "roles/logging.logWriter"
