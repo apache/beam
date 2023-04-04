@@ -15,23 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
+package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.joda.time.Instant;
 
-/** Convert between different Timestamp and Instant classes. */
+/** An estimator to calculate the throughput of the outputted elements from a DoFn. */
 @Internal
-public class TimestampConverter {
+public interface ThroughputEstimator<T> extends Serializable {
+  /**
+   * Updates the estimator with the size of the records.
+   *
+   * @param timeOfRecords the committed timestamp of the records
+   * @param element the element to estimate the byte size of
+   */
+  void update(Instant timeOfRecords, T element);
 
-  public static org.threeten.bp.Instant toThreetenInstant(org.joda.time.Instant jodaInstant) {
-    return org.threeten.bp.Instant.ofEpochMilli(jodaInstant.getMillis());
+  /** Returns the estimated throughput for now. */
+  default double get() {
+    return getFrom(Instant.now());
   }
 
-  public static org.joda.time.Instant toJodaTime(org.threeten.bp.Instant threetenInstant) {
-    return org.joda.time.Instant.ofEpochMilli(threetenInstant.toEpochMilli());
-  }
-
-  public static long toSeconds(org.joda.time.Instant jodaInstant) {
-    return jodaInstant.getMillis() / 1000;
-  }
+  /**
+   * Returns the estimated throughput for a specified time.
+   *
+   * @param time the specified timestamp to check throughput
+   */
+  double getFrom(Instant time);
 }

@@ -15,23 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
+package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
 import org.apache.beam.sdk.annotations.Internal;
 
-/** Convert between different Timestamp and Instant classes. */
+/** Represents an error during encoding (serializing) a class. */
 @Internal
-public class TimestampConverter {
-
-  public static org.threeten.bp.Instant toThreetenInstant(org.joda.time.Instant jodaInstant) {
-    return org.threeten.bp.Instant.ofEpochMilli(jodaInstant.getMillis());
-  }
-
-  public static org.joda.time.Instant toJodaTime(org.threeten.bp.Instant threetenInstant) {
-    return org.joda.time.Instant.ofEpochMilli(threetenInstant.toEpochMilli());
-  }
-
-  public static long toSeconds(org.joda.time.Instant jodaInstant) {
-    return jodaInstant.getMillis() / 1000;
+public class EncodingException extends RuntimeException {
+  public EncodingException(Throwable e) {
+    super(e);
   }
 }

@@ -15,23 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
-import org.apache.beam.sdk.annotations.Internal;
-
-/** Convert between different Timestamp and Instant classes. */
+/**
+ * Classes related to estimating the throughput of the change streams SDFs. This is initially copied
+ * from the Spanner change streams implementation. They are currently separate since both features
+ * are under active development and may diverge
+ */
 @Internal
-public class TimestampConverter {
+@Experimental
+package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-  public static org.threeten.bp.Instant toThreetenInstant(org.joda.time.Instant jodaInstant) {
-    return org.threeten.bp.Instant.ofEpochMilli(jodaInstant.getMillis());
-  }
-
-  public static org.joda.time.Instant toJodaTime(org.threeten.bp.Instant threetenInstant) {
-    return org.joda.time.Instant.ofEpochMilli(threetenInstant.toEpochMilli());
-  }
-
-  public static long toSeconds(org.joda.time.Instant jodaInstant) {
-    return jodaInstant.getMillis() / 1000;
-  }
-}
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;

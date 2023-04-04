@@ -15,23 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
+package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import org.apache.beam.sdk.annotations.Internal;
+import static org.junit.Assert.assertEquals;
 
-/** Convert between different Timestamp and Instant classes. */
-@Internal
-public class TimestampConverter {
+import org.joda.time.Instant;
+import org.junit.Test;
 
-  public static org.threeten.bp.Instant toThreetenInstant(org.joda.time.Instant jodaInstant) {
-    return org.threeten.bp.Instant.ofEpochMilli(jodaInstant.getMillis());
-  }
+public class NullThroughputEstimatorTest {
+  private static final double DELTA = 1e-10;
 
-  public static org.joda.time.Instant toJodaTime(org.threeten.bp.Instant threetenInstant) {
-    return org.joda.time.Instant.ofEpochMilli(threetenInstant.toEpochMilli());
-  }
+  @Test
+  public void alwaysReturns0AsEstimatedThroughput() {
+    final NullThroughputEstimator<byte[]> estimator = new NullThroughputEstimator<>();
+    assertEquals(estimator.get(), 0D, DELTA);
 
-  public static long toSeconds(org.joda.time.Instant jodaInstant) {
-    return jodaInstant.getMillis() / 1000;
+    estimator.update(Instant.ofEpochSecond(1), new byte[10]);
+    assertEquals(estimator.getFrom(Instant.ofEpochSecond(1)), 0D, DELTA);
+    estimator.update(Instant.ofEpochSecond(2), new byte[20]);
+    assertEquals(estimator.getFrom(Instant.ofEpochSecond(2)), 0D, DELTA);
   }
 }

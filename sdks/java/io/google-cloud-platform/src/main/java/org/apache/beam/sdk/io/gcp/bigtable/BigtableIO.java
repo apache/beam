@@ -55,6 +55,8 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminD
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.InitializeDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.ReadChangeStreamPartitionDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.BytesThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.SizeEstimator;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
@@ -1992,11 +1994,22 @@ public class BigtableIO {
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
 
-      return input
-          .apply(Impulse.create())
-          .apply("Initialize", ParDo.of(initializeDoFn))
-          .apply("DetectNewPartition", ParDo.of(detectNewPartitionsDoFn))
-          .apply("ReadChangeStreamPartition", ParDo.of(readChangeStreamPartitionDoFn));
+      PCollection<KV<ByteString, ChangeStreamMutation>> output =
+          input
+              .apply(Impulse.create())
+              .apply("Initialize", ParDo.of(initializeDoFn))
+              .apply("DetectNewPartition", ParDo.of(detectNewPartitionsDoFn))
+              .apply("ReadChangeStreamPartition", ParDo.of(readChangeStreamPartitionDoFn));
+
+      Coder<KV<ByteString, ChangeStreamMutation>> outputCoder = output.getCoder();
+      SizeEstimator<KV<ByteString, ChangeStreamMutation>> sizeEstimator =
+          new SizeEstimator<>(outputCoder);
+      BytesThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator =
+          new BytesThroughputEstimator<>(
+              ReadChangeStreamPartitionDoFn.THROUGHPUT_ESTIMATION_WINDOW_SECONDS, sizeEstimator);
+      readChangeStreamPartitionDoFn.setThroughputEstimator(throughputEstimator);
+
+      return output;
     }
 
     @AutoValue.Builder
