@@ -157,7 +157,16 @@ resource "google_cloudbuild_trigger" "playground_ci" {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
 
-  filename = ""
+  trigger_template {
+    project_id = var.project_id
+
+    # Inline YAML here
+    yaml_body = <<-EOF
+      steps:
+        - name: 'gcr.io/cloud-builders/mvn'
+          args: ['clean', 'install']
+    EOF
+  }
 
   substitutions = {
     _BEAM_VERSION : var.sdk_tag
@@ -176,7 +185,16 @@ resource "google_cloudbuild_trigger" "playground_cd" {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
 
-  filename = ""
+  trigger_template {
+    project_id = var.project_id
+
+    # Inline YAML here
+    yaml_body = <<-EOF
+      steps:
+        - name: 'gcr.io/cloud-builders/mvn'
+          args: ['clean', 'install']
+    EOF
+  }
 
   substitutions = {
     _DNS_NAME : var.playground_dns_name
