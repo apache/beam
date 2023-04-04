@@ -70,6 +70,12 @@ if not getattr(dill, '_dill', None):
   dill._dill = dill.dill
   sys.modules['dill._dill'] = dill.dill
 
+dill_log = getattr(dill.dill, 'log', None)
+
+# dill v0.3.6 changed the attribute name from 'log' to 'logger'
+if not dill_log:
+  dill_log = getattr(dill.dill, 'logger')
+
 
 def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
@@ -96,6 +102,14 @@ def _find_containing_class(nested_class):
         if res: return res
 
   return _find_containing_class_inner(sys.modules[nested_class.__module__])
+
+
+def _dict_from_mappingproxy(mp):
+  d = mp.copy()
+  d.pop('__dict__', None)
+  d.pop('__prepare__', None)
+  d.pop('__weakref__', None)
+  return d
 
 
 def _nested_type_wrapper(fun):
@@ -130,7 +144,7 @@ def _nested_type_wrapper(fun):
               type(obj),
               obj.__name__,
               obj.__bases__,
-              dill.dill._dict_from_dictproxy(obj.__dict__)),
+              _dict_from_mappingproxy(obj.__dict__)),
           obj=obj)
       # pylint: enable=protected-access
 
@@ -167,11 +181,11 @@ if 'save_module' in dir(dill.dill):
     if dill.dill.is_dill(pickler) and obj is pickler._main:
       return old_save_module(pickler, obj)
     else:
-      dill.dill.log.info('M2: %s' % obj)
+      dill_log.info('M2: %s' % obj)
       # pylint: disable=protected-access
       pickler.save_reduce(dill.dill._import_module, (obj.__name__, ), obj=obj)
       # pylint: enable=protected-access
-      dill.dill.log.info('# M2')
+      dill_log.info('# M2')
 
   # Pickle module dictionaries (commonly found in lambda's globals)
   # by referencing their module.
@@ -222,7 +236,7 @@ if 'save_module' in dir(dill.dill):
 
     Useful for debugging pickling of deeply nested structures.
     """
-    old_log_info = dill.dill.log.info
+    old_log_info = dill_log.info
 
     def new_log_info(msg, *args, **kwargs):
       old_log_info(
@@ -230,7 +244,7 @@ if 'save_module' in dir(dill.dill):
           *args,
           **kwargs)
 
-    dill.dill.log.info = new_log_info
+    dill_log.info = new_log_info
 
 
 # Turn off verbose logging from the dill pickler.
