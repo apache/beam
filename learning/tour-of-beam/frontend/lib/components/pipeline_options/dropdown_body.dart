@@ -16,35 +16,28 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_body.dart';
+import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
-const kDropdownWidth = 400.0;
-const kDropdownHeight = 375.0;
-
-class PipelineOptionsDropdown extends StatelessWidget {
+class PipelineOptionsDropdownBody extends StatelessWidget {
+  final VoidCallback close;
   final String pipelineOptions;
-  final void Function(String) setPipelineOptions;
 
-  const PipelineOptionsDropdown({
-    Key? key,
+  const PipelineOptionsDropdownBody({
+    required this.close,
     required this.pipelineOptions,
-    required this.setPipelineOptions,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
-    return AppDropdownButton(
-      buttonText: Text(appLocale.pipelineOptions),
-      height: kDropdownHeight,
-      width: kDropdownWidth,
-      createDropdown: (close) => PipelineOptionsDropdownBody(
-        pipelineOptions: pipelineOptions,
-        setPipelineOptions: setPipelineOptions,
-        close: close,
+    return Padding(
+      padding: const EdgeInsets.all(BeamSpacing.extraLarge),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: BeamIconSizes.medium),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(pipelineOptions),
+        ),
       ),
     );
   }

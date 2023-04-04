@@ -20,7 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../../components/dropdown_button/dropdown_button.dart';
 import 'share_dropdown_body.dart';
 
 const _kShareDropdownHeight = 140.0;

@@ -25,15 +25,17 @@ import '../state.dart';
 import 'footer.dart';
 import 'login/button.dart';
 import 'logo.dart';
+import 'pipeline_options/button.dart';
 import 'profile/avatar.dart';
 import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
+  final PlaygroundController? playgroundController;
 
   const TobScaffold({
-    super.key,
     required this.child,
+    this.playgroundController,
   });
 
   @override
@@ -42,13 +44,20 @@ class TobScaffold extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Logo(),
-        actions: const [
-          _ActionVerticalPadding(child: _SdkSelector()),
-          SizedBox(width: BeamSizes.size12),
-          _ActionVerticalPadding(child: ToggleThemeButton()),
-          SizedBox(width: BeamSizes.size6),
-          _ActionVerticalPadding(child: _Profile()),
-          SizedBox(width: BeamSizes.size16),
+        actions: [
+          if (playgroundController != null)
+            _ActionVerticalPadding(
+              child: PipelineOptionsButton(
+                controller: playgroundController!,
+              ),
+            ),
+          const SizedBox(width: BeamSizes.size12),
+          const _ActionVerticalPadding(child: _SdkSelector()),
+          const SizedBox(width: BeamSizes.size12),
+          const _ActionVerticalPadding(child: ToggleThemeButton()),
+          const SizedBox(width: BeamSizes.size6),
+          const _ActionVerticalPadding(child: _Profile()),
+          const SizedBox(width: BeamSizes.size16),
         ],
       ),
       body: Column(
