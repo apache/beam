@@ -77,7 +77,8 @@ resource "google_project_iam_member" "playground_cicd_sa_roles" {
   for_each = toset([
     "roles/artifactregistry.reader",
     "roles/storage.admin",
-    "roles/logging.logWriter"
+    "roles/logging.logWriter",
+    "roles/secretmanager.secretAccessor"
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.pg_cloudbuild_cicd_runner_sa.email}"

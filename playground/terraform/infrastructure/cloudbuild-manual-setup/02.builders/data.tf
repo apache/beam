@@ -26,10 +26,3 @@ data "google_service_account" "playground_helm_upd_sa" {
 data "google_service_account" "playground_cicd_sa" {
   account_id = var.playground_cicd_sa
 }
-
-data "google_iam_policy" "admin" {
-  binding {
-    role = "roles/secretmanager.secretAccessor"
-    members = ["serviceAccount:${data.google_service_account.playground_cicd_sa.email}"]
-  }
-}
