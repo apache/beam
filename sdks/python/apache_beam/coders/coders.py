@@ -78,14 +78,16 @@ except ImportError:
 
 # pylint: disable=wrong-import-order, wrong-import-position
 # Avoid dependencies on the full SDK.
-try:
-  # Import dill from the pickler module to make sure our monkey-patching of dill
-  # occurs.
-  from apache_beam.internal.dill_pickler import dill
-except ImportError:
-  # We fall back to using the stock dill library in tests that don't use the
-  # full Python SDK.
-  import dill
+
+# try:
+# Import dill from the pickler module to make sure our monkey-patching of dill
+# occurs.
+#   from apache_beam.internal.dill_pickler import dill
+# except ImportError:
+#   # We fall back to using the stock dill library in tests that don't use the
+#   # full Python SDK.
+#   import dill
+from apache_beam.internal.pickler import desired_pickle_lib as pickler
 
 __all__ = [
     'Coder',
@@ -825,7 +827,7 @@ def maybe_dill_dumps(o):
   try:
     return pickle.dumps(o, pickle.HIGHEST_PROTOCOL)
   except Exception:  # pylint: disable=broad-except
-    return dill.dumps(o)
+    return pickler.dumps(o)
 
 
 def maybe_dill_loads(o):
@@ -833,7 +835,7 @@ def maybe_dill_loads(o):
   try:
     return pickle.loads(o)
   except Exception:  # pylint: disable=broad-except
-    return dill.loads(o)
+    return pickler.loads(o)
 
 
 class _PickleCoderBase(FastCoder):
