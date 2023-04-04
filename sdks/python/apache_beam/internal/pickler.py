@@ -28,8 +28,9 @@ The pickler module should be used to pickle functions and modules; for values,
 the coders.*PickleCoder classes should be used instead.
 """
 
-from apache_beam.internal import cloudpickle_pickler
 import sys
+
+from apache_beam.internal import cloudpickle_pickler
 
 try:
   from apache_beam.internal import dill_pickler
