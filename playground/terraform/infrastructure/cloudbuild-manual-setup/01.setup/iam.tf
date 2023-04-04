@@ -15,22 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-resource "google_service_account" "playground_deploy_sa" {
-  account_id   = var.playground_deploy_sa
-  display_name = var.playground_deploy_sa
-  description  = "The service account cloud build will use to deploy Playground"
+resource "google_service_account" "pg_cloudbuild_deploy_sa" {
+  account_id   = var.pg_cloudbuild_deployer_sa_name
+  description  = "The service account to be used by cloud build to deploy Playground"
 }
 
-resource "google_service_account" "playground_helm_upd_sa" {
-  account_id   = var.playground_helm_upd_sa
-  display_name = var.playground_helm_upd_sa
-  description  = "The service account cloud build will use to deploy Playground"
+resource "google_service_account" "pg_cloudbuild_helm_updater_sa" {
+  account_id   = var.pg_cloudbuild_helm_updater_sa_name
+  description  = "The service account to be used by cloud build to update Playground"
 }
 
-resource "google_service_account" "playground_cicd_sa" {
-  account_id   = var.playground_cicd_sa
-  display_name = var.playground_cicd_sa
-  description  = "The service account cloud build will use to run CI/CD scripts for Playground"
+resource "google_service_account" "pg_cloudbuild_cicd_runner_sa" {
+  account_id   = var.playground_cloudbuild_updater_sa_name
+  description  = "The service account to be used by cloud build to run CI/CD scripts and checks"
 }
 
 // Provision IAM roles to the IaC service account required to build and provision resources
@@ -52,7 +49,7 @@ resource "google_project_iam_member" "playground_deployer_roles" {
     "roles/logging.logWriter"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.playground_deploy_sa.email}"
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_deploy_sa.email}"
   project = var.project_id
 }
 
@@ -64,7 +61,7 @@ resource "google_project_iam_member" "playground_helm_updater_roles" {
     "roles/logging.logWriter"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.playground_helm_upd_sa.email}"
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_helm_updater_sa.email}"
   project = var.project_id
 }
 
@@ -75,6 +72,6 @@ resource "google_project_iam_member" "playground_cicd_sa_roles" {
     "roles/logging.logWriter"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.playground_helm_upd_sa.email}"
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_cicd_runner_sa.email}"
   project = var.project_id
 }

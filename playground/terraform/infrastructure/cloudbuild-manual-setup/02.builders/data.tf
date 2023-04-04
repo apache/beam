@@ -15,20 +15,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-// Provision the required Google Cloud services
-resource "google_project_service" "required_services" {
-  project = var.project_id
-  for_each = toset([
-    "cloudresourcemanager",
-    "cloudbuild",
-    "secretmanager",
-    "iam",
-    "compute",
-    "appengine",
-    "artifactregistry",
-    "redis",
-  ])
+data "google_service_account" "playground_infra_deploy_sa" {
+  account_id = var.playground_deploy_sa
+}
 
-  service            = "${each.key}.googleapis.com"
-  disable_on_destroy = false
+data "google_service_account" "playground_helm_upd_sa" {
+  account_id = var.playground_deploy_sa
+}
+
+data "google_service_account" "playground_cicd_sa" {
+  account_id = var.playground_cicd_sa
+}
+
+data "google_secret_manager_secret" "qa" {
+  secret_id = "foobar"
+}
+
+data "google_secret_manager_secret_version" "basic" {
+  secret = "my-secret"
+}
+
+data "google_iam_policy" "admin" {
+  binding {
+    role = "roles/secretmanager.secretAccessor"
+    members = "serviceAccount:${data.google_service_account.playground_cicd_sa.email}"
+  }
 }

@@ -15,17 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-data "google_service_account" "playground_infra_deploy_sa" {
-  account_id = var.playground_deploy_sa
-}
-
-data "google_service_account" "playground_helm_upd_sa" {
-  account_id = var.playground_deploy_sa
-}
-
-data "google_service_account" "playground_cicd_sa" {
-  account_id = var.playground_cicd_sa
-}
 
 resource "google_cloudbuild_trigger" "playground_infrastructure" {
   name     = var.pg_infra_trigger_name
@@ -143,10 +132,8 @@ resource "google_cloudbuild_trigger" "playground-ci" {
 
   description = "Creates cloud build manual trigger for Playground CI checks"
 
-  source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    ref       = "refs/heads/master"
-    repo_type = "GITHUB"
+  webhook_config {
+    secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
 
   substitutions = {
@@ -162,10 +149,8 @@ resource "google_cloudbuild_trigger" "playground-cd" {
 
   description = "Creates cloud build manual trigger for Playground CD checks"
 
-  source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    ref       = "refs/heads/master"
-    repo_type = "GITHUB"
+  webhook_config {
+    secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
 
   substitutions = {

@@ -154,3 +154,19 @@ variable "playground_service_account" {
 variable "datastore_namespace" {
   description = "The name of Datastore namespace"
 }
+
+variable "webhook_trigger_secret_id" {
+  description = "The name of the secret for webhook"
+}
+
+variable "gh_pat_secret" {
+  description = "The name of secret for GitHub Personal Access Token. Required for cloud build trigger"
+}
+
+variable "data_for_cicd_webhook_secret" {
+  description = "Data for cloud build CI/CD webhooks"
+}
+
+variable "data_for_github_pat_secret" {
+  description = "The GitHub PAT value"
+}
