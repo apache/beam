@@ -19,17 +19,11 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.sdk.util.BackOffUtils;
-import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -42,22 +36,17 @@ import software.amazon.awssdk.services.cloudwatch.model.GetMetricStatisticsReque
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricStatisticsResponse;
 import software.amazon.awssdk.services.cloudwatch.model.Statistic;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest;
 import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
-import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
-import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
 import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.Shard;
 import software.amazon.awssdk.services.kinesis.model.ShardFilter;
 import software.amazon.awssdk.services.kinesis.model.ShardFilterType;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
-import software.amazon.awssdk.services.kinesis.model.StreamDescriptionSummary;
-import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
@@ -71,13 +60,6 @@ class SimplifiedKinesisClient implements AutoCloseable {
   private static final String INCOMING_RECORDS_METRIC = "IncomingBytes";
   private static final int PERIOD_GRANULARITY_IN_SECONDS = 60;
   private static final String STREAM_NAME_DIMENSION = "StreamName";
-  private static final int LIST_SHARDS_MAX_RESULTS = 1_000;
-  private static final Duration
-      SPACING_FOR_TIMESTAMP_LIST_SHARDS_REQUEST_TO_NOT_EXCEED_TRIM_HORIZON =
-          Duration.standardMinutes(5);
-  private static final int DESCRIBE_STREAM_SUMMARY_MAX_ATTEMPTS = 10;
-  private static final Duration DESCRIBE_STREAM_SUMMARY_INITIAL_BACKOFF =
-      Duration.standardSeconds(1);
 
   private final LazyResource<KinesisClient> kinesis;
   private final LazyResource<CloudWatchClient> cloudWatch;
@@ -114,85 +96,6 @@ class SimplifiedKinesisClient implements AutoCloseable {
                 .shardIterator());
   }
 
-  static List<Shard> listShardsAtPoint(
-      KinesisClient kinesis, final String streamName, final StartingPoint startingPoint)
-      throws TransientKinesisException {
-    ShardFilter shardFilter =
-        wrapExceptions(() -> buildShardFilterForStartingPoint(kinesis, streamName, startingPoint));
-    return listShards(kinesis, streamName, shardFilter);
-  }
-
-  private static ShardFilter buildShardFilterForStartingPoint(
-      KinesisClient kinesis, String streamName, StartingPoint startingPoint)
-      throws IOException, InterruptedException {
-    InitialPositionInStream position = startingPoint.getPosition();
-    switch (position) {
-      case LATEST:
-        return ShardFilter.builder().type(ShardFilterType.AT_LATEST).build();
-      case TRIM_HORIZON:
-        return ShardFilter.builder().type(ShardFilterType.AT_TRIM_HORIZON).build();
-      case AT_TIMESTAMP:
-        return buildShardFilterForTimestamp(kinesis, streamName, startingPoint.getTimestamp());
-      default:
-        throw new IllegalArgumentException(
-            String.format("Unrecognized '%s' position to create shard filter with", position));
-    }
-  }
-
-  private static ShardFilter buildShardFilterForTimestamp(
-      KinesisClient kinesis, String streamName, Instant startingPointTimestamp)
-      throws IOException, InterruptedException {
-    StreamDescriptionSummary streamDescription = describeStreamSummary(kinesis, streamName);
-
-    Instant streamCreationTimestamp = TimeUtil.toJoda(streamDescription.streamCreationTimestamp());
-    if (streamCreationTimestamp.isAfter(startingPointTimestamp)) {
-      return ShardFilter.builder().type(ShardFilterType.AT_TRIM_HORIZON).build();
-    }
-
-    Duration retentionPeriod = Duration.standardHours(streamDescription.retentionPeriodHours());
-
-    Instant streamTrimHorizonTimestamp =
-        Instant.now()
-            .minus(retentionPeriod)
-            .plus(SPACING_FOR_TIMESTAMP_LIST_SHARDS_REQUEST_TO_NOT_EXCEED_TRIM_HORIZON);
-    if (startingPointTimestamp.isAfter(streamTrimHorizonTimestamp)) {
-      return ShardFilter.builder()
-          .type(ShardFilterType.AT_TIMESTAMP)
-          .timestamp(TimeUtil.toJava(startingPointTimestamp))
-          .build();
-    } else {
-      return ShardFilter.builder().type(ShardFilterType.AT_TRIM_HORIZON).build();
-    }
-  }
-
-  private static StreamDescriptionSummary describeStreamSummary(
-      KinesisClient kinesis, final String streamName) throws IOException, InterruptedException {
-    // DescribeStreamSummary has limits that can be hit fairly easily if we are attempting
-    // to configure multiple KinesisIO inputs in the same account. Retry up to
-    // DESCRIBE_STREAM_SUMMARY_MAX_ATTEMPTS times if we end up hitting that limit.
-    //
-    // Only pass the wrapped exception up once that limit is reached. Use FluentBackoff
-    // to implement the retry policy.
-    FluentBackoff retryBackoff =
-        FluentBackoff.DEFAULT
-            .withMaxRetries(DESCRIBE_STREAM_SUMMARY_MAX_ATTEMPTS)
-            .withInitialBackoff(DESCRIBE_STREAM_SUMMARY_INITIAL_BACKOFF);
-    BackOff backoff = retryBackoff.backoff();
-    Sleeper sleeper = Sleeper.DEFAULT;
-
-    DescribeStreamSummaryRequest request =
-        DescribeStreamSummaryRequest.builder().streamName(streamName).build();
-    while (true) {
-      try {
-        return kinesis.describeStreamSummary(request).streamDescriptionSummary();
-      } catch (LimitExceededException exc) {
-        if (!BackOffUtils.next(sleeper, backoff)) {
-          throw exc;
-        }
-      }
-    }
-  }
-
   public List<Shard> listShardsFollowingClosedShard(
       final String streamName, final String exclusiveStartShardId)
       throws TransientKinesisException {
@@ -201,35 +104,7 @@ class SimplifiedKinesisClient implements AutoCloseable {
             .type(ShardFilterType.AFTER_SHARD_ID)
             .shardId(exclusiveStartShardId)
             .build();
-    return listShards(kinesis.get(), streamName, shardFilter);
-  }
-
-  private static List<Shard> listShards(
-      KinesisClient kinesis, final String streamName, final ShardFilter shardFilter)
-      throws TransientKinesisException {
-    return wrapExceptions(
-        () -> {
-          ImmutableList.Builder<Shard> shardsBuilder = ImmutableList.builder();
-
-          String currentNextToken = null;
-          do {
-            ListShardsRequest.Builder reqBuilder =
-                ListShardsRequest.builder()
-                    .maxResults(LIST_SHARDS_MAX_RESULTS)
-                    .shardFilter(shardFilter);
-            if (currentNextToken != null) {
-              reqBuilder.nextToken(currentNextToken);
-            } else {
-              reqBuilder.streamName(streamName);
-            }
-
-            ListShardsResponse response = kinesis.listShards(reqBuilder.build());
-            shardsBuilder.addAll(response.shards());
-            currentNextToken = response.nextToken();
-          } while (currentNextToken != null);
-
-          return shardsBuilder.build();
-        });
+    return ShardListingUtils.listShards(kinesis.get(), streamName, shardFilter);
   }
 
   /**

@@ -42,7 +42,7 @@ class DynamicCheckpointGenerator implements CheckpointGenerator {
   @Override
   public KinesisReaderCheckpoint generate(KinesisClient kinesis) throws TransientKinesisException {
     List<Shard> streamShards =
-        SimplifiedKinesisClient.listShardsAtPoint(kinesis, streamName, startingPoint);
+        ShardListingUtils.listShardsAtPoint(kinesis, streamName, startingPoint);
 
     LOG.info(
         "Creating a checkpoint with following shards {} at {}",
