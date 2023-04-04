@@ -28,6 +28,13 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     repo_type = "GITHUB"
   }
 
+  git_file_source {
+    path = ""
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    revision       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
   substitutions = {
     _APP_ENGINE_FLAG : var.appengine_flag
     _GKE_MACHINE_TYPE : var.gke_machine_type
@@ -59,6 +66,13 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   source_to_build {
     uri       = "https://github.com/beamplayground/deploy-workaround"
     ref       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
+  git_file_source {
+    path = ""
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    revision       = "refs/heads/master"
     repo_type = "GITHUB"
   }
 
@@ -97,6 +111,13 @@ resource "google_cloudbuild_trigger" "playground_helm_update" {
   source_to_build {
     uri       = "https://github.com/beamplayground/deploy-workaround"
     ref       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
+  git_file_source {
+    path = ""
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    revision       = "refs/heads/master"
     repo_type = "GITHUB"
   }
 

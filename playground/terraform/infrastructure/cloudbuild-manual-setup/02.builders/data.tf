@@ -38,6 +38,6 @@ data "google_secret_manager_secret_version" "basic" {
 data "google_iam_policy" "admin" {
   binding {
     role = "roles/secretmanager.secretAccessor"
-    members = "serviceAccount:${data.google_service_account.playground_cicd_sa.email}"
+    members = ["serviceAccount:${data.google_service_account.playground_cicd_sa.email}"]
   }
 }
