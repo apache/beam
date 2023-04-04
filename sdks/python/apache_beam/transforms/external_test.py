@@ -503,6 +503,9 @@ class SchemaTransformPayloadBuilderTest(unittest.TestCase):
         int_field=123,
         str_field='aaa')
 
+    # schema: str_field, int_field
+    # payload: int_field, str_field
+    # mismatch should throw an error because strict_schema is True
     with self.assertRaises(ValueError):
       payload_builder.payload()
 

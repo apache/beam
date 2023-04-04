@@ -365,6 +365,10 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
   :param expansion_service: an expansion service to use. This should already be
       available and the Schema-aware transforms to be used must already be
       deployed.
+  :param strict_schema: a flag that determines if the order of parameters in
+      `kwargs` should exactly match the external configuration schema order.
+      When :data:`True`, will fail if there is a mismatch. Defaults to
+      :data:`False`.
   :param classpath: (Optional) A list paths to additional jars to place on the
       expansion service classpath.
   :kwargs: field name to value mapping for configuring the schema transform.
