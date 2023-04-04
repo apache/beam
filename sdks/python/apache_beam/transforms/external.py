@@ -180,14 +180,52 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 
 
 class SchemaTransformPayloadBuilder(PayloadBuilder):
-  def __init__(self, identifier, **kwargs):
-    self._identifier = identifier
+  def __init__(self, schematransform_config, strict_schema=False, **kwargs):
+    self._schematransform_config = schematransform_config
+    self._strict_schema = strict_schema
     self._kwargs = kwargs
+
+  def _get_schema_proto_and_payload(self, **kwargs):
+    named_fields = []
+    fields_to_values = OrderedDict()
+    external_config_schema_fields = \
+      self._schematransform_config.configuration_schema._fields
+    kwargs_fields = tuple(self._kwargs.keys())
+
+    if self._strict_schema and external_config_schema_fields != kwargs_fields:
+      raise ValueError(
+          "Parameters in kwargs: %s do not match the external "
+          "SchemaTransform's configuration fields: %s" %
+          (kwargs_fields, external_config_schema_fields))
+
+    # The discover API allows us to obtain an ordered configuration schema
+    # that describes the SchemaTransform.
+    # We use this order to guide how we create the schema_proto and payload
+    for field in external_config_schema_fields:
+      if field not in kwargs:
+        raise ValueError(
+            'Encountered missing field: %s. All schema fields need to be '
+            'accounted for.' % field)
+      value = kwargs[field]
+      if value is None:
+        raise ValueError(
+            'Received value None for key %s. None values are currently not '
+            'supported' % field)
+      named_fields.append(
+          (field, convert_to_typing_type(instance_to_type(value))))
+      fields_to_values[field] = value
+
+    schema_proto = named_fields_to_schema(named_fields)
+    row = named_tuple_from_schema(schema_proto)(**fields_to_values)
+    schema = named_tuple_to_schema(type(row))
+
+    payload = RowCoder(schema).encode(row)
+    return (schema_proto, payload)
 
   def build(self):
     schema_proto, payload = self._get_schema_proto_and_payload(**self._kwargs)
     payload = external_transforms_pb2.SchemaTransformPayload(
-        identifier=self._identifier,
+        identifier=self._schematransform_config.identifier,
         configuration_schema=schema_proto,
         configuration_row=payload)
     return payload
@@ -333,16 +371,31 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       keys map to the field names of the schema of the SchemaTransform
       (in-order).
   """
-  def __init__(self, identifier, expansion_service, classpath=None, **kwargs):
+  def __init__(
+      self,
+      identifier,
+      expansion_service,
+      strict_schema=False,
+      classpath=None,
+      **kwargs):
     self._expansion_service = expansion_service
-    self._payload_builder = SchemaTransformPayloadBuilder(identifier, **kwargs)
+    self._identifier = identifier
+    self._strict_schema = strict_schema
+    self._kwargs = kwargs
     self._classpath = classpath
 
   def expand(self, pcolls):
+    # discover and fetch the external SchemaTransform configuration then
+    # use it to build an appropriate payload
+    schematransform_config = SchemaAwareExternalTransform.discover_config(
+        self._expansion_service, self._identifier)
+    payload_builder = SchemaTransformPayloadBuilder(
+        schematransform_config, self._strict_schema, **self._kwargs)
+
     # Expand the transform using the expansion service.
     return pcolls | ExternalTransform(
         common_urns.schematransform_based_expand.urn,
-        self._payload_builder,
+        payload_builder,
         self._expansion_service)
 
   @staticmethod
@@ -371,7 +424,7 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
   def discover_config(expansion_service, name):
     """Discover one SchemaTransform by name in the given expansion service.
 
-    :return: one SchemaTransformConfig that represents the discovered
+    :return: one SchemaTransformsConfig that represents the discovered
         SchemaTransform
 
     :raises:
