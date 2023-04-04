@@ -451,12 +451,12 @@ class BeamModulePlugin implements Plugin<Project> {
     project.apply plugin: "idea"
 
     // Provide code coverage
-    // TODO: Should this only apply to Java projects?
+    // Enable when 'enableJacocoReport' project property is specified or when running ":javaPreCommit"
     project.apply plugin: "jacoco"
     project.gradle.taskGraph.whenReady { graph ->
       // Disable jacoco unless report requested such that task outputs can be properly cached.
       // https://discuss.gradle.org/t/do-not-cache-if-condition-matched-jacoco-agent-configured-with-append-true-satisfied/23504
-      def enabled = graph.allTasks.any { it instanceof JacocoReport || it.name.contains("javaPreCommit") }
+      def enabled = project.hasProperty('enableJacocoReport') || graph.allTasks.any { it instanceof JacocoReport || it.name.contains('javaPreCommit') }
       project.tasks.withType(Test) { jacoco.enabled = enabled }
     }
 
