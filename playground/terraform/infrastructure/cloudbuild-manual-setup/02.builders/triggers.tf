@@ -159,17 +159,17 @@ resource "google_cloudbuild_trigger" "playground_ci" {
     repo_type = "GITHUB"
   }
 
+  git_file_source {
+    path = ""
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    revision  = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
   service_account = data.google_service_account.playground_cicd_sa.id
 
   webhook_config {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
-  }
-
-  build {
-    step {
-      name = "gcr.io/cloud-builders/mvn"
-      args = ["clean", "install"]
-    }
   }
 
   substitutions = {
