@@ -90,7 +90,7 @@ steps:
 
         ./gradlew playground:terraform:gkebackend
         -Pproject_environment=$_ENVIRONMENT_NAME -Pdocker-tag=$_TAG_NAME
-        -Pdns-name=$_DNS_NAME -Psdk-tag=$_SDK_TAG
+        -Pdns-name=$_DNS_NAME -Psdk-tag=$_BEAM_VERSION
         -Pdocker-repository-root=$_PLAYGROUND_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_ID
         -Pdatastore-namespace=$_DATASTORE_NAMESPACE
     entrypoint: bash

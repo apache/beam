@@ -86,6 +86,8 @@ if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
 
+export STEP=CD
+
 LogOutput "Installing python and dependencies."
 # Install Python 3 and dependencies
 set -e  # Exit immediately if any command fails

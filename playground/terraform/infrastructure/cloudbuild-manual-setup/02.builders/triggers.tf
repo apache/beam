@@ -16,7 +16,15 @@
 # under the License.
 
 data "google_service_account" "playground_infra_deploy_sa" {
-  account_id = var.cloudbuild_service_account_id
+  account_id = var.playground_deploy_sa
+}
+
+data "google_service_account" "playground_helm_upd_sa" {
+  account_id = var.playground_deploy_sa
+}
+
+data "google_service_account" "playground_cicd_sa" {
+  account_id = var.playground_cicd_sa
 }
 
 resource "google_cloudbuild_trigger" "playground_infrastructure" {
@@ -57,7 +65,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   name     = var.pg_gke_trigger_name
   project  = var.project_id
 
-  description = "Creates cloud build manual trigger to update Playground GKE using Helm Update"
+  description = "Creates cloud build manual trigger to deploy Playground to GKE"
 
   source_to_build {
     uri       = "https://github.com/beamplayground/deploy-workaround"
@@ -95,7 +103,7 @@ resource "google_cloudbuild_trigger" "playground_helm_update" {
   name     = var.pg_helm_upd_trigger_name
   project  = var.project_id
 
-  description = "Creates cloud build manual trigger to create Playground GKE Cluster"
+  description = "Creates cloud build manual trigger for Playground Helm update"
 
   source_to_build {
     uri       = "https://github.com/beamplayground/deploy-workaround"
@@ -119,12 +127,51 @@ resource "google_cloudbuild_trigger" "playground_helm_update" {
     _REDIS_NAME: var.redis_name
     _REDIS_TIER: var.redis_tier
     _REPOSITORY_ID: var.docker_repository_root
-    _SDK_TAG: var.sdk_tag
+    _BEAM_VERSION: var.sdk_tag
     _SERVICE_ACCOUNT_ID: var.playground_service_account
     _STATE_BUCKET: var.state_bucket
     _SUBNETWORK_NAME: var.playground_subnetwork_name
     _TAG_NAME: var.image_tag
   }
 
-  service_account = data.google_service_account.playground_infra_deploy_sa.id
+  service_account = data.google_service_account.playground_helm_upd_sa.id
+}
+
+resource "google_cloudbuild_trigger" "playground-ci" {
+  name     = var.pg_ci_trigger_name
+  project  = var.project_id
+
+  description = "Creates cloud build manual trigger for Playground CI checks"
+
+  source_to_build {
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
+  substitutions = {
+    _BEAM_VERSION : var.sdk_tag
+  }
+
+  service_account = data.google_service_account.playground_cicd_sa.id
+}
+
+resource "google_cloudbuild_trigger" "playground-cd" {
+  name     = var.pg_ci_trigger_name
+  project  = var.project_id
+
+  description = "Creates cloud build manual trigger for Playground CD checks"
+
+  source_to_build {
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
+  substitutions = {
+    _DNS_NAME : var.playground_dns_name
+    _DATASTORE_NAMESPACE: var.datastore_namespace
+  }
+
+  service_account = data.google_service_account.playground_cicd_sa.id
 }
