@@ -406,6 +406,7 @@ public class SpannerIOReadTest implements Serializable {
   @Test
   public void runBatchReadTestWithDataBoost() {
     SpannerConfig spannerConfig1 = spannerConfig.withDataBoostEnabled(StaticValueProvider.of(true));
+
     SpannerIO.Read readTransform =
         SpannerIO.read()
             .withSpannerConfig(spannerConfig1)
