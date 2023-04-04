@@ -29,15 +29,18 @@ the coders.*PickleCoder classes should be used instead.
 """
 
 from apache_beam.internal import cloudpickle_pickler
-from apache_beam.internal import dill_pickler
 import sys
 
 USE_CLOUDPICKLE = 'cloudpickle'
 USE_DILL = 'dill'
-DEFAULT_PICKLE_LIB = (
-    USE_DILL if sys.version_info < (3, 11) else USE_CLOUDPICKLE)
 
-desired_pickle_lib = dill_pickler
+if sys.version_info < (3, 11):
+  from apache_beam.internal import dill_pickler
+  DEFAULT_PICKLE_LIB = USE_DILL
+else:
+  DEFAULT_PICKLE_LIB = USE_CLOUDPICKLE
+
+desired_pickle_lib = cloudpickle_pickler
 
 
 def dumps(o, enable_trace=True, use_zlib=False):
