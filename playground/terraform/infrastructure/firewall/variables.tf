@@ -16,8 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-output "server-url" {
-  value = google_app_engine_flexible_app_version.backend_app_java.service
+variable "network_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-network"
 }
 
+variable "gke_controlplane_cidr" {
+  description = "CIDR for gke controlplane rule"
+}
+variable "redis_ip" {
+  description = "IP address for Redis instance"
+}
