@@ -153,7 +153,7 @@ resource "google_cloudbuild_trigger" "playground_ci" {
 
   description = "Creates cloud build manual trigger for Playground CI checks"
 
-  service_account = data.google_service_account.playground_cicd_sa.id
+  service_account = data.google_service_account.playground_cicd_sa.email
 
   webhook_config {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
@@ -178,7 +178,7 @@ resource "google_cloudbuild_trigger" "playground_cd" {
 
   description = "Creates cloud build manual trigger for Playground CD checks"
 
-  service_account = data.google_service_account.playground_cicd_sa.id
+  service_account = data.google_service_account.playground_cicd_sa.email
 
   webhook_config {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
