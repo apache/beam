@@ -225,8 +225,11 @@ if __name__ == '__main__':
         # version. Pickles created with a new version of dill may not unpickle
         # using older version of dill. It is best to use the same version of
         # dill on client and server, therefore list of allowed versions is very
-        # narrow. See: https://github.com/uqfoundation/dill/issues/341.
-        'dill>=0.3.1.1,<0.3.2',
+        # narrow. See: https://github.com/uqfoundation/dill/issues/341
+        # Starting from Python 3.11, make CloudPickle the default pickler.
+        # Make dill an optional dependency that can be used as a fallback.
+        # See also: https://github.com/apache/beam/issues/21298
+        'dill>=0.3.1.1,<0.3.2;python_version<"3.11"',
         # It is prudent to use the same version of pickler at job submission
         # and at runtime, therefore bounds need to be tight.
         # To avoid depending on an old dependency, update the minor version on
