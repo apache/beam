@@ -165,12 +165,12 @@ resource "google_cloudbuild_trigger" "playground_ci" {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
 
-#  build {
-#    step {
-#      name = "gcr.io/cloud-builders/mvn"
-#      args = ["clean", "install"]
-#    }
-#  }
+  build {
+    step {
+      name = "gcr.io/cloud-builders/mvn"
+      args = ["clean", "install"]
+    }
+  }
 
   substitutions = {
     _BEAM_VERSION : var.sdk_tag
