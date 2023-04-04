@@ -1,5 +1,5 @@
 resource "google_compute_firewall" "playground-firewall-deny-egress" {
-  name    = "playground-deny-egress"
+  name    = "${var.network_name}-deny-egress"
   network = var.network_name
   direction     = "EGRESS"
   priority      = 1001
@@ -11,7 +11,7 @@ resource "google_compute_firewall" "playground-firewall-deny-egress" {
 }
 
 resource "google_compute_firewall" "playground-firewall-allow-controlplane" {
-  name    = "playground-allow-controlplane"
+  name    = "${var.network_name}-allow-controlplane"
   network = var.network_name
   direction     = "EGRESS"
   priority      = 1000
@@ -23,7 +23,7 @@ resource "google_compute_firewall" "playground-firewall-allow-controlplane" {
 }
 
 resource "google_compute_firewall" "playground-firewall-allow-dns" {
-  name    = "playground-allow-dns"
+  name    = "${var.network_name}-allow-dns"
   network = var.network_name
   direction     = "EGRESS"
   priority      = 1000
@@ -41,7 +41,7 @@ resource "google_compute_firewall" "playground-firewall-allow-dns" {
 }
 
 resource "google_compute_firewall" "playground-firewall-allow-privateapi" {
-  name    = "playground-allow-privateapi"
+  name    = "${var.network_name}-allow-privateapi"
   network = var.network_name
   direction     = "EGRESS"
   priority      = 1000
@@ -55,7 +55,7 @@ resource "google_compute_firewall" "playground-firewall-allow-privateapi" {
 
 
 resource "google_compute_firewall" "playground-firewall-allow-redis" {
-  name    = "playground-allow-redis"
+  name    = "${var.network_name}-allow-redis"
   network = var.network_name
   direction     = "EGRESS"
   priority      = 1000
