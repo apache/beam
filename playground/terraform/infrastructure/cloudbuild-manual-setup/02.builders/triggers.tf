@@ -147,56 +147,56 @@ resource "google_cloudbuild_trigger" "playground_helm_update" {
   service_account = data.google_service_account.playground_helm_upd_sa.id
 }
 
-resource "google_cloudbuild_trigger" "playground_ci" {
-  name     = var.pg_ci_trigger_name
-  project  = var.project_id
-
-  description = "Creates cloud build manual trigger for Playground CI checks"
-
-  service_account = data.google_service_account.playground_helm_upd_sa.id
-
-  source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    ref       = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
-
-  git_file_source {
-    path = ""
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    revision  = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
-
-  substitutions = {
-    _BEAM_VERSION : var.sdk_tag
-  }
-
-}
-
-resource "google_cloudbuild_trigger" "playground_cd" {
-  name     = var.pg_ci_trigger_name
-  project  = var.project_id
-
-  description = "Creates cloud build manual trigger for Playground CD checks"
-
-  service_account = data.google_service_account.playground_cicd_sa.id
-
-  source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    ref       = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
-
-  git_file_source {
-    path = ""
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    revision  = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
-
-  substitutions = {
-    _DNS_NAME : var.playground_dns_name
-    _DATASTORE_NAMESPACE: var.datastore_namespace
-  }
-}
+#resource "google_cloudbuild_trigger" "playground_ci" {
+#  name     = var.pg_ci_trigger_name
+#  project  = var.project_id
+#
+#  description = "Creates cloud build manual trigger for Playground CI checks"
+#
+#  service_account = data.google_service_account.playground_helm_upd_sa.id
+#
+#  source_to_build {
+#    uri       = "https://github.com/beamplayground/deploy-workaround"
+#    ref       = "refs/heads/master"
+#    repo_type = "GITHUB"
+#  }
+#
+#  git_file_source {
+#    path = ""
+#    uri       = "https://github.com/beamplayground/deploy-workaround"
+#    revision  = "refs/heads/master"
+#    repo_type = "GITHUB"
+#  }
+#
+#  substitutions = {
+#    _BEAM_VERSION : var.sdk_tag
+#  }
+#
+#}
+#
+#resource "google_cloudbuild_trigger" "playground_cd" {
+#  name     = var.pg_ci_trigger_name
+#  project  = var.project_id
+#
+#  description = "Creates cloud build manual trigger for Playground CD checks"
+#
+#  service_account = data.google_service_account.playground_cicd_sa.id
+#
+#  source_to_build {
+#    uri       = "https://github.com/beamplayground/deploy-workaround"
+#    ref       = "refs/heads/master"
+#    repo_type = "GITHUB"
+#  }
+#
+#  git_file_source {
+#    path = ""
+#    uri       = "https://github.com/beamplayground/deploy-workaround"
+#    revision  = "refs/heads/master"
+#    repo_type = "GITHUB"
+#  }
+#
+#  substitutions = {
+#    _DNS_NAME : var.playground_dns_name
+#    _DATASTORE_NAMESPACE: var.datastore_namespace
+#  }
+#}
