@@ -27,14 +27,6 @@ data "google_service_account" "playground_cicd_sa" {
   account_id = var.playground_cicd_sa
 }
 
-data "google_secret_manager_secret" "qa" {
-  secret_id = "foobar"
-}
-
-data "google_secret_manager_secret_version" "basic" {
-  secret = "my-secret"
-}
-
 data "google_iam_policy" "admin" {
   binding {
     role = "roles/secretmanager.secretAccessor"
