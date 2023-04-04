@@ -18,6 +18,10 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+import static org.apache.beam.sdk.io.jms.CommonJms.PASSWORD;
+import static org.apache.beam.sdk.io.jms.CommonJms.QUEUE;
+import static org.apache.beam.sdk.io.jms.CommonJms.TOPIC;
+import static org.apache.beam.sdk.io.jms.CommonJms.USERNAME;
 import static org.apache.beam.sdk.io.jms.JmsIO.Writer.JMS_IO_PRODUCER_METRIC_NAME;
 import static org.apache.beam.sdk.io.jms.JmsIO.Writer.PUBLICATION_RETRIES_METRIC_NAME;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -51,6 +55,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -107,29 +112,53 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
-public class JmsIOTest extends CommonJms {
+public class JmsIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIOTest.class);
   private final RetryConfiguration retryConfiguration =
       RetryConfiguration.create(1, Duration.standardSeconds(1), null);
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
+  @Parameterized.Parameters(name = "with client class {3}")
+  public static Collection<Object[]> connectionFactories() {
+    return Arrays.asList(
+        new Object[] {
+          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
+        },
+        new Object[] {
+          "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
+        });
+  }
+
+  private final CommonJms commonJms;
+  private ConnectionFactory connectionFactory;
+  private Class<? extends ConnectionFactory> connectionFactoryClass;
+  private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
+
   public JmsIOTest(
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
       Class<? extends ConnectionFactory> connectionFactoryClass) {
-    super(brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass);
+    this.commonJms =
+        new CommonJms(brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass);
   }
 
   @Before
   public void beforeEeach() throws Exception {
-    this.startBroker();
+    this.commonJms.startBroker();
+    connectionFactory = this.commonJms.getConnectionFactory();
+    connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
+    connectionFactoryWithSyncAcksAndWithoutPrefetch =
+        this.commonJms.getConnectionFactoryWithSyncAcksAndWithoutPrefetch();
   }
 
   @After
   public void tearDown() throws Exception {
-    this.stopBroker();
+    this.commonJms.stopBroker();
+    connectionFactory = null;
+    connectionFactoryClass = null;
+    connectionFactoryWithSyncAcksAndWithoutPrefetch = null;
   }
 
   private void runPipelineExpectingJmsConnectException(String innerMessage) {
@@ -229,7 +258,7 @@ public class JmsIOTest extends CommonJms {
                 .withPassword(PASSWORD)
                 .withMaxNumRecords(1)
                 .withCoder(SerializableCoder.of(String.class))
-                .withMessageMapper(new BytesMessageToStringMessageMapper()));
+                .withMessageMapper(new CommonJms.BytesMessageToStringMessageMapper()));
 
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(1L);
     pipeline.run();

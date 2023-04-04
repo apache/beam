@@ -17,17 +17,24 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import static org.apache.beam.sdk.io.jms.CommonJms.PASSWORD;
+import static org.apache.beam.sdk.io.jms.CommonJms.QUEUE;
+import static org.apache.beam.sdk.io.jms.CommonJms.USERNAME;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import javax.jms.ConnectionFactory;
 import javax.jms.TextMessage;
+import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.command.ActiveMQTextMessage;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -76,7 +83,7 @@ import org.junit.runners.Parameterized;
  * 5672 - localJmsBrokerEnabled: true - readTimeout: 30
  */
 @RunWith(Parameterized.class)
-public class JmsIOIT extends CommonJms {
+public class JmsIOIT implements Serializable {
 
   private static final String NAMESPACE = JmsIOIT.class.getName();
   private static final String READ_TIME_METRIC = "read_time";
@@ -123,29 +130,49 @@ public class JmsIOIT extends CommonJms {
   @Rule public transient TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public transient TestPipeline pipelineRead = TestPipeline.create();
 
+  @Parameterized.Parameters(name = "with client class {3}")
+  public static Collection<Object[]> connectionFactories() {
+    return Arrays.asList(
+        new Object[] {
+          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
+        },
+        new Object[] {
+          "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
+        });
+  }
+
+  private final CommonJms commonJms;
+  private ConnectionFactory connectionFactory;
+  private Class<? extends ConnectionFactory> connectionFactoryClass;
+
   public JmsIOIT(
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
       Class<? extends ConnectionFactory> connectionFactoryClass) {
-    super(
-        OPTIONS.isLocalJmsBrokerEnabled() ? brokerUrl : OPTIONS.getJmsBrokerHost(),
-        OPTIONS.isLocalJmsBrokerEnabled() ? brokerPort : OPTIONS.getJmsBrokerPort(),
-        forceAsyncAcksParam,
-        connectionFactoryClass);
+    this.commonJms =
+        new CommonJms(
+            OPTIONS.isLocalJmsBrokerEnabled() ? brokerUrl : OPTIONS.getJmsBrokerHost(),
+            OPTIONS.isLocalJmsBrokerEnabled() ? brokerPort : OPTIONS.getJmsBrokerPort(),
+            forceAsyncAcksParam,
+            connectionFactoryClass);
   }
 
   @Before
   public void setup() throws Exception {
     if (OPTIONS.isLocalJmsBrokerEnabled()) {
-      startBroker();
+      this.commonJms.startBroker();
+      connectionFactory = this.commonJms.getConnectionFactory();
+      connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
     }
   }
 
   @After
   public void tearDown() throws Exception {
     if (OPTIONS.isLocalJmsBrokerEnabled()) {
-      stopBroker();
+      this.commonJms.stopBroker();
+      connectionFactory = null;
+      connectionFactoryClass = null;
     }
   }
 

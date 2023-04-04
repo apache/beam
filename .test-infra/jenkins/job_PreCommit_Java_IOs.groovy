@@ -117,6 +117,9 @@ def additionalTasks = [
   snowflake: [
     ':sdks:java:io:snowflake:expansion-service:build',
   ],
+  jms: [
+    ':sdks:java:io:jms:integrationTest',
+  ],
 ]
 
 ioModules.forEach {

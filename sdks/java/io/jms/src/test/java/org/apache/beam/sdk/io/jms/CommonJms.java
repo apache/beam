@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.jms;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import javax.jms.BytesMessage;
 import javax.jms.ConnectionFactory;
@@ -34,16 +32,18 @@ import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.transport.TransportFactory;
 import org.apache.activemq.transport.amqp.AmqpTransportFactory;
-import org.apache.qpid.jms.JmsConnectionFactory;
-import org.junit.runners.Parameterized;
 
+/**
+ * A common test fixture to create a broker and connection factories for {@link JmsIOIT} & {@link
+ * JmsIOTest}.
+ */
 public class CommonJms implements Serializable {
   private static final String BROKER_WITHOUT_PREFETCH_PARAM = "?jms.prefetchPolicy.all=0&";
 
-  protected static final String USERNAME = "test_user";
-  protected static final String PASSWORD = "test_password";
-  protected static final String QUEUE = "test_queue";
-  protected static final String TOPIC = "test_topic";
+  static final String USERNAME = "test_user";
+  static final String PASSWORD = "test_password";
+  static final String QUEUE = "test_queue";
+  static final String TOPIC = "test_topic";
 
   private final String brokerUrl;
   private final Integer brokerPort;
@@ -53,17 +53,6 @@ public class CommonJms implements Serializable {
   protected ConnectionFactory connectionFactory;
   protected final Class<? extends ConnectionFactory> connectionFactoryClass;
   protected ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
-
-  @Parameterized.Parameters(name = "with client class {3}")
-  public static Collection<Object[]> connectionFactories() {
-    return Arrays.asList(
-        new Object[] {
-          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
-        },
-        new Object[] {
-          "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
-        });
-  }
 
   public CommonJms(
       String brokerUrl,
@@ -76,7 +65,7 @@ public class CommonJms implements Serializable {
     this.connectionFactoryClass = connectionFactoryClass;
   }
 
-  protected void startBroker() throws Exception {
+  void startBroker() throws Exception {
     broker = new BrokerService();
     broker.setUseJmx(false);
     broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
@@ -111,10 +100,22 @@ public class CommonJms implements Serializable {
             .newInstance(brokerUrl + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
   }
 
-  protected void stopBroker() throws Exception {
+  void stopBroker() throws Exception {
     broker.stop();
     broker.waitUntilStopped();
     broker = null;
+  }
+
+  Class<? extends ConnectionFactory> getConnectionFactoryClass() {
+    return this.connectionFactoryClass;
+  }
+
+  ConnectionFactory getConnectionFactory() {
+    return this.connectionFactory;
+  }
+
+  ConnectionFactory getConnectionFactoryWithSyncAcksAndWithoutPrefetch() {
+    return this.connectionFactoryWithSyncAcksAndWithoutPrefetch;
   }
 
   /** A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}. */
