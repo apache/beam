@@ -473,6 +473,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
         final ProtoRows.Builder insertsBuilder = ProtoRows.newBuilder();
         insertsBuilder.addAllSerializedRows(pendingMessages);
+        pendingMessages.clear();
         final ProtoRows inserts = insertsBuilder.build();
         List<org.joda.time.Instant> insertTimestamps = pendingTimestamps;
         pendingTimestamps = Lists.newArrayList();
