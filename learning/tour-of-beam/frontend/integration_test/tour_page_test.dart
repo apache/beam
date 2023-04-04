@@ -26,9 +26,10 @@ import 'package:tour_of_beam/cache/content_tree.dart';
 import 'package:tour_of_beam/components/builders/content_tree.dart';
 import 'package:tour_of_beam/models/group.dart';
 import 'package:tour_of_beam/models/module.dart';
-import 'package:tour_of_beam/models/node.dart';
 import 'package:tour_of_beam/models/unit.dart';
 import 'package:tour_of_beam/pages/tour/screen.dart';
+import 'package:tour_of_beam/pages/tour/state.dart';
+import 'package:tour_of_beam/pages/tour/widgets/playground_demo.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
 
@@ -44,29 +45,12 @@ void main() {
       await wt.tapAndSettle(find.text(Sdk.java.title));
       await wt.tapAndSettle(find.startTourButton());
 
-      await _checkUnitContentLoadsProperly(wt);
       await _checkContentTreeBuildsProperly(wt);
       await _checkContentTreeScrollsProperly(wt);
       await _checkHighlightsSelectedUnit(wt);
       await _checkRunCodeWorks(wt);
       await _checkResizeUnitContent(wt);
     },
-  );
-}
-
-Future<void> _checkUnitContentLoadsProperly(WidgetTester wt) async {
-  final modules = _getModules(wt);
-
-  final unit = modules.first.getFirstUnit();
-
-  await wt.tapAndSettle(find.byKey(Key(unit.id)));
-
-  expect(
-    find.descendant(
-      of: find.byType(UnitContentWidget),
-      matching: find.text(unit.title),
-    ),
-    findsOneWidget,
   );
 }
 
@@ -88,7 +72,7 @@ List<ModuleModel> _getModules(WidgetTester wt) {
 Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
   for (final node in module.nodes) {
     if (node is UnitModel) {
-      _checkNode(node);
+      await _checkNode(node, wt);
     }
     if (node is GroupModel) {
       await _checkGroup(node, wt);
@@ -96,11 +80,36 @@ Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
   }
 }
 
-void _checkNode(NodeModel node) {
+Future<void> _checkNode(UnitModel node, WidgetTester wt) async {
+  await wt.ensureVisible(find.byKey(Key(node.id)));
   expect(
     find.descendant(
       of: find.byType(ContentTreeBuilder),
       matching: find.text(node.title),
+    ),
+    findsAtLeastNWidgets(1),
+  );
+
+  await _checkUnitContentLoadsProperly(node, wt);
+}
+
+Future<void> _checkUnitContentLoadsProperly(
+  UnitModel unit,
+  WidgetTester wt,
+) async {
+  await wt.tapAndSettle(find.byKey(Key(unit.id)));
+
+  final hasSnippet = _getTourNotifier(wt).isUnitContainsSnippet;
+
+  expect(
+    find.byType(PlaygroundDemoWidget),
+    hasSnippet ? findsOneWidget : findsNothing,
+  );
+
+  expect(
+    find.descendant(
+      of: find.byType(UnitContentWidget),
+      matching: find.text(unit.title),
     ),
     findsAtLeastNWidgets(1),
   );
@@ -110,8 +119,14 @@ Future<void> _checkGroup(GroupModel group, WidgetTester wt) async {
   await wt.ensureVisible(find.byKey(Key(group.id)));
   await wt.tapAndSettle(find.byKey(Key(group.id)));
 
-  await wt.pumpAndSettle();
-  group.nodes.forEach(_checkNode);
+  for (final n in group.nodes) {
+    if (n is GroupModel) {
+      await _checkGroup(n, wt);
+    }
+    if (n is UnitModel) {
+      await _checkNode(n, wt);
+    }
+  }
 }
 
 Future<void> _checkContentTreeScrollsProperly(WidgetTester wt) async {
@@ -202,8 +217,11 @@ Future<void> _checkResizeUnitContent(WidgetTester wt) async {
   expectSimilar(startHandlePosition.dx, movedHandlePosition.dx - 100);
 }
 
-PlaygroundController _getPlaygroundController(WidgetTester wt) {
+TourNotifier _getTourNotifier(WidgetTester wt) {
   return (wt.widget(find.byType(UnitContentWidget)) as UnitContentWidget)
-      .tourNotifier
-      .playgroundController;
+      .tourNotifier;
+}
+
+PlaygroundController _getPlaygroundController(WidgetTester wt) {
+  return _getTourNotifier(wt).playgroundController;
 }

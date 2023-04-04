@@ -30,6 +30,9 @@ ui:
   solution: Solution
   toWebsite: To Apache Beam website
 
+errors:
+  toastTitle: Error
+
 pages:
   welcome:
     ifSaveProgress: Your journey is broken down into learning modules. If you would like to save your progress and track completed modules, please

@@ -54,16 +54,36 @@ class _WideTour extends StatelessWidget {
       children: [
         ContentTreeWidget(controller: tourNotifier.contentTreeController),
         Expanded(
-          child: SplitView(
-            direction: Axis.horizontal,
-            dragHandleKey: TourScreen.dragHandleKey,
-            first: UnitContentWidget(tourNotifier),
-            second: PlaygroundDemoWidget(
-              playgroundController: tourNotifier.playgroundController,
-            ),
-          ),
+          child: _UnitContentWidget(tourNotifier: tourNotifier),
         ),
       ],
+    );
+  }
+}
+
+class _UnitContentWidget extends StatelessWidget {
+  const _UnitContentWidget({required this.tourNotifier});
+
+  final TourNotifier tourNotifier;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: tourNotifier,
+      builder: (context, widget) {
+        return !tourNotifier.isUnitContainsSnippet
+            ? UnitContentWidget(tourNotifier)
+            : SplitView(
+                direction: Axis.horizontal,
+                dragHandleKey: TourScreen.dragHandleKey,
+                first: UnitContentWidget(tourNotifier),
+                second: tourNotifier.isSnippetLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : PlaygroundDemoWidget(
+                        playgroundController: tourNotifier.playgroundController,
+                      ),
+              );
+      },
     );
   }
 }

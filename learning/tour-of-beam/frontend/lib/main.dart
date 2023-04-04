@@ -42,7 +42,7 @@ Future<void> main() async {
   const englishLocale = Locale('en');
 
   final pageStack = GetIt.instance.get<PageStack>();
-  final routerDelegate = PageStackRouterDelegate(pageStack);
+  final routerDelegate = BeamRouterDelegate(pageStack);
   final routeInformationParser = TobRouteInformationParser();
   final backButtonDispatcher = PageStackBackButtonDispatcher(pageStack);
 

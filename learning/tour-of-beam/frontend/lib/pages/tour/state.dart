@@ -19,6 +19,7 @@
 import 'dart:async';
 
 import 'package:app_state/app_state.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
@@ -43,6 +44,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
+  bool _isLoadingSnippet = false;
 
   TourNotifier({
     required String initialSdkId,
@@ -71,6 +73,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       currentUnitContent?.solutionSnippetId != null;
   bool _isShowingSolution = false;
   bool get isShowingSolution => _isShowingSolution;
+  bool get isUnitContainsSnippet => currentUnitContent?.taskSnippetId != null;
+  bool get isSnippetLoading => _isLoadingSnippet;
 
   void toggleShowingSolution() {
     if (doesCurrentUnitHaveSolution) {
@@ -108,7 +112,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
   }
 
-  void _onUnitChanged() {
+  Future<void> _onUnitChanged() async {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
@@ -118,9 +122,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         currentNode.id,
       );
       _createCurrentUnitController(contentTreeController.sdkId, currentNode.id);
-      _setCurrentUnitContent(content);
-    } else {
-      _emptyPlayground();
+      await _setCurrentUnitContent(content);
     }
 
     notifyListeners();
@@ -143,34 +145,27 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   Future<void> _setPlaygroundSnippet(String? snippetId) async {
     if (snippetId == null) {
-      await _emptyPlayground();
       return;
     }
 
+    _isLoadingSnippet = true;
+    notifyListeners();
+
     final selectedSdk = _appNotifier.sdk;
     if (selectedSdk != null) {
-      await playgroundController.examplesLoader.load(
-        ExamplesLoadingDescriptor(
-          descriptors: [
-            UserSharedExampleLoadingDescriptor(
-              sdk: selectedSdk,
-              snippetId: snippetId,
-            ),
-          ],
-        ),
+      await _loadExamples(
+        controller: playgroundController,
+        descriptors: [
+          UserSharedExampleLoadingDescriptor(
+            sdk: selectedSdk,
+            snippetId: snippetId,
+          ),
+        ],
       );
     }
-  }
 
-  // TODO(alexeyinkin): Hide the entire right pane instead.
-  Future<void> _emptyPlayground() async {
-    await playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
-        ],
-      ),
-    );
+    _isLoadingSnippet = false;
+    notifyListeners();
   }
 
   static PlaygroundController _createPlaygroundController(String initialSdkId) {
@@ -201,16 +196,36 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     );
 
     unawaited(
-      playgroundController.examplesLoader.load(
-        ExamplesLoadingDescriptor(
-          descriptors: [
-            EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),
-          ],
-        ),
+      _loadExamples(
+        controller: playgroundController,
+        descriptors: [
+          EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),
+        ],
       ),
     );
 
     return playgroundController;
+  }
+
+  static Future<void> _loadExamples({
+    required PlaygroundController controller,
+    required List<ExampleLoadingDescriptor> descriptors,
+  }) async {
+    try {
+      await controller.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: descriptors,
+        ),
+      );
+    } on ExampleLoadingException catch (e) {
+      PlaygroundComponents.toastNotifier.add(
+        Toast(
+          description: ExampleLoadingException(e).toString(),
+          title: 'errors.toastTitle'.tr(),
+          type: ToastType.error,
+        ),
+      );
+    }
   }
 
   @override
