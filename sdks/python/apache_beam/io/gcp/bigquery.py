@@ -1877,8 +1877,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         https://cloud.google.com/bigquery/docs/loading-data.
         DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
         FILE_LOADS on Batch pipelines.
-        Note: FILE_LOADS currently does not support BigQuery's JSON data type:
-        https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
+
+        Note: To write BigQuery's JSON data type with FILE_LOADS, please use
+        json strings when writing with :attr:`bigquery_tools.FileFormat.AVRO`
+        file format and Python :data:`dict` types when writing with
+        :attr:`bigquery_tools.FileFormat.JSON` file format (this is the default
+        file format).
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
         Default is to retry always. This means that whenever there are rows
@@ -2081,23 +2085,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           raise ValueError(
               'A schema must be provided when writing to BigQuery using '
               'Avro based file loads')
-
-      if self.schema and type(self.schema) is dict:
-
-        def find_in_nested_dict(schema):
-          for field in schema['fields']:
-            if field['type'] == 'JSON':
-              raise ValueError(
-                  'Found JSON type in table schema. JSON data '
-                  'insertion is currently not supported with '
-                  'FILE_LOADS write method. This is supported with '
-                  'STREAMING_INSERTS. For more information: '
-                  'https://cloud.google.com/bigquery/docs/reference/'
-                  'standard-sql/json-data#ingest_json_data')
-            elif field['type'] == 'STRUCT':
-              find_in_nested_dict(field)
-
-        find_in_nested_dict(self.schema)
 
       from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
       # Only cast to int when a value is given.

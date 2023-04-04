@@ -59,6 +59,7 @@ BIG_QUERY_TO_AVRO_TYPES = {
         "scale": 9,
     },
     "GEOGRAPHY": "string",
+    "JSON": "string",
 }
 
 

@@ -19,48 +19,80 @@
 Integration tests for BigQuery's JSON data type
 """
 
-import argparse
 import json
 import logging
+import secrets
 import time
 import unittest
-from random import randint
 
 import pytest
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
+from apache_beam.io.gcp.bigquery import WriteToBigQuery
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
+
 _LOGGER = logging.getLogger(__name__)
 
-PROJECT = 'apache-beam-testing'
+PROJECT = 'google.com:clouddfe'
+# this dataset holds the canonical rows.
 DATASET_ID = 'bq_jsontype_test_nodelete'
 JSON_TABLE_NAME = 'json_data'
 
 JSON_TABLE_DESTINATION = f"{PROJECT}:{DATASET_ID}.{JSON_TABLE_NAME}"
 
-STREAMING_TEST_TABLE = "py_streaming_test" \
-                       f"{time.time_ns() // 1000}_{randint(0,32)}"
-
 
 class BigQueryJsonIT(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    cls.test_pipeline = TestPipeline(is_integration_test=True)
+  BIGQUERY_DATASET = 'python_bigquery_json_type'
 
-  def run_test_write(self, options):
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.args = self.test_pipeline.get_full_options_as_args()
+    self.project = self.test_pipeline.get_option('project')
+    _LOGGER.info("mmy project: %s", self.project)
+
+    self.bigquery_client = BigQueryWrapper()
+    self.dataset_id = '%s%s%s' % (
+        self.BIGQUERY_DATASET, str(int(time.time())), secrets.token_hex(3))
+    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
+    _LOGGER.info(
+        "Created dataset %s in project %s", self.dataset_id, self.project)
+
+  def tearDown(self):
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
+    try:
+      _LOGGER.info(
+          "Deleting dataset %s in project %s", self.dataset_id, self.project)
+      self.bigquery_client.client.datasets.Delete(request)
+    except HttpError:
+      _LOGGER.debug(
+          'Failed to clean up dataset %s in project %s',
+          self.dataset_id,
+          self.project)
+
+  def run_test_write(self, write_method, table):
     json_table_schema = self.generate_schema()
-    rows_to_write = []
+    rows = []
     json_data = self.generate_data()
     for country_code, country in json_data.items():
       cities_to_write = []
       for city_name, city in country["cities"].items():
         cities_to_write.append({'city_name': city_name, 'city': city})
 
-      rows_to_write.append({
+      rows.append({
           'country_code': country_code,
           'country': country["country"],
           'stats': country["stats"],
@@ -68,43 +100,45 @@ class BigQueryJsonIT(unittest.TestCase):
           'landmarks': country["landmarks"]
       })
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--write_method')
-    parser.add_argument('--output')
-
-    known_args, pipeline_args = parser.parse_known_args(options)
-
-    with beam.Pipeline(argv=pipeline_args) as p:
+    with beam.Pipeline(argv=self.args) as p:
       _ = (
           p
-          | "Create rows with JSON data" >> beam.Create(rows_to_write)
-          | "Write to BigQuery" >> beam.io.WriteToBigQuery(
-              method=known_args.write_method,
-              table=known_args.output,
+          | "Create rows with JSON data" >> beam.Create(rows)
+          | "Write to BigQuery" >> WriteToBigQuery(
+              method=write_method,
+              table=table,
               schema=json_table_schema,
+              temp_file_format="AVRO",
+              custom_gcs_temp_location="gs://ahmedabualsaud-wordcount/tmp",
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
           ))
 
-    extra_opts = {'read_method': "EXPORT", 'input': known_args.output}
-    read_options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-    self.read_and_validate_rows(read_options)
+    self.read_and_validate_rows(
+        read_method=ReadFromBigQuery.Method.EXPORT, table=table)
 
-  def read_and_validate_rows(self, options):
+  def read_and_validate_rows(
+      self, read_method, query=None, table=JSON_TABLE_DESTINATION):
     json_data = self.generate_data()
 
     class CompareJson(beam.DoFn, unittest.TestCase):
+      def get_json(self, data):
+        obj = json.loads(data)
+        while not isinstance(obj, dict):
+          obj = json.loads(obj)
+        return obj
+
       def process(self, row):
         country_code = row["country_code"]
         expected = json_data[country_code]
 
         # Test country (JSON String)
-        country_actual = json.loads(row["country"])
+        country_actual = self.get_json(row["country"])
         country_expected = json.loads(expected["country"])
         self.assertTrue(country_expected == country_actual)
 
         # Test stats (JSON String in BigQuery struct)
         for stat, value in row["stats"].items():
-          stats_actual = json.loads(value)
+          stats_actual = self.get_json(value)
           stats_expected = json.loads(expected["stats"][stat])
           self.assertTrue(stats_expected == stats_actual)
 
@@ -113,7 +147,7 @@ class BigQueryJsonIT(unittest.TestCase):
           city = city_row["city"]
           city_name = city_row["city_name"]
 
-          city_actual = json.loads(city)
+          city_actual = self.get_json(city)
           city_expected = json.loads(expected["cities"][city_name])
           self.assertTrue(city_expected == city_actual)
 
@@ -121,88 +155,60 @@ class BigQueryJsonIT(unittest.TestCase):
         landmarks_actual = row["landmarks"]
         landmarks_expected = expected["landmarks"]
         for i in range(len(landmarks_actual)):
-          l_actual = json.loads(landmarks_actual[i])
+          l_actual = self.get_json(landmarks_actual[i])
           l_expected = json.loads(landmarks_expected[i])
           self.assertTrue(l_expected == l_actual)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--read_method')
-    parser.add_argument('--query')
-    parser.add_argument('--input')
-
-    known_args, pipeline_args = parser.parse_known_args(options)
-
-    method = ReadFromBigQuery.Method.DIRECT_READ if \
-      known_args.read_method == "DIRECT_READ" else \
-      ReadFromBigQuery.Method.EXPORT
-
-    if known_args.query:
+    if query:
       json_query_data = self.generate_query_data()
-      with beam.Pipeline(argv=pipeline_args) as p:
+      with beam.Pipeline(argv=self.args) as p:
         data = p | 'Read rows' >> ReadFromBigQuery(
-            query=known_args.query, method=method, use_standard_sql=True)
+            query=query,
+            method=read_method,
+            gcs_location="gs://bigqueryio-json-it-temp",
+            use_standard_sql=True)
+        _ = data | beam.Map(_LOGGER.info)
         assert_that(data, equal_to(json_query_data))
     else:
-      with beam.Pipeline(argv=pipeline_args) as p:
+      with beam.Pipeline(argv=self.args) as p:
         _ = p | 'Read rows' >> ReadFromBigQuery(
-            table=known_args.input,
-            method=method,
+            table=table,
+            method=read_method,
+            gcs_location="gs://bigqueryio-json-it-temp"
         ) | 'Validate rows' >> beam.ParDo(CompareJson())
 
   @pytest.mark.it_postcommit
   def test_direct_read(self):
-    extra_opts = {
-        'read_method': "DIRECT_READ",
-        'input': JSON_TABLE_DESTINATION,
-    }
-    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-
-    self.read_and_validate_rows(options)
+    self.read_and_validate_rows(read_method=ReadFromBigQuery.Method.DIRECT_READ)
 
   @pytest.mark.it_postcommit
   def test_export_read(self):
-    extra_opts = {
-        'read_method': "EXPORT",
-        'input': JSON_TABLE_DESTINATION,
-    }
-    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-
-    self.read_and_validate_rows(options)
+    self.read_and_validate_rows(read_method=ReadFromBigQuery.Method.EXPORT)
 
   @pytest.mark.it_postcommit
   def test_query_read(self):
-    extra_opts = {
-        'query': "SELECT "
+    query = (
+        "SELECT "
         "country_code, "
         "country.past_leaders[2] AS past_leader, "
         "stats.gdp_per_capita[\"gdp_per_capita\"] AS gdp, "
         "cities[OFFSET(1)].city.name AS city_name, "
         "landmarks[OFFSET(1)][\"name\"] AS landmark_name "
-        f"FROM `{PROJECT}.{DATASET_ID}.{JSON_TABLE_NAME}`",
-    }
-    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+        f"FROM `{PROJECT}.{DATASET_ID}.{JSON_TABLE_NAME}`")
 
-    self.read_and_validate_rows(options)
+    self.read_and_validate_rows(
+        read_method=ReadFromBigQuery.Method.EXPORT, query=query)
 
   @pytest.mark.it_postcommit
   def test_streaming_inserts(self):
-    extra_opts = {
-        'output': f"{PROJECT}:{DATASET_ID}.{STREAMING_TEST_TABLE}",
-        'write_method': "STREAMING_INSERTS"
-    }
-    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-
-    self.run_test_write(options)
+    streaming_table = f"{PROJECT}:{DATASET_ID}.streaming_inserts"
+    self.run_test_write(
+        WriteToBigQuery.Method.STREAMING_INSERTS, streaming_table)
 
   @pytest.mark.it_postcommit
   def test_file_loads_write(self):
-    extra_opts = {
-        'output': f"{PROJECT}:{DATASET_ID}.{STREAMING_TEST_TABLE}",
-        'write_method': "FILE_LOADS"
-    }
-    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-    with self.assertRaises(ValueError):
-      self.run_test_write(options)
+    file_loads_table = f"{PROJECT}:{DATASET_ID}.file_loads"
+    self.run_test_write(WriteToBigQuery.Method.FILE_LOADS, file_loads_table)
 
   # Schema for writing to BigQuery
   def generate_schema(self):
