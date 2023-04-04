@@ -23,6 +23,18 @@ import (
 	"strings"
 )
 
+// makePathingJar produces a context or 'pathing' jar which only contains the relative
+// classpaths in its META-INF/MANIFEST.MF.
+//
+// Since we build with Java 8 as a minimum, this is the only supported way of reducing
+// command line length, since argsfile support wasn't added until Java 9.
+//
+// https://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html is the spec.
+//
+// In particular, we only need to populate the Jar with a Manifest-Version and Class-Path
+// attributes.
+// Per https://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#classpath
+// the classpath URLs must be relative for security reasons.
 func makePathingJar(classpaths []string) (string, error) {
 	f, err := os.Create("pathing.jar")
 	if err != nil {
@@ -49,6 +61,7 @@ func writePathingJar(classpaths []string, w io.Writer) error {
 	}
 
 	zf.Write([]byte("Manifest-Version: 1.0\n"))
+	zf.Write([]byte("Created-By: sdks/java/container/pathingjar.go"))
 	zf.Write([]byte("Class-Path: " + strings.Join(classpaths, " ")))
 	zf.Write([]byte("\n"))
 	return nil
