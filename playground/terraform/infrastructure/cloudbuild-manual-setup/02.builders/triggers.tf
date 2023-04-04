@@ -117,7 +117,7 @@ resource "google_cloudbuild_trigger" "playground_helm_update" {
   git_file_source {
     path = ""
     uri       = "https://github.com/beamplayground/deploy-workaround"
-    revision       = "refs/heads/master"
+    revision  = "refs/heads/master"
     repo_type = "GITHUB"
   }
 
