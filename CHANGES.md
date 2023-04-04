@@ -54,8 +54,7 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Python 3.11 support in Apache Beam ([#23848](https://github.com/apache/beam/issues/23848)).
 
 ## I/Os
 
@@ -79,7 +78,14 @@
 
 * If a main session fails to load, the pipeline will now fail at worker startup. ([#25401](https://github.com/apache/beam/issues/25401)).
 * Python pipeline options will now ignore unparsed command line flags prefixed with a single dash. ([#25943](https://github.com/apache/beam/issues/25943)).
-* The SmallestPerKey combiner now requires keyword-only arguments for specifying optional parameters, such as `key` and `reverse`. ([#25888](https://github.com/apache/beam/issues/25888)).
+* The `SmallestPerKey` combiner now requires keyword-only arguments for specifying optional parameters, such as `key` and `reverse`. ([#25888](https://github.com/apache/beam/issues/25888)).
+* Default pickler library has changed from `dill` to `cloudpickle` for Python 3.11 users ([#21298](https://github.com/apache/beam/issues/21298)).
+  The change does not affect users who use Python 3.7-3.10 as of Beam 2.47.0.
+  Beam still supports Dill as an alternative pickler and an optional
+  dependency. If you are affected by this change, please provide feedback on ([#21298](https://github.com/apache/beam/issues/21298)).
+  In the future releases of Apache Beam we plan to make a similar change for
+  all remaining supported Python versions.
+
 
 ## Deprecations
 
