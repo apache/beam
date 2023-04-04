@@ -21,11 +21,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.Shard;
 
 /**
  * Creates {@link KinesisReaderCheckpoint}, which spans over all shards in given stream. List of
- * shards is obtained dynamically on call to {@link #generate(SimplifiedKinesisClient)}.
+ * shards is obtained dynamically on call to {@link #generate(KinesisClient)}.
  */
 class DynamicCheckpointGenerator implements CheckpointGenerator {
 
@@ -39,9 +40,9 @@ class DynamicCheckpointGenerator implements CheckpointGenerator {
   }
 
   @Override
-  public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
-      throws TransientKinesisException {
-    List<Shard> streamShards = kinesis.listShardsAtPoint(streamName, startingPoint);
+  public KinesisReaderCheckpoint generate(KinesisClient kinesis) throws TransientKinesisException {
+    List<Shard> streamShards =
+        SimplifiedKinesisClient.listShardsAtPoint(kinesis, streamName, startingPoint);
 
     LOG.info(
         "Creating a checkpoint with following shards {} at {}",

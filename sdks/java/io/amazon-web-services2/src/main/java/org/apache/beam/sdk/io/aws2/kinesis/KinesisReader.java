@@ -202,6 +202,6 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   ShardReadersPool createShardReadersPool() throws TransientKinesisException {
-    return new ShardReadersPool(spec, kinesis, checkpointGenerator.generate(kinesis));
+    return new ShardReadersPool(spec, kinesis, checkpointGenerator.generate(kinesis.getKinesis()));
   }
 }

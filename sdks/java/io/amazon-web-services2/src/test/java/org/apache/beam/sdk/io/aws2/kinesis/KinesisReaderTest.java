@@ -37,11 +37,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 
 /** Tests {@link KinesisReader}. */
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class KinesisReaderTest {
 
+  @Mock private KinesisClient kinesisClient;
   @Mock private SimplifiedKinesisClient kinesis;
   @Mock private KinesisIO.Read read;
   @Mock private CheckpointGenerator generator;
@@ -54,7 +56,7 @@ public class KinesisReaderTest {
 
   @Before
   public void setUp() throws TransientKinesisException {
-    when(generator.generate(kinesis))
+    when(generator.generate(kinesisClient))
         .thenReturn(new KinesisReaderCheckpoint(asList(firstCheckpoint, secondCheckpoint)));
     when(shardReadersPool.nextRecord()).thenReturn(CustomOptional.absent());
     when(a.getApproximateArrivalTimestamp()).thenReturn(Instant.now());

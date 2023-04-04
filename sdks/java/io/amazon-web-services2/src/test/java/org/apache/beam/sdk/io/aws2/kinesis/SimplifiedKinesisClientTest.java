@@ -215,13 +215,13 @@ public class SimplifiedKinesisClientTest {
             ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
 
     List<Shard> shards =
-        underTest.listShardsAtPoint(
-            STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+        SimplifiedKinesisClient.listShardsAtPoint(
+            kinesis, STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
 
     underTest.close();
-    verify(kinesis).close(); // cloudWatch not initialized / used
+    verifyNoInteractions(cloudWatch);
   }
 
   @Test
@@ -254,8 +254,8 @@ public class SimplifiedKinesisClientTest {
         .thenReturn(ListShardsResponse.builder().shards(shard3).nextToken(null).build());
 
     List<Shard> shards =
-        underTest.listShardsAtPoint(
-            STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+        SimplifiedKinesisClient.listShardsAtPoint(
+            kinesis, STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
   }
@@ -302,7 +302,8 @@ public class SimplifiedKinesisClientTest {
             ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
 
     List<Shard> shards =
-        underTest.listShardsAtPoint(STREAM, new StartingPoint(startingPointTimestamp));
+        SimplifiedKinesisClient.listShardsAtPoint(
+            kinesis, STREAM, new StartingPoint(startingPointTimestamp));
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
   }
@@ -352,7 +353,8 @@ public class SimplifiedKinesisClientTest {
             ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
 
     List<Shard> shards =
-        underTest.listShardsAtPoint(STREAM, new StartingPoint(startingPointTimestamp));
+        SimplifiedKinesisClient.listShardsAtPoint(
+            kinesis, STREAM, new StartingPoint(startingPointTimestamp));
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
   }
@@ -398,8 +400,10 @@ public class SimplifiedKinesisClientTest {
             ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
 
     List<Shard> shards =
-        underTest.listShardsAtPoint(
-            STREAM, new StartingPoint(startingPointTimestampAfterStreamRetentionTimestamp));
+        SimplifiedKinesisClient.listShardsAtPoint(
+            kinesis,
+            STREAM,
+            new StartingPoint(startingPointTimestampAfterStreamRetentionTimestamp));
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
   }
@@ -436,7 +440,8 @@ public class SimplifiedKinesisClientTest {
             ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
 
     List<Shard> shards =
-        underTest.listShardsAtPoint(STREAM, new StartingPoint(startingPointTimestamp));
+        SimplifiedKinesisClient.listShardsAtPoint(
+            kinesis, STREAM, new StartingPoint(startingPointTimestamp));
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
   }
@@ -457,7 +462,8 @@ public class SimplifiedKinesisClientTest {
             ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
 
     List<Shard> shards =
-        underTest.listShardsAtPoint(STREAM, new StartingPoint(InitialPositionInStream.LATEST));
+        SimplifiedKinesisClient.listShardsAtPoint(
+            kinesis, STREAM, new StartingPoint(InitialPositionInStream.LATEST));
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
   }
@@ -529,7 +535,8 @@ public class SimplifiedKinesisClientTest {
       Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
     when(kinesis.listShards(any(ListShardsRequest.class))).thenThrow(thrownException);
     try {
-      underTest.listShardsAtPoint(STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+      SimplifiedKinesisClient.listShardsAtPoint(
+          kinesis, STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
       failBecauseExceptionWasNotThrown(expectedExceptionClass);
     } catch (Exception e) {
       assertThat(e).isExactlyInstanceOf(expectedExceptionClass);

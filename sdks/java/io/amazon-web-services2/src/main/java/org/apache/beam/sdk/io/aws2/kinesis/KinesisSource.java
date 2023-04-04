@@ -78,7 +78,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   @Override
   public List<KinesisSource> split(int desiredNumSplits, PipelineOptions options) throws Exception {
     try (SimplifiedKinesisClient client = createClient(options)) {
-      KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(client);
+      KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(client.getKinesis());
       List<KinesisSource> sources = newArrayList();
       for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
         sources.add(new KinesisSource(spec, new StaticCheckpointGenerator(partition)));

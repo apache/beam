@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import software.amazon.awssdk.services.kinesis.KinesisClient;
+
 /** Always returns the same instance of checkpoint. */
 class StaticCheckpointGenerator implements CheckpointGenerator {
 
@@ -30,7 +32,7 @@ class StaticCheckpointGenerator implements CheckpointGenerator {
   }
 
   @Override
-  public KinesisReaderCheckpoint generate(SimplifiedKinesisClient client) {
+  public KinesisReaderCheckpoint generate(KinesisClient client) {
     return checkpoint;
   }
 

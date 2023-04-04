@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import java.io.Serializable;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 
 /**
  * Used to generate checkpoint object on demand. How exactly the checkpoint is generated is up to
@@ -25,5 +26,5 @@ import java.io.Serializable;
  */
 interface CheckpointGenerator extends Serializable {
 
-  KinesisReaderCheckpoint generate(SimplifiedKinesisClient client) throws TransientKinesisException;
+  KinesisReaderCheckpoint generate(KinesisClient client) throws TransientKinesisException;
 }
