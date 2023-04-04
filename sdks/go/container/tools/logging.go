@@ -44,6 +44,7 @@ type logSender interface {
 	CloseSend() error
 }
 
+// Close closes the grpc logging client.
 func (l *Logger) Close() {
 	if l.closeFn != nil {
 		l.client.CloseSend()

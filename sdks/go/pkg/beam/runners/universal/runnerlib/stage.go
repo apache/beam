@@ -43,15 +43,19 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 	defer cc.Close()
 
-	if err := StageViaPortableApi(ctx, cc, binary, st); err == nil {
+	err = StageViaPortableApi(ctx, cc, binary, st)
+	if err == nil {
 		return "", nil
-	} else {
-		log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 	}
+	log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 
 	return StageViaLegacyApi(ctx, cc, binary, st)
 }
 
+// StageViaPortableApi is a beam internal function for uploading artifacts to the staging service
+// via the portable API.
+//
+// It will be unexported at a later time.
 func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retErr error) {
 	const attempts = 3
 	var failures []string
@@ -60,9 +64,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 		if err == nil {
 			return nil // success!
 		}
-		if err != nil {
-			failures = append(failures, err.Error())
-		}
+		failures = append(failures, err.Error())
 		if len(failures) > attempts {
 			return errors.Errorf("failed to stage artifacts for token %v in %v attempts: %v", st, attempts, strings.Join(failures, ";\n"))
 		}
@@ -180,6 +182,10 @@ func stageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 	}
 }
 
+// StageViaLegacyApi is a beam internal function for uploading artifacts to the staging service
+// via the legacy API.
+//
+// It will be unexported at a later time.
 func StageViaLegacyApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
 	client := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 
