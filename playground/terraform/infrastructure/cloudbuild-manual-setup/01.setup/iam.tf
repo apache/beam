@@ -15,14 +15,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-resource "google_service_account" "cloudbuild_service_account_id" {
-  account_id   = var.cloudbuild_service_account_id
-  display_name = var.cloudbuild_service_account_id
+resource "google_service_account" "playground_deploy_sa" {
+  account_id   = var.playground_deploy_sa
+  display_name = var.playground_deploy_sa
   description  = "The service account cloud build will use to deploy Playground"
 }
 
+resource "google_service_account" "playground_helm_upd_sa" {
+  account_id   = var.playground_helm_upd_sa
+  display_name = var.playground_helm_upd_sa
+  description  = "The service account cloud build will use to deploy Playground"
+}
+
+resource "google_service_account" "playground_cicd_sa" {
+  account_id   = var.playground_cicd_sa
+  display_name = var.playground_cicd_sa
+  description  = "The service account cloud build will use to run CI/CD scripts for Playground"
+}
+
 // Provision IAM roles to the IaC service account required to build and provision resources
-resource "google_project_iam_member" "cloud_build_roles" {
+resource "google_project_iam_member" "playground_deployer_roles" {
   for_each = toset([
     "roles/appengine.appAdmin",
     "roles/appengine.appCreator",
@@ -32,6 +44,7 @@ resource "google_project_iam_member" "cloud_build_roles" {
     "roles/iam.serviceAccountCreator",
     "roles/container.admin",
     "roles/servicemanagement.quotaAdmin",
+    "roles/iam.roleAdmin",
     "roles/iam.securityAdmin",
     "roles/iam.serviceAccountUser",
     "roles/datastore.indexAdmin",
@@ -39,6 +52,29 @@ resource "google_project_iam_member" "cloud_build_roles" {
     "roles/logging.logWriter"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.cloudbuild_service_account_id.email}"
+  member  = "serviceAccount:${google_service_account.playground_deploy_sa.email}"
+  project = var.project_id
+}
+
+resource "google_project_iam_member" "playground_helm_updater_roles" {
+  for_each = toset([
+    "roles/artifactregistry.admin",
+    "roles/compute.admin",
+    "roles/container.admin",
+    "roles/logging.logWriter"
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.playground_helm_upd_sa.email}"
+  project = var.project_id
+}
+
+resource "google_project_iam_member" "playground_cicd_sa_roles" {
+  for_each = toset([
+    "roles/artifactregistry.reader",
+    "roles/storage.admin",
+    "roles/logging.logWriter"
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.playground_helm_upd_sa.email}"
   project = var.project_id
 }

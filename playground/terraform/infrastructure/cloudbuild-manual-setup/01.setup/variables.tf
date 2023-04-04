@@ -16,12 +16,20 @@
 # under the License.
 
 variable "project_id" {
-  type        = string
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }
 
-variable "cloudbuild_service_account_id" {
-  type        = string
-  description = "The ID of the cloud build service account responsible for provisioning Google Cloud resources"
-  default     = "playground-cloudbuild-sa"
+variable "playground_deploy_sa" {
+  description = "The ID of the cloud build service account responsible for deploying the Playground"
+  default     = "playground-cloudbuild-deploy-sa"
+}
+
+variable "playground_helm_upd_sa" {
+  description = "The ID of the cloud build service account responsible for updating the Helm"
+  default     = "playground-cloudbuild-helm-upd-sa"
+}
+
+variable "playground_cicd_sa" {
+  description = "The ID of the cloud build service account responsible for running CI/CD checks and scripts"
+  default = "playground-cloudbuild-cicd-sa"
 }

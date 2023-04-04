@@ -21,11 +21,6 @@ resource "google_project_service" "required_services" {
   for_each = toset([
     "cloudresourcemanager",
     "cloudbuild",
-    "appengine",
-    "artifactregistry",
-    "compute",
-    "redis",
-    "iam",
   ])
 
   service            = "${each.key}.googleapis.com"
