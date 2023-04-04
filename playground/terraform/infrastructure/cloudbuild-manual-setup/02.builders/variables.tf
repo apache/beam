@@ -47,17 +47,17 @@ variable "pg_cd_trigger_name" {
 
 variable "playground_deploy_sa" {
   description = "The ID of the cloud build service account responsible for deploying the Playground"
-  default     = "pg-cloudbuild-deploy-sa"
+  default     = "pg-cloudbuild-deployer-sa"
 }
 
 variable "playground_helm_upd_sa" {
   description = "The ID of the cloud build service account responsible for updating the Helm"
-  default     = "pg-cloudbuild-helm-upd-sa"
+  default     = "pg-cloudbuild-updater-sa"
 }
 
 variable "playground_cicd_sa" {
   description = "The ID of the cloud build service account responsible for running CI/CD checks and scripts"
-  default = "pg-cloudbuild-cicd-sa"
+  default = "pg-cloudbuild-cicd-runner-sa"
 }
 
 variable "playground_environment_name" {
