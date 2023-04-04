@@ -2751,7 +2751,7 @@ class BeamModulePlugin implements Plugin<Project> {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
                 "pip install --retries 10 --upgrade pip && " +
-                "pip install --retries 10 --upgrade tox<5 -r ${project.rootDir}/sdks/python/build-requirements.txt"
+                "pip install --retries 10 --upgrade tox -r ${project.rootDir}/sdks/python/build-requirements.txt"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
