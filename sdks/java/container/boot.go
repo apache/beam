@@ -165,7 +165,6 @@ func main() {
 		"-XX:+UseParallelGC",
 		"-XX:+AlwaysActAsServerClassMachine",
 		"-XX:-OmitStackTraceInFastThrow",
-		"-cp", strings.Join(cp, ":"),
 	}
 
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
@@ -210,13 +209,14 @@ func main() {
 
 	// (2) Add classpath: "-cp foo.jar:bar.jar:.."
 	if len(javaOptions.Classpath) > 0 {
-		pathingjar, err := makePathingJar(javaOptions.Classpath)
-		if err != nil {
-			logger.Fatalf(ctx, "makePathingJar failed: %v", err)
-		}
-		args = append(args, "-cp")
-		args = append(args, pathingjar)
+		cp = append(cp, javaOptions.Classpath...)
 	}
+	pathingjar, err := makePathingJar(cp)
+	if err != nil {
+		logger.Fatalf(ctx, "makePathingJar failed: %v", err)
+	}
+	args = append(args, "-cp")
+	args = append(args, pathingjar)
 
 	// (3) Add (sorted) properties: "-Dbar=baz -Dfoo=bar .."
 	var properties []string
