@@ -40,7 +40,7 @@ pages:
   tour:
     completeUnit: Complete Unit
     summaryTitle: Table of Contents
-    pipelineOptionsButtonTitle: 'Pipeline Options: ({count})'
+    pipelineOptionsButtonTitle: 'Pipeline Options ({count})'
 
 dialogs:
   signInIf: If you would like to save your progress and track completed modules
