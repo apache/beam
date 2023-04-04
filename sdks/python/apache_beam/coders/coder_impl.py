@@ -52,7 +52,6 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 
-import dill
 import numpy as np
 from fastavro import parse_schema
 from fastavro import schemaless_reader
@@ -60,6 +59,7 @@ from fastavro import schemaless_writer
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.internal import pickler
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
@@ -526,7 +526,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         (value, type(value), self.requires_deterministic_step_label))
 
   def encode_type(self, t, stream):
-    stream.write(dill.dumps(t), True)
+    stream.write(pickler.dumps(t), True)
 
   def decode_type(self, stream):
     return _unpickle_type(stream.read_all(True))
@@ -592,7 +592,7 @@ _unpickled_types = {}  # type: Dict[bytes, type]
 def _unpickle_type(bs):
   t = _unpickled_types.get(bs, None)
   if t is None:
-    t = _unpickled_types[bs] = dill.loads(bs)
+    t = _unpickled_types[bs] = pickler.loads(bs)
     # Fix unpicklable anonymous named tuples for Python 3.6.
     if t.__base__ is tuple and hasattr(t, '_fields'):
       try:

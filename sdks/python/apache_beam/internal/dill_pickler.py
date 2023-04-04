@@ -42,16 +42,7 @@ from typing import Any
 from typing import Dict
 from typing import Tuple
 
-try:
-  import dill
-except ImportError:
-  raise RuntimeError(
-      "The optional `dill` package is not installed. "
-      "To use the `--pickle_library==dill` pipeline option, please make dill a "
-      "dependency of your pipeline. Make sure to use the exact same version "
-      "of dill at pipeline submission and at pipeline runtime. For more "
-      "information, see: "
-      "https://beam.apache.org/documentation/sdks/python-pipeline-dependencies")
+import dill
 
 settings = {'dill_byref': None}
 

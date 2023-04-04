@@ -31,16 +31,20 @@ the coders.*PickleCoder classes should be used instead.
 from apache_beam.internal import cloudpickle_pickler
 import sys
 
+try:
+  from apache_beam.internal import dill_pickler
+except ImportError:
+  dill_pickler = None
+
 USE_CLOUDPICKLE = 'cloudpickle'
 USE_DILL = 'dill'
 
 if sys.version_info < (3, 11):
-  from apache_beam.internal import dill_pickler
   DEFAULT_PICKLE_LIB = USE_DILL
+  desired_pickle_lib = dill_pickler
 else:
   DEFAULT_PICKLE_LIB = USE_CLOUDPICKLE
-
-desired_pickle_lib = cloudpickle_pickler
+  desired_pickle_lib = cloudpickle_pickler
 
 
 def dumps(o, enable_trace=True, use_zlib=False):
@@ -81,6 +85,15 @@ def set_library(selected_library=DEFAULT_PICKLE_LIB):
     selected_library = DEFAULT_PICKLE_LIB
 
   if selected_library == USE_DILL:
+    if sys.version_info > (3, 10) and dill_pickler is None:
+      raise RuntimeError(
+          "The optional `dill` package is not installed. "
+          "To use the `--pickle_library==dill` pipeline option, please make "
+          "dill a dependency of your pipeline. Make sure to use the exact "
+          "same version of dill at pipeline submission and at pipeline "
+          "runtime. For more information, see: "
+          "https://beam.apache.org/documentation/sdks/python-pipeline-dependencies"  # pylint: disable=line-too-long
+      )
     desired_pickle_lib = dill_pickler
   elif selected_library == USE_CLOUDPICKLE:
     desired_pickle_lib = cloudpickle_pickler
