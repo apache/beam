@@ -127,9 +127,9 @@ Start the following command from the top level repository folder ("beam") to dep
 ```
 ./gradlew playground:terraform:gkebackend -Pproject_environment="<environment_name>" -Pdocker-tag="tag" \
   -Pdns-name="<playground.zone>" -Psdk-tag=2.44.0 \
-   -Pdocker-repository-root="<region>-docker.pkg.dev/<project_id>/<repository_id>" -Pdatastore-namespace="Playground"
+   -Pdocker-repository-root="<region>-docker.pkg.dev/<project_id>/<repository_id>" -Pdatastore_namespace="Playground"
 ```
-Where tag - image tag for docker images, Psdk-tag - current Apache Beam SDK version, Pdatastore-namespace - namespace for Datastore
+Where tag - image tag for docker images, Psdk-tag - current Apache Beam SDK version, Pdatastore_namespace - namespace for Datastore
 
 During script execution, a Google managed certificate will be created. [Provisioning might take up to 60 minutes](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs).
 
