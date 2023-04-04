@@ -147,7 +147,7 @@ resource "google_cloudbuild_trigger" "playground_helm_update" {
   service_account = data.google_service_account.playground_helm_upd_sa.id
 }
 
-resource "google_cloudbuild_trigger" "playground-ci" {
+resource "google_cloudbuild_trigger" "playground_ci" {
   name     = var.pg_ci_trigger_name
   project  = var.project_id
 
@@ -166,7 +166,7 @@ resource "google_cloudbuild_trigger" "playground-ci" {
   service_account = data.google_service_account.playground_cicd_sa.id
 }
 
-resource "google_cloudbuild_trigger" "playground-cd" {
+resource "google_cloudbuild_trigger" "playground_cd" {
   name     = var.pg_ci_trigger_name
   project  = var.project_id
 
