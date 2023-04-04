@@ -46,6 +46,7 @@ resource "google_project_iam_member" "playground_deployer_roles" {
     "roles/iam.serviceAccountUser",
     "roles/datastore.indexAdmin",
     "roles/storage.admin",
+    "roles/dns.admin",
     "roles/logging.logWriter"
   ])
   role    = each.key
@@ -63,6 +64,7 @@ resource "google_project_iam_member" "playground_helm_updater_roles" {
     "roles/iam.roleAdmin",
     "roles/appengine.appAdmin",
     "roles/redis.admin",
+    "roles/dns.admin",
     "roles/logging.logWriter"
   ])
   role    = each.key
