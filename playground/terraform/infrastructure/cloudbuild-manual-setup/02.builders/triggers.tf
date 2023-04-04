@@ -155,15 +155,17 @@ resource "google_cloudbuild_trigger" "playground_ci" {
 
   service_account = data.google_service_account.playground_helm_upd_sa.id
 
-  webhook_config {
-    secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
+  source_to_build {
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
   }
 
-  build {
-    step {
-      name = "gcr.io/cloud-builders/mvn"
-      args = ["clean", "install"]
-    }
+  git_file_source {
+    path = ""
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    revision  = "refs/heads/master"
+    repo_type = "GITHUB"
   }
 
   substitutions = {
@@ -180,15 +182,17 @@ resource "google_cloudbuild_trigger" "playground_cd" {
 
   service_account = data.google_service_account.playground_cicd_sa.id
 
-  webhook_config {
-    secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
+  source_to_build {
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
   }
 
-  build {
-    step {
-      name = "gcr.io/cloud-builders/mvn"
-      args = ["clean", "install"]
-    }
+  git_file_source {
+    path = ""
+    uri       = "https://github.com/beamplayground/deploy-workaround"
+    revision  = "refs/heads/master"
+    repo_type = "GITHUB"
   }
 
   substitutions = {
