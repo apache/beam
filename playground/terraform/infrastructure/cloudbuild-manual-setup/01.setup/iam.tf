@@ -58,6 +58,7 @@ resource "google_project_iam_member" "playground_helm_updater_roles" {
     "roles/artifactregistry.admin",
     "roles/compute.admin",
     "roles/container.admin",
+    "roles/storage.admin",
     "roles/logging.logWriter"
   ])
   role    = each.key
