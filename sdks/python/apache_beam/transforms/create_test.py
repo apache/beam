@@ -123,6 +123,10 @@ class CreateTest(unittest.TestCase):
 
     self.assertEqual(expected_split_points_report, split_points_report)
 
+  @unittest.skipIf(
+      pickler.DEFAULT_PICKLE_LIB == 'cloudpickle',
+      "Please take a look at "
+      "https://github.com/cloudpipe/cloudpickle/issues/504")
   def test_create_uses_coder_for_pickling(self):
     coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
     create = Create([_Unpicklable(1), _Unpicklable(2), _Unpicklable(3)])
@@ -131,6 +135,10 @@ class CreateTest(unittest.TestCase):
         sorted(create.values, key=lambda v: v.value),
         sorted(unpickled_create.values, key=lambda v: v.value))
 
+    # With cloudpickle as default pickler, this is failing as expected
+    # but along with another error within cloudpickle.
+    # Tested this failure in Python 3.10 and 3.11.
+    # Filed an issue: https://github.com/cloudpipe/cloudpickle/issues/504
     with self.assertRaises(NotImplementedError):
       # As there is no special coder for Union types, this will fall back to
       # FastPrimitivesCoder, which in turn falls back to pickling.
