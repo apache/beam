@@ -153,6 +153,8 @@ resource "google_cloudbuild_trigger" "playground_ci" {
 
   description = "Creates cloud build manual trigger for Playground CI checks"
 
+  service_account = data.google_service_account.playground_cicd_sa.id
+
   webhook_config {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
@@ -168,7 +170,6 @@ resource "google_cloudbuild_trigger" "playground_ci" {
     _BEAM_VERSION : var.sdk_tag
   }
 
-  service_account = data.google_service_account.playground_cicd_sa.id
 }
 
 resource "google_cloudbuild_trigger" "playground_cd" {
@@ -176,6 +177,8 @@ resource "google_cloudbuild_trigger" "playground_cd" {
   project  = var.project_id
 
   description = "Creates cloud build manual trigger for Playground CD checks"
+
+  service_account = data.google_service_account.playground_cicd_sa.id
 
   webhook_config {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
@@ -192,6 +195,4 @@ resource "google_cloudbuild_trigger" "playground_cd" {
     _DNS_NAME : var.playground_dns_name
     _DATASTORE_NAMESPACE: var.datastore_namespace
   }
-
-  service_account = data.google_service_account.playground_cicd_sa.id
 }
