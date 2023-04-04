@@ -313,7 +313,7 @@ tasks.register("takeConfig") {
         val proj = project.rootProject.extra["playground_gke_project"]
         val registry = project.rootProject.extra["docker-repository-root"]
         val ipaddrname = project.rootProject.extra["playground_static_ip_address_name"]
-        val datastore_name = if (project.hasProperty("datastore_namespace")) (project.property("datastore_namespace") as String) else ""
+        val datastore_name = if (project.hasProperty("datastore-namespace")) (project.property("datastore-namespace") as String) else ""
 
         file.appendText(
             """
