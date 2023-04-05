@@ -173,7 +173,7 @@ resource "google_cloudbuild_trigger" "playground_ci" {
 }
 
 resource "google_cloudbuild_trigger" "playground_cd" {
-  name     = var.pg_ci_trigger_name
+  name     = var.pg_cd_trigger_name
   project  = var.project_id
 
   description = "Creates cloud build manual trigger for Playground CD checks"
