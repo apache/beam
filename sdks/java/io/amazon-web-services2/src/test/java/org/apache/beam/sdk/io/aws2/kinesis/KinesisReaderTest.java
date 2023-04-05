@@ -52,7 +52,7 @@ public class KinesisReaderTest {
   private KinesisReader reader;
 
   @Before
-  public void setUp() throws TransientKinesisException {
+  public void setUp() {
     when(shardReadersPool.nextRecord()).thenReturn(CustomOptional.absent());
     when(a.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
     when(b.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
