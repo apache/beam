@@ -590,7 +590,7 @@ To use this transform, you need to have sklearn installed. The dataset is loaded
 
 ### Training a simple classifier
 
-The following function allows you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in an pipeline using the `XGBoostModelHandler`.
+The following function allows you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in a pipeline using the `XGBoostModelHandler`.
 ```
 import xgboost
 
@@ -644,4 +644,45 @@ When all elements are in a single batch the output looks like this:
 ```
 0,[1 1 1 0 0 0 0 1 2 0 0 2 0 2 1 2 2 2 2 0 0 0 0 2 2 0 2 2 2 1]
 
+```
+
+## Milk Quality Prediction Windowing Example
+
+`milk_quality_prediction_windowing.py` contains an implementation of a windowing pipeline making use of the RunInference transform. An XGBoost classification the quality of milk based on measurements of pH, temperature, taste, odor, fat, turbidity and color. The model labels a measurement as `bad`, `medium` or `good`. The model is trained on the [Kaggle Milk Quality Prediction dataset](https://www.kaggle.com/datasets/cpluzshrijayan/milkquality).
+
+#### Loading and preprocessing the dataset
+
+The `preprocess_data` function loads the Kaggle dataset from a csv file and splits it into a training and accompanying label set as well as a test set. In typical machine learning setting we would use the training set and the labels to train the model and the test set is used to calculate various metrics such as recall and precision.   We will use the test set data in a test streaming pipeline to showcase the windowing capabilities.
+
+#### Training an XGBoost classifier
+
+The `train_model` function allows you to train a simple XGBoost classifier using the Kaggle Milk Quality Prediction dataset. The trained model will be saved in JSON format at the location passed as a parameter and can then later be used for inference using by loading it via the XGBoostModelhandler.
+
+#### Running the pipeline
+
+```
+python -m apache_beam.examples.inference.milk_quality_prediction_windowing.py \
+    --dataset \
+    <DATASET> \
+    --pipeline_input_data \
+    <INPUT_DATA> \
+    --training_set \
+    <TRAINING_SET> \
+    --labels \
+    <LABELS> \
+    --model_state \
+    <MODEL_STATE>
+```
+
+Where `<DATASET>` is the path to a csv file containing the Kaggle Milk Quality prediction dataset, `<INPUT_DATA>` a filepath to save the data that will be used as input for the streaming pipeline (test set), `<TRAINING_SET>` a filepath to store the training set in csv format, `<LABELS>` a filepath to store the csv containing the labels used to train the model and  `<MODEL_STATE>` the path to the JSON file containing the trained model.
+`<INPUT_DATA>`, `<TRAINING_SET>`, and `<LABELS>` will all be parsed from `<DATASET>` and saved before pipeline execution.
+
+Using the test set, we simulate a streaming pipeline that a receives a new measurement of the milk quality parameters every minute. A sliding window keeps track of the measurement of the last 30 minutes and new window starts every 5 minutes. The model predicts the quality of each measurement. After 30 minutes the results are aggregated in a tuple containing the number of measurements that were predicted as bad, medium and high quality samples. The output of each window looks as follows:
+```
+MilkQualityAggregation(bad_quality_measurements=10, medium_quality_measurements=13, high_quality_measurements=6)
+MilkQualityAggregation(bad_quality_measurements=9, medium_quality_measurements=11, high_quality_measurements=4)
+MilkQualityAggregation(bad_quality_measurements=8, medium_quality_measurements=7, high_quality_measurements=4)
+MilkQualityAggregation(bad_quality_measurements=6, medium_quality_measurements=4, high_quality_measurements=4)
+MilkQualityAggregation(bad_quality_measurements=3, medium_quality_measurements=3, high_quality_measurements=3)
+MilkQualityAggregation(bad_quality_measurements=1, medium_quality_measurements=2, high_quality_measurements=1)
 ```

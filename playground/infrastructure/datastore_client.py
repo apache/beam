@@ -92,9 +92,12 @@ class DatastoreClient:
                     example, example_id, sdk_key, now, actual_schema_version_key, origin,
                 )
                 self._datastore_client.put(snippet)
-                self._datastore_client.put_multi(
-                    self._pc_object_entities(example, example_id)
-                )
+
+                if not example.tag.always_run:
+                    self._datastore_client.put_multi(
+                        self._pc_object_entities(example, example_id)
+                    )
+
                 self._datastore_client.put(self._to_main_file_entity(example, example_id))
                 if example.tag.files:
                     self._datastore_client.put_multi(
@@ -294,6 +297,7 @@ class DatastoreClient:
                 "cats": example.tag.categories,
                 "path": example.url_vcs,  # keep for backward-compatibity, to be removed
                 "type": api_pb2.PrecompiledObjectType.Name(example.type),
+                "alwaysRun": example.tag.always_run,
                 "origin": origin,
                 "schVer": schema_key,
                 "urlVCS": example.url_vcs,

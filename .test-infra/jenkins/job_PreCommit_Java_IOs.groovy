@@ -18,7 +18,15 @@
 
 import PrecommitJobBuilder
 
-// Define a PreCommit job running IO unit tests that were excluded in the default job_PreCommit_Java.groovy
+def commonTriggerPatterns = [
+  '^sdks/java/io/common/.*$',
+  '^sdks/java/core/src/main/.*$',
+]
+
+// Define an umbrella PreCommit job running IO unit tests when common pattern
+// (e.g. java core) is triggered. This avoids triggering too much PreCommit at
+// the same time which may reach GitHub API rate limit. The projects are defined
+// in the gradle task ':javaioPreCommit'.
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java_IOs_Direct',
@@ -29,10 +37,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
-    triggerPathPatterns: [
-      '^sdks/java/io/common/.*$',
-      '^sdks/java/core/src/main/.*$',
-    ],
+    triggerPathPatterns: commonTriggerPatterns,
     // disable cron run because the tasks are covered by the single IO precommits below
     cronTriggering: false,
     timeoutMins: 120,
@@ -40,34 +45,62 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
+    recordIssues {
+      tools {
+        errorProne()
+        java()
+        spotBugs {
+          pattern('**/build/reports/spotbugs/*.xml')
+        }
+      }
+      enabledForFailure(true)
+    }
   }
 }
 
-// define precommit jobs for each of these IO only run on corresponding module code change
-def ioModules = [
-  'amqp',
-  'cassandra',
-  'cdap',
-  'clickhouse',
-  'csv',
-  'debezium',
-  'elasticsearch',
-  'file-schema-transform',
-  'hbase',
-  'hcatalog',
-  'influxdb',
-  'jms',
-  'kudu',
-  'mqtt',
-  'neo4j',
-  'rabbitmq',
-  'redis',
-  'singlestore',
-  'snowflake',
-  'solr',
-  'splunk',
-  'thrift',
-  'tika'
+// Define precommit jobs for each of these IO only run on corresponding module code change
+def ioModulesMap = [
+  // These projects are split from the umbrella 'Java_IOs_Direct' and will trigger on default patterns.
+  // These are usually more dedicated IO (having more tests) or tests show known flakinesses.
+  true: [
+    'amazon-web-services',
+    'amazon-web-services2',
+    'azure',
+    'hadoop-file-system',
+    'kinesis',
+    'pulsar',
+  ],
+
+  // These projects are also covered by 'Java_IOs_Direct', and won't trigger on default patterns.
+  false: [
+    'amqp',
+    'cassandra',
+    'cdap',
+    'clickhouse',
+    'csv',
+    'debezium',
+    'elasticsearch',
+    'file-schema-transform',
+    'hbase',
+    'hcatalog',
+    'influxdb',
+    'jdbc',
+    'jms',
+    'kafka',
+    'kudu',
+    'mongodb',
+    'mqtt',
+    'neo4j',
+    'parquet',
+    'rabbitmq',
+    'redis',
+    'singlestore',
+    'snowflake',
+    'solr',
+    'splunk',
+    'thrift',
+    'tika'
+  ]
 ]
 
 // any additional trigger path besides the module path and 'sdk/io/common'
@@ -79,14 +112,29 @@ def additionalTriggerPaths = [
   elasticsearch: [
     '^sdks/java/io/elasticsearch-tests/.*$',
   ],
+  'hadoop-file-system': [
+    '^examples/java/.*$',
+    '^sdks/java/testing/test-utils/.*$',
+    '^sdks/java/io/hadoop-common/.*$',
+    '^sdks/java/io/hadoop-format/.*$',
+  ],
   hbase: [
     '^sdks/java/io/hadoop-common/.*$',
   ],
   hcatalog: [
     '^sdks/java/io/hadoop-common/.*$',
   ],
+  kafka: [
+    '^sdks/java/testing/test-utils/.*$',
+    '^sdks/java/expansion-service/.*$',
+    '^sdks/java/io/synthetic/.*$',
+    '^sdks/java/io/expansion-service/.*$',
+  ],
   neo4j: [
     '^sdks/java/testing/test-utils/.*$',
+  ],
+  parquet: [
+    '^sdks/java/io/hadoop-common/.*$',
   ],
   singlestore: [
     '^sdks/java/testing/test-utils/.*$',
@@ -100,6 +148,12 @@ def additionalTriggerPaths = [
 // Additional :build tasks should be made sync with build.gradle:kts's :javaioPreCommit task which will be triggered on commit to java core and buildSrc
 // While integration tasks (e.g. :integrationTest) does not need to add there.
 def additionalTasks = [
+  'amazon-web-services': [
+    ':sdks:java:io:amazon-web-services:integrationTest',
+  ],
+  'amazon-web-services2': [
+    ':sdks:java:io:amazon-web-services2:integrationTest',
+  ],
   debezium: [
     ':sdks:java:io:debezium:expansion-service:build',
     ':sdks:java:io:debezium:integrationTest',
@@ -111,38 +165,88 @@ def additionalTasks = [
     ':sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build',
     ':sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build',
   ],
+  'hadoop-file-system': [
+    ':sdks:java:io:hadoop-common:build',
+    ':sdks:java:io:hadoop-format:build',
+  ],
+  jdbc: [
+    ':sdks:java:io:jdbc:integrationTest',
+  ],
+  kafka: [
+    ':sdks:java:io:kafka:kafkaVersionsCompatibilityTest',
+  ],
+  kinesis: [
+    ':sdks:java:io:kinesis:expansion-service:build',
+    ':sdks:java:io:kinesis:integrationTest',
+  ],
   neo4j: [
     ':sdks:java:io:kinesis:integrationTest',
   ],
   snowflake: [
     ':sdks:java:io:snowflake:expansion-service:build',
   ],
+  jms: [
+    ':sdks:java:io:jms:integrationTest',
+  ],
 ]
 
-ioModules.forEach {
-  def triggerPaths = [
-    '^sdks/java/io/' + it + '/.*$',
-  ]
-  triggerPaths.addAll(additionalTriggerPaths.get(it, []))
-  def tasks = [
-    ':sdks:java:io:' + it + ':build'
-  ]
-  tasks.addAll(additionalTasks.get(it, []))
-  PrecommitJobBuilder builderSingle = new PrecommitJobBuilder(
-      scope: this,
-      nameBase: 'Java_' + it.capitalize() + '_IO_Direct',
-      gradleTasks: tasks,
-      gradleSwitches: [
-        '-PdisableSpotlessCheck=true',
-        '-PdisableCheckStyle=true'
-      ], // spotless checked in separate pre-commit
-      triggerPathPatterns: triggerPaths,
-      defaultPathTriggering: false,
-      timeoutMins: 60,
-      )
-  builderSingle.build {
-    publishers {
-      archiveJunit('**/build/test-results/**/*.xml')
+// In case the test suite name is different from the project folder name
+def aliasMap = [
+  'amazon-web-services': 'Amazon-Web-Services',
+  'amazon-web-services2': 'Amazon-Web-Services2',
+  'jdbc': 'JDBC',
+  'hadoop-file-system': 'hadoop',
+  'mongodb': 'MongoDb',
+]
+
+ioModulesMap.forEach {cases, ioModules ->
+  def hasDefaultTrigger = (cases == "true")
+  ioModules.forEach {
+    def triggerPaths = [
+      '^sdks/java/io/' + it + '/.*$',
+    ]
+    if (hasDefaultTrigger) {
+      triggerPaths.addAll(commonTriggerPatterns)
+    }
+    triggerPaths.addAll(additionalTriggerPaths.get(it, []))
+    def tasks = [
+      ':sdks:java:io:' + it + ':build'
+    ]
+    tasks.addAll(additionalTasks.get(it, []))
+    def testName = aliasMap.get(it, it.capitalize())
+    String jacocoPattern = "**/org/apache/beam/sdk/io/${it}/**"
+    PrecommitJobBuilder builderSingle = new PrecommitJobBuilder(
+        scope: this,
+        nameBase: 'Java_' + testName + '_IO_Direct',
+        gradleTasks: tasks,
+        gradleSwitches: [
+          '-PdisableSpotlessCheck=true',
+          '-PdisableCheckStyle=true',
+          '-PenableJacocoReport'
+        ], // spotless checked in separate pre-commit
+        triggerPathPatterns: triggerPaths,
+        defaultPathTriggering: hasDefaultTrigger,
+        timeoutMins: 60,
+        )
+    builderSingle.build {
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+        recordIssues {
+          tools {
+            errorProne()
+            java()
+            spotBugs {
+              pattern('**/build/reports/spotbugs/*.xml')
+            }
+          }
+          enabledForFailure(true)
+        }
+        jacocoCodeCoverage {
+          execPattern('**/build/jacoco/*.exec')
+          exclusionPattern('**/AutoValue_*')
+          inclusionPattern(jacocoPattern)
+        }
+      }
     }
   }
 }

@@ -36,7 +36,7 @@ from setuptools import Command
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.errors import DistutilsError # isort:skip
+from distutils.errors import DistutilsError  # isort:skip
 
 
 class mypy(Command):
@@ -127,6 +127,7 @@ except DistributionNotFound:
 try:
   # pylint: disable=wrong-import-position
   from Cython.Build import cythonize as cythonize0
+
   def cythonize(*args, **kwargs):
     import numpy
     extensions = cythonize0(*args, **kwargs)
@@ -140,7 +141,8 @@ except ImportError:
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
-  pyarrow_dependency = 'pyarrow>=3.0.0,<10.0.0'
+  pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -167,7 +169,7 @@ def get_portability_package_data():
 
 python_requires = '>=3.7'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 11:
+if sys.version_info.major == 3 and sys.version_info.minor >= 12:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -203,7 +205,6 @@ if __name__ == '__main__':
           ]
       },
       ext_modules=cythonize([
-          # Make sure to use language_level=3 cython directive in files below.
           'apache_beam/**/*.pyx',
           'apache_beam/coders/coder_impl.py',
           'apache_beam/metrics/cells.py',
@@ -216,7 +217,7 @@ if __name__ == '__main__':
           'apache_beam/transforms/stats.py',
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
-      ]),
+      ], language_level=3),
       install_requires = [
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
@@ -278,7 +279,7 @@ if __name__ == '__main__':
             'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
-            'tenacity>=5.0.2,<6.0',
+            'tenacity>=8.0.0,<9',
             'pytest>=7.1.2,<8.0',
             'pytest-xdist>=2.5.0,<4',
             'pytest-timeout>=2.1.0,<3',
@@ -334,7 +335,7 @@ if __name__ == '__main__':
             'needle>=0.5.0,<1',
             'chromedriver-binary>=100,<113',
             # use a fixed major version of PIL for different python versions
-            'pillow>=7.1.1,<8',
+            'pillow>=7.1.1,<10',
           ],
           'aws': ['boto3 >=1.9'],
           'azure': [
@@ -364,6 +365,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
+          'Programming Language :: Python :: 3.11',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

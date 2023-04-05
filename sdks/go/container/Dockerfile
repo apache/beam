@@ -18,6 +18,8 @@
 
 FROM debian:bullseye
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
 
 ARG pull_licenses
 
@@ -27,7 +29,7 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
-ADD target/linux_amd64/boot /opt/apache/beam/
+ADD target/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
 COPY target/LICENSE /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/

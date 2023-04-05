@@ -20,7 +20,6 @@
 labels:
   - name: Go
     reviewers:
-      - damccorm
       - lostluck
       - jrmccluskey
       - riteshghorse

@@ -337,10 +337,14 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:hbase:build")
   dependsOn(":sdks:java:io:hcatalog:build")
   dependsOn(":sdks:java:io:influxdb:build")
+  dependsOn(":sdks:java:io:jdbc:build")
   dependsOn(":sdks:java:io:jms:build")
+  dependsOn(":sdks:java:io:kafka:build")
   dependsOn(":sdks:java:io:kudu:build")
+  dependsOn(":sdks:java:io:mongodb:build")
   dependsOn(":sdks:java:io:mqtt:build")
   dependsOn(":sdks:java:io:neo4j:build")
+  dependsOn(":sdks:java:io:parquet:build")
   dependsOn(":sdks:java:io:rabbitmq:build")
   dependsOn(":sdks:java:io:redis:build")
   dependsOn(":sdks:java:io:singlestore:build")
@@ -452,6 +456,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -469,6 +474,7 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
+  dependsOn(":sdks:python:container:py311:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
@@ -498,6 +504,9 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
   // TODO: https://github.com/apache/beam/issues/22651
+  // The default container uses Python 3.8. The goal here is to
+  // duild Docker images for TensorRT tests during run time for python versions
+  // other than 3.8 and add these tests in other python postcommit suites.
   dependsOn(":sdks:python:test-suites:dataflow:py38:inferencePostCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:inferencePostCommitIT")
 }
@@ -519,6 +528,13 @@ tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
 }
 
+tasks.register("python311PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py311:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py311:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
+}
+
 task("python37SickbayPostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
 }
@@ -533,14 +549,14 @@ task("python39SickbayPostCommit") {
 
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
-  dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {

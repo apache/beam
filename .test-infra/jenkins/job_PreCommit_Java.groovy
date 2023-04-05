@@ -18,6 +18,63 @@
 
 import PrecommitJobBuilder
 
+// exclude paths with their own PreCommit tasks
+def excludePaths = [
+  'extensions/sql',
+  'io/amazon-web-services',
+  'io/amazon-web-services2',
+  'io/amqp',
+  'io/azure',
+  'io/cassandra',
+  'io/cdap',
+  'io/clickhouse',
+  'io/csv',
+  'io/debezium',
+  'io/elasticsearch',
+  'io/elasticsearch-tests',
+  'io/file-schema-transform',
+  'io/google-cloud-platform',
+  'io/hadoop-common',
+  'io/hadoop-file-system',
+  'io/hadoop-format',
+  'io/hbase',
+  'io/hcatalog',
+  'io/influxdb',
+  'io/jdbc',
+  'io/jms',
+  'io/kafka',
+  'io/kinesis',
+  'io/kudu',
+  'io/mqtt',
+  'io/mongodb',
+  'io/neo4j',
+  'io/parquet',
+  'io/pulsar',
+  'io/rabbitmq',
+  'io/redis',
+  'io/singlestore',
+  'io/snowflake',
+  'io/solr',
+  'io/splunk',
+  'io/thrift',
+  'io/tika',
+]
+
+// jacoco exclusion pattern works with class path (org/apache/beam/...) instead of
+// code path (sdks/java/...). There is a few case the project name and module name
+// are different so use this function to patch
+private static def getModuleNameFromProject(String projectname) {
+  def nameMap = [
+    'io/amazon-web-services': 'io/aws',
+    'io/amazon-web-services2': 'io/aws2',
+    'io/google-cloud-platform': 'io/gcp',
+    'io/hadoop-common': 'io/hadoop',
+  ]
+  String moduleName = nameMap.get(projectname, projectname)
+
+  return "**/org/apache/beam/sdk/$moduleName/**" as String
+}
+
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java',
@@ -35,44 +92,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^examples/kotlin/.*$',
       '^release/.*$',
     ],
-    excludePathPatterns: [
-      '^sdks/java/extensions/sql/.*$',
-      '^sdks/java/io/amazon-web-services/.*$',
-      '^sdks/java/io/amazon-web-services2/.*$',
-      '^sdks/java/io/amqp/.*$',
-      '^sdks/java/io/azure/.*$',
-      '^sdks/java/io/cassandra/.*$',
-      '^sdks/java/io/cdap/.*$',
-      '^sdks/java/io/clickhouse/.*$',
-      '^sdks/java/io/debezium/.*$',
-      '^sdks/java/io/elasticsearch/.*$',
-      '^sdks/java/io/elasticsearch-tests/.*$',
-      '^sdks/java/io/google-cloud-platform/.*$',
-      '^sdks/java/io/hadoop-common/.*$',
-      '^sdks/java/io/hadoop-file-system/.*$',
-      '^sdks/java/io/hadoop-format/.*$',
-      '^sdks/java/io/hbase/.*$',
-      '^sdks/java/io/hcatalog/.*$',
-      '^sdks/java/io/influxdb/.*$',
-      '^sdks/java/io/jdbc/.*$',
-      '^sdks/java/io/jms/.*$',
-      '^sdks/java/io/kafka/.*$',
-      '^sdks/java/io/kinesis/.*$',
-      '^sdks/java/io/kudu/.*$',
-      '^sdks/java/io/mqtt/.*$',
-      '^sdks/java/io/mongodb/.*$',
-      '^sdks/java/io/neo4j/.*$',
-      '^sdks/java/io/parquet/.*$',
-      '^sdks/java/io/pulsar/.*$',
-      '^sdks/java/io/rabbitmq/.*$',
-      '^sdks/java/io/redis/.*$',
-      '^sdks/java/io/singlestore/.*$',
-      '^sdks/java/io/snowflake/.*$',
-      '^sdks/java/io/solr/.*$',
-      '^sdks/java/io/splunk/.*$',
-      '^sdks/java/io/thrift/.*$',
-      '^sdks/java/io/tika/.*$',
-    ]
+    excludePathPatterns: excludePaths.collect {entry ->
+      "^sdks/java/" + entry + '/.*$'}
     )
 builder.build {
   publishers {
@@ -90,7 +111,8 @@ builder.build {
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
       exclusionPattern('**/org/apache/beam/gradle/**,**/org/apache/beam/model/**,' +
-          '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*')
+          '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*,' +
+          excludePaths.collect {entry -> getModuleNameFromProject(entry) }.join(",") )
     }
   }
 }

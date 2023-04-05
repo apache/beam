@@ -102,6 +102,10 @@ toxTask "testPy38pytorch-113", "py38-pytorch-113", "${posargs}"
 test.dependsOn "testPy38pytorch-113"
 preCommitPyCoverage.dependsOn "testPy38pytorch-113"
 
+toxTask "testPy38pytorch-200", "py38-pytorch-200", "${posargs}"
+test.dependsOn "testPy38pytorch-200"
+preCommitPyCoverage.dependsOn "testPy38pytorch-200"
+
 // TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
 // Create a test task for each minor version of onnx
 // toxTask "testPy38onnx-113", "py38-onnx-113", "${posargs}"

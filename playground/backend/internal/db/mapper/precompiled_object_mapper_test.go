@@ -79,7 +79,7 @@ func TestPrecompiledObjectMapper_ToPrecompiledObj(t *testing.T) {
 			},
 		},
 	}
-	actualResult := pcObjMapper.ToPrecompiledObj(
+	actualResult := pcObjMapper.ToPrecompiledObj("SDK_JAVA_MOCK_NAME",
 		getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()),
 	)
 	assert.Equal(t, expected, actualResult)

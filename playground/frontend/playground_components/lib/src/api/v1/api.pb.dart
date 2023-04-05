@@ -1066,6 +1066,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..pc<Dataset>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
     ..aOS(14, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'urlVcs')
     ..aOS(15, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'urlNotebook')
+    ..aOB(16, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'alwaysRun')
     ..hasRequiredFields = false
   ;
 
@@ -1086,6 +1087,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.Iterable<Dataset>? datasets,
     $core.String? urlVcs,
     $core.String? urlNotebook,
+    $core.bool? alwaysRun,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1132,6 +1134,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (urlNotebook != null) {
       _result.urlNotebook = urlNotebook;
+    }
+    if (alwaysRun != null) {
+      _result.alwaysRun = alwaysRun;
     }
     return _result;
   }
@@ -1278,6 +1283,15 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasUrlNotebook() => $_has(14);
   @$pb.TagNumber(15)
   void clearUrlNotebook() => clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.bool get alwaysRun => $_getBF(15);
+  @$pb.TagNumber(16)
+  set alwaysRun($core.bool v) { $_setBool(15, v); }
+  @$pb.TagNumber(16)
+  $core.bool hasAlwaysRun() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearAlwaysRun() => clearField(16);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

@@ -387,7 +387,7 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 		}
 	}
 
-	return d.ResponseMapper.ToPrecompiledObj(&dto.ExampleDTO{
+	return d.ResponseMapper.ToPrecompiledObj(id, &dto.ExampleDTO{
 		Example:            example,
 		Snippet:            snippet,
 		Files:              []*entity.FileEntity{file},
