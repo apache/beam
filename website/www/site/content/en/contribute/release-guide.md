@@ -217,7 +217,8 @@ For example,
 }
 ```
 
-If you are not already a member of the `beammaintainers` team, please email `dev@` for help with any DockerHub related tasks.
+If you are not already a member of the `beammaintainers` team, please email `dev@` for help with any DockerHub related tasks. We are not able
+to add more members to the DockerHub team because [the ASF has a limited number of seats available](https://infra.apache.org/docker-hub-policy.html).
 
 ### Create a new milestone in GitHub
 
