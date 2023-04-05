@@ -72,6 +72,11 @@ public class KinesisSourceTest {
     assertThat(source.split(4, opts()).size()).isEqualTo(3);
   }
 
+  @Test
+  public void testReaderHasCorrectInitialCheckpoint() throws Exception {
+    // TODO
+  }
+
   private KinesisSource sourceWithMockedKinesisClient(KinesisIO.Read read) {
     return new KinesisSource(read) {
       @Override

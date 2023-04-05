@@ -55,7 +55,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
     this(read, null);
   }
 
-  private KinesisSource(Read spec, @Nullable KinesisReaderCheckpoint initialCheckpoint) {
+  KinesisSource(Read spec, @Nullable KinesisReaderCheckpoint initialCheckpoint) {
     this.spec = checkNotNull(spec);
     this.initialCheckpoint = initialCheckpoint;
   }
