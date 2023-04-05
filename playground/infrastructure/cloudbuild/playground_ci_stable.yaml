@@ -87,7 +87,7 @@ steps:
     secretEnv:
       - PAT
 timeout: 7200s
-logsBucket: 'gs://playground-cloudbuild-logs-private'
+logsBucket: 'gs://$_GCS_PRIVATE_LOGS_BUCKET'
 options:
   machineType: E2_HIGHCPU_32
   logging: GCS_ONLY
@@ -108,5 +108,5 @@ substitutions:
 availableSecrets:
   secretManager:
     - versionName: >-
-        projects/${PROJECT_ID}/secrets/github_pat_playground_deployment/versions/latest
+        projects/${PROJECT_ID}/secrets/$_PAT_SECRET_NAME/versions/latest
       env: PAT

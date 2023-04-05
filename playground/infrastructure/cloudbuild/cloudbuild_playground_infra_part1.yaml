@@ -28,14 +28,17 @@ steps:
         echo "deb https://packages.cloud.google.com/apt cloud-sdk main" | tee -a
         /etc/apt/sources.list.d/google-cloud-sdk.list
 
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add
-        -
-
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-
-        add-apt-repository "deb [arch=amd64]
-        https://download.docker.com/linux/ubuntu focal stable" > /dev/null
-
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/google-cloud-sdk.gpg
+        
+        echo "deb [signed-by=/etc/apt/trusted.gpg.d/google-cloud-sdk.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | 
+        tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+        
+        
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu 
+        $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
         apt install -y docker-ce > /dev/null
 
         wget
@@ -50,9 +53,6 @@ steps:
         apt update -y > /dev/null && apt install -y google-cloud-sdk
         openjdk-11-jdk kubectl > /dev/null 
 
-        git clone --branch merged_pg_gke_deployment
-        https://github.com/akvelon/beam.git
-
         curl -fsSLo get_helm.sh
         https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 >
         /dev/null
@@ -60,6 +60,9 @@ steps:
         chmod +x get_helm.sh && ./get_helm.sh > /dev/null
 
         apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
+        
+        git clone --branch merged_pg_gke_deployment
+        https://github.com/akvelon/beam.git
 
         cd beam
 
@@ -71,7 +74,7 @@ steps:
         "$_PLAYGROUND_ZONE"' 'state_bucket = "$_STATE_BUCKET"' 'redis_name =
         "$_REDIS_NAME"' 'redis_tier = "$_REDIS_TIER"' 'min_count =
         "$_MIN_COUNT"' 'max_count = "$_MAX_COUNT"' 'app_engine_flag =
-        "$_APPENGINE_FLAG"'         'ip-address-name = "$_IPADDRESS_NAME"'
+        "$_APPENGINE_FLAG"' 'ip-address-name = "$_IPADDRESS_NAME"'
         'repository_id = "$_REPOSITORY_ID"' 'service_account_id =
         "$_SERVICEACCOUNT_ID"' 'gke_machine_type = "$_GKE_MACHINETYPE"' >
         playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
@@ -87,7 +90,5 @@ steps:
         -Pproject_environment=$_ENVIRONMENT_NAME
     entrypoint: bash
 timeout: 7200s
-logsBucket: 'gs://$_STATE_BUCKET'
 options:
-  machineType: E2_HIGHCPU_32
-  logging: GCS_ONLY
+  logging: CLOUD_LOGGING_ONLY

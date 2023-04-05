@@ -95,7 +95,5 @@ steps:
         -Pdatastore-namespace=$_DATASTORE_NAMESPACE
     entrypoint: bash
 timeout: 7200s
-logsBucket: 'gs://$_STATE_BUCKET'
 options:
-  machineType: E2_HIGHCPU_32
-  logging: GCS_ONLY
+  logging: CLOUD_LOGGING_ONLY
