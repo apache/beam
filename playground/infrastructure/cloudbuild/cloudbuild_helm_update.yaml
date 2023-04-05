@@ -63,24 +63,27 @@ steps:
 
         cd beam
 
-        mkdir playground/terraform/environment/myenv
+        mkdir playground/terraform/environment/$_ENVIRONMENT_NAME
 
-        gcloud compute scp --zone=us-central1-a
-        instance-1:/home/ruslan_ikhsanov/beam/playground/terraform/environment/myenv/terraform.tfvars
-        playground/terraform/environment/myenv/terraform.tfvars
+        printf '%s\n' 'project_id = "$PROJECT_ID"' 'network_name =
+        "$_NETWORK_NAME"' 'subnetwork_name = "$_SUBNETWORK_NAME"' 'gke_name =
+        "$_GKE_NAME"' 'region = "$_PLAYGROUND_REGION"' 'zone =
+        "$_PLAYGROUND_ZONE"' 'state_bucket = "$_STATE_BUCKET"' 'redis_name =
+        "$_REDIS_NAME"' 'redis_tier = "$_REDIS_TIER"' 'min_count =
+        "$_MIN_COUNT"' 'max_count = "$_MAX_COUNT"' 'app_engine_flag =
+        "$_APPENGINE_FLAG"'         'ip-address-name = "$_IPADDRESS_NAME"'
+        'repository_id = "$_REPOSITORY_ID"' 'service_account_id =
+        "$_SERVICEACCOUNT_ID"' 'gke_machine_type = "$_GKE_MACHINETYPE"' >
+        playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
 
-        gcloud compute scp --zone=us-central1-a
-        instance-1:/home/ruslan_ikhsanov/beam/playground/terraform/environment/myenv/state.tfbackend
-        playground/terraform/environment/myenv/state.tfbackend
+        cat playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
 
-        cat playground/terraform/environment/myenv/terraform.tfvars
+        cat playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend
 
-        cat playground/terraform/environment/myenv/state.tfbackend
+        gcloud auth configure-docker $_PLAYGROUND_REGION-docker.pkg.dev
 
-        gcloud auth configure-docker us-east1-docker.pkg.dev
-
-        gcloud container clusters get-credentials --region us-east1-b
-        playground-gke --project cloudbuildtest-382210
+        gcloud container clusters get-credentials --region $_PLAYGROUND_ZONE
+        $_GKE_NAME --project $PROJECT_ID
 
         ./gradlew playground:terraform:gkebackend -Pproject_environment=myenv
         -Pdocker-tag=$_TAG_NAME -Pdns-name=$_DNS_NAME -Psdk-tag=$_SDK_TAG
