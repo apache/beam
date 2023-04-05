@@ -49,7 +49,22 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	appEnvs = environment.NewApplicationEnvs("/app", "", "", "", "../../../../../sdks-emulator.yaml", "../../../../.", "", "", nil, 0, 0)
+	appEnvs = environment.NewApplicationEnvs(
+		"/app",
+		"",
+		"",
+		"",
+		"../../../../../sdks-emulator.yaml",
+		"../../../../.",
+		"",
+		"",
+		"",
+		"",
+		"",
+		nil,
+		0,
+		0,
+	)
 	props, err = environment.NewProperties(appEnvs.PropertyPath())
 	if err != nil {
 		panic(err)

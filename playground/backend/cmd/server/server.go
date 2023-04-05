@@ -16,12 +16,12 @@
 package main
 
 import (
+	"beam.apache.org/playground/backend/internal/external_functions"
 	"context"
 	"fmt"
-	"os"
-
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
+	"os"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
@@ -67,12 +67,14 @@ func runServer() error {
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
+		externalFunctions := external_functions.NewExternalFunctionsComponent(envService.ApplicationEnvs)
+
 		props, err = environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
 		if err != nil {
 			return err
 		}
 
-		dbClient, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), envService.ApplicationEnvs.GoogleProjectId())
+		dbClient, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), externalFunctions, envService.ApplicationEnvs.GoogleProjectId())
 		if err != nil {
 			return err
 		}
@@ -97,7 +99,7 @@ func runServer() error {
 
 		// Since only router server has the scheduled task, the task creation is here
 		scheduledTasks := tasks.New(ctx)
-		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, props.RemovingUnusedSnptsDays, dbClient); err != nil {
+		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, externalFunctions); err != nil {
 			return err
 		}
 	}

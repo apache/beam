@@ -30,7 +30,7 @@ import (
 
 func createDatastoreClient(ctx context.Context, projectId string) (*datastore.Datastore, error) {
 	pcMapper := mapper.NewPrecompiledObjectMapper()
-	db, err := datastore.New(ctx, pcMapper, projectId)
+	db, err := datastore.New(ctx, pcMapper, nil, projectId)
 	if err != nil {
 		logger.Errorf("Couldn't create the database client, err: %s \n", err.Error())
 		return nil, err
@@ -49,7 +49,8 @@ func cleanup(dayDiff int, projectId, namespace string) error {
 		return err
 	}
 
-	err = db.DeleteUnusedSnippets(ctx, int32(dayDiff))
+	retentionPeriod := time.Duration(dayDiff) * 24 * time.Hour
+	err = db.DeleteUnusedSnippets(ctx, retentionPeriod)
 	if err != nil {
 		logger.Errorf("Couldn't delete unused code snippets, err: %s \n", err.Error())
 		return err

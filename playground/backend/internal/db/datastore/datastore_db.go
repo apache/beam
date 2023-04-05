@@ -16,6 +16,7 @@
 package datastore
 
 import (
+	"beam.apache.org/playground/backend/internal/external_functions"
 	"context"
 	"fmt"
 	"time"
@@ -39,21 +40,26 @@ const (
 )
 
 type Datastore struct {
-	Client         *datastore.Client
-	ResponseMapper mapper.ResponseMapper
+	Client            *datastore.Client
+	ResponseMapper    mapper.ResponseMapper
+	externalFunctions external_functions.ExternalFunctions
 }
 
-func New(ctx context.Context, responseMapper mapper.ResponseMapper, projectId string) (*Datastore, error) {
+func New(ctx context.Context, responseMapper mapper.ResponseMapper, externalFunctions external_functions.ExternalFunctions, projectId string) (*Datastore, error) {
 	client, err := datastore.NewClient(ctx, projectId)
 	if err != nil {
 		logger.Errorf("Datastore: connection to store: error during connection, err: %s\n", err.Error())
 		return nil, err
 	}
-	return &Datastore{Client: client, ResponseMapper: responseMapper}, nil
+	return &Datastore{
+		Client:            client,
+		ResponseMapper:    responseMapper,
+		externalFunctions: externalFunctions,
+	}, nil
 }
 
 // Delete unused snippets by given persistenceKey
-func (d *Datastore) deleteObsoleteSnippets(ctx context.Context, snipKey *datastore.Key, persistenceKey string) error {
+func (d *Datastore) DeleteObsoleteSnippets(ctx context.Context, snipKey *datastore.Key, persistenceKey string) error {
 	if persistenceKey == "" || snipKey == nil {
 		logger.Debugf("no persistence key or no current snippet key")
 		return nil
@@ -63,12 +69,12 @@ func (d *Datastore) deleteObsoleteSnippets(ctx context.Context, snipKey *datasto
 		Namespace(utils.GetNamespace(ctx)).
 		FilterField("persistenceKey", "=", persistenceKey)
 
-		// At the moment, datastore emulator doesn't allow != filters,
-		// hence this crutches
-		// https://cloud.google.com/datastore/docs/tools/datastore-emulator#known_issues
-		// When it's fixed, post-query filter could be replaced with
-		//
-		// FilterField("__key__", "!=", snipKey)
+	// At the moment, datastore emulator doesn't allow != filters,
+	// hence this crutches
+	// https://cloud.google.com/datastore/docs/tools/datastore-emulator#known_issues
+	// When it's fixed, post-query filter could be replaced with
+	//
+	// FilterField("__key__", "!=", snipKey)
 
 	return d.deleteSnippets(ctx, snippetQuery, snipKey)
 }
@@ -105,7 +111,22 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		return err
 	}
 
-	return d.deleteObsoleteSnippets(ctx, snipKey, snip.Snippet.PersistenceKey)
+	err = nil
+	if d.externalFunctions != nil {
+		err = d.externalFunctions.DeleteObsoleteSnippets(ctx, snipId, snip.Snippet.PersistenceKey)
+	}
+
+	if err != nil || d.externalFunctions == nil {
+		if err != nil {
+			logger.Errorf("Datastore: PutSnippet(): error during deleting obsolete snippets using cloud function proxy, err: %s\n", err.Error())
+		}
+		if d.externalFunctions == nil {
+			logger.Warnf("Datastore: PutSnippet(): cloud function proxy is not initialized, trying to call DeleteObsoleteSnippets() directly.")
+		}
+		return d.DeleteObsoleteSnippets(ctx, snipKey, snip.Snippet.PersistenceKey)
+	}
+
+	return nil
 }
 
 // GetSnippet returns the snippet entity by identifier
@@ -113,25 +134,59 @@ func (d *Datastore) GetSnippet(ctx context.Context, id string) (*entity.SnippetE
 	key := utils.GetSnippetKey(ctx, id)
 	snip := new(entity.SnippetEntity)
 
+	err := d.Client.Get(ctx, key, snip)
+	if err != nil {
+		logger.Errorf("Datastore: GetSnippet(): error during snippet getting, err: %s\n", err.Error())
+		return nil, err
+	}
+
+	logger.Infof("Datastore: GetSnippet(): snippet %s has %d view count", id, snip.VisitCount)
+
+	// Update the last visited time and visit count if possible
+	err = nil
+	if d.externalFunctions != nil {
+		err = d.externalFunctions.IncrementSnippetViews(ctx, id)
+	}
+	if err != nil || d.externalFunctions == nil {
+		if err != nil {
+			logger.Errorf("Datastore: GetSnippet(): error during updating snippet visit count using"+
+				" cloud function proxy, err: %s\n", err.Error())
+		}
+		if d.externalFunctions == nil {
+			logger.Warnf("Datastore: GetSnippet(): cloud function proxy is not initialized, " +
+				"trying to call IncrementSnippetVisitorsCount() directly.")
+		}
+		err = d.IncrementSnippetVisitorsCount(ctx, id)
+		if err != nil {
+			logger.Errorf("Datastore: GetSnippet(): Can't increment snippet visit count, skipping view increment")
+		}
+	}
+
+	return snip, nil
+}
+
+func (d *Datastore) IncrementSnippetVisitorsCount(ctx context.Context, id string) error {
+	key := utils.GetSnippetKey(ctx, id)
+	snip := new(entity.SnippetEntity)
+
 	_, err := d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
 		if err := tx.Get(key, snip); err != nil {
-			logger.Errorf("Datastore: GetSnippet(): error during snippet getting, err: %s\n", err.Error())
+			logger.Errorf("Datastore: IncrementSnippetVisitorsCount(): error during snippet getting, err: %s\n", err.Error())
 			return err
 		}
 		snip.LVisited = time.Now()
 		snip.VisitCount += 1
 		if _, err := tx.Put(key, snip); err != nil {
-			logger.Errorf("Datastore: GetSnippet(): error during snippet setting, err: %s\n", err.Error())
+			logger.Errorf("Datastore: IncrementSnippetVisitorsCount(): error during snippet setting, err: %s\n", err.Error())
 			return err
 		}
 		return nil
 	})
 	if err != nil {
-		logger.Errorf("Datastore: GetSnippet: error updating snippet: %s\n", err.Error())
-		return nil, err
+		logger.Errorf("Datastore: IncrementSnippetVisitorsCount: error updating snippet: %s\n", err.Error())
+		return err
 	}
-
-	return snip, nil
+	return nil
 }
 
 // PutSchemaVersion puts the schema entity to datastore
@@ -536,10 +591,9 @@ func (d *Datastore) DeleteSnippet(ctx context.Context, id string) error {
 	return d.deleteSnippetByKey(ctx, key)
 }
 
-// DeleteUnusedSnippets deletes all unused snippets
-func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error {
-	var hoursDiff = dayDiff * 24
-	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))
+// DeleteUnusedSnippets deletes all unused snippets older than retentionPeriod
+func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, retentionPeriod time.Duration) error {
+	boundaryDate := time.Now().Add(-retentionPeriod)
 	snippetQuery := datastore.NewQuery(constants.SnippetKind).
 		Namespace(utils.GetNamespace(ctx)).
 		FilterField("lVisited", "<=", boundaryDate).

@@ -117,26 +117,48 @@ type ApplicationEnvs struct {
 
 	// cacheRequestTimeout is timeout to request data from cache
 	cacheRequestTimeout time.Duration
+
+	// cleanupSnippetsFunctionsUrl is the url to cleanup snippets functions
+	cleanupSnippetsFunctionsUrl string
+
+	// deleteObsoleteSnippetsFunctionsUrl is the url to delete obsolete snippets functions
+	deleteObsoleteSnippetsFunctionsUrl string
+
+	// incrementSnippetViewsFunctionsUrl is the url to increment snippet views
+	incrementSnippetViewsFunctionsUrl string
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
 func NewApplicationEnvs(
-	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, kafkaEmulatorExecutablePath, datasetsPath string,
+	workingDir,
+	launchSite,
+	projectId,
+	pipelinesFolder,
+	sdkConfigPath,
+	propertyPath,
+	kafkaEmulatorExecutablePath,
+	datasetsPath,
+	cleanupSnippetsFunctionsUrl,
+	deleteObsoleteSnippetsFunctionsUrl,
+	incrementSnippetViewsFunctionsUrl string,
 	cacheEnvs *CacheEnvs,
 	pipelineExecuteTimeout, cacheRequestTimeout time.Duration,
 ) *ApplicationEnvs {
 	return &ApplicationEnvs{
-		workingDir:                  workingDir,
-		cacheEnvs:                   cacheEnvs,
-		pipelineExecuteTimeout:      pipelineExecuteTimeout,
-		launchSite:                  launchSite,
-		projectId:                   projectId,
-		pipelinesFolder:             pipelinesFolder,
-		sdkConfigPath:               sdkConfigPath,
-		propertyPath:                propertyPath,
-		datasetsPath:                datasetsPath,
-		kafkaEmulatorExecutablePath: kafkaEmulatorExecutablePath,
-		cacheRequestTimeout:         cacheRequestTimeout,
+		workingDir:                         workingDir,
+		cacheEnvs:                          cacheEnvs,
+		pipelineExecuteTimeout:             pipelineExecuteTimeout,
+		launchSite:                         launchSite,
+		projectId:                          projectId,
+		pipelinesFolder:                    pipelinesFolder,
+		sdkConfigPath:                      sdkConfigPath,
+		propertyPath:                       propertyPath,
+		datasetsPath:                       datasetsPath,
+		kafkaEmulatorExecutablePath:        kafkaEmulatorExecutablePath,
+		cacheRequestTimeout:                cacheRequestTimeout,
+		cleanupSnippetsFunctionsUrl:        cleanupSnippetsFunctionsUrl,
+		deleteObsoleteSnippetsFunctionsUrl: deleteObsoleteSnippetsFunctionsUrl,
+		incrementSnippetViewsFunctionsUrl:  incrementSnippetViewsFunctionsUrl,
 	}
 }
 
@@ -202,4 +224,19 @@ func (ae *ApplicationEnvs) DatasetsPath() string {
 
 func (ae *ApplicationEnvs) KafkaExecutablePath() string {
 	return ae.kafkaEmulatorExecutablePath
+}
+
+// CleanupSnippetsFunctionsUrl returns the url to cleanup snippets functions
+func (ae *ApplicationEnvs) CleanupSnippetsFunctionsUrl() string {
+	return ae.cleanupSnippetsFunctionsUrl
+}
+
+// DeleteObsoleteSnippetsFunctionsUrl returns the url to delete obsolete snippets functions
+func (ae *ApplicationEnvs) DeleteObsoleteSnippetsFunctionsUrl() string {
+	return ae.deleteObsoleteSnippetsFunctionsUrl
+}
+
+// IncrementSnippetViewsFunctionsUrl returns the url to increment snippet views
+func (ae *ApplicationEnvs) IncrementSnippetViewsFunctionsUrl() string {
+	return ae.incrementSnippetViewsFunctionsUrl
 }

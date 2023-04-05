@@ -81,7 +81,7 @@ func NewEmulated(ctx context.Context) (*EmulatedDatastore, error) {
 		panic(err)
 	}
 
-	datastoreDb, err := New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+	datastoreDb, err := New(ctx, mapper.NewPrecompiledObjectMapper(), nil, constants.EmulatorProjectId)
 	if err != nil {
 		return nil, err
 	}

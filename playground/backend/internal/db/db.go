@@ -17,6 +17,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
@@ -35,7 +36,7 @@ type SnippetDatabase interface {
 
 	GetFiles(ctx context.Context, snipId string, numberOfFiles int) ([]*entity.FileEntity, error)
 
-	DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error
+	DeleteUnusedSnippets(ctx context.Context, retentionPeriod time.Duration) error
 }
 
 type CatalogDatabase interface {
