@@ -199,6 +199,13 @@ def aliasMap = [
   'mongodb': 'MongoDb',
 ]
 
+// In case the package name is different from the project folder name
+def packageNameMap = [
+  'amazon-web-services': 'aws',
+  'amazon-web-services2': 'aws2',
+  'hadoop-file-system': 'hadoop',
+]
+
 ioModulesMap.forEach {cases, ioModules ->
   def hasDefaultTrigger = (cases == "true")
   ioModules.forEach {
@@ -214,7 +221,7 @@ ioModulesMap.forEach {cases, ioModules ->
     ]
     tasks.addAll(additionalTasks.get(it, []))
     def testName = aliasMap.get(it, it.capitalize())
-    String jacocoPattern = "**/org/apache/beam/sdk/io/${it}/**"
+    String jacocoPattern = "**/org/apache/beam/sdk/io/${packageNameMap.get(it,it)}/**"
     PrecommitJobBuilder builderSingle = new PrecommitJobBuilder(
         scope: this,
         nameBase: 'Java_' + testName + '_IO_Direct',
