@@ -5104,7 +5104,7 @@ programming guide, take a look at the
 &lt;li data-value="typescript">TypeScript SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
-&lt;p class="language-py">The Python SDK supports Python 3.7, 3.8, 3.9, and 3.10.&lt;/p>
+&lt;p class="language-py">The Python SDK supports Python 3.7, 3.8, 3.9, 3.10, and 3.11.&lt;/p>
 &lt;p class="language-go">The Go SDK supports Go v1.19+. SDK release 2.32.0 is the last experimental version.&lt;/p>
 &lt;p class="language-typescript">The Typescript SDK supports Node v16+ and is still experimental.&lt;/p>
 &lt;h2 id="overview">1. Overview&lt;/h2>
@@ -6420,7 +6420,10 @@ an &lt;code>init()&lt;/code> block.&lt;/p>
 the execution of the ParDo transform. The comments give useful
 information to pipeline developers such as the constraints that
 apply to the objects or particular cases such as failover or
-instance reuse. They also give instantiation use cases.&lt;/p>
+instance reuse. They also give instantiation use cases. Two key points
+to note are that (1) teardown is done on a best effort basis and thus
+isn&amp;rsquo;t guaranteed and (2) the number of DoFn instances is runner
+dependent.&lt;/p>
 &lt;!-- The source for the sequence diagram can be found in the SVG resource. -->
 &lt;p>&lt;img src="/images/dofn-sequence-diagram.svg" alt="This is a sequence diagram that shows the lifecycle of the DoFn">&lt;/p>
 &lt;h4 id="groupbykey">4.2.2. GroupByKey&lt;/h4>
