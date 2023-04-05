@@ -16,8 +16,15 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
-  region  = var.region
+locals {
+  resource_name_prefix = "looker"
+}
+
+module "cluster" {
+  source                       = "../../google-kubernetes-engine"
+  bastion_compute_machine_type = var.bastion_compute_machine_type
+  project                      = var.project
+  region                       = var.region
+  resource_name_prefix         = local.resource_name_prefix
+  subnetwork_cidr_range        = var.subnetwork_cidr_range
 }

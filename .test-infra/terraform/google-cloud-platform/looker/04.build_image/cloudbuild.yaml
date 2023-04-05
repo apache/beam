@@ -1,0 +1,15 @@
+steps:
+- id: 'download looker jar'
+  name: gcr.io/cloud-builders/gcloud
+  entrypoint: 'gsutil'
+  args: ['cp', $_LOOKER_JARS_GLOB, '.']
+- id: 'build looker image'
+  name: gcr.io/cloud-builders/gcloud
+  args:
+  - builds
+  - submit
+  - --tag=$_REGISTRY_PATH/$_IMAGE_NAME
+substitutions:
+  _LOOKER_JARS_GLOB: ''
+  _REGISTRY_PATH: ''
+  _IMAGE_NAME: ''

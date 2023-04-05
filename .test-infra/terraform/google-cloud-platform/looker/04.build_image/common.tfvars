@@ -1,0 +1,1 @@
+resource_name_prefix = "looker"

@@ -16,8 +16,22 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
-  region  = var.region
+variable "project" {
+  type        = string
+  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
+}
+
+variable "resource_name_prefix" {
+  type        = string
+  description = "The basis to name all provisioned resources i.e. service account, network, cluster, etc."
+}
+
+variable "looker_jars_glob" {
+  type        = string
+  description = "The Google Cloud Storage glob path of the looker jars. Example: gs://looker-jars-12345/23.4/*.jars"
+}
+
+variable "artifact_registry_url" {
+  type        = string
+  description = "The Artifact Registry URL to which to store the built image. Expected format: <location>-docker.pkg.dev/<project>/looker"
 }

@@ -16,8 +16,17 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
-  region  = var.region
+variable "project" {
+  type        = string
+  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
+}
+
+variable "region" {
+  type        = string
+  description = "The Google Cloud Platform (GCP) region in which to provision resources"
+}
+
+variable "resource_name_prefix" {
+  type        = string
+  description = "The basis to name all provisioned resources i.e. service account, network, cluster, etc."
 }

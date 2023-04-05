@@ -16,8 +16,13 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
-  region  = var.region
+resource "google_project_service" "required" {
+  for_each = toset([
+    "artifactregistry",
+    "cloudbuild",
+    "secretmanager",
+  ])
+
+  service            = "${each.key}.googleapis.com"
+  disable_on_destroy = false
 }

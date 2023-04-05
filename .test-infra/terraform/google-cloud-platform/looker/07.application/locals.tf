@@ -1,0 +1,5 @@
+locals {
+  filestore = {
+    mount = "/lookerfiles"
+  }
+}

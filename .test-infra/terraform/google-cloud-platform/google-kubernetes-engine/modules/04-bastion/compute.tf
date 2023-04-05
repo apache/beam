@@ -47,7 +47,6 @@ resource "google_compute_instance" "bastion" {
     }
   }
   network_interface {
-    network    = data.google_compute_network.default.id
     subnetwork = data.google_compute_subnetwork.default.id
   }
 

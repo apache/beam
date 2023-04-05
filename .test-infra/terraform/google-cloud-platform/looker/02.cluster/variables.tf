@@ -16,8 +16,22 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
-  region  = var.region
+variable "project" {
+  type        = string
+  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
+}
+
+variable "region" {
+  type        = string
+  description = "The Google Cloud Platform (GCP) region in which to provision resources"
+}
+
+variable "subnetwork_cidr_range" {
+  type        = string
+  description = "The address range for this subnet, in CIDR notation. Use a standard private VPC network address range: for example, 10.128.0.0/20"
+}
+
+variable "bastion_compute_machine_type" {
+  type        = string
+  description = "The machine type of the Bastion host. See gcloud compute machine-types list for available types, for example e2-standard-2"
 }

@@ -1,0 +1,5 @@
+license_secret_name     = "looker-license-key"
+storage_bucket_prefix   = "looker-jars"
+storage_bucket_location = "US"
+looker_version          = "23.4"
+prometheus_version      = "0.15.0"
