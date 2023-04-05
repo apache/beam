@@ -159,18 +159,7 @@ resource "google_cloudbuild_trigger" "playground_ci" {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
 
-  source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    ref       = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
-
-  git_file_source {
-    path = ""
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    revision  = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
+  filename = "cloudbuild.yaml"
 
   substitutions = {
     _BEAM_VERSION : var.sdk_tag
@@ -190,18 +179,7 @@ resource "google_cloudbuild_trigger" "playground_cd" {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
 
-  source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    ref       = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
-
-  git_file_source {
-    path = ""
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    revision  = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
+  filename = "cloudbuild.yaml"
 
   substitutions = {
     _DNS_NAME : var.playground_dns_name
