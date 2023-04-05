@@ -58,7 +58,6 @@ import proto
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
-from apache_beam.internal.pickler import desired_pickle_lib
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -79,6 +78,14 @@ except ImportError:
 
 # pylint: disable=wrong-import-order, wrong-import-position
 # Avoid dependencies on the full SDK.
+try:
+  # Import dill from the pickler module to make sure our monkey-patching of dill
+  # occurs.
+  from apache_beam.internal.dill_pickler import dill
+except ImportError:
+  # We fall back to using the stock dill library in tests that don't use the
+  # full Python SDK.
+  import dill
 
 __all__ = [
     'Coder',
@@ -818,7 +825,7 @@ def maybe_dill_dumps(o):
   try:
     return pickle.dumps(o, pickle.HIGHEST_PROTOCOL)
   except Exception:  # pylint: disable=broad-except
-    return desired_pickle_lib.dumps(o)
+    return dill.dumps(o)
 
 
 def maybe_dill_loads(o):
@@ -826,7 +833,7 @@ def maybe_dill_loads(o):
   try:
     return pickle.loads(o)
   except Exception:  # pylint: disable=broad-except
-    return desired_pickle_lib.loads(o)
+    return dill.loads(o)
 
 
 class _PickleCoderBase(FastCoder):
