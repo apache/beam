@@ -74,7 +74,7 @@ steps:
         "$_MIN_COUNT"' 'max_count = "$_MAX_COUNT"' 'app_engine_flag =
         "$_APPENGINE_FLAG"' 'ip-address-name = "$_IPADDRESS_NAME"'
         'repository_id = "$_REPOSITORY_ID"' 'service_account_id =
-        "$_SERVICEACCOUNT_ID"' 'gke_machine_type = "$_GKE_MACHINETYPE"' >
+        "$_SERVICEACCOUNT_ID"' 'gke_machine_type = "$_GKE_MACHINE_TYPE"' >
         playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
 
         printf 'bucket = "$_STATE_BUCKET"' >
