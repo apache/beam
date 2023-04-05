@@ -278,6 +278,7 @@ public final class KinesisIO {
     "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
   public abstract static class Read extends PTransform<PBegin, PCollection<KinesisRecord>> {
+    private static final long serialVersionUID = 1L;
 
     abstract @Nullable String getStreamName();
 

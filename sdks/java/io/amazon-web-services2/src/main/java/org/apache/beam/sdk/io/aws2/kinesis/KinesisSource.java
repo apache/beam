@@ -40,11 +40,8 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.Shard;
 
-/** Represents source for single stream in Kinesis. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoint> {
+  private static final long serialVersionUID = 1L;
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisSource.class);
 
