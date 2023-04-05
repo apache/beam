@@ -33,3 +33,7 @@ variable "playground_cloudbuild_updater_sa_name" {
   description = "The ID of the cloud build service account responsible for running CI/CD checks and scripts"
   default = "pg-cloudbuild-cicd-runner-sa"
 }
+
+variable "project_number" {
+  description = "The number of the Google Cloud Platform (GCP) project"
+}

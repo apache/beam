@@ -84,3 +84,15 @@ resource "google_project_iam_member" "playground_cicd_sa_roles" {
   member  = "serviceAccount:${google_service_account.pg_cloudbuild_cicd_runner_sa.email}"
   project = var.project_id
 }
+
+resource "google_project_iam_binding" "secretaccessor_binding" {
+  project = var.project_id
+
+  role = "roles/secretmanager.secretAccessor"
+
+  members = [
+    "service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com",
+  ]
+
+  depends_on = [google_project_service.required_services]
+}
