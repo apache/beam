@@ -85,12 +85,12 @@ resource "google_project_iam_member" "playground_cicd_sa_roles" {
   project = var.project_id
 }
 
-resource "google_project_iam_member" "secretaccessor_binding" {
+resource "google_project_iam_binding" "secretaccessor_binding" {
   project = var.project_id
 
   role = "roles/secretmanager.secretAccessor"
 
-  member = "service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+  members = ["service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"]
 
   depends_on = [google_project_service.required_services]
 }
