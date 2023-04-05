@@ -1195,7 +1195,7 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  the execution of the ParDo transform. The comments give useful
  information to pipeline developers such as the constraints that
  apply to the objects or particular cases such as failover or
- instance reuse. They also give instantiation use cases. Two key points 
+ instance reuse. They also give instantiation use cases. Two key points
  to note are that (1) teardown is done on a best effort basis and thus
  isn't guaranteed and (2) the number of DoFn instances is runner
  dependent.
