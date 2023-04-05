@@ -90,7 +90,8 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
    */
   @Override
   public UnboundedReader<KinesisRecord> createReader(
-      PipelineOptions options, @Nullable KinesisReaderCheckpoint checkpointMark) throws IOException {
+      PipelineOptions options, @Nullable KinesisReaderCheckpoint checkpointMark)
+      throws IOException {
     KinesisReaderCheckpoint initCheckpoint;
     if (checkpointMark != null) {
       LOG.info("Got checkpoint mark {}", checkpointMark);
@@ -135,7 +136,8 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
     if (provider != null) {
       cloudWatchSupplier = provider::getCloudWatchClient;
     } else {
-      ClientConfiguration config = Preconditions.checkArgumentNotNull(spec.getClientConfiguration());
+      ClientConfiguration config =
+          Preconditions.checkArgumentNotNull(spec.getClientConfiguration());
       cloudWatchSupplier = () -> buildClient(awsOptions, CloudWatchClient.builder(), config);
     }
     return new SimplifiedKinesisClient(
