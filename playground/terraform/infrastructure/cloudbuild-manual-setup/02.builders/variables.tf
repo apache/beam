@@ -31,7 +31,7 @@ variable "pg_gke_trigger_name" {
 
 variable "pg_helm_upd_trigger_name" {
   description = "The name of the trigger that run Helm update"
-  default     = Playground-helm-update-trigger"
+  default     = "Playground-helm-update-trigger"
 }
 
 variable "pg_ci_trigger_name" {
