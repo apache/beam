@@ -989,7 +989,6 @@ public class JmsIO {
       private transient @Initialized Destination destination;
       private transient @Initialized MessageProducer producer;
 
-      private boolean isProducerNeedsToBeCreated = true;
       private final JmsIO.Write<T> spec;
       private final Counter connectionErrors =
           Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME);
@@ -999,7 +998,7 @@ public class JmsIO {
       }
 
       void connect() throws JMSException {
-        if (isProducerNeedsToBeCreated) {
+        if (this.producer == null) {
           ConnectionFactory connectionFactory = spec.getConnectionFactory();
           if (spec.getUsername() != null) {
             this.connection =
@@ -1009,7 +1008,6 @@ public class JmsIO {
           }
           this.connection.setExceptionListener(
               exception -> {
-                this.isProducerNeedsToBeCreated = true;
                 this.connectionErrors.inc();
               });
           this.connection.start();
@@ -1022,8 +1020,7 @@ public class JmsIO {
             this.destination = session.createTopic(spec.getTopic());
           }
           // Create producer with null destination. Destination will be set with producer.send().
-          this.producer = this.session.createProducer(null);
-          this.isProducerNeedsToBeCreated = false;
+          startProducer();
         }
       }
 
@@ -1057,9 +1054,7 @@ public class JmsIO {
 
       void close() {
         try {
-          if (producer != null) {
-            producer.close();
-          }
+          closeProducer();
           if (session != null) {
             session.close();
           }
@@ -1069,10 +1064,8 @@ public class JmsIO {
         } catch (JMSException exception) {
           LOG.warn("The connection couldn't be closed", exception);
         } finally {
-          producer = null;
           session = null;
           connection = null;
-          isProducerNeedsToBeCreated = true;
         }
       }
     }
