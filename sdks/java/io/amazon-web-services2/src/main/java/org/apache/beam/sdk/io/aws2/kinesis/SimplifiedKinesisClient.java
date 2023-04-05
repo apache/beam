@@ -24,8 +24,11 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.core.internal.retry.SdkDefaultRetrySetting;
@@ -55,6 +58,7 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SimplifiedKinesisClient implements AutoCloseable {
+  private static final Logger LOG = LoggerFactory.getLogger(SimplifiedKinesisClient.class);
 
   private static final String KINESIS_NAMESPACE = "AWS/Kinesis";
   private static final String INCOMING_RECORDS_METRIC = "IncomingBytes";
@@ -63,12 +67,12 @@ class SimplifiedKinesisClient implements AutoCloseable {
 
   private final LazyResource<KinesisClient> kinesis;
   private final LazyResource<CloudWatchClient> cloudWatch;
-  private final Integer limit;
+  private final @Nullable Integer limit;
 
   SimplifiedKinesisClient(
       Supplier<KinesisClient> kinesisSupplier,
       Supplier<CloudWatchClient> cloudWatchSupplier,
-      Integer limit) {
+      @Nullable Integer limit) {
     this.kinesis = new LazyResource<>(checkNotNull(kinesisSupplier, "kinesis"));
     this.cloudWatch = new LazyResource<>(checkNotNull(cloudWatchSupplier, "cloudWatch"));
     this.limit = limit;
@@ -82,18 +86,19 @@ class SimplifiedKinesisClient implements AutoCloseable {
       final Instant timestamp)
       throws TransientKinesisException {
     return wrapExceptions(
-        () ->
-            kinesis
-                .get()
-                .getShardIterator(
-                    GetShardIteratorRequest.builder()
-                        .streamName(streamName)
-                        .shardId(shardId)
-                        .shardIteratorType(shardIteratorType)
-                        .startingSequenceNumber(startingSequenceNumber)
-                        .timestamp(TimeUtil.toJava(timestamp))
-                        .build())
-                .shardIterator());
+        () -> {
+          GetShardIteratorRequest request =
+              GetShardIteratorRequest.builder()
+                  .streamName(streamName)
+                  .shardId(shardId)
+                  .shardIteratorType(shardIteratorType)
+                  .startingSequenceNumber(startingSequenceNumber)
+                  .timestamp(TimeUtil.toJava(timestamp))
+                  .build();
+
+          LOG.info("Starting getIterator request {}", request);
+          return kinesis.get().getShardIterator(request).shardIterator();
+        });
   }
 
   public List<Shard> listShardsFollowingClosedShard(
@@ -242,10 +247,6 @@ class SimplifiedKinesisClient implements AutoCloseable {
         AutoCloseable c2 = cloudWatch) {
       // nothing to do
     }
-  }
-
-  KinesisClient getKinesis() {
-    return kinesis.get();
   }
 
   /** Memoizing supplier that closes resources appropriately. */
