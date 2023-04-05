@@ -21,27 +21,27 @@ variable "project_id" {
 
 variable "pg_infra_trigger_name" {
   description = "The name of the trigger that will deploy Playground infrastructure"
-  default     = "Playground-infrastructure-trigger"
+  default     = "Initialize-Playground-environment"
 }
 
 variable "pg_gke_trigger_name" {
   description = "The name of the trigger that will deploy Playground to GKE"
-  default     = "Playground-to-gke-trigger"
+  default     = "Deploy-Playground-environment"
 }
 
 variable "pg_helm_upd_trigger_name" {
   description = "The name of the trigger that run Helm update"
-  default     = "Playground-helm-update-trigger"
+  default     = "Update-Playground-environment"
 }
 
 variable "pg_ci_trigger_name" {
   description = "The name of the trigger to run CI checks"
-  default = "Playground-ci-trigger"
+  default = "Validate-examples-CI"
 }
 
 variable "pg_cd_trigger_name" {
   description = "The name of the trigger to run CD checks"
-  default = "Playground-cd-trigger"
+  default = "Deploy-examples-CD"
 }
 
 variable "playground_deploy_sa" {

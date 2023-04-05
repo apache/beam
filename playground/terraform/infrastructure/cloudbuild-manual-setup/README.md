@@ -99,3 +99,7 @@ cd ../02.builders
 terraform init -backend-config="bucket=$STATE_BUCKET"
 terraform apply -var="project_id=$(gcloud config get-value project)" -var="state_bucket=$STATE_BUCKET"
 ```
+
+**Note:**  you will have to provide values for multiple variables required for setup of triggers
+
+## 5. Copy inline yaml scripts into cloud build triggers
