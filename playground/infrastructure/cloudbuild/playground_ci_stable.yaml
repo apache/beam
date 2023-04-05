@@ -87,16 +87,13 @@ steps:
     secretEnv:
       - PAT
 timeout: 7200s
-logsBucket: 'gs://$_GCS_PRIVATE_LOGS_BUCKET'
 options:
-  machineType: E2_HIGHCPU_32
-  logging: GCS_ONLY
+  logging: CLOUD_LOGGING_ONLY
 substitutions:
-  _PUBLIC_BUCKET: 'gs://playground-cloudbuild-logs-public/'
   _PR_NUMBER: $(body.number)
   _PUBLIC_LOG: 'CI_PR${_PR_NUMBER}_${_PR_COMMIT}_${BUILD_ID}.txt'
   _PUBLIC_LOG_URL: >-
-    https://storage.googleapis.com/playground-cloudbuild-logs-public/${_PUBLIC_LOG}
+    https://storage.googleapis.com/$_PUBLIC_LOGS_BUCKET/$_PUBLIC_LOG
   _PR_URL: $(body.pull_request._links.html.href)
   _BEAM_VERSION: 2.44.0
   _PR_TYPE: $(body.action)

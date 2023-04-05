@@ -83,7 +83,6 @@ substitutions:
   _PR_BRANCH: $(body.pull_request.head.ref)
   _TARGET_PR_REPO_BRANCH: $(body.pull_request.base.label)
   _PR_NUMBER: $(body.number)
-  _LOG_LOCATION: '/tmp/build-log-${_PR_NUMBER}-${_COMMIT_SHA}-${BUILD_ID}.txt'
   _PR_TYPE: $(body.action)
   _PR_COMMIT: $(body.pull_request.head.sha)
   _PR_URL: $(body.pull_request._links.html.href)

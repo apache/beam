@@ -36,6 +36,7 @@ Cloud Build triggers created by terraform scripts from this directory automate s
 - An existing GCP Bucket to save Terraform state - `state-bucket`
 - DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
+- [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
 ## 1. Set up the Google Cloud Build for your GCP project
@@ -80,11 +81,11 @@ terraform apply -var="project_id=$(gcloud config get-value project)"
 4. Look for `service-XXXXXXXXXXX@gcp-sa-cloudbuild.iam.gserviceaccount.com` service account.
 5. Assign `Secret Manager Secret Accessor` to it.
 
-## 3. Connect beamplayground/deploy-workaround GitHub repository and GCP Cloud Build
+## 4. Connect beamplayground/deploy-workaround GitHub repository and GCP Cloud Build
 
 Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect beamplayground/deploy-workaround GitHub repository and GCP Cloud Build.
 
-## 4. Set up the Google Cloud Build triggers
+## 5. Set up the Google Cloud Build triggers
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
 - Cloud Build triggers to build and deploy Beam Playground, update Beam Playground, and run CI/CD checks.
@@ -102,4 +103,4 @@ terraform apply -var="project_id=$(gcloud config get-value project)" -var="state
 
 **Note:**  you will have to provide values for multiple variables required for setup of triggers
 
-## 5. Copy inline yaml scripts into cloud build triggers
+## 6. Copy inline yaml scripts into cloud build triggers

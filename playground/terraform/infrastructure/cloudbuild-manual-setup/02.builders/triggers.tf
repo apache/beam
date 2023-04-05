@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 resource "google_cloudbuild_trigger" "playground_infrastructure" {
   name     = var.pg_infra_trigger_name
   project  = var.project_id
@@ -29,9 +28,9 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
   }
 
   git_file_source {
-    path = ""
+    path      = ""
     uri       = "https://github.com/beamplayground/deploy-workaround"
-    revision       = "refs/heads/master"
+    revision  = "refs/heads/master"
     repo_type = "GITHUB"
   }
 
@@ -168,6 +167,8 @@ resource "google_cloudbuild_trigger" "playground_ci" {
 
   substitutions = {
     _BEAM_VERSION : var.sdk_tag
+    _PRIVATE_LOGS_BUCKET: var.private_logs_bucket
+    _PAT_SECRET_NAME: var.gh_pat_secret
   }
 
 }
