@@ -68,6 +68,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -988,17 +989,16 @@ public class JmsIO {
       private transient @Initialized Destination destination;
       private transient @Initialized MessageProducer producer;
 
-      private boolean isProducerNeedsToBeCreated = true;
       private final JmsIO.Write<T> spec;
       private final Counter connectionErrors =
           Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME);
 
-      public JmsConnection(Write<T> spec) {
+      JmsConnection(Write<T> spec) {
         this.spec = spec;
       }
 
-      public void start() throws JMSException {
-        if (isProducerNeedsToBeCreated) {
+      void connect() throws JMSException {
+        if (this.producer == null) {
           ConnectionFactory connectionFactory = spec.getConnectionFactory();
           if (spec.getUsername() != null) {
             this.connection =
@@ -1008,7 +1008,6 @@ public class JmsIO {
           }
           this.connection.setExceptionListener(
               exception -> {
-                this.isProducerNeedsToBeCreated = true;
                 this.connectionErrors.inc();
               });
           this.connection.start();
@@ -1021,12 +1020,11 @@ public class JmsIO {
             this.destination = session.createTopic(spec.getTopic());
           }
           // Create producer with null destination. Destination will be set with producer.send().
-          this.producer = this.session.createProducer(null);
-          this.isProducerNeedsToBeCreated = false;
+          startProducer();
         }
       }
 
-      public void publishMessage(T input) throws JMSException, JmsIOException {
+      void publishMessage(T input) throws JMSException, JmsIOException {
         Destination destinationToSendTo = destination;
         try {
           Message message = spec.getValueMapper().apply(input, session);
@@ -1043,24 +1041,30 @@ public class JmsIO {
         }
       }
 
-      public void close() throws JMSException {
-        isProducerNeedsToBeCreated = true;
+      void startProducer() throws JMSException {
+        this.producer = this.session.createProducer(null);
+      }
+
+      void closeProducer() throws JMSException {
         if (producer != null) {
           producer.close();
           producer = null;
         }
-        if (session != null) {
-          session.close();
-          session = null;
-        }
-        if (connection != null) {
-          try {
-            // If the connection failed, stopping the connection will throw a JMSException
-            connection.stop();
-          } catch (JMSException exception) {
-            LOG.warn("The connection couldn't be closed", exception);
+      }
+
+      void close() {
+        try {
+          closeProducer();
+          if (session != null) {
+            session.close();
           }
-          connection.close();
+          if (connection != null) {
+            connection.close();
+          }
+        } catch (JMSException exception) {
+          LOG.warn("The connection couldn't be closed", exception);
+        } finally {
+          session = null;
           connection = null;
         }
       }
@@ -1083,8 +1087,10 @@ public class JmsIO {
       }
 
       @Setup
-      public void setup() {
-        RetryConfiguration retryConfiguration = checkStateNotNull(spec.getRetryConfiguration());
+      public void setup() throws JMSException {
+        this.jmsConnection.connect();
+        RetryConfiguration retryConfiguration =
+            MoreObjects.firstNonNull(spec.getRetryConfiguration(), RetryConfiguration.create());
         retryBackOff =
             FluentBackoff.DEFAULT
                 .withInitialBackoff(checkStateNotNull(retryConfiguration.getInitialDuration()))
@@ -1094,7 +1100,7 @@ public class JmsIO {
 
       @StartBundle
       public void startBundle() throws JMSException {
-        this.jmsConnection.start();
+        this.jmsConnection.startProducer();
       }
 
       @ProcessElement
@@ -1130,11 +1136,11 @@ public class JmsIO {
 
       @FinishBundle
       public void finishBundle() throws JMSException {
-        this.jmsConnection.close();
+        this.jmsConnection.closeProducer();
       }
 
       @Teardown
-      public void tearDown() throws JMSException {
+      public void tearDown() {
         this.jmsConnection.close();
       }
     }
