@@ -48,8 +48,6 @@ steps:
 
         mv terraform /usr/local/bin/terraform
 
-        terraform --version
-
         apt update -y > /dev/null && apt install -y google-cloud-sdk
         openjdk-11-jdk kubectl > /dev/null 
 

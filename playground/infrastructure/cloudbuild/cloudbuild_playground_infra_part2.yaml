@@ -25,17 +25,17 @@ steps:
         apt-get install -y wget unzip software-properties-common git curl
         apt-transport-https ca-certificates gnupg jq > /dev/null
 
-        echo "deb https://packages.cloud.google.com/apt cloud-sdk main" | tee -a
-        /etc/apt/sources.list.d/google-cloud-sdk.list
-
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add
-        -
-
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-
-        add-apt-repository "deb [arch=amd64]
-        https://download.docker.com/linux/ubuntu focal stable" > /dev/null
-
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/google-cloud-sdk.gpg
+        
+        echo "deb [signed-by=/etc/apt/trusted.gpg.d/google-cloud-sdk.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | 
+        tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+        
+        
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu 
+        $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
         apt install -y docker-ce > /dev/null
 
         wget
@@ -44,8 +44,6 @@ steps:
         unzip terraform_1.4.2_linux_amd64.zip
 
         mv terraform /usr/local/bin/terraform
-
-        terraform --version
 
         apt update -y > /dev/null && apt install -y google-cloud-sdk
         openjdk-11-jdk kubectl > /dev/null 
