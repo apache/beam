@@ -159,6 +159,13 @@ resource "google_cloudbuild_trigger" "playground_ci" {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
   }
 
+  build {
+    step {
+      name = "bash"
+      args = ["-c", "echo 'Hello, world!'"]
+    }
+  }
+
   substitutions = {
     _BEAM_VERSION : var.sdk_tag
   }
@@ -175,6 +182,13 @@ resource "google_cloudbuild_trigger" "playground_cd" {
 
   webhook_config {
     secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
+  }
+
+  build {
+    step {
+      name = "bash"
+      args = ["-c", "echo 'Hello, world!'"]
+    }
   }
 
   substitutions = {
