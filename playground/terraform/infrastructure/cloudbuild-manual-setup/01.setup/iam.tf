@@ -90,9 +90,7 @@ resource "google_project_iam_member" "secretaccessor_binding" {
 
   role = "roles/secretmanager.secretAccessor"
 
-  member = [
-    "service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com",
-  ]
+  member = "service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 
   depends_on = [google_project_service.required_services]
 }
