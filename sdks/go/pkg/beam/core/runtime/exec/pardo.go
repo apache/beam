@@ -16,7 +16,6 @@
 package exec
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"path"
@@ -370,22 +369,11 @@ func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID s
 		extra = append(extra, tmap.Tag)
 	}
 	log.Infof(ctx, "timercoder map: %+v", n.Timer.(*userTimerAdapter).TimerIDToCoder)
-	c := n.Timer.(*userTimerAdapter).TimerIDToCoder[timerFamilyID]
-	log.Infof(ctx, "timerFamily: %v, timer key: %v, coder: %+v", timerFamilyID, tmap.Key, c)
 
-	// dec := MakeElementDecoder(coder.SkipW(c))
-
-	b := bytes.NewBuffer(tmap.Key)
-
-	// fv, err := dec.Decode(b)
-	fv, err := n.Timer.(*userTimerAdapter).Dc.Decode(b)
-	if err != nil {
-		return nil, errors.WithContext(err, "error decoding timer key")
-	}
-	log.Infof(ctx, "decoded timer key: %+v", fv.Elm)
+	log.Infof(ctx, "timer key converted with string: %v", string(tmap.Key))
 	val, err := InvokeWithOpts(ctx, fn, tmap.Pane, nil, tmap.HoldTimestamp, InvokeOpts{
 		// decode with timer coder from graph/fn.go
-		opt:   &MainInput{Key: FullValue{Elm: fv.Elm, Timestamp: tmap.HoldTimestamp, Windows: tmap.Windows, Pane: tmap.Pane}},
+		opt:   &MainInput{Key: FullValue{Elm: string(tmap.Key), Timestamp: tmap.HoldTimestamp, Windows: tmap.Windows, Pane: tmap.Pane}},
 		bf:    n.bf,
 		we:    n.we,
 		sa:    n.UState,

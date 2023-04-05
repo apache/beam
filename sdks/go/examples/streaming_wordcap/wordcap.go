@@ -87,6 +87,7 @@ func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Pro
 		switch timerTag {
 		case "001":
 			log.Infof(ctx, "001 tag fired on outputState stateful")
+			s.OutputState.Set(tp, mtime.Now().ToTime().Add(1*time.Minute), timers.WithTag(timerTag))
 		}
 	}
 }
