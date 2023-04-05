@@ -1,0 +1,175 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 8,
+  "links": [],
+  "panels": [
+    {
+      "columns": [],
+      "datasource": "BeamPSQL",
+      "fontSize": "80%",
+      "gridPos": {
+        "h": 32,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "links": [],
+      "pageSize": 1000,
+      "scroll": false,
+      "showHeader": true,
+      "sort": {
+        "col": 0,
+        "desc": false
+      },
+      "styles": [
+        {
+          "alias": "",
+          "colorMode": "cell",
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 2,
+          "mappingType": 1,
+          "pattern": "/job_\\d/",
+          "preserveFormat": false,
+          "thresholds": [
+            "0.5",
+            "0.1"
+          ],
+          "type": "string",
+          "unit": "short",
+          "valueMaps": [
+            {
+              "text": "Success",
+              "value": "1"
+            },
+            {
+              "text": "Fail",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "alias": "Job Name",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 2,
+          "link": true,
+          "linkTargetBlank": true,
+          "linkUrl": "https://ci-beam.apache.org/job/${__cell}",
+          "mappingType": 1,
+          "pattern": "job_name",
+          "thresholds": [],
+          "type": "string",
+          "unit": "short"
+        }
+      ],
+      "targets": [
+        {
+          "aggregation": "Last",
+          "alias": "job",
+          "decimals": 2,
+          "displayAliasType": "Warning / Critical",
+          "displayType": "Regular",
+          "displayValueWithAlias": "Never",
+          "format": "table",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with src1 as (select * from crosstab ('\n              select *\n                from (SELECT\n                    t.job_name,\n                    ROW_NUMBER() OVER (PARTITION BY job_name ORDER BY build_id desc) AS r,\n                    case when t.build_result like ''SUCCESS'' then 1 else 0 end as res\n                  FROM\n                    jenkins_builds t\n                  where job_name like ''beam_PostCommit_%'' \n                    and job_name not like ''%_PR''\n                    and (t.build_timestamp BETWEEN '$__timeFrom()' AND '$__timeTo()')\n                    ) x\n                where x.r < 11')\n            \n            AS (\n            job_name varchar,\n            job_1 integer,\n            job_2 integer,\n            job_3 integer,\n            job_4 integer,\n            job_5 integer,\n            job_6 integer,\n            job_7 integer,\n            job_8 integer,\n            job_9 integer,\n            job_10 integer\n            )),\n    src2 as (select * from crosstab ('\n      select *\n        from (SELECT\n            t.job_name,\n            ROW_NUMBER() OVER (PARTITION BY job_name ORDER BY build_id desc) AS r,\n            case when t.build_result like ''SUCCESS'' then 1 else 0 end as res\n          FROM\n            jenkins_builds t\n          where job_name like ''beam_PreCommit_%_Cron''\n            and (t.build_timestamp BETWEEN '$__timeFrom()' AND '$__timeTo()')\n            ) x\n        where x.r < 11')\n    \n    AS (\n    job_name varchar,\n    job_1 integer,\n    job_2 integer,\n    job_3 integer,\n    job_4 integer,\n    job_5 integer,\n    job_6 integer,\n    job_7 integer,\n    job_8 integer,\n    job_9 integer,\n    job_10 integer\n    ))\n    \nselect *\nfrom src2\nunion all\nselect *\nfrom src1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "units": "none",
+          "valueHandler": "Number Threshold",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Post-Commits statuses",
+      "transform": "table",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 18,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "",
+  "title": "Post-Commits status dashboard",
+  "uid": "8N6LVeCmk",
+  "version": 10
+}

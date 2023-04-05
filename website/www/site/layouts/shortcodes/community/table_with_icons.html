@@ -1,0 +1,55 @@
+{{/*
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+        http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License. See accompanying LICENSE file.
+*/}}
+{{ $data := index $.Site.Data .Site.Language.Lang (.Get 0) }}
+{{ range $list := $data }}
+<div class="table-container-wrapper">
+<div class="table-wrapper">
+    <table>
+        <tr>
+            {{ range $item := $list.columns }}
+                <th>{{ . }}</th>
+           {{ end }}
+        </tr>
+        {{ range $item := $list.data }}
+            <tr>
+                <td>
+                    <div>
+                        {{ with resources.Get .icon }}
+                            {{ .Content | safeHTML }}
+                        {{ end }}
+                        <p>{{.purpose | safeHTML}}</p>
+                    </div>
+                </td>
+                <td>
+
+                    {{ if .contact.add }}
+                        <span>{{ .contact.add }}</span>
+                    {{end}}
+                    <a href={{.contact.link}}>{{.contact.email}}</a>
+                </td>
+                <td>
+                    <div>
+                        {{ range .actions }}
+                            {{ if .link }}
+                                <a href={{.link}}>{{.action |safeHTML }}</a>
+                            {{ else }}
+                                {{ .action | safeHTML }}
+                            {{end}}
+                        {{ end }}
+                    </div>
+                </td>
+            </tr>
+        {{ end }}
+    </table>
+</div>
+</div>
+{{ end }}

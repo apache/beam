@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="112" height="112" fill="none" viewBox="0 0 112 112">
+    <path fill="#FFE5D9" d="M56 112c30.928 0 56-25.072 56-56S86.928 0 56 0 0 25.072 0 56s25.072 56 56 56z"/>
+    <path fill="#FF570B" d="M51.413 81.43c11.869-2.347 19.269-15.483 16.529-29.34-2.74-13.857-14.583-23.187-26.452-20.84C29.62 33.597 22.22 46.733 24.962 60.59c2.74 13.856 14.583 23.187 26.451 20.84z"/>
+    <path fill="#FFC400" d="M89.034 59.006C90.869 45 82.632 32.373 70.636 30.802 58.641 29.23 47.43 39.31 45.594 53.315 43.759 67.32 51.996 79.947 63.99 81.519 75.987 83.09 87.2 73.01 89.034 59.006z"/>
+    <path fill="#fff" fill-rule="evenodd" d="M57.19 79.268c8.366-4.793 13.013-15.74 10.751-27.178-1.519-7.68-5.834-13.971-11.4-17.653-5.68 3.978-9.885 10.77-10.947 18.878C44.132 64.47 49.06 74.752 57.19 79.268z" clip-rule="evenodd"/>
+    <path stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M92.28 55.712h-15.5M77.113 50.212l-3.334 5.824 4 5.176"/>
+</svg>

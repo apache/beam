@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.apache.beam</groupId>
+  <artifactId>beam-sdks-java-maven-archetypes-starter</artifactId>
+  <version>2.6.0-SNAPSHOT</version>
+  <name>Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter</name>
+  <description>A Maven archetype to create a simple starter pipeline to
+    get started using the Apache Beam Java SDK.</description>
+
+  <packaging>maven-archetype</packaging>
+
+  <build>
+    <extensions>
+      <extension>
+        <groupId>org.apache.maven.archetype</groupId>
+        <artifactId>archetype-packaging</artifactId>
+        <version>2.4</version>
+      </extension>
+    </extensions>
+
+    <!-- Needed to replace version in the reference projects. -->
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+        <filtering>true</filtering>
+      </testResource>
+    </testResources>
+
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <artifactId>maven-archetype-plugin</artifactId>
+          <version>2.4</version>
+          <dependencies>
+            <dependency>
+              <groupId>org.apache.maven.shared</groupId>
+              <artifactId>maven-invoker</artifactId>
+              <version>2.2</version>
+            </dependency>
+          </dependencies>
+          <executions>
+            <!-- archetype-packaging above binds this plugin's goals as follows:
+                     archetype:jar to the package phase,
+                     archetype:integration-test to the integration-test phase,
+                     archetype:update-local-catalog to the install phase.
+                 We defer the integration-test goal to the install phase, since
+                 this test actually depends on the core SDK to be installed. -->
+            <execution>
+              <id>default-integration-test</id>
+              <phase>install</phase>
+              <goals>
+                <goal>integration-test</goal>
+              </goals>
+              <configuration>
+                <!--
+                On windows EOL will be \n\r but we expect \n in tests.
+                -->
+                <ignoreEOLStyle>true</ignoreEOLStyle>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

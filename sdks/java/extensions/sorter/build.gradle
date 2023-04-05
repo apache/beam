@@ -1,0 +1,74 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import java.util.stream.Collectors
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sorter')
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
+
+def hadoopVersions = [
+    "285": "2.8.5",
+    "292": "2.9.2",
+    "2102": "2.10.2",
+    "324": "3.2.4",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+
+dependencies {
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.hadoop_common
+  testImplementation library.java.mockito_core
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersions.each{kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+  }
+}
+
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-common:$kv.value"
+      force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs Sorter tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each {kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: 'Verification') {
+    description = "Runs Sorter tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
+}

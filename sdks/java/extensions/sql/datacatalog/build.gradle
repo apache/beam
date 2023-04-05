@@ -1,0 +1,109 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins { id 'org.apache.beam.module' }
+
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
+
+dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation(library.java.google_cloud_datacatalog_v1beta1) {
+    exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
+  }
+  implementation library.java.gax
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.proto_google_cloud_datacatalog_v1beta1
+  implementation library.java.protobuf_java
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_calcite_1_28_0
+  implementation "com.alibaba:fastjson:1.2.69"
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation "org.threeten:threetenbp:1.4.5"
+  provided project(":sdks:java:extensions:sql")
+
+  // Dependencies for the example
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  provided project(":sdks:java:io:google-cloud-platform")
+  permitUnusedDeclared project(":sdks:java:io:google-cloud-platform")
+  implementation library.java.slf4j_api
+
+  testImplementation project(":sdks:java:extensions:sql")
+  testImplementation project(":sdks:java:extensions:sql:zetasql")
+  testImplementation project(":runners:direct-java")
+  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation library.java.google_api_services_bigquery
+  testImplementation library.java.junit
+  testRuntimeOnly library.java.slf4j_simple
+}
+
+task runDataCatalogExample(type: JavaExec) {
+  description = "Run SQL example of how to use Data Catalog table provider"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlDataCatalogExample"
+  classpath = sourceSets.main.runtimeClasspath
+
+  def runner = project.findProperty('runner') ?: 'DirectRunner'
+  def queryString = project.findProperty('queryString') ?: ''
+  def outputFilePrefix = project.findProperty('outputFilePrefix') ?: ''
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+  args = [
+    "--runner=${runner}",
+    "--queryString=${queryString}",
+    "--outputFilePrefix=${outputFilePrefix}",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempLocation=${gcsTempRoot}",
+  ]
+}
+
+task integrationTest(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
+          "--project=${gcpProject}",
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = project(":sdks:java:extensions:sql:datacatalog")
+          .sourceSets
+          .test
+          .runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql:datacatalog").sourceSets.test.output.classesDirs)
+  useJUnit {}
+}
+
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests"
+  dependsOn integrationTest
+}

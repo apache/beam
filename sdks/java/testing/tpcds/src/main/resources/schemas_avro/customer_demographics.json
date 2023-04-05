@@ -1,0 +1,78 @@
+{
+  "type": "record",
+  "name": "spark_schema",
+  "fields": [
+    {
+      "name": "cd_demo_sk",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "cd_gender",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "cd_marital_status",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "cd_education_status",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "cd_purchase_estimate",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "cd_credit_rating",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "cd_dep_count",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "cd_dep_employed_count",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "cd_dep_college_count",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+{{/*
+  This shortcode is used to fetch a piece of code with tags from Beam code.
+  In setupDockerContainer stage of build process, we run build_code_samples.sh script, which
+  copies Beam project files from which we take code snippets to website/www/site/code_samples
+  directory. We do that because Hugo can't access files which are outside of its project tree
+  (Hugo's root is the directory that contains config.toml). When copying, we name this files
+  according to convention path_to_file_filename.extension in order to avoid name conflicts.
+  .Get 0 references an argument passed to code_sample shortcode which is a path to file with
+  code snippet. So if we pass path/to/file/filename.py to code_sample, $path variable will
+  have value code_samples/path_to_file_filename.py which Hugo can access.
+  There should be no breaklines here to make sure the string results do not get impacts of newlines.
+*/}}{{ $tag := .Get 1 }}{{ $path := printf "code_samples/%s" (replaceRE "/" "_" (.Get 0)) }}{{ $data := readFile $path }}{{ $matchRegex := printf "%s%s%s%s%s" "\\[START " $tag "]\n[\\s\\S]*?\n.*\\[END " $tag "]" }}{{ $match := index (findRE $matchRegex $data) 0 }}{{ $lines := split $match "\n" }}{{ $lineCount := len $lines }}{{ $cleanedLines := $lines | first (sub $lineCount 1) | last (sub $lineCount 2) }}{{ $firstLine := index $cleanedLines 0 }}{{ $numberOfWhitespaces := index (findRE "^\\s*" $firstLine) 0 | len }}{{ $unindentRegex := printf "%s%d%s" "^\\s{" $numberOfWhitespaces "}" }}{{ $unindentedLines := apply $cleanedLines "replaceRE" $unindentRegex "" "." }}{{ $result := delimit $unindentedLines "\n" }}{{ print $result }}

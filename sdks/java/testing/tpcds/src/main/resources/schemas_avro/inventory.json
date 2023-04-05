@@ -1,0 +1,38 @@
+{
+  "type": "record",
+  "name": "spark_schema",
+  "fields": [
+    {
+      "name": "inv_date_sk",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "inv_item_sk",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "inv_warehouse_sk",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "inv_quantity_on_hand",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    }
+  ]
+}

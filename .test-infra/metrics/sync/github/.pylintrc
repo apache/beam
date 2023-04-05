@@ -1,0 +1,174 @@
+#
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+# TODO [BEAM-5923] Find a way to utilize common .pylintrc with python sdk
+
+[MASTER]
+# Ignore auto-generated files.
+ignore=clients
+
+[BASIC]
+# Regular expression which should only match the name
+# of functions or classes which do not require a docstring.
+no-docstring-rgx=(__.*__|main)
+
+# Min length in lines of a function that requires a docstring.
+docstring-min-length=10
+
+# Regular expression which should only match correct module names. The
+# leading underscore is sanctioned for private modules by Google's style
+# guide.
+#
+# There are exceptions to the basic rule (_?[a-z][a-z0-9_]*) to cover
+# requirements of Python's module system and of the presubmit framework.
+module-rgx=^(_?[a-z][a-z0-9_]*)|__init__|PRESUBMIT|PRESUBMIT_unittest$
+
+# Regular expression which should only match correct module level names
+const-rgx=^(_?[A-Z][A-Z0-9_]*|__[a-z0-9_]+__|_?[a-z][a-z0-9_]*)$
+
+# Regular expression which should only match correct class attribute
+class-attribute-rgx=^(_?[A-Z][A-Z0-9_]*|__[a-z0-9_]+__|_?[a-z][a-z0-9_]*)$
+
+# Regular expression which should only match correct class names
+class-rgx=^_?[A-Z][a-zA-Z0-9]*$
+
+# Regular expression which should only match correct function names.
+# 'camel_case' and 'snake_case' group names are used for consistency of naming
+# styles across functions and methods.
+function-rgx=^(?:(?P<camel_case>_?[A-Z][a-zA-Z0-9]*)|(?P<snake_case>_?[a-z][a-z0-9_]*))$
+
+# Regular expression which should only match correct method names.
+# 'camel_case' and 'snake_case' group names are used for consistency of naming
+# styles across functions and methods. 'exempt' indicates a name which is
+# consistent with all naming styles.
+method-rgx=^(?:(?P<exempt>__[a-z0-9_]+__|next)|(?P<camel_case>_{0,2}[A-Z][a-zA-Z0-9]*)|(?P<snake_case>_{0,2}[a-z][a-z0-9_]*))$
+
+# Regular expression which should only match correct instance attribute names
+attr-rgx=^_{0,2}[a-z][a-z0-9_]*$
+
+# Regular expression which should only match correct argument names
+argument-rgx=^[a-z][a-z0-9_]*$
+
+# Regular expression which should only match correct variable names
+variable-rgx=^[a-z][a-z0-9_]*$
+
+# Regular expression which should only match correct list comprehension /
+# generator expression variable names
+inlinevar-rgx=^[a-z][a-z0-9_]*$
+
+# List of builtins function names that should not be used, separated by a comma
+bad-functions=input,apply,reduce
+
+# Good variable names which should always be accepted, separated by a comma
+good-names=main,_
+
+# Bad variable names which should always be refused, separated by a comma
+bad-names=
+
+[MESSAGES CONTROL]
+disable =
+  abstract-method,
+  arguments-differ,
+  attribute-defined-outside-init,
+  bad-builtin,
+  bad-super-call,
+  broad-except,
+  consider-using-enumerate,
+  cyclic-import,
+  design,
+  fixme,
+  function-redefined,
+  global-statement,
+  import-error,
+  import-self,
+  inconsistent-return-statements,
+  invalid-name,
+  invalid-unary-operand-type,
+  keyword-arg-before-vararg,
+  len-as-condition,
+  locally-disabled,
+  locally-enabled,
+  logging-not-lazy,
+  misplaced-bare-raise,
+  missing-docstring,
+  multiple-statements,
+  no-else-return,
+  no-member,
+  no-name-in-module,
+  no-self-use,
+  no-value-for-parameter,
+  not-callable,
+  pointless-statement,
+  protected-access,
+  raising-format-tuple,
+  raising-non-exception,
+  redefined-builtin,
+  redefined-outer-name,
+  redefined-variable-type,
+  redundant-keyword-arg,
+  relative-import,
+  similarities,
+  simplifiable-if-statement,
+  super-init-not-called,
+  super-on-old-class,
+  undefined-variable,
+  unexpected-keyword-arg,
+  unidiomatic-typecheck,
+  unnecessary-lambda,
+  unneeded-not,
+  unused-argument,
+  unused-wildcard-import,
+  wildcard-import,
+  wrong-import-order,
+
+[REPORTS]
+# Tells whether to display a full report or only the messages
+reports=no
+
+[CLASSES]
+# List of method names used to declare (i.e. assign) instance attributes.
+defining-attr-methods=__init__,__new__,setUp
+
+# "class_" is also a valid for the first argument to a class method.
+valid-classmethod-first-arg=cls,class_
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=80
+
+# Maximum number of lines in a module
+max-module-lines=99999
+
+# String used as indentation unit. (2 spaces.)
+indent-string='  '
+
+# Number of spaces of indent required.
+indent-after-paren=4
+
+# Regexp for a line that is allowed to be longer than the limit.
+# Long import lines or URLs in comments or pydocs. 
+ignore-long-lines=(?x)
+  (^\s*(import|from)\s
+   |^\s*(\#\ )?<?(https?|ftp):\/\/[^\s\/$.?#].[^\s]*>?$
+   )
+
+[VARIABLES]
+# Tells whether we should check for unused import in __init__ files.
+init-import=no
+
+# A regular expression matching names used for dummy variables (i.e. not used).
+dummy-variables-rgx=^\*{0,2}(_$|unused_|dummy_|args|kwargs)

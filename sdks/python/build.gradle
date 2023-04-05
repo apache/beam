@@ -1,0 +1,124 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyPythonNature()
+
+
+/*************************************************************************************************/
+// Basic build and Python environment setup/cleanup
+
+def buildPython = tasks.register("buildPython") {
+  dependsOn setupVirtualenv
+
+  doLast {
+    logger.info('Building Python Dependencies')
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${buildDir}"
+    }
+  }
+}
+build.dependsOn tasks.named("buildPython")
+
+// Create a Python source distribution tarball.
+def tarball = "apache-beam.tar.gz"
+def sdist = tasks.register("sdist") {
+  dependsOn setupVirtualenv
+
+  doLast {
+    // Build artifact
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${buildDir}"
+    }
+
+    def collection = fileTree(buildDir){ include "**/*${project.sdk_version}*.tar.gz" exclude 'srcs/**'}
+
+    // we need a fixed name for the artifact
+    copy { from collection.singleFile; into buildDir; rename { tarball } }
+    logger.info('Create distribution tar file {} in {}', tarball, buildDir)
+  }
+  inputs.files(pythonSdkDeps)
+      .withPropertyName('pythonSdkDeps')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  outputs.file "${buildDir}/${tarball}"
+}
+
+artifacts {
+  distTarBall file: file("${buildDir}/${tarball}"), builtBy: sdist
+}
+
+
+/*************************************************************************************************/
+// Non-testing builds and analysis tasks
+
+// Snapshot of dependency requirements defined in setup.py.
+// Results will be stored in files under Gradle build directory.
+def depSnapshot = tasks.register("depSnapshot") {
+  dependsOn installGcpTest
+
+  doLast {
+    def outputDir = file(buildDir)
+    if (!outputDir.exists()) {
+      outputDir.mkdirs()
+    }
+    def requirementsFile = "${outputDir}/requirements.txt"
+
+    logger.info('Snapshoting full dependencies requirements with versions info to build/requirements.txt.')
+    exec {
+      // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${requirementsFile}"
+    }
+  }
+}
+
+tasks.register("dependencyUpdates") {
+  dependsOn ':dependencyUpdates'
+  dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
+}
+
+tasks.register("buildSnapshot") {
+  dependsOn sdist
+  dependsOn depSnapshot
+}
+
+tasks.register("startPortableRunner") {
+  dependsOn buildPython
+
+  doLast {
+    def jobPort = project.findProperty("jobPort") ?: 8099
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort}"
+    }
+  }
+}
+
+// Run this task to validate the python environment setup for contributors
+tasks.register("wordCount") {
+  description "Run the Python word count example"
+  dependsOn installGcpTest
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt"
+    }
+  }
+}

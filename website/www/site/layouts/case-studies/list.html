@@ -1,0 +1,105 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ define "main" }}
+<div class="blog-content">
+    <h1>Case Studies</h1>
+    <p class="case-study-about">Apache Beam powers many of today’s leading projects, industry-specific use cases, and
+        startups.</p>
+    {{ $pages := .Pages.ByPublishDate.Reverse }}
+    <div class="case-study-list">
+        {{ range where $pages "Params.category" "study" }}
+        <div class="case-study-card">
+            <div class="case-study-card-img">
+                <img src="{{.Params.icon}}" loading="lazy"></i>
+            </div>
+            <h3 class="case-study-card-title">{{ .Params.cardTitle }}</h3>
+            <p class="case-study-card-description">{{ .Params.cardDescription }}</p>
+            <div class="quote-block-wrapper">
+                <div class="case-study-quote-block">
+                    <div class="case-study-quote-author">
+                        <div class="case-study-quote-author-img">
+                            <img src="{{ .Params.authorImg }}">
+                        </div>
+                        <div class="case-study-quote-author-info">
+                            <div class="case-study-quote-author-name">
+                                {{ .Params.authorName }}
+                            </div>
+                            <div class="case-study-quote-author-position">
+                                {{ .Params.authorPosition }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {{ if .Params.coauthorName }}
+                <div class="case-study-quote-block">
+                    <div class="case-study-quote-author case-study-quote-author--end">
+                        <div class="case-study-quote-author-img">
+                            <img src="{{ .Params.coauthorImg }}">
+                        </div>
+                        <div class="case-study-quote-author-info case-study-quote-author-info--end">
+                            <div class="case-study-quote-author-name">
+                                {{ .Params.coauthorName }}
+                            </div>
+                            <div class="case-study-quote-author-position">
+                                {{ .Params.coauthorPosition }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {{ end }}
+            </div>
+            <a class="case-study-card-learn-more" href="{{ .RelPermalink }}">
+                <span>{{ T "case-studies-learn-more" }}</span>
+                <img src="/images/arrow-right.svg" alt="Go to the case study">
+            </a>
+        </div>
+        {{ end }}
+    </div>
+    <div class="case-study-row-button-container">
+        <a href="https://github.com/apache/beam/blob/master/website/ADD_CASE_STUDY.md" class="case-study-primary-button" target="_blank" rel="noopener noreferrer">
+            Share your story
+        </a>
+    </div>
+    <h2 class="case-study-h2" id="logos">Also used by</h2>
+    <div class="case-study-list case-study-list--additional">
+        {{ range where $pages "Params.category" "ne" "study" }}
+            {{ if .Params.hasLink }}
+            <a class="case-study-used-by-card--responsive case-study-used-by-card case-study-used-by-card--with-link" href="{{ .Params.hasLink }}" target="_blank" rel="noopener noreferrer">
+                <div class="case-study-used-by-card-img">
+                    <img src="{{.Params.icon}}" loading="lazy"></i>
+                </div>
+            </a>
+            {{ else }}
+            <div class="case-study-used-by-card case-study-used-by-card--responsive">
+                <div class="case-study-used-by-card-img">
+                    <img src="{{.Params.icon}}" loading="lazy"></i>
+                </div>
+                <div class="case-study-used-by-card-description">
+                    {{ .Params.cardDescription | safeHTML }}
+                </div>
+            </div>
+            {{ end }}
+        {{ end }}
+    </div>
+    <div class="case-study-row-button-container">
+        <a href="https://github.com/apache/beam/tree/master/website/ADD_LOGO.md" class="case-study-primary-button">
+            <img src="/images/add.svg"/>
+            <span>Add your logo</span>
+        </a>
+    </div>
+</div>
+
+{{ $shuffle := resources.Get "js/shuffle-elements.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $shuffle.RelPermalink }}" defer></script>
+
+{{ end }}

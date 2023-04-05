@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   id="svg2"
+   height="217.11"
+   width="421.51"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="execution_model_bundling.svg">
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1146"
+     id="namedview37"
+     showgrid="false"
+     inkscape:zoom="1.9795165"
+     inkscape:cx="16.948817"
+     inkscape:cy="88.348045"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g5315" />
+  <defs
+     id="defs28">
+    <marker
+       inkscape:stockid="Arrow2Lstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Lstart"
+       style="overflow:visible">
+      <path
+         id="path4078"
+         style="fill-rule:evenodd;stroke-width:0.62500000;stroke-linejoin:round"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(1.1) translate(1,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lend"
+       style="overflow:visible;">
+      <path
+         id="path4063"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow2Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Lend"
+       style="overflow:visible;">
+      <path
+         id="path3923"
+         style="fill-rule:evenodd;stroke-width:0.62500000;stroke-linejoin:round;"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(1.1) rotate(180) translate(1,0)" />
+    </marker>
+    <marker
+       id="Arrow2Lend-1"
+       refY="0"
+       refX="0"
+       orient="auto">
+      <path
+         id="path3823-1"
+         stroke-linejoin="round"
+         d="M8.7186,4.0337-2.2073,0.016013,8.7186-4.0017c-1.7455,2.3721-1.7354,5.6175-6E-7,8.0354z"
+         fill-rule="evenodd"
+         transform="matrix(-1.1,0,0,-1.1,-1.1,0)"
+         stroke-width="0.625" />
+    </marker>
+  </defs>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="g5315">
+    <g
+       stroke-miterlimit="4"
+       transform="matrix(0.88811359,0,0,1,-3.8563836,-770.72906)"
+       id="g3135"
+       style="stroke-width:0.53056151;stroke-miterlimit:4;stroke-dasharray:none">
+      <rect
+         x="49.662998"
+         y="876.54999"
+         width="147.47"
+         height="34.285999"
+         ry="11.782"
+         id="rect2987"
+         style="fill:#f4a460;stroke:#000000" />
+    </g>
+    <path
+       d="m 103.79,140.11 0.18839,60.668"
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow2Lend)"
+       id="path12814"
+       inkscape:connector-curvature="0" />
+    <path
+       d="m 103.17,15.5 0.18366,89.157"
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow2Lend);marker-mid:none"
+       id="path12814-7"
+       inkscape:connector-curvature="0" />
+    <g
+       id="g4404">
+      <text
+         id="text3163"
+         font-size="20px"
+         line-height="125%"
+         font-family="Sans"
+         xml:space="preserve"
+         style="letter-spacing:0px;word-spacing:0px;"
+         y="152.86745"
+         x="231.89923"
+         font-weight="normal"
+         font-style="normal"
+         fill="#000000"><tspan
+           id="tspan3165"
+           y="152.86745"
+           x="231.89923"
+           font-size="12px">Bundle A (five elements)</tspan></text>
+      <text
+         id="text3163-1"
+         font-size="20px"
+         line-height="125%"
+         font-family="Sans"
+         xml:space="preserve"
+         style="letter-spacing:0px;word-spacing:0px;"
+         y="173.16542"
+         x="231.81685"
+         font-weight="normal"
+         font-style="normal"
+         fill="#000000"><tspan
+           id="tspan3165-8"
+           y="173.16542"
+           x="231.81685"
+           font-size="12px">Bundle B (four elements)</tspan></text>
+      <rect
+         id="rect3025-9"
+         stroke-dasharray="none"
+         height="14.365"
+         width="21.511"
+         stroke="#000"
+         stroke-miterlimit="4"
+         y="141.93"
+         x="203.73"
+         stroke-width="0.5"
+         fill="#d8bfd8" />
+      <rect
+         id="rect3025-9-3"
+         stroke-dasharray="none"
+         height="14.365"
+         width="21.511"
+         stroke="#000"
+         stroke-miterlimit="4"
+         y="162.32"
+         x="204.03"
+         stroke-width="0.5"
+         fill="#add8e6" />
+    </g>
+    <g
+       id="g4412">
+      <text
+         id="text3153"
+         font-size="20px"
+         line-height="125%"
+         font-family="Sans"
+         xml:space="preserve"
+         style="letter-spacing:0px;word-spacing:0px;"
+         y="32.067104"
+         x="180.63188"
+         font-weight="normal"
+         font-style="normal"
+         fill="#000000"><tspan
+           id="tspan3155"
+           y="32.067104"
+           x="180.63188"
+           font-size="16px">Input collection:</tspan></text>
+      <g
+         id="g18259"
+         transform="matrix(1.0730169,0,0,1,-9.331575,-27.774711)">
+        <rect
+           id="rect3161"
+           height="51.429"
+           width="5"
+           y="66.479"
+           x="243.12"
+           fill="#1c2422" />
+        <rect
+           id="rect3025-4"
+           stroke-dasharray="none"
+           height="36.368"
+           width="115.97"
+           stroke="#000"
+           stroke-miterlimit="4"
+           y="74.242"
+           x="127.82"
+           stroke-width="1.0104"
+           fill="#d8bfd8" />
+        <rect
+           id="rect3025-0"
+           stroke-dasharray="none"
+           height="36.656"
+           width="23.053"
+           stroke="#000"
+           stroke-miterlimit="4"
+           y="74.098"
+           x="127.66"
+           stroke-width="0.80829"
+           fill="#d8bfd8" />
+        <rect
+           id="rect3025-0-0"
+           stroke-dasharray="none"
+           height="36.656"
+           width="23.053"
+           stroke="#000"
+           stroke-miterlimit="4"
+           y="74.098"
+           x="174.03"
+           stroke-width="0.80829"
+           fill="#d8bfd8" />
+        <rect
+           id="rect3025-0-4"
+           stroke-dasharray="none"
+           height="36.656"
+           width="23.053"
+           stroke="#000"
+           stroke-miterlimit="4"
+           y="74.098"
+           x="150.85"
+           stroke-width="0.80829"
+           fill="#d8bfd8" />
+        <rect
+           id="rect3025-0-44"
+           stroke-dasharray="none"
+           height="36.656"
+           width="23.053"
+           stroke="#000"
+           stroke-miterlimit="4"
+           y="74.098"
+           x="220.41"
+           stroke-width="0.80829"
+           fill="#d8bfd8" />
+        <rect
+           id="rect3025-0-47"
+           stroke-dasharray="none"
+           height="36.656"
+           width="23.053"
+           stroke="#000"
+           stroke-miterlimit="4"
+           y="74.098"
+           x="197.22"
+           stroke-width="0.80829"
+           fill="#d8bfd8" />
+        <g
+           id="g18250"
+           transform="matrix(1.1135475,0,0,0.99880924,127.32861,191.51183)"
+           stroke="#000"
+           stroke-dasharray="none"
+           stroke-miterlimit="4"
+           stroke-width="0.7723012"
+           fill="#add8e6">
+          <g
+             id="g18243"
+             transform="translate(-157.70925,-188.54625)">
+            <g
+               id="g18240"
+               stroke="#000"
+               stroke-dasharray="none"
+               stroke-miterlimit="4"
+               stroke-width="0.7723012"
+               fill="#add8e6">
+              <rect
+                 id="rect3025-5-11"
+                 stroke-dasharray="none"
+                 height="36.539"
+                 width="82.466"
+                 stroke="#000"
+                 stroke-miterlimit="4"
+                 y="71.073"
+                 x="266.04"
+                 stroke-width="0.7723"
+                 fill="#add8e6" />
+            </g>
+          </g>
+          <rect
+             id="rect3025-0-47-6"
+             y="-117.55"
+             width="21.024"
+             x="108.43"
+             height="36.695" />
+          <rect
+             id="rect3025-0-47-3"
+             y="-117.55"
+             width="21.024"
+             x="149.4"
+             height="36.695" />
+          <rect
+             id="rect3025-0-47-1"
+             y="-117.55"
+             width="21.024"
+             x="128.7"
+             height="36.695" />
+          <rect
+             id="rect3025-0-47-7"
+             y="-117.55"
+             width="21.024"
+             x="170.47"
+             height="36.695" />
+        </g>
+      </g>
+    </g>
+    <text
+       line-height="125%"
+       x="76.725883"
+       y="127.85606"
+       font-style="normal"
+       font-size="42.44491959px"
+       xml:space="preserve"
+       font-weight="normal"
+       style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;font-family:Sans"
+       id="text9065"
+       sodipodi:linespacing="125%"><tspan
+         x="76.725883"
+         y="127.85606"
+         font-size="16.97796822px"
+         id="tspan9067"
+         style="font-size:16px">ParDo1</tspan></text>
+  </g>
+</svg>

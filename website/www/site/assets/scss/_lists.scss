@@ -1,0 +1,318 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+ @import "media";
+
+ .arrow-list {
+   margin-top: 26px;
+   h3 {
+     max-width: 555px;
+   }
+   ul {
+     font-size: 16px;
+     font-weight: normal;
+     line-height: 1.63;
+     letter-spacing: 0.43px;
+     position: relative;
+     padding-left: 26px;
+     li::marker {
+       content: "\2192";
+       color: #ff6d05;
+       font-size: 24px;
+     }
+     li {
+       list-style-type: none;
+       list-style-position: outside;
+       padding-left: 8px;
+       margin-bottom: -2px;
+     }
+     li:last-of-type {
+       margin-bottom: 25px;
+     }
+   }
+   figure {
+     width: 112px;
+     height: 112px;
+     margin-top: 64px;
+   }
+   a {
+     color: #333333;
+     text-decoration: underline;
+   }
+ }
+
+ .arrow-list-header {
+   color: #333333;
+   text-decoration: none !important;
+   display: flex;
+   max-height: 40px;
+   margin-bottom: 74px;
+   &:hover {
+     cursor: default;
+     text-decoration: none;
+   }
+   @media (max-width: $mobile) {
+     margin-bottom: 50px;
+     &:hover {
+       cursor: pointer;
+       text-decoration: underline;
+     }
+     h2 {
+       font-size: 24px;
+       line-height: 1.25;
+       font-weight: 500;
+       letter-spacing: normal;
+       margin-top: 46px;
+     }
+   }
+   figure {
+     margin-top: 40px;
+     margin-right: 5px;
+     width: auto;
+     height: auto;
+     @media (min-width: $mobile) {
+       display: none;
+     }
+     img {
+       width: 18px;
+       height: 18px;
+       padding-right: 16px;
+       transform: rotate(-90deg);
+     }
+   }
+ }
+ .rotate {
+   img {
+     transform: rotate(0deg) !important;
+     margin-top: 10px;
+   }
+ }
+ .list {
+   margin-top: 32px;
+   max-width: 640px;
+ }
+ .list--about {
+   margin-bottom: 32px;
+ }
+ .icon-list {
+   .list-item {
+     display: flex;
+     margin-bottom: 8px;
+     position: relative;
+     @media (max-width: $tablet) {
+       margin-bottom: 43px;
+     }
+     @media (max-width: $ak-breakpoint-sm) {
+       height: 74px;
+     }
+     img {
+       position: absolute;
+       top: 7px;
+       z-index: 2;
+     }
+     .reverse {
+       transform: rotate(-180deg);
+     }
+
+     .cirkle {
+       width: 24px;
+       height: 24px;
+       background: #ff6d05;
+       border-radius: 50%;
+       text-align: center;
+       z-index: 5;
+       position: relative;
+       i {
+         vertical-align: bottom;
+         color: #fff;
+       }
+     }
+     .list-item-icon {
+       width: 44px;
+       height: 44px;
+       display: block;
+       margin-right: 25px;
+     }
+     .list-item-icon--about {
+       width: 96px;
+       @media (max-width: $mobile) {
+         width: 64px;
+         svg {
+           width: 64px;
+           height: 64px;
+         }
+       }
+     }
+     .list-item-header {
+       font-size: 22px;
+       font-weight: 500;
+       letter-spacing: normal;
+       line-height: 1.36;
+       margin-top: 10px;
+       a {
+         color: #333333;
+       }
+       @media (max-width: $mobile) {
+         font-weight: 500;
+       }
+     }
+   }
+   .pillars-item {
+     display: flex;
+     align-items: center;
+     margin-bottom: 14px;
+     .pillars-item-icon {
+       margin-right: 28px;
+     }
+
+     .pillars-item-description {
+       width: 100%;
+       max-width: 684px;
+
+       .pillars-item-header {
+         font-size: 16px;
+         font-weight: bold;
+         line-height: 1.2;
+         letter-spacing: 0.43px;
+         margin-bottom: 6px;
+         margin-top: 10px;
+       }
+
+       .pillars-item-text {
+         font-size: 14px;
+         font-weight: normal;
+         line-height: 1.57;
+         letter-spacing: 0.43px;
+       }
+     }
+   }
+ }
+ .documentation-list {
+   padding-left: 12px;
+   display: flex;
+   flex-direction: row;
+   justify-content: space-between;
+   flex-wrap: wrap;
+   max-width: 855px;
+   .row {
+     display: flex;
+     flex-direction: column;
+     margin-top: 63px;
+     @media (max-width: $mobile) {
+       max-width: 260px;
+     }
+
+     .item-icon {
+       height: 93px;
+       max-width: 260px;
+       display: flex;
+       align-items: center;
+       @media (max-width: $mobile) {
+         justify-content: center;
+       }
+     }
+     a {
+       font-size: 16px;
+       font-weight: bold;
+       line-height: 1.63;
+       letter-spacing: 0.43px;
+       color: #333333;
+       text-decoration: none;
+     }
+     .item-description {
+       max-width: 260px;
+       margin-right: 32px;
+       margin-top: 20px;
+       @media (max-width: $mobile) {
+         margin-right: 0;
+         width: auto;
+       }
+     }
+   }
+ }
+ .sdks {
+   max-width: 855px;
+  .item-description {
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1.63;
+    letter-spacing: 0.43px;
+    a{
+      text-decoration: none;
+    }
+  }
+ }
+ .collapsable-list {
+   margin: 52px 0;
+   a {
+     font-size: 14px;
+     font-weight: bold;
+     font-stretch: normal;
+     font-style: normal;
+     line-height: 1.14;
+     letter-spacing: 0.6px;
+     color: #f26628;
+   }
+   li {
+     a {
+       font-size: 16px;
+       line-height: 1.63;
+       letter-spacing: 0.43px;
+       color: #333333;
+     }
+   }
+ }
+ .mobile-column {
+   @media (max-width: $mobile) {
+     flex-direction: column;
+     align-items: center;
+     text-align: center;
+   }
+ }
+ .margin-50 {
+   margin-top: 50px;
+ }
+ @media (min-width: $mobile) {
+   .arrow-list {
+     .collapse.dont-collapse-sm {
+       display: block;
+       height: auto !important;
+       visibility: visible;
+     }
+     .collapsing {
+       position:relative;
+       height:unset !important;
+       overflow:hidden;
+      }
+   }
+ }
+ .beam-list {
+   margin-top: 32px;
+   .beam-title {
+     margin-bottom: 4px;
+     font-weight: bold;
+   }
+   .beam-description {
+     margin: 0;
+     font-size: 14px;
+     line-height: 22px;
+     height: 44px;
+   }
+ }
+
+ .arrow-list--no-mt {
+   margin-top: 0;
+ }

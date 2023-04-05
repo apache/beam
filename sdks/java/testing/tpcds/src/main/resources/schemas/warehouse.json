@@ -1,0 +1,16 @@
+{"schema": [
+  {"name":"w_warehouse_sk","type":"identifier"},
+  {"name":"w_warehouse_id","type":"char(16)"},
+  {"name":"w_warehouse_name","type":"varchar(20)"},
+  {"name":"w_warehouse_sq_ft","type":"integer"},
+  {"name":"w_street_number","type":"char(10)"},
+  {"name":"w_street_name","type":"varchar(60)"},
+  {"name":"w_street_type","type":"char(15)"},
+  {"name":"w_suite_number","type":"char(10)"},
+  {"name":"w_city","type":"varchar(60)"},
+  {"name":"w_county","type":"varchar(30)"},
+  {"name":"w_state","type":"char(2)"},
+  {"name":"w_zip","type":"char(10)"},
+  {"name":"w_country","type":"varchar(20)"},
+  {"name":"w_gmt_offset","type":"decimal(5,2)"}
+]}

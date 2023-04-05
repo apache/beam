@@ -1,0 +1,30 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- list:
+    - { title: Mailing Lists, description: 'Join the official Apache Beam user and developer mailing lists. Learn how <a href="/community/contact-us/">here</a>' }
+    - { title: Slack Channel, description: 'For real-time communication, join us on the <a target="_blank" href="https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P">#beam</a> channel in the ASF workspace.' }
+    - { title: Twitter account, description: 'Follow <a target="_blank" href="https://twitter.com/apachebeam?lang=en">@ApacheBeam</a> on Twitter for the most recent news on the project and community!' }
+    - { title: YouTube channel, description: 'Follow our <a target="_blank" href="https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ">YouTube channel</a> for the latest training and use cases.' }
+    - { title: StackOverflow, description: 'Ask your Beam questions in StackOverflow using the <a target="_blank" href="https://stackoverflow.com/questions/tagged/apache-beam">apache-beam tag</a>.' }
+    - { title: Blog posts, description: 'Publish articles and share your knowledge about Beam on Medium using the <a target="_blank" https://medium.com/tag/apache-beam">apache-beam tag</a>.' }
+    - { title: Events, description: 'Follow our <a href="/">calendar</a> in the homepage which has the latest events organized by the community.' }
+- list:
+    - { title: Read our Contribution Guide and Policies, description: 'Get familiar with our <a href="/contribute/">contribution guide</a> and <a href="/contribute/precommit-policies/">policies</a>.' }
+    - { title: Create an Issue, description: 'Create an <a target="_blank" href="https://github.com/apache/beam/issues/new">issue</a> for any bugs you find or features you’d like to see added.' }
+    - { title: Find an area to contribute, description: 'Beam recognizes code and non-code contributions. Check out the <a target="_blank" href="https://github.com/apache/beam/issues">GitHub Issues</a> for some inspiration.' }
+    - { title: Contribute, description: 'To contribute code, you need to sign an <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License Agreement (ICLA)</a>. Learn more <a target="_blank" href="https://www.apache.org/licenses/icla.pdf">here</a>.' }
+    - { title: Stay engaged!, description: Finds ways to stay engaged in the project and community and help us shape it’s strategy and vision. }
+- list:
+    - { title: Learn about Apache Beam Committers, description: 'Read <a href="/contribute/become-a-committer/">how to become a committer</a> to learn about ways to get nominated for committership.' }
+- list:
+    - { title: Learn about the Project Management Committee (PMC), description: 'The Project Management Committee (PMC) is the highest recognition in Apache projects. If you’re interested in becoming part of it, learn more about it <a target="_blank" href="https://www.apache.org/foundation/how-it-works.html#pmc-members">here</a>.' }

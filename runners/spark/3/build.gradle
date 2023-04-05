@@ -1,0 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+def basePath = '..'
+/* All properties required for loading the Spark build script */
+project.ext {
+  // Spark 3 version as defined in BeamModulePlugin
+  spark_version = spark3_version
+  spark_scala_version = '2.12'
+  copySourceBase = false // disabled to use Spark 3 as primary dev version
+  archives_base_name = 'beam-runners-spark-3'
+}
+
+// Load the main build script which contains all build logic.
+apply from: "$basePath/spark_runner.gradle"
+
+// Generates runQuickstartJavaSpark task (can only support 1 version of Spark)
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
+
+// Additional supported Spark versions (used in compatibility tests)
+def sparkVersions = [
+    "330": "3.3.0",
+    "321": "3.2.1"
+]
+
+sparkVersions.each { kv ->
+  configurations.create("sparkVersion$kv.key")
+  configurations."sparkVersion$kv.key" {
+    resolutionStrategy {
+      spark.components.each { component -> force "$component:$kv.value" }
+    }
+  }
+
+  dependencies {
+    spark.components.each { component -> "sparkVersion$kv.key" "$component:$kv.value" }
+  }
+
+  tasks.register("sparkVersion${kv.key}Test", Test) {
+    group = "Verification"
+    description = "Verifies code compatibility with Spark $kv.value"
+    classpath = configurations."sparkVersion$kv.key" + sourceSets.test.runtimeClasspath
+    systemProperties test.systemProperties
+
+    include "**/*.class"
+    maxParallelForks 4
+  }
+}
+
+tasks.register("sparkVersionsTest") {
+  group = "Verification"
+  dependsOn sparkVersions.collect{k,v -> "sparkVersion${k}Test"}
+}

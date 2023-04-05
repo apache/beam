@@ -1,0 +1,79 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.maven.archetypes.gcp.bom.examples')
+
+// Based off of :sdks:java:maven-archetypes:examples project
+description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Google Cloud Platform BOM Examples"
+ext.summary = """A Maven Archetype to create a project
+using the Beam Google Cloud Platform BOM"""
+
+processResources {
+    dependsOn 'generateSources'
+    filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+            'project.version':  version,
+            'bigquery.version': dependencies.create(project.library.java.google_api_services_bigquery).getVersion(),
+            'google-api-client.version': dependencies.create(project.library.java.google_api_client).getVersion(),
+            'hamcrest.version': dependencies.create(project.library.java.hamcrest).getVersion(),
+            'jackson.version': dependencies.create(project.library.java.jackson_core).getVersion(),
+            'joda.version': dependencies.create(project.library.java.joda_time).getVersion(),
+            'junit.version': dependencies.create(project.library.java.junit).getVersion(),
+            'kafka.version': dependencies.create(project.library.java.kafka_clients).getVersion(),
+            'pubsub.version': dependencies.create(project.library.java.google_api_services_pubsub).getVersion(),
+            'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
+            'spark.version': dependencies.create(project.library.java.spark3_core).getVersion(),
+            'nemo.version': dependencies.create(project.library.java.nemo_compiler_frontend_beam).getVersion(),
+            'hadoop.version': dependencies.create(project.library.java.hadoop_client).getVersion(),
+            'mockito.version': dependencies.create(project.library.java.mockito_core).getVersion(),
+            'maven-compiler-plugin.version': dependencies.create(project.library.maven.maven_compiler_plugin).getVersion(),
+            'maven-exec-plugin.version': dependencies.create(project.library.maven.maven_exec_plugin).getVersion(),
+            'maven-jar-plugin.version': dependencies.create(project.library.maven.maven_jar_plugin).getVersion(),
+            'maven-shade-plugin.version': dependencies.create(project.library.maven.maven_shade_plugin).getVersion(),
+            'maven-surefire-plugin.version': dependencies.create(project.library.maven.maven_surefire_plugin).getVersion(),
+            'flink.artifact.name': 'beam-runners-flink-'.concat(project(":runners:flink:${project.ext.latestFlinkVersion}").getName()),
+    ]
+}
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.{main|test}.allSource" directly.
+ */
+evaluationDependsOn(':examples:java')
+
+task generateSources(type: Exec) {
+    inputs.file('../examples/generate-sources.sh')
+            .withPropertyName('generate-sources.sh')
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(project(':examples:java').sourceSets.main.allSource)
+            .withPropertyName('sourcesMain')
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(project(':examples:java').sourceSets.test.allSource)
+            .withPropertyName('sourcesTest')
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir('src/main/resources/archetype-resources/src')
+    environment "HERE", "."
+    commandLine '../examples/generate-sources.sh'
+}
+
+sourceSets {
+    main {
+        output.dir('src', builtBy: 'generateSources')
+    }
+}

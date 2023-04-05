@@ -1,0 +1,8 @@
+{"schema": [
+  {"name":"sm_ship_mode_sk","type":"identifier"},
+  {"name":"sm_ship_mode_id","type":"char(16)"},
+  {"name":"sm_type","type":"char(30)"},
+  {"name":"sm_code","type":"char(10)"},
+  {"name":"sm_carrier","type":"char(20)"},
+  {"name":"sm_contract","type":"char(20)"}
+]}

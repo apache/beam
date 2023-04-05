@@ -1,0 +1,54 @@
+{
+  "type": "record",
+  "name": "spark_schema",
+  "fields": [
+    {
+      "name": "sm_ship_mode_sk",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "sm_ship_mode_id",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "sm_type",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "sm_code",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "sm_carrier",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "sm_contract",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    }
+  ]
+}

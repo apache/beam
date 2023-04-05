@@ -1,0 +1,9 @@
+sdk:
+  - Python
+id: group1
+name: The Group
+complexity: BASIC
+content:
+- unit-example
+- unit-challenge
+

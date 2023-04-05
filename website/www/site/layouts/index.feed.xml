@@ -1,0 +1,53 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title>{{ .Site.Title }}</title>
+    <description>{{ .Site.Params.description }} </description>
+    <link>{{ .Permalink }}</link>
+    <generator>Hugo -- gohugo.io</generator>
+    {{ with .OutputFormats.Get "RSS" }}
+	  {{ printf "<atom:link href=%q rel=\"self\" type=%q />" .Permalink .MediaType | safeHTML }}
+    {{ end }}
+    {{ if not $.Section }}
+      {{ $sections := .Site.Params.rss_sections | default (slice "blog") }}
+      {{ .Scratch.Set "rss_pages" (first 10 (where $.Site.RegularPages "Type" "in" $sections )) }}
+    {{ else }}
+      {{ if $.Parent.IsHome }}
+        {{ .Scratch.Set "rss_pages" (first 10 (where $.Site.RegularPages "Type" $.Section )) }}
+      {{ else }}
+        {{ .Scratch.Set "rss_pages" (first 10 $.Pages) }}
+      {{ end }}
+    {{ end }}
+    {{ range (.Scratch.Get "rss_pages")  }}
+    <item>
+      <title>{{ .Title }}</title>
+      <description>
+        {{ $img := (.Resources.ByType "image").GetMatch "*featured*" }}
+        {{ with $img }}
+        {{ $img := .Resize "640x" }}
+        {{ printf "<![CDATA[<img src=\"%s\" width=\"%d\" height=\"%d\"/>]]>" $img.Permalink $img.Width $img.Height | safeHTML }}
+        {{ end }}
+        {{ .Content | html }}
+      </description>
+      <link>{{ .Permalink }}</link>
+      <pubDate>{{ .Date.Format "Mon, 02 Jan 2006 15:04:05 -0700" | safeHTML }}</pubDate>
+      {{ with .Site.Author.email }}<author>{{.}}{{ with $.Site.Author.name }} ({{.}}){{end}}</author>{{end}}
+      <guid>{{ .Permalink }}</guid>
+      {{ range $cat := .Page.Params.categories }}
+        <category>{{ $cat }}</category>
+      {{ end }}
+    </item>
+    {{ end }}
+  </channel>
+</rss>

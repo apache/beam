@@ -1,0 +1,87 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ define "main" }}
+    {{ $authors := .Params.authors }}
+    {{ $data := index $.Site.Data.authors }}
+    <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+      <div class="post-content">
+      <div class="post-info">
+        <p>
+        {{ delimit .Params.categories ", " " & " }}
+        </p>
+        <p>{{ .Date.Format "2006/01/02" }}</p>
+      </div>
+      <header class="post-header">
+        <h2 itemprop="name headline">{{ .Title }}</h1>
+        <div class="post-info">
+          <span>
+            {{ with $authors }}
+                {{ $count := len . }}
+                {{ range $index, $authorId := . }}
+                    {{ if and (ne $index 0) (gt $count 2) (lt $index (sub $count 1))}},{{ end }}
+                    {{ if and (eq $index (sub $count 1)) (gt $count 1) }} &amp;{{ end }}
+                    {{ with index $.Site.Data.authors $authorId }}
+                      {{ .name }}{{ with .twitter }} [<a href="https://twitter.com/{{ . }}">@{{ . }}</a>]{{ end }}
+                    {{ else }}
+                      {{ $authorId }}
+                    {{ end }}
+                {{ end }}
+            {{ end }}
+          </span>
+        </div>
+      </header>
+
+      <div class="arrow-list header-top-margin" itemprop="articleBody">
+        {{ .Content }}
+      </div>
+    </div>
+    <div class="blog-content">
+      <h2>Latest from the blog</h2>
+    </div>
+
+      <div class="posts-list">
+          {{ range first 3 (after 1 (where .Site.Pages.ByPublishDate.Reverse "Section" "blog")) }}
+            <a class="post-card" href="{{ .RelPermalink }}" data-categories="{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}"
+            >
+              <div class="post-info post-category">
+                  <p>
+                    {{ if .Params.categories }}
+                      {{ delimit .Params.categories ", " " & " }}
+                    {{ end }}
+                  </p>
+                  <p>{{ .Date.Format "2006/01/02" }}</p>
+              </div>
+              <div class="post">
+              <p class="post-title">{{ .Title }}</p>
+              <p class="post-info">
+                {{ $authors := .Params.authors }}
+                {{ with $authors }}
+                  {{ range $i, $item := $authors }}
+                    {{ if not (isset $.Site.Data.authors $item) }} {{ errorf "Author '%s' is not defined. Please add them to 'website/www/site/data/authors.yml'" $item }} {{end}}
+                    {{ $author := index $data $item }}
+                    {{ if eq $i (sub (len $authors) 1) }}
+                      {{ $author.name }}
+                    {{ else if eq $i (sub (len $authors) 2) }}
+                      {{ $author.name }} &amp;
+                    {{ else }}
+                      {{ $author.name }},
+                    {{ end }}
+                  {{ end }}
+                {{ end }}
+            </p>
+            </div>
+            </a>
+          {{ end }}
+      </div>
+    </article>
+{{ end }}

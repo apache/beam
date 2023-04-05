@@ -1,0 +1,37 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature( exportJavadoc: false, publish: false)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: Google BigQuery IO Performance tests"
+ext.summary = "Performance tests for Google BigQuery IO sources and sinks"
+
+dependencies {
+    testImplementation library.java.google_api_services_bigquery
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+    testImplementation project(":sdks:java:io:synthetic")
+    testImplementation library.java.junit
+}

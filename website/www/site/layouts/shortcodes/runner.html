@@ -1,0 +1,25 @@
+{{/*
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+ */}}
+
+{{ $content := (trim .Inner "\n\r") | htmlUnescape | safeHTML }}
+{{ $ctx := . }}
+{{ $language := .Get 0 }}
+{{ with $language }}
+    <div class='{{ printf "runner-%s" . }} snippet'>
+        <div class="notebook-skip code-snippet">
+            <a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+                <img src="/images/copy-icon.svg"/>
+            </a>
+            {{ highlight $content . "" }}
+        </div>
+    </div>
+{{ end }}

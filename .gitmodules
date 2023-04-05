@@ -1,0 +1,12 @@
+[submodule "website/www/site/themes/docsy"]
+	path = website/www/site/themes/docsy
+	url = https://github.com/google/docsy.git
+[submodule ".github/actions/cancel-workflow-runs"]
+	path = .github/actions/cancel-workflow-runs
+	url = https://github.com/potiuk/cancel-workflow-runs
+[submodule ".github/actions/github-push-action"]
+	path = .github/actions/github-push-action
+	url = https://github.com/ad-m/github-push-action
+[submodule ".github/actions/gradle-command-action"]
+	path = .github/actions/gradle-command-action
+	url = https://github.com/eskatos/gradle-command-action

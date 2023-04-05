@@ -1,0 +1,63 @@
+/* * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.fnexecution',
+)
+
+description = "Apache Beam :: Runners :: Java Fn Execution"
+
+dependencies {
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(":runners:core-construction-java")
+  implementation project(":runners:core-java")
+  compileOnly project(":sdks:java:harness")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:fn-execution")
+  implementation project(":runners:core-construction-java")
+  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.slf4j_api
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation library.java.joda_time
+  testImplementation project(":sdks:java:harness")
+  testImplementation project(":runners:core-construction-java")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  // We want to use jdk logging backend to appropriately simulate logging setup
+  // for RemoteExecutionTest
+  testRuntimeOnly library.java.slf4j_jdk14
+}
+
+test {
+  useJUnit {
+    // Exclude tests that need Docker.
+    excludeCategories "org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker"
+  }
+}
+
+task testDocker(type: Test) {
+  group = "Verification"
+  description = "Runs Docker tests"
+  useJUnit {
+    includeCategories "org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker"
+  }
+}

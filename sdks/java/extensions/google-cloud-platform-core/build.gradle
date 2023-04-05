@@ -1,0 +1,92 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.extensions.gcp')
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Google Cloud Platform Core"
+ext.summary = """Common components used to support multiple
+Google Cloud Platform specific maven modules."""
+
+// Exclude tests that need a runner
+test {
+  systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  }
+}
+
+dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:core-java")
+  implementation library.java.google_http_client_jackson2
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_api_client
+  implementation library.java.bigdataoss_gcsio
+  implementation library.java.bigdataoss_util
+  implementation library.java.google_api_services_cloudresourcemanager
+  implementation library.java.google_api_services_storage
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_http_client
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.http_core
+  implementation library.java.http_client
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  permitUnusedDeclared library.java.jackson_databind // BEAM-11761
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.mockito_core
+  testRuntimeOnly library.java.slf4j_jdk14
+}
+
+// Note that no runner is specified here, so tests running under this task should not be running
+// pipelines.
+task integrationTestKms(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpTempRoot = project.findProperty('gcpTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
+  def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--project=${gcpProject}",
+          "--tempRoot=${gcpTempRoot}",
+          "--dataflowKmsKey=${dataflowKmsKey}",
+  ])
+
+  // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+  outputs.upToDateWhen { false }
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
+}
+
+task postCommit {
+  group = "Verification"
+  description = "Integration tests of GCP connectors using the DirectRunner."
+  dependsOn integrationTestKms
+}

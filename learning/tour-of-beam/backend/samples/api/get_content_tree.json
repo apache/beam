@@ -1,0 +1,42 @@
+{
+  "modules" : [
+     {
+        "complexity" : "BASIC",
+        "id" : "module1",
+        "title" : "Module One",
+        "nodes" : [
+           {
+              "type" : "unit",
+              "unit" : {
+                 "title" : "Example Unit Name",
+                 "id" : "intro-unit"
+              }
+           },
+           {
+              "group" : {
+                 "id": "group1",
+                 "title" : "The Group",
+                 "nodes" : [
+                    {
+                       "type" : "unit",
+                       "unit" : {
+                          "title" : "Example Unit Name",
+                          "id" : "example1"
+                       }
+                    },
+                    {
+                       "type" : "unit",
+                       "unit" : {
+                          "title" : "Challenge Name",
+                          "id" : "challenge1"
+                       }
+                    }
+                 ]
+              },
+              "type" : "group"
+           }
+        ]
+     }
+  ],
+  "sdkId" : "python"
+}

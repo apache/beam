@@ -1,0 +1,38 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+
+<div class="wrap-slide">
+  <div class="quote-card">
+    <div class="quote-icon">
+      {{ with resources.Get .icon }}
+      {{ .Content | safeHTML }}
+      {{ end }}
+    </div>
+    <h5 class="quote-text">{{ .text | markdownify }}</h5>
+    <div class="quote-card-link-container">
+      <a class="quote-card-link" href="{{ .linkUrl }}">
+        <span>{{ .linkText }}</span>
+        <img src="/images/arrow-right.svg" alt="Go to the case study">
+      </a>
+    </div>
+    <div class="case-study-row-button-container">
+      <a href="https://github.com/apache/beam/blob/master/website/ADD_CASE_STUDY.md" class="case-study-primary-button" target="_blank" rel="noopener noreferrer">
+        Share your story
+      </a>
+    </div>
+    <div class="quote-img-container">
+      <div class="quote-img">
+        <img src="{{ .logoUrl }}" alt="Quote Logo" />
+      </div>
+    </div>
+  </div>
+</div>

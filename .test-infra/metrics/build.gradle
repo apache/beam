@@ -1,0 +1,142 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+  id 'org.apache.beam.module'
+  // https://github.com/avast/gradle-docker-compose-plugin
+  id 'com.avast.gradle.docker-compose'
+  id 'org.ajoberstar.grgit'
+}
+
+ext {
+  cluster = 'metrics'
+  zone='us-central1-a'
+  projectName='apache-beam-testing'
+  kubeConfigPath='/home/jenkins/.kube/config'
+}
+
+applyGroovyNature()
+
+repositories { mavenCentral() }
+
+dependencies {
+  testImplementation library.groovy.groovy_all
+  testImplementation library.java.junit
+}
+
+task testMetricsStack {
+  doLast {
+    // TODO(BEAM-5837): Add some actual validation of the metrics stack
+    println "Hello world!" }
+}
+
+// Create an empty file and set DOCKER_CONFIG to ignore bad config file on Jenkins nodes. BEAM-7405
+task createEmptyConfig(type: Exec) {
+  outputs.file("${project.rootProject.buildDir}/config.json")
+  commandLine '/bin/sh', '-c', "echo '{}' > ${project.rootProject.buildDir}/config.json"
+}
+composeUp {
+  dependsOn "createEmptyConfig"
+}
+dockerCompose {
+  environment.put 'DOCKER_CONFIG', project.rootProject.buildDir
+}
+
+dockerCompose.isRequiredBy(testMetricsStack)
+
+task getClusterCredentials(type: Exec) {
+  commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
+}
+
+task removeKubeConfig(type: Exec) {
+  commandLine 'sh', '-c', "rm ${kubeConfigPath}"
+}
+
+
+task validateK8sConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
+}
+
+task validateConfiguration {
+  dependsOn getClusterCredentials
+  dependsOn validateK8sConfiguration
+  finalizedBy removeKubeConfig
+}
+
+task preCommit {
+  dependsOn validateConfiguration
+  dependsOn testMetricsStack
+}
+
+task checkLastCommitId {
+  doLast {
+    assert grgit : 'Cannot use outside of git repository'
+
+    def git = grgit.open(currentDir: project.rootDir)
+    def lastCommit = git.log(paths: ['.test-infra/metrics'], maxCommits: 1)[0]
+    project.ext.lastCommitId = lastCommit.abbreviatedId
+  }
+}
+
+// Checks if Grafana deployment needs to be updated and deploys changes, if necessary.
+// Grafana's images tags keep track of the last commit ID in `.test-infra/metrics` path.
+// The deployment needs to be updated if new commit appears.
+task deploy {
+  dependsOn checkLastCommitId
+  doLast {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+      executable 'sh'
+      args '-c', 'kubectl get deployment beamgrafana -o jsonpath="{..image}"'
+      standardOutput = stdout
+    }
+
+    // All images have the same tag, it doesn't matter which we choose.
+    String image = (stdout.toString().split(' ') as List)[0]
+    String currentImageTag = (image.split(':') as List)[1]
+    println "Current image tag: ${currentImageTag}"
+    println "Last commit ID: ${lastCommitId}"
+
+    Boolean updateRequired = lastCommitId != currentImageTag
+
+    if (updateRequired) {
+      // Build new images and force Kubernetes to re-pull images for Grafana deployment.
+      exec {
+        commandLine './build_and_publish_containers.sh', 'true', "${project.lastCommitId}"
+      }
+
+      exec {
+        executable 'sh'
+        args '-c', "kubectl set image deployment/beamgrafana \
+          beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
+          beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
+          beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
+      }
+    } else {
+      println 'Nothing to do, exiting.'
+    }
+  }
+}
+
+task checkProber(type: Test) {
+  include "**/ProberTests.class"
+}
+
+project.test {
+  exclude "**/ProberTests.class"
+}

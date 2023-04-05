@@ -1,0 +1,107 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import java.util.stream.Collectors
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.hcatalog',
+  // TODO(BEAM-13430): Re-enable this once the dependency analysis plugin stops failing with:
+  // Cannot accept visitor on URL: file:.../org.apache.curator/apache-curator/2.6.0/1bbbe3a8c191ec5a63ec2eaec7988d8292ea65d2/apache-curator-2.6.0.pom
+  enableStrictDependencies: false,
+)
+
+description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
+ext.summary = "IO to read and write for HCatalog source."
+
+def hadoopVersions = [
+    "285": "2.8.5",
+    "292": "2.9.2",
+    "2102": "2.10.2",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+
+def hive_version = "3.1.3"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: use testTextures feature which is introduced in Gradle 5.6 instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":sdks:java:io:common")
+
+dependencies {
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
+  // on the compile/test/runtime classpath before Hive.
+  provided library.java.jackson_annotations
+  provided library.java.jackson_core
+  provided library.java.jackson_databind
+  // Calcite (a dependency of Hive) bundles without repackaging Guava which is why we redeclare it
+  // here so that it appears on the compile/test/runtime classpath before Calcite.
+  provided library.java.hadoop_common
+  provided "org.apache.hive:hive-exec:$hive_version"
+  provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {
+    exclude group: "org.apache.hive", module: "hive-exec"
+    exclude group: "com.google.protobuf", module: "protobuf-java"
+  }
+  testImplementation project(":sdks:java:io:common").sourceSets.test.output
+  testImplementation library.java.commons_io
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
+  testImplementation "org.apache.hive:hive-exec:$hive_version"
+  testImplementation "org.apache.hive:hive-common:$hive_version"
+  testImplementation "org.apache.hive:hive-cli:$hive_version"
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version"
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+  }
+}
+
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-common:$kv.value"
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs HCatalog tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs HCatalog tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
+}

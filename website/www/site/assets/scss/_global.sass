@@ -1,0 +1,183 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+html,
+body
+  -webkit-font-smoothing: antialiased
+  font-family: 'Roboto', arial, sans-serif
+  background: #efefef
+  margin: 0
+  padding: 0
+
+.body
+  background: #fff
+  margin: 0 auto
+  .no__padding
+    padding: 0
+  &:not(.body--index)
+    .body__contained
+      @media (max-width: $ak-breakpoint-lg)
+        padding: 0
+      padding: 0 30px
+      max-width: 1280px
+      figure
+        img
+          width: 100%
+    .center
+      margin: 0 auto
+  .content-up
+    margin-top: -20px !important
+
+.section
+  &:not(.section--wide)
+    padding-right: $pad
+    padding-left: $pad
+    padding-top: 30px
+    max-width: 1280px
+    margin-right: auto
+    margin-left: auto
+
+  .section__contained
+    +contained
+
+  a
+    color: $color-brand
+
+.body__section-no-nav
+  margin-left: 256px
+  //width: calc(100% - 380px)
+
+  > [id]:before
+    content: ''
+    display: block
+    height: 82px // fixed header height
+    margin: -82px 0 0 // negative fixed header height
+
+  @media (max-width: $ak-breakpoint-lg)
+    margin-left: 0
+    width: 100%
+
+.body__section-no-nav--wide
+  margin-left: auto
+  margin-right: auto
+
+.body__section-nav
+  margin-left: 6px
+  width: calc(100% - 492px)
+
+  > [id]:before
+    content: ''
+    display: block
+    height: 82px // fixed header height
+    margin: -82px 0 0 // negative fixed header height
+
+  @media (max-width: $ak-breakpoint-lg)
+    margin-left: 0
+    width: 100%
+
+.container-main-content
+  @media (max-width: $ak-breakpoint-lg)
+    padding: 0 24px
+  min-height: 100vh
+  padding: 0 22px
+  position: relative
+  background-color: #fff
+  margin-top: 64px
+  display: flex
+
+  @media (min-width: $tablet)
+    margin-top: 0
+.desktop
+  @media (max-width: $ak-breakpoint-lg)
+    display: none !important
+.mobile
+  display: none
+  @media (max-width: $ak-breakpoint-lg)
+    display: block
+
+.code-snippet, pre
+  background: rgba(255, 109, 0, 0.03)
+  border-radius: 8px
+  border-top-left-radius: 0
+  border: solid 0.6px #ff6d05
+  font-family: Menlo
+  font-size: 16px
+  font-weight: normal
+  line-height: 1.63
+  letter-spacing: 0.43px
+  padding: 24px
+  max-width: 100%
+  position: relative
+
+  pre
+    border: none
+    padding: 0
+    margin-top: 36px
+    background: initial
+  a
+    img
+      position: absolute
+      right: 5px
+      top: 5px
+      &:hover
+        opacity: 0.7
+        filter: alpha(opacity=70)
+        cursor: pointer
+  &.playground
+    padding: 0
+    border-top-left-radius: 8px
+
+.snippet
+  max-width: 100%
+  margin-bottom: 40px
+  .git-link
+    float: right
+    font-size: 16px
+    font-weight: normal
+    line-height: 1.63
+    letter-spacing: 0.43px
+    color: #8c8b8e
+  .without_switcher
+    border-top-left-radius: 8px
+  pre
+    background: initial
+
+table
+  margin-top: 24px
+  margin-bottom: 24px
+  th
+    min-width: 80px
+    padding-right: 12px
+
+.underline
+  text-decoration: underline
+
+code
+  overflow-x: auto
+  max-width: 100%
+  display: inline-block
+  line-height: normal
+  vertical-align: text-top
+
+.video
+  width: 100%
+
+.video--medium-size
+  max-width: 560px
+
+.pre-content-container
+  overflow-x: auto

@@ -1,0 +1,63 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+
+// Do not relocate guava to avoid issues with Cassandra's version.
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.cassandra',
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
+ext.summary = "IO to read and write with Apache Cassandra database"
+
+// compatible with all Cassandra versions up to 3.11.10
+def achilles_version = "6.1.0"
+
+dependencies {
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.slf4j_api
+  implementation library.java.cassandra_driver_core
+  implementation library.java.cassandra_driver_mapping
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation library.java.mockito_core
+
+  // for embedded cassandra
+  testImplementation group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
+  testImplementation library.java.commons_io
+  testImplementation library.java.jackson_jaxb_annotations
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}
+
+// Cassandra dependencies require old version of Guava (BEAM-11626)
+configurations.all (Configuration it) -> {
+  // error-prone requires newer guava, don't override for annotation processing
+  // https://github.com/google/error-prone/issues/2745
+  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
+    return
+  }
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
+  }
+}

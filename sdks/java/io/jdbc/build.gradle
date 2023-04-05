@@ -1,0 +1,54 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.jdbc',
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
+ext.summary = "IO to read and write on JDBC datasource."
+
+dependencies {
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation "org.apache.commons:commons-dbcp2:2.8.0"
+  implementation library.java.joda_time
+  implementation "org.apache.commons:commons-pool2:2.8.1"
+  implementation library.java.slf4j_api
+  testImplementation "org.apache.derby:derby:10.14.2.0"
+  testImplementation "org.apache.derby:derbyclient:10.14.2.0"
+  testImplementation "org.apache.derby:derbynet:10.14.2.0"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation library.java.junit
+  testImplementation library.java.slf4j_api
+  testImplementation library.java.postgres
+
+  testImplementation library.java.testcontainers_base
+  testImplementation library.java.testcontainers_mysql
+  testImplementation library.java.testcontainers_postgresql
+  testImplementation 'mysql:mysql-connector-java:8.0.22'
+
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}

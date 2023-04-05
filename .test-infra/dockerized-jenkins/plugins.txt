@@ -1,0 +1,117 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+ace-editor
+analysis-model-api
+ansicolor
+ant
+antisamy-markup-formatter
+apache-httpcomponents-client-4-api
+async-http-client
+authentication-tokens
+aws-credentials
+aws-java-sdk
+blueocean-commons
+bootstrap4-api
+bouncycastle-api
+branch-api
+build-timeout
+command-launcher
+credentials
+credentials-binding
+data-tables-api
+description-setter
+display-url-api
+docker-commons
+docker-workflow
+durable-task
+echarts-api
+email-ext
+embeddable-build-status
+envinject
+envinject-api
+font-awesome-api
+forensics-api
+ghprb
+git
+git-client
+git-server
+github
+github-api
+github-branch-source
+gradle
+handlebars
+handy-uri-templates-2-api
+jackson2-api
+jacoco
+javadoc
+jaxb
+jdk-tool
+job-dsl
+jquery
+jquery-detached
+jquery3-api
+jsch
+junit
+ldap
+mailer
+mapdb-api
+matrix-project
+metrics
+momentjs
+node-iterator-api
+nodelabelparameter
+pipeline-build-step
+pipeline-graph-analysis
+pipeline-input-step
+pipeline-milestone-step
+pipeline-model-api
+pipeline-model-declarative-agent
+pipeline-model-definition
+pipeline-model-extensions
+pipeline-rest-api
+pipeline-stage-step
+pipeline-stage-tags-metadata
+pipeline-stage-view
+plain-credentials
+plugin-util-api
+popper-api
+postbuildscript
+pubsub-light
+scm-api
+script-security
+slack
+sonar
+ssh-credentials
+structs
+support-core
+throttle-concurrents
+timestamper
+token-macro
+trilead-api
+variant
+warnings-ng
+workflow-aggregator
+workflow-api
+workflow-basic-steps
+workflow-cps
+workflow-cps-global-lib
+workflow-durable-task-step
+workflow-job
+workflow-multibranch
+workflow-scm-step
+workflow-step-api
+workflow-support
+ws-cleanup

@@ -1,0 +1,137 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk',
+  classesTriggerCheckerBugs: [
+    'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
+    'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
+    'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
+  ],
+  shadowClosure: {
+    dependencies {
+      include(dependency(library.java.commons_compress))
+      include(dependency(library.java.commons_lang3))
+      include(dependency(library.java.antlr_runtime))
+    }
+    relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
+    relocate "org.apache.commons.compress", getJavaRelocatedPath("org.apache.commons.compress")
+    relocate "org.apache.commons.lang3", getJavaRelocatedPath("org.apache.commons.lang3")
+    relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
+  },
+)
+applyAvroNature()
+applyAntlrNature()
+
+generateGrammarSource {
+  arguments += ["-visitor"]
+}
+
+description = "Apache Beam :: SDKs :: Java :: Core"
+ext.summary = """Beam SDK Java All provides a simple, Java-based
+interface for processing virtually any size data. This
+artifact includes entire Apache Beam Java SDK."""
+
+processResources {
+  inputs.property('version', version)
+  inputs.property('sdk_version', sdk_version)
+  inputs.property('docker_image_default_repo_root', docker_image_default_repo_root)
+  inputs.property('docker_image_default_repo_prefix', docker_image_default_repo_prefix)
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    'pom.version': version,
+    'pom.sdk_version': sdk_version,
+    'pom.docker_image_default_repo_root': docker_image_default_repo_root,
+    'pom.docker_image_default_repo_prefix': docker_image_default_repo_prefix,
+  ]
+}
+
+// Exclude tests that need a runner
+test {
+  systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  }
+}
+
+dependencies {
+  antlr library.java.antlr
+  // antlr is used to generate code from sdks/java/core/src/main/antlr/
+  permitUnusedDeclared library.java.antlr
+  // Required to load constants from the model, e.g. max timestamp for global window
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":model:job-management", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_48_1
+  shadow library.java.vendored_guava_26_0_jre
+  shadow library.java.byte_buddy
+  implementation library.java.antlr_runtime
+  implementation library.java.commons_compress
+  implementation library.java.commons_lang3
+  testImplementation library.java.mockito_inline
+  shadow library.java.jsr305
+  shadow library.java.error_prone_annotations
+  shadow library.java.jackson_core
+  shadow library.java.jackson_annotations
+  shadow library.java.jackson_databind
+  shadow library.java.slf4j_api
+  shadow library.java.avro
+  shadow library.java.snappy_java
+  shadow library.java.joda_time
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  provided library.java.json_org
+  // com.github.everit JSON schema validation library is used for json-schema.org validation.
+  // to avoid forcing the library onto users, we ask users to provide it rather than include
+  // it by default.
+  // It is only used for optional functionality in JsonUtils schema parsing and conversion.
+  provided library.java.everit_json_schema
+  shadowTest library.java.everit_json_schema
+  provided library.java.junit
+  provided library.java.hamcrest
+  provided 'io.airlift:aircompressor:0.18'
+  provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
+  provided library.java.zstd_jni
+  permitUnusedDeclared 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest library.java.guava_testlib
+  shadowTest library.java.mockito_core
+  shadowTest library.java.hamcrest
+  shadowTest "com.esotericsoftware.kryo:kryo:2.21"
+  shadowTest library.java.quickcheck_core
+  shadowTest library.java.quickcheck_generators
+  shadowTest library.java.avro_tests
+  shadowTest library.java.zstd_jni
+  shadowTest library.java.commons_logging
+  shadowTest library.java.log4j
+  shadowTest library.java.log4j2_api
+  shadowTest library.java.jamm
+  testRuntimeOnly library.java.slf4j_jdk14
+}
+
+project.tasks.compileTestJava {
+  options.compilerArgs += ['-Xlint:-rawtypes'] // generated avro uses rawtypes without suppression
+}
+
+tasks.register("debugTask") {
+  gradle.taskGraph.whenReady { graph ->
+    logger.warn("$graph")
+    graph.allTasks.each {
+      logger.warn("it: ${it.project.class}, it.name: ${it.name}")
+    }
+  }
+}

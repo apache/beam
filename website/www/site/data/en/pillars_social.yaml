@@ -1,0 +1,24 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: pillars-github-icon
+  icon: icons/github-icon.svg
+  url: https://github.com/apache/beam
+- name: pillars-linkedin-icon
+  icon: icons/linkedin-icon.png
+  url: https://www.linkedin.com/company/apache-beam/
+- name: pillars-youtube-icon
+  icon: icons/youtube-icon.svg
+  url: https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ
+- name: pillars-twitter-icon
+  icon: icons/twitter-icon.svg
+  url: https://twitter.com/apachebeam

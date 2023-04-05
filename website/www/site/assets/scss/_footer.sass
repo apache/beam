@@ -1,0 +1,117 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+.footer
+  background: $color-dark
+  padding-top: 40px
+  margin-top: 128px
+  @at-root .body--index &
+    margin-top: 0
+
+  color: #fff
+  .footer__contained
+    +contained
+    padding: 0 30px
+  a
+    color: #fff
+
+  .footer__cols
+    display: flex
+    justify-content: space-around
+    @media (max-width: $ak-breakpoint-lg)
+      display: block
+    .footer__cols__col__logos
+      padding-right: 120px
+      @media (max-width: $ak-breakpoint-lg)
+        display: flex
+      @media (max-width: $ak-breakpoint-xs)
+        flex-direction: column
+        padding-right: 0
+
+  .footer__cols__col
+    padding: 5px
+    box-sizing: border-box
+
+    .footer__cols__col--group
+      display: flex
+      gap: 30px
+      @media (max-width: $ak-breakpoint-lg)
+        gap: 0
+        justify-content: center
+
+    .footer__cols__col__title
+      color: #fff
+      font-weight: $font-weight-bold
+      margin-bottom: $pad
+
+    .footer__cols__col__link
+      margin-bottom: 4px
+
+    .footer__cols__col__logo
+      margin-bottom: $pad
+      @media (max-width: $ak-breakpoint-lg)
+        margin-right: 20px
+      a
+        img
+          width: 64px
+          border-radius: 50%
+          filter: grayscale(100%)
+          opacity: 0.7
+          &:hover, focus
+            filter: grayscale(0)
+            opacity: 1
+
+  .footer__flex_mobile
+    display: flex
+    flex-direction: row
+    justify-content: space-between
+    @media (max-width: $ak-breakpoint-lg)
+      flex-direction: column
+
+  .wrapper-grid
+    display: grid
+    padding-bottom: 30px
+    grid-template-columns: repeat(4, 1fr)
+    grid-gap: 52px
+    grid-auto-rows: minmax(200px, auto)
+    @media (max-width: $ak-breakpoint-lg)
+       grid-template-columns: repeat(2, 1fr)
+
+  .footer-wrapper
+    padding: 0 56px
+    @media (max-width: $ak-breakpoint-lg)
+      padding: 0
+
+    .footer__bottom
+      line-height: 1.57
+      letter-spacing: 0.43px
+      color: #bfbfbf
+      padding-bottom: 38px
+      padding-right: 25px
+      margin-right: 76px
+      a
+        color: #bfbfbf
+      @media (max-width: $ak-breakpoint-lg)
+        padding-bottom: 77px
+        padding-right: 0
+        margin-right: 0
+
+.main-padding
+  padding-bottom: 48px
+  background: #37424B
+  @media (max-width: $ak-breakpoint-lg)
+    padding-bottom: 100px
