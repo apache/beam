@@ -1,3 +1,0 @@
-## Challenge description
-
-awesome description

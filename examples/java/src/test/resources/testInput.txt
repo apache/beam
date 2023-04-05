@@ -1,3 +1,0 @@
-{"Field1": "FieldValue11", "Field2": "FieldValue12", "Field3": "FieldValue13"}
-{"Field1": "FieldValue12", "Field2": "FieldValue22", "Field3": "FieldValue23"}
-{"Field1": "FieldValue13", "Field2": "FieldValue32", "Field3": "FieldValue33"}

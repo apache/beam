@@ -1,5 +1,0 @@
-{"schema": [
-  {"name":"r_reason_sk","type":"identifier"},
-  {"name":"r_reason_id","type":"char(16)"},
-  {"name":"r_reason_desc","type":"char(100)"}
-]}

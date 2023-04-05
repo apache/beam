@@ -1,9 +1,0 @@
-{
-  "name": "java-security",
-  "enabled": true,
-  "options": {
-    "properties": {
-      "java.security.properties": "/opt/apache/beam/options/java8-security.properties"
-    }
-  }
-}
