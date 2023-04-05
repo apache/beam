@@ -43,16 +43,17 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 	defer cc.Close()
 
-	if err := StageViaPortableApi(ctx, cc, binary, st); err == nil {
+	if err := StageViaPortableAPI(ctx, cc, binary, st); err == nil {
 		return "", nil
-	} else {
-		log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 	}
+	log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 
-	return StageViaLegacyApi(ctx, cc, binary, st)
+	return StageViaLegacyAPI(ctx, cc, binary, st)
 }
 
-func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retErr error) {
+// StageViaPortableAPI stages the worker binary and any additional files
+// using the given grpc connection for the Portable API.
+func StageViaPortableAPI(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retErr error) {
 	const attempts = 3
 	var failures []string
 	for {
@@ -60,9 +61,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 		if err == nil {
 			return nil // success!
 		}
-		if err != nil {
-			failures = append(failures, err.Error())
-		}
+		failures = append(failures, err.Error())
 		if len(failures) > attempts {
 			return errors.Errorf("failed to stage artifacts for token %v in %v attempts: %v", st, attempts, strings.Join(failures, ";\n"))
 		}
@@ -180,7 +179,9 @@ func stageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 	}
 }
 
-func StageViaLegacyApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
+// StageViaLegacyAPI stages the worker binary and any additional files using the
+// given grpc connection for the Legacy API. It returns the retrieval token if successful.
+func StageViaLegacyAPI(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
 	client := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 
 	files := []artifact.KeyedFile{{Key: "worker", Filename: binary}}
