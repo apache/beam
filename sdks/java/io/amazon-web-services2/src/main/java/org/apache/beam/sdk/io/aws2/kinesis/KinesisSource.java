@@ -19,10 +19,12 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.buildClient;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -30,10 +32,13 @@ import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
+import software.amazon.awssdk.services.kinesis.model.Shard;
 
 /** Represents source for single stream in Kinesis. */
 @SuppressWarnings({
@@ -44,31 +49,15 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   private static final Logger LOG = LoggerFactory.getLogger(KinesisSource.class);
 
   private final Read spec;
-  private final CheckpointGenerator checkpointGenerator;
+  private final @Nullable KinesisReaderCheckpoint initialCheckpoint;
 
   KinesisSource(Read read) {
-    this(read, new DynamicCheckpointGenerator(read.getStreamName(), read.getInitialPosition()));
+    this(read, null);
   }
 
-  private KinesisSource(Read spec, CheckpointGenerator initialCheckpoint) {
+  private KinesisSource(Read spec, @Nullable KinesisReaderCheckpoint initialCheckpoint) {
     this.spec = checkNotNull(spec);
-    this.checkpointGenerator = checkNotNull(initialCheckpoint);
-  }
-
-  private SimplifiedKinesisClient createClient(PipelineOptions options) {
-    AwsOptions awsOptions = options.as(AwsOptions.class);
-    Supplier<KinesisClient> kinesisSupplier;
-    Supplier<CloudWatchClient> cloudWatchSupplier;
-    if (spec.getAWSClientsProvider() != null) {
-      kinesisSupplier = spec.getAWSClientsProvider()::getKinesisClient;
-      cloudWatchSupplier = spec.getAWSClientsProvider()::getCloudWatchClient;
-    } else {
-      ClientConfiguration config = spec.getClientConfiguration();
-      kinesisSupplier = () -> buildClient(awsOptions, KinesisClient.builder(), config);
-      cloudWatchSupplier = () -> buildClient(awsOptions, CloudWatchClient.builder(), config);
-    }
-    return new SimplifiedKinesisClient(
-        kinesisSupplier, cloudWatchSupplier, spec.getRequestRecordsLimit());
+    this.initialCheckpoint = initialCheckpoint;
   }
 
   /**
@@ -77,14 +66,24 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
    */
   @Override
   public List<KinesisSource> split(int desiredNumSplits, PipelineOptions options) throws Exception {
-    try (SimplifiedKinesisClient client = createClient(options)) {
-      KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(client.getKinesis());
-      List<KinesisSource> sources = newArrayList();
-      for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
-        sources.add(new KinesisSource(spec, new StaticCheckpointGenerator(partition)));
-      }
-      return sources;
+    List<KinesisSource> sources = new ArrayList<>();
+    KinesisReaderCheckpoint checkpoint;
+
+    // in case split() is called upon existing checkpoints for further splitting:
+    if (this.initialCheckpoint != null) {
+      checkpoint = this.initialCheckpoint;
     }
+    // in case a new checkpoint is created from scratch:
+    else {
+      try (KinesisClient client = createKinesisClient(spec, options)) {
+        checkpoint = generateInitCheckpoint(spec, client);
+      }
+    }
+
+    for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
+      sources.add(new KinesisSource(spec, partition));
+    }
+    return sources;
   }
 
   /**
@@ -94,15 +93,20 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
    */
   @Override
   public UnboundedReader<KinesisRecord> createReader(
-      PipelineOptions options, KinesisReaderCheckpoint checkpointMark) {
-
-    CheckpointGenerator checkpointGenerator = this.checkpointGenerator;
+      PipelineOptions options, KinesisReaderCheckpoint checkpointMark) throws IOException {
+    KinesisReaderCheckpoint initCheckpoint;
     if (checkpointMark != null) {
-      checkpointGenerator = new StaticCheckpointGenerator(checkpointMark);
+      LOG.info("Got checkpoint mark {}", checkpointMark);
+      initCheckpoint = checkpointMark;
+    } else {
+      try {
+        LOG.info("No checkpointMark specified, fall back to initial {}", this.initialCheckpoint);
+        initCheckpoint = Preconditions.checkArgumentNotNull(this.initialCheckpoint);
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
     }
-
-    LOG.info("Creating new reader using {}", checkpointGenerator);
-    return new KinesisReader(spec, createClient(options), checkpointGenerator, this);
+    return new KinesisReader(spec, createSimplifiedKinesisClient(options), initCheckpoint, this);
   }
 
   @Override
@@ -113,5 +117,48 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   @Override
   public Coder<KinesisRecord> getOutputCoder() {
     return KinesisRecordCoder.of();
+  }
+
+  KinesisClient createKinesisClient(Read spec, PipelineOptions options) {
+    AwsOptions awsOptions = options.as(AwsOptions.class);
+    if (spec.getAWSClientsProvider() != null) {
+      return Preconditions.checkArgumentNotNull(spec.getAWSClientsProvider()).getKinesisClient();
+    } else {
+      ClientConfiguration config =
+          Preconditions.checkArgumentNotNull(spec.getClientConfiguration());
+      return buildClient(awsOptions, KinesisClient.builder(), config);
+    }
+  }
+
+  private SimplifiedKinesisClient createSimplifiedKinesisClient(PipelineOptions options) {
+    AwsOptions awsOptions = options.as(AwsOptions.class);
+    Supplier<KinesisClient> kinesisSupplier = () -> createKinesisClient(spec, options);
+    Supplier<CloudWatchClient> cloudWatchSupplier;
+    if (spec.getAWSClientsProvider() != null) {
+      cloudWatchSupplier = spec.getAWSClientsProvider()::getCloudWatchClient;
+    } else {
+      ClientConfiguration config = spec.getClientConfiguration();
+      cloudWatchSupplier = () -> buildClient(awsOptions, CloudWatchClient.builder(), config);
+    }
+    return new SimplifiedKinesisClient(
+        kinesisSupplier, cloudWatchSupplier, spec.getRequestRecordsLimit());
+  }
+
+  /**
+   * Creates a new checkpoint based on starting position.
+   *
+   * <p>This is needed only when persisted checkpointMark is not available for {@link
+   * #createReader(PipelineOptions, KinesisReaderCheckpoint)}.
+   */
+  private KinesisReaderCheckpoint generateInitCheckpoint(Read spec, KinesisClient kinesis)
+      throws TransientKinesisException {
+    String stream = Preconditions.checkArgumentNotNull(spec.getStreamName());
+    StartingPoint startingPoint = Preconditions.checkArgumentNotNull(spec.getInitialPosition());
+    List<Shard> streamShards = ShardListingUtils.listShardsAtPoint(kinesis, stream, startingPoint);
+    LOG.info("Creating a checkpoint with following shards {} at {}", streamShards, startingPoint);
+    return new KinesisReaderCheckpoint(
+        streamShards.stream()
+            .map(shard -> new ShardCheckpoint(stream, shard.shardId(), startingPoint))
+            .collect(Collectors.toList()));
   }
 }

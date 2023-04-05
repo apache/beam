@@ -37,16 +37,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import software.amazon.awssdk.services.kinesis.KinesisClient;
 
 /** Tests {@link KinesisReader}. */
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class KinesisReaderTest {
 
-  @Mock private KinesisClient kinesisClient;
   @Mock private SimplifiedKinesisClient kinesis;
   @Mock private KinesisIO.Read read;
-  @Mock private CheckpointGenerator generator;
   @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock private KinesisRecord a, b, c, d;
   @Mock private KinesisSource kinesisSource;
@@ -56,8 +53,6 @@ public class KinesisReaderTest {
 
   @Before
   public void setUp() throws TransientKinesisException {
-    when(generator.generate(kinesisClient))
-        .thenReturn(new KinesisReaderCheckpoint(asList(firstCheckpoint, secondCheckpoint)));
     when(shardReadersPool.nextRecord()).thenReturn(CustomOptional.absent());
     when(a.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
     when(b.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
@@ -74,7 +69,9 @@ public class KinesisReaderTest {
     when(read.getMaxCapacityPerShard()).thenReturn(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD);
     when(read.getStreamName()).thenReturn("stream1");
 
-    return new KinesisReader(read, kinesis, generator, kinesisSource, backlogBytesCheckThreshold) {
+    KinesisReaderCheckpoint checkpoint =
+        new KinesisReaderCheckpoint(asList(firstCheckpoint, secondCheckpoint));
+    return new KinesisReader(read, kinesis, checkpoint, kinesisSource, backlogBytesCheckThreshold) {
       @Override
       ShardReadersPool createShardReadersPool() {
         return shardReadersPool;

@@ -17,27 +17,20 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import software.amazon.awssdk.services.kinesis.KinesisClient;
+import org.junit.Test;
+import software.amazon.kinesis.common.InitialPositionInStream;
 
-/** Always returns the same instance of checkpoint. */
-class StaticCheckpointGenerator implements CheckpointGenerator {
+public class KinesisSourceTest {
+  @Test
+  public void testSplitGeneratesSourcesWithCheckpoints() {
+    KinesisIO.Read read =
+        KinesisIO.read()
+            .withStreamName("stream")
+            .withInitialPositionInStream(InitialPositionInStream.LATEST);
 
-  private final KinesisReaderCheckpoint checkpoint;
-
-  public StaticCheckpointGenerator(KinesisReaderCheckpoint checkpoint) {
-    checkNotNull(checkpoint, "checkpoint");
-    this.checkpoint = checkpoint;
-  }
-
-  @Override
-  public KinesisReaderCheckpoint generate(KinesisClient client) {
-    return checkpoint;
-  }
-
-  @Override
-  public String toString() {
-    return checkpoint.toString();
+    KinesisSource source = new KinesisSource(read);
+    assertThat(source).isNotNull();
   }
 }
