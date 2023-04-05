@@ -23,7 +23,7 @@ import 'google_analytics4_service.dart';
 
 @internal
 BeamGoogleAnalytics4Service createGoogleAnalytics4Service({
-  required String propertyId,
+  required String measurementId,
 }) =>
     BeamGoogleAnalytics4ServiceNonWeb();
 

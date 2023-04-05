@@ -23,11 +23,11 @@ import 'google_analytics4_service_non_web.dart'
 /// An umbrella class over platform implementations of Google Analytics 4.
 abstract class BeamGoogleAnalytics4Service extends BeamAnalyticsService {
   factory BeamGoogleAnalytics4Service({
-    required String propertyId,
+    required String measurementId,
   }) =>
 
       /// Call the platform-specific factory function.
-      createGoogleAnalytics4Service(propertyId: propertyId);
+      createGoogleAnalytics4Service(measurementId: measurementId);
 
   /// Since we use the default constructor as the factory,
   /// a non-factory constructor with any other name is required for subclasses.

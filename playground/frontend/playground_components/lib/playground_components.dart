@@ -18,6 +18,7 @@
 
 export 'src/cache/example_cache.dart';
 
+export 'src/constants/analytics.dart';
 export 'src/constants/colors.dart';
 export 'src/constants/links.dart';
 export 'src/constants/sizes.dart';

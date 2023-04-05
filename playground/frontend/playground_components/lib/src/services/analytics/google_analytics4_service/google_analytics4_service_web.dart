@@ -34,17 +34,17 @@ const _function = 'gtag';
 
 @internal
 BeamGoogleAnalytics4Service createGoogleAnalytics4Service({
-  required String propertyId,
+  required String measurementId,
 }) =>
-    BeamGoogleAnalytics4ServiceWeb(propertyId: propertyId);
+    BeamGoogleAnalytics4ServiceWeb(measurementId: measurementId);
 
 /// Submits data to a Google Analytics 4 property using JavaScript.
 class BeamGoogleAnalytics4ServiceWeb extends BeamGoogleAnalytics4Service {
-  final String propertyId;
+  final String measurementId;
   final _readyCompleter = Completer<void>();
 
   BeamGoogleAnalytics4ServiceWeb({
-    required this.propertyId,
+    required this.measurementId,
   }) : super.create() {
     _loadGoogleJs();
   }
@@ -56,7 +56,7 @@ class BeamGoogleAnalytics4ServiceWeb extends BeamGoogleAnalytics4Service {
     _logJsDate();
     _logConfig();
 
-    final url = _urlTemplate.replace(queryParameters: {'id': propertyId});
+    final url = _urlTemplate.replace(queryParameters: {'id': measurementId});
     final element = document.createElement('script') as ScriptElement;
     element.async = true;
     element.src = url.toString(); // ignore: unsafe_html
@@ -74,7 +74,7 @@ class BeamGoogleAnalytics4ServiceWeb extends BeamGoogleAnalytics4Service {
   }
 
   void _logConfig() {
-    _log('config', [propertyId]);
+    _log('config', [measurementId]);
   }
 
   void _log(String command, List<Object?> arguments) {

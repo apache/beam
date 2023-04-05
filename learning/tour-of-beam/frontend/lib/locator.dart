@@ -67,7 +67,7 @@ void _initializeState() {
 
 void _initializeServices() {
   final analyticsService = BeamGoogleAnalytics4Service(
-    propertyId: kAnalyticsUA,
+    measurementId: getGoogleAnalyticsMeasurementId(),
   );
   GetIt.instance.registerSingleton<BeamAnalyticsService>(analyticsService);
 }

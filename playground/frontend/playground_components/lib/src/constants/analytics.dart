@@ -16,10 +16,23 @@
  * limitations under the License.
  */
 
-// This file was auto-generated and used to contain backend URLs.
-// They are now determined automatically
-// as of https://github.com/apache/beam/pull/25610
-// TODO(alexeyinkin): When it is merged, find a better place for the remaining
-//  constant and delete this file.
+/// Measurement ID for production Playground and Tour of Beam.
+const _prodMeasurementId = 'G-XE511WT838';
 
-const String kAnalyticsUA = 'G-BXFP2FNCKC';
+/// Measurement ID for all non-production instances.
+const _devMeasurementId = 'G-BXFP2FNCKC';
+
+/// Hosts to use [_prodMeasurementId] on.
+const _prodHosts = {
+  'play.beam.apache.org',
+  'tour.beam.apache.org',
+};
+
+final _hostsToMeasurementIds = {
+  for (final host in _prodHosts) host: _prodMeasurementId,
+};
+
+/// Returns the measurement ID for the current host.
+String getGoogleAnalyticsMeasurementId() {
+  return _hostsToMeasurementIds[Uri.base.host] ?? _devMeasurementId;
+}
