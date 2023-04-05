@@ -161,9 +161,18 @@ cd beam
  ./gradlew playground:backend:testWithoutCache
 ```
 
+# Referenced Beam SDK update
+1. Update default `BEAM_SDK` values in Java contianer [Dockerfile](/playground/backend/containers/java/Dockerfile):
+1. Update SDK version in CI GitHub workflow:
+    - [playground_examples_ci_reusable.yml](/.github/workflows/playground_examples_ci_reusable.yml)
+1. Update `-Psdk-tag=` in ["Deploy Playground to Kubernetes" section of the deployment guide](/playground/terraform/README.md#deploy-playground-to-kubernetes)
+1. Update `_BEAM_VERSION` in
+    - [playground_ci_stable.yaml](/playground/infrastructure/cloudbuild/playground_ci_stable.yaml)
+    - [playground_cd_stable.yaml](/playground/infrastructure/cloudbuild/playground_cd_stable.yaml)
+
 # Deployment
 
-See [terraform](./terraform/README.md) for details on how to build and deploy
+See [this guide](./terraform/README.md) for details on how to build and deploy
 the application and its dependent infrastructure.
 
 # Manual Example deployment
