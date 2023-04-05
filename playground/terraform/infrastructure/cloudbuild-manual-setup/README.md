@@ -33,7 +33,8 @@ Cloud Build triggers created by terraform scripts from this directory automate s
     - Service Account User
     - Secret Manager Admin
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
-- An existing GCP Bucket to save Terraform state - `state-bucket`
+- An existing GCS Bucket to save Terraform state - `state-bucket`
+- An existing GCS Bucket to store CI privae logs - `private-logs-bucket`
 - DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
 - [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)

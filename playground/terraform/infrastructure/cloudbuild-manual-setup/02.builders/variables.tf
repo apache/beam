@@ -159,3 +159,7 @@ variable "data_for_cicd_webhook_secret" {
 variable "data_for_github_pat_secret" {
   description = "The GitHub generated Personal Access Token value"
 }
+
+variable "private_logs_bucket" {
+  description = "The GCS bucket name to store CI logs privately"
+}
