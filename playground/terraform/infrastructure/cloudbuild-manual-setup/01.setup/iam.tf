@@ -26,7 +26,7 @@ resource "google_service_account" "pg_cloudbuild_helm_updater_sa" {
 }
 
 resource "google_service_account" "pg_cloudbuild_cicd_runner_sa" {
-  account_id   = var.playground_cloudbuild_updater_sa_name
+  account_id   = var.pg_cloudbuild_cicd_sa_name
   description  = "The service account to be used by cloud build to run CI/CD scripts and checks"
 }
 

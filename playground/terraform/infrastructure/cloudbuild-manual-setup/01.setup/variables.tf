@@ -27,6 +27,6 @@ variable "pg_cloudbuild_helm_updater_sa_name" {
   description = "The ID of the cloud build service account responsible for updating the Playground"
 }
 
-variable "playground_cloudbuild_updater_sa_name" {
+variable "pg_cloudbuild_cicd_sa_name" {
   description = "The ID of the cloud build service account responsible for running Playground CI/CD checks and scripts"
 }
