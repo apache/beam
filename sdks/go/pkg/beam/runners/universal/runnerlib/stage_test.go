@@ -73,7 +73,7 @@ func TestPortableArtifactStaging(t *testing.T) {
 	das.wantToken = "token"
 	das.reqFile = "stage.go"
 
-	err := StageViaPortableApi(ctx, cc, "reqFile", das.wantToken)
+	err := StageViaPortableAPI(ctx, cc, "reqFile", das.wantToken)
 	if err != nil {
 		t.Fatal(err)
 	}
