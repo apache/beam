@@ -23,9 +23,9 @@ import static org.apache.beam.sdk.io.jms.CommonJms.USERNAME;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -243,7 +243,7 @@ public class JmsIOIT implements Serializable {
 
   private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers =
         getMetricsSuppliers(uuid, timestamp, READ_TIME_METRIC);
