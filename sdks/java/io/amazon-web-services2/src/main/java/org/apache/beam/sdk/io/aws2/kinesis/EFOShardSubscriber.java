@@ -165,7 +165,7 @@ class EFOShardSubscriber {
 
           // happy-path re-subscribe, subscription was complete by the SDK after 5 mins
           if (error == null && state != STOPPED && lastContinuationSequenceNumber != null) {
-            pool.delayedTask(() -> internalReSubscribe(lastContinuationSequenceNumber), 0);
+            internalReSubscribe(lastContinuationSequenceNumber);
             return;
           }
 
