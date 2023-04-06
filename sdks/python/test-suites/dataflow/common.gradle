@@ -37,7 +37,7 @@ task initializeForDataflowJob{
   }
   dependsOn 'installGcpTest'
 
-  if (wheelCompatible) { // change to project.hasProperty('useWheelDistribution') before merge
+  if (project.hasProperty('useWheelDistribution')) {
     dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
 
     doLast {
