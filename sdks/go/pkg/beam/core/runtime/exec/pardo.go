@@ -356,7 +356,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	return val, nil
 }
 
-func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, tmap typex.TimerMap) (*FullValue, error) {
+func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, tmap TimerRecv) (*FullValue, error) {
 	if fn == nil {
 		log.Infof(ctx, "timer function is not attached to pardo")
 		return nil, nil
@@ -370,10 +370,10 @@ func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID s
 	}
 	log.Infof(ctx, "timercoder map: %+v", n.Timer.(*userTimerAdapter).TimerIDToCoder)
 
-	log.Infof(ctx, "timer key converted with string: %v", string(tmap.Key))
+	// log.Infof(ctx, "timer key converted with string: %v", string(tmap.Key))
 	val, err := InvokeWithOpts(ctx, fn, tmap.Pane, nil, tmap.HoldTimestamp, InvokeOpts{
 		// decode with timer coder from graph/fn.go
-		opt:   &MainInput{Key: FullValue{Elm: string(tmap.Key), Timestamp: tmap.HoldTimestamp, Windows: tmap.Windows, Pane: tmap.Pane}},
+		opt:   &MainInput{Key: *tmap.Key},
 		bf:    n.bf,
 		we:    n.we,
 		sa:    n.UState,

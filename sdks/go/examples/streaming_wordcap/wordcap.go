@@ -79,7 +79,7 @@ func NewStateful() *Stateful {
 }
 
 func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Provider, key, timerKey, timerTag string) {
-	log.Infof(ctx, "timer fired  on stateful")
+	log.Infof(ctx, "timer fired  on stateful for element: %v, timerKey: %v, timerTag: %v", key, timerKey, timerTag)
 	switch timerKey {
 	case "outputState":
 		log.Infof(ctx, "outputState fired on stateful")

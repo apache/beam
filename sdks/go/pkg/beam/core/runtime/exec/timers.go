@@ -21,6 +21,7 @@ import (
 	"io"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -129,4 +130,13 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 	if err := enc.Encode(&fv, w); err != nil {
 		panic(err)
 	}
+}
+
+type TimerRecv struct {
+	Key                          *FullValue
+	Tag                          string
+	Windows                      []typex.Window // []typex.Window
+	Clear                        bool
+	FireTimestamp, HoldTimestamp mtime.Time
+	Pane                         typex.PaneInfo
 }

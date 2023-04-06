@@ -1291,8 +1291,8 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 }
 
 // decodeTimer decodes timer byte encoded with standard timer coder spec.
-func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (typex.TimerMap, error) {
-	tm := typex.TimerMap{}
+func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv, error) {
+	tm := TimerRecv{}
 
 	// fv, err := dec.Decode(r)
 	// if err != nil {
@@ -1301,7 +1301,7 @@ func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (typex.Time
 	// // TODO Change to not type assert once general timers key fix is done.
 	// tm.Key = fv.Elm.([]byte)
 
-	key, err := coder.DecodeBytes(r)
+	key, err := dec.Decode(r)
 	if err != nil {
 		return tm, errors.WithContext(err, "error decoding key")
 	}
