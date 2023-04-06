@@ -76,7 +76,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   }
 
   substitutions = {
-    _APP_ENGINE_FLAG : var.appengine_flag
+    _APPENGINE_FLAG : var.appengine_flag
     _DATASTORE_NAMESPACE: var.datastore_namespace
     _DNS_NAME: var.playground_dns_name
     _GKE_MACHINE_TYPE : var.gke_machine_type
@@ -92,7 +92,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _REDIS_TIER: var.redis_tier
     _REPOSITORY_ID: var.docker_repository_root
     _SDK_TAG: var.sdk_tag
-    _SERVICE_ACCOUNT_ID: var.playground_service_account
+    _SERVICEACCOUNT_ID: var.playground_service_account
     _STATE_BUCKET: var.state_bucket
     _SUBNETWORK_NAME: var.playground_subnetwork_name
     _TAG_NAME: var.image_tag
