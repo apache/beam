@@ -260,6 +260,7 @@ jobs:
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
+      # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
       run: pip install cibuildwheel==2.9.0
     - name: Build wheel
       working-directory: apache-beam-source
