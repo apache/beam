@@ -214,7 +214,7 @@ class EFOShardSubscribersPool {
         if (current.hasNext()) {
           KinesisClientRecord r = current.next();
           KinesisRecord kinesisRecord = new KinesisRecord(r, read.getStreamName(), shardId);
-          if (shardState.recordWasNotCheckPointedYet(kinesisRecord)) {
+          if (shardState.isAfterInitialCheckpoint(kinesisRecord)) {
             shardState.update(kinesisRecord);
             return kinesisRecord;
           }
@@ -421,7 +421,15 @@ class EFOShardSubscribersPool {
       return watermarkPolicy.getWatermark();
     }
 
-    boolean recordWasNotCheckPointedYet(KinesisRecord r) {
+    /**
+     * Compares record with initialisation checkpoint.
+     *
+     * <p>This is necessary when consuming aggregated records from Kinesis: only a part of records
+     * from an aggregate might have been checkpoint-ed before, but the other part still must be
+     * loaded. This check filters out the part which was already consumed, since it's not possible
+     * to subscribe with a given {@link #subSequenceNumber}
+     */
+    boolean isAfterInitialCheckpoint(KinesisRecord r) {
       return initCheckpoint.isBeforeOrAt(r);
     }
   }
