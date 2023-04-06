@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This loop reads the arguments passed to the script, parses them, and exports      them as environment variables.
+# This loop reads the arguments passed to the script, parses them, and exports them as environment variables.
 for ARGUMENT in "$@"
 do
    KEY=$(echo $ARGUMENT | cut -f1 -d=)
@@ -26,15 +26,10 @@ do
 done
 
 # This block sets default values for several environment variables to run CD script.
-export LOG_PATH=${LOG_PATH-"/dev/null"}
 export ORIGIN=${ORIGIN-"PG_EXAMPLES"}
 export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
 export PROJECT_ID=${PROJECT_ID}
-if [[ -z "${PROJECT_ID}" ]]; then
-  echo "PROJECT_ID is empty or not set. Exiting"
-  exit 1
-fi
 export SDK_CONFIG=${SDK_CONFIG-"$BEAM_ROOT_DIR/playground/sdks.yaml"}
 export BEAM_EXAMPLE_CATEGORIES=${BEAM_EXAMPLE_CATEGORIES-"$BEAM_ROOT_DIR/playground/categories.yaml"}
 export BEAM_USE_WEBGRPC=${BEAM_USE_WEBGRPC-"yes"}
@@ -51,6 +46,13 @@ if [[ -z "${NAMESPACE}" ]]; then
   echo "Datastore NAMESPACE is empty or not set. Exiting"
   exit 1
 fi
+export SOURCE_BRANCH=${SOURCE_BRANCH}
+if [[ -z "${SOURCE_BRANCH}" ]]; then
+  echo "PR Source Branch is empty or not set. Exiting"
+  exit 1
+fi
+export ALLOWLIST=${ALLOWLIST-"learning/katas sdks/ examples/"}
+export DIFF_BASE=${DIFF_BASE-"origin/master"}
 
 # This function logs the given message to a file and outputs it to the console.
 function LogOutput ()
@@ -62,7 +64,7 @@ function LogOutput ()
 
 LogOutput "Input variables:
  ORIGIN=$ORIGIN
- STEP=$STEP
+ STEP=${STEP}
  SUBDIRS=$SUBDIRS
  BEAM_ROOT_DIR=$BEAM_ROOT_DIR
  PROJECT_ID=$PROJECT_ID
@@ -73,7 +75,8 @@ LogOutput "Input variables:
  COMMIT=$COMMIT
  DNS_NAME=$DNS_NAME
  BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC
- NAMESPACE=$NAMESPACE"
+ NAMESPACE=$NAMESPACE
+ SOURCE_BRANCH=$SOURCE_BRANCH"
 
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
@@ -83,12 +86,13 @@ if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
 
-LogOutput "Installing python and dependencies"
+export STEP=CD
+
+LogOutput "Installing python and dependencies."
 # Install Python 3 and dependencies
 set -e  # Exit immediately if any command fails
 apt update > /dev/null 2>&1
 export DEBIAN_FRONTEND=noninteractive
-
 apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null 2>&1
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null 2>&1
@@ -99,35 +103,59 @@ ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
 apt install -y python3.8-venv > /dev/null 2>&1
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
-LogOutput "All packages and dependencies have been successfully installed. Starting Playground examples Deployment to https://${DNS_NAME}."
+LogOutput "Python and dependencies have been successfully installed."
 
-# Run CD script to deploy Examples to Playground for Go, Java, Python SDK
-cd $BEAM_ROOT_DIR/playground/infrastructure
+LogOutput "Checking what files were changed in the PR."
+
+git fetch --all > /dev/null 2>&1
+
+diff_log=$(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH)
+diff=($(echo "$diff_log" | tr '\n' ' '))
+LogOutput "List of changed files in PR $SOURCE_BRANCH merging into $DIFF_BASE are:
+$diff_log"
+
+LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
+allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
 do
-    export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-    python3 ci_cd.py \
-    --datastore-project ${PROJECT_ID} \
-    --namespace ${NAMESPACE} \
-    --step CD \
+    eval "example_for_${sdk}_changed"='False'
+    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
+    cd $BEAM_ROOT_DIR/playground/infrastructure
+    python3 checker.py \
+    --verbose \
     --sdk SDK_"${sdk^^}" \
-    --origin ${ORIGIN} \
-    --subdirs ${SUBDIRS}
-    if [ $? -eq 0 ]
-        then
-            LogOutput "Examples for $sdk SDK have been successfully deployed."
-            eval "cd_${sdk}_passed"='True'
-        else
-            LogOutput "Examples deployment for $sdk SDK has failed."
-        fi
-done
-
-for sdk in $SDKS
-do
-    result=$(eval echo '$'"cd_${sdk}_passed")
-    if [ "$result" != "True" ]; then
-        LogOutput "At least one of the SDK has failed to deploy. Please check the Cloud Build logs."
+    --allowlist "" \
+    --paths "${diff[@]}"
+    checker_status=$?
+    if [ $checker_status -eq 0 ]; then
+        LogOutput "Checker found changed examples for SDK_${sdk^^}"
+        eval "example_for_${sdk}_changed"='True'
+    elif [ $checker_status -eq 11 ]; then
+        LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
+        eval "example_for_${sdk}_changed"='False'
+        continue
+    else
+        LogOutput "Error: Checker is broken. Exiting the script."
         exit 1
     fi
+
+    result=$(eval echo '$'"example_for_${sdk}_changed")
+
+    if [[ $result == True ]]; then
+        LogOutput "Running ci_cd.py for SDK $sdk"
+
+        export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
+        python3 ci_cd.py \
+        --datastore-project ${PROJECT_ID} \
+        --namespace ${NAMESPACE} \
+        --step ${STEP} \
+        --sdk SDK_"${sdk^^}" \
+        --origin ${ORIGIN} \
+        --subdirs ${SUBDIRS}
+        if [ $? -eq 0 ]; then
+            LogOutput "Examples for $sdk SDK have been successfully deployed."
+        else
+            LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
+        fi
+    fi
 done
-exit 0
