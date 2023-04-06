@@ -17,48 +17,51 @@
 
 # pytype: skip-file
 
-from apache_beam.coders import coders
+import hashlib
 
-# define unique tags for the supported types
-SUPPORTED_CODERS_FOR_UNION = [
-    ("I ", coders.VarIntCoder),
-    ("F ", coders.FloatCoder),
-    ("B ", coders.BytesCoder),
-    ("BL", coders.BooleanCoder),
-    ("S ", coders.StrUtf8Coder),
-]
+from apache_beam.coders import coders
+from apache_beam.coders.typecoders import CoderRegistry
+
+
+def _get_coder_tag(c):
+  # only use two bytes from the hash value
+  hf = hashlib.sha256()
+  hf.update(str(c).encode())
+  return hf.digest()[0:2]
 
 
 class UnionCoder(coders.FastCoder):
   def __init__(self):
-    self._coders = {
-        c().to_type_hint(): (t, c())
-        for t, c in SUPPORTED_CODERS_FOR_UNION
+    self._coder_registry = CoderRegistry()
+    self._tag_to_type = {
+        _get_coder_tag(t.__name__): c
+        for t,
+        c in self._coder_registry._coders.items()
     }
-    self._coders_for_tags = {t: c() for t, c in SUPPORTED_CODERS_FOR_UNION}
-    self._coders_in_str = [
-        c().to_type_hint().__name__ for _, c in SUPPORTED_CODERS_FOR_UNION
-    ]
 
   def encode(self, value) -> bytes:
     """
       Encodes the given Union value into bytes.
       """
-    coder = self._coders.get(type(value), None)
+    coder = self._coder_registry.get_coder(type(value))
     if coder is None:
       raise ValueError(
           "Unknown type {} for UnionCoder with {}".format(type(value), value))
 
-    return str(coder[0]).encode("utf-8") + coder[1].encode(value)
+    return _get_coder_tag(coder) + coder.encode(value)
 
   def decode(self, encoded: bytes):
     """
       Decodes the given bytes into a Union value.
       """
-    tag = encoded[:2].decode("utf-8")
-    coder = self._coders_for_tags.get(tag, None)
-    if coder is None:
-      raise ValueError("Unknown tag for UnionCoder: {}".format(tag))
+    tag = encoded[:2]
+    value_type = self._tag_to_type.get(tag, None)
+    if value_type:
+      coder = self._coder_registry.get_coder(value_type)
+      if coder is None:
+        raise ValueError(
+            "Unknown tag for UnionCoder: {} with type {}".format(
+                tag, value_type))
     return coder.decode(encoded[2:])
 
   def is_deterministic(self) -> bool:
