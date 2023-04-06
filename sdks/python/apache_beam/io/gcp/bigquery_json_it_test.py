@@ -46,8 +46,8 @@ except ImportError:
 
 _LOGGER = logging.getLogger(__name__)
 
-PROJECT = 'google.com:clouddfe'
-# this dataset holds the canonical rows.
+PROJECT = 'apache-beam-testing'
+# this dataset holds the canonical rows consisting json data types.
 DATASET_ID = 'bq_jsontype_test_nodelete'
 JSON_TABLE_NAME = 'json_data'
 
