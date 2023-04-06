@@ -37,11 +37,11 @@ RUN apt-get update && \
 ####
 # Install required packages for Beam Python SDK and common dependencies used by users.
 ####
-
+ARG install_release_candidates
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install --no-deps -r /tmp/base_image_requirements.txt && \
+    pip install "${install_release_candidates}" --no-deps -r /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
     # Check that the protobuf upb(also called micro protobuf) is used.
@@ -70,9 +70,11 @@ RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=fa
 ####
 # Install Apache Beam SDK. Use --no-deps and pip check to verify that all
 # necessary dependencies are specified in base_image_requirements.txt.
+# use ARG install_release_candidates to install release candidates(RCs) of Beam'
+# dependencies.
 ####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+RUN pip install ${install_release_candidates} --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
 RUN pip check || (echo "Container does not include required Beam dependencies or has conflicting dependencies. If Beam dependencies have changed, you need to regenerate base_image_requirements.txt files. See: https://s.apache.org/beam-python-requirements-generate" && exit 1)
 # Log complete list of what exact packages and versions are installed.
 RUN pip freeze --all
