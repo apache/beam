@@ -858,7 +858,7 @@ public class JdbcIO {
 
     /**
      * @deprecated
-     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     *     <p>{@link JdbcIO} is able to infer appropriate coders from other parameters.
      */
     @Deprecated
     public Read<T> withCoder(Coder<T> coder) {
@@ -1027,7 +1027,7 @@ public class JdbcIO {
 
     /**
      * @deprecated
-     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     *     <p>{@link JdbcIO} is able to infer appropriate coders from other parameters.
      */
     @Deprecated
     public ReadAll<ParameterT, OutputT> withCoder(Coder<OutputT> coder) {
