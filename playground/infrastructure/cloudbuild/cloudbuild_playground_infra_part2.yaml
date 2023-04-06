@@ -34,9 +34,9 @@ steps:
         
         add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
         
-        apt update
+        apt-get update
         
-        apt install -y docker-ce > /dev/null
+        apt-get install -y docker-ce > /dev/null
 
         wget
         https://releases.hashicorp.com/terraform/1.4.2/terraform_1.4.2_linux_amd64.zip 
