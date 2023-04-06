@@ -57,7 +57,7 @@ export DIFF_BASE=${DIFF_BASE-"origin/master"}
 # This function logs the given message to a file and outputs it to the console.
 function LogOutput ()
 {
-    echo "$(date --utc '+%D %T') $1" >> $LOG_PATH
+    echo "$(date --utc '+%D %T') $1"
     # CDLOG keyword to simplify search over the global log
     echo "CDLOG $(date --utc '+%D %T') $1"
 }
