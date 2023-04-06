@@ -305,9 +305,6 @@ class EFOShardSubscriber {
      * <p>This increments {@link #inFlight} and immediately {@link Subscription#request requests}
      * another event if below the {@link #inFlight} limit. Otherwise this is done on the next {@link
      * #ackEvent()}.
-     *
-     * <p>This continuously updates {@link #sequenceNumber}. In case of any exception, {@link
-     * #subscription} is cancelled and {@link #done} is completed exceptionally.
      */
     @Override
     public void visit(SubscribeToShardEvent event) {
