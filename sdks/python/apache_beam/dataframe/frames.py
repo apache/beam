@@ -2636,18 +2636,13 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def set_index(self, keys, **kwargs):
-    """``keys`` must be a ``str`` or ``List[str]``. Passing an Index or Series
-    is not yet supported (`Issue 20759
-    <https://github.com/apache/beam/issues/20759>`_)."""
     if isinstance(keys, str):
       keys = [keys]
 
-    if any(isinstance(k, (_DeferredIndex, frame_base.DeferredFrame))
-           for k in keys):
-      raise NotImplementedError("set_index with Index or Series instances is "
-                                "not yet supported "
-                                "(https://github.com/apache/beam/issues/20759)"
-                                ".")
+    keys = [
+      k._frame._expr.proxy().index if isinstance(k, (_DeferredIndex, frame_base.DeferredFrame)) else k
+      for k in keys
+    ]
 
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
@@ -2656,7 +2651,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           [self._expr],
           requires_partition_by=partitionings.Arbitrary(),
           preserves_partition_by=partitionings.Singleton()))
-
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
