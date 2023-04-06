@@ -26,6 +26,9 @@ This guide consists of:
 - [Code processing pipeline](#code-processing-pipeline)
 - [How to add a new supported language](#how-to-add-a-new-supported-language)
 
+See also:
+- [Database schema](SCHEMA.md)
+
 ## Project structure
 
 ```
