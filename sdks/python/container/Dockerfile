@@ -41,7 +41,7 @@ ARG install_release_candidates
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install "${install_release_candidates}" --no-deps -r /tmp/base_image_requirements.txt && \
+    pip install ${install_release_candidates} --no-deps -r /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
     # Check that the protobuf upb(also called micro protobuf) is used.
