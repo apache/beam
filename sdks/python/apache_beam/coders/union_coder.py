@@ -20,7 +20,7 @@
 import hashlib
 
 from apache_beam.coders import coders
-from apache_beam.coders.typecoders import CoderRegistry
+from apache_beam.coders.typecoders import registry
 
 
 def _get_coder_tag(c):
@@ -32,11 +32,11 @@ def _get_coder_tag(c):
 
 class UnionCoder(coders.FastCoder):
   def __init__(self):
-    self._coder_registry = CoderRegistry()
+    # assuming all custom coders are registered
+    self._coder_registry = registry
     self._tag_to_type = {
-        _get_coder_tag(t.__name__): c
-        for t,
-        c in self._coder_registry._coders.items()
+        _get_coder_tag(str(t)): t
+        for t in self._coder_registry._coders
     }
 
   def encode(self, value) -> bytes:
@@ -48,7 +48,7 @@ class UnionCoder(coders.FastCoder):
       raise ValueError(
           "Unknown type {} for UnionCoder with {}".format(type(value), value))
 
-    return _get_coder_tag(coder) + coder.encode(value)
+    return _get_coder_tag(coder.to_type_hint()) + coder.encode(value)
 
   def decode(self, encoded: bytes):
     """
