@@ -180,52 +180,14 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 
 
 class SchemaTransformPayloadBuilder(PayloadBuilder):
-  def __init__(self, schematransform_config, strict_schema=False, **kwargs):
-    self._schematransform_config = schematransform_config
-    self._strict_schema = strict_schema
+  def __init__(self, identifier, **kwargs):
+    self._identifier = identifier
     self._kwargs = kwargs
-
-  def _get_schema_proto_and_payload(self, **kwargs):
-    named_fields = []
-    fields_to_values = OrderedDict()
-    external_config_schema_fields = \
-      self._schematransform_config.configuration_schema._fields
-    kwargs_fields = tuple(self._kwargs.keys())
-
-    if self._strict_schema and external_config_schema_fields != kwargs_fields:
-      raise ValueError(
-          "Parameters in kwargs: %s do not match the external "
-          "SchemaTransform's configuration fields: %s" %
-          (kwargs_fields, external_config_schema_fields))
-
-    # The discover API allows us to obtain an ordered configuration schema
-    # that describes the SchemaTransform.
-    # We use this order to guide how we create the schema_proto and payload
-    for field in external_config_schema_fields:
-      if field not in kwargs:
-        raise ValueError(
-            'Encountered missing field: %s. All schema fields need to be '
-            'accounted for.' % field)
-      value = kwargs[field]
-      if value is None:
-        raise ValueError(
-            'Received value None for key %s. None values are currently not '
-            'supported' % field)
-      named_fields.append(
-          (field, convert_to_typing_type(instance_to_type(value))))
-      fields_to_values[field] = value
-
-    schema_proto = named_fields_to_schema(named_fields)
-    row = named_tuple_from_schema(schema_proto)(**fields_to_values)
-    schema = named_tuple_to_schema(type(row))
-
-    payload = RowCoder(schema).encode(row)
-    return (schema_proto, payload)
 
   def build(self):
     schema_proto, payload = self._get_schema_proto_and_payload(**self._kwargs)
     payload = external_transforms_pb2.SchemaTransformPayload(
-        identifier=self._schematransform_config.identifier,
+        identifier=self._identifier,
         configuration_schema=schema_proto,
         configuration_row=payload)
     return payload
@@ -365,10 +327,10 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
   :param expansion_service: an expansion service to use. This should already be
       available and the Schema-aware transforms to be used must already be
       deployed.
-  :param strict_schema: a flag that determines if the order of parameters in
-      `kwargs` should exactly match the external configuration schema order.
-      When :data:`True`, will fail if there is a mismatch. Defaults to
-      :data:`False`.
+  :param rearrange_based_on_discovery: if this flag is set, the input kwargs
+      will be rearranged to match the order of fields in the external
+      SchemaTransform configuration. A discovery call will be made to fetch
+      the configuration.
   :param classpath: (Optional) A list paths to additional jars to place on the
       expansion service classpath.
   :kwargs: field name to value mapping for configuring the schema transform.
@@ -379,27 +341,52 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       self,
       identifier,
       expansion_service,
-      strict_schema=False,
+      rearrange_based_on_discovery=False,
       classpath=None,
       **kwargs):
     self._expansion_service = expansion_service
-    self._identifier = identifier
-    self._strict_schema = strict_schema
     self._kwargs = kwargs
     self._classpath = classpath
 
-  def expand(self, pcolls):
+    _kwargs = kwargs
+    if rearrange_based_on_discovery:
+      _kwargs = self._rearrange_kwargs(identifier)
+
+    self._payload_builder = SchemaTransformPayloadBuilder(identifier, **_kwargs)
+
+  def _rearrange_kwargs(self, identifier):
     # discover and fetch the external SchemaTransform configuration then
     # use it to build an appropriate payload
     schematransform_config = SchemaAwareExternalTransform.discover_config(
-        self._expansion_service, self._identifier)
-    payload_builder = SchemaTransformPayloadBuilder(
-        schematransform_config, self._strict_schema, **self._kwargs)
+        self._expansion_service, identifier)
 
+    external_config_fields = schematransform_config.configuration_schema._fields
+    ordered_kwargs = {}
+    missing_fields = []
+
+    for field in external_config_fields:
+      if field not in self._kwargs:
+        missing_fields.append(field)
+      else:
+        ordered_kwargs[field] = self._kwargs[field]
+
+    extra_fields = list(set(self._kwargs.keys()) - set(external_config_fields))
+    if missing_fields:
+      raise ValueError(
+          'Input parameters are missing the following SchemaTransform config '
+          'fields: %s' % missing_fields)
+    elif extra_fields:
+      raise ValueError(
+          'Input parameters include the following extra fields that are not '
+          'found in the SchemaTransform config schema: %s' % extra_fields)
+
+    return ordered_kwargs
+
+  def expand(self, pcolls):
     # Expand the transform using the expansion service.
     return pcolls | ExternalTransform(
         common_urns.schematransform_based_expand.urn,
-        payload_builder,
+        self._payload_builder,
         self._expansion_service)
 
   @staticmethod

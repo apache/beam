@@ -47,7 +47,6 @@ from apache_beam.transforms.external import JavaExternalTransform
 from apache_beam.transforms.external import JavaJarExpansionService
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.transforms.external import SchemaTransformPayloadBuilder
-from apache_beam.transforms.external import SchemaTransformsConfig
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
@@ -456,21 +455,12 @@ class SchemaTransformPayloadBuilderTest(unittest.TestCase):
             ("str_sub_field", str),
             ("int_sub_field", int),
         ])
-    test_schema = typing.NamedTuple(
-        "TestBeamSchema", [("str_field", str), ("int_field", int),
-                           ("object_field", ComplexType)])
-
-    test_external_config = SchemaTransformsConfig(
-        identifier='dummy_id',
-        configuration_schema=test_schema,
-        inputs=["input"],
-        outputs=["output"])
 
     payload_builder = SchemaTransformPayloadBuilder(
-        schematransform_config=test_external_config,
-        object_field=ComplexType(str_sub_field="bbb", int_sub_field=456),
+        identifier='dummy_id',
+        str_field='aaa',
         int_field=123,
-        str_field='aaa')
+        object_field=ComplexType(str_sub_field="bbb", int_sub_field=456))
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
         payload_bytes, external_transforms_pb2.SchemaTransformPayload)
@@ -481,33 +471,10 @@ class SchemaTransformPayloadBuilderTest(unittest.TestCase):
     schema_transform_config = expected_coder.decode(
         payload_from_bytes.configuration_row)
 
-    self.assertEqual(test_schema._fields, schema_transform_config._fields)
     self.assertEqual('aaa', schema_transform_config.str_field)
     self.assertEqual(123, schema_transform_config.int_field)
     self.assertEqual('bbb', schema_transform_config.object_field.str_sub_field)
     self.assertEqual(456, schema_transform_config.object_field.int_sub_field)
-
-  def test_kwargs_order_mismatch_fails_strict_schema_build(self):
-    test_schema = typing.NamedTuple(
-        "TestBeamSchema", [("str_field", str), ("int_field", int)])
-
-    test_external_config = SchemaTransformsConfig(
-        identifier='dummy_id',
-        configuration_schema=test_schema,
-        inputs=["input"],
-        outputs=["output"])
-
-    payload_builder = SchemaTransformPayloadBuilder(
-        schematransform_config=test_external_config,
-        strict_schema=True,
-        int_field=123,
-        str_field='aaa')
-
-    # schema: str_field, int_field
-    # payload: int_field, str_field
-    # mismatch should throw an error because strict_schema is True
-    with self.assertRaises(ValueError):
-      payload_builder.payload()
 
 
 class SchemaAwareExternalTransformTest(unittest.TestCase):
@@ -524,8 +491,11 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
           config_schema=schema_pb2.Schema(
               fields=[
                   schema_pb2.Field(
-                      name="test_field",
-                      type=schema_pb2.FieldType(atomic_type="STRING"))
+                      name="str_field",
+                      type=schema_pb2.FieldType(atomic_type="STRING")),
+                  schema_pb2.Field(
+                      name="int_field",
+                      type=schema_pb2.FieldType(atomic_type="INT64"))
               ],
               id="test-id"),
           input_pcollection_names=["input"],
@@ -549,6 +519,25 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       beam.SchemaAwareExternalTransform.discover_config(
           "test_service", name="non_existent")
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_rearrange_kwargs_based_on_discovery(self, mock_service):
+    mock_service.return_value = self.MockDiscoveryService()
+
+    identifier = "test_schematransform"
+    expansion_service = "test_service"
+    kwargs = {"int_field": 0, "str_field": "str"}
+
+    transform = beam.SchemaAwareExternalTransform(
+        identifier=identifier, expansion_service=expansion_service, **kwargs)
+    ordered_kwargs = transform._rearrange_kwargs(identifier)
+
+    schematransform_config = beam.SchemaAwareExternalTransform.discover_config(
+        expansion_service, identifier)
+    external_config_fields = schematransform_config.configuration_schema._fields
+
+    self.assertNotEqual(tuple(kwargs.keys()), external_config_fields)
+    self.assertEqual(tuple(ordered_kwargs.keys()), external_config_fields)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
