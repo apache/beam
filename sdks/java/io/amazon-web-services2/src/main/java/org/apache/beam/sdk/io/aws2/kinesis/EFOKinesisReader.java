@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
@@ -48,10 +47,10 @@ class EFOKinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       KinesisAsyncClient kinesis,
       KinesisReaderCheckpoint initCheckpoint,
       KinesisSource source) {
-    this.spec = checkArgumentNotNull(spec);
-    this.consumerArn = checkArgumentNotNull(consumerArn);
-    this.kinesis = checkArgumentNotNull(kinesis);
-    this.initCheckpoint = checkArgumentNotNull(initCheckpoint);
+    this.spec = spec;
+    this.consumerArn = consumerArn;
+    this.kinesis = kinesis;
+    this.initCheckpoint = initCheckpoint;
     this.source = source;
   }
 
