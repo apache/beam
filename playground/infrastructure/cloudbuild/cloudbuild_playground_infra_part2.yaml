@@ -23,7 +23,7 @@ steps:
         apt update > /dev/null
 
         apt-get install -y wget unzip software-properties-common git curl
-        apt-transport-https ca-certificates gnupg jq > /dev/null
+        apt-transport-https ca-certificates gnupg gnupg-agent jq > /dev/null
 
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
         
@@ -31,7 +31,7 @@ steps:
         
         apt-get update -y > /dev/null && apt-get install -y google-cloud-cli > /dev/null
         
-        curl -L https://download.docker.com/linux/ubuntu/gpg | tee /etc/apt/trusted.gpg.d/docker.gpg >/dev/null
+        curl -L https://download.docker.com/linux/ubuntu/gpg | tee /etc/apt/trusted.gpg.d/docker.gpg
         
         add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
         
