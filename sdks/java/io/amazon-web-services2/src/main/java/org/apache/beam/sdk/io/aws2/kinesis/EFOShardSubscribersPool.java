@@ -328,7 +328,7 @@ class EFOShardSubscribersPool {
 
   /** This is assumed to be never called before {@link #start} is called. */
   KinesisReaderCheckpoint getCheckpointMark() {
-    List<ShardCheckpoint> checkpoints = new ArrayList<>();
+    List<ShardCheckpoint> checkpoints = new ArrayList<>(state.size());
     for (ShardState shardState : state.values()) {
       checkpoints.add(shardState.toCheckpoint());
     }
