@@ -56,7 +56,6 @@ class EFOKinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   @Override
-  @SuppressWarnings("dereference.of.nullable")
   public boolean start() throws IOException {
     LOG.info("Starting reader using {}", initCheckpoint);
     try {
