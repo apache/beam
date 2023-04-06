@@ -177,8 +177,8 @@ class EFOShardSubscriber {
 
           String msg =
               String.format(
-                  "Unknown case which is likely a bug: state=%s seqnum=%s",
-                  state, lastContinuationSequenceNumber);
+                  "Pool %s - unknown case which is likely a bug: state=%s seqnum=%s",
+                  pool.getPoolId(), state, lastContinuationSequenceNumber);
           LOG.warn(msg);
           done.completeExceptionally(new IllegalStateException(msg));
         };
@@ -213,7 +213,8 @@ class EFOShardSubscriber {
   @SuppressWarnings("FutureReturnValueIgnored")
   private CompletableFuture<Void> internalSubscribe(StartingPosition position) {
     SubscribeToShardRequest request = subscribeRequest(position);
-    LOG.info("Pool {} Shard {} starting subscribe request {}", pool.getPoolId(), shardId, request);
+    LOG.info(
+        "Pool {} - shard {} starting subscribe request {}", pool.getPoolId(), shardId, request);
     try {
       kinesis.subscribeToShard(request, responseHandler()).whenComplete(reSubscriptionHandler);
       return done;
@@ -240,7 +241,7 @@ class EFOShardSubscriber {
    * ShardEventsSubscriber#cancel()} if defined.
    */
   void cancel() {
-    LOG.info("Pool {} Shard {} cancelling", pool.getPoolId(), shardId);
+    LOG.info("Pool {} - shard {} cancelling", pool.getPoolId(), shardId);
     if (state != STOPPED && eventsSubscriber != null) {
       eventsSubscriber.cancel();
       state = STOPPED;
@@ -326,7 +327,7 @@ class EFOShardSubscriber {
     /** Nothing to do here, handled in {@link #reSubscriptionHandler}. */
     @Override
     public void onError(Throwable t) {
-      LOG.warn("Pool id = {} shard id = {} subscriber got error", pool.getPoolId(), shardId, t);
+      LOG.warn("Pool {} - shard {} subscriber got error", pool.getPoolId(), shardId, t);
     }
 
     /** Unsets {@link #eventsSubscriber} of {@link EFOShardSubscriber}. */

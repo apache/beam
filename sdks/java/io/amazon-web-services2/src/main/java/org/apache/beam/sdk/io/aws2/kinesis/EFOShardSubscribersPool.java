@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
@@ -37,6 +36,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.RandomStringUtils;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ForwardingIterator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -66,7 +66,7 @@ class EFOShardSubscribersPool {
    *
    * <p>Injected into other objects which belong to this pool to ease tracing with logs.
    */
-  private final UUID poolId;
+  private final String poolId;
 
   private final KinesisIO.Read read;
   private final String consumerArn;
@@ -124,7 +124,7 @@ class EFOShardSubscribersPool {
   private final WatermarkPolicyFactory watermarkPolicyFactory;
 
   EFOShardSubscribersPool(KinesisIO.Read readSpec, String consumerArn, KinesisAsyncClient kinesis) {
-    this.poolId = UUID.randomUUID();
+    this.poolId = generatePoolId();
     this.read = readSpec;
     this.consumerArn = consumerArn;
     this.kinesis = kinesis;
@@ -137,7 +137,7 @@ class EFOShardSubscribersPool {
       String consumerArn,
       KinesisAsyncClient kinesis,
       int onErrorCoolDownMs) {
-    this.poolId = UUID.randomUUID();
+    this.poolId = generatePoolId();
     this.read = readSpec;
     this.consumerArn = consumerArn;
     this.kinesis = kinesis;
@@ -153,7 +153,7 @@ class EFOShardSubscribersPool {
    */
   void start(Iterable<ShardCheckpoint> checkpoints) {
     LOG.info(
-        "Starting pool {} {} {}. Checkpoints = {}",
+        "Pool {} - starting for stream {} consumer {}. Checkpoints = {}",
         poolId,
         read.getStreamName(),
         consumerArn,
@@ -251,7 +251,7 @@ class EFOShardSubscribersPool {
   private void onEventDone(ShardState shardState, EventRecords noRecordsEvent) {
     if (noRecordsEvent.event.continuationSequenceNumber() == null
         && noRecordsEvent.event.hasChildShards()) {
-      LOG.info("Processing re-shard signal {}", noRecordsEvent.event);
+      LOG.info("Pool {} - processing re-shard signal {}", poolId, noRecordsEvent.event);
       List<String> successorShardsIds = computeSuccessorShardsIds(noRecordsEvent);
       for (String successorShardId : successorShardsIds) {
         ShardCheckpoint newCheckpoint =
@@ -288,7 +288,7 @@ class EFOShardSubscribersPool {
     return subscriber;
   }
 
-  private static List<String> computeSuccessorShardsIds(EventRecords records) {
+  private List<String> computeSuccessorShardsIds(EventRecords records) {
     List<String> successorShardsIds = new ArrayList<>();
     SubscribeToShardEvent event = records.event;
     for (ChildShard childShard : event.childShards()) {
@@ -310,9 +310,13 @@ class EFOShardSubscribersPool {
     }
 
     if (successorShardsIds.isEmpty()) {
-      LOG.info("Found no successors for shard {}", records.shardId);
+      LOG.info("Pool {} - found no successors for shard {}", poolId, records.shardId);
     } else {
-      LOG.info("Found successors for shard {}: {}", records.shardId, successorShardsIds);
+      LOG.info(
+          "Pool {} - found successors for shard {}: {}",
+          poolId,
+          records.shardId,
+          successorShardsIds);
     }
     return successorShardsIds;
   }
@@ -337,7 +341,7 @@ class EFOShardSubscribersPool {
   }
 
   void stop() {
-    LOG.info("Stopping pool {}", poolId);
+    LOG.info("Pool {} - stopping", poolId);
     isStopped = true;
     state.forEach((shardId, st) -> st.subscriber.cancel());
     scheduler.shutdownNow(); // immediately discard all scheduled tasks
@@ -455,7 +459,7 @@ class EFOShardSubscribersPool {
     }
   }
 
-  UUID getPoolId() {
+  String getPoolId() {
     return poolId;
   }
 
@@ -475,5 +479,9 @@ class EFOShardSubscribersPool {
       cf.completeExceptionally(e);
     }
     return cf;
+  }
+
+  private static String generatePoolId() {
+    return RandomStringUtils.randomAlphanumeric(8).toLowerCase();
   }
 }
