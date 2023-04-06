@@ -36,7 +36,6 @@ package org.apache.beam.sdk.io.aws2.kinesis;
  */
 
 import com.google.auto.service.AutoService;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * PipelineOptions for {@link KinesisIO}.
@@ -94,11 +94,11 @@ public interface KinesisIOOptions extends PipelineOptions {
 
   void setKinesisIOConsumerArns(Map<String, String> value);
 
-  class MapFactory implements DefaultValueFactory<HashMap<String, String>> {
+  class MapFactory implements DefaultValueFactory<Map<String, String>> {
 
     @Override
-    public HashMap<String, String> create(PipelineOptions options) {
-      return new HashMap<>();
+    public Map<String, String> create(PipelineOptions options) {
+      return ImmutableMap.of();
     }
   }
 
