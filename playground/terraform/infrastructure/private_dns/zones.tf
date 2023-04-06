@@ -23,7 +23,7 @@ resource "google_dns_managed_zone" "private-zone-apis" {
 
   project     = var.project_id 
 
-  name        = replace(each.key,".","-")
+  name        = "${var.network_name}-${replace(each.key,".","-")}"
   dns_name    = format("%s%s",each.key,".")
   description = "Private ${each.key} Zone"
   

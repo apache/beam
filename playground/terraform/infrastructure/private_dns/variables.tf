@@ -21,6 +21,10 @@ variable "network_id" {
   description = "Network ID to use private dns zone in"
 }
 
+variable "network_name" {
+  description = "Network name to create name for zone"
+}
+
 variable "private_zones" {
   description = "List of private zones to point to private.googleapis.com"
   type = set(string)

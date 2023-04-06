@@ -102,6 +102,7 @@ module "private_dns" {
   source            = "./private_dns"
   project_id        = var.project_id
   network_id        = module.network.playground_network_id
+  network_name      = module.network.playground_network_name
   private_zones     = [
     "gcr.io",
     "pkg.dev",
