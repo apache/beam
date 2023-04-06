@@ -23,22 +23,28 @@ steps:
         apt update > /dev/null
 
         apt-get install -y wget unzip software-properties-common git curl
-        apt-transport-https ca-certificates gnupg jq > /dev/null
+        apt-transport-https ca-certificates gnupg jq lsb-release > /dev/null
 
-        echo "deb https://packages.cloud.google.com/apt cloud-sdk main" | tee -a
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg]
+        https://packages.cloud.google.com/apt cloud-sdk main" | tee -a
         /etc/apt/sources.list.d/google-cloud-sdk.list
 
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/google-cloud-sdk.gpg
-        
-        echo "deb [signed-by=/etc/apt/trusted.gpg.d/google-cloud-sdk.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | 
-        tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-        
-        
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-        
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu 
-        $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-        
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | tee
+        /usr/share/keyrings/cloud.google.gpg
+
+        apt-get update -y > /dev/null && apt-get install -y google-cloud-cli >
+        /dev/null
+
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor
+        -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+        echo "deb [arch=$(dpkg --print-architecture)
+        signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] 
+        https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" |
+        tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+        apt-get update -y > /dev/null
+
         apt install -y docker-ce > /dev/null
 
         wget
@@ -73,8 +79,9 @@ steps:
         "$_REDIS_NAME"' 'redis_tier = "$_REDIS_TIER"' 'min_count =
         "$_MIN_COUNT"' 'max_count = "$_MAX_COUNT"' 'app_engine_flag =
         "$_APPENGINE_FLAG"' 'ip-address-name = "$_IPADDRESS_NAME"'
-        'repository_id = "$_REPOSITORY_ID"' 'service_account_id =
-        "$_SERVICEACCOUNT_ID"' 'gke_machine_type = "$_GKE_MACHINE_TYPE"' >
+        'repository_id = "$_REPOSITORY_ID"' 
+        'service_account_id = "$_SERVICEACCOUNT_ID"' 
+        'gke_machine_type = "$_GKE_MACHINE_TYPE"' >
         playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
 
         printf 'bucket = "$_STATE_BUCKET"' >
