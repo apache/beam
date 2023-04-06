@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.beam.sdk.io.aws2.kinesis.TimeUtil.minTimestamp;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -120,14 +121,14 @@ class EFOShardSubscribersPool {
   // EventRecords iterator that is currently consumed
   @Nullable EventRecords current = null;
 
-  private final WatermarkPolicy watermarkPolicy;
+  private final WatermarkPolicyFactory watermarkPolicyFactory;
 
   EFOShardSubscribersPool(KinesisIO.Read readSpec, String consumerArn, KinesisAsyncClient kinesis) {
     this.poolId = UUID.randomUUID();
     this.read = readSpec;
     this.consumerArn = consumerArn;
     this.kinesis = kinesis;
-    this.watermarkPolicy = read.getWatermarkPolicyFactory().createWatermarkPolicy();
+    this.watermarkPolicyFactory = read.getWatermarkPolicyFactory();
     this.onErrorCoolDownMs = ON_ERROR_COOL_DOWN_MS_DEFAULT;
   }
 
@@ -140,7 +141,7 @@ class EFOShardSubscribersPool {
     this.read = readSpec;
     this.consumerArn = consumerArn;
     this.kinesis = kinesis;
-    this.watermarkPolicy = read.getWatermarkPolicyFactory().createWatermarkPolicy();
+    this.watermarkPolicyFactory = read.getWatermarkPolicyFactory();
     this.onErrorCoolDownMs = onErrorCoolDownMs;
   }
 
@@ -162,7 +163,9 @@ class EFOShardSubscribersPool {
           !state.containsKey(shardCheckpoint.getShardId()),
           "Duplicate shard id %s",
           shardCheckpoint.getShardId());
-      ShardState shardState = new ShardState(initShardSubscriber(shardCheckpoint), shardCheckpoint);
+      ShardState shardState =
+          new ShardState(
+              initShardSubscriber(shardCheckpoint), shardCheckpoint, watermarkPolicyFactory);
       state.put(shardCheckpoint.getShardId(), shardState);
     }
   }
@@ -212,8 +215,7 @@ class EFOShardSubscribersPool {
           KinesisClientRecord r = current.next();
           KinesisRecord kinesisRecord = new KinesisRecord(r, read.getStreamName(), shardId);
           if (shardState.recordWasNotCheckPointedYet(kinesisRecord)) {
-            shardState.update(r);
-            watermarkPolicy.update(kinesisRecord);
+            shardState.update(kinesisRecord);
             return kinesisRecord;
           }
           // Make sure to update shard state accordingly if `current` does not contain any more
@@ -259,7 +261,9 @@ class EFOShardSubscribersPool {
                 new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
         state.computeIfAbsent(
             successorShardId,
-            id -> new ShardState(initShardSubscriber(newCheckpoint), newCheckpoint));
+            id ->
+                new ShardState(
+                    initShardSubscriber(newCheckpoint), newCheckpoint, watermarkPolicyFactory));
       }
 
       state.remove(noRecordsEvent.shardId);
@@ -319,7 +323,7 @@ class EFOShardSubscribersPool {
   }
 
   Instant getWatermark() {
-    return watermarkPolicy.getWatermark();
+    return minTimestamp(state.values().stream().map(ShardState::getWatermark));
   }
 
   /** This is assumed to be never called before {@link #start} is called. */
@@ -356,18 +360,24 @@ class EFOShardSubscribersPool {
   private static class ShardState {
     final EFOShardSubscriber subscriber;
     final ShardCheckpoint initCheckpoint;
+    final WatermarkPolicy watermarkPolicy;
 
     @Nullable String sequenceNumber = null;
     long subSequenceNumber = 0L;
 
-    ShardState(EFOShardSubscriber subscriber, ShardCheckpoint initCheckpoint) {
+    ShardState(
+        EFOShardSubscriber subscriber,
+        ShardCheckpoint initCheckpoint,
+        WatermarkPolicyFactory watermarkPolicyFactory) {
       this.subscriber = subscriber;
       this.initCheckpoint = initCheckpoint;
+      this.watermarkPolicy = watermarkPolicyFactory.createWatermarkPolicy();
     }
 
-    void update(KinesisClientRecord r) {
-      sequenceNumber = checkNotNull(r.sequenceNumber());
-      subSequenceNumber = r.subSequenceNumber();
+    void update(KinesisRecord r) {
+      sequenceNumber = checkNotNull(r.getSequenceNumber());
+      subSequenceNumber = r.getSubSequenceNumber();
+      watermarkPolicy.update(r);
     }
 
     /**
@@ -401,6 +411,10 @@ class EFOShardSubscribersPool {
         // fall back to its init checkpoint
         return initCheckpoint;
       }
+    }
+
+    Instant getWatermark() {
+      return watermarkPolicy.getWatermark();
     }
 
     boolean recordWasNotCheckPointedYet(KinesisRecord r) {

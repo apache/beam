@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.eventWithRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.eventsWithRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.eventsWithoutRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.reShardEvent;
+import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.recordWithMinutesAgo;
 import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.subscribeAfterSeqNumber;
 import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.subscribeAtSeqNumber;
 import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.subscribeAtTs;
@@ -38,6 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionException;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -46,6 +48,7 @@ import org.junit.Before;
 import org.junit.Test;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
@@ -781,6 +784,40 @@ public class EFOShardSubscribersPoolTest {
     assertThat(initialCheckpoint.iterator()).containsExactlyInAnyOrder(expectedShardsCheckpoints);
     assertThat(pool.getCheckpointMark().iterator())
         .containsExactlyInAnyOrder(expectedShardsCheckpoints);
+  }
+
+  @Test
+  public void poolWatermarkReturnsTsOfOldestAcknowledgedRecord() throws Exception {
+    List<Record> shard000records0 = recordWithMinutesAgo(5);
+    List<Record> shard001records0 = recordWithMinutesAgo(4);
+    List<Record> shard000records1 = recordWithMinutesAgo(3);
+
+    kinesis = new EFOStubbedKinesisAsyncClient(10);
+    kinesis.stubSubscribeToShard("shard-000", eventWithRecords(shard000records0));
+    kinesis.stubSubscribeToShard("shard-001", eventWithRecords(shard001records0));
+    kinesis.stubSubscribeToShard("shard-000", eventWithRecords(shard000records1));
+
+    Instant ts0 = TimeUtil.toJoda(shard000records0.get(0).approximateArrivalTimestamp());
+    Instant ts1 = TimeUtil.toJoda(shard001records0.get(0).approximateArrivalTimestamp());
+
+    KinesisReaderCheckpoint initialCheckpoint =
+        initialLatestCheckpoint(ImmutableList.of("shard-000", "shard-001"));
+
+    pool = new EFOShardSubscribersPool(readSpec, consumerArn, kinesis);
+    pool.start(initialCheckpoint);
+
+    // nothing was ack-ed yet
+    assertThat(pool.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    // one of the shards had nothing ack-ed yet
+    assertThat(waitForRecords(pool, 1).size()).isEqualTo(1);
+    assertThat(pool.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    assertThat(waitForRecords(pool, 1).size()).isEqualTo(1);
+    assertThat(pool.getWatermark()).isEqualTo(ts0);
+
+    assertThat(waitForRecords(pool, 1).size()).isEqualTo(1);
+    assertThat(pool.getWatermark()).isEqualTo(ts1);
   }
 
   static List<KinesisRecord> waitForRecords(EFOShardSubscribersPool pool, int recordsToWaitFor)

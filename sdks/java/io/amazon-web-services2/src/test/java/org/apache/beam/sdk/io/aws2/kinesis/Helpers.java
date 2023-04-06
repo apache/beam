@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.mockito.ArgumentMatcher;
 import software.amazon.awssdk.core.SdkBytes;
@@ -105,6 +106,11 @@ class Helpers {
     Function<Integer, List<Record>> dataStream =
         shard -> range(0, events).mapToObj(off -> record(now, shard, off)).collect(toList());
     return range(0, shards).boxed().map(dataStream).collect(toList());
+  }
+
+  static List<Record> recordWithMinutesAgo(int minutesAgo) {
+    return ImmutableList.of(
+        record(Instant.now().minus(Duration.standardMinutes(minutesAgo)), new byte[] {}, "0"));
   }
 
   static List<List<Record>> testAggregatedRecords(int shards, int events) {
@@ -244,7 +250,7 @@ class Helpers {
         .build();
   }
 
-  private static SubscribeToShardEvent eventWithRecords(List<Record> recordList) {
+  static SubscribeToShardEvent eventWithRecords(List<Record> recordList) {
     String lastSeqNum = "0";
     for (Record r : recordList) {
       lastSeqNum = r.sequenceNumber();
