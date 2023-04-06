@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -157,9 +158,6 @@ public class JsonUtils {
     return jsonSchemaBuilder;
   }
 
-  @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-  })
   private static org.everit.json.schema.Schema jsonPropertyFromBeamType(FieldType beamType) {
     org.everit.json.schema.Schema.Builder<? extends org.everit.json.schema.Schema> propertySchema;
 
@@ -183,12 +181,12 @@ public class JsonUtils {
         break;
       case ARRAY:
       case ITERABLE:
-        propertySchema =
-            ArraySchema.builder()
-                .allItemSchema(jsonPropertyFromBeamType(beamType.getCollectionElementType()));
+        Schema.FieldType fieldType = Optional.ofNullable(beamType.getCollectionElementType()).get();
+        propertySchema = ArraySchema.builder().allItemSchema(jsonPropertyFromBeamType(fieldType));
         break;
       case ROW:
-        propertySchema = jsonSchemaBuilderFromBeamSchema(beamType.getRowSchema());
+        Schema rowSchema = Optional.ofNullable(beamType.getRowSchema()).get();
+        propertySchema = jsonSchemaBuilderFromBeamSchema(rowSchema);
         break;
 
         // add more Beam to JSON types
