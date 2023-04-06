@@ -15,8 +15,8 @@
  *  limitations under the License.
  */
 
-.banner-container
-  height: 96px
+.top-banners
+  height: 100px
   background-color: #000954
   margin-top: 0
   padding-top: 5px
@@ -28,9 +28,20 @@
     margin-top: 64px
     padding-top: 0
 
+  .swiper-slide
+    display: flex
+    justify-content: center
+
+  a
+    display: flex
+    flex-direction: column
+    justify-content: center
+
   .banner-img-desktop
     display: block
-    width: 100%
+    margin: 0 auto
+    max-height: 100%
+    max-width: 100%
     @media (max-width: $ak-breakpoint-lg)
       display: none
 
