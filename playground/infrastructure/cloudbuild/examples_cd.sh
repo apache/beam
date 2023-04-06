@@ -109,38 +109,12 @@ LogOutput "Checking what files were changed in the PR."
 
 git fetch --all > /dev/null 2>&1
 
-diff_log=$(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH)
-diff=($(echo "$diff_log" | tr '\n' ' '))
-LogOutput "List of changed files in PR $SOURCE_BRANCH merging into $DIFF_BASE are:
-$diff_log"
 
 LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
 allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
 do
-    eval "example_for_${sdk}_changed"='False'
-    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
-    cd $BEAM_ROOT_DIR/playground/infrastructure
-    python3 checker.py \
-    --verbose \
-    --sdk SDK_"${sdk^^}" \
-    --allowlist "" \
-    --paths "${diff[@]}"
-    checker_status=$?
-    if [ $checker_status -eq 0 ]; then
-        LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        eval "example_for_${sdk}_changed"='True'
-    elif [ $checker_status -eq 11 ]; then
-        LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        eval "example_for_${sdk}_changed"='False'
-        continue
-    else
-        LogOutput "Error: Checker is broken. Exiting the script."
-        exit 1
-    fi
-
-    result=$(eval echo '$'"example_for_${sdk}_changed")
-
+    result=True
     if [[ $result == True ]]; then
         LogOutput "Running ci_cd.py for SDK $sdk"
 
