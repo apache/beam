@@ -82,7 +82,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _GKE_MACHINE_TYPE : var.gke_machine_type
     _ENVIRONMENT_NAME : var.playground_environment_name
     _GKE_NAME : var.playground_gke_name
-    _IP_ADDRESS_NAME : var.ipaddress_name
+    _IPADDRESS_NAME : var.ipaddress_name
     _MAX_COUNT : var.max_count
     _MIN_COUNT : var.min_count
     _NETWORK_NAME : var.playground_network_name
