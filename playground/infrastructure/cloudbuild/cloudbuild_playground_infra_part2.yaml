@@ -23,18 +23,19 @@ steps:
         apt update > /dev/null
 
         apt-get install -y wget unzip software-properties-common git curl
-        apt-transport-https ca-certificates gnupg gnupg-agent jq > /dev/null
+        apt-transport-https ca-certificates gnupg jq > /dev/null
 
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/google-cloud-sdk.gpg
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
         
-        echo "deb [signed-by=/etc/apt/trusted.gpg.d/google-cloud-sdk.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | 
-        tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | tee /usr/share/keyrings/cloud.google.gpg
+        
+        apt-get update -y > /dev/null && apt-get install -y google-cloud-cli > /dev/null
         
         curl -L https://download.docker.com/linux/ubuntu/gpg | tee /etc/apt/trusted.gpg.d/docker.gpg >/dev/null
         
         add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
         
-        apt-get update
+        apt-get update -y > /dev/null
         
         apt-get install -y docker-ce > /dev/null
 
@@ -45,7 +46,7 @@ steps:
 
         mv terraform /usr/local/bin/terraform
 
-        apt update -y > /dev/null && apt install -y google-cloud-sdk openjdk-11-jdk kubectl > /dev/null 
+        apt update -y > /dev/null && apt install -y openjdk-11-jdk kubectl > /dev/null 
 
         curl -fsSLo get_helm.sh
         https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 >
@@ -70,7 +71,8 @@ steps:
         "$_MIN_COUNT"' 'max_count = "$_MAX_COUNT"' 'app_engine_flag =
         "$_APPENGINE_FLAG"'         'ip-address-name = "$_IPADDRESS_NAME"'
         'repository_id = "$_REPOSITORY_ID"' 
-        'service_account_id = "$_SERVICEACCOUNT_ID"' 'gke_machine_type = "$_GKE_MACHINE_TYPE"' >
+        'service_account_id = "$_SERVICEACCOUNT_ID"' 
+        'gke_machine_type = "$_GKE_MACHINE_TYPE"' >
         playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
 
         printf 'bucket = "$_STATE_BUCKET"' >
