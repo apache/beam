@@ -61,7 +61,7 @@ class EFOKinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     LOG.info("Starting reader using {}", initCheckpoint);
     try {
       shardSubscribersPool = createPool();
-      shardSubscribersPool.start(initCheckpoint);
+      shardSubscribersPool().start(initCheckpoint);
       return advance();
     } catch (TransientKinesisException e) {
       throw new IOException(e);
