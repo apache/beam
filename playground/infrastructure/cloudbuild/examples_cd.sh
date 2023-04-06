@@ -107,9 +107,6 @@ LogOutput "Python and dependencies have been successfully installed."
 
 LogOutput "Checking what files were changed in the PR."
 
-git fetch --all > /dev/null 2>&1
-
-
 LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
 allowlist_array=($ALLOWLIST)
 for sdk in $SDKS
@@ -122,7 +119,7 @@ do
         python3 ci_cd.py \
         --datastore-project ${PROJECT_ID} \
         --namespace ${NAMESPACE} \
-        --step ${STEP} \
+        --step CD \
         --sdk SDK_"${sdk^^}" \
         --origin ${ORIGIN} \
         --subdirs ${SUBDIRS}
