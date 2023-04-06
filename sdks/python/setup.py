@@ -226,7 +226,7 @@ if __name__ == '__main__':
         # using older version of dill. It is best to use the same version of
         # dill on client and server, therefore list of allowed versions is very
         # narrow. See: https://github.com/uqfoundation/dill/issues/341.
-        'dill>=0.3.1.1,<0.3.2',
+        'dill>=0.3.1.1,<0.3.7',
         # It is prudent to use the same version of pickler at job submission
         # and at runtime, therefore bounds need to be tight.
         # To avoid depending on an old dependency, update the minor version on
