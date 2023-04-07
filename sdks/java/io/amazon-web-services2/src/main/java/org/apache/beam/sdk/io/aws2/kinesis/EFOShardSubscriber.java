@@ -89,8 +89,8 @@ class EFOShardSubscriber {
   /**
    * Async completion handler for {@link KinesisAsyncClient#subscribeToShard} that:
    * <li>exists immediately if {@link #done} is already completed (exceptionally),
-   * <li>re-subscribes at {@link ShardEventsSubscriber#sequenceNumber} for retryable errors such as
-   *     retryable {@link SdkException}, {@link ClosedChannelException}, {@link ChannelException},
+   * <li>re-subscribes at {@link ShardEventsSubscriber#sequenceNumber} for retry-able errors such as
+   *     retry-able {@link SdkException}, {@link ClosedChannelException}, {@link ChannelException},
    *     {@link TimeoutException} (any of these might be wrapped in {@link CompletionException}s)
    * <li>or completes {@link #done} exceptionally for any other error,
    * <li>completes {@link #done} normally if subscriber {@link #state} is {@link State#STOPPED} or
@@ -125,11 +125,11 @@ class EFOShardSubscriber {
     return current;
   }
 
-  @SuppressWarnings({"FutureReturnValueIgnored", "all"})
+  /** Not fully init-ed until {@link #subscribe(StartingPosition)} is called. */
+  @SuppressWarnings({"FutureReturnValueIgnored", "method.invocation", "argument"})
   EFOShardSubscriber(
       EFOShardSubscribersPool pool,
       String shardId,
-      KinesisIO.Read read,
       String consumerArn,
       KinesisAsyncClient kinesis,
       int onErrorCoolDownMs) {
@@ -152,9 +152,11 @@ class EFOShardSubscriber {
               state = PAUSED;
             } else {
               if (lastContinuationSequenceNumber != null) {
+                // retry-able error occurs after at least one SubscribeToShardEvent is received:
                 pool.delayedTask(
                     () -> internalReSubscribe(lastContinuationSequenceNumber), onErrorCoolDownMs);
               } else {
+                // retry-able error occurs before any SubscribeToShardEvent is received:
                 pool.delayedTask(() -> internalSubscribe(initialPosition), onErrorCoolDownMs);
               }
             }
@@ -163,7 +165,7 @@ class EFOShardSubscriber {
 
           String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
 
-          // happy-path re-subscribe, subscription was complete by the SDK after 5 mins
+          // happy-path re-subscribe, subscription was complete by the SDK after 5 min
           if (error == null && state != STOPPED && lastContinuationSequenceNumber != null) {
             internalReSubscribe(lastContinuationSequenceNumber);
             return;
@@ -194,7 +196,7 @@ class EFOShardSubscriber {
    *     subscriber is always subscribed to the shard once {@link #subscribe} was called.
    *
    * @return {@link #done} to signal completion of this subscriber, normally (stopped or shard is
-   *     completely consumed) or exceptionally due to a non retryable error.
+   *     completely consumed) or exceptionally due to a non retry-able error.
    */
   CompletableFuture<Void> subscribe(StartingPosition position) {
     checkState(state == INITIALIZED, "Subscriber was already started");

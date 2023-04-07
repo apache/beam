@@ -279,8 +279,7 @@ class EFOShardSubscribersPool {
   @SuppressWarnings("FutureReturnValueIgnored")
   private EFOShardSubscriber initShardSubscriber(ShardCheckpoint cp) {
     EFOShardSubscriber subscriber =
-        new EFOShardSubscriber(
-            this, cp.getShardId(), read, consumerArn, kinesis, onErrorCoolDownMs);
+        new EFOShardSubscriber(this, cp.getShardId(), consumerArn, kinesis, onErrorCoolDownMs);
     StartingPosition startingPosition = cp.toEFOStartingPosition();
     if (subscriptionError == null) {
       subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
