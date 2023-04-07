@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.BigtableServiceEntry;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.FACTORY_INSTANCE;
 import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -369,7 +368,7 @@ public class BigtableIO {
                   .setKeyRanges(
                       StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS)))
                   .build())
-          .setServiceFactory(FACTORY_INSTANCE)
+          .setServiceFactory(new BigtableServiceFactory())
           .build();
     }
 
@@ -751,7 +750,7 @@ public class BigtableIO {
       return new AutoValue_BigtableIO_Write.Builder()
           .setBigtableConfig(config)
           .setBigtableWriteOptions(writeOptions)
-          .setServiceFactory(FACTORY_INSTANCE)
+          .setServiceFactory(new BigtableServiceFactory())
           .build();
     }
 
@@ -1146,12 +1145,13 @@ public class BigtableIO {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       checkForFailures();
+      KV<ByteString, Iterable<Mutation>> record = c.element();
       bigtableWriter
-          .writeRecord(c.element())
+          .writeRecord(record)
           .whenComplete(
               (mutationResult, exception) -> {
                 if (exception != null) {
-                  failures.add(new BigtableWriteException(c.element(), exception));
+                  failures.add(new BigtableWriteException(record, exception));
                 }
               });
       ++recordsWritten;
@@ -1179,7 +1179,7 @@ public class BigtableIO {
         bigtableWriter = null;
       }
       if (serviceEntry != null) {
-        factory.releaseService(serviceEntry);
+        serviceEntry.close();
         serviceEntry = null;
       }
     }
@@ -1549,7 +1549,7 @@ public class BigtableIO {
     @Override
     public BoundedReader<Row> createReader(PipelineOptions options) throws IOException {
       return new BigtableReader(
-          factory, this, factory.getServiceForReading(configId, config, readOptions, options));
+          this, factory.getServiceForReading(configId, config, readOptions, options));
     }
 
     @Override
@@ -1644,18 +1644,14 @@ public class BigtableIO {
     // inside a synchronized block (or constructor, which is the same).
     private BigtableSource source;
 
-    private final BigtableServiceFactory factory;
-
     // Assign serviceEntry at construction time and clear it in close().
     @Nullable private BigtableServiceEntry serviceEntry;
     private BigtableService.Reader reader;
     private final ByteKeyRangeTracker rangeTracker;
     private long recordsReturned;
 
-    public BigtableReader(
-        BigtableServiceFactory factory, BigtableSource source, BigtableServiceEntry service) {
+    public BigtableReader(BigtableSource source, BigtableServiceEntry service) {
       checkArgument(source.getRanges().size() == 1, "source must have exactly one key range");
-      this.factory = factory;
       this.source = source;
       this.serviceEntry = service;
       rangeTracker = ByteKeyRangeTracker.of(source.getRanges().get(0));
@@ -1705,7 +1701,7 @@ public class BigtableIO {
         reader = null;
       }
       if (serviceEntry != null) {
-        factory.releaseService(serviceEntry);
+        serviceEntry.close();
         serviceEntry = null;
       }
     }
