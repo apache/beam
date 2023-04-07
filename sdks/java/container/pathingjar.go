@@ -62,6 +62,8 @@ func writePathingJar(classpaths []string, w io.Writer) error {
 
 	zf.Write([]byte("Manifest-Version: 1.0\n"))
 	zf.Write([]byte("Created-By: sdks/java/container/pathingjar.go"))
+	// Class-Path: must have a sequence of relative URIs for the paths
+	// which we assume outright in this case.
 	zf.Write([]byte("Class-Path: file:" + strings.Join(classpaths, " file:")))
 	zf.Write([]byte("\n"))
 	return nil
