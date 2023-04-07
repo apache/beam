@@ -43,20 +43,19 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 	defer cc.Close()
 
-	err = StageViaPortableApi(ctx, cc, binary, st)
-	if err == nil {
+	if err := StageViaPortableAPI(ctx, cc, binary, st); err == nil {
 		return "", nil
 	}
 	log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 
-	return StageViaLegacyApi(ctx, cc, binary, st)
+	return StageViaLegacyAPI(ctx, cc, binary, st)
 }
 
 // StageViaPortableApi is a beam internal function for uploading artifacts to the staging service
 // via the portable API.
 //
 // It will be unexported at a later time.
-func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retErr error) {
+func StageViaPortableAPI(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retErr error) {
 	const attempts = 3
 	var failures []string
 	for {
@@ -186,7 +185,7 @@ func stageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 // via the legacy API.
 //
 // It will be unexported at a later time.
-func StageViaLegacyApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
+func StageViaLegacyAPI(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
 	client := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 
 	files := []artifact.KeyedFile{{Key: "worker", Filename: binary}}

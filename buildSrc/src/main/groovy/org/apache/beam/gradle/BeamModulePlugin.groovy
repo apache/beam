@@ -432,7 +432,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.47.0'
+    project.version = '2.48.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -555,6 +555,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
     def protobuf_version = "3.21.12"
+    def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
@@ -565,6 +566,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def testcontainers_version = "1.17.3"
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
+    def jupiter_version = "5.7.0"
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
@@ -746,6 +748,9 @@ class BeamModulePlugin implements Plugin<Project> {
         json_org                                    : "org.json:json:20220320", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
         everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
+        jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",
+        jupiter_engine                              : "org.junit.jupiter:junit-jupiter-engine:$jupiter_version",
+        jupiter_params                              : "org.junit.jupiter:junit-jupiter-params:$jupiter_version",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         log4j                                       : "log4j:log4j:1.2.17",
@@ -778,6 +783,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
+        qpid_jms_client                             : "org.apache.qpid:qpid-jms-client:$qpid_jms_client_version",
         sbe_tool                                    : "uk.co.real-logic:sbe-tool:$sbe_tool_version",
         singlestore_jdbc                            : "com.singlestore:singlestore-jdbc-client:$singlestore_jdbc_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
