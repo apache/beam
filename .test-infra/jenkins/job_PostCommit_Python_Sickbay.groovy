@@ -19,10 +19,10 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-import static PythonTestProperties.ESSENTIAL_VERSIONS
+import static PythonTestProperties.ALL_SUPPORTED_VERSIONS
 
 // This job defines the Python postcommit sickbay tests.
-ESSENTIAL_VERSIONS.each { pythonVersion ->
+ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
   def versionSuffix = pythonVersion.replace('.', '')
   PostcommitJobBuilder.postCommitJob("beam_PostCommit_Sickbay_Python${versionSuffix}",
       "Run Python ${pythonVersion} PostCommit Sickbay",
