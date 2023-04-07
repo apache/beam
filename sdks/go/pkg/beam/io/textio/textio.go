@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/fileio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -35,7 +36,6 @@ import (
 func init() {
 	beam.RegisterType(reflect.TypeOf((*readFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
-	beam.RegisterFunction(expandFn)
 }
 
 // Read reads a set of files indicated by the glob pattern and returns
@@ -80,30 +80,9 @@ func ReadAllSdf(s beam.Scope, col beam.PCollection) beam.PCollection {
 // all files in those globs. Uses an SDF to allow splitting reads of files
 // into separate bundles.
 func read(s beam.Scope, col beam.PCollection) beam.PCollection {
-	files := beam.ParDo(s, expandFn, col)
+	matches := fileio.MatchAll(s, col, fileio.MatchEmptyAllow())
+	files := fileio.ReadMatches(s, matches, fileio.ReadUncompressed())
 	return beam.ParDo(s, &readFn{}, files)
-}
-
-// expandFn expands a glob pattern into all matching file names.
-func expandFn(ctx context.Context, glob string, emit func(string)) error {
-	if strings.TrimSpace(glob) == "" {
-		return nil // ignore empty string elements here
-	}
-
-	fs, err := filesystem.New(ctx, glob)
-	if err != nil {
-		return err
-	}
-	defer fs.Close()
-
-	files, err := fs.List(ctx, glob)
-	if err != nil {
-		return err
-	}
-	for _, filename := range files {
-		emit(filename)
-	}
-	return nil
 }
 
 // readFn reads individual lines from a text file. Implemented as an SDF
@@ -113,22 +92,11 @@ type readFn struct {
 
 // CreateInitialRestriction creates an offset range restriction representing
 // the file's size in bytes.
-func (fn *readFn) CreateInitialRestriction(ctx context.Context, filename string) (offsetrange.Restriction, error) {
-	fs, err := filesystem.New(ctx, filename)
-	if err != nil {
-		return offsetrange.Restriction{}, err
-	}
-	defer fs.Close()
-
-	size, err := fs.Size(ctx, filename)
-	if err != nil {
-		return offsetrange.Restriction{}, err
-	}
-
+func (fn *readFn) CreateInitialRestriction(file fileio.ReadableFile) offsetrange.Restriction {
 	return offsetrange.Restriction{
 		Start: 0,
-		End:   size,
-	}, nil
+		End:   file.Metadata.Size,
+	}
 }
 
 const (
@@ -139,9 +107,9 @@ const (
 	tooSmall = blockSize / 4
 )
 
-// SplitRestriction splits each file restriction into blocks of a predeterined
+// SplitRestriction splits each file restriction into blocks of a predetermined
 // size, with some checks to avoid having small remainders.
-func (fn *readFn) SplitRestriction(_ string, rest offsetrange.Restriction) []offsetrange.Restriction {
+func (fn *readFn) SplitRestriction(_ fileio.ReadableFile, rest offsetrange.Restriction) []offsetrange.Restriction {
 	splits := rest.SizedSplits(blockSize)
 	numSplits := len(splits)
 	if numSplits > 1 {
@@ -155,8 +123,8 @@ func (fn *readFn) SplitRestriction(_ string, rest offsetrange.Restriction) []off
 	return splits
 }
 
-// Size returns the size of each restriction as its range.
-func (fn *readFn) RestrictionSize(_ string, rest offsetrange.Restriction) float64 {
+// RestrictionSize returns the size of each restriction as its range.
+func (fn *readFn) RestrictionSize(_ fileio.ReadableFile, rest offsetrange.Restriction) float64 {
 	return rest.Size()
 }
 
@@ -174,16 +142,10 @@ func (fn *readFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker 
 // begin within the restriction and past the restriction (those are entirely
 // output, including the portion outside the restriction). In some cases a
 // valid restriction might not output any lines.
-func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, filename string, emit func(string)) error {
-	log.Infof(ctx, "Reading from %v", filename)
+func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, file fileio.ReadableFile, emit func(string)) error {
+	log.Infof(ctx, "Reading from %v", file.Metadata.Path)
 
-	fs, err := filesystem.New(ctx, filename)
-	if err != nil {
-		return err
-	}
-	defer fs.Close()
-
-	fd, err := fs.OpenRead(ctx, filename)
+	fd, err := file.Open(ctx)
 	if err != nil {
 		return err
 	}
