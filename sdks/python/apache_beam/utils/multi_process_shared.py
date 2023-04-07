@@ -38,6 +38,7 @@ from typing import TypeVar
 import fasteners
 
 T = TypeVar('T')
+AUTH_KEY=b'mps'
 
 
 class _SingletonProxy:
@@ -117,7 +118,12 @@ _process_local_lock = threading.Lock()
 class _SingletonRegistrar(multiprocessing.managers.BaseManager):
   pass
 
-
+# TODO (https://github.com/apache/beam/issues/26169)
+# Expose __call__ function here.
+# We need to do this without removing access to other public methods.
+# This will allow us to have multi_process_shared objects which are callable
+# (e.g. ML models which are invoked via `model(args)`).
+# See https://docs.python.org/3/library/multiprocessing.html#multiprocessing.managers.BaseManager.register
 _SingletonRegistrar.register(
     'acquire_singleton',
     callable=_process_level_singleton_manager.acquire_singleton)
@@ -202,7 +208,9 @@ class MultiProcessShared(Generic[T]):
                 address = fin.read()
               logging.info('Connecting to remote proxy at %s', address)
               host, port = address.split(':')
-              manager = _SingletonRegistrar(address=(host, int(port)))
+              # We need to be able to authenticate with both the manager and the process.
+              manager = _SingletonRegistrar(address=(host, int(port)), authkey=AUTH_KEY)
+              multiprocessing.current_process().authkey = AUTH_KEY
               try:
                 manager.connect()
                 self._manager = manager
@@ -224,7 +232,9 @@ class MultiProcessShared(Generic[T]):
     self._manager.release_singleton(self._tag, obj)
 
   def _create_server(self, address_file):
-    self._serving_manager = _SingletonRegistrar(address=('localhost', 0))
+    # We need to be able to authenticate with both the manager and the process.
+    self._serving_manager = _SingletonRegistrar(address=('localhost', 0), authkey=AUTH_KEY)
+    multiprocessing.current_process().authkey = AUTH_KEY
     # Initialize eagerly to avoid acting as the server if there are issues.
     # Note, however, that _create_server itself is called lazily.
     _process_level_singleton_manager.register_singleton(
