@@ -120,7 +120,7 @@ do
         export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
         python3 ci_cd.py \
         --datastore-project ${PROJECT_ID} \
-        --namespace ${NAMESPACE} \
+        --namespace ${DATASTORE_NAMESPACE} \
         --step ${STEP} \
         --sdk SDK_"${sdk^^}" \
         --origin ${ORIGIN} \
