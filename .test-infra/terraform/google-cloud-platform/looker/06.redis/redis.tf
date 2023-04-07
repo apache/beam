@@ -4,10 +4,6 @@ resource "helm_release" "redis" {
   name       = "redis"
   namespace  = data.kubernetes_namespace.looker.metadata[0].name
   set {
-    name  = "global.storageClass"
-    value = "standard-rwo"
-  }
-  set {
     name  = "auth.enabled"
     value = false
   }
