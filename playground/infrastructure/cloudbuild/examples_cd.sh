@@ -35,29 +35,34 @@ export BEAM_EXAMPLE_CATEGORIES=${BEAM_EXAMPLE_CATEGORIES-"$BEAM_ROOT_DIR/playgro
 export BEAM_USE_WEBGRPC=${BEAM_USE_WEBGRPC-"yes"}
 export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-2}
 export SDKS=${SDKS-"java python go"}
-export COMMIT=${COMMIT-"HEAD"}
-export DNS_NAME=${DNS_NAME}
+
+# Playground FQDN
 if [[ -z "${DNS_NAME}" ]]; then
   echo "DNS_NAME is empty or not set. Exiting"
   exit 1
 fi
-export NAMESPACE=${NAMESPACE}
-if [[ -z "${NAMESPACE}" ]]; then
-  echo "Datastore NAMESPACE is empty or not set. Exiting"
+# GCP Datastore namespace to load examples to
+if [[ -z "${DATASTORE_NAMESPACE}" ]]; then
+  echo "DATASTORE_NAMESPACE parameter was not set. Exiting"
   exit 1
 fi
-export SOURCE_BRANCH=${SOURCE_BRANCH}
-if [[ -z "${SOURCE_BRANCH}" ]]; then
-  echo "PR Source Branch is empty or not set. Exiting"
+# Master branch commit before the merge.
+if [[ -z "${BASE_COMMIT}" ]]; then
+  echo "BASE_COMMIT paramter was not set. Exiting"
   exit 1
 fi
-export ALLOWLIST=${ALLOWLIST-"learning/katas sdks/ examples/"}
-export DIFF_BASE=${DIFF_BASE-"origin/master"}
+# Master branch commit after merge.  We need a paramter because can't rely that it equals to HEAD when we run git clone
+if [[ -z "${MERGED_COMMIT}" ]]; then
+  echo "MERGED_COMMIT paramter was not set. Exiting"
+  exit 1
+fi
+
+# Constants
+export STEP=CD
 
 # This function logs the given message to a file and outputs it to the console.
 function LogOutput ()
 {
-    echo "$(date --utc '+%D %T') $1"
     # CDLOG keyword to simplify search over the global log
     echo "CDLOG $(date --utc '+%D %T') $1"
 }
@@ -72,11 +77,11 @@ LogOutput "Input variables:
  BEAM_EXAMPLE_CATEGORIES=$BEAM_EXAMPLE_CATEGORIES
  BEAM_CONCURRENCY=$BEAM_CONCURRENCY
  SDKS=$SDKS
- COMMIT=$COMMIT
+ BASE_COMMIT=$BASE_COMMIT
+ MERGED_COMMIT=$MERGED_COMMIT
  DNS_NAME=$DNS_NAME
  BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC
- NAMESPACE=$NAMESPACE
- SOURCE_BRANCH=$SOURCE_BRANCH"
+ DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE"
 
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
@@ -85,8 +90,6 @@ fi
 if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
-
-export STEP=CD
 
 LogOutput "Installing python and dependencies."
 # Install Python 3 and dependencies
@@ -97,13 +100,13 @@ apt install -y apt-transport-https ca-certificates software-properties-common cu
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null 2>&1
 apt install -y --reinstall python3.8-distutils > /dev/null 2>&1
-pip install --upgrade google-api-python-client > /dev/null 2>&1
 python3.8 -m pip install pip --upgrade > /dev/null 2>&1
+pip install --upgrade google-api-python-client > /dev/null 2>&1
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
 apt install -y python3.8-venv > /dev/null 2>&1
-pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
-LogOutput "Python and dependencies have been successfully installed."
+LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
+pip install -r /workspace/beam/playground/infrastructure/requirements.txt
 
 LogOutput "Checking what files were changed in the PR."
 
