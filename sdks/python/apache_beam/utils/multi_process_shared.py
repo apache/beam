@@ -38,7 +38,7 @@ from typing import TypeVar
 import fasteners
 
 T = TypeVar('T')
-AUTH_KEY=b'mps'
+AUTH_KEY = b'mps'
 
 
 class _SingletonProxy:
@@ -117,6 +117,7 @@ _process_local_lock = threading.Lock()
 
 class _SingletonRegistrar(multiprocessing.managers.BaseManager):
   pass
+
 
 # TODO (https://github.com/apache/beam/issues/26169)
 # Expose __call__ function here.
@@ -209,7 +210,8 @@ class MultiProcessShared(Generic[T]):
               logging.info('Connecting to remote proxy at %s', address)
               host, port = address.split(':')
               # We need to be able to authenticate with both the manager and the process.
-              manager = _SingletonRegistrar(address=(host, int(port)), authkey=AUTH_KEY)
+              manager = _SingletonRegistrar(
+                  address=(host, int(port)), authkey=AUTH_KEY)
               multiprocessing.current_process().authkey = AUTH_KEY
               try:
                 manager.connect()
@@ -233,7 +235,8 @@ class MultiProcessShared(Generic[T]):
 
   def _create_server(self, address_file):
     # We need to be able to authenticate with both the manager and the process.
-    self._serving_manager = _SingletonRegistrar(address=('localhost', 0), authkey=AUTH_KEY)
+    self._serving_manager = _SingletonRegistrar(
+        address=('localhost', 0), authkey=AUTH_KEY)
     multiprocessing.current_process().authkey = AUTH_KEY
     # Initialize eagerly to avoid acting as the server if there are issues.
     # Note, however, that _create_server itself is called lazily.
