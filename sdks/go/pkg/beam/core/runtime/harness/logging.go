@@ -153,7 +153,7 @@ type logSender interface {
 	Send(*fnpb.LogEntry_List) error
 }
 
-var bufClosedErr = errors.New("internal: log message buffer closed")
+var errBuffClosed = errors.New("internal: log message buffer closed")
 
 func (w *remoteWriter) connect(ctx context.Context, makeClient func(ctx context.Context) (logSender, func(), error)) error {
 	client, toDefer, err := makeClient(ctx)
@@ -171,7 +171,7 @@ func (w *remoteWriter) connect(ctx context.Context, makeClient func(ctx context.
 			return nil
 		case newMsg, ok := <-w.buffer:
 			if !ok {
-				return bufClosedErr
+				return errBuffClosed
 			}
 			msgs = append(msgs, newMsg)
 			flush = newMsg.Severity >= fnpb.LogEntry_Severity_CRITICAL
@@ -182,7 +182,7 @@ func (w *remoteWriter) connect(ctx context.Context, makeClient func(ctx context.
 		for len(w.buffer) > 0 && len(msgs) < batchSize && !flush {
 			newMsg, ok := <-w.buffer
 			if !ok {
-				return bufClosedErr
+				return errBuffClosed
 			}
 			msgs = append(msgs, newMsg)
 			flush = newMsg.Severity >= fnpb.LogEntry_Severity_CRITICAL
