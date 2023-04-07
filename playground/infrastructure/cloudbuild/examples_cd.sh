@@ -124,7 +124,7 @@ do
         --step ${STEP} \
         --sdk SDK_"${sdk^^}" \
         --origin ${ORIGIN} \
-        --subdirs ${SUBDIRS}
+        --subdirs ${SUBDIRS} > /dev/stdout
         if [ $? -eq 0 ]; then
             LogOutput "Examples for $sdk SDK have been successfully deployed."
         else
