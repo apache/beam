@@ -19,12 +19,40 @@
 import logging
 import unittest
 
+from apache_beam.coders import coders
 from apache_beam.coders.union_coder import UnionCoder
+from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.coders.typecoders import registry
+
+
+class AvroTestCoder(coders.AvroGenericCoder):
+  SCHEMA = """
+  {
+    "type": "record", "name": "test",
+    "fields": [
+      {"name": "name", "type": "string"},
+      {"name": "age", "type": "int"}
+    ]
+  }
+  """
+
+  def __init__(self):
+    super().__init__(self.SCHEMA)
 
 
 class UnionCoderTest(unittest.TestCase):
   def test_basics(self):
+    registry.register_coder(AvroRecord, AvroTestCoder)
+
     coder = UnionCoder()
+
+    self.assertEqual(coder.is_deterministic(), False)
+
+    assert coder.to_type_hint()
+    assert str(coder)
+
+    ar = AvroRecord({"name": "Daenerys targaryen", "age": 23})
+    self.assertEqual(coder.decode(coder.encode(ar)).record, ar.record)
 
     for v in [8, 8.0, bytes(8), True, "8"]:
       self.assertEqual(v, coder.decode(coder.encode(v)))

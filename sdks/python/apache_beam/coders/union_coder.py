@@ -34,51 +34,65 @@ class UnionCoder(coders.FastCoder):
   def __init__(self):
     # assuming all custom coders are registered
     self._coder_registry = registry
-    self._tag_to_type = {
-        _get_coder_tag(str(t)): t
-        for t in self._coder_registry._coders
-    }
+    self._tag_to_coders = {}
+    for t, c in self._coder_registry._coders.items():
+      try:
+        if isinstance(t, str):
+          if c and isinstance(c, type):
+            c = c()
+          if c.__module__ == "__main__":
+            self._tag_to_coders[_get_coder_tag(t)] = c
+          else:
+            self._tag_to_coders[_get_coder_tag(type(c))] = c
+          self._tag_to_coders[_get_coder_tag(t)] = c
+        else:
+          c = self._coder_registry.get_coder(t)
+          self._tag_to_coders[_get_coder_tag(c.to_type_hint().__name__)] = c
+      except Exception:  # pylint: disable=broad-except
+        continue
+    self._types_in_str = [
+        c.to_type_hint().__name__ for _, c in self._tag_to_coders.items()
+    ]
 
   def encode(self, value) -> bytes:
     """
-      Encodes the given Union value into bytes.
-      """
-    coder = self._coder_registry.get_coder(type(value))
+        Encodes the given Union value into bytes.
+        """
+    typehint_type = type(value).__name__
+    tag = _get_coder_tag(typehint_type)
+    coder = self._tag_to_coders.get(tag, None)
     if coder is None:
       raise ValueError(
-          "Unknown type {} for UnionCoder with {}".format(type(value), value))
-
-    return _get_coder_tag(coder.to_type_hint()) + coder.encode(value)
+          "Unknown type {} for UnionCoder with {}. Expected tag is {}. Tags: {}"
+          .format(typehint_type, value, tag, self._tag_to_coders))
+    return tag + coder.encode(value)
 
   def decode(self, encoded: bytes):
     """
-      Decodes the given bytes into a Union value.
-      """
+        Decodes the given bytes into a Union value.
+        """
     tag = encoded[:2]
-    value_type = self._tag_to_type.get(tag, None)
-    if value_type:
-      coder = self._coder_registry.get_coder(value_type)
-      if coder is None:
-        raise ValueError(
-            "Unknown tag for UnionCoder: {} with type {}".format(
-                tag, value_type))
-    return coder.decode(encoded[2:])
+    coder = self._tag_to_coders.get(tag, None)
+
+    if coder:
+      return coder.decode(encoded[2:])
+    else:
+      raise ValueError(f"cannot decode {encoded}")
 
   def is_deterministic(self) -> bool:
     """
-      Returns True if all sub-coders are deterministic.
-      """
-    return all(
-        coder.is_deterministic() for _, coder in self._coders_for_tags.items())
+        Returns True if all sub-coders are deterministic.
+        """
+    return all(c.is_deterministic() for _, c in self._tag_to_coders.items())
 
   def to_type_hint(self) -> str:
     """
-      Returns a type hint representing the Union type with the sub-coders.
-      """
-    return "Union[{}]".format(", ".join(self._coders_in_str))
+        Returns a type hint representing the Union type with the sub-coders.
+        """
+    return "Union[{}]".format(", ".join(self._types_in_str))
 
   def __repr__(self):
     """
-      Returns a string representation of the coder with its sub-coders.
-      """
-    return "UnionCoder({})".format(self._coders_in_str)
+        Returns a string representation of the coder with its sub-coders.
+        """
+    return "UnionCoder({})".format(", ".join(self._types_in_str))
