@@ -248,11 +248,11 @@ class EFOShardSubscribersPool {
    * <p>In case of re-sharding, start all new {@link EFOShardSubscriber#subscribe subscriptions}
    * with the subscription {@link #errorHandler} if there is no {@link #subscriptionError} yet.
    */
-  private void onEventDone(ShardState shardState, EventRecords noRecordsEvent) {
-    if (noRecordsEvent.event.continuationSequenceNumber() == null
-        && noRecordsEvent.event.hasChildShards()) {
-      LOG.info("Pool {} - processing re-shard signal {}", poolId, noRecordsEvent.event);
-      List<String> successorShardsIds = computeSuccessorShardsIds(noRecordsEvent);
+  private void onEventDone(ShardState shardState, EventRecords eventContainer) {
+    SubscribeToShardEvent event = eventContainer.event;
+    if (event.continuationSequenceNumber() == null && event.hasChildShards()) {
+      LOG.info("Pool {} - processing re-shard signal {}", poolId, event);
+      List<String> successorShardsIds = computeSuccessorShardsIds(eventContainer);
       for (String successorShardId : successorShardsIds) {
         ShardCheckpoint newCheckpoint =
             new ShardCheckpoint(
@@ -266,9 +266,9 @@ class EFOShardSubscribersPool {
                     initShardSubscriber(newCheckpoint), newCheckpoint, watermarkPolicyFactory));
       }
 
-      state.remove(noRecordsEvent.shardId);
+      state.remove(eventContainer.shardId);
     } else {
-      shardState.update(noRecordsEvent);
+      shardState.update(eventContainer);
     }
   }
 
@@ -288,17 +288,17 @@ class EFOShardSubscribersPool {
     return subscriber;
   }
 
-  private List<String> computeSuccessorShardsIds(EventRecords records) {
+  private List<String> computeSuccessorShardsIds(EventRecords eventContainer) {
     List<String> successorShardsIds = new ArrayList<>();
-    SubscribeToShardEvent event = records.event;
+    SubscribeToShardEvent event = eventContainer.event;
     for (ChildShard childShard : event.childShards()) {
-      if (childShard.parentShards().contains(records.shardId)) {
+      if (childShard.parentShards().contains(eventContainer.shardId)) {
         if (childShard.parentShards().size() > 1) {
           // This is the case of merging two shards into one.
           // When there are 2 parent shards, we only pick it up if
           // its max shard equals to sender shard ID.
           String maxParentId = childShard.parentShards().stream().max(String::compareTo).get();
-          if (records.shardId.equals(maxParentId)) {
+          if (eventContainer.shardId.equals(maxParentId)) {
             successorShardsIds.add(childShard.shardId());
           }
         } else {
@@ -310,12 +310,12 @@ class EFOShardSubscribersPool {
     }
 
     if (successorShardsIds.isEmpty()) {
-      LOG.info("Pool {} - found no successors for shard {}", poolId, records.shardId);
+      LOG.info("Pool {} - found no successors for shard {}", poolId, eventContainer.shardId);
     } else {
       LOG.info(
           "Pool {} - found successors for shard {}: {}",
           poolId,
-          records.shardId,
+          eventContainer.shardId,
           successorShardsIds);
     }
     return successorShardsIds;
