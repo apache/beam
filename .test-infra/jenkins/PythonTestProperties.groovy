@@ -17,15 +17,15 @@
  */
 
 class PythonTestProperties {
-  // Indicates all supported Python versions.
-  // This must be sorted in ascending order.
-  final static List<String> ALL_SUPPORTED_VERSIONS = [
-    '3.7',
-    '3.8',
-    '3.9',
-    '3.10',
-    '3.11'
-  ]
+  // Get all supported Python versions from gradle property
+  private static List<String> GET_SUPPORTED_VERSIONS() {
+    String rawProperties = readFile('gradle.properties')
+    Properties properties = new Properties()
+    properties.load(new StringReader(rawProperties))
+    return properties.python_versions.split(',')
+  }
+
+  final static List<String> ALL_SUPPORTED_VERSIONS = GET_SUPPORTED_VERSIONS()
   final static List<String> SUPPORTED_CONTAINER_TASKS = ALL_SUPPORTED_VERSIONS.collect {
     "py${it.replace('.', '')}"
   }
