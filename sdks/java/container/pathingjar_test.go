@@ -25,10 +25,10 @@ import (
 
 func TestWritePathingJar(t *testing.T) {
 	var buf bytes.Buffer
-	want := []string{"a.jar", "b.jar", "c.jar"}
-	err := writePathingJar(want, &buf)
+	input := []string{"a.jar", "b.jar", "c.jar"}
+	err := writePathingJar(input, &buf)
 	if err != nil {
-		t.Errorf("writePathingJar(%v) = %v, want nil", want, err)
+		t.Errorf("writePathingJar(%v) = %v, want nil", input, err)
 	}
 
 	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
@@ -50,7 +50,8 @@ func TestWritePathingJar(t *testing.T) {
 		if err != nil {
 			t.Errorf("(%v).Open() = %v, want nil", f.Name, err)
 		}
-		if !strings.Contains(string(all), "Class-Path: "+strings.Join(want, " ")) {
+		want := "Class-Path: file:a.jar file:b.jar file:c.jar"
+		if !strings.Contains(string(all), want) {
 			t.Errorf("%v = %v, want nil", f.Name, err)
 		}
 	}

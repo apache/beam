@@ -62,7 +62,7 @@ func writePathingJar(classpaths []string, w io.Writer) error {
 
 	zf.Write([]byte("Manifest-Version: 1.0\n"))
 	zf.Write([]byte("Created-By: sdks/java/container/pathingjar.go"))
-	zf.Write([]byte("Class-Path: " + strings.Join(classpaths, " ")))
+	zf.Write([]byte("Class-Path: file:" + strings.Join(classpaths, " file:")))
 	zf.Write([]byte("\n"))
 	return nil
 }
