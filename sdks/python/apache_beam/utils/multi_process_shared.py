@@ -124,7 +124,6 @@ class _SingletonRegistrar(multiprocessing.managers.BaseManager):
 # We need to do this without removing access to other public methods.
 # This will allow us to have multi_process_shared objects which are callable
 # (e.g. ML models which are invoked via `model(args)`).
-# See https://docs.python.org/3/library/multiprocessing.html#multiprocessing.managers.BaseManager.register
 _SingletonRegistrar.register(
     'acquire_singleton',
     callable=_process_level_singleton_manager.acquire_singleton)
