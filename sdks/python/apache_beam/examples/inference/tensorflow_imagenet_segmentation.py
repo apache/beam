@@ -37,8 +37,8 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns predicted label.
   """
-  def __init__(self, *unused_args, **unused_kwargs):
-    super().__init__(unused_args, unused_kwargs)
+  def __init__(self):
+    super().__init__()
     self._imagenet_labels = None
     self._labels_path = None
 
