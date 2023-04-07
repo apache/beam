@@ -38,22 +38,54 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
 }
 
+type readOption struct {
+	FileOpts []fileio.ReadOptionFn
+}
+
+// ReadOptionFn is a function that can be passed to Read or ReadAll to configure options for
+// reading files.
+type ReadOptionFn func(*readOption)
+
+// ReadAutoCompression specifies that the compression type of files should be auto-detected.
+func ReadAutoCompression() ReadOptionFn {
+	return func(o *readOption) {
+		o.FileOpts = append(o.FileOpts, fileio.ReadAutoCompression())
+	}
+}
+
+// ReadGzip specifies that files have been compressed using gzip.
+func ReadGzip() ReadOptionFn {
+	return func(o *readOption) {
+		o.FileOpts = append(o.FileOpts, fileio.ReadGzip())
+	}
+}
+
+// ReadUncompressed specifies that files have not been compressed.
+func ReadUncompressed() ReadOptionFn {
+	return func(o *readOption) {
+		o.FileOpts = append(o.FileOpts, fileio.ReadUncompressed())
+	}
+}
+
 // Read reads a set of files indicated by the glob pattern and returns
-// the lines as a PCollection<string>.
-// The newlines are not part of the lines.
-func Read(s beam.Scope, glob string) beam.PCollection {
+// the lines as a PCollection<string>. The newlines are not part of the lines.
+// Read accepts a variadic number of ReadOptionFn that can be used to configure the compression
+// type of the file. By default, the compression type is determined by the file extension.
+func Read(s beam.Scope, glob string, opts ...ReadOptionFn) beam.PCollection {
 	s = s.Scope("textio.Read")
 
 	filesystem.ValidateScheme(glob)
-	return read(s, beam.Create(s, glob))
+	return read(s, beam.Create(s, glob), opts...)
 }
 
 // ReadAll expands and reads the filename given as globs by the incoming
 // PCollection<string>. It returns the lines of all files as a single
 // PCollection<string>. The newlines are not part of the lines.
-func ReadAll(s beam.Scope, col beam.PCollection) beam.PCollection {
+// ReadAll accepts a variadic number of ReadOptionFn that can be used to configure the compression
+// type of the files. By default, the compression type is determined by the file extension.
+func ReadAll(s beam.Scope, col beam.PCollection, opts ...ReadOptionFn) beam.PCollection {
 	s = s.Scope("textio.ReadAll")
-	return read(s, col)
+	return read(s, col, opts...)
 }
 
 // ReadSdf is a variation of Read implemented via SplittableDoFn. This should
@@ -64,7 +96,7 @@ func ReadSdf(s beam.Scope, glob string) beam.PCollection {
 	s = s.Scope("textio.ReadSdf")
 
 	filesystem.ValidateScheme(glob)
-	return read(s, beam.Create(s, glob))
+	return read(s, beam.Create(s, glob), ReadUncompressed())
 }
 
 // ReadAllSdf is a variation of ReadAll implemented via SplittableDoFn. This
@@ -73,15 +105,20 @@ func ReadSdf(s beam.Scope, glob string) beam.PCollection {
 // Deprecated: Use ReadAll instead, which has been migrated to use this SDF implementation.
 func ReadAllSdf(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("textio.ReadAllSdf")
-	return read(s, col)
+	return read(s, col, ReadUncompressed())
 }
 
 // read takes a PCollection of globs and returns a PCollection of lines from
 // all files in those globs. Uses an SDF to allow splitting reads of files
 // into separate bundles.
-func read(s beam.Scope, col beam.PCollection) beam.PCollection {
+func read(s beam.Scope, col beam.PCollection, opts ...ReadOptionFn) beam.PCollection {
+	option := &readOption{}
+	for _, opt := range opts {
+		opt(option)
+	}
+
 	matches := fileio.MatchAll(s, col, fileio.MatchEmptyAllow())
-	files := fileio.ReadMatches(s, matches, fileio.ReadUncompressed())
+	files := fileio.ReadMatches(s, matches, option.FileOpts...)
 	return beam.ParDo(s, &readFn{}, files)
 }
 
