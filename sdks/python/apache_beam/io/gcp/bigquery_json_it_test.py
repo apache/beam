@@ -109,7 +109,7 @@ class BigQueryJsonIT(unittest.TestCase):
               table=table,
               schema=json_table_schema,
               temp_file_format="AVRO",
-              custom_gcs_temp_location="gs://ahmedabualsaud-wordcount/tmp",
+              custom_gcs_temp_location="gs://bigqueryio-json-it-temp",
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
           ))
 
