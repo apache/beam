@@ -62,8 +62,8 @@ The guide will walk through all steps.
     + [Embedding a snippet into the Apache Beam website](#embedding-a-snippet-into-the-apache-beam-website)
   * [Snippet view options](#passing-view-options)
     + [Read-only sections](#read-only-sections)
-    + [Folding everything except sections](#folding-everything-except-sections)
-    + [Hiding everything except a section](#hiding-everything-except-a-section)
+    + [Folding everything except named sections](#folding-everything-except-named-sections)
+    + [Hiding everything except a named section](#hiding-everything-except-a-named-section)
     + [Linking to multiple examples](#linking-to-multiple-examples)
 
 
@@ -78,7 +78,7 @@ Playground automatically applies the following to all snippets:
 Playground supports *Named Sections* to tag code blocks and provide the following view options:
 - Fold all blocks except tagged code blocks. This can be useful to help user focus on specific code blocks and features presented in a snippet.
 - Hide all code except tagged code blocks. This can be useful to create runnable snippets illustrating specific concepts or transforms, and hide all non-essential code blocks. Such snippet can be embedded on a website to make examples in documentation and tutorials runnable.
-- Make certain code parts read-only. This feature can be useful to create learning units where user modifications are desired only in certain parts of the code.  
+- Make certain code parts read-only. This feature can be useful to create learning units where user modifications are desired only in certain parts of the code.
 Please see [Snippet View Options](#snippet-view-options) section for details how different view options can be used.
 
 If you do not need any of those view options, skip to the [next step](#step-2-commit-you-code-to-directories-loaded-by-playgound-or-other-sources).
@@ -102,7 +102,7 @@ There are several types of code snippets in the Playground:
 2. Snippet - a code snippet, that will typically be embedded on a website. Snippets are stored and exucuted by Playground, but not listed in the Examples Catalog. See [how to add a new snippet here](#source-2-add-a-snippet).
 3. [Tour of Beam](https://github.com/apache/beam/tree/master/learning/tour-of-beam) learning unit. See [how to add a new Tour of Beam unit here](#source-3-add-a-tour-of-beam-unit).
 4. User-shared code snippets - see [how to add a user-shared snippet here](#source-4-add-a-user-shared-snippet).
-5. GitHub and HTTPS URL sources - see [how to load a snippet from external GitHub or HTTPS ULR here](#source-5-add-a-snippet-from-github-or-https-url-source).  
+5. GitHub and HTTPS URL sources - see [how to load a snippet from external GitHub or HTTPS ULR here](#source-5-add-a-snippet-from-github-or-https-url-source).
 
 ### Source 1. Add an example to Playground Examples Catalog
 
@@ -121,7 +121,7 @@ Addig Scala example snippets automatically is not supported, and Scala example s
 
 Playground relies on metadata comments block to identify and place an example into the database, and present in the Examples Catalog.
 See [this](https://github.com/apache/beam/blob/3e080ff212d8ed7208c8486b515bb73c5d294475/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java#L20-L36) for an example.
-Playground automatically removes metadata comments block before storing the example in database and so the metadata is not visible to end users. The block is in the format of a YAML map. 
+Playground automatically removes metadata comments block before storing the example in database and so the metadata is not visible to end users. The block is in the format of a YAML map.
 
 Example tag metadata quick reference (**required** elements, unless marked **optional**):
 
@@ -165,7 +165,7 @@ Examples which require Kafka server emulator, need to include the `emulator` tag
 
 3. Use exact string `"kafka_server:9092"` as a server name in your code snippet. This string will be replaced by the actual host name and port automatically before the compilation step by Playground.
 
->**Kafka emulator limitations:** 
+>**Kafka emulator limitations:**
 > - Playground Kafka emulator currently supports only Beam Java SDK
 > - exact string `"kafka_server:9092"` should be present in the code snippet; any other variation like `"kafa_server" + ":9092"` will not work
 
@@ -212,7 +212,7 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 | --- | --- |
 | Go | SDK_GO_name |
 | Java | SDK_JAVA_name |
-| Python | SDK_PYTHON_name |   
+| Python | SDK_PYTHON_name |
 
 **TODO: add example of the name for snippet**
 
@@ -253,7 +253,7 @@ Advantages:
 - Easy to use.
 - Fast.
 
->**Share my code** considerations: 
+>**Share my code** considerations:
 > - A user-shared snippet is immutable. If you edit the code and re-share, a new snippet and link will be generated.
 > - Playground automatically applies a 3-month retention policy to shared snippets that are not used. To request a deletion of a snippet, please send an email to [dev@beam.apache.org](mailto:dev@beam.apache.org?subject=[Playground]%20Delete%20a%20snippet) with subject: [Playground] Delete a snippet.
 > - Playground does not cache output or graph for user-shared snippets.
@@ -268,7 +268,7 @@ Advantages:
 - Fast.
 - Snipet can be updated without changing a link.
 
->Loading snippet from HTTPS URL considerations: 
+>Loading snippet from HTTPS URL considerations:
 > - Playground does not cache output or graph for HTTPS URL snippets.
 > - Playground does not verify HTTPS URL snippets.
 
