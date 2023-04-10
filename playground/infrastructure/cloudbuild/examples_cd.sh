@@ -106,8 +106,8 @@ apt install -y python3.8-venv > /dev/null 2>&1
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt
 
-LogOutput "Looking for files changed by the PR."
-diff_log=$(git diff --name-only $MERGED_COMMIT...$BASE_COMMIT)
+LogOutput "Looking for files changed by the merge commit relative to the base commit in master branch."
+diff_log=$(git diff --name-only $BASE_COMMIT..$MERGED_COMMIT)
 diff=($(echo "$diff_log" | tr '\n' ' '))
 LogOutput "Discovered changes introduced by $COMMIT relative to $DIFF_BASE in files:
 $diff_log"
