@@ -189,6 +189,32 @@ public class SpannerReadIT {
   }
 
   @Test
+  public void testReadWithDataBoost() throws Exception {
+
+    SpannerConfig spannerConfig = createSpannerConfig();
+    spannerConfig = spannerConfig.withDataBoostEnabled(StaticValueProvider.of(true));
+
+    PCollectionView<Transaction> tx =
+        p.apply(
+            "Create tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    PCollection<Struct> output =
+        p.apply(
+            "read db",
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withTable(options.getTable())
+                .withColumns("Key", "Value")
+                .withTransaction(tx));
+    PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
   public void testReadFailsBadTable() throws Exception {
 
     thrown.expect(new SpannerWriteIT.StackTraceContainsString("SpannerException"));

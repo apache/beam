@@ -38,6 +38,8 @@ docker {
   files "./build/"
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
+  buildx project.containerPlatforms() != [project.nativeArchitecture()]
+  platform(*project.containerPlatforms())
 }
 dockerPrepare.dependsOn tasks.named("goBuild")
 

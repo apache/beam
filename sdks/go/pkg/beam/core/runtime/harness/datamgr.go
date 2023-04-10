@@ -378,8 +378,6 @@ func (c *DataChannel) read(ctx context.Context) {
 			return
 		}
 
-		recordStreamReceive(msg)
-
 		// Each message may contain segments for multiple streams, so we
 		// must treat each segment in isolation. We maintain a local cache
 		// to reduce lock contention.
@@ -533,7 +531,6 @@ type dataWriter struct {
 
 // send requires the ch.mu lock to be held.
 func (w *dataWriter) send(msg *fnpb.Elements) error {
-	recordStreamSend(msg)
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
 			log.Warnf(context.TODO(), "dataWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)
@@ -653,7 +650,6 @@ type timerWriter struct {
 
 // send requires the ch.mu lock to be held.
 func (w *timerWriter) send(msg *fnpb.Elements) error {
-	recordStreamSend(msg)
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
 			log.Warnf(context.TODO(), "timerWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)

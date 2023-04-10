@@ -20,7 +20,6 @@
 labels:
   - name: Go
     reviewers:
-      - damccorm
       - lostluck
       - jrmccluskey
       - riteshghorse
@@ -36,7 +35,7 @@ labels:
     exclusionList: []
   - name: Java
     reviewers:
-      - lukecwik
+      - Abacn
       - kennknowles
       - robertwb
     exclusionList: []
