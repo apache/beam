@@ -17,19 +17,22 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/constants/sizes.dart';
+import '../../constants/constants.dart';
+import '../../constants/weights.dart';
 
 class PipelineOptionLabel extends StatelessWidget {
   final String text;
 
-  const PipelineOptionLabel({Key? key, required this.text}) : super(key: key);
+  const PipelineOptionLabel({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(fontWeight: kMediumWeight, fontSize: kLabelFontSize),
+      style: const TextStyle(
+        fontWeight: BeamWeights.medium,
+        fontSize: kLabelFontSize,
+      ),
     );
   }
 }

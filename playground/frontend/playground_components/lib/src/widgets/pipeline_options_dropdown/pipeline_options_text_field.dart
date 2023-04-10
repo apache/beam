@@ -17,18 +17,20 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground_components/playground_components.dart';
+import '../../constants/sizes.dart';
+
+import '../../theme/theme.dart';
+
 
 class PipelineOptionsTextField extends StatelessWidget {
   final TextEditingController controller;
   final int lines;
 
   const PipelineOptionsTextField({
-    Key? key,
+    super.key,
     required this.controller,
     this.lines = 1,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,20 +39,20 @@ class PipelineOptionsTextField extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(
-        top: kMdSpacing,
+        top: BeamSpacing.medium,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).backgroundColor,
-        borderRadius: BorderRadius.circular(kMdBorderRadius),
+        borderRadius: BorderRadius.circular(BeamBorderRadius.medium),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(kMdBorderRadius),
+        borderRadius: BorderRadius.circular(BeamBorderRadius.medium),
         child: TextFormField(
           minLines: lines,
           maxLines: lines,
           controller: controller,
           decoration: InputDecoration(
-            contentPadding: const EdgeInsets.all(kMdSpacing),
+            contentPadding: const EdgeInsets.all(BeamSpacing.medium),
             border: _getInputBorder(ext.borderColor),
             focusedBorder: _getInputBorder(themeData.primaryColor),
           ),
@@ -62,7 +64,7 @@ class PipelineOptionsTextField extends StatelessWidget {
   OutlineInputBorder _getInputBorder(Color color) {
     return OutlineInputBorder(
       borderSide: BorderSide(color: color),
-      borderRadius: BorderRadius.circular(kMdBorderRadius),
+      borderRadius: BorderRadius.circular(BeamBorderRadius.medium),
     );
   }
 }

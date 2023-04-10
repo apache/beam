@@ -20,8 +20,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'dropdown_body.dart';
-
 class PipelineOptionsButton extends StatefulWidget {
   final PlaygroundController controller;
 
@@ -59,6 +57,7 @@ class PipelineOptionsButtonState extends State<PipelineOptionsButton> {
             return PipelineOptionsDropdownBody(
               pipelineOptions: pipelineOptions,
               close: close,
+              setPipelineOptions: (String) {},
             );
           },
           width: _dropdownWidth,

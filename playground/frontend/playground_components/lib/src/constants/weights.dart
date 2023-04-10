@@ -16,37 +16,9 @@
  * limitations under the License.
  */
 
-// spacings
-const double kZeroSpacing = 0.0;
-const double kSmSpacing = 4.0;
-const double kMdSpacing = 8.0;
-const double kLgSpacing = 12.0;
-const double kXlSpacing = 16.0;
-const double kXxlSpacing = 36.0;
 
-// sizes
-const kIconButtonSplashRadius = 24.0;
+import 'package:flutter/material.dart';
 
-// border radius
-const double kSmBorderRadius = 4.0;
-const double kMdBorderRadius = 6.0;
-
-// elevation
-const double kElevation = 2;
-
-// icon sizes
-const double kIconSizeSm = 16.0;
-const double kIconSizeMd = 24.0;
-const double kIconSizeLg = 32.0;
-
-// cursor size
-const double kCursorSize = 1.0;
-
-// container size
-const double kContainerHeight = 40.0;
-
-const double kLabelFontSize = 16.0;
-const double kTitleFontSize = 18.0;
-
-//divider size
-const double kDividerHeight = 1.0;
+class BeamWeights {
+  static const medium = FontWeight.w600;
+}

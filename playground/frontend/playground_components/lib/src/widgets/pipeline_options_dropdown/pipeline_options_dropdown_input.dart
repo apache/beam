@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_label.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_text_field.dart';
+import 'pipeline_option_label.dart';
+import 'pipeline_options_text_field.dart';
 
 const kPipelineOptionsInputLines = 8;
 
@@ -29,17 +29,16 @@ class PipelineOptionsDropdownInput extends StatelessWidget {
   final TextEditingController controller;
 
   const PipelineOptionsDropdownInput({
-    Key? key,
+    super.key,
     required this.controller,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PipelineOptionLabel(text: appLocale.input),
+        PipelineOptionLabel(text: 'widgets.pipelineOptions.input'.tr()),
         PipelineOptionsTextField(
           key: textFieldKey,
           lines: kPipelineOptionsInputLines,

@@ -17,3 +17,5 @@
  */
 
 const spaceCount = 2;
+
+const double kLabelFontSize = 16.0;

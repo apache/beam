@@ -17,12 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_controller.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_form.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_text_field.dart';
 
-import '../../../../constants/colors.dart';
-import '../../../../constants/sizes.dart';
+import '../../constants/colors.dart';
+import '../../constants/sizes.dart';
+import 'pipeline_option_controller.dart';
+import 'pipeline_options_form.dart';
+import 'pipeline_options_text_field.dart';
 
 const kTextFieldHeight = 50.0;
 
@@ -57,13 +57,13 @@ class PipelineOptionsRow extends StatelessWidget {
           ),
         ),
         SizedBox(
-          width: kIconSizeLg,
+          width: BeamIconSizes.large,
           child: IconButton(
-            iconSize: kIconSizeMd,
-            splashRadius: kIconButtonSplashRadius,
+            iconSize: BeamIconSizes.medium,
+            splashRadius: BeamIconSizes.largeSplashRadius,
             icon: const Icon(
               Icons.delete_outlined,
-              color: kLightPrimary,
+              color: BeamLightThemeColors.primary, //Color(0xFFE74D1A)
             ),
             color: Theme.of(context).dividerColor,
             onPressed: () => onDelete(),
