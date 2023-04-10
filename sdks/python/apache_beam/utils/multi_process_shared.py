@@ -119,11 +119,6 @@ class _SingletonRegistrar(multiprocessing.managers.BaseManager):
   pass
 
 
-# TODO (https://github.com/apache/beam/issues/26169)
-# Expose __call__ function here.
-# We need to do this without removing access to other public methods.
-# This will allow us to have multi_process_shared objects which are callable
-# (e.g. ML models which are invoked via `model(args)`).
 _SingletonRegistrar.register(
     'acquire_singleton',
     callable=_process_level_singleton_manager.acquire_singleton)
