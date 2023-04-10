@@ -7,7 +7,7 @@ resource "helm_release" "mysql_operator" {
   namespace  = data.kubernetes_namespace.looker.metadata[0].name
   set {
     name  = "auth.existingSecret"
-    value = kubernetes_secret.root_credentials.metadata[0].name
+    value = data.kubernetes_secret.credentials.metadata[0].name
   }
 
   set {

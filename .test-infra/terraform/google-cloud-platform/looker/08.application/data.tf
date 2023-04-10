@@ -11,9 +11,16 @@ data "kubernetes_service" "redis" {
   }
 }
 
-data "kubernetes_secret" "looker_db_credentials" {
+data "kubernetes_secret" "gcm_key" {
   metadata {
-    name      = "looker-db-credentials"
+    name      = local.gcm_key_secret_id
+    namespace = data.kubernetes_namespace.looker.metadata[0].name
+  }
+}
+
+data "kubernetes_secret" "looker_database_credentials" {
+  metadata {
+    name      = local.looker_database_credentials_secret_id
     namespace = data.kubernetes_namespace.looker.metadata[0].name
   }
 }

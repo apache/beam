@@ -1,28 +1,24 @@
 package common
 
 import (
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	"github.com/apache/beam/testinfra/terraform/googlecloudplatform/looker/internal/secret"
+	"github.com/apache/beam/testinfra/terraform/googlecloudplatform/looker/internal/k8s"
 	"github.com/spf13/cobra"
 )
 
 const (
-	lookerNamespace = "looker"
+	SecretKind = "secret"
 )
 
 var (
+	DryRunFlag           bool
 	PrintEnvironmentFlag bool
-	SecretReader         *secret.Reader
-	SecretWriter         *secret.Writer
+	K8sClient            *k8s.Client
 )
 
-func PreRun(cmd *cobra.Command, _ []string) error {
-	ctx := cmd.Context()
-	client, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		return err
-	}
-	SecretReader = (*secret.Reader)(client)
-	SecretWriter = (*secret.Writer)(client)
-	return nil
+func AddPrintEnvironmentFlag(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&PrintEnvironmentFlag, "env", false, "Print environment variables")
+}
+
+func AddDryRunFlag(cmd *cobra.Command) {
+	cmd.Flags().BoolVarP(&DryRunFlag, "dry-run", "d", false, "Run command in dry run mode")
 }

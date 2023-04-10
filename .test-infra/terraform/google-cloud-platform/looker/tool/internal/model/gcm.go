@@ -1,4 +1,4 @@
-package secret
+package model
 
 import "os/exec"
 
@@ -6,16 +6,16 @@ var (
 	gcmOpenSslCommand = exec.Command("openssl", "rand", "-base64", "32")
 )
 
-type GcmKey string
+type CredentialsString string
 
-func (key GcmKey) MarshalBinary() ([]byte, error) {
+func (key CredentialsString) MarshalBinary() ([]byte, error) {
 	return []byte(key), nil
 }
 
-func NewGcmKey() (GcmKey, error) {
+func NewGcmKey() (CredentialsString, error) {
 	b, err := gcmOpenSslCommand.Output()
 	if err != nil {
 		return "", err
 	}
-	return GcmKey(b), nil
+	return CredentialsString(b), nil
 }

@@ -30,3 +30,13 @@ variable "resource_name_prefix" {
   type        = string
   description = "The basis to name all provisioned resources i.e. service account, network, cluster, etc."
 }
+
+variable "storage_bucket_prefix" {
+  type        = string
+  description = "Storage Bucket Prefix that stores the JAR files"
+}
+
+variable "storage_bucket_location" {
+  type        = string
+  description = "The GCS location"
+}

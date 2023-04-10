@@ -1,0 +1,1 @@
+bitami_mysql_credentials_secret = "bitami-mysql-credentials"

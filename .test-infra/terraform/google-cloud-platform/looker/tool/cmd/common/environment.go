@@ -5,26 +5,88 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/tatsushid/go-prettytable"
 )
 
 const (
-	lookerDownloadJarsUrl = "https://apidownload.looker.com/download"
+	lookerDownloadJarsUrl  = "https://apidownload.looker.com/download"
+	defaultLookerNamespace = "looker"
+
+	defaultGcmKeySecretId = "gcm-key"
+	// See https://cloud.google.com/looker/docs/changing-encryption-keys#set_new_environment_variables
+	defaultGcmKeySecretDataKey = "LKR_MASTER_KEY_ENV"
+
+	defaultLookerDatabaseCredentialsSecretId = "looker-database-credentials"
+
+	// See https://cloud.google.com/looker/docs/migrating-looker-backend-db-to-mysql#create_a_database_credentials_file
+	defaultLookerDatabaseCredentialsDataKey = "LOOKER_DB"
+
+	// Aligns with `auth.existingSecret` https://github.com/bitnami/charts/tree/main/bitnami/mysql
+	defaultBitamiMySqlCredentialsSecretId   = "bitami-mysql-credentials"
+	defaultBitamiRootPasswordDataKey        = "mysql-root-password"
+	defaultBitamiReplicationPasswordDataKey = "mysql-replication-password"
+	defaultBitamiMySqlPasswordDataKey       = "mysql-password"
 )
 
 var (
-	GcmSecretId           EnvironmentVariable = "GCM_SECRET_ID"
-	LookerJarURL          EnvironmentVariable = "LOOKER_JAR_URL"
-	LookerVersion         EnvironmentVariable = "LOOKER_VERSION"
-	LookerLicenseSecretId EnvironmentVariable = "LOOKER_LICENSE_SECRET_ID"
-	ProjectId             EnvironmentVariable = "PROJECT_ID"
+	GcmKeySecretId      EnvironmentVariable = "GCM_KEY_SECRET_ID"
+	GcmKeySecretDataKey EnvironmentVariable = "GCM_KEY_SECRET_DATA_KEY"
+
+	LookerDatabaseCredentialsSecretId EnvironmentVariable = "LOOKER_DATABASE_CREDENTIALS_SECRET_ID"
+	LookerDatabaseCredentialsDataKey  EnvironmentVariable = "LOOKER_DATABASE_CREDENTIALS_SECRET_DATA_KEY"
+
+	BitamiMySqlCredentialsSecretId   EnvironmentVariable = "BITAMI_MYSQL_CREDENTIALS_SECRET_Id"
+	BitamiRootPasswordDataKey        EnvironmentVariable = "BITAMI_ROOT_PASSWORD_DATA_KEY"
+	BitamiReplicationPasswordDataKey EnvironmentVariable = "BITAMI_REPLICATION_PASSWORD_DATA_KEY"
+	BitamiMySqlPasswordDataKey       EnvironmentVariable = "BITAMI_MYSQL_PASSWORD_DATA_KEY"
+
+	LookerJarURL    EnvironmentVariable = "LOOKER_JAR_URL"
+	LookerNamespace EnvironmentVariable = "LOOKER_NAMESPACE"
+	LookerVersion   EnvironmentVariable = "LOOKER_VERSION"
 )
 
 func init() {
-	if err := LookerJarURL.Default(lookerDownloadJarsUrl); err != nil {
+	if err := defaults(); err != nil {
 		panic(err)
 	}
+}
+
+func defaults() error {
+	if err := GcmKeySecretId.Default(defaultGcmKeySecretId); err != nil {
+		return err
+	}
+	if err := GcmKeySecretDataKey.Default(defaultGcmKeySecretDataKey); err != nil {
+		return err
+	}
+
+	if err := LookerDatabaseCredentialsSecretId.Default(defaultLookerDatabaseCredentialsSecretId); err != nil {
+		return err
+	}
+	if err := LookerDatabaseCredentialsDataKey.Default(defaultLookerDatabaseCredentialsDataKey); err != nil {
+		return err
+	}
+
+	if err := BitamiMySqlCredentialsSecretId.Default(defaultBitamiMySqlCredentialsSecretId); err != nil {
+		return err
+	}
+	if err := BitamiRootPasswordDataKey.Default(defaultBitamiRootPasswordDataKey); err != nil {
+		return err
+	}
+	if err := BitamiReplicationPasswordDataKey.Default(defaultBitamiReplicationPasswordDataKey); err != nil {
+		return err
+	}
+	if err := BitamiMySqlPasswordDataKey.Default(defaultBitamiMySqlPasswordDataKey); err != nil {
+		return err
+	}
+
+	if err := LookerJarURL.Default(lookerDownloadJarsUrl); err != nil {
+		return err
+	}
+	if err := LookerNamespace.Default(defaultLookerNamespace); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type EnvironmentVariable string
@@ -97,8 +159,4 @@ func PrintEnvironment(optional []EnvironmentVariable, required []EnvironmentVari
 	}
 	_, err = tbl.Print()
 	return err
-}
-
-func AddPrintEnvironmentFlag(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&PrintEnvironmentFlag, "env", false, "Print environment variables")
 }

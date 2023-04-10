@@ -28,12 +28,6 @@ resource "kubernetes_deployment" "default" {
             claim_name = local.looker_persistent_volume_claim_name
           }
         }
-        volume {
-          name = "looker-db-config"
-          secret {
-            secret_name = data.kubernetes_secret.looker_db_credentials.metadata[0].name
-          }
-        }
         init_container {
           name              = "looker-data-ownership-grant"
           image             = "gcr.io/google-containers/busybox:latest"
@@ -74,14 +68,14 @@ resource "kubernetes_deployment" "default" {
             mount_path = local.lookerfiles_path
             name       = "looker-pv"
           }
-          volume_mount {
-            mount_path = local.var_dir
-            name       = "looker-db-config"
-            read_only  = true
+          env_from {
+            secret_ref {
+              name = data.kubernetes_secret.gcm_key.metadata[0].name
+            }
           }
           env_from {
             secret_ref {
-              name = kubernetes_secret.gcm.metadata[0].name
+              name = data.kubernetes_secret.looker_database_credentials.metadata[0].name
             }
           }
           env_from {

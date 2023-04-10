@@ -28,3 +28,9 @@ module "cluster" {
   resource_name_prefix         = local.resource_name_prefix
   subnetwork_cidr_range        = var.subnetwork_cidr_range
 }
+
+resource "google_project_iam_member" "artifact_registry_accessor" {
+  member  = "serviceAccount:${module.cluster.kubernetes_node_service_account.email}"
+  project = var.project
+  role    = "roles/artifactregistry.reader"
+}

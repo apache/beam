@@ -1,10 +1,9 @@
 package main
 
 import (
-	"github.com/apache/beam/testinfra/terraform/googlecloudplatform/looker/cmd/adminconfig"
+	"github.com/apache/beam/testinfra/terraform/googlecloudplatform/looker/cmd/database"
 	"github.com/apache/beam/testinfra/terraform/googlecloudplatform/looker/cmd/gcm"
 	"github.com/apache/beam/testinfra/terraform/googlecloudplatform/looker/cmd/jars"
-	"github.com/apache/beam/testinfra/terraform/googlecloudplatform/looker/cmd/sync"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +15,11 @@ var (
 )
 
 func init() {
-	rootCmd.AddCommand(adminconfig.Command, jars.Command, gcm.Command, sync.Command)
+	rootCmd.AddCommand(
+		database.Command,
+		jars.Command,
+		gcm.Command,
+	)
 }
 
 func main() {
