@@ -106,27 +106,57 @@ apt install -y python3.8-venv > /dev/null 2>&1
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt
 
-LogOutput "Checking what files were changed in the PR."
-
+LogOutput "Looking for files changed by the PR."
+diff_log=$(git diff --name-only $MERGED_COMMIT...$BASE_COMMIT)
+diff=($(echo "$diff_log" | tr '\n' ' '))
+LogOutput "Discovered changes introduced by $COMMIT relative to $DIFF_BASE in files:
+$diff_log"
+declare -a allowlist_array
 for sdk in $SDKS
 do
-    result=True
+    example_has_changed="UNKNOWN"
+    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
     cd $BEAM_ROOT_DIR/playground/infrastructure
-    if [[ $result == True ]]; then
-        LogOutput "Running ci_cd.py for SDK $sdk"
+    python3 checker.py \
+    --verbose \
+    --sdk SDK_"${sdk^^}" \
+    --allowlist "${allowlist_array[@]}" \
+    --paths "${diff[@]}"
 
-        export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-        python3 ci_cd.py \
-        --datastore-project ${PROJECT_ID} \
-        --namespace ${DATASTORE_NAMESPACE} \
-        --step ${STEP} \
-        --sdk SDK_"${sdk^^}" \
-        --origin ${ORIGIN} \
-        --subdirs ${SUBDIRS} > /dev/stdout
-        if [ $? -eq 0 ]; then
-            LogOutput "Examples for $sdk SDK have been successfully deployed."
-        else
-            LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
-        fi
+    checker_status=$?
+    if [ $checker_status -eq 0 ]
+    then
+        LogOutput "Checker found changed examples for SDK_${sdk^^}"
+        example_has_changed=True
+    elif [ $checker_status -eq 11 ]
+    then
+        LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
+        example_has_changed=False
+    else
+        LogOutput "Error: Checker is broken. Exiting the script."
+        exit 1
+    fi
+    #Nothing to check
+    if [[ $example_has_changed != "True" ]]
+    then
+        LogOutput "No changes require validation for SDK_${sdk^^}"
+        continue
+    fi
+    
+    cd $BEAM_ROOT_DIR/playground/infrastructure
+    LogOutput "Running ci_cd.py for SDK $sdk"
+
+    export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
+    python3 ci_cd.py \
+    --datastore-project ${PROJECT_ID} \
+    --namespace ${DATASTORE_NAMESPACE} \
+    --step ${STEP} \
+    --sdk SDK_"${sdk^^}" \
+    --origin ${ORIGIN} \
+    --subdirs ${SUBDIRS}
+    if [ $? -eq 0 ]; then
+        LogOutput "Examples for $sdk SDK have been successfully deployed."
+    else
+        LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
     fi
 done
