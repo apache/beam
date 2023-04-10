@@ -65,7 +65,7 @@ This section contains the following example notebooks.
 
 ### Automatic Model Refresh
 
-* [Update your Model in Production](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/automatic_model_refresh.ipynb)
+* [Update your model in production](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/automatic_model_refresh.ipynb)
 
 ### Multi-model pipelines
 
