@@ -1546,8 +1546,6 @@ class DataflowPipelineResult(PipelineResult):
           'Job did not reach to a terminal state after waiting indefinitely. '
           '{}'.format(consoleUrl))
 
-      # TODO(https://github.com/apache/beam/issues/21695): Also run this check
-      # if wait_until_finish was called after the pipeline completed.
       if terminated and self.state != PipelineState.DONE:
         # TODO(BEAM-1290): Consider converting this to an error log based on
         # theresolution of the issue.
@@ -1556,6 +1554,12 @@ class DataflowPipelineResult(PipelineResult):
             'Dataflow pipeline failed. State: %s, Error:\n%s' %
             (self.state, getattr(self._runner, 'last_error_msg', None)),
             self)
+    elif PipelineState.is_terminal(
+        self.state) and self.state != PipelineState.DONE and self._runner:
+      raise DataflowRuntimeException(
+          'Dataflow pipeline failed. State: %s, Error:\n%s' %
+          (self.state, getattr(self._runner, 'last_error_msg', None)),
+          self)
 
     return self.state
 
