@@ -49,6 +49,12 @@ class _SingletonProxy:
     self._SingletonProxy_entry = entry
     self._SingletonProxy_valid = True
 
+  # Used to make the shared object callable (see _AutoProxyWrapper below)
+  def singletonProxy_call__(self, *args, **kwargs):
+    if not self._SingletonProxy_valid:
+      raise RuntimeError('Entry was released.')
+    return self._SingletonProxy_entry.obj.__call__(*args, **kwargs)
+
   def _SingletonProxy_release(self):
     assert self._SingletonProxy_valid
     self._SingletonProxy_valid = False
@@ -58,14 +64,11 @@ class _SingletonProxy:
       raise RuntimeError('Entry was released.')
     return getattr(self._SingletonProxy_entry.obj, name)
 
-  # def __call__(self, *args, **kwargs):
-  #   if not self._SingletonProxy_valid:
-  #     raise RuntimeError('Entry was released.')
-  #   return self._SingletonProxy_entry.obj.__call__(*args, **kwargs)
-
   def __dir__(self):
     # Needed for multiprocessing.managers's proxying.
-    return self._SingletonProxy_entry.obj.__dir__()
+    dir = self._SingletonProxy_entry.obj.__dir__()
+    dir.append('singletonProxy_call__')
+    return dir
 
 
 class _SingletonEntry:
@@ -129,6 +132,24 @@ _SingletonRegistrar.register(
 _SingletonRegistrar.register(
     'release_singleton',
     callable=_process_level_singleton_manager.release_singleton)
+
+
+# By default, objects registered with BaseManager.register will have only
+# public methods available (excluding __call__). If you know the functions
+# you would like to expose, you can do so at register time with the `exposed`
+# attribute. Since we don't we will add a wrapper around the returned AutoProxy
+# object to handle __call__ function calls and turn them into
+# singletonProxy_call__ calls (which is a wrapper around the underlying
+# object's __call__ function)
+class _AutoProxyWrapper:
+  def __init__(self, proxyObject):
+    self._proxyObject = proxyObject
+
+  def __call__(self, *args, **kwargs):
+    return self._proxyObject.singletonProxy_call__(*args, **kwargs)
+
+  def __getattr__(self, name):
+    return getattr(self._proxyObject, name)
 
 
 class MultiProcessShared(Generic[T]):
@@ -223,7 +244,8 @@ class MultiProcessShared(Generic[T]):
     # inputs)
     # Caveat: They must always agree, as they will be ignored if the object
     # is already constructed.
-    return self._get_manager().acquire_singleton(self._tag)
+    singleton = self._get_manager().acquire_singleton(self._tag)
+    return _AutoProxyWrapper(singleton)
 
   def release(self, obj):
     self._manager.release_singleton(self._tag, obj)
