@@ -42,6 +42,8 @@ spec:
            value: {{ .Values.redis_ip }}
          - name: NUM_PARALLEL_JOBS
            value: "5"
+         - name: DATASTORE_NAMESPACE
+           value: {{ .Values.datastore_name }}
          - name: CLEANUP_SNIPPETS_FUNCTIONS_URL
            value: {{ .Values.func_clean }}
          - name: DELETE_OBSOLETE_SNIPPETS_FUNCTIONS_URL
