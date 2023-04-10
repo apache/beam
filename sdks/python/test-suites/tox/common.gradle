@@ -35,6 +35,7 @@ test.dependsOn "testPy${pythonVersionSuffix}Cython"
 toxTask "testPy38CloudCoverage", "py38-cloudcoverage", "${posargs}"
 test.dependsOn "testPy38CloudCoverage"
 
+
 project.tasks.register("preCommitPy${pythonVersionSuffix}") {
       // Since codecoverage reports will always be generated for py38,
       // all tests will be exercised.
@@ -42,5 +43,29 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
           dependsOn = ["testPy38Cython"]
       } else {
           dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
+      }
+}
+
+// Tests that run by installing pre-released/release candidates of the Beam Python dependencies.
+
+toxTask "testPython${pythonVersionSuffix}RC", "py${pythonVersionSuffix}-pre", "${posargs}"
+test.dependsOn "testPython${pythonVersionSuffix}RC"
+
+toxTask "testPy${pythonVersionSuffix}CloudRC", "py${pythonVersionSuffix}-cloud-pre", "${posargs}"
+test.dependsOn "testPy${pythonVersionSuffix}CloudRC"
+
+toxTask "testPy${pythonVersionSuffix}CythonRC", "py${pythonVersionSuffix}-cython-pre", "${posargs}"
+test.dependsOn "testPy${pythonVersionSuffix}CythonRC"
+
+project.tasks.register("preCommitPy${pythonVersionSuffix}RC") {
+      // Run Python PreCommits with RCs
+      // RC - Release candidates.
+
+      // Since codecoverage reports will always be generated for py38,
+      // all tests will be exercised.
+      if (pythonVersionSuffix.equals('38')) {
+          dependsOn = ["testPy38CythonRC"]
+      } else {
+          dependsOn = ["testPy${pythonVersionSuffix}CloudRC", "testPy${pythonVersionSuffix}CythonRC"]
       }
 }

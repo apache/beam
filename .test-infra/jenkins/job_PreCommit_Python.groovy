@@ -38,3 +38,26 @@ builder.build {
     archiveJunit('**/pytest*.xml')
   }
 }
+
+
+PrecommitJobBuilder builderRC = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'PythonRC',
+    gradleTask: ':pythonPreCommitRC',
+    timeoutMins: 180,
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/python/.*$',
+      '^release/.*$',
+    ],
+    gradleSwitches: [
+      '-Pposargs=\"--ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/\"' // All these tests are covered by different jobs.
+    ],
+    commitTriggering: false,
+    )
+builderRC.build {
+  // Publish all test results to Jenkins.
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
+}

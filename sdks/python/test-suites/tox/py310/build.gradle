@@ -30,3 +30,5 @@ apply from: "../common.gradle"
 
 // TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.
 testPy310Cython.mustRunAfter testPython310, testPy310Cloud
+// Tests that run by installing pre-released/release candidates of the Beam Python dependencies.
+testPy310CythonRC.mustRunAfter testPython310RC, testPy310CloudRC

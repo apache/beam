@@ -34,6 +34,9 @@ apply from: "../common.gradle"
 // TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.
 testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 
+// Tests that run by installing pre-released/release candidates of the Beam Python dependencies.
+testPy38CythonRC.mustRunAfter testPython38RC, testPy38CloudRC
+
 // TODO(BEAM-12000): Move tasks that aren't specific to 3.8 to Py 3.9.
 def posargs = project.findProperty("posargs") ?: ""
 
