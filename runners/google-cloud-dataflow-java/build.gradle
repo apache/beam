@@ -400,9 +400,6 @@ task validatesRunnerStreaming {
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      // GroupIntoBatches.withShardedKey not supported on streaming runner v1
-      // https://github.com/apache/beam/issues/22592
-      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }
