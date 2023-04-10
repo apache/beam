@@ -39,6 +39,7 @@ class CallableCounter(object):
   def error(self, msg):
     raise RuntimeError(msg)
 
+
 class Counter(object):
   def __init__(self, start=0):
     self.running = start
