@@ -26,8 +26,8 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -132,13 +132,15 @@ public class JmsIOIT implements Serializable {
 
   @Parameterized.Parameters(name = "with client class {3}")
   public static Collection<Object[]> connectionFactories() {
-    return Arrays.asList(
+    return Collections.singletonList(
         new Object[] {
           "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
-        },
-        new Object[] {
-          "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
         });
+    // TODO(https://github.com/apache/beam/issues/26175) Test failure on direct runner due to
+    //  JmsIO read on amqp slow on Jenkins.
+    // new Object[] {
+    //   "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
+    // });
   }
 
   private final CommonJms commonJms;
@@ -164,6 +166,8 @@ public class JmsIOIT implements Serializable {
       this.commonJms.startBroker();
       connectionFactory = this.commonJms.getConnectionFactory();
       connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
+      // use a small number of record for local integration test
+      OPTIONS.setNumberOfRecords(10000);
     }
   }
 
