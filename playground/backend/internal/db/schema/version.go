@@ -56,7 +56,10 @@ func (ds *DBSchema) InitiateData() (string, error) {
 }
 
 type Version interface {
+	// GetVersion returns the version string of the schema
 	GetVersion() string
+	// GetDescription returns the description of the schema version
 	GetDescription() string
+	// InitiateData initializes the data for the schema or performs a migration
 	InitiateData(args *DBArgs) error
 }

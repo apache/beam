@@ -24,6 +24,25 @@ Beam Playground uses Google Cloud Platform Datastore for storing examples and sn
 ## Datastore namespaces
 Playground can use custom namespace to store entities in Datastore to support simultaneous deployment of several backend instances in the same GCP project. By default `Playground` namespace is used. custom namespace can be selected by setting `DATASTORE_NAMESPACE` environment variable.
 
+## Migrations
+If a breaking change to DB schema is made, it's adviced to implement a migration procedure to handle the data change in the Datastore. There are no formalized rules on when a migration should be implemented, but in general the following should be considered:
+- all examples and precompiled objects are recreated during the deployment process and are not modified during the application runtime
+- user code snippets do survive application update and may require data migration
+
+In order to implement a migration a new Go file wtih name like `migration_xxx.go` should be created under the `internal/db/schema/migration` path. The file should contain a structure which implements the following interface:
+```go
+type Version interface {
+	// GetVersion returns the version string of the schema
+	GetVersion() string
+	// GetDescription returns the description of the schema version
+	GetDescription() string
+	// InitiateData initializes the data for the schema or performs a migration
+	InitiateData(args *DBArgs) error
+}
+```
+
+After implementing the migration logic inside of the `InitiateData()` function it should be covered by tests and the new migration should be added to the list of exisitng migrations in the `cmd/server/server.go` file inside of `setupDBStructure()` function.
+
 ## Datastore schema
 There are several entity kinds in Datastore:
 | Entity kind | Description | Corresponding Go struct |
