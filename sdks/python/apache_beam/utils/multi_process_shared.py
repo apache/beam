@@ -58,6 +58,11 @@ class _SingletonProxy:
       raise RuntimeError('Entry was released.')
     return getattr(self._SingletonProxy_entry.obj, name)
 
+  # def __call__(self, *args, **kwargs):
+  #   if not self._SingletonProxy_valid:
+  #     raise RuntimeError('Entry was released.')
+  #   return self._SingletonProxy_entry.obj.__call__(*args, **kwargs)
+
   def __dir__(self):
     # Needed for multiprocessing.managers's proxying.
     return self._SingletonProxy_entry.obj.__dir__()
