@@ -27,6 +27,9 @@ applyJavaNature(
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
+test{
+  maxParallelForks = Runtime.runtime.availableProcessors()
+}
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
