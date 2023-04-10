@@ -510,6 +510,7 @@ class BigtableServiceImpl implements BigtableService {
     public void close() throws IOException {
       if (bulkMutation != null) {
         try {
+          bulkMutation.flush();
           bulkMutation.close();
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();

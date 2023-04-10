@@ -73,6 +73,10 @@ class BigtableServiceFactory implements Serializable {
     public void close() {
       int refCount =
           refCounts.getOrDefault(getConfigId().id(), new AtomicInteger(0)).decrementAndGet();
+      if (refCount < 0) {
+        LOG.error(
+            "close() Ref count is < 0, configId=" + getConfigId().id() + " refCount=" + refCount);
+      }
       LOG.debug("close() for config id " + getConfigId().id() + ", ref count is " + refCount);
       if (refCount == 0) {
         synchronized (lock) {
