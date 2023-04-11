@@ -129,7 +129,7 @@ class ShardListingUtils {
         DescribeStreamSummaryRequest.builder().streamName(streamName).build();
     while (true) {
       try {
-        LOG.info("Executing request: {}", request);
+        LOG.debug("Executing request: {}", request);
         return kinesisClient.describeStreamSummary(request).streamDescriptionSummary();
       } catch (LimitExceededException exc) {
         if (!BackOffUtils.next(sleeper, backoff)) {
@@ -159,7 +159,7 @@ class ShardListingUtils {
             }
 
             ListShardsRequest request = reqBuilder.build();
-            LOG.info("Executing request: {}", request);
+            LOG.debug("Executing request: {}", request);
             ListShardsResponse response = kinesisClient.listShards(request);
             shardsBuilder.addAll(response.shards());
             currentNextToken = response.nextToken();
