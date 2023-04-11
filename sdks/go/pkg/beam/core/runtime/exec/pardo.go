@@ -365,14 +365,13 @@ func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID s
 
 	var extra []any
 	extra = append(extra, timerFamilyID)
+	log.Infof(ctx, "timerRecv: %+v", tmap)
 	if tmap.Tag != "" {
+		log.Infof(ctx, "TIMER: appending tag: %s", tmap.Tag)
 		extra = append(extra, tmap.Tag)
 	}
-	log.Infof(ctx, "timercoder map: %+v", n.Timer.(*userTimerAdapter).TimerIDToCoder)
-
-	// log.Infof(ctx, "timer key converted with string: %v", string(tmap.Key))
-	val, err := InvokeWithOpts(ctx, fn, tmap.Pane, nil, tmap.HoldTimestamp, InvokeOpts{
-		// decode with timer coder from graph/fn.go
+	log.Infof(ctx, "fv received from decoder: %+v", *tmap.Key)
+	val, err := InvokeWithOpts(ctx, fn, tmap.Pane, tmap.Windows, tmap.HoldTimestamp, InvokeOpts{
 		opt:   &MainInput{Key: *tmap.Key},
 		bf:    n.bf,
 		we:    n.we,
