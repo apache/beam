@@ -47,6 +47,9 @@ func makePathingJar(classpaths []string) (string, error) {
 	return f.Name(), nil
 }
 
+var lineBreak = []byte{'\r', '\n'}
+var continuation = []byte{' '}
+
 func writePathingJar(classpaths []string, w io.Writer) error {
 	jar := zip.NewWriter(w)
 	defer jar.Close()
@@ -60,11 +63,29 @@ func writePathingJar(classpaths []string, w io.Writer) error {
 		return fmt.Errorf("unable to create META-INF/MANIFEST.MF: %w", err)
 	}
 
-	zf.Write([]byte("Manifest-Version: 1.0\n"))
+	zf.Write([]byte("Manifest-Version: 1.0"))
+	zf.Write(lineBreak)
 	zf.Write([]byte("Created-By: sdks/java/container/pathingjar.go"))
+	zf.Write(lineBreak)
 	// Class-Path: must have a sequence of relative URIs for the paths
 	// which we assume outright in this case.
-	zf.Write([]byte("Class-Path: file:" + strings.Join(classpaths, " file:")))
-	zf.Write([]byte("\n"))
+
+	// We could do this memory efficiently, but it's not worthwhile compared to the complexity
+	// at this stage.
+	allCPs := "Class-Path: file:" + strings.Join(classpaths, " file:")
+
+	const lineLenMax = 71 // it's actually 72, but we remove 1 to account for the continuation line prefix.
+	buf := make([]byte, lineLenMax)
+	cur := 0
+	for cur+lineLenMax < len(allCPs) {
+		next := cur + lineLenMax
+		copy(buf, allCPs[cur:next])
+		zf.Write(buf)
+		zf.Write(lineBreak)
+		zf.Write(continuation)
+		cur = next
+	}
+	zf.Write([]byte(allCPs[cur:]))
+	zf.Write(lineBreak)
 	return nil
 }
