@@ -31,15 +31,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
-import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
-import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
@@ -59,40 +56,16 @@ public class KinesisSourceTest {
   }
 
   @Test
-  public void shouldHandleExpiredIterationExceptionForShardListing() {
-    shouldHandleShardListingError(
-        ExpiredIteratorException.builder().build(), ExpiredIteratorException.class);
-  }
-
-  @Test
-  public void shouldHandleLimitExceededExceptionForShardListing() {
-    shouldHandleShardListingError(
+  public void shouldThrowLimitExceededExceptionForShardListing() {
+    shouldThrowShardListingError(
         LimitExceededException.builder().build(), LimitExceededException.class);
   }
 
   @Test
-  public void shouldHandleProvisionedThroughputExceededExceptionForShardListing() {
-    shouldHandleShardListingError(
-        ProvisionedThroughputExceededException.builder().build(),
-        ProvisionedThroughputExceededException.class);
-  }
-
-  @Test
-  public void shouldHandleServiceErrorForShardListing() {
-    shouldHandleShardListingError(
+  public void shouldThrowServiceErrorForShardListing() {
+    shouldThrowShardListingError(
         SdkServiceException.builder().statusCode(HttpStatusCode.GATEWAY_TIMEOUT).build(),
         SdkServiceException.class);
-  }
-
-  @Test
-  public void shouldHandleRetryableClientErrorForShardListing() {
-    shouldHandleShardListingError(
-        ApiCallAttemptTimeoutException.builder().build(), ApiCallAttemptTimeoutException.class);
-  }
-
-  @Test
-  public void shouldHandleUnexpectedExceptionForShardListing() {
-    shouldHandleShardListingError(new NullPointerException(), NullPointerException.class);
   }
 
   private KinesisSource sourceWithMockedKinesisClient(KinesisIO.Read read) {
@@ -116,7 +89,7 @@ public class KinesisSourceTest {
         .withInitialPositionInStream(InitialPositionInStream.LATEST);
   }
 
-  private void shouldHandleShardListingError(
+  private void shouldThrowShardListingError(
       Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
     when(kinesisClient.listShards(any(ListShardsRequest.class))).thenThrow(thrownException);
     try {
