@@ -268,16 +268,16 @@ The following table describes how the `RunInference` Model Handlers versions are
 its dependency PyPI packages. This is determined by our testing framework,
 but other *untested* combinations may also work.
 
-| apache_beam                                                            | Tensorflow    | TFX-BSL            | PyTorch          | Scikit-learn     | TensorRT             | Onnx   |
-|------------------------------------------------------------------------|---------------|--------------------|------------------|------------------|----------------------|--------|
-| [GitHub master](https://github.com/apache/beam/blob/master/RELEASE.md) | \>=2.12.0rc1  | WIP                | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | WIP    |
-| [2.46.0](https://github.com/apache/beam/tree/v2.46.0)                  | \>=2.9,<=2.11 | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | 1.13.0 |
-| [2.45.0](https://github.com/apache/beam/tree/v2.45.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
-| [2.44.0](https://github.com/apache/beam/tree/v2.44.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
-| [2.43.0](https://github.com/apache/beam/tree/v2.43.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
-| [2.42.0](https://github.com/apache/beam/tree/v2.42.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
-| [2.41.0](https://github.com/apache/beam/tree/v2.41.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      | 
-| [2.40.0](https://github.com/apache/beam/tree/v2.40.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0,<1.14.0 | \>=1.0.0,<=1.2.2 | \>=8.5.1.7,<=8.5.3.1 | X      |
+| apache_beam                                                            | Tensorflow    | TFX-BSL            | PyTorch  | Scikit-learn | TensorRT             | Onnx   |
+|------------------------------------------------------------------------|---------------|--------------------|----------|--------------|----------------------|--------|
+| [GitHub master](https://github.com/apache/beam/blob/master/RELEASE.md) | \>=2.12.0     | WIP                | \>=1.9.0 | \>=1.0.0     | \>=8.5.1.7,<=8.5.3.1 | WIP    |
+| [2.46.0](https://github.com/apache/beam/tree/v2.46.0)                  | \>=2.9,<=2.11 | \>=1.10.0,<=1.12.0 | \>=1.9.0 | \>=1.0.0     | \>=8.5.1.7,<=8.5.3.1 | 1.13.0 |
+| [2.45.0](https://github.com/apache/beam/tree/v2.45.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0 | \>=1.0.0     | \>=8.5.1.7,<=8.5.3.1 | X      |
+| [2.44.0](https://github.com/apache/beam/tree/v2.44.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0 | \>=1.0.0     | \>=8.5.1.7,<=8.5.3.1 | X      |
+| [2.43.0](https://github.com/apache/beam/tree/v2.43.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0 | \>=1.0.0     | \>=8.5.1.7,<=8.5.3.1 | X      |
+| [2.42.0](https://github.com/apache/beam/tree/v2.42.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0 | \>=1.0.0     | \>=8.5.1.7,<=8.5.3.1 | X      |
+| [2.41.0](https://github.com/apache/beam/tree/v2.41.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0 | \>=1.0.0     | \>=8.5.1.7,<=8.5.3.1 | X      |
+| [2.40.0](https://github.com/apache/beam/tree/v2.40.0)                  | X             | \>=1.10.0,<=1.12.0 | \>=1.9.0 | \>=1.0.0     | \>=8.5.1.7,<=8.5.3.1 | X      |
 
 
 ## Related links
