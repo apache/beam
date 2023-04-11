@@ -219,6 +219,43 @@ public class SimplifiedKinesisClientTest {
   }
 
   @Test
+  public void shouldHandleExpiredIterationExceptionForShardListing() {
+    shouldHandleShardListingError(
+        ExpiredIteratorException.builder().build(), ExpiredIteratorException.class);
+  }
+
+  @Test
+  public void shouldHandleLimitExceededExceptionForShardListing() {
+    shouldHandleShardListingError(
+        LimitExceededException.builder().build(), KinesisClientThrottledException.class);
+  }
+
+  @Test
+  public void shouldHandleProvisionedThroughputExceededExceptionForShardListing() {
+    shouldHandleShardListingError(
+        ProvisionedThroughputExceededException.builder().build(),
+        KinesisClientThrottledException.class);
+  }
+
+  @Test
+  public void shouldHandleServiceErrorForShardListing() {
+    shouldHandleShardListingError(
+        SdkServiceException.builder().statusCode(HttpStatusCode.GATEWAY_TIMEOUT).build(),
+        TransientKinesisException.class);
+  }
+
+  @Test
+  public void shouldHandleRetryableClientErrorForShardListing() {
+    shouldHandleShardListingError(
+        ApiCallAttemptTimeoutException.builder().build(), TransientKinesisException.class);
+  }
+
+  @Test
+  public void shouldHandleUnexpectedExceptionForShardListing() {
+    shouldHandleShardListingError(new NullPointerException(), RuntimeException.class);
+  }
+
+  @Test
   public void shouldCountBytesWhenSingleDataPointReturned() throws Exception {
     Instant countSince = new Instant("2017-04-06T10:00:00.000Z");
     Instant countTo = new Instant("2017-04-06T11:00:00.000Z");
@@ -361,5 +398,18 @@ public class SimplifiedKinesisClientTest {
               .build());
     }
     return records;
+  }
+
+  private void shouldHandleShardListingError(
+      Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
+    when(kinesis.listShards(any(ListShardsRequest.class))).thenThrow(thrownException);
+    try {
+      underTest.listShardsFollowingClosedShard(STREAM, "some-shard-0123");
+      failBecauseExceptionWasNotThrown(expectedExceptionClass);
+    } catch (Exception e) {
+      assertThat(e).isExactlyInstanceOf(expectedExceptionClass);
+    } finally {
+      reset(kinesis);
+    }
   }
 }

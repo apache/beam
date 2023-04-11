@@ -19,41 +19,80 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShards;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
+import software.amazon.awssdk.core.exception.SdkServiceException;
+import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
+import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
+import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
+import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class KinesisSourceTest {
   @Mock private KinesisClient kinesisClient;
-
-  @Before
-  public void init() {
-    mockShards(kinesisClient, 3);
-  }
+  private KinesisSource source;
 
   @Test
   public void testSplitGeneratesCorrectNumberOfSources() throws Exception {
-    KinesisIO.Read read =
-        KinesisIO.read()
-            .withStreamName("stream")
-            .withInitialPositionInStream(InitialPositionInStream.LATEST);
-
-    KinesisSource source = sourceWithMockedKinesisClient(read);
+    mockShards(kinesisClient, 3);
+    source = sourceWithMockedKinesisClient(spec());
     assertThat(source.split(1, opts()).size()).isEqualTo(1);
     assertThat(source.split(2, opts()).size()).isEqualTo(2);
     assertThat(source.split(3, opts()).size()).isEqualTo(3);
     // there are only 3 shards, no more than 3 splits can be created
     assertThat(source.split(4, opts()).size()).isEqualTo(3);
+  }
+
+  @Test
+  public void shouldHandleExpiredIterationExceptionForShardListing() {
+    shouldHandleShardListingError(
+        ExpiredIteratorException.builder().build(), ExpiredIteratorException.class);
+  }
+
+  @Test
+  public void shouldHandleLimitExceededExceptionForShardListing() {
+    shouldHandleShardListingError(
+        LimitExceededException.builder().build(), KinesisClientThrottledException.class);
+  }
+
+  @Test
+  public void shouldHandleProvisionedThroughputExceededExceptionForShardListing() {
+    shouldHandleShardListingError(
+        ProvisionedThroughputExceededException.builder().build(),
+        KinesisClientThrottledException.class);
+  }
+
+  @Test
+  public void shouldHandleServiceErrorForShardListing() {
+    shouldHandleShardListingError(
+        SdkServiceException.builder().statusCode(HttpStatusCode.GATEWAY_TIMEOUT).build(),
+        TransientKinesisException.class);
+  }
+
+  @Test
+  public void shouldHandleRetryableClientErrorForShardListing() {
+    shouldHandleShardListingError(
+        ApiCallAttemptTimeoutException.builder().build(), TransientKinesisException.class);
+  }
+
+  @Test
+  public void shouldHandleUnexpectedExceptionForShardListing() {
+    shouldHandleShardListingError(new NullPointerException(), RuntimeException.class);
   }
 
   private KinesisSource sourceWithMockedKinesisClient(KinesisIO.Read read) {
@@ -69,5 +108,25 @@ public class KinesisSourceTest {
     AwsOptions options = PipelineOptionsFactory.fromArgs().as(AwsOptions.class);
     options.setAwsRegion(Region.AP_EAST_1);
     return options;
+  }
+
+  private KinesisIO.Read spec() {
+    return KinesisIO.read()
+        .withStreamName("stream")
+        .withInitialPositionInStream(InitialPositionInStream.LATEST);
+  }
+
+  private void shouldHandleShardListingError(
+      Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
+    when(kinesisClient.listShards(any(ListShardsRequest.class))).thenThrow(thrownException);
+    try {
+      source = sourceWithMockedKinesisClient(spec());
+      source.split(1, opts());
+      failBecauseExceptionWasNotThrown(expectedExceptionClass);
+    } catch (Exception e) {
+      assertThat(e).isExactlyInstanceOf(expectedExceptionClass);
+    } finally {
+      reset(kinesisClient);
+    }
   }
 }
