@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.mockRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.mockShardIterators;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.testAggregatedRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.testRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShardIterators;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.testAggregatedRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.testRecords;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;

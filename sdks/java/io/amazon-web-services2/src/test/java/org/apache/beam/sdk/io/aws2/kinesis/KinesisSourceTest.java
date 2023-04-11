@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.mockShards;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShards;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;

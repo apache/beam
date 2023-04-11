@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.util.function.Function.identity;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.mockRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.mockShardIterators;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.mockShards;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.record;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.testRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShardIterators;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShards;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.record;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.testRecords;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.concat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

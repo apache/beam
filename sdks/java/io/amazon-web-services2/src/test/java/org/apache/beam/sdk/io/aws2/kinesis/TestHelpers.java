@@ -44,7 +44,7 @@ import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.Shard;
 
-class Helpers {
+class TestHelpers {
   static final int SHARD_EVENTS = 100;
 
   static void mockShards(KinesisClient client, int count) {
