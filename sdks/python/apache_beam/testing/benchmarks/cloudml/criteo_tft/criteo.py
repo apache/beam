@@ -132,15 +132,14 @@ def make_preprocessing_fn(frequency_threshold):
     result = {'clicked': inputs['clicked']}
     for name in _INTEGER_COLUMN_NAMES:
       feature = inputs[name]
-      # TODO(https://github.com/apache/beam/issues/24902):
-      #  Replace this boilerplate with a helper function.
-      # This is a SparseTensor because it is optional. Here we fill in a
-      # default value when it is missing.
-      feature = tft.sparse_tensor_to_dense_with_shape(
-          feature, [None, 1], default_value=-1)
-      # Reshaping from a batch of vectors of size 1 to a batch of scalars and
-      # adding a bucketized version.
-      feature = tf.squeeze(feature, axis=1)
+      def fill_in_missing(feature,default_value=-1):
+        feature= tf.sparse.SparseTensor(indices=feature.indices, values=feature.values, dense_shape=[feature.dense_shape[0], 1])
+        feature = tf.sparse_to_dense(feature,default_value=default_value)
+        # Reshaping from a batch of vectors of size 1 to a batch of scalars and
+        # adding a bucketized version.
+        feature = tf.squeeze(feature, axis=1)
+        return feature
+      fill_in_missing(feature)
       result[name] = feature
       result[name + '_bucketized'] = tft.bucketize(feature, _NUM_BUCKETS)
     for name in _CATEGORICAL_COLUMN_NAMES:
