@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.createReadSpec;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.eventWithAggRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.eventWithRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.eventsWithRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.eventsWithoutRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.reShardEvent;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.recordWithMinutesAgo;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.subscribeAfterSeqNumber;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.subscribeAtSeqNumber;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.subscribeAtTs;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.subscribeLatest;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.subscribeTrimHorizon;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.createReadSpec;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.eventWithAggRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.eventWithRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.eventsWithRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.eventsWithoutRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.reShardEvent;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.recordWithMinutesAgo;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.subscribeAfterSeqNumber;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.subscribeAtSeqNumber;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.subscribeAtTs;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.subscribeLatest;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.subscribeTrimHorizon;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 

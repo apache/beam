@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.createIOOptions;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.createIOOptions;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShards;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
@@ -174,7 +174,7 @@ public class KinesisSourceTest {
   }
 
   @Test
-  public void testConsumerArnInDiscardsIOSetting() {
+  public void testConsumerArnInPipelineOptionsDiscardsIOSetting() {
     KinesisIO.Read readSpec =
         KinesisIO.read().withStreamName("stream-xxx").withConsumerArn("arn-ignored");
 

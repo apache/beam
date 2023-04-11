@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.util.function.Function.identity;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.SHARD_EVENTS;
-import static org.apache.beam.sdk.io.aws2.kinesis.Helpers.eventWithRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.SHARD_EVENTS;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.createRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.eventWithRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShardIterators;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShards;
