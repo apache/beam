@@ -49,7 +49,6 @@ public class Controller {
     ExpansionService expansionService = new ExpansionService(endpoints);
     ArtifactService artifactService = new ArtifactService(endpoints);
 
-
     System.out.println("Starting transform service at port: " + options.getPort());
 
     Server server =

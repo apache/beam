@@ -41,44 +41,63 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
   public void resolveArtifacts(
       ArtifactApi.ResolveArtifactsRequest request,
       StreamObserver<ArtifactApi.ResolveArtifactsResponse> responseObserver) {
-    // TODO: Add logic to handle multiple expansion services.
-    Endpoints.ApiServiceDescriptor endpoint = endpoints.get(0);
+    // Trying out artifact services in order till one succeeds.
+    // If all services fail, re-raises the last error.
+    // TODO: when all services fail, return an aggregated error with errors from all services.
+    RuntimeException lastError = null;
+    for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
+      try {
+        ManagedChannel channel =
+            ManagedChannelBuilder.forTarget(endpoint.getUrl())
+                .usePlaintext()
+                .maxInboundMessageSize(Integer.MAX_VALUE)
+                .build();
 
-    ManagedChannel channel =
-        ManagedChannelBuilder.forTarget(endpoint.getUrl())
-            .usePlaintext()
-            .maxInboundMessageSize(Integer.MAX_VALUE)
-            .build();
+        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
+            ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
+        responseObserver.onNext(retrievalStub.resolveArtifacts(request));
 
-    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
-        ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
-    responseObserver.onNext(retrievalStub.resolveArtifacts(request));
+        responseObserver.onCompleted();
+      } catch (RuntimeException exn) {
+        lastError = exn;
+      }
+    }
 
-    responseObserver.onCompleted();
+    throw lastError;
   }
 
   @Override
   public void getArtifact(
       ArtifactApi.GetArtifactRequest request,
       StreamObserver<ArtifactApi.GetArtifactResponse> responseObserver) {
-    // TODO: Add logic to handle multiple expansion services.
-    Endpoints.ApiServiceDescriptor endpoint = endpoints.get(0);
+    // Trying out artifact services in order till one succeeds.
+    // If all services fail, re-raises the last error.
+    // TODO: when all services fail, return an aggregated error with errors from all services.
+    RuntimeException lastError = null;
+    for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
+      try {
+        ManagedChannel channel =
+            ManagedChannelBuilder.forTarget(endpoint.getUrl())
+                .usePlaintext()
+                .maxInboundMessageSize(Integer.MAX_VALUE)
+                .build();
 
-    ManagedChannel channel =
-        ManagedChannelBuilder.forTarget(endpoint.getUrl())
-            .usePlaintext()
-            .maxInboundMessageSize(Integer.MAX_VALUE)
-            .build();
+        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
+            ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
 
-    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
-        ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
+        Iterator<ArtifactApi.GetArtifactResponse> responseIterator =
+            retrievalStub.getArtifact(request);
+        while (responseIterator.hasNext()) {
+          responseObserver.onNext(responseIterator.next());
+        }
 
-    Iterator<ArtifactApi.GetArtifactResponse> responseIterator = retrievalStub.getArtifact(request);
-    while (responseIterator.hasNext()) {
-      responseObserver.onNext(responseIterator.next());
+        responseObserver.onCompleted();
+      } catch (RuntimeException exn) {
+        lastError = exn;
+      }
     }
 
-    responseObserver.onCompleted();
+    throw lastError;
   }
 
   @Override

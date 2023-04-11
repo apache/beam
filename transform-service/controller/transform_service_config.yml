@@ -12,3 +12,4 @@
 
 expansionservices:
   - expansion-service-1:5001
+  - expansion-service-2:5001

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.transformservice.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
@@ -77,16 +78,77 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   /*package*/ ExpansionApi.ExpansionResponse processExpand(ExpansionApi.ExpansionRequest request) {
-    // TODO: Add logic to handle multiple expansion services.
-    Endpoints.ApiServiceDescriptor endpoint = endpoints.get(0);
-    return expansionServiceClientFactory.getExpansionServiceClient(endpoint).expand(request);
+    // Trying out expansion services in order till one succeeds.
+    // If all services fail, re-raises the last error.
+    // TODO: when all services fail, return an aggregated error with errors from all services.
+    ExpansionApi.ExpansionResponse lastErrorResponse = null;
+    RuntimeException lastException = null;
+    for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
+      try {
+        ExpansionApi.ExpansionResponse response =
+            expansionServiceClientFactory.getExpansionServiceClient(endpoint).expand(request);
+        if (!response.getError().isEmpty()) {
+          lastErrorResponse = response;
+          continue;
+        }
+        return response;
+      } catch (RuntimeException e) {
+        lastException = e;
+      }
+    }
+    if (lastErrorResponse != null) {
+      return lastErrorResponse;
+    } else if (lastException != null) {
+      throw new RuntimeException("Expansion request to transform service failed.", lastException);
+    } else {
+      throw new RuntimeException("Could not process the expansion request: " + request);
+    }
   }
 
   ExpansionApi.DiscoverSchemaTransformResponse processDiscover(
       ExpansionApi.DiscoverSchemaTransformRequest request) {
-    // TODO: Add logic to handle multiple expansion services.
-    Endpoints.ApiServiceDescriptor endpoint = endpoints.get(0);
-    return expansionServiceClientFactory.getExpansionServiceClient(endpoint).discover(request);
+    // Trying out expansion services and aggregating all successful results.
+    // If all services fail, return the last successful response any.
+    // If there are no successful responses, re-raises the last error.
+    List<ExpansionApi.DiscoverSchemaTransformResponse> successfulResponses = new ArrayList<>();
+    ExpansionApi.DiscoverSchemaTransformResponse lastErrorResponse = null;
+    for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
+      try {
+        ExpansionApi.DiscoverSchemaTransformResponse response =
+            expansionServiceClientFactory.getExpansionServiceClient(endpoint).discover(request);
+        if (!response.getError().isEmpty()) {
+          successfulResponses.add(response);
+        } else {
+          lastErrorResponse = response;
+        }
+      } catch (RuntimeException e) {
+        // We just ignore this error and continue to try the next expansion service.
+      }
+    }
+    if (successfulResponses.isEmpty()) {
+      if (lastErrorResponse != null) {
+        return lastErrorResponse;
+      } else {
+        // Returning a discovery response with an error message since none of the expansion services
+        // supported discovery.
+        return ExpansionApi.DiscoverSchemaTransformResponse.newBuilder()
+            .setError("Did not find any expansion service that support the discovery API")
+            .build();
+      }
+    } else {
+      return aggregateDiscoveryRespones(successfulResponses);
+    }
+  }
+
+  private ExpansionApi.DiscoverSchemaTransformResponse aggregateDiscoveryRespones(
+      List<ExpansionApi.DiscoverSchemaTransformResponse> responses) {
+    ExpansionApi.DiscoverSchemaTransformResponse.Builder responseBuilder =
+        ExpansionApi.DiscoverSchemaTransformResponse.newBuilder();
+    for (ExpansionApi.DiscoverSchemaTransformResponse response : responses) {
+      responseBuilder.putAllSchemaTransformConfigs(response.getSchemaTransformConfigsMap());
+    }
+
+    return responseBuilder.build();
   }
 
   @Override

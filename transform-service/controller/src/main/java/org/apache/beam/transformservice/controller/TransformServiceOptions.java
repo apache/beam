@@ -21,7 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
-
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -40,7 +39,7 @@ public interface TransformServiceOptions extends PipelineOptions {
   void setTransformServiceConfigFile(String configFile);
 
   @Description("Transform service configuration.")
-      @Default.InstanceFactory(TransformServiceConfigFactory.class)
+  @Default.InstanceFactory(TransformServiceConfigFactory.class)
   TransformServiceConfig getTransformServiceConfig();
 
   void setTransformServiceConfig(TransformServiceConfig configFile);

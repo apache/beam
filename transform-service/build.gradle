@@ -21,5 +21,3 @@ plugins {
 }
 
 description = "Apache Beam :: Transform Service"
-
-// TODO: Add targets related to the overall transform service.
