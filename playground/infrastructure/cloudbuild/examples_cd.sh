@@ -113,7 +113,7 @@ LogOutput "Discovered changes introduced by $MERGED_COMMIT: $diff_log"
 declare -a allowlist_array
 for sdk in $SDKS
 do
-    eval "ci_${sdk}_passed"='False'
+    eval "check_${sdk}_passed"="False"
     example_has_changed="UNKNOWN"
     LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
     cd $BEAM_ROOT_DIR/playground/infrastructure
@@ -127,19 +127,20 @@ do
     if [ $checker_status -eq 0 ]
     then
         LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        example_has_changed=True
+        example_has_changed="True"
     elif [ $checker_status -eq 11 ]
     then
         LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        example_has_changed=False
+        example_has_changed="False"
     else
         LogOutput "Error: Checker is broken. Exiting the script."
         exit 1
     fi
     #Nothing to check
-    if [[ $example_has_changed != True ]]
+    if [[ $example_has_changed != "True" ]]
     then
         LogOutput "No changes require validation for SDK_${sdk^^}"
+        eval "check_${sdk}_passed"="True"
         continue
     fi
     
@@ -156,7 +157,7 @@ do
     --subdirs ${SUBDIRS}
     if [ $? -eq 0 ]; then
         LogOutput "Examples for $sdk SDK have been successfully deployed."
-        eval "ci_${sdk}_passed"='True'
+        eval "check_${sdk}_passed"="True"
     else
         LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
     fi
@@ -164,7 +165,7 @@ done
 LogOutput "Script finished"
 for sdk in $SDKS
 do
-    result=$(eval echo '$'"ci_${sdk}_passed")
+    result=$(eval echo '$'"check_${sdk}_passed")
     if [ "$result" != "True" ]; then
         LogOutput "At least one of the checks has failed for $sdk SDK"
         exit 1
