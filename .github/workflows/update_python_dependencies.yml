@@ -41,6 +41,8 @@ jobs:
         uses: ./.github/actions/setup-default-test-properties
 
   update_python_dependencies:
+    permissions:
+      pull-requests: write
     runs-on: [ubuntu-latest]
     needs: set-properties
     name: Update Python Dependencies
