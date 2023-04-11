@@ -93,7 +93,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^release/.*$',
     ],
     excludePathPatterns: excludePaths.collect {entry ->
-      "^sdks/java/" + entry + '/.*$'}
+      "^sdks/java/" + entry + '/.*$'},
+    numBuildsToRetain: 40
     )
 builder.build {
   publishers {
