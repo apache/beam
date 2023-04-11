@@ -58,7 +58,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added rename for GCS and copy for local filesystem (Go) ([#25779](https://github.com/apache/beam/issues/26064)).
 
 ## New Features / Improvements
 
@@ -79,7 +79,6 @@
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
-
 
 # [2.47.0] - Unreleased
 
