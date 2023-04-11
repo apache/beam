@@ -22,35 +22,38 @@
 Adding a new example, code snippet or Tour of Beam learning unit into the Playground is a three-step process:
 
 1. Prepare a code snippet.
-2. Add the code snippet to Apache Beam and Playground.
+2. Add the code snippet to Apache Beam and/or Playground.
 3. Create a link to view the code snippet in Playground or to embed in a website page.
 
 
 Playground sources and output presentation formats:
 
-![Workflow](doc/get_your_code/images/workflow.png)
+![Workflow](doc/load_your_code/images/workflow.png)
 
 The guide will walk through all steps.
 
 
 # Table of Contents
+
 - [Step 1. Prepare a code snippet](#step-1-prepare-a-code-snippet)
+  * [Data access limitations](#data-access-limitations)
+  * [Emphasizing parts of code](#emphasizing-parts-of-code)
   * [Named Sections](#named-sections)
-- [Step 2. Add the code snippet to the Apache Beam repo and Playground](#step-2-add-the-code-snippet-to-the-apache-beam-repo-and-playground)
-  * [Source 1. Add an example to Playground Examples Catalog](#source-1-add-an-example-to-playground-examples-catalog)
+- [Step 2. Add the code snippet to the Apache Beam repo and/or Playground](#step-2-add-the-code-snippet-to-the-apache-beam-repo-andor-playground)
+  * [Source 1. How to add an example to Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog)
     + [1. Add the file with example to a directory](#1-add-the-file-with-example-to-a-directory)
-    + [2. Add metadata to describe example](#2-add-metadata-to-describe-example)
+    + [2. Add metadata to describe example](#2-add-metadata-to-describe-the-example)
       - [Kafka emulator](#kafka-emulator)
     + [3. Make a PR](#3-make-a-pr)
     + [4. Save the snippet ID](#4-save-the-snippet-id)
-  * [Source 2. Add a snippet](#source-2-add-a-snippet)
-  * [Source 3. Add a Tour of Beam unit](#source-3-add-a-tour-of-beam-unit)
-  * [Source 4. Add a user-shared snippet](#source-4-add-a-user-shared-snippet)
-  * [Source 5. Add a snippet from GitHub or HTTPS URL source](#source-5-add-a-snippet-from-github-or-https-url-source)
+  * [Source 2. How to add an unlisted example to Playground](#source-2-how-to-add-an-unlisted-example-to-playground)
+  * [Source 3. How to add a Tour of Beam unit](#source-3-how-to-add-a-tour-of-beam-unit)
+  * [Source 4. How to add a snippet with the app alone](#source-4-how-to-add-a-snippet-with-the-app-alone)
+  * [Source 5. How to load code from GitHub or other HTTPS URL](#source-5-how-to-load-code-from-github-or-other-https-url)
 - [Step 3. Create a link or embed snippet](#step-3-create-a-link-or-embed-snippet)
   * [Link to a snippet](#link-to-a-snippet)
     + [Link to an example from the Playground Examples Catalog](#link-to-an-example-from-the-playground-examples-catalog)
-    + [Link to snippet (`unlisted` Playground Examples Catalog item)](#link-to-snippet-unlisted-playground-examples-catalog-item)
+    + [Link to snippet (`unlisted` Playground Examples Catalog item)](#link-to-snippet---unlisted--playground-examples-catalog-item-)
     + [Link to a Tour of Beam unit](#link-to-a-tour-of-beam-unit)
     + [Link to a user-shared snippet](#link-to-a-user-shared-snippet)
     + [Link to a GitHub or HTTPS URL snippet](#link-to-a-github-or-https-url-snippet)
@@ -71,11 +74,32 @@ The guide will walk through all steps.
 
 Playground runs example code snippets using Apache Beam Direct Runner
 and requires that a code snippet is a complete runnable code.
+
+### Data access limitations
+
+For security reasons, the snippets in Playground cannot access arbitrary internet resources.
+Depending on your data source you should do the following to access data:
+
+| Source   | Notes                                                     |
+|----------|-----------------------------------------------------------|
+| File     | Put to a GCS bucket in `apache-beam-testing` project.     |
+| BigQuery | The table must be added to `apache-beam-testing` project. |
+
+Machine Learning: PyTorch, SKLearn -- change the playground itself. (request for enhancement to add a dependency to the Python image).
+To request adding, please send an email to dev@...
+
+CLONING 3RD PARTY REPOS.
+IF ML MODELS -- FROM PLAYGROUND BEAM ML EXAMPLES SUPPORT
+
+### Emphasizing parts of code
+
 Playground provides multiple features to help focus users on certain parts of the code.
 
 Playground automatically applies the following to all snippets:
 - Folds a comment if a snippet starts with one.
 - Folds imports.
+
+### Named Sections
 
 Playground supports *Named Sections* to tag code blocks and provide the following view options:
 - Fold all blocks except tagged code blocks.
@@ -91,8 +115,6 @@ Please see [Snippet View Options](#snippet-view-options) section for details how
 
 If you do not need any of those view options, skip to the [next step](#step-2-add-the-code-snippet-to-the-apache-beam-repo-and-playground).
 
-### Named Sections
-
 *Named Sections* are defined with the following syntax:
 
 ```
@@ -102,23 +124,31 @@ void method() {
 }
 // [END section_name]
 ```
-Create a named section for each part of your code that you want the above features for. To learn more details about the syntax please see the [README of the editor](https://pub.dev/packages/flutter_code_editor) that Playground uses.
 
-## Step 2. Add the code snippet to the Apache Beam repo and Playground
+Create a named section for each part of your code that you want the above features for.
+To learn more details about the syntax please see
+the [README of the editor](https://pub.dev/packages/flutter_code_editor) that Playground uses.
+
+## Step 2. Add the code snippet to the Apache Beam repo and/or Playground
+
 There are several types of code snippets in the Playground:
-1. Example — a code snippet displayed in the Playground Examples Catalog.
-   See [how to add a new example here](#source-1-add-an-example-to-playground-examples-catalog).
-2. Snippet — a code snippet, that will typically be embedded on a website.
-   Snippets are stored and executed by Playground, but not listed in the Examples Catalog.
-   See [how to add a new snippet here](#source-2-add-a-snippet).
-3. [Tour of Beam](https://github.com/apache/beam/tree/master/learning/tour-of-beam) learning unit.
-   See [how to add a new Tour of Beam unit here](#source-3-add-a-tour-of-beam-unit).
-4. User-shared code snippets.
-   See [how to add a user-shared snippet here](#source-4-add-a-user-shared-snippet).
-5. GitHub and HTTPS URL sources.
-   See [how to load a snippet from external GitHub or HTTPS ULR here](#source-5-add-a-snippet-from-github-or-https-url-source).
 
-### Source 1. Add an example to Playground Examples Catalog
+1. Public Example — a code snippet displayed in the Playground Examples Catalog.
+   See [how to add a new public example here](#source-1-how-to-add-an-example-to-playground-examples-catalog).
+2. Unlisted Example — the same as a public example, but it does not show in the example dropdown
+   and can only be accessed by direct linking. These are typically embedded on a website.
+   See [how to add a new unlisted example here](#source-2-how-to-add-an-unlisted-example-to-playground).
+3. [Tour of Beam](https://github.com/apache/beam/tree/master/learning/tour-of-beam) learning unit.
+   See [how to add a new Tour of Beam unit here](#source-3-how-to-add-a-tour-of-beam-unit).
+4. User-shared code snippets do not require a PR and should be used for code
+   not displayed on Beam resources.
+   See [how to add a snippet with the app alone here](#source-4-how-to-add-a-snippet-with-the-app-alone).
+5. GitHub or other HTTPS URL sources.
+   See [how to load a snippet from external GitHub or other HTTPS URL here](#source-5-how-to-load-code-from-github-or-other-https-url).
+
+See the [workflow above](#how-to-add-an-examplesnippetlearning-content-into-apache-beam-playground) how artifacts map to these sources.
+
+### Source 1. How to add an example to Playground Examples Catalog
 
 Playground Examples Catalog helps users discover example snippets
 and is a recommended way to add examples. Playground automatically scans,
@@ -136,13 +166,13 @@ after a PR is merged to Beam repo:
 Adding Scala example snippets automatically is not supported,
 and Scala example snippets can be added to the catalog manually.
 
-#### 2. Add metadata to describe example
+#### 2. Add metadata to describe the example
 
 Playground relies on metadata comments block to identify and place an example into the database,
 and present in the Examples Catalog.
 See [this](https://github.com/apache/beam/blob/3e080ff212d8ed7208c8486b515bb73c5d294475/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java#L20-L36) for an example.
 Playground automatically removes metadata comments block before storing the example in database
-and so the metadata is not visible to end users. The block is in the format of a YAML map.
+so the metadata is not visible to end users. The block is in the format of a YAML map.
 
 Example tag metadata quick reference (all elements are **required**, unless marked **optional**):
 
@@ -152,20 +182,27 @@ Example tag metadata quick reference (all elements are **required**, unless mark
 | `name`             | string. Name of the Beam example that will be displayed in the Playground Examples Catalog.                                                                                                               |
 | `description`      | string. Description of the Beam example that will be displayed in the Playground Examples Catalog.                                                                                                        |
 | `pipeline_options` | string (optional). Contains information about pipeline options of the Beam example/test/kata.                                                                                                             |
-| `context_line`     | integer. The line number to scroll to when the snippet is loaded. Note that lines of this block are cut so line numbers after it are shifted.                                                             |
+| `context_line`     | integer. The line number to scroll to when the snippet is loaded. Note that lines of the metadata block are cut so line numbers after it are shifted.                                                     |
 | `categories`       | list of strings. Lists categories this example is included into. Non-existent categories will be created.                                                                                                 |
-| `tags`             | list of strings. Tags by which this snippet can be found in the Example Catalog.                                                                                                                          |
+| `tags`             | list of strings (optional). Tags by which this snippet can be found in the Example Catalog.                                                                                                               |
 | `complexity`       | BASIC/MEDIUM/ADVANCED enum. Helps user to identify example's complexity.                                                                                                                                  |
-| `default_example`  | boolean (optional). Specifies the example to be loaded as default when its SDK selected in the Playground. Only one example can be set as a default for each SDK.                                         |
-| `url_notebook`     | string. If snippet has a Colab notebook, can link the URL of the Colab notebook that is based on this snippet.                                                                                            |
-| `multifile`        | boolean. Specifies if the given example consists of multiple files or not.                                                                                                                                |
-| `always_run`       | boolean. Specifies example caching by Playground, by default examples are cached (`False`).                                                                                                               |
+| `default_example`  | boolean (optional). Specifies the example to be loaded as default when its SDK selected in the Playground. Only one example can be set as the default for each SDK.                                       |
+| `url_notebook`     | string (optional). If the snippet has a Colab notebook, can link the URL of the Colab notebook that is based on this snippet.                                                                             |
+| `multifile`        | boolean (optional). Specifies if the given example consists of multiple files or not. Default: `false`.                                                                                                   |
+| `always_run`       | boolean (optional). Specifies example caching by Playground. Default: `false` (the output is cached).                                                                                                     |
 | `datasets`         | enum (optional). Datasets which will be used by emulators. Please see `Dataset` in Tag class model [here](infrastructure/models.py) for reference.                                                        |
 | `emulators`        | list (optional). List of emulators to start during pipeline execution. Currently only `kafka` type is supported. Please see `Emulator` in Tag class model [here](infrastructure/models.py) for reference. |
 
 For metadata reference see fields in "Tag" class [here](infrastructure/models.py).
 
+##### Default examples
+
+Each SDK must have a single default example.
+If there is none, the user will see the error in the app and face a blank editor.
+If there are more than one, it is not defined which one will be selected.
+
 ##### Kafka emulator
+
 Examples which require Kafka server emulator, need to include the `emulators` tag
 and provide `dataset` in the example's tag. You can refer to an example
 [here](/examples/java/src/main/java/org/apache/beam/examples/KafkaWordCountJson.java).
@@ -218,19 +255,16 @@ the ID is: `SDK_JAVA_MinimalWordCount`.
 
 You will need the snippet ID to embed the Playground with snippet into a website page.
 
-### Source 2. Add a snippet
+### Source 2. How to add an unlisted example to Playground
 
-Playground refers to snippets as runnable examples that are prepared in a way to highlight and focus on key concepts, and hides all non-essential code from user. This can be a useful feature to enable runnable examples in documentation, tutorials, and other website-based learning content by displaying just the relevant content while retaining ability to run the snippet. Here is an example how a snippet looks to a user:
-TODO: embed an example
+Not all examples must be visible in the example dropdown.
+Some examples are best in the context of Apache Beam documentation.
+To embed them into the documentation use unlisted examples.
+They work and are checked and cached the same way as public examples.
 
-Snippets can be added to Playground Examples Catalog with `TODO: unlisted` tag - this is the recommended method for snippets for the Apache Beam website documentation. Advantages:
-- Apache Beam repository CI will verify the snippet builds and runs correctly.
-- Playground Example Catalog caches the snippet graph and output reducing load time for users.
-
-Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-add-an-example-to-playground-examples-catalog) except:
-1. Use the directory... **TODO**
-2. Use an empty list for `categories` attribute: `categories: []`
-3. Do not use the following attributes:
+Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog) except:
+1. Use an empty list for `categories` attribute: `categories: []`
+2. Do not use the following attributes:
    - `default_example`
    - `tags`
 
@@ -244,18 +278,23 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 
 **TODO: add example of the name for snippet**
 
-### Source 3. Add a Tour of Beam unit
+### Source 3. How to add a Tour of Beam unit
 
-To add a snippet for a Tour of Beam tutorial, you can add it there as a learning unit.
-This also requires a textual learning material that your snippet will accompany.
+"Tour of Beam" is a separate project that combines learning materials with runnable snippets
+and allows students to track their learning progress.
+It uses Playground engine, and so its content is added in a similar way.
 
-Advantages:
+A Tour of Beam unit consists of learning materials and an optional runnable snippet.
 
-- Anyone can find your snippet in the Tour of Beam tutorial.
-- The CI of the Beam repository guarantees your snippet builds and runs correctly.
-- Output and graph are cached so the viewers of your snippet will not wait when they run it.
+#### Adding learning materials
 
-Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-add-an-example-to-playground-examples-catalog) except:
+**TODO**
+
+#### Adding a snippet
+
+Tour of Beam snippets are checked and cached the same way as Playground examples.
+
+Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog) except:
 
 1. Use the directory `/learning/tour-of-beam/learning-content`
 2. Use an empty list for `categories` attribute: `categories: []`
@@ -271,37 +310,37 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 | Java   | TB_EXAMPLES_SDK_JAVA_name   |
 | Python | TB_EXAMPLES_SDK_PYTHON_name |
 
-### Source 4. Add a user-shared snippet
+### Source 4. How to add a snippet with the app alone
 
 Code snippet can be saved to the Playground using **"Share my code"** button in the Playground:
 
-![Workflow](doc/get_your_code/images/share-my-code.png)
+![Sharing code with the app alone](doc/load_your_code/images/share-my-code.png)
 
-Advantages:
-
-- Easy to use.
-- Fast.
+This is easy and fast. It does not require any interaction with the Beam team.
 
 >**Share my code** considerations:
-> - A user-shared snippet is immutable. If you edit the code and re-share, a new snippet and link will be generated.
-> - Playground automatically applies a 3-month retention policy to shared snippets that are not used. To request a deletion of a snippet, please send an email to [dev@beam.apache.org](mailto:dev@beam.apache.org?subject=[Playground]%20Delete%20a%20snippet) with subject: [Playground] Delete a snippet.
+> - A user-shared snippet is immutable.
+    If you edit the code and re-share, a new snippet and link will be generated.
+> - Playground automatically applies a 3-month retention policy to shared snippets that are not used.
+    To request a deletion of a snippet, please send an email to
+    [dev@beam.apache.org](mailto:dev@beam.apache.org?subject=[Playground]%20Delete%20a%20snippet)
+    with subject: *[Playground] Delete a snippet*.
 > - Playground does not cache output or graph for user-shared snippets.
 > - Playground does not verify user-shared snippets.
 
-### Source 5. Add a snippet from GitHub or HTTPS URL source
+### Source 5. How to load code from GitHub or other HTTPS URL
 
 Playground can load a snippet stored on an HTTPS server using the provided URL,
 including GitHub direct links to raw file content.
 
-Advantages:
-- Easy to use.
-- Fast.
-- Snippet can be updated without changing a link.
+This is as easy and fast as using *Share my code* button, but also allows you to modify a snippet
+after it is published without changing a link.
 
 >Loading snippet from HTTPS URL considerations:
 > - Playground does not cache output or graph for HTTPS URL snippets.
 > - Playground does not verify HTTPS URL snippets.
 
+#### Cross-Origin Resource Sharing
 
 For Playground to be able to load the snippet over HTTPS, the HTTPS server needs to allow
 the access by sending the following header:
@@ -318,18 +357,19 @@ This is related to Cross-Origin Resource Sharing (CORS), to read more about CORS
 
 Many prefer to host code snippets in their GitHub repositories.
 GitHub is known to allow cross-origin access on direct links to raw file content.
-Example loading a GitHub snippet:
+An example of loading a GitHub snippet:
+
 ```
 https://play.beam.apache.org/?sdk=go&url=https://raw.githubusercontent.com/apache/beam-starter-go/main/main.go
 ```
-TODO: verify link above to load a Beam pipeline from an GitHub repo
 
-## Step 3. Create a link or embed snippet
+## Step 3. Create a link or embed the snippet
 
-Once you have uploaded your code snippet to Playground, the snippet can be shown in the Playground.
+The snippet can now be shown in the Playground.
 Choose any of the following ways.
 
 ### Link to a snippet
+
 #### Link to an example from the Playground Examples Catalog
 
 1. Open your snippet in the dropdown menu.
@@ -344,17 +384,17 @@ https://play.beam.apache.org/?path=SDK_JAVA_MinimalWordCount&sdk=java
 A special case is the default snippet for an SDK. It can be loaded by the following link:
 
 ```
-`https://play.beam.apache.org/?sdk=python&default=true`
+https://play.beam.apache.org/?sdk=python&default=true
 ```
 
 This way if another snippet is ever made default, the links you shared will lead
 to the new snippet.
 
-#### Link to snippet (`unlisted` Playground Examples Catalog item)
+#### Link to an unlisted example
 
-Link to a snippet can be constructed by providing your snippet ID and SDK in the following URL:
+Link to an unlisted example can be constructed by providing your snippet ID and SDK in the following URL:
 ```
-https://play.beam.apache.org/?path=ID&sdk=SDK
+https://play.beam.apache.org/?path=<ID>&sdk=<SDK>
 ```
 
 The ID of the snippet is a function of the SDK and the `name` attribute from its metadata:
@@ -368,11 +408,11 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 **TODO: add example of the name for snippet**
 
 
-#### Link to a Tour of Beam unit
+#### Link to a snippet from a Tour of Beam unit
 
 Link to a snippet can be constructed by providing your snippet ID and SDK in the following URL:
 ```
-https://play.beam.apache.org/?path=ID&sdk=SDK
+https://play.beam.apache.org/?path=<ID>&sdk=<SDK>
 ```
 
 The ID of the snippet is a function of the SDK and the `name` attribute from its metadata:
@@ -393,7 +433,7 @@ You get the link when you click "Share my code" button. It is in the following f
 https://play.beam.apache.org/?sdk=java&shared=SNIPPET_ID
 ```
 
-#### Link to a GitHub or HTTPS URL snippet
+#### Link to a GitHub or other HTTPS URL snippet
 
 Add the URL to the `url` parameter, for example:
 
@@ -408,6 +448,38 @@ You can link to an empty editor to make your users start their snippets from scr
 ```
 https://play.beam.apache.org/?sdk=go&empty=true
 ```
+
+### Link to multiple snippets
+
+The above URLs load snippets that you want. But what happens if the user switches SDK? Normally this will be shown:
+- The catalog default example for the new SDK.
+- The empty editor for the new SDK if the Playground is embedded.
+
+This can be changed by linking to multiple examples, up to one per SDK.
+
+For this purpose, make a JSON array with any combination of parameters that
+are allowed for loading single examples, for instance:
+
+```json
+[
+  {
+    "sdk": "java",
+    "path": "SDK_JAVA_AggregationMax"
+  },
+  {
+    "sdk": "go",
+    "url": "https://raw.githubusercontent.com/apache/beam-starter-go/main/main.go"
+  }
+]
+```
+
+Then pass it in`examples` query parameter like this:
+
+`https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA_AggregationMax"},{"sdk":"go","url":"https://raw.githubusercontent.com/apache/beam-starter-go/main/main.go"}]`
+
+This starts with the Go example loaded from the URL.
+If SDK is then switched to Java, the `AggregationMax` catalog example is loaded for it.
+If SDK is switched to any other one, the default example for that SDK is loaded because no override was provided.
 
 
 ### Embedding a snippet into HTML
@@ -488,36 +560,3 @@ Add `show` parameter with a single section name:
 It is still the whole snippet that is sent for execution although only the given section is visible.
 
 This also makes the editor read-only so the user cannot add code that conflicts with the hidden text.
-
-### Linking to multiple examples
-
-The above URLs load a snippet that you want. But what happens if the user switches SDK? Normally this will be shown:
-- The catalog default example for the new SDK in the Standalone Playground.
-- The empty editor for the new SDK in the Embedded Playground.
-
-This can be changed by linking to multiple examples, up to one per SDK.
-
-For this purpose, make a JSON array with any combination of parameters that
-are allowed for loading single examples, for instance:
-
-```json
-[
-  {
-    "sdk": "java",
-    "path": "SDK_JAVA_AggregationMax"
-  },
-  {
-    "sdk": "go",
-    "url": "https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go",
-    "readonly": "iam_get_role"
-  }
-]
-```
-
-Then pass it in`examples` query parameter like this:
-
-`https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA_AggregationMax"},{"sdk":"go","url":"https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go","readonly":"iam_get_role"}]`
-
-This starts with the Go example loaded from the URL.
-If SDK is then switched to Java, the `AggregationMax` catalog example is loaded for it.
-If SDK is switched to any other one, the default example for that SDK is loaded because no override was provided.
