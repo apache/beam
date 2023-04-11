@@ -137,7 +137,7 @@ do
         exit 1
     fi
     #Nothing to check
-    if [[ $example_has_changed != "True" ]]
+    if [[ $example_has_changed != True ]]
     then
         LogOutput "No changes require validation for SDK_${sdk^^}"
         continue
