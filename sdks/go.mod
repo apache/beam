@@ -29,7 +29,7 @@ require (
 	cloud.google.com/go/profiler v0.3.1
 	cloud.google.com/go/pubsub v1.30.0
 	cloud.google.com/go/spanner v1.44.0
-	cloud.google.com/go/storage v1.30.0
+	cloud.google.com/go/storage v1.30.1
 	github.com/aws/aws-sdk-go-v2 v1.17.8
 	github.com/aws/aws-sdk-go-v2/config v1.18.21
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.20
@@ -66,9 +66,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-
-require github.com/fsouza/fake-gcs-server v1.44.1
+require (
+	github.com/fsouza/fake-gcs-server v1.44.1
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+)
 
 require (
 	cloud.google.com/go v0.110.0 // indirect
