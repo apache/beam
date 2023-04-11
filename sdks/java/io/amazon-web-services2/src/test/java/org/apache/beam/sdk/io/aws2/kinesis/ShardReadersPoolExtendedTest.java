@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.createAggregatedRecords;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.createRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShardIterators;
-import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.testAggregatedRecords;
-import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.testRecords;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -63,7 +63,7 @@ public class ShardReadersPoolExtendedTest {
         initCheckpoint(ShardIteratorType.AFTER_SEQUENCE_NUMBER, "0", 0L);
     shardReadersPool = initPool(initialCheckpoint);
 
-    List<List<Record>> records = testRecords(1, 3);
+    List<List<Record>> records = createRecords(1, 3);
     mockShardIterators(kinesis, records);
     mockRecords(kinesis, records, 3);
 
@@ -86,7 +86,7 @@ public class ShardReadersPoolExtendedTest {
         initCheckpoint(ShardIteratorType.AFTER_SEQUENCE_NUMBER, "0", 125L);
     shardReadersPool = initPool(initialCheckpoint);
 
-    List<List<Record>> records = testRecords(1, 3);
+    List<List<Record>> records = createRecords(1, 3);
     mockShardIterators(kinesis, records);
     mockRecords(kinesis, records, 3);
     shardReadersPool.start();
@@ -103,7 +103,7 @@ public class ShardReadersPoolExtendedTest {
         initCheckpoint(ShardIteratorType.TRIM_HORIZON, null, null);
     shardReadersPool = initPool(initialCheckpoint);
 
-    List<List<Record>> records = testRecords(1, 3);
+    List<List<Record>> records = createRecords(1, 3);
     mockShardIterators(kinesis, records);
     mockRecords(kinesis, records, 3);
 
@@ -125,7 +125,7 @@ public class ShardReadersPoolExtendedTest {
         initCheckpoint(ShardIteratorType.LATEST, null, null);
     shardReadersPool = initPool(initialCheckpoint);
 
-    List<List<Record>> records = testRecords(1, 3);
+    List<List<Record>> records = createRecords(1, 3);
     mockShardIterators(kinesis, records);
     mockRecords(kinesis, records, 3);
 
@@ -149,7 +149,7 @@ public class ShardReadersPoolExtendedTest {
                     STREAM, SHARD_0, new StartingPoint(InitialPositionInStream.LATEST))));
     shardReadersPool = initPool(initialCheckpoint);
 
-    List<List<Record>> records = testAggregatedRecords(1, 6);
+    List<List<Record>> records = createAggregatedRecords(1, 6);
     mockShardIterators(kinesis, records);
     mockRecords(kinesis, records, 1);
 
@@ -179,7 +179,7 @@ public class ShardReadersPoolExtendedTest {
       throws TransientKinesisException {
     KinesisReaderCheckpoint initialCheckpoint =
         initCheckpoint(ShardIteratorType.AFTER_SEQUENCE_NUMBER, "0", 2L);
-    List<List<Record>> records = testAggregatedRecords(1, 6);
+    List<List<Record>> records = createAggregatedRecords(1, 6);
     mockShardIterators(kinesis, records);
     mockRecords(kinesis, records, 1);
     shardReadersPool = initPool(initialCheckpoint);

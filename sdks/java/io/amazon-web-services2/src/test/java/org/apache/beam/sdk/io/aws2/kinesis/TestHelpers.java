@@ -79,14 +79,14 @@ class TestHelpers {
         .thenReturn(resp.apply(ImmutableList.of(), "done").build());
   }
 
-  static List<List<Record>> testRecords(int shards, int events) {
+  static List<List<Record>> createRecords(int shards, int events) {
     final Instant now = DateTime.now().toInstant();
     Function<Integer, List<Record>> dataStream =
         shard -> range(0, events).mapToObj(off -> record(now, shard, off)).collect(toList());
     return range(0, shards).boxed().map(dataStream).collect(toList());
   }
 
-  static List<List<Record>> testAggregatedRecords(int shards, int events) {
+  static List<List<Record>> createAggregatedRecords(int shards, int events) {
     final Instant now = DateTime.now().toInstant();
     Function<Integer, List<Record>> dataStream =
         shard -> {
