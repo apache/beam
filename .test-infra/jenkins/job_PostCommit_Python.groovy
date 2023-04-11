@@ -27,7 +27,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
   PostcommitJobBuilder.postCommitJob("beam_PostCommit_Python${versionSuffix}",
       "Run Python ${pythonVersion} PostCommit",
       "Python${versionSuffix}_PC(\"Run Python ${pythonVersion} PostCommit\")", this) {
-        description('Runs Python postcommit tests using Python ${pythonVersion}.')
+        description("Runs Python postcommit tests using Python ${pythonVersion}.")
 
         // Set common parameters.
         commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 360)

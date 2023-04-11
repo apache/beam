@@ -83,6 +83,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
+    taskSpecificGradleSwitches: [
+      (PrecommitJobBuilder.NameSuffix.Cron): ['-PenableJacocoReport'],
+    ],
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',

@@ -29,8 +29,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true',
-      '-PenableJacocoReport'
     ], // spotless checked in separate pre-commit
+    taskSpecificGradleSwitches: [
+      (PrecommitJobBuilder.NameSuffix.Cron): ['-PenableJacocoReport'],
+    ],
     timeoutMins: 120,
     triggerPathPatterns: [
       '^runners/core-construction-java/.*$',

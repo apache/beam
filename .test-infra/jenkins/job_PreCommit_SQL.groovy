@@ -25,8 +25,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true',
-      '-PenableJacocoReport'
     ], // spotless checked in job_PreCommit_Spotless
+    taskSpecificGradleSwitches: [
+      (PrecommitJobBuilder.NameSuffix.Cron): ['-PenableJacocoReport'],
+    ],
     triggerPathPatterns: [
       '^sdks/java/extensions/sql.*$',
     ]

@@ -35,6 +35,9 @@ class PrecommitJobBuilder {
   /** If defined, set of additional switches to pass to Gradle. */
   List<String> gradleSwitches = []
 
+  /** If defined, set of additional switch for Cron, Commit and Phrase jobs to pass to gradle */
+  Map<NameSuffix, List<String>> taskSpecificGradleSwitches = [:]
+
   /** Overall job timeout. */
   int timeoutMins = 120
 
@@ -76,7 +79,7 @@ class PrecommitJobBuilder {
 
   /** Create a pre-commit job which runs on a regular schedule. */
   private void defineCronJob(Closure additionalCustomization) {
-    def job = createBaseJob 'Cron'
+    def job = createBaseJob NameSuffix.Cron
     job.with {
       description buildDescription('on a regular schedule.')
       commonJobProperties.setAutoJob delegate
@@ -86,7 +89,7 @@ class PrecommitJobBuilder {
 
   /** Create a pre-commit job which runs on every commit to a PR. */
   private void defineCommitJob(Closure additionalCustomization) {
-    def job = createBaseJob 'Commit', true
+    def job = createBaseJob NameSuffix.Commit, true
     def defaultPathTriggers = [
       '^build.gradle$',
       '^buildSrc/.*$',
@@ -114,7 +117,7 @@ class PrecommitJobBuilder {
   }
 
   private void definePhraseJob(Closure additionalCustomization) {
-    def job = createBaseJob 'Phrase'
+    def job = createBaseJob NameSuffix.Phrase
     job.with {
       description buildDescription("on trigger phrase '${buildTriggerPhrase()}'.")
       concurrentBuild()
@@ -123,8 +126,10 @@ class PrecommitJobBuilder {
     job.with additionalCustomization
   }
 
-  private Object createBaseJob(nameSuffix, usesRegionFilter = false) {
+  private Object createBaseJob(NameSuffix nameSuffix, usesRegionFilter = false) {
     def allowRemotePoll = !usesRegionFilter
+    List<String> allSwitches = taskSpecificGradleSwitches.getOrDefault(nameSuffix, [])
+    allSwitches.addAll(gradleSwitches)
     return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
       commonJobProperties.setTopLevelMainJobProperties(delegate,
           'master',
@@ -134,7 +139,7 @@ class PrecommitJobBuilder {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTasks.join(' ') + (gradleTask ?: ""))
-          gradleSwitches.each { switches(it) }
+          allSwitches.each { switches(it) }
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
@@ -153,5 +158,12 @@ class PrecommitJobBuilder {
 
   private String githubUiHint() {
     "${nameBase} (\"${buildTriggerPhrase()}\")"
+  }
+
+  /** Name suffices for tasks, either cron, commit or phrase task. */
+  enum NameSuffix {
+    Cron,
+    Commit,
+    Phrase
   }
 }
