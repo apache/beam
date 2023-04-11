@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.Callable;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -29,16 +28,11 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.core.exception.SdkClientException;
-import software.amazon.awssdk.core.exception.SdkServiceException;
-import software.amazon.awssdk.core.internal.retry.SdkDefaultRetrySetting;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest;
-import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
-import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.services.kinesis.model.Shard;
 import software.amazon.awssdk.services.kinesis.model.ShardFilter;
 import software.amazon.awssdk.services.kinesis.model.ShardFilterType;
@@ -58,10 +52,9 @@ class ShardListingUtils {
 
   static List<Shard> listShardsAtPoint(
       KinesisClient kinesisClient, final String streamName, final StartingPoint startingPoint)
-      throws TransientKinesisException {
+      throws IOException, InterruptedException {
     ShardFilter shardFilter =
-        wrapExceptions(
-            () -> buildShardFilterForStartingPoint(kinesisClient, streamName, startingPoint));
+        buildShardFilterForStartingPoint(kinesisClient, streamName, startingPoint);
     return listShards(kinesisClient, streamName, shardFilter);
   }
 
@@ -140,64 +133,26 @@ class ShardListingUtils {
   }
 
   static List<Shard> listShards(
-      KinesisClient kinesisClient, final String streamName, final ShardFilter shardFilter)
-      throws TransientKinesisException {
-    return wrapExceptions(
-        () -> {
-          ImmutableList.Builder<Shard> shardsBuilder = ImmutableList.builder();
+      KinesisClient kinesisClient, final String streamName, final ShardFilter shardFilter) {
+    ImmutableList.Builder<Shard> shardsBuilder = ImmutableList.builder();
 
-          String currentNextToken = null;
-          do {
-            ListShardsRequest.Builder reqBuilder =
-                ListShardsRequest.builder()
-                    .maxResults(LIST_SHARDS_MAX_RESULTS)
-                    .shardFilter(shardFilter);
-            if (currentNextToken != null) {
-              reqBuilder.nextToken(currentNextToken);
-            } else {
-              reqBuilder.streamName(streamName);
-            }
-
-            ListShardsRequest request = reqBuilder.build();
-            LOG.debug("Executing request: {}", request);
-            ListShardsResponse response = kinesisClient.listShards(request);
-            shardsBuilder.addAll(response.shards());
-            currentNextToken = response.nextToken();
-          } while (currentNextToken != null);
-
-          return shardsBuilder.build();
-        });
-  }
-
-  /**
-   * Wraps Amazon specific exceptions into more friendly format.
-   *
-   * @throws TransientKinesisException - in case of recoverable situation, i.e. the request rate is
-   *     too high, Kinesis remote service failed, network issue, etc.
-   * @throws ExpiredIteratorException - if iterator needs to be refreshed
-   * @throws RuntimeException - in all other cases
-   */
-  private static <T> T wrapExceptions(Callable<T> callable) throws TransientKinesisException {
-    try {
-      return callable.call();
-    } catch (ExpiredIteratorException e) {
-      throw e;
-    } catch (LimitExceededException | ProvisionedThroughputExceededException e) {
-      throw new KinesisClientThrottledException(
-          "Too many requests to Kinesis. Wait some time and retry.", e);
-    } catch (SdkServiceException e) {
-      if (e.isThrottlingException()
-          || SdkDefaultRetrySetting.RETRYABLE_STATUS_CODES.contains(e.statusCode())) {
-        throw new TransientKinesisException("Kinesis backend failed. Wait some time and retry.", e);
+    String currentNextToken = null;
+    do {
+      ListShardsRequest.Builder reqBuilder =
+          ListShardsRequest.builder().maxResults(LIST_SHARDS_MAX_RESULTS).shardFilter(shardFilter);
+      if (currentNextToken != null) {
+        reqBuilder.nextToken(currentNextToken);
+      } else {
+        reqBuilder.streamName(streamName);
       }
-      throw e; // others, such as 4xx, are not retryable
-    } catch (SdkClientException e) {
-      if (SdkDefaultRetrySetting.RETRYABLE_EXCEPTIONS.contains(e.getClass())) {
-        throw new TransientKinesisException("Retryable failure", e);
-      }
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Unknown kinesis failure, when trying to reach kinesis", e);
-    }
+
+      ListShardsRequest request = reqBuilder.build();
+      LOG.debug("Executing request: {}", request);
+      ListShardsResponse response = kinesisClient.listShards(request);
+      shardsBuilder.addAll(response.shards());
+      currentNextToken = response.nextToken();
+    } while (currentNextToken != null);
+
+    return shardsBuilder.build();
   }
 }

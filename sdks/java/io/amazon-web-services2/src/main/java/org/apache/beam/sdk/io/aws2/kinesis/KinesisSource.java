@@ -151,7 +151,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
    * #createReader(PipelineOptions, KinesisReaderCheckpoint)}.
    */
   private KinesisReaderCheckpoint generateInitCheckpoint(Read spec, KinesisClient kinesis)
-      throws TransientKinesisException {
+      throws IOException, InterruptedException {
     String stream = Preconditions.checkArgumentNotNull(spec.getStreamName());
     StartingPoint startingPoint = Preconditions.checkArgumentNotNull(spec.getInitialPosition());
     List<Shard> streamShards = ShardListingUtils.listShardsAtPoint(kinesis, stream, startingPoint);

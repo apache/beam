@@ -109,7 +109,8 @@ class SimplifiedKinesisClient implements AutoCloseable {
             .type(ShardFilterType.AFTER_SHARD_ID)
             .shardId(exclusiveStartShardId)
             .build();
-    return ShardListingUtils.listShards(kinesis.get(), streamName, shardFilter);
+    return wrapExceptions(
+        () -> ShardListingUtils.listShards(kinesis.get(), streamName, shardFilter));
   }
 
   /**

@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.util.List;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
@@ -174,7 +175,7 @@ public class ShardListingUtilsTest {
   @Test
   public void
       shouldListAllShardsForTimestampWithRetriedDescribeStreamSummaryCallAfterStreamCreationTimestamp()
-          throws TransientKinesisException {
+          throws IOException, InterruptedException {
     Shard shard1 = Shard.builder().shardId(SHARD_1).build();
     Shard shard2 = Shard.builder().shardId(SHARD_2).build();
     Shard shard3 = Shard.builder().shardId(SHARD_3).build();
@@ -340,32 +341,32 @@ public class ShardListingUtilsTest {
   @Test
   public void shouldHandleLimitExceededExceptionForShardListing() {
     shouldHandleShardListingError(
-        LimitExceededException.builder().build(), KinesisClientThrottledException.class);
+        LimitExceededException.builder().build(), LimitExceededException.class);
   }
 
   @Test
   public void shouldHandleProvisionedThroughputExceededExceptionForShardListing() {
     shouldHandleShardListingError(
         ProvisionedThroughputExceededException.builder().build(),
-        KinesisClientThrottledException.class);
+        ProvisionedThroughputExceededException.class);
   }
 
   @Test
   public void shouldHandleServiceErrorForShardListing() {
     shouldHandleShardListingError(
         SdkServiceException.builder().statusCode(HttpStatusCode.GATEWAY_TIMEOUT).build(),
-        TransientKinesisException.class);
+        SdkServiceException.class);
   }
 
   @Test
   public void shouldHandleRetryableClientErrorForShardListing() {
     shouldHandleShardListingError(
-        ApiCallAttemptTimeoutException.builder().build(), TransientKinesisException.class);
+        ApiCallAttemptTimeoutException.builder().build(), ApiCallAttemptTimeoutException.class);
   }
 
   @Test
   public void shouldHandleUnexpectedExceptionForShardListing() {
-    shouldHandleShardListingError(new NullPointerException(), RuntimeException.class);
+    shouldHandleShardListingError(new NullPointerException(), NullPointerException.class);
   }
 
   private void shouldHandleShardListingError(

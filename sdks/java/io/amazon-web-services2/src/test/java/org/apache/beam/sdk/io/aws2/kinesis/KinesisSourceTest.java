@@ -67,32 +67,32 @@ public class KinesisSourceTest {
   @Test
   public void shouldHandleLimitExceededExceptionForShardListing() {
     shouldHandleShardListingError(
-        LimitExceededException.builder().build(), KinesisClientThrottledException.class);
+        LimitExceededException.builder().build(), LimitExceededException.class);
   }
 
   @Test
   public void shouldHandleProvisionedThroughputExceededExceptionForShardListing() {
     shouldHandleShardListingError(
         ProvisionedThroughputExceededException.builder().build(),
-        KinesisClientThrottledException.class);
+        ProvisionedThroughputExceededException.class);
   }
 
   @Test
   public void shouldHandleServiceErrorForShardListing() {
     shouldHandleShardListingError(
         SdkServiceException.builder().statusCode(HttpStatusCode.GATEWAY_TIMEOUT).build(),
-        TransientKinesisException.class);
+        SdkServiceException.class);
   }
 
   @Test
   public void shouldHandleRetryableClientErrorForShardListing() {
     shouldHandleShardListingError(
-        ApiCallAttemptTimeoutException.builder().build(), TransientKinesisException.class);
+        ApiCallAttemptTimeoutException.builder().build(), ApiCallAttemptTimeoutException.class);
   }
 
   @Test
   public void shouldHandleUnexpectedExceptionForShardListing() {
-    shouldHandleShardListingError(new NullPointerException(), RuntimeException.class);
+    shouldHandleShardListingError(new NullPointerException(), NullPointerException.class);
   }
 
   private KinesisSource sourceWithMockedKinesisClient(KinesisIO.Read read) {
