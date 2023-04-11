@@ -109,11 +109,11 @@ pip install -r /workspace/beam/playground/infrastructure/requirements.txt
 LogOutput "Looking for files changed by the merge commit $MERGED_COMMIT"
 diff_log=$(git diff --name-only $MERGED_COMMIT~ $MERGED_COMMIT)
 diff=($(echo "$diff_log" | tr '\n' ' '))
-LogOutput "Discovered changes introduced by $COMMIT relative to $DIFF_BASE in files:
-$diff_log"
+LogOutput "Discovered changes introduced by $MERGED_COMMIT: $diff_log"
 declare -a allowlist_array
 for sdk in $SDKS
 do
+    eval "ci_${sdk}_passed"='False'
     example_has_changed="UNKNOWN"
     LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
     cd $BEAM_ROOT_DIR/playground/infrastructure
@@ -156,7 +156,18 @@ do
     --subdirs ${SUBDIRS}
     if [ $? -eq 0 ]; then
         LogOutput "Examples for $sdk SDK have been successfully deployed."
+        eval "ci_${sdk}_passed"='True'
     else
         LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
     fi
 done
+LogOutput "Script finished"
+for sdk in $SDKS
+do
+    result=$(eval echo '$'"ci_${sdk}_passed")
+    if [ "$result" != "True" ]; then
+        LogOutput "At least one of the checks has failed for $sdk SDK"
+        exit 1
+    fi
+done
+exit 0
