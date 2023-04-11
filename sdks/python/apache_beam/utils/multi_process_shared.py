@@ -203,7 +203,8 @@ class MultiProcessShared(Generic[T]):
                 address = fin.read()
               logging.info('Connecting to remote proxy at %s', address)
               host, port = address.split(':')
-              # We need to be able to authenticate with both the manager and the process.
+              # We need to be able to authenticate with both the manager and
+              # the process.
               manager = _SingletonRegistrar(
                   address=(host, int(port)), authkey=AUTH_KEY)
               multiprocessing.current_process().authkey = AUTH_KEY
