@@ -86,7 +86,7 @@ void runExample(SklearnMnistClassificationOptions options, String expansionServi
                         .apply(TextIO.read().from(options.getInput()))
                         .apply(Filter.by(new FilterNonRecordsFn()))
                         .apply(MapElements.via(new RecordsToLabeledPixelsFn()));
-                        
+
         col.apply(RunInference.ofKVs(getModelLoaderScript(), schema, VarLongCoder.of())
                                 .withKwarg("model_uri", options.getModelPath())
                                 .withExpansionService(expansionService))
@@ -127,7 +127,7 @@ RUN pip install scikit-learn
 
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-expression/$SPRING_VERSION/spring-expression-$SPRING_VERSION.jar &&\
     mv spring-expression-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-expression.jar
-    
+
 # Compile the Java program
 RUN javac -d /app/bin /app/src/MyJavaProgram.java
 
