@@ -32,9 +32,6 @@ COPY target/requirements.txt /opt/apache/beam/
 # Copy the boot program
 COPY target/launcher/linux_amd64/boot /opt/apache/beam/
 
-# Copy the config file
-COPY target/expansion_service_config.yml ./
-
 # Creating a virtual environment and installing Beam.
 # We do these steps in the Dockefile instead of the boot.go to minimize the
 # startup time for the Python expansion service container.
@@ -46,4 +43,4 @@ RUN mkdir /opt/apache/beam/beam_venv &&\
     pip install -r requirements.txt &&\
     pip install apache-beam-sdk.tar.gz[gcp,dataframe]
 
-ENTRYPOINT ["/opt/apache/beam/boot", "-config_file", "./expansion_service_config.yml"]
+ENTRYPOINT ["/opt/apache/beam/boot"]

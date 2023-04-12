@@ -52,11 +52,6 @@ goBuild {
   outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
 }
 
-task copyConfigFile(type: Copy) {
-  from "expansion_service_config.yml"
-  into "build/target"
-}
-
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "python_expansion_service",
@@ -71,7 +66,6 @@ docker {
 }
 
 dockerPrepare.dependsOn goBuild
-dockerPrepare.dependsOn copyConfigFile
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn copyRequirementsFile
 

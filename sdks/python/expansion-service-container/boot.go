@@ -30,9 +30,8 @@ import (
 )
 
 var (
-	id          = flag.String("id", "", "Local identifier (required)")
-	port        = flag.Int("port", 0, "Port for the expansion service (required)")
-	config_file = flag.String("config_file", "", "Expansion service config YAML file. (required)")
+	id   = flag.String("id", "", "Local identifier (required)")
+	port = flag.Int("port", 0, "Port for the expansion service (required)")
 )
 
 const (
@@ -51,9 +50,6 @@ func main() {
 	}
 	if *port == 0 {
 		log.Fatalf("The flag 'port' was not specified")
-	}
-	if *config_file == "" {
-		log.Fatalf("The flag 'config_file' was not specified")
 	}
 
 	if err := launchExpansionServiceProcess(); err != nil {

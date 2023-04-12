@@ -63,12 +63,13 @@ public class DefaultExpansionServiceClientFactory implements ExpansionServiceCli
                 return service.expand(request);
               }
 
-                @Override
-                public ExpansionApi.DiscoverSchemaTransformResponse discover(ExpansionApi.DiscoverSchemaTransformRequest request) {
-                    return service.discoverSchemaTransform(request);
-                }
+              @Override
+              public ExpansionApi.DiscoverSchemaTransformResponse discover(
+                  ExpansionApi.DiscoverSchemaTransformRequest request) {
+                return service.discoverSchemaTransform(request);
+              }
 
-                @Override
+              @Override
               public void close() throws Exception {
                 channel.shutdown();
               }
