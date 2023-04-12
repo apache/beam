@@ -132,7 +132,7 @@ def make_preprocessing_fn(frequency_threshold):
     result = {'clicked': inputs['clicked']}
     for name in _INTEGER_COLUMN_NAMES:
       feature = inputs[name]
-      
+     
       def fill_in_missing(feature, default_value=-1):
         feature = tf.sparse.SparseTensor(
             indices=feature.indices,
