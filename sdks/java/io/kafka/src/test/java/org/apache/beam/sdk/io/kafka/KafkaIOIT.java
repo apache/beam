@@ -908,11 +908,12 @@ public class KafkaIOIT {
 
   private static void setupKafkaContainer() {
     kafkaContainer =
-        new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka").withTag(options.getKafkaContainerVersion()));
-    //Adding startup attempts to try and deflake
+        new KafkaContainer(
+            DockerImageName.parse("confluentinc/cp-kafka")
+                .withTag(options.getKafkaContainerVersion()));
+    // Adding startup attempts to try and deflake
     kafkaContainer.withStartupAttempts(3);
     kafkaContainer.start();
     options.setKafkaBootstrapServerAddresses(kafkaContainer.getBootstrapServers());
   }
-
 }
