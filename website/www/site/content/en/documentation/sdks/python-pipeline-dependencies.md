@@ -144,8 +144,6 @@ Dataflow, see [Pre-building the python SDK custom container image with extra dep
 
 ## Pickling and Managing Main Session
 
-**NOTE**: The following holds true only when the pickler being used is `dill`.
-
 Pickling in the Python SDK is set up to pickle the state of the global namespace. By default, global imports, functions, and variables defined in the main session are not saved during the serialization of a Dataflow job.
 Thus, one might encounter unexpected `NameErrors` when running a `DoFn` on Dataflow Runner. To resolve this, manage the main session by
 simply setting `--save_main_session=True`. This will load the pickled state of the global namespace onto the Dataflow workers.
