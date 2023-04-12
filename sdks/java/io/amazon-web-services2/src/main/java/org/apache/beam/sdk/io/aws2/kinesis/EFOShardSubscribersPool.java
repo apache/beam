@@ -213,17 +213,17 @@ class EFOShardSubscribersPool {
         ShardState shardState = Preconditions.checkStateNotNull(state.get(shardId));
         if (current.hasNext()) {
           KinesisClientRecord r = current.next();
-          KinesisRecord kinesisRecord = new KinesisRecord(r, read.getStreamName(), shardId);
-          if (shardState.isAfterInitialCheckpoint(kinesisRecord)) {
-            shardState.update(kinesisRecord);
-            return kinesisRecord;
-          }
           // Make sure to update shard state accordingly if `current` does not contain any more
           // events. This is necessary to account for any re-sharding, so we could correctly resume
           // from a checkpoint if taken once we advanced to the record returned by getNextRecord().
           if (!current.hasNext()) {
             onEventDone(shardState, current);
             current = null;
+          }
+          KinesisRecord kinesisRecord = new KinesisRecord(r, read.getStreamName(), shardId);
+          if (shardState.isAfterInitialCheckpoint(kinesisRecord)) {
+            shardState.update(kinesisRecord);
+            return kinesisRecord;
           }
         } else {
           onEventDone(shardState, current);

@@ -217,6 +217,28 @@ class TestHelpers {
         .build();
   }
 
+  static SubscribeToShardEvent reShardEventWithRecords(
+      int startSeqNumber,
+      int numRecords,
+      List<String> parentShardsIds,
+      List<String> childShardsIds) {
+    List<Record> records = new ArrayList<>();
+    for (int i = startSeqNumber; i < startSeqNumber + numRecords; i++) {
+      records.add(record(String.valueOf(i)));
+    }
+
+    List<ChildShard> childShards =
+        childShardsIds.stream()
+            .map(s -> ChildShard.builder().shardId(s).parentShards(parentShardsIds).build())
+            .collect(Collectors.toList());
+
+    return SubscribeToShardEvent.builder()
+        .records(records)
+        .continuationSequenceNumber(null)
+        .childShards(childShards)
+        .build();
+  }
+
   static SubscribeToShardEvent[] eventsWithRecords(int startSeqNumber, int numRecords) {
     List<SubscribeToShardEvent> events = new ArrayList<>();
     for (int i = startSeqNumber; i < startSeqNumber + numRecords; i++) {
