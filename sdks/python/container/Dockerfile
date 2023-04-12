@@ -70,7 +70,7 @@ RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=fa
 ####
 # Install Apache Beam SDK. Use --no-deps and pip check to verify that all
 # necessary dependencies are specified in base_image_requirements.txt.
-# use ARG pip_extra_options to install release candidates(RCs) of Beam'
+# use ARG pip_extra_options to pass additional flags to the pip installation.'
 # dependencies.
 ####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
