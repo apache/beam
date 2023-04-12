@@ -101,7 +101,8 @@ public abstract class UnboundedSource<
    *
    * <p>For example, this could be offsets in a set of files being read.
    *
-   * <p>Note that: The implementations of this interface should be encodable (have an associated Coder).
+   * <p>Note that: The implementations of this interface should be encodable (have an associated
+   * Coder).
    */
   public interface CheckpointMark {
     /**
