@@ -348,7 +348,7 @@ if __name__ == '__main__':
         # https://github.com/pandas-dev/pandas/issues/45725
           'dataframe': [
             'pandas<1.6.0;python_version=="3.7"',
-            'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
+            'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.1;python_version>="3.8"',
           ],
           'dask': [
             'dask >= 2022.6',
