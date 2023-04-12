@@ -337,11 +337,11 @@ if __name__ == '__main__':
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<10',
           ],
-          'aws': ['boto3 >=1.9'],
+          'aws': ['boto3>=1.9,<2'],
           'azure': [
-            'azure-storage-blob >=12.3.2',
-            'azure-core >=1.7.0',
-            'azure-identity >=1.12.0',
+            'azure-storage-blob>=12.3.2,<13',
+            'azure-core>=1.7.0,<2',
+            'azure-identity>=1.12.0,<2',
           ],
         # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
         # Exclude 1.5.0 and 1.5.1 because of
