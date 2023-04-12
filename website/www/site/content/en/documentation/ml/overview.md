@@ -125,6 +125,7 @@ When you use Apache Beam as one of the building blocks in your project, these or
 
 ## Reference
 
+* [Automatic model refresh](/documentation/ml/side-input-updates/)
 * [RunInference metrics](/documentation/ml/runinference-metrics/)
 * [ML model evaluation](/documentation/ml/model-evaluation/)
 * [RunInference public codelab](https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_basic.ipynb)
