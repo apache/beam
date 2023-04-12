@@ -18,6 +18,7 @@
 # pytype: skip-file
 
 import logging
+from abc import ABC
 from collections import defaultdict
 from typing import Any
 from typing import Callable
@@ -27,10 +28,14 @@ from typing import Optional
 from typing import Sequence
 
 import torch
+
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.base import ExampleT
 from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import PredictionT
 from apache_beam.utils.annotations import experimental
 
 __all__ = [
@@ -123,7 +128,8 @@ def _load_model(
   return model, device
 
 
-def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
+def _convert_to_device(
+    examples: torch.Tensor, device: torch.device) -> torch.Tensor:
   """
   Converts samples to a style matching given device.
 
@@ -138,7 +144,7 @@ def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
 def default_tensor_inference_fn(
     batch: Sequence[torch.Tensor],
     model: torch.nn.Module,
-    device: str,
+    device: torch.device,
     inference_args: Optional[Dict[str, Any]] = None,
     model_id: Optional[str] = None,
 ) -> Iterable[PredictionResult]:
@@ -163,7 +169,7 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
   def attr_fn(
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
-      device: str,
+      device: torch.device,
       inference_args: Optional[Dict[str, Any]] = None,
       model_id: Optional[str] = None,
   ) -> Iterable[PredictionResult]:
@@ -177,155 +183,10 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
   return attr_fn
 
 
-class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
-                                             PredictionResult,
-                                             torch.nn.Module]):
-  def __init__(
-      self,
-      state_dict_path: Optional[str] = None,
-      model_class: Optional[Callable[..., torch.nn.Module]] = None,
-      model_params: Optional[Dict[str, Any]] = None,
-      device: str = 'CPU',
-      *,
-      inference_fn: TensorInferenceFn = default_tensor_inference_fn,
-      torch_script_model_path: Optional[str] = None,
-      min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None):
-    """Implementation of the ModelHandler interface for PyTorch.
-
-    Example Usage for torch model::
-      pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri",
-                                                     model_class="my_class"))
-    Example Usage for torchscript model::
-      pcoll | RunInference(PytorchModelHandlerTensor(
-        torch_script_model_path="my_uri"))
-
-    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    for details
-
-    Args:
-      state_dict_path: path to the saved dictionary of the model state.
-      model_class: class of the Pytorch model that defines the model
-        structure.
-      model_params: A dictionary of arguments required to instantiate the model
-        class.
-      device: the device on which you wish to run the model. If
-        ``device = GPU`` then a GPU device will be used if it is available.
-        Otherwise, it will be CPU.
-      inference_fn: the inference function to use during RunInference.
-        default=_default_tensor_inference_fn
-      torch_script_model_path: Path to the torch script model.
-         the model will be loaded using `torch.jit.load()`.
-        `state_dict_path`, `model_class` and `model_params`
-         arguments will be disregarded.
-      min_batch_size: the minimum batch size to use when batching inputs. This
-        batch will be fed into the inference_fn as a Sequence of Tensors.
-      max_batch_size: the maximum batch size to use when batching inputs. This
-        batch will be fed into the inference_fn as a Sequence of Tensors.
-
-    **Supported Versions:** RunInference APIs in Apache Beam have been tested
-    with PyTorch 1.9 and 1.10.
-    """
-    self._state_dict_path = state_dict_path
-    if device == 'GPU':
-      logging.info("Device is set to CUDA")
-      self._device = torch.device('cuda')
-    else:
-      logging.info("Device is set to CPU")
-      self._device = torch.device('cpu')
-    self._model_class = model_class
-    self._model_params = model_params if model_params else {}
-    self._inference_fn = inference_fn
-    self._batching_kwargs = {}
-    if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
-    self._torch_script_model_path = torch_script_model_path
-
-    _validate_constructor_args(
-        state_dict_path=self._state_dict_path,
-        model_class=self._model_class,
-        torch_script_model_path=self._torch_script_model_path)
-
-  def load_model(self) -> torch.nn.Module:
-    """Loads and initializes a Pytorch model for processing."""
-    model, device = _load_model(
-        self._model_class,
-        self._state_dict_path,
-        self._device,
-        self._model_params,
-        self._torch_script_model_path
-    )
-    self._device = device
-    return model
-
-  def update_model_path(self, model_path: Optional[str] = None):
-    if self._torch_script_model_path:
-      self._torch_script_model_path = (
-          model_path if model_path else self._torch_script_model_path)
-    else:
-      self._state_dict_path = (
-          model_path if model_path else self._state_dict_path)
-
-  def run_inference(
-      self,
-      batch: Sequence[torch.Tensor],
-      model: torch.nn.Module,
-      inference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
-    """
-    Runs inferences on a batch of Tensors and returns an Iterable of
-    Tensor Predictions.
-
-    This method stacks the list of Tensors in a vectorized format to optimize
-    the inference call.
-
-    Args:
-      batch: A sequence of Tensors. These Tensors should be batchable, as this
-        method will call `torch.stack()` and pass in batched Tensors with
-        dimensions (batch_size, n_features, etc.) into the model's forward()
-        function.
-      model: A PyTorch model.
-      inference_args: Non-batchable arguments required as inputs to the model's
-        forward() function. Unlike Tensors in `batch`, these parameters will
-        not be dynamically batched
-
-    Returns:
-      An Iterable of type PredictionResult.
-    """
-    inference_args = {} if not inference_args else inference_args
-    model_id = (
-        self._state_dict_path
-        if not self._torch_script_model_path else self._torch_script_model_path)
-    return self._inference_fn(
-        batch, model, self._device, inference_args, model_id)
-
-  def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
-    """
-    Returns:
-      The number of bytes of data for a batch of Tensors.
-    """
-    return sum((el.element_size() for tensor in batch for el in tensor))
-
-  def get_metrics_namespace(self) -> str:
-    """
-    Returns:
-       A namespace for metrics collected by the RunInference transform.
-    """
-    return 'BeamML_PyTorch'
-
-  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
-    pass
-
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-
 def default_keyed_tensor_inference_fn(
     batch: Sequence[Dict[str, torch.Tensor]],
     model: torch.nn.Module,
-    device: str,
+    device: torch.device,
     inference_args: Optional[Dict[str, Any]] = None,
     model_id: Optional[str] = None,
 ) -> Iterable[PredictionResult]:
@@ -361,7 +222,7 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
   def attr_fn(
       batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
-      device: str,
+      device: torch.device,
       inference_args: Optional[Dict[str, Any]] = None,
       model_id: Optional[str] = None,
   ) -> Iterable[PredictionResult]:
@@ -387,10 +248,7 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
   return attr_fn
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
-class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
-                                                  PredictionResult,
-                                                  torch.nn.Module]):
+class _PytorchModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
   def __init__(
       self,
       state_dict_path: Optional[str] = None,
@@ -398,27 +256,12 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       model_params: Optional[Dict[str, Any]] = None,
       device: str = 'CPU',
       *,
-      inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn,
+      inference_fn: Optional[Callable] = None,
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None):
-    """Implementation of the ModelHandler interface for PyTorch.
-
-     Example Usage for torch model::
-      pcoll | RunInference(PytorchModelHandlerKeyedTensor(
-        state_dict_path="my_uri",
-        model_class="my_class"))
-
-    Example Usage for torchscript model::
-      pcoll | RunInference(PytorchModelHandlerKeyedTensor(
-        torch_script_model_path="my_uri"))
-
-    **NOTE:** This API and its implementation are under development and
-    do not provide backward compatibility guarantees.
-
-    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    for details
-
+    """
+    Interface used to implement Pytorch model handlers.
     Args:
       state_dict_path: path to the saved dictionary of the model state.
       model_class: class of the Pytorch model that defines the model
@@ -429,19 +272,14 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
       inference_fn: the function to invoke on run_inference.
-        default = default_keyed_tensor_inference_fn
       torch_script_model_path: Path to the torch script model.
-         the model will be loaded using `torch.jit.load()`.
+        the model will be loaded using `torch.jit.load()`.
         `state_dict_path`, `model_class` and `model_params`
-         arguments will be disregarded..
+        arguments will be disregarded..
       min_batch_size: the minimum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
-
-
-    **Supported Versions:** RunInference APIs in Apache Beam have been tested
-    on torch>=1.9.0,<1.14.0.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU':
@@ -486,45 +324,16 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def run_inference(
       self,
-      batch: Sequence[Dict[str, torch.Tensor]],
+      batch: Sequence[ExampleT],
       model: torch.nn.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[Dict[str, Any]] = None,
   ) -> Iterable[PredictionResult]:
-    """
-    Runs inferences on a batch of Keyed Tensors and returns an Iterable of
-    Tensor Predictions.
-
-    For the same key across all examples, this will stack all Tensors values
-    in a vectorized format to optimize the inference call.
-
-    Args:
-      batch: A sequence of keyed Tensors. These Tensors should be batchable,
-        as this method will call `torch.stack()` and pass in batched Tensors
-        with dimensions (batch_size, n_features, etc.) into the model's
-        forward() function.
-      model: A PyTorch model.
-      inference_args: Non-batchable arguments required as inputs to the model's
-        forward() function. Unlike Tensors in `batch`, these parameters will
-        not be dynamically batched
-
-    Returns:
-      An Iterable of type PredictionResult.
-    """
     inference_args = {} if not inference_args else inference_args
     model_id = (
         self._state_dict_path
         if not self._torch_script_model_path else self._torch_script_model_path)
     return self._inference_fn(
         batch, model, self._device, inference_args, model_id)
-
-  def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
-    """
-    Returns:
-       The number of bytes of data for a batch of Dict of Tensors.
-    """
-    # If elements in `batch` are provided as a dictionaries from key to Tensors
-    return sum(
-        (el.element_size() for tensor in batch for el in tensor.values()))
 
   def get_metrics_namespace(self) -> str:
     """
@@ -538,3 +347,125 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
+
+  def get_num_bytes(self, batch: Sequence[ExampleT]) -> int:
+    raise NotImplementedError
+
+
+class PytorchModelHandlerTensor(_PytorchModelHandler[torch.Tensor,
+                                                     PredictionResult,
+                                                     torch.nn.Module]):
+  """
+    Example Usage for torch model::
+      pcoll | RunInference(PytorchModelHandlerTensor(
+        state_dict_path="my_uri",
+        model_class="my_class"))
+
+    Example Usage for torchscript model::
+      pcoll | RunInference(PytorchModelHandlerKeyedTensor(
+        torch_script_model_path="my_uri"))
+
+    **NOTE:** This API and its implementation are under development and
+    do not provide backward compatibility guarantees.
+
+    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
+    for details
+
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+    on torch>=1.9.0,<1.14.0.
+    """
+  def run_inference(
+      self,
+      batch: Sequence[torch.Tensor],
+      model: torch.nn.Module,
+      inference_args: Optional[Dict[str, Any]] = None,
+  ) -> Iterable[PredictionResult]:
+    """
+    Runs inferences on a batch of Tensors and returns an Iterable of
+    Tensor Predictions.
+
+    This method stacks the list of Tensors in a vectorized format to optimize
+    the inference call.
+
+    Args:
+      batch: A sequence of Tensors. These Tensors should be batchable, as this
+        method will call `torch.stack()` and pass in batched Tensors with
+        dimensions (batch_size, n_features, etc.) into the model's forward()
+        function.
+      model: A PyTorch model.
+      inference_args: Non-batchable arguments required as inputs to the model's
+        forward() function. Unlike Tensors in `batch`, these parameters will
+        not be dynamically batched
+    Returns:
+      An Iterable of type PredictionResult.
+    """
+    if not self._inference_fn:
+      self._inference_fn = default_tensor_inference_fn
+    return super().run_inference(batch, model, inference_args)
+
+  def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
+    """
+    Returns:
+      The number of bytes of data for a batch of Tensors.
+    """
+    return sum((el.element_size() for tensor in batch for el in tensor))
+
+
+@experimental(extra_message="No backwards-compatibility guarantees.")
+class PytorchModelHandlerKeyedTensor(_PytorchModelHandler[Dict[str,
+                                                               torch.Tensor],
+                                                          PredictionResult,
+                                                          torch.nn.Module]):
+  """
+  Example Usage for torch model::
+      pcoll | RunInference(PytorchModelHandlerKeyedTensor(
+        state_dict_path="my_uri",
+        model_class="my_class"))
+
+    Example Usage for torchscript model::
+      pcoll | RunInference(PytorchModelHandlerKeyedTensor(
+        torch_script_model_path="my_uri"))
+
+    **NOTE:** This API and its implementation are under development and
+    do not provide backward compatibility guarantees.
+
+    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
+    for details
+  """
+  def run_inference(
+      self,
+      batch: Sequence[Dict[str, torch.Tensor]],
+      model: torch.nn.Module,
+      inference_args: Optional[Dict[str, Any]] = None,
+  ) -> Iterable[PredictionResult]:
+    """
+    Runs inferences on a batch of Keyed Tensors and returns an Iterable of
+    PredictionResult.
+
+    For the same key across all examples, this will stack all Tensors values
+    in a vectorized format to optimize the inference call.
+
+    Args:
+      batch: A sequence of keyed Tensors. These Tensors should be batchable,
+        as this method will call `torch.stack()` and pass in batched Tensors
+        with dimensions (batch_size, n_features, etc.) into the model's
+        forward() function.
+      model: A PyTorch model.
+      inference_args: Non-batchable arguments required as inputs to the model's
+        forward() function. Unlike Tensors in `batch`, these parameters will
+        not be dynamically batched
+    Returns
+          An Iterable of type PredictionResult.
+    """
+    if not self._inference_fn:
+      self._inference_fn = default_keyed_tensor_inference_fn
+    return super().run_inference(batch, model, inference_args)
+
+  def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
+    """
+    Returns:
+       The number of bytes of data for a batch of Dict of Tensors.
+    """
+    # If elements in `batch` are provided as a dictionaries from key to Tensors
+    return sum(
+        (el.element_size() for tensor in batch for el in tensor.values()))
