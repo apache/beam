@@ -50,7 +50,7 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<String> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00000-of-00003"));
+        PCollection<String> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000000"));
 
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
 

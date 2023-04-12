@@ -15,8 +15,8 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: simple-function-combine
-#   description: Simple function combine example.
+#   name: simple-function
+#   description: Simple function
 #   multifile: false
 #   context_line: 42
 #   categories:

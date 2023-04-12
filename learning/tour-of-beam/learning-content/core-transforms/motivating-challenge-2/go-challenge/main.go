@@ -52,7 +52,7 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    input := textio.Read(s, "gs://apache-beam-samples/counts-00000-of-00003")
+    input := textio.Read(s, "gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000000")
 
     lines := getLines(s, input)
 

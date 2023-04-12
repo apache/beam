@@ -17,7 +17,7 @@
  */
 
 // beam-playground:
-//   name: simple-function-combine
+//   name: simple-function
 //   description: Simple function
 //   multifile: false
 //   context_line: 44

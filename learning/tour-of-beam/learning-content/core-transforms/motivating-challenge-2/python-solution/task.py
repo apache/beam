@@ -47,7 +47,7 @@ class Output(beam.PTransform):
 
 
 with beam.Pipeline() as p:
-  parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/counts-00000-of-00003') \
+  parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000000') \
             | beam.combiners.Sample.FixedSizeGlobally(100) \
             | beam.FlatMap(lambda line: line) \
             | beam.FlatMap(lambda line : [line.split(':')]) \
