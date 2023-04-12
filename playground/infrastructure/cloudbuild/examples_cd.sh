@@ -80,7 +80,9 @@ LogOutput "Input variables:
  MERGE_COMMIT=$MERGE_COMMIT
  DNS_NAME=$DNS_NAME
  BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC
- DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE"
+ DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE
+ FORCE_CD=$FORCE_CD"
+ 
 
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
@@ -112,34 +114,39 @@ LogOutput "Discovered changes introduced by $MERGE_COMMIT: $diff_log"
 declare -a allowlist_array
 for sdk in $SDKS
 do
-    eval "check_${sdk}_passed"="False"
+    eval "check_${sdk}_passed"="false"
     example_has_changed="UNKNOWN"
-    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
-    cd $BEAM_ROOT_DIR/playground/infrastructure
-    python3 checker.py \
-    --verbose \
-    --sdk SDK_"${sdk^^}" \
-    --allowlist "${allowlist_array[@]}" \
-    --paths "${diff[@]}"
-
-    checker_status=$?
-    if [ $checker_status -eq 0 ]
-    then
-        LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        example_has_changed="True"
-    elif [ $checker_status -eq 11 ]
-    then
-        LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        example_has_changed="False"
+    if [ "$FORCE_CD" = "true" ]; then
+        LogOutput "FORCE_CD is true. Example deployment for SDK_${sdk^^} is forced"
+        example_has_changed="true"
     else
-        LogOutput "Error: Checker is broken. Exiting the script."
-        exit 1
+        LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
+        cd $BEAM_ROOT_DIR/playground/infrastructure
+        python3 checker.py \
+        --verbose \
+        --sdk SDK_"${sdk^^}" \
+        --allowlist "${allowlist_array[@]}" \
+        --paths "${diff[@]}"
+
+        checker_status=$?
+        if [ $checker_status -eq 0 ]
+        then
+            LogOutput "Checker found changed examples for SDK_${sdk^^}"
+            example_has_changed="true"
+        elif [ $checker_status -eq 11 ]
+        then
+            LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
+            example_has_changed="false"
+        else
+            LogOutput "Error: Checker is broken. Exiting the script."
+            exit 1
+        fi
     fi
     #Nothing to check
-    if [[ $example_has_changed != "True" ]]
+    if [[ $example_has_changed != "true" ]]
     then
         LogOutput "No changes require validation for SDK_${sdk^^}"
-        eval "check_${sdk}_passed"="True"
+        eval "check_${sdk}_passed"="true"
         continue
     fi
     
@@ -156,7 +163,7 @@ do
     --subdirs ${SUBDIRS}
     if [ $? -eq 0 ]; then
         LogOutput "Examples for $sdk SDK have been successfully deployed."
-        eval "check_${sdk}_passed"="True"
+        eval "check_${sdk}_passed"="true"
     else
         LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
     fi
@@ -165,7 +172,7 @@ LogOutput "Script finished"
 for sdk in $SDKS
 do
     result=$(eval echo '$'"check_${sdk}_passed")
-    if [ "$result" != "True" ]; then
+    if [ "$result" != "true" ]; then
         LogOutput "At least one of the checks has failed for $sdk SDK"
         exit 1
     fi
