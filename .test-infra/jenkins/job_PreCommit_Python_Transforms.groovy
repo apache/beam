@@ -18,10 +18,11 @@
 
 import PrecommitJobBuilder
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
+def pythonPrecommitJob(String gradleTask, String nameBase, boolean commitTriggering = true) {
+  PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python_Transforms',
-    gradleTask: ':pythonPreCommit',
+    nameBase: nameBase,
+    gradleTask: gradleTask,
     gradleSwitches: [
       '-Pposargs=apache_beam/transforms/'
     ],
@@ -30,33 +31,18 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^model/.*$',
       '^sdks/python/.*$',
       '^release/.*$',
-    ]
+    ],
+    commitTriggering: commitTriggering,
     )
-builder.build {
-  // Publish all test results to Jenkins.
-  publishers {
-    archiveJunit('**/pytest*.xml')
+  builder.build {
+    // Publish all test results to Jenkins.
+    publishers {
+      archiveJunit('**/pytest*.xml')
+    }
   }
 }
 
-PrecommitJobBuilder builderRC = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'PythonRC_Transforms',
-    gradleTask: ':pythonPreCommitRC',
-    gradleSwitches: [
-      '-Pposargs=apache_beam/transforms/'
-    ],
-    timeoutMins: 180,
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^sdks/python/.*$',
-      '^release/.*$',
-    ],
-    commitTriggering: false,
-    )
-builderRC.build {
-  // Publish all test results to Jenkins.
-  publishers {
-    archiveJunit('**/pytest*.xml')
-  }
-}
+// This job uses stable release dependencies so we will run it on every commit.
+pythonPrecommitJob(gradleTask=":pythonPreCommit", nameBase="Python_Transforms", commitTriggering=true)
+// This jon uses release candidate dependencies. making it run on every commit might create noise. so we will run it as a cron job.
+pythonPrecommitJob(gradleTask=":pythonPreCommitRC", nameBase="PythonRC_Transforms", commitTriggering=false)

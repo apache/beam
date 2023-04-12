@@ -18,32 +18,11 @@
 
 import PrecommitJobBuilder
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
+def pythonPrecommitJob(String gradleTask, String nameBase, boolean commitTriggering = true) {
+  PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python',
-    gradleTask: ':pythonPreCommit',
-    timeoutMins: 180,
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^sdks/python/.*$',
-      '^release/.*$',
-    ],
-    gradleSwitches: [
-      '-Pposargs=\"--ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/\"' // All these tests are covered by different jobs.
-    ]
-    )
-builder.build {
-  // Publish all test results to Jenkins.
-  publishers {
-    archiveJunit('**/pytest*.xml')
-  }
-}
-
-
-PrecommitJobBuilder builderRC = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'PythonRC',
-    gradleTask: ':pythonPreCommitRC',
+    nameBase: nameBase,
+    gradleTask: gradleTask,
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
@@ -53,11 +32,18 @@ PrecommitJobBuilder builderRC = new PrecommitJobBuilder(
     gradleSwitches: [
       '-Pposargs=\"--ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/\"' // All these tests are covered by different jobs.
     ],
-    commitTriggering: false,
-    )
-builderRC.build {
-  // Publish all test results to Jenkins.
-  publishers {
-    archiveJunit('**/pytest*.xml')
+    commitTriggering: commitTriggering
+  )
+
+  builder.build {
+    // Publish all test results to Jenkins.
+    publishers {
+      archiveJunit('**/pytest*.xml')
+    }
   }
 }
+
+// This job uses stable release dependencies so we will run it on every commit.
+pythonPrecommitJob(gradleTask=":pythonPreCommit", nameBase="Python", commitTriggering=true)
+// This jon uses release candidate dependencies. making it run on every commit might create noise. so we will run it as a cron job.
+pythonPrecommitJob(gradleTask=":pythonPreCommitRC", nameBase="PythonRC", commitTriggering=false)
