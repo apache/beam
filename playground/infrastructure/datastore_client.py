@@ -351,7 +351,7 @@ class DatastoreClient:
                     example.tag.name, example.sdk
                 ),
                 "content": example.code,
-                "cntxLine": example.tag.context_line,
+                "cntxLine": example.context_line,
                 "isMain": True,
             }
         )

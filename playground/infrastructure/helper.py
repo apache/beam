@@ -280,6 +280,10 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
     Returns:
         Parsed Example object.
     """
+
+    # Calculate context line with tag removed. Note: context_line is 1-based, line_start and line_finish are 0-based.
+    context_line = tag.context_line if tag.context_line <= tag.line_start else tag.context_line - (tag.line_finish - tag.line_start)
+    
     return Example(
         sdk=SdkEnum(sdk),
         tag=tag,
@@ -288,7 +292,7 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
         type=_get_object_type(filename, filepath),
         code=_get_content(filepath, tag.line_start, tag.line_finish),
         url_vcs=_get_url_vcs(filepath),  # type: ignore
-        context_line=tag.context_line - (tag.line_finish - tag.line_start),
+        context_line=context_line,
     )
 
 
