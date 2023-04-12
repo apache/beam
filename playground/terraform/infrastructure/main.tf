@@ -64,6 +64,7 @@ module "cloudfunctions" {
   project_id               = var.project_id
   service_account_email_cf = module.setup.service_account_email_cf
   region                   = var.region
+  env                      = var.env
 }
 
 module "memorystore" {

@@ -17,9 +17,8 @@
 # under the License.
 #
 
-variable "function_names" {
-  type    = list(string)
-  default = ["cleanupSnippets", "deleteObsoleteSnippets", "incrementSnippetViews"]
+variable "env" {
+  description = "CloudFunction Environment"
 }
 
 variable "function_description" {

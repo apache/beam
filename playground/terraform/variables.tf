@@ -27,6 +27,10 @@ variable "environment" {
   description = "prod,dev,beta"
 }
 
+variable "env" {
+  description = "prod,dev,beta"
+}
+
 variable "region" {
   description = "Infrastructure Region"
 }

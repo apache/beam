@@ -20,18 +20,18 @@
 locals {
   functions = [
     {
-      name        = "playground-function-cleanup"
-      description = "Playground function cleanup"
+      name        = "playground-function-cleanup-${var.env}"
+      description = "Playground function cleanup-${var.env}"
       entry_point = "cleanupSnippets"
     },
     {
-      name        = "playground-function-delete"
-      description = "Playground function delete"
+      name        = "playground-function-delete-${var.env}"
+      description = "Playground function delete-${var.env}"
       entry_point = "deleteObsoleteSnippets"
     },
     {
-      name        = "playground-function-view"
-      description = "Playground function view"
+      name        = "playground-function-view-${var.env}"
+      description = "Playground function view-${var.env}"
       entry_point = "incrementSnippetViews"
     },
   ]

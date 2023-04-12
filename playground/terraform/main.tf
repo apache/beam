@@ -20,13 +20,14 @@
 module "infrastructure" {
   source                        = "./infrastructure"
   project_id                    = var.project_id
-  environment                   = var.environment
   region                        = var.region
+  environment                   = var.environment
   network_region                = var.region
   redis_region                  = var.region
   location                      = var.zone
   service_account_id            = var.service_account_id
   state_bucket                  = var.state_bucket
+  env                           = var.env
   #Artifact Registry
   repository_id                 = var.repository_id
   repository_location           = var.region
