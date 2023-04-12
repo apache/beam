@@ -19,31 +19,28 @@ package org.apache.beam.sdk.expansion.service;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.value.AutoValue;
-
-import java.io.File;
 import java.util.*;
 
 @SuppressWarnings("nullness")
 @AutoValue
 public abstract class ExpansionServiceConfig {
-    public abstract List<String> getAllowlist();
+  public abstract List<String> getAllowlist();
 
-    public abstract Map<String, List<Dependency>> getDependencies();
+  public abstract Map<String, List<Dependency>> getDependencies();
 
-    public static ExpansionServiceConfig empty() {
-        return create(new ArrayList<>(), new HashMap<>());
+  public static ExpansionServiceConfig empty() {
+    return create(new ArrayList<>(), new HashMap<>());
+  }
+
+  @JsonCreator
+  static ExpansionServiceConfig create(
+      @JsonProperty("allowlist") List<String> allowlist,
+      @JsonProperty("dependencies") Map<String, List<Dependency>> dependencies) {
+    if (allowlist == null) {
+      allowlist = new ArrayList<>();
     }
-
-    @JsonCreator
-    static ExpansionServiceConfig create(
-            @JsonProperty("allowlist") List<String> allowlist, @JsonProperty("dependencies")  Map<String, List<Dependency>> dependencies) {
-        if (allowlist == null) {
-            allowlist = new ArrayList<>();
-        }
-        System.out.println("Dependencies list: " + dependencies);
-        return new AutoValue_ExpansionServiceConfig(allowlist, dependencies);
-    }
+    System.out.println("Dependencies list: " + dependencies);
+    return new AutoValue_ExpansionServiceConfig(allowlist, dependencies);
+  }
 }

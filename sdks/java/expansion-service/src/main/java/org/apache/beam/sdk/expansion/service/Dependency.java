@@ -25,11 +25,10 @@ import com.google.auto.value.AutoValue;
 @SuppressWarnings("nullness")
 @AutoValue
 public abstract class Dependency {
-    abstract String getPath();
+  abstract String getPath();
 
-    @JsonCreator
-    static Dependency create(
-            @JsonProperty("path") String path) {
-        return new AutoValue_Dependency(path);
-    }
+  @JsonCreator
+  static Dependency create(@JsonProperty("path") String path) {
+    return new AutoValue_Dependency(path);
+  }
 }

@@ -407,10 +407,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     default List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
 
-      ExpansionServiceConfig config = options.as(ExpansionServiceOptions.class).getExpansionServiceConfig();
+      ExpansionServiceConfig config =
+          options.as(ExpansionServiceOptions.class).getExpansionServiceConfig();
       String transformUniqueID = getTransformUniqueID(spec);
       if (config.getDependencies().containsKey(transformUniqueID)) {
-        List<String> updatedDependencies = config.getDependencies().get(transformUniqueID).stream().map(dependency -> dependency.getPath()).collect(Collectors.toList());
+        List<String> updatedDependencies =
+            config.getDependencies().get(transformUniqueID).stream()
+                .map(dependency -> dependency.getPath())
+                .collect(Collectors.toList());
         return updatedDependencies;
       }
 
@@ -609,7 +613,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .as(ExperimentalOptions.class)
         .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
     effectiveOpts.setRunner(NotRunnableRunner.class);
-    effectiveOpts.as(ExpansionServiceOptions.class).setExpansionServiceConfig(
+    effectiveOpts
+        .as(ExpansionServiceOptions.class)
+        .setExpansionServiceConfig(
             pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
     return Pipeline.create(effectiveOpts);
   }
