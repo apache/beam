@@ -149,5 +149,4 @@ Thus, one might encounter unexpected `NameErrors` when running a `DoFn` on Dataf
 simply setting `--save_main_session=True`. This will load the pickled state of the global namespace onto the Dataflow workers.
 For more information, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors).
 
-
 **NOTE**: This strictly applies to the `Python SDK executing with the dill pickler on the Dataflow Runner`.
