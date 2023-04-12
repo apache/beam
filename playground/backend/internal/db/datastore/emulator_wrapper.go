@@ -106,6 +106,8 @@ func startEmulator() (*emulator, error) {
 			"--consistency=1",
 			"--no-store-on-disk")
 
+		// Datastore emulator start several child processes, to be able to terminate them all we need to set pgid
+		// for the process group
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		err = cmd.Start()
 		if err != nil {
@@ -168,6 +170,7 @@ func (e *emulator) GetEndpoint() string {
 
 func (e *emulator) Stop() error {
 	if e.cmd.Process != nil {
+		// Use pgid to terminate all child processes
 		pgid, err := syscall.Getpgid(e.cmd.Process.Pid)
 		if err != nil {
 			return err
