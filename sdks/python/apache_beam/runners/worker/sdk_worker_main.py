@@ -28,6 +28,7 @@ import sys
 import traceback
 
 from google.protobuf import text_format  # type: ignore # not in typeshed
+import googlecloudprofiler
 
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems
@@ -175,23 +176,39 @@ def create_harness(environment, dry_run=False):
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
-  fn_log_handler, sdk_harness, sdk_pipeline_options = create_harness(os.environ)
+  _LOGGER.info("DEBUG: entered main")
+  (fn_log_handler, sdk_harness,
+   sdk_pipeline_options) = create_harness(os.environ)
   dataflow_service_options = (
       sdk_pipeline_options.view_as(GoogleCloudOptions).dataflow_service_options
       or [])
+  _LOGGER.info("DEBUG: got dataflow service options")
+  # exp = sdk_pipeline_options.view_as(DebugOptions).lookup_experiments()
+  experiments = (sdk_pipeline_options.view_as(DebugOptions).experiments or [])
+  _LOGGER.info("DEBUG: got experiments")
+  exp = None
+  if not exp and ((_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or
+                  (_ENABLE_GOOGLE_CLOUD_PROFILER in dataflow_service_options)):
+    exp = True
+  for experiment in experiments:
+    if experiment.startswith(_ENABLE_GOOGLE_CLOUD_PROFILER + '='):
+      exp = experiment.split('=', 1)[1]
 
-  exp = sdk_pipeline_options.view_as(DebugOptions).lookup_experiments(
-      _ENABLE_GOOGLE_CLOUD_PROFILER)
-  if exp or (_ENABLE_GOOGLE_CLOUD_PROFILER in dataflow_service_options):
+  _LOGGER.info("DEBUG: exp populated")
+  if exp:
     if not isinstance(exp, bool):
       # case of user passed profiler service name
+      _LOGGER.info("DEBUG: not a bool, assigning service name")
       service_name = exp
     else:
       service_name = os.environ["JOB_NAME"]
     service_version = os.environ["JOB_ID"]
     try:
-      import googlecloudprofiler
+      _LOGGER.info("DEBUG: gcprofiler imported")
       if service_version and service_name:
+        # _LOGGER.info(
+        #     "PROFILER ENABLED: service_name=%s, service_version=%s".format(
+        #         service_name, service_version))
         googlecloudprofiler.start(
             service=service_name, service_version=service_version, verbose=1)
         _LOGGER.info('Turning on Google Cloud Profiler.')
