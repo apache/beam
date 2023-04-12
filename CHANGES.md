@@ -59,6 +59,7 @@
 ## I/Os
 
 * Added rename for GCS and copy for local filesystem (Go) ([#25779](https://github.com/apache/beam/issues/26064)).
+* Added support for enhanced fan-out in KinesisIO.Read (Java) ([#19967](https://github.com/apache/beam/issues/19967)).
 
 ## New Features / Improvements
 
