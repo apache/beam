@@ -1,12 +1,4 @@
 {
-  "lightMode": "Light Mode",
-  "@lightMode": {
-    "description": "Title for a theme switch"
-  },
-  "darkMode": "Dark Mode",
-  "@darkMode": {
-    "description": "Title for a theme switch"
-  },
   "run": "Run",
   "@run": {
     "description": "Title for the run button"
@@ -67,14 +59,6 @@
   "@sendFeedback": {
     "description": "Title of the send feedback button"
   },
-  "privacyPolicy": "Privacy Policy",
-  "@privacyPolicy": {
-    "description": "Title for the privacy policy button"
-  },
-  "copyright": "© The Apache Software Foundation",
-  "@copyright": {
-    "description": "Copyright text for the footer"
-  },
   "search": "Search",
   "@search": {
     "description": "Hint text for a search field"
@@ -130,10 +114,6 @@
   "enjoyingPlayground": "Enjoying Playground?",
   "@enjoyingPlayground": {
     "description": "Title for the Enjoying Playground button"
-  },
-  "reportIssue": "Report issue in GitHub",
-  "@reportIssue": {
-    "description": "Title for the Report issue in GitHub button"
   },
   "bottom": "Bottom",
   "@bottom": {

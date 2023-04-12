@@ -59,6 +59,21 @@ class Sdk with EquatableMixin {
         title,
       ];
 
+  /// The default file extension of the programming language.
+  String get fileExtension {
+    switch (id) {
+      case 'go':
+        return '.go';
+      case 'java':
+        return '.java';
+      case 'python':
+        return '.py';
+      case 'scio':
+        return '.scala';
+    }
+    throw Exception('Unknown SDK: $id');
+  }
+
   /// A temporary solution while we wait for the backend to add
   /// sdk in example responses.
   static Sdk? tryParseExamplePath(String? path) {

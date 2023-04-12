@@ -16,10 +16,14 @@
  * limitations under the License.
  */
 
-// This file was auto-generated and used to contain backend URLs.
-// They are now determined automatically
-// as of https://github.com/apache/beam/pull/25610
-// TODO(alexeyinkin): When it is merged, find a better place for the remaining
-//  constant and delete this file.
+import 'abstract.dart';
+import 'constants.dart';
 
-const String kAnalyticsUA = 'G-BXFP2FNCKC';
+/// A unit is opened.
+class UnitOpenedTobAnalyticsEvent extends AnalyticsEventWithTobContext {
+  const UnitOpenedTobAnalyticsEvent({
+    required super.tobContext,
+  }) : super(
+          name: TobAnalyticsEvents.unitOpened,
+        );
+}

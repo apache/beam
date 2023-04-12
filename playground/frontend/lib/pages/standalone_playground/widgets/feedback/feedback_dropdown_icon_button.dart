@@ -17,9 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground_components/playground_components.dart';
 
 import '../../../../constants/sizes.dart';
+import '../../../../src/assets/assets.gen.dart';
 import 'feedback_dropdown_content.dart';
 
 const double kFeedbackTitleFontSize = 24.0;
@@ -33,19 +36,17 @@ const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
 const Offset kAnimationEndOffset = Offset(0.0, 0.0);
 
 class FeedbackDropdownIconButton extends StatefulWidget {
-  final String label;
-  final String iconAsset;
-  final String filledIconAsset;
   final bool isSelected;
+  final FeedbackRating feedbackRating;
   final void Function() onClick;
+  final PlaygroundController playgroundController;
 
   const FeedbackDropdownIconButton({
     Key? key,
-    required this.label,
-    required this.iconAsset,
-    required this.filledIconAsset,
     required this.isSelected,
+    required this.feedbackRating,
     required this.onClick,
+    required this.playgroundController,
   }) : super(key: key);
 
   @override
@@ -83,6 +84,25 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations appLocale = AppLocalizations.of(context)!;
+
+    final String tooltip;
+    final String icon;
+    final String filledIcon;
+
+    switch (widget.feedbackRating) {
+      case FeedbackRating.positive:
+        tooltip = appLocale.enjoying;
+        icon = Assets.thumbUp;
+        filledIcon = Assets.thumbUpFilled;
+        break;
+      case FeedbackRating.negative:
+        tooltip = appLocale.notEnjoying;
+        icon = Assets.thumbDown;
+        filledIcon = Assets.thumbDownFilled;
+        break;
+    }
+
     return Semantics(
       container: true,
       child: IconButton(
@@ -92,9 +112,9 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
           _changeSelectorVisibility();
           widget.onClick();
         },
-        tooltip: widget.label,
+        tooltip: tooltip,
         icon: SvgPicture.asset(
-          widget.isSelected ? widget.filledIconAsset : widget.iconAsset,
+          widget.isSelected ? filledIcon : icon,
         ),
       ),
     );
@@ -131,6 +151,9 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
                     ),
                     child: FeedbackDropdownContent(
                       close: _close,
+                      eventSnippetContext:
+                          widget.playgroundController.eventSnippetContext,
+                      feedbackRating: widget.feedbackRating,
                       textController: feedbackTextController,
                     ),
                   ),

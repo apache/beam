@@ -16,29 +16,23 @@
  * limitations under the License.
  */
 
-import 'package:equatable/equatable.dart';
+/// Measurement ID for production Playground and Tour of Beam.
+const _prodMeasurementId = 'G-XE511WT838';
 
-class AnalyticsEvent with EquatableMixin {
-  final String action;
-  final String category;
-  final String? label;
-  final Map<String, String>? parameters;
-  final int? value;
+/// Measurement ID for all non-production instances.
+const _devMeasurementId = 'G-BXFP2FNCKC';
 
-  AnalyticsEvent({
-    required this.action,
-    required this.category,
-    this.label,
-    this.parameters,
-    this.value,
-  });
+/// Hosts to use [_prodMeasurementId] on.
+const _prodHosts = {
+  'play.beam.apache.org',
+  'tour.beam.apache.org',
+};
 
-  @override
-  List<Object?> get props => [
-        action,
-        category,
-        label,
-        parameters,
-        value,
-      ];
+final _hostsToMeasurementIds = {
+  for (final host in _prodHosts) host: _prodMeasurementId,
+};
+
+/// Returns the measurement ID for the current host.
+String getGoogleAnalyticsMeasurementId() {
+  return _hostsToMeasurementIds[Uri.base.host] ?? _devMeasurementId;
 }

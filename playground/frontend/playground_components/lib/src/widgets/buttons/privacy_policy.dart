@@ -16,14 +16,20 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
-class CloseListener extends StatelessWidget {
-  final Widget child;
-  const CloseListener({Key? key, required this.child}) : super(key: key);
+import '../../constants/links.dart';
+import 'text_external_url_navigation.dart';
+
+class PrivacyPolicyButton extends StatelessWidget {
+  const PrivacyPolicyButton();
 
   @override
   Widget build(BuildContext context) {
-    return child;
+    return TextExternalUrlNavigationButton(
+      title: 'ui.privacyPolicy'.tr(),
+      url: Uri.parse(BeamLinks.privacyPolicy),
+    );
   }
 }
