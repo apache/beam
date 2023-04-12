@@ -294,8 +294,9 @@ To embed them into the documentation use unlisted examples.
 They work and are checked and cached the same way as public examples.
 
 Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog) except:
-1. Use an empty list for `categories` attribute: `categories: []`
-2. Do not use the following attributes:
+1. Use the directory `/learning/beamdoc`
+2. Use an empty list for `categories` attribute: `categories: []`
+3. Do not use the following attributes:
    - `default_example`
    - `tags`
 
