@@ -32,7 +32,8 @@ def pythonPrecommitJob(String gradleTask, String nameBase, boolean commitTrigger
     gradleSwitches: [
       '-Pposargs=\"--ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/\"' // All these tests are covered by different jobs.
     ],
-    commitTriggering: commitTriggering
+    commitTriggering: commitTriggering,
+    numBuildsToRetain: 40,
   )
 
   builder.build {

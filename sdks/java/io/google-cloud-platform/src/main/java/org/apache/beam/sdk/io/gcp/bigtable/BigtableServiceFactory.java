@@ -24,10 +24,9 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
@@ -44,111 +43,124 @@ import org.slf4j.LoggerFactory;
 class BigtableServiceFactory implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceFactory.class);
-
-  static final BigtableServiceFactory FACTORY_INSTANCE = new BigtableServiceFactory();
-
-  private transient int nextId = 0;
-
-  private transient Map<ConfigId, BigtableServiceEntry> entries = new HashMap<>();
+  private static final ConcurrentHashMap<UUID, BigtableServiceEntry> entries =
+      new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<UUID, AtomicInteger> refCounts = new ConcurrentHashMap<>();
+  private static final Object lock = new Object();
 
   @AutoValue
   abstract static class ConfigId implements Serializable {
 
-    abstract int id();
+    abstract UUID id();
 
-    static ConfigId create(int id) {
-      return new AutoValue_BigtableServiceFactory_ConfigId(id);
+    static ConfigId create() {
+      return new AutoValue_BigtableServiceFactory_ConfigId(UUID.randomUUID());
     }
   }
 
   @AutoValue
   abstract static class BigtableServiceEntry implements Serializable, AutoCloseable {
 
-    abstract BigtableServiceFactory getServiceFactory();
-
     abstract ConfigId getConfigId();
 
     abstract BigtableService getService();
 
-    abstract AtomicInteger getRefCount();
-
-    static BigtableServiceEntry create(
-        BigtableServiceFactory factory,
-        ConfigId configId,
-        BigtableService service,
-        AtomicInteger refCount) {
-      return new AutoValue_BigtableServiceFactory_BigtableServiceEntry(
-          factory, configId, service, refCount);
+    static BigtableServiceEntry create(ConfigId configId, BigtableService service) {
+      return new AutoValue_BigtableServiceFactory_BigtableServiceEntry(configId, service);
     }
 
     @Override
     public void close() {
-      getServiceFactory().releaseService(this);
+      int refCount =
+          refCounts.getOrDefault(getConfigId().id(), new AtomicInteger(0)).decrementAndGet();
+      if (refCount < 0) {
+        LOG.error(
+            "close() Ref count is < 0, configId=" + getConfigId().id() + " refCount=" + refCount);
+      }
+      LOG.debug("close() for config id " + getConfigId().id() + ", ref count is " + refCount);
+      if (refCount == 0) {
+        synchronized (lock) {
+          if (refCounts.get(getConfigId().id()).get() <= 0) {
+            entries.remove(getConfigId().id());
+            refCounts.remove(getConfigId().id());
+            getService().close();
+          }
+        }
+      }
     }
   }
 
-  synchronized BigtableServiceEntry getServiceForReading(
+  BigtableServiceEntry getServiceForReading(
       ConfigId configId,
       BigtableConfig config,
       BigtableReadOptions opts,
       PipelineOptions pipelineOptions)
       throws IOException {
-    BigtableServiceEntry entry = entries.get(configId);
-    if (entry != null) {
-      entry.getRefCount().incrementAndGet();
+    synchronized (lock) {
+      LOG.debug("getServiceForReading(), config id: " + configId.id());
+      BigtableServiceEntry entry = entries.get(configId.id());
+      if (entry != null) {
+        // When entry is not null, refCount.get(configId.id()) should always exist.
+        // Do a getOrDefault to avoid unexpected NPEs.
+        refCounts.getOrDefault(configId.id(), new AtomicInteger(0)).getAndIncrement();
+        LOG.debug("getServiceForReading() returning an existing service entry");
+        return entry;
+      }
+
+      BigtableOptions effectiveOptions = getEffectiveOptions(config);
+      if (effectiveOptions != null) {
+        // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
+        config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
+        opts = BigtableConfigTranslator.translateToBigtableReadOptions(opts, effectiveOptions);
+      }
+      BigtableDataSettings settings =
+          BigtableConfigTranslator.translateReadToVeneerSettings(config, opts, pipelineOptions);
+      BigtableService service;
+      if (opts.getWaitTimeout() != null) {
+        service = new BigtableServiceImpl(settings, opts.getWaitTimeout());
+      } else {
+        service = new BigtableServiceImpl(settings);
+      }
+      entry = BigtableServiceEntry.create(configId, service);
+      entries.put(configId.id(), entry);
+      refCounts.put(configId.id(), new AtomicInteger(1));
+      LOG.debug("getServiceForReading() created a new service entry");
       return entry;
     }
-
-    BigtableOptions effectiveOptions = getEffectiveOptions(config);
-    if (effectiveOptions != null) {
-      // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
-      config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
-      opts = BigtableConfigTranslator.translateToBigtableReadOptions(opts, effectiveOptions);
-    }
-    BigtableDataSettings settings =
-        BigtableConfigTranslator.translateReadToVeneerSettings(config, opts, pipelineOptions);
-    BigtableService service;
-    if (opts.getWaitTimeout() != null) {
-      service = new BigtableServiceImpl(settings, opts.getWaitTimeout());
-    } else {
-      service = new BigtableServiceImpl(settings);
-    }
-    entry = BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1));
-    entries.put(configId, entry);
-    return entry;
   }
 
-  synchronized BigtableServiceEntry getServiceForWriting(
+  BigtableServiceEntry getServiceForWriting(
       ConfigId configId,
       BigtableConfig config,
       BigtableWriteOptions opts,
       PipelineOptions pipelineOptions)
       throws IOException {
-    BigtableServiceEntry entry = entries.get(configId);
-    if (entry != null) {
-      entry.getRefCount().incrementAndGet();
+    synchronized (lock) {
+      BigtableServiceEntry entry = entries.get(configId.id());
+      LOG.debug("getServiceForWriting(), config id: " + configId.id());
+      if (entry != null) {
+        // When entry is not null, refCount.get(configId.id()) should always exist.
+        // Do a getOrDefault to avoid unexpected NPEs.
+        refCounts.getOrDefault(configId.id(), new AtomicInteger(0)).getAndIncrement();
+        LOG.debug("getServiceForWriting() returning an existing service entry");
+        return entry;
+      }
+
+      BigtableOptions effectiveOptions = getEffectiveOptions(config);
+      if (effectiveOptions != null) {
+        // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
+        config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
+        opts = BigtableConfigTranslator.translateToBigtableWriteOptions(opts, effectiveOptions);
+      }
+
+      BigtableDataSettings settings =
+          BigtableConfigTranslator.translateWriteToVeneerSettings(config, opts, pipelineOptions);
+      BigtableService service = new BigtableServiceImpl(settings);
+      entry = BigtableServiceEntry.create(configId, service);
+      entries.put(configId.id(), entry);
+      refCounts.put(configId.id(), new AtomicInteger(1));
+      LOG.debug("getServiceForWriting() created a new service entry");
       return entry;
-    }
-
-    BigtableOptions effectiveOptions = getEffectiveOptions(config);
-    if (effectiveOptions != null) {
-      // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
-      config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
-      opts = BigtableConfigTranslator.translateToBigtableWriteOptions(opts, effectiveOptions);
-    }
-
-    BigtableDataSettings settings =
-        BigtableConfigTranslator.translateWriteToVeneerSettings(config, opts, pipelineOptions);
-    BigtableService service = new BigtableServiceImpl(settings);
-    entry = BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1));
-    entries.put(configId, entry);
-    return entry;
-  }
-
-  synchronized void releaseService(BigtableServiceEntry entry) {
-    if (entry.getRefCount().decrementAndGet() == 0) {
-      entry.getService().close();
-      entries.remove(entry.getConfigId());
     }
   }
 
@@ -180,7 +192,7 @@ class BigtableServiceFactory implements Serializable {
   }
 
   synchronized ConfigId newId() {
-    return ConfigId.create(nextId++);
+    return ConfigId.create();
   }
 
   private BigtableOptions getEffectiveOptions(BigtableConfig config) {
@@ -190,11 +202,5 @@ class BigtableServiceFactory implements Serializable {
           config.getBigtableOptionsConfigurator().apply(BigtableOptions.builder()).build();
     }
     return effectiveOptions;
-  }
-
-  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    entries = new HashMap<>();
-    nextId = 0;
   }
 }
