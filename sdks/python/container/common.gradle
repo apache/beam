@@ -77,7 +77,7 @@ docker {
   tags containerImageTags()
   files "../Dockerfile", "./build"
   buildArgs(['py_version': "${project.ext.pythonVersion}",
-             'install_release_candidates': project.rootProject.findProperty(['installReleaseCandidates']) ?:  "",
+             'pip_extra_options': project.rootProject.findProperty(['pipExtraOptions']) ?:  "",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
   buildx project.containerPlatforms() != [project.nativeArchitecture()]

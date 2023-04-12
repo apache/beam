@@ -60,7 +60,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont_with_RC',
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
-          switches('-PinstallReleaseCandidates=--pre')
+          switches('-PpipExtraOptions=--pre')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
