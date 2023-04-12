@@ -52,6 +52,8 @@ type emulator struct {
 
 func (ed *EmulatedDatastore) Close() error {
 	clientCloseErr := ed.Datastore.Client.Close()
+	// Stop emulator no matter if client was closed successfully or not.
+	// We don't want to keep emulator processes running after test is ended.
 	emulatorStopErr := ed.emulator.Stop()
 	if clientCloseErr != nil {
 		return clientCloseErr
