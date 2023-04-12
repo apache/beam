@@ -35,6 +35,7 @@ export BEAM_EXAMPLE_CATEGORIES=${BEAM_EXAMPLE_CATEGORIES-"$BEAM_ROOT_DIR/playgro
 export BEAM_USE_WEBGRPC=${BEAM_USE_WEBGRPC-"yes"}
 export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-2}
 export SDKS=${SDKS-"java python go"}
+export FORCE_CD=${FORCE_CD-'false'}
 
 # Playground FQDN
 if [[ -z "${DNS_NAME}" ]]; then
@@ -46,14 +47,13 @@ if [[ -z "${DATASTORE_NAMESPACE}" ]]; then
   echo "DATASTORE_NAMESPACE parameter was not set. Exiting"
   exit 1
 fi
-# Master branch commit before the merge.
-if [[ -z "${BASE_COMMIT}" ]]; then
-  echo "BASE_COMMIT paramter was not set. Exiting"
+# Master branch commit after merge
+if [[ -z "${MERGE_COMMIT}" ]]; then
+  echo "MERGE_COMMIT paramter was not set. Exiting"
   exit 1
 fi
-# Master branch commit after merge.  We need a paramter because can't rely that it equals to HEAD when we run git clone
-if [[ -z "${MERGED_COMMIT}" ]]; then
-  echo "MERGED_COMMIT paramter was not set. Exiting"
+if [[ "${FORCE_CD}" != "false" &&  "${FORCE_CD}" != "true" ]]; then
+  echo "FORCE_CD paramter must be either 'true' or 'false'. Exiting"
   exit 1
 fi
 
@@ -77,8 +77,7 @@ LogOutput "Input variables:
  BEAM_EXAMPLE_CATEGORIES=$BEAM_EXAMPLE_CATEGORIES
  BEAM_CONCURRENCY=$BEAM_CONCURRENCY
  SDKS=$SDKS
- BASE_COMMIT=$BASE_COMMIT
- MERGED_COMMIT=$MERGED_COMMIT
+ MERGE_COMMIT=$MERGE_COMMIT
  DNS_NAME=$DNS_NAME
  BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC
  DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE"
@@ -106,10 +105,10 @@ apt install -y python3.8-venv > /dev/null 2>&1
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 pip install -r /workspace/beam/playground/infrastructure/requirements.txt
 
-LogOutput "Looking for files changed by the merge commit $MERGED_COMMIT"
-diff_log=$(git diff --name-only $MERGED_COMMIT~ $MERGED_COMMIT)
+LogOutput "Looking for files changed by the merge commit $MERGE_COMMIT"
+diff_log=$(git diff --name-only $MERGE_COMMIT~ $MERGE_COMMIT)
 diff=($(echo "$diff_log" | tr '\n' ' '))
-LogOutput "Discovered changes introduced by $MERGED_COMMIT: $diff_log"
+LogOutput "Discovered changes introduced by $MERGE_COMMIT: $diff_log"
 declare -a allowlist_array
 for sdk in $SDKS
 do
