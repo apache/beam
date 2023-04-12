@@ -116,7 +116,10 @@ kafkaVersions.each {kv ->
   }
 }
 
-
+//Because this runs many integration jobs in parallel, each of which use a
+//container, it can fail locally due to performance limitations on a desktop.
+//To avoid this, use --max-workers=N, where N is less than half your CPUs.
+//4 is a good start for parallelism without overloading your computer.
 task kafkaVersionsCompatibilityTest {
   group = "Verification"
   description = 'Runs KafkaIO with different Kafka client APIs'
