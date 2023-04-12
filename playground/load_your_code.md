@@ -172,26 +172,57 @@ Playground relies on metadata comments block to identify and place an example in
 and present in the Examples Catalog.
 See [this](https://github.com/apache/beam/blob/3e080ff212d8ed7208c8486b515bb73c5d294475/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java#L20-L36) for an example.
 Playground automatically removes metadata comments block before storing the example in database
-so the metadata is not visible to end users. The block is in the format of a YAML map.
+so the metadata is not visible to end users. The block is in the format of a YAML map:
 
-Example tag metadata quick reference (all elements are **required**, unless marked **optional**):
-
-| Field              | Description                                                                                                                                                                                               |
-|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `beam-playground:` | tag title                                                                                                                                                                                                 |
-| `name`             | string. Name of the Beam example that will be displayed in the Playground Examples Catalog.                                                                                                               |
-| `description`      | string. Description of the Beam example that will be displayed in the Playground Examples Catalog.                                                                                                        |
-| `pipeline_options` | string (optional). Contains information about pipeline options of the Beam example/test/kata.                                                                                                             |
-| `context_line`     | integer. The line number to scroll to when the snippet is loaded. Note that lines of the metadata block are cut so line numbers after it are shifted.                                                     |
-| `categories`       | list of strings. Lists categories this example is included into. Non-existent categories will be created.                                                                                                 |
-| `tags`             | list of strings (optional). Tags by which this snippet can be found in the Example Catalog.                                                                                                               |
-| `complexity`       | BASIC/MEDIUM/ADVANCED enum. Helps user to identify example's complexity.                                                                                                                                  |
-| `default_example`  | boolean (optional). Specifies the example to be loaded as default when its SDK selected in the Playground. Only one example can be set as the default for each SDK.                                       |
-| `url_notebook`     | string (optional). If the snippet has a Colab notebook, can link the URL of the Colab notebook that is based on this snippet.                                                                             |
-| `multifile`        | boolean (optional). Specifies if the given example consists of multiple files or not. Default: `false`.                                                                                                   |
-| `always_run`       | boolean (optional). Specifies example caching by Playground. Default: `false` (the output is cached).                                                                                                     |
-| `datasets`         | enum (optional). Datasets which will be used by emulators. Please see `Dataset` in Tag class model [here](infrastructure/models.py) for reference.                                                        |
-| `emulators`        | list (optional). List of emulators to start during pipeline execution. Currently only `kafka` type is supported. Please see `Emulator` in Tag class model [here](infrastructure/models.py) for reference. |
+```yaml
+beam-playground:
+  # Name of the Beam example that will be displayed in the Playground Examples Catalog. Required.
+  name: ""
+  # Description of the Beam example that will be displayed in the Playground Examples Catalog. Required.
+  description: ""
+  # Contains information about pipeline options of the Beam example/test/kata. Optional.
+  pipeline_options: "--name1 value1 --name2 value2"
+  # The line number to scroll to when the snippet is loaded.
+  # Note that lines of the metadata block are cut so line numbers after it are shifted. Required.
+  context_line: 1
+  # Categories this example is included into. Non-existent categories will be created.
+  # Optional, defaults to no categories making the example unlisted.
+  categories:
+    - "Combiners"
+    - "Core Transforms"
+  # Tags by which this snippet can be found in the Example Catalog. Optional.
+  tags:
+    - "numbers"
+    - "count"
+  # Helps user to identify example's complexity. Values: BASIC|MEDIUM|ADVANCED. Required.
+  complexity: BASIC
+  # Specifies the example to be loaded as default when its SDK selected in the Playground.
+  # See section "Default examples" below. Optional, defaults to false.
+  default_example: true
+  # If the snippet has a Colab notebook, can link the URL of the Colab notebook that is based on this snippet.
+  url_notebook: "https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb"
+  # Specifies if the given example consists of multiple files or not. Optional, defaults to false.
+  multifile: true
+  # Specifies example caching by Playground. Optional, defaults to false (the output is cached).
+  always_run: true
+  # Datasets which will be used by emulators. Optional.
+  # Please see section "Kafka emulator" for more information.
+  datasets:
+    # Dataset name
+    CountWords:
+      # Dataset location. Only "local" is supported. Required.
+      location: local
+      # Dataset format. Supported values are "avro" and "json". Required.
+      format: avro
+  # List of emulators to start during pipeline execution. Currently only `kafka` type is supported. Optional.
+  emulators:
+     - type: kafka
+       topic:
+         # Dataset id. Will be used as a topic name.
+         id: dataset
+         # Name of dataset specified in "datasets" section.
+         source_dataset: "CountWords"
+```
 
 For metadata reference see fields in "Tag" class [here](infrastructure/models.py).
 
