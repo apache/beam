@@ -15,72 +15,49 @@
 
 // Package provision contains utilities for obtaining runtime provision,
 // information -- such as pipeline options.
+//
+// Deprecated: Use github.com/apache/beam/sdks/v2/go/container/tools package instead.
 package provision
 
 import (
 	"context"
-	"encoding/json"
 
-	"time"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
-	"github.com/golang/protobuf/jsonpb"
 	google_pb "github.com/golang/protobuf/ptypes/struct"
 )
 
 // Info returns the runtime provisioning info for the worker.
+//
+// Deprecated: Use github.com/apache/beam/sdks/v2/go/container/tools instead.
 func Info(ctx context.Context, endpoint string) (*fnpb.ProvisionInfo, error) {
-	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
-	if err != nil {
-		return nil, err
-	}
-	defer cc.Close()
-
-	client := fnpb.NewProvisionServiceClient(cc)
-
-	resp, err := client.GetProvisionInfo(ctx, &fnpb.GetProvisionInfoRequest{})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get manifest")
-	}
-	if resp.GetInfo() == nil {
-		return nil, errors.New("empty manifest")
-	}
-	return resp.GetInfo(), nil
+	return tools.ProvisionInfo(ctx, endpoint)
 }
 
 // OptionsToProto converts pipeline options to a proto struct via JSON.
+//
+// Deprecated: Use github.com/apache/beam/sdks/v2/go/container/tools.OptionsToProto instead.
 func OptionsToProto(v any) (*google_pb.Struct, error) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	return JSONToProto(string(data))
+	return tools.OptionsToProto(v)
 }
 
 // JSONToProto converts JSON-encoded pipeline options to a proto struct.
+//
+// Deprecated: Use github.com/apache/beam/sdks/v2/go/container/tools.JSONToProto instead.
 func JSONToProto(data string) (*google_pb.Struct, error) {
-	var out google_pb.Struct
-	if err := jsonpb.UnmarshalString(string(data), &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
+	return tools.JSONToProto(data)
 }
 
 // ProtoToOptions converts pipeline options from a proto struct via JSON.
+//
+// Deprecated: Use github.com/apache/beam/sdks/v2/go/container/tools.ProtoToOptions instead.
 func ProtoToOptions(opt *google_pb.Struct, v any) error {
-	data, err := ProtoToJSON(opt)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal([]byte(data), v)
+	return tools.ProtoToOptions(opt, v)
 }
 
 // ProtoToJSON converts pipeline options from a proto struct to JSON.
+//
+// Deprecated: Use github.com/apache/beam/sdks/v2/go/container/tools.ProtoToJSON instead.
 func ProtoToJSON(opt *google_pb.Struct) (string, error) {
-	if opt == nil {
-		return "{}", nil
-	}
-	return (&jsonpb.Marshaler{}).MarshalToString(opt)
+	return tools.ProtoToJSON(opt)
 }

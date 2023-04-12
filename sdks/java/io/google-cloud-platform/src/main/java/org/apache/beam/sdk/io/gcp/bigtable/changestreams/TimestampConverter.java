@@ -30,4 +30,8 @@ public class TimestampConverter {
   public static org.joda.time.Instant toJodaTime(org.threeten.bp.Instant threetenInstant) {
     return org.joda.time.Instant.ofEpochMilli(threetenInstant.toEpochMilli());
   }
+
+  public static long toSeconds(org.joda.time.Instant jodaInstant) {
+    return jodaInstant.getMillis() / 1000;
+  }
 }

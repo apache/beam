@@ -762,8 +762,8 @@
   - StageDir
   - StageFile
   - StageModel
-  - StageViaLegacyApi
-  - StageViaPortableApi
+  - StageViaLegacyAPI
+  - StageViaPortableAPI
   - StartLoopback
   - StartReadTimestamp
   - Step
