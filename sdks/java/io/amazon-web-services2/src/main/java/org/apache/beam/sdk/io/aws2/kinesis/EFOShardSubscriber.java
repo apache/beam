@@ -88,7 +88,7 @@ class EFOShardSubscriber {
 
   /**
    * Async completion handler for {@link KinesisAsyncClient#subscribeToShard} that:
-   * <li>exists immediately if {@link #done} is already completed (exceptionally),
+   * <li>exits immediately if {@link #done} is already completed (exceptionally),
    * <li>re-subscribes at {@link ShardEventsSubscriber#sequenceNumber} for retry-able errors such as
    *     retry-able {@link SdkException}, {@link ClosedChannelException}, {@link ChannelException},
    *     {@link TimeoutException} (any of these might be wrapped in {@link CompletionException}s)
