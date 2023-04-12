@@ -16,6 +16,7 @@
 package main
 
 import (
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
 	"flag"
@@ -38,11 +39,11 @@ func createDatastoreClient(ctx context.Context, projectId string) (*datastore.Da
 	return db, nil
 }
 
-func cleanup(dayDiff int, projectId string) error {
+func cleanup(dayDiff int, projectId, namespace string) error {
 	logger.Infof("Removing unused snippets is running...")
 	startDate := time.Now()
 
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), constants.DatastoreNamespaceKey, namespace)
 	db, err := createDatastoreClient(ctx, projectId)
 	if err != nil {
 		return err
@@ -60,11 +61,11 @@ func cleanup(dayDiff int, projectId string) error {
 	return nil
 }
 
-func remove(snippetId string, projectId string) error {
+func remove(snippetId string, projectId, namespace string) error {
 	logger.Infof("Removing snippet %s is running...", snippetId)
 	startDate := time.Now()
 
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), constants.DatastoreNamespaceKey, namespace)
 	db, err := createDatastoreClient(ctx, projectId)
 	if err != nil {
 		return err
@@ -99,6 +100,7 @@ func main() {
 		cleanupCmd := flag.NewFlagSet("cleanup", flag.ExitOnError)
 		dayDiff := cleanupCmd.Int("day_diff", -1, "a number of days to keep the code snippets")
 		projectId := cleanupCmd.String("project_id", "", "a project id where the code snippets are stored")
+		namespace := cleanupCmd.String("namespace", constants.Namespace, "a Datastore namespace where the code snippets are stored")
 
 		err := cleanupCmd.Parse(os.Args[2:])
 		if err != nil {
@@ -117,7 +119,7 @@ func main() {
 		}
 
 		logger.SetupLogger(context.Background(), cwd, *projectId)
-		err = cleanup(*dayDiff, *projectId)
+		err = cleanup(*dayDiff, *projectId, *namespace)
 		if err != nil {
 			logger.Fatalf("Couldn't cleanup the database, err: %s \n", err.Error())
 			os.Exit(1)
@@ -126,6 +128,7 @@ func main() {
 		removeCmd := flag.NewFlagSet("remove", flag.ExitOnError)
 		snippetId := removeCmd.String("snippet_id", "", "a snippet id to remove")
 		projectId := removeCmd.String("project_id", "", "a project id where the code snippets are stored")
+		namespace := removeCmd.String("namespace", constants.Namespace, "a Datastore namespace where the code snippets are stored")
 
 		err := removeCmd.Parse(os.Args[2:])
 		if err != nil {
@@ -144,7 +147,7 @@ func main() {
 		}
 
 		logger.SetupLogger(context.Background(), cwd, *projectId)
-		err = remove(*snippetId, *projectId)
+		err = remove(*snippetId, *projectId, *namespace)
 		if err != nil {
 			logger.Fatalf("Couldn't remove the code snippet, err: %s \n", err.Error())
 			os.Exit(1)
