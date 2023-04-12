@@ -35,7 +35,7 @@ class TourScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
-      playgroundController: tourNotifier.playgroundController,
+      tourNotifier: tourNotifier,
       child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
           ? _WideTour(tourNotifier)
           : _NarrowTour(tourNotifier),
