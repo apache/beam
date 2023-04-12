@@ -26,7 +26,7 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 )
 
-var datastoreDb datastore.EmulatedDatastore
+var datastoreDb *datastore.EmulatedDatastore
 var ctx context.Context
 var appEnvs *environment.ApplicationEnvs
 var props *environment.Properties

@@ -50,7 +50,7 @@ type emulator struct {
 	cmd  *exec.Cmd
 }
 
-func (ed EmulatedDatastore) Close() error {
+func (ed *EmulatedDatastore) Close() error {
 	clientCloseErr := ed.Datastore.Client.Close()
 	emulatorStopErr := ed.emulator.Stop()
 	if clientCloseErr != nil {
@@ -62,10 +62,10 @@ func (ed EmulatedDatastore) Close() error {
 	return nil
 }
 
-func NewEmulated(ctx context.Context) (EmulatedDatastore, error) {
+func NewEmulated(ctx context.Context) (*EmulatedDatastore, error) {
 	emulator, err := startEmulator()
 	if err != nil {
-		return EmulatedDatastore{}, err
+		return nil, err
 	}
 
 	if _, ok := os.LookupEnv("GOOGLE_CLOUD_PROJECT"); ok {
@@ -81,10 +81,10 @@ func NewEmulated(ctx context.Context) (EmulatedDatastore, error) {
 
 	datastoreDb, err := New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {
-		return EmulatedDatastore{}, err
+		return nil, err
 	}
 
-	return EmulatedDatastore{Datastore: datastoreDb, emulator: emulator}, nil
+	return &EmulatedDatastore{Datastore: datastoreDb, emulator: emulator}, nil
 }
 
 func startEmulator() (*emulator, error) {

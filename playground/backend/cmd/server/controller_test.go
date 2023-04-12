@@ -62,7 +62,7 @@ const (
 
 var lis *bufconn.Listener
 var cacheService cache.Cache
-var dbEmulator datastoreDb.EmulatedDatastore
+var dbEmulator *datastoreDb.EmulatedDatastore
 
 // var opt goleak.Option
 var ctx context.Context

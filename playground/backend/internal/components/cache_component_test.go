@@ -32,7 +32,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
-var datastoreDb db.EmulatedDatastore
+var datastoreDb *db.EmulatedDatastore
 var ctx context.Context
 var cacheComponent *CacheComponent
 var cacheService cache.Cache

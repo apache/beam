@@ -33,7 +33,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
-var datastoreDb EmulatedDatastore
+var datastoreDb *EmulatedDatastore
 var ctx context.Context
 
 func TestMain(m *testing.M) {
