@@ -150,4 +150,4 @@ simply setting the main session. This will load the pickled state of the global 
 For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
 
 **NOTE**: This applies to the Python SDK executing with the dill pickler on any remote runner using portability. Therefore, this issue will
-not occur in `DirectRunner`. Additionally, note that the dill pickler is the default pickler.
+not occur in `DirectRunner`. Additionally, note that the dill pickler is the default pickler in the Python SDK.
