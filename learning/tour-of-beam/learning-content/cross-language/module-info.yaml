@@ -21,7 +21,9 @@ sdk:
   - Java
   - Python
   - Go
+id: cross-language
+name: cross-language
+complexity: ADVANCED
 content:
-  - introduction
-  - cross-language
-  
+- sql-transform
+- multi-pipeline

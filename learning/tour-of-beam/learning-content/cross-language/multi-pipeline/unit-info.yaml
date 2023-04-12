@@ -21,7 +21,9 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - cross-language
-  
+id: multi-pipeline
+name: Multi pipeline
+complexity: ADVANCED
+taskName: multi-pipeline
+
+
