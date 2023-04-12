@@ -71,6 +71,8 @@ public class Task {
 
         result.apply(ParDo.of(new LogOutput<>()));
 
+        pipeline.run();
+
     }
 
     static class UserCoder extends Coder<User> {
