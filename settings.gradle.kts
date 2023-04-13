@@ -284,3 +284,21 @@ project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
+include("sdks:java:io:kafka:kafka-251")
+findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
+include("sdks:java:io:kafka:kafka-241")
+findProject(":sdks:java:io:kafka:kafka-241")?.name = "kafka-241"
+include("sdks:java:io:kafka:kafka-231")
+findProject(":sdks:java:io:kafka:kafka-231")?.name = "kafka-231"
+include("sdks:java:io:kafka:kafka-222")
+findProject(":sdks:java:io:kafka:kafka-222")?.name = "kafka-222"
+include("sdks:java:io:kafka:kafka-211")
+findProject(":sdks:java:io:kafka:kafka-211")?.name = "kafka-211"
+include("sdks:java:io:kafka:kafka-201")
+findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
+include("sdks:java:io:kafka:kafka-111")
+findProject(":sdks:java:io:kafka:kafka-111")?.name = "kafka-111"
+include("sdks:java:io:kafka:kafka-100")
+findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
+include("sdks:java:io:kafka:kafka-01103")
+findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
