@@ -32,13 +32,14 @@ dependencies {
 
 def generatePythonRequirements = tasks.register("generatePythonRequirements") {
   dependsOn ':sdks:python:sdist'
+  def pipExtraOptions = project.findProperty("pipExtraOptions") ?: ""
   def runScriptsPath = "${rootDir}/sdks/python/container/run_generate_requirements.sh"
   doLast {
     exec {
       executable 'sh'
       args '-c', "cd ${rootDir} && ${runScriptsPath} " +
               "${project.ext.pythonVersion} " +
-              "${files(configurations.sdkSourceTarball.files).singleFile}"
+              "${files(configurations.sdkSourceTarball.files).singleFile}" + "${pipExtraOptions}"
     }
   }
 }
@@ -77,12 +78,12 @@ docker {
   tags containerImageTags()
   files "../Dockerfile", "./build"
   buildArgs(['py_version': "${project.ext.pythonVersion}",
-             'pip_extra_options': project.rootProject.findProperty(['pipExtraOptions']) ?:  "",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
   buildx project.containerPlatforms() != [project.nativeArchitecture()]
   platform(*project.containerPlatforms())
 }
+
 
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
@@ -98,7 +99,8 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
 } else {
   def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
     executable "sh"
-    args "-c", "mkdir -p build/target/go-licenses"
+    // Touch a dummy file to ensure the directory exists.
+    args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
   }
   dockerPrepare.dependsOn skipPullLicenses
 }

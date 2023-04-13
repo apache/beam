@@ -18,7 +18,7 @@
 
 ARG py_version
 FROM python:"${py_version}"-bullseye as beam
-MAINTAINER "Apache Beam <dev@beam.apache.org>"
+LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -37,11 +37,11 @@ RUN apt-get update && \
 ####
 # Install required packages for Beam Python SDK and common dependencies used by users.
 ####
-ARG pip_extra_options=""
+
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install ${pip_extra_options} --no-deps -r /tmp/base_image_requirements.txt && \
+    pip install --no-deps -r /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
     # Check that the protobuf upb(also called micro protobuf) is used.
@@ -70,11 +70,9 @@ RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=fa
 ####
 # Install Apache Beam SDK. Use --no-deps and pip check to verify that all
 # necessary dependencies are specified in base_image_requirements.txt.
-# use ARG pip_extra_options to pass additional flags to the pip installation.'
-# dependencies.
 ####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install ${pip_extra_options} --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+RUN pip install --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
 RUN pip check || (echo "Container does not include required Beam dependencies or has conflicting dependencies. If Beam dependencies have changed, you need to regenerate base_image_requirements.txt files. See: https://s.apache.org/beam-python-requirements-generate" && exit 1)
 # Log complete list of what exact packages and versions are installed.
 RUN pip freeze --all
@@ -95,11 +93,9 @@ ENTRYPOINT ["/opt/apache/beam/boot"]
 FROM beam as third_party_licenses
 ARG pull_licenses
 COPY target/license_scripts /tmp/license_scripts/
-# Add golang licenses. Because the go-license directory may be empty if
-# pull_licenses is false, and COPY fails if there are no files,
-# copy an extra LICENSE file then remove it.
-COPY target/LICENSE target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
-RUN rm /opt/apache/beam/third_party_licenses/golang/LICENSE
+
+# Add golang licenses.
+COPY  target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
 
 COPY target/license_scripts /tmp/license_scripts/
 RUN if [ "$pull_licenses" = "true" ] ; then \
@@ -113,5 +109,3 @@ COPY --from=third_party_licenses /opt/apache/beam/third_party_licenses /opt/apac
 RUN if [ "$pull_licenses" != "true" ] ; then \
       rm -rf /opt/apache/beam/third_party_licenses ; \
     fi
-
-

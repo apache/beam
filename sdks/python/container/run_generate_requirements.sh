@@ -30,7 +30,7 @@
 # You will need Python interpreters for all versions supported by Beam, see:
 # https://s.apache.org/beam-python-dev-wiki
 
-if [[ $# != 2 ]]; then
+if [[ $# != 3 ]]; then
   printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.8 <sdk_tarball>"
   printf "\n\twhere 3.8 is the Python major.minor version."
   exit 1
@@ -38,6 +38,7 @@ fi
 
 PY_VERSION=$1
 SDK_TARBALL=$2
+PIP_EXTRA_OPTION=$3
 
 if ! python$PY_VERSION --version > /dev/null 2>&1 ; then
   echo "Please install a python${PY_VERSION} interpreter. See s.apache.org/beam-python-dev-wiki for Python installation tips."
@@ -61,8 +62,8 @@ pip install --upgrade pip setuptools wheel
 # Install dataframe deps to add have Dataframe support in released images.
 # Install test deps since some integration tests need dependencies,
 # such as pytest, installed in the runner environment.
-pip install --no-cache-dir $SDK_TARBALL[gcp,dataframe,test]
-pip install --no-cache-dir -r $PWD/sdks/python/container/base_image_requirements_manual.txt
+pip install --pre --no-cache-dir $SDK_TARBALL[gcp,dataframe,test]
+pip install --pre --no-cache-dir -r $PWD/sdks/python/container/base_image_requirements_manual.txt
 pip uninstall -y apache-beam
 echo "Checking for broken dependencies:"
 pip check
