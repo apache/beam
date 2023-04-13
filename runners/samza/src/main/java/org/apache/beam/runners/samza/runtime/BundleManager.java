@@ -22,13 +22,13 @@ import org.joda.time.Instant;
 public interface BundleManager<OutT> {
   void tryStartBundle();
 
-  public void processWatermark(Instant watermark, OpEmitter<OutT> emitter);
+  void processWatermark(Instant watermark, OpEmitter<OutT> emitter);
 
-  public void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter);
+  void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter);
 
-  public void signalFailure(Throwable t);
+  void signalFailure(Throwable t);
 
-  public void tryFinishBundle(OpEmitter<OutT> emitter);
+  void tryFinishBundle(OpEmitter<OutT> emitter);
 
   /**
    * A listener used to track the lifecycle of a bundle. Typically, the lifecycle of a bundle
@@ -40,7 +40,7 @@ public interface BundleManager<OutT> {
    *
    * @param <OutT>
    */
-  public interface BundleProgressListener<OutT> {
+  interface BundleProgressListener<OutT> {
     void onBundleStarted();
 
     void onBundleFinished(OpEmitter<OutT> emitter);
