@@ -15,25 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import org.apache.beam.gradle.kafka.KafkaTestUtilities
-
-plugins { id 'org.apache.beam.module' }
-applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.kafka',
-        mavenRepositories: [
-                [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
-        ],
-)
-provideIntegrationTestingDependencies()
-enableJavaPerformanceTesting()
-
-dependencies {
-    implementation "org.apache.kafka:kafka-clients:0.11.0.3"
-    implementation project(":sdks:java:io:kafka")
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+project.ext {
+    delimited="0.11.0.3"
+    undelimited="01103"
 }
 
-configurations.create("kafkaVersion01103")
-
-tasks.register("kafkaVersion01103BatchIT",KafkaTestUtilities.KafkaBatchIT, "0.11.0.3", "01103", false, configurations, project)
+apply from: "../kafka-integration-test.gradle"
