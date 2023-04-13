@@ -351,6 +351,8 @@ task chicagoTaxiExample {
 
 task validatesContainer() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
+  dependsOn ":sdks:python:container:py${pyversion}:generatePythonRequirements"
+  mustRunAfter ":sdks:python:container:py${pyversion}:generatePythonRequirements"
   dependsOn 'initializeForDataflowJob'
   dependsOn ":sdks:python:container:py${pyversion}:docker"
   def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
