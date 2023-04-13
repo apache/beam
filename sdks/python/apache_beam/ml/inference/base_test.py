@@ -48,8 +48,10 @@ class FakeModel:
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
-  def __init__(self, clock=None):
+  def __init__(self, clock=None, min_batch_size=1, max_batch_size=9999):
     self._fake_clock = clock
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
 
   def load_model(self):
     if self._fake_clock:
@@ -68,6 +70,12 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
 
   def update_model_path(self, model_path: Optional[str] = None):
     pass
+
+  def batch_elements_kwargs(self):
+    return {
+        'min_batch_size': self._min_batch_size,
+        'max_batch_size': self._max_batch_size
+    }
 
 
 class FakeModelHandlerReturnsPredictionResult(
@@ -170,6 +178,24 @@ class RunInferenceBaseTest(unittest.TestCase):
       keyed_actual = keyed_pcoll | 'RunKeyed' >> base.RunInference(
           model_handler)
       assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
+
+  def test_run_inference_impl_dlq(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 'TEST', 3, 10, 'TEST2']
+      expected_good = [2, 4, 11]
+      expected_bad = ['TEST', 'TEST2']
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      good, bad = pcoll | base.RunInference(
+          FakeModelHandler(
+            min_batch_size=1,
+            max_batch_size=1
+          )).with_exception_handling()
+      assert_that(good, equal_to(expected_good), label='assert:inferences')
+
+      # bad will be in form [batch[elements], error]. Just pull out bad element.
+      bad_without_error = bad | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
 
   def test_run_inference_impl_inference_args(self):
     with TestPipeline() as pipeline:

@@ -339,6 +339,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._metrics_namespace = metrics_namespace
     self._model_metadata_pcoll = model_metadata_pcoll
     self._enable_side_input_loading = self._model_metadata_pcoll is not None
+    self._with_exception_handling = False
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -368,20 +369,68 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         # batching DoFn APIs.
         | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
 
+    run_inference_pardo = beam.ParDo(
+        _RunInferenceDoFn(
+            self._model_handler,
+            self._clock,
+            self._metrics_namespace,
+            self._enable_side_input_loading),
+        self._inference_args,
+        beam.pvalue.AsSingleton(
+            self._model_metadata_pcoll,
+        ) if self._enable_side_input_loading else None).with_resource_hints(
+            **resource_hints)
+
+    if self._with_exception_handling:
+      run_inference_pardo = run_inference_pardo.with_exception_handling(
+          exc_class=self._exc_class,
+          use_subprocess=self._use_subprocess,
+          threshold=self._threshold)
+
     return (
         batched_elements_pcoll
-        | 'BeamML_RunInference' >> (
-            beam.ParDo(
-                _RunInferenceDoFn(
-                    self._model_handler,
-                    self._clock,
-                    self._metrics_namespace,
-                    self._enable_side_input_loading),
-                self._inference_args,
-                beam.pvalue.AsSingleton(
-                    self._model_metadata_pcoll,
-                ) if self._enable_side_input_loading else
-                None).with_resource_hints(**resource_hints)))
+        | 'BeamML_RunInference' >> run_inference_pardo)
+
+  def with_exception_handling(
+      self, *, exc_class=Exception, use_subprocess=False, threshold=1):
+    """Automatically provides a dead letter output for skipping bad records.
+    This can allow a pipeline to continue successfully rather than fail or
+    continuously throw errors on retry when bad elements are encountered.
+
+    This returns a tagged output with two PCollections, the first being the
+    results of successfully processing the input PCollection, and the second
+    being the set of bad records (those which threw exceptions during
+    processing) along with information about the errors raised.
+
+    For example, one would write::
+
+        good, bad = Map(maybe_error_raising_function).with_exception_handling()
+
+    and `good` will be a PCollection of mapped records and `bad` will contain
+    those that raised exceptions.
+
+
+    Args:
+      exc_class: An exception class, or tuple of exception classes, to catch.
+          Optional, defaults to 'Exception'.
+      use_subprocess: Whether to execute the DoFn logic in a subprocess. This
+          allows one to recover from errors that can crash the calling process
+          (e.g. from an underlying library causing a segfault), but is
+          slower as elements and results must cross a process boundary.  Note
+          that this starts up a long-running process that is used to handle
+          all the elements (until hard failure, which should be rare) rather
+          than a new process per element, so the overhead should be minimal
+          (and can be amortized if there's any per-process or per-bundle
+          initialization that needs to be done). Optional, defaults to False.
+      threshold: An upper bound on the ratio of records that can be bad before
+          aborting the entire pipeline. Optional, defaults to 1.0 (meaning
+          up to 100% of records can be bad and the pipeline will still succeed).
+    """
+    self._with_exception_handling = True
+    self._exc_class = exc_class
+    self._use_subprocess = use_subprocess
+    self._threshold = threshold
+    return self
 
 
 class _MetricsCollector:
