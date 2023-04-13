@@ -85,7 +85,21 @@ dockerPrepare.dependsOn goBuild
 dockerPrepare.dependsOn copyConfigFile
 dockerPrepare.dependsOn copyDockerfileDependencies
 
-// TODO: copy licenses
+if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+    def copyGolangLicenses = tasks.register("copyGolangLicenses", Copy) {
+        from "${project(':release:go-licenses:py').buildDir}/output"
+        into "build/target/go-licenses"
+        dependsOn ':release:go-licenses:py:createLicenses'
+    }
+    dockerPrepare.dependsOn copyGolangLicenses
+} else {
+    def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
+        executable "sh"
+        // Touch a dummy file to ensure the directory exists.
+        args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
+    }
+    dockerPrepare.dependsOn skipPullLicenses
+}
 
 task pushAll {
     dependsOn ":sdks:java:expansion-service:container:dockerPush"

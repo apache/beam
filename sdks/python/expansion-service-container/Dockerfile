@@ -18,7 +18,7 @@
 
 # We just need to support one Python version supported by Beam.
 # Picking the current default Beam Python version which is Python 3.8.
-FROM python:3.8-bullseye
+FROM python:3.8-bullseye as expansion-service
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 WORKDIR /opt/apache/beam
@@ -44,3 +44,29 @@ RUN mkdir /opt/apache/beam/beam_venv &&\
     pip install apache-beam-sdk.tar.gz[gcp,dataframe]
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
+
+####
+# Pull and add third party licenses to the image if pull_licenses is true.
+# Use multistage build to eliminate unwanted changes to beam image due to
+# extra dependencies needed to pull licenses.
+####
+
+FROM expansion-service as third_party_licenses
+ARG pull_licenses
+COPY target/license_scripts /tmp/license_scripts/
+
+# Add golang licenses.
+COPY  target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
+
+COPY target/license_scripts /tmp/license_scripts/
+RUN if [ "$pull_licenses" = "true" ] ; then \
+      pip install 'pip-licenses<5' pyyaml tenacity && \
+      python /tmp/license_scripts/pull_licenses_py.py ; \
+    fi
+
+FROM expansion-service
+ARG pull_licenses
+COPY --from=third_party_licenses /opt/apache/beam/third_party_licenses /opt/apache/beam/third_party_licenses
+RUN if [ "$pull_licenses" != "true" ] ; then \
+      rm -rf /opt/apache/beam/third_party_licenses ; \
+    fi

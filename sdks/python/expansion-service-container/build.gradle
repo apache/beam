@@ -52,6 +52,11 @@ goBuild {
   outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
 }
 
+def copyLicenseScripts = tasks.register("copyLicenseScripts", Copy){
+    from project(':sdks:python:container').fileTree("./license_scripts")
+    into "build/target/license_scripts"
+}
+
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "python_expansion_service",
@@ -68,6 +73,23 @@ docker {
 dockerPrepare.dependsOn goBuild
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn copyRequirementsFile
+dockerPrepare.dependsOn copyLicenseScripts
+
+if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+    def copyGolangLicenses = tasks.register("copyGolangLicenses", Copy) {
+        from "${project(':release:go-licenses:py').buildDir}/output"
+        into "build/target/go-licenses"
+        dependsOn ':release:go-licenses:py:createLicenses'
+    }
+    dockerPrepare.dependsOn copyGolangLicenses
+} else {
+    def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
+        executable "sh"
+        // Touch a dummy file to ensure the directory exists.
+        args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
+    }
+    dockerPrepare.dependsOn skipPullLicenses
+}
 
 task pushAll {
   dependsOn ":sdks:java:expansion-service:container:dockerPush"

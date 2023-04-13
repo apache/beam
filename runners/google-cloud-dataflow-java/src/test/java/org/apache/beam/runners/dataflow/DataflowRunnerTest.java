@@ -2448,7 +2448,8 @@ public class DataflowRunnerTest implements Serializable {
         }
 
         @Override
-        public ExpansionApi.DiscoverSchemaTransformResponse discover(ExpansionApi.DiscoverSchemaTransformRequest request) {
+        public ExpansionApi.DiscoverSchemaTransformResponse discover(
+            ExpansionApi.DiscoverSchemaTransformRequest request) {
           return null;
         }
 

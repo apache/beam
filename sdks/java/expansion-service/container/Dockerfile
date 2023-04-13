@@ -26,11 +26,22 @@ COPY target/beam-sdks-java-io-expansion-service.jar jars/
 COPY target/beam-sdks-java-io-google-cloud-platform-expansion-service.jar jars/
 COPY target/beam-sdks-java-extensions-schemaio-expansion-service.jar jars/
 
+# Copy licenses
+COPY target/LICENSE /opt/apache/beam/
+COPY target/NOTICE /opt/apache/beam/
+
 # Copy the boot program
 COPY target/launcher/linux_amd64/boot /opt/apache/beam/
 
 
 # Copy the config file
 COPY target/expansion_service_config.yml ./
+
+# Add golang licenses.
+COPY target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
+RUN if [ "${pull_licenses}" = "false" ] ; then \
+    # Remove above license dir if pull licenses false
+    rm -rf /opt/apache/beam/third_party_licenses ; \
+   fi
 
 ENTRYPOINT ["/opt/apache/beam/boot", "-config_file", "./expansion_service_config.yml", "-dependencies_dir", "jars/"]
