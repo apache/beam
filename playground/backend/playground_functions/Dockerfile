@@ -21,7 +21,7 @@
 FROM golang:1.20-alpine as build
 
 COPY . /app
-WORKDIR /app/functions
+WORKDIR /app/playground_functions
 
 RUN ls -la
 

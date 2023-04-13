@@ -46,8 +46,8 @@ spec:
            value: {{ .Values.datastore_name }}
          - name: CLEANUP_SNIPPETS_FUNCTIONS_URL
            value: {{ .Values.func_clean }}
-         - name: DELETE_OBSOLETE_SNIPPETS_FUNCTIONS_URL
-           value: {{ .Values.func_delete }}
+         - name: PUT_SNIPPET_FUNCTIONS_URL
+           value: {{ .Values.func_put }}
          - name: INCREMENT_SNIPPET_VIEWS_FUNCTIONS_URL
            value: {{ .Values.func_view }}
        livenessProbe:

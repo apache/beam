@@ -32,53 +32,53 @@ import (
 )
 
 const (
-	serverIpKey                               = "SERVER_IP"
-	serverPortKey                             = "SERVER_PORT"
-	beamSdkKey                                = "BEAM_SDK"
-	beamVersionKey                            = "BEAM_VERSION"
-	workingDirKey                             = "APP_WORK_DIR"
-	preparedModDirKey                         = "PREPARED_MOD_DIR"
-	numOfParallelJobsKey                      = "NUM_PARALLEL_JOBS"
-	cacheTypeKey                              = "CACHE_TYPE"
-	cacheAddressKey                           = "CACHE_ADDRESS"
-	beamPathKey                               = "BEAM_PATH"
-	cacheKeyExpirationTimeKey                 = "KEY_EXPIRATION_TIME"
-	pipelineExecuteTimeoutKey                 = "PIPELINE_EXPIRATION_TIMEOUT"
-	protocolTypeKey                           = "PROTOCOL_TYPE"
-	launchSiteKey                             = "LAUNCH_SITE"
-	projectIdKey                              = "GOOGLE_CLOUD_PROJECT"
-	pipelinesFolderKey                        = "PIPELINES_FOLDER_NAME"
-	defaultPipelinesFolder                    = "executable_files"
-	defaultLaunchSite                         = "local"
-	defaultProtocol                           = "HTTP"
-	defaultIp                                 = "localhost"
-	defaultPort                               = 8080
-	defaultSdk                                = pb.Sdk_SDK_UNSPECIFIED
-	defaultBeamVersion                        = "<unknown>"
-	defaultBeamJarsPath                       = "/opt/apache/beam/jars/*"
-	defaultDatasetsPath                       = "/opt/playground/backend/datasets"
-	defaultKafkaEmulatorExecutablePath        = "/opt/playground/backend/kafka-emulator/beam-playground-kafka-emulator.jar"
-	defaultCacheType                          = "local"
-	defaultCacheAddress                       = "localhost:6379"
-	defaultCacheKeyExpirationTime             = time.Minute * 15
-	defaultPipelineExecuteTimeout             = time.Minute * 10
-	jsonExt                                   = ".json"
-	configFolderName                          = "configs"
-	defaultNumOfParallelJobs                  = 20
-	SDKConfigPathKey                          = "SDK_CONFIG"
-	defaultSDKConfigPath                      = "../sdks.yaml"
-	propertyPathKey                           = "PROPERTY_PATH"
-	datasetsPathKey                           = "DATASETS_PATH"
-	kafkaEmulatorExecutablePathKey            = "KAFKA_EMULATOR_EXECUTABLE_PATH"
-	defaultPropertyPath                       = "."
-	cacheRequestTimeoutKey                    = "CACHE_REQUEST_TIMEOUT"
-	defaultCacheRequestTimeout                = time.Second * 5
-	cleanupSnippetsFunctionsUrlKey            = "CLEANUP_SNIPPETS_FUNCTIONS_URL"
-	defaultCleanupSnippetsFunctionsUrl        = "http://cleanup_snippets:8080/"
-	deleteObsoleteSnippetsFunctionsUrlKey     = "DELETE_OBSOLETE_SNIPPETS_FUNCTIONS_URL"
-	defaultDeleteObsoleteSnippetsFunctionsUrl = "http://delete_obsolete_snippets:8080/"
-	incrementSnippetViewsFunctionsUrlKey      = "INCREMENT_SNIPPET_VIEWS_FUNCTIONS_URL"
-	defaultIncrementSnippetViewsFunctionsUrl  = "http://increment_snippet_views:8080/"
+	serverIpKey                              = "SERVER_IP"
+	serverPortKey                            = "SERVER_PORT"
+	beamSdkKey                               = "BEAM_SDK"
+	beamVersionKey                           = "BEAM_VERSION"
+	workingDirKey                            = "APP_WORK_DIR"
+	preparedModDirKey                        = "PREPARED_MOD_DIR"
+	numOfParallelJobsKey                     = "NUM_PARALLEL_JOBS"
+	cacheTypeKey                             = "CACHE_TYPE"
+	cacheAddressKey                          = "CACHE_ADDRESS"
+	beamPathKey                              = "BEAM_PATH"
+	cacheKeyExpirationTimeKey                = "KEY_EXPIRATION_TIME"
+	pipelineExecuteTimeoutKey                = "PIPELINE_EXPIRATION_TIMEOUT"
+	protocolTypeKey                          = "PROTOCOL_TYPE"
+	launchSiteKey                            = "LAUNCH_SITE"
+	projectIdKey                             = "GOOGLE_CLOUD_PROJECT"
+	pipelinesFolderKey                       = "PIPELINES_FOLDER_NAME"
+	defaultPipelinesFolder                   = "executable_files"
+	defaultLaunchSite                        = "local"
+	defaultProtocol                          = "HTTP"
+	defaultIp                                = "localhost"
+	defaultPort                              = 8080
+	defaultSdk                               = pb.Sdk_SDK_UNSPECIFIED
+	defaultBeamVersion                       = "<unknown>"
+	defaultBeamJarsPath                      = "/opt/apache/beam/jars/*"
+	defaultDatasetsPath                      = "/opt/playground/backend/datasets"
+	defaultKafkaEmulatorExecutablePath       = "/opt/playground/backend/kafka-emulator/beam-playground-kafka-emulator.jar"
+	defaultCacheType                         = "local"
+	defaultCacheAddress                      = "localhost:6379"
+	defaultCacheKeyExpirationTime            = time.Minute * 15
+	defaultPipelineExecuteTimeout            = time.Minute * 10
+	jsonExt                                  = ".json"
+	configFolderName                         = "configs"
+	defaultNumOfParallelJobs                 = 20
+	SDKConfigPathKey                         = "SDK_CONFIG"
+	defaultSDKConfigPath                     = "../sdks.yaml"
+	propertyPathKey                          = "PROPERTY_PATH"
+	datasetsPathKey                          = "DATASETS_PATH"
+	kafkaEmulatorExecutablePathKey           = "KAFKA_EMULATOR_EXECUTABLE_PATH"
+	defaultPropertyPath                      = "."
+	cacheRequestTimeoutKey                   = "CACHE_REQUEST_TIMEOUT"
+	defaultCacheRequestTimeout               = time.Second * 5
+	cleanupSnippetsFunctionsUrlKey           = "CLEANUP_SNIPPETS_FUNCTIONS_URL"
+	defaultCleanupSnippetsFunctionsUrl       = "http://cleanup_snippets:8080/"
+	putSnippetFunctionsUrlKey                = "PUT_SNIPPET_FUNCTIONS_URL"
+	defaultPutSnippetFunctionsUrl            = "http://put_snippet:8080/"
+	incrementSnippetViewsFunctionsUrlKey     = "INCREMENT_SNIPPET_VIEWS_FUNCTIONS_URL"
+	defaultIncrementSnippetViewsFunctionsUrl = "http://increment_snippet_views:8080/"
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -127,7 +127,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	kafkaEmulatorExecutablePath := getEnv(kafkaEmulatorExecutablePathKey, defaultKafkaEmulatorExecutablePath)
 	cacheRequestTimeout := getEnvAsDuration(cacheRequestTimeoutKey, defaultCacheRequestTimeout, "couldn't convert provided cache request timeout. Using default %s\n")
 	cleanupSnippetsFunctionsUrl := getEnv(cleanupSnippetsFunctionsUrlKey, defaultCleanupSnippetsFunctionsUrl)
-	deleteObsoleteSnippetsFunctionsUrl := getEnv(deleteObsoleteSnippetsFunctionsUrlKey, defaultDeleteObsoleteSnippetsFunctionsUrl)
+	putSnippetFunctionsUrl := getEnv(putSnippetFunctionsUrlKey, defaultPutSnippetFunctionsUrl)
 	incrementSnippetViewsFunctionsUrl := getEnv(incrementSnippetViewsFunctionsUrlKey, defaultIncrementSnippetViewsFunctionsUrl)
 
 	if value, present := os.LookupEnv(workingDirKey); present {
@@ -141,7 +141,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 			kafkaEmulatorExecutablePath,
 			datasetsPath,
 			cleanupSnippetsFunctionsUrl,
-			deleteObsoleteSnippetsFunctionsUrl,
+			putSnippetFunctionsUrl,
 			incrementSnippetViewsFunctionsUrl,
 			NewCacheEnvs(
 				cacheType,

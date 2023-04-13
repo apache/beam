@@ -69,8 +69,8 @@ output "playground_function_cleanup_url" {
   value = module.infrastructure.playground_function_cleanup_url
 }
 
-output "playground_function_delete_url" {
-  value = module.infrastructure.playground_function_delete_url
+output "playground_function_put_url" {
+  value = module.infrastructure.playground_function_put_url
 }
 
 output "playground_function_view_url" {

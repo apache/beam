@@ -115,7 +115,7 @@ func TestNewEnvironment(t *testing.T) {
 				defaultKafkaEmulatorExecutablePath,
 				defaultDatasetsPath,
 				defaultCleanupSnippetsFunctionsUrl,
-				defaultDeleteObsoleteSnippetsFunctionsUrl,
+				defaultPutSnippetFunctionsUrl,
 				defaultIncrementSnippetViewsFunctionsUrl,
 				&CacheEnvs{
 					defaultCacheType,
@@ -142,7 +142,7 @@ func TestNewEnvironment(t *testing.T) {
 					defaultKafkaEmulatorExecutablePath,
 					defaultDatasetsPath,
 					defaultCleanupSnippetsFunctionsUrl,
-					defaultDeleteObsoleteSnippetsFunctionsUrl,
+					defaultPutSnippetFunctionsUrl,
 					defaultIncrementSnippetViewsFunctionsUrl,
 					&CacheEnvs{
 						defaultCacheType,
@@ -272,7 +272,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 				defaultKafkaEmulatorExecutablePath,
 				defaultDatasetsPath,
 				defaultCleanupSnippetsFunctionsUrl,
-				defaultDeleteObsoleteSnippetsFunctionsUrl,
+				defaultPutSnippetFunctionsUrl,
 				defaultIncrementSnippetViewsFunctionsUrl,
 				&CacheEnvs{
 					defaultCacheType,
@@ -302,7 +302,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 				defaultKafkaEmulatorExecutablePath,
 				defaultDatasetsPath,
 				defaultCleanupSnippetsFunctionsUrl,
-				defaultDeleteObsoleteSnippetsFunctionsUrl,
+				defaultPutSnippetFunctionsUrl,
 				defaultIncrementSnippetViewsFunctionsUrl,
 				&CacheEnvs{
 					defaultCacheType,
@@ -326,7 +326,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 				defaultKafkaEmulatorExecutablePath,
 				defaultDatasetsPath,
 				defaultCleanupSnippetsFunctionsUrl,
-				defaultDeleteObsoleteSnippetsFunctionsUrl,
+				defaultPutSnippetFunctionsUrl,
 				defaultIncrementSnippetViewsFunctionsUrl,
 				&CacheEnvs{
 					defaultCacheType,
@@ -351,7 +351,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 				defaultKafkaEmulatorExecutablePath,
 				defaultDatasetsPath,
 				defaultCleanupSnippetsFunctionsUrl,
-				defaultDeleteObsoleteSnippetsFunctionsUrl,
+				defaultPutSnippetFunctionsUrl,
 				defaultIncrementSnippetViewsFunctionsUrl,
 				&CacheEnvs{
 					defaultCacheType,
@@ -376,7 +376,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 				defaultKafkaEmulatorExecutablePath,
 				defaultDatasetsPath,
 				defaultCleanupSnippetsFunctionsUrl,
-				defaultDeleteObsoleteSnippetsFunctionsUrl,
+				defaultPutSnippetFunctionsUrl,
 				defaultIncrementSnippetViewsFunctionsUrl,
 				&CacheEnvs{
 					defaultCacheType,

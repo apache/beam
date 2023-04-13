@@ -21,7 +21,7 @@ output "playground_function_cleanup_url" {
   value = google_cloudfunctions_function.playground_functions[0].https_trigger_url
 }
 
-output "playground_function_delete_url" {
+output "playground_function_put_url" {
   value = google_cloudfunctions_function.playground_functions[1].https_trigger_url
 }
 

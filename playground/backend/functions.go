@@ -16,14 +16,16 @@
 package backend
 
 import (
-	"beam.apache.org/playground/backend/internal/db/datastore"
-	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/utils"
-	"beam.apache.org/playground/backend/playground_functions"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
+
+	"beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/playground_functions"
 
 	"beam.apache.org/playground/backend/internal/db/mapper"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
@@ -50,7 +52,7 @@ func init() {
 	ensurePost := playground_functions.EnsureMethod(http.MethodPost)
 
 	functions.HTTP("cleanupSnippets", ensurePost(cleanupSnippets))
-	functions.HTTP("deleteObsoleteSnippets", ensurePost(deleteObsoleteSnippets))
+	functions.HTTP("putSnippet", ensurePost(putSnippet))
 	functions.HTTP("incrementSnippetViews", ensurePost(incrementSnippetViews))
 }
 
@@ -77,16 +79,22 @@ func cleanupSnippets(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func deleteObsoleteSnippets(w http.ResponseWriter, r *http.Request) {
+func putSnippet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	snipId := r.URL.Query().Get("snipId")
-	persistenceKey := r.URL.Query().Get("persistenceKey")
 
-	snipKey := utils.GetSnippetKey(ctx, snipId)
-	err := db.DeleteObsoleteSnippets(ctx, snipKey, persistenceKey)
+	var snip entity.Snippet
+	err := json.NewDecoder(r.Body).Decode(&snip)
 	if err != nil {
-		logger.Errorf("Couldn't delete obsolete code snippets for snipId %s, persistenceKey %s, err: %s \n", snipId, persistenceKey, err.Error())
+		logger.Errorf("Couldn't decode request body, err: %s \n", err.Error())
+		handleError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	err = db.PutSnippetDirect(ctx, snipId, &snip)
+	if err != nil {
+		logger.Errorf("Couldn't put snippet to the database, err: %s \n", err.Error())
 		handleError(w, http.StatusInternalServerError, err)
 		return
 	}

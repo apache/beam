@@ -79,8 +79,24 @@ func (d *Datastore) DeleteObsoleteSnippets(ctx context.Context, snipKey *datasto
 	return d.deleteSnippets(ctx, snippetQuery, snipKey)
 }
 
-// PutSnippet puts the snippet entity to datastore
+// PutSnippet puts the snippet entity to datastore using cloud function proxy
 func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.Snippet) error {
+	if d.externalFunctions == nil {
+		logger.Warnf("Datastore: PutSnippet(): external functions are not set, accessing the datastore directly")
+		return d.PutSnippetDirect(ctx, snipId, snip)
+	}
+
+	logger.Debugf("putting snippet %q, persistent key %q...", snipId, snip.Snippet.PersistenceKey)
+	if snip == nil {
+		logger.Errorf("Datastore: PutSnippet(): snippet is nil")
+		return nil
+	}
+
+	return d.externalFunctions.PutSnippet(ctx, snipId, snip)
+}
+
+// PutSnippetDirect puts the snippet entity to datastore
+func (d *Datastore) PutSnippetDirect(ctx context.Context, snipId string, snip *entity.Snippet) error {
 	logger.Debugf("putting snippet %q, persistent key %q...", snipId, snip.Snippet.PersistenceKey)
 	if snip == nil {
 		logger.Errorf("Datastore: PutSnippet(): snippet is nil")
@@ -111,22 +127,8 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		return err
 	}
 
-	err = nil
-	if d.externalFunctions != nil {
-		err = d.externalFunctions.DeleteObsoleteSnippets(ctx, snipId, snip.Snippet.PersistenceKey)
-	}
-
-	if err != nil || d.externalFunctions == nil {
-		if err != nil {
-			logger.Errorf("Datastore: PutSnippet(): error during deleting obsolete snippets using cloud function proxy, err: %s\n", err.Error())
-		}
-		if d.externalFunctions == nil {
-			logger.Warnf("Datastore: PutSnippet(): cloud function proxy is not initialized, trying to call DeleteObsoleteSnippets() directly.")
-		}
-		return d.DeleteObsoleteSnippets(ctx, snipKey, snip.Snippet.PersistenceKey)
-	}
-
-	return nil
+	// Delete the previous version of the snippet
+	return d.DeleteObsoleteSnippets(ctx, snipKey, snip.Snippet.PersistenceKey)
 }
 
 // GetSnippet returns the snippet entity by identifier

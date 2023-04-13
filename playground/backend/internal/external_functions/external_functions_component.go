@@ -16,44 +16,65 @@
 package external_functions
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+
+	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
-	"context"
-	"fmt"
-	"net/http"
 )
 
 type ExternalFunctions interface {
 	// CleanupSnippets removes old snippets from the database.
 	CleanupSnippets(ctx context.Context) error
 
-	// DeleteObsoleteSnippets removes old snippets from the database.
-	DeleteObsoleteSnippets(ctx context.Context, snipId string, persistenceKey string) error
+	// PutSnippet puts the snippet to the database.
+	PutSnippet(ctx context.Context, snipId string, snippet *entity.Snippet) error
 
 	// IncrementSnippetViews increments the number of views for the snippet.
 	IncrementSnippetViews(ctx context.Context, snipId string) error
 }
 
 type externalFunctionsComponent struct {
-	cleanupSnippetsFunctionsUrl        string
-	deleteObsoleteSnippetsFunctionsUrl string
-	incrementSnippetViewsFunctionsUrl  string
+	cleanupSnippetsFunctionsUrl       string
+	putSnippetFunctionsUrl            string
+	incrementSnippetViewsFunctionsUrl string
 }
 
 func NewExternalFunctionsComponent(appEnvs environment.ApplicationEnvs) ExternalFunctions {
 	return &externalFunctionsComponent{
-		cleanupSnippetsFunctionsUrl:        appEnvs.CleanupSnippetsFunctionsUrl(),
-		deleteObsoleteSnippetsFunctionsUrl: appEnvs.DeleteObsoleteSnippetsFunctionsUrl(),
-		incrementSnippetViewsFunctionsUrl:  appEnvs.IncrementSnippetViewsFunctionsUrl(),
+		cleanupSnippetsFunctionsUrl:       appEnvs.CleanupSnippetsFunctionsUrl(),
+		putSnippetFunctionsUrl:            appEnvs.PutSnippetFunctionsUrl(),
+		incrementSnippetViewsFunctionsUrl: appEnvs.IncrementSnippetViewsFunctionsUrl(),
 	}
 }
 
-func makePostRequest(ctx context.Context, requestUrl string) error {
-	request, err := http.NewRequestWithContext(ctx, "POST", requestUrl, nil)
+func makePostRequest(ctx context.Context, requestUrl string, body any) error {
+	var bodyReader io.Reader = nil
+
+	if body != nil {
+		bodyJson, err := json.Marshal(body)
+		if err != nil {
+			logger.Errorf("makePostRequest(): Couldn't marshal the body, err: %s\n", err.Error())
+			return err
+		}
+
+		bodyReader = bytes.NewReader(bodyJson)
+	} else {
+		bodyReader = bytes.NewReader([]byte("{}"))
+	}
+
+	request, err := http.NewRequestWithContext(ctx, "POST", requestUrl, bodyReader)
 	if err != nil {
 		logger.Errorf("makePostRequest(): Couldn't create the request, err: %s\n", err.Error())
 		return err
 	}
+
+	request.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -71,7 +92,7 @@ func makePostRequest(ctx context.Context, requestUrl string) error {
 func (c *externalFunctionsComponent) CleanupSnippets(ctx context.Context) error {
 	requestUrl := fmt.Sprintf("%s", c.cleanupSnippetsFunctionsUrl)
 
-	if err := makePostRequest(ctx, requestUrl); err != nil {
+	if err := makePostRequest(ctx, requestUrl, nil); err != nil {
 		logger.Errorf("CleanupSnippets(): Couldn't cleanup snippets, err: %s\n", err.Error())
 		return err
 	}
@@ -79,10 +100,10 @@ func (c *externalFunctionsComponent) CleanupSnippets(ctx context.Context) error 
 	return nil
 }
 
-func (c *externalFunctionsComponent) DeleteObsoleteSnippets(ctx context.Context, snipId string, persistenceKey string) error {
-	requestUrl := fmt.Sprintf("%s?snipId=%s&persistenceKey=%s", c.deleteObsoleteSnippetsFunctionsUrl, snipId, persistenceKey)
+func (c *externalFunctionsComponent) PutSnippet(ctx context.Context, snipId string, snippet *entity.Snippet) error {
+	requestUrl := fmt.Sprintf("%s?snipId=%s", c.putSnippetFunctionsUrl, snipId)
 
-	if err := makePostRequest(ctx, requestUrl); err != nil {
+	if err := makePostRequest(ctx, requestUrl, snippet); err != nil {
 		logger.Errorf("DeleteObsoleteSnippets(): Couldn't delete obsolete snippets, err: %s\n", err.Error())
 		return err
 	}
@@ -93,7 +114,7 @@ func (c *externalFunctionsComponent) DeleteObsoleteSnippets(ctx context.Context,
 func (c *externalFunctionsComponent) IncrementSnippetViews(ctx context.Context, snipId string) error {
 	requestUrl := fmt.Sprintf("%s?snipId=%s", c.incrementSnippetViewsFunctionsUrl, snipId)
 
-	if err := makePostRequest(ctx, requestUrl); err != nil {
+	if err := makePostRequest(ctx, requestUrl, nil); err != nil {
 		logger.Errorf("IncrementSnippetViews(): Couldn't increment snippet views, err: %s\n", err.Error())
 		return err
 	}

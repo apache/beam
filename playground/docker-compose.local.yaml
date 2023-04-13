@@ -32,7 +32,7 @@ services:
   cleanup_snippets:
     build:
       context: ./backend
-      dockerfile: ./functions/Dockerfile
+      dockerfile: ./playground_functions/Dockerfile
     environment:
       GOOGLE_CLOUD_PROJECT: test
       DATASTORE_EMULATOR_HOST: datastore:8081
@@ -42,14 +42,14 @@ services:
     depends_on:
       - datastore
 
-  delete_obsolete_snippets:
+  put_snippet:
     build:
       context: ./backend
-      dockerfile: ./functions/Dockerfile
+      dockerfile: ./playground_functions/Dockerfile
     environment:
       GOOGLE_CLOUD_PROJECT: test
       DATASTORE_EMULATOR_HOST: datastore:8081
-      FUNCTION_TARGET: deleteObsoleteSnippets
+      FUNCTION_TARGET: putSnippet
     expose:
       - "8080"
     depends_on:
@@ -58,7 +58,7 @@ services:
   increment_snippet_views:
     build:
       context: ./backend
-      dockerfile: ./functions/Dockerfile
+      dockerfile: ./playground_functions/Dockerfile
     environment:
       GOOGLE_CLOUD_PROJECT: test
       DATASTORE_EMULATOR_HOST: datastore:8081
@@ -83,7 +83,7 @@ services:
       - redis
       - datastore
       - increment_snippet_views
-      - delete_obsolete_snippets
+      - put_snippet
       - cleanup_snippets
 
   go_runner:
