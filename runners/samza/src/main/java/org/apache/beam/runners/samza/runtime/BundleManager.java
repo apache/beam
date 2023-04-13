@@ -33,9 +33,9 @@ public interface BundleManager<OutT> {
   /**
    * A listener used to track the lifecycle of a bundle. Typically, the lifecycle of a bundle
    * consists of 1. Start bundle - Invoked when the bundle is started 2. Finish bundle - Invoked
-   * when the bundle is complete. Refer to the docs under {@link ClassicBundleManager} for
+   * when the bundle is complete. Refer to the docs under {@link BundleManager} for
    * definition on when a bundle is considered complete. 3. onWatermark - Invoked when watermark is
-   * ready to be propagated to downstream DAG. Refer to the docs under {@link ClassicBundleManager}
+   * ready to be propagated to downstream DAG. Refer to the docs under {@link BundleManager}
    * on when watermark is held vs propagated.
    *
    * @param <OutT>
