@@ -17,14 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 
-import '../../../constants/font_weight.dart';
-import '../../../constants/links.dart';
 import '../../../constants/sizes.dart';
-import '../../../modules/analytics/analytics_service.dart';
 import 'feedback/playground_feedback.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {
@@ -32,46 +28,27 @@ class PlaygroundPageFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
-
-    return Container(
-      color: Theme.of(context)
-          .extension<BeamThemeExtension>()
-          ?.secondaryBackgroundColor,
-      width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: kSmSpacing,
-          horizontal: kXlSpacing,
-        ),
-        child: Wrap(
-          spacing: kXlSpacing,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            const PlaygroundFeedback(),
-            TextButton(
-              style: TextButton.styleFrom(
-                textStyle: const TextStyle(fontWeight: kNormalWeight),
-              ),
-              onPressed: () {
-                launchUrl(Uri.parse(kReportIssueLink));
-                AnalyticsService.get(context).trackClickReportIssue();
-              },
-              child: Text(appLocale.reportIssue),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(
-                textStyle: const TextStyle(fontWeight: kNormalWeight),
-              ),
-              onPressed: () {
-                AnalyticsService.get(context)
-                    .trackOpenLink(kBeamPrivacyPolicyLink);
-                launchUrl(Uri.parse(kBeamPrivacyPolicyLink));
-              },
-              child: Text(appLocale.privacyPolicy),
-            ),
-            Text(appLocale.copyright),
-          ],
+    return Consumer<PlaygroundController>(
+      builder: (context, playgroundController, child) => Container(
+        color: Theme.of(context)
+            .extension<BeamThemeExtension>()
+            ?.secondaryBackgroundColor,
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: kSmSpacing,
+            horizontal: kXlSpacing,
+          ),
+          child: Wrap(
+            spacing: kXlSpacing,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const PlaygroundFeedback(),
+              ReportIssueButton(playgroundController: playgroundController),
+              const PrivacyPolicyButton(),
+              const CopyrightWidget(),
+            ],
+          ),
         ),
       ),
     );

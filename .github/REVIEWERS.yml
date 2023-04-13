@@ -31,7 +31,6 @@ labels:
       - damccorm
       - jrmccluskey
       - tvalentyn
-      - pabloem
     exclusionList: []
   - name: Java
     reviewers:

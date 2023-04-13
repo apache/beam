@@ -22,8 +22,13 @@ import 'example_loading_descriptor.dart';
 
 /// Describes a loadable example previously saved by some user.
 class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
+
   final String snippetId;
+
+  @override
+  String get token => snippetId;
 
   const UserSharedExampleLoadingDescriptor({
     required this.sdk,

@@ -40,31 +40,6 @@ task("tidy") {
   }
 }
 
-val startDatastoreEmulator by tasks.registering {
-    doFirst {
-        val process = ProcessBuilder()
-            .directory(projectDir)
-            .inheritIO()
-            .command("sh", "start_datastore_emulator.sh")
-            .start()
-            .waitFor()
-        if (process == 0) {
-            println("Datastore emulator started")
-        } else {
-            println("Failed to start datastore emulator")
-        }
-    }
-}
-
-val stopDatastoreEmulator by tasks.registering {
-    doLast {
-        exec {
-            executable("sh")
-            args("stop_datastore_emulator.sh")
-        }
-    }
-}
-
 val test by tasks.registering {
     group = "verification"
     description = "Test the backend"
@@ -92,12 +67,6 @@ val testWithoutCache by tasks.registering {
         }
     }
 }
-
-test { dependsOn(startDatastoreEmulator) }
-test { finalizedBy(stopDatastoreEmulator) }
-
-testWithoutCache { dependsOn(startDatastoreEmulator) }
-testWithoutCache { finalizedBy(stopDatastoreEmulator) }
 
 task("removeUnusedSnippet") {
     doLast {
