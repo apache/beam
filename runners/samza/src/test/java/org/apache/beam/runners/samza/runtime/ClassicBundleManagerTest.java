@@ -42,24 +42,24 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
-/** Unit tests for {@linkplain BundleManager}. */
-public final class BundleManagerTest {
+/** Unit tests for {@linkplain ClassicBundleManager}. */
+public final class ClassicBundleManagerTest {
   private static final long MAX_BUNDLE_SIZE = 3;
   private static final long MAX_BUNDLE_TIME_MS = 2000;
   private static final String BUNDLE_CHECK_TIMER_ID = "bundle-check-test-timer";
 
   private FutureCollector<String> mockFutureCollector;
-  private BundleManager<String> bundleManager;
-  private BundleManager.BundleProgressListener<String> bundleProgressListener;
+  private ClassicBundleManager<String> bundleManager;
+  private ClassicBundleManager.BundleProgressListener<String> bundleProgressListener;
   private Scheduler<KeyedTimerData<Void>> mockScheduler;
 
   @Before
   public void setUp() {
     mockFutureCollector = mock(FutureCollector.class);
-    bundleProgressListener = mock(BundleManager.BundleProgressListener.class);
+    bundleProgressListener = mock(ClassicBundleManager.BundleProgressListener.class);
     mockScheduler = mock(Scheduler.class);
     bundleManager =
-        new BundleManager<>(
+        new ClassicBundleManager<>(
             bundleProgressListener,
             mockFutureCollector,
             MAX_BUNDLE_SIZE,
@@ -307,8 +307,8 @@ public final class BundleManagerTest {
 
   @Test
   public void testProcessTimerWithBundleTimeElapsed() {
-    BundleManager<String> bundleManager =
-        new BundleManager<>(
+    ClassicBundleManager<String> bundleManager =
+        new ClassicBundleManager<>(
             bundleProgressListener,
             mockFutureCollector,
             MAX_BUNDLE_SIZE,
