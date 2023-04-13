@@ -30,12 +30,12 @@ applyAvroNature()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
 
 def avroVersions = [
-    '192': "1.9.2",
+    '192' : "1.9.2",
     '1102': "1.10.2",
     '1111': "1.11.1",
 ]
 
-avroVersions.each{k,v -> configurations.create("avroVersion$k")}
+avroVersions.each { k, v -> configurations.create("avroVersion$k") }
 
 // Exclude tests that need a runner
 test {
@@ -48,14 +48,14 @@ test {
 dependencies {
   implementation library.java.byte_buddy
   implementation library.java.vendored_guava_26_0_jre
-  implementation (project(path: ":sdks:java:core", configuration: "shadow")) {
+  implementation(project(path: ":sdks:java:core", configuration: "shadow")) {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
   implementation library.java.error_prone_annotations
   implementation library.java.avro
   implementation library.java.joda_time
-  testImplementation (project(path: ":sdks:java:core", configuration: "shadowTest")) {
+  testImplementation(project(path: ":sdks:java:core", configuration: "shadowTest")) {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
@@ -63,10 +63,13 @@ dependencies {
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
-  avroVersions.each {"avroVersion$it.key" "org.apache.avro:avro:$it.value"}
+  avroVersions.each {
+    "avroVersion$it.key" "org.apache.avro:avro:$it.value"
+    "avroVersion$it.key" "org.apache.avro:avro-tools:$it.value"
+  }
 }
 
-avroVersions.each {kv ->
+avroVersions.each { kv ->
   configurations."avroVersion$kv.key" {
     resolutionStrategy {
       force "org.apache.avro:avro:$kv.value"
@@ -76,7 +79,7 @@ avroVersions.each {kv ->
   sourceSets {
     "avro${kv.key}" {
       java {
-        srcDirs "src/test/avro${kv.key}"
+        srcDirs "build/generated/sources/avro${kv.key}/test/java"
       }
 
       compileClasspath = configurations."avroVersion$kv.key" + sourceSets.test.output + sourceSets.test.compileClasspath
@@ -85,12 +88,8 @@ avroVersions.each {kv ->
   }
 
   "compileAvro${kv.key}Java" {
-    options.warnings = false
     checkerFramework {
       skipCheckerFramework = true
-    }
-    checkstyle {
-      ignoreFailures = true
     }
   }
 
@@ -98,14 +97,34 @@ avroVersions.each {kv ->
     ignoreFailures = true
   }
 
+  "generateAvro${kv.key}AvroJava" {
+    dependsOn "generateAvroClasses${kv.key}"
+  }
+
   task "avroVersion${kv.key}Test"(type: Test) {
     group = "Verification"
-    description = "Runs Avro extension tests with Avro API $kv.value"
+    description = "Runs Avro extension tests with Avro version $kv.value"
     outputs.upToDateWhen { false }
     classpath = sourceSets."avro${kv.key}".runtimeClasspath
 
     include '**/*.class'
     exclude '**/AvroIOTest$NeedsRunnerTests$*.class'
+
+    dependsOn "generateAvroClasses${kv.key}"
+  }
+
+  task "generateAvroClasses${kv.key}"(type: JavaExec) {
+    group = "build"
+    description = "Generate Avro classes for Avro version $kv.value"
+    classpath = configurations."avroVersion$kv.key"
+    main = "org.apache.avro.tool.Main"
+    args = [
+        "compile",
+        "schema",
+        "src/test/avro/org/apache/beam/sdk/extensions/avro/io/user.avsc",
+        "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/test.avsc",
+        "build/generated/sources/avro${kv.key}/test/java"
+    ]
   }
 }
 
@@ -117,6 +136,6 @@ task avroVersionsTest {
 
 static def createTaskNames(Map<String, String> prefixMap, String suffix) {
   return prefixMap.keySet().stream()
-      .map{version -> "avroVersion${version}${suffix}"}
+      .map { version -> "avroVersion${version}${suffix}" }
       .collect(Collectors.toList())
 }

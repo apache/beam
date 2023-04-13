@@ -34,10 +34,10 @@ public class TestAvroFactory {
 
   public static TestAvro newInstance(
       Boolean boolNonNullable,
-      Integer int$,
-      Long long$,
-      Float float$,
-      Double double$,
+      Integer integer,
+      Long aLong,
+      Float aFloat,
+      Double aDouble,
       String string,
       ByteBuffer bytes,
       fixed4 fixed,
@@ -51,10 +51,10 @@ public class TestAvroFactory {
     if (VERSION_AVRO.equals("1.8.2")) {
       return new TestAvro(
           boolNonNullable,
-          int$,
-          long$,
-          float$,
-          double$,
+          integer,
+          aLong,
+          aFloat,
+          aDouble,
           string,
           bytes,
           fixed,
@@ -87,10 +87,10 @@ public class TestAvroFactory {
         return (TestAvro)
             constructor.newInstance(
                 boolNonNullable,
-                int$,
-                long$,
-                float$,
-                double$,
+                integer,
+                aLong,
+                aFloat,
+                aDouble,
                 string,
                 bytes,
                 fixed,
