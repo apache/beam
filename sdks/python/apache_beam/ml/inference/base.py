@@ -399,8 +399,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
     This returns a tagged output with two PCollections, the first being the
     results of successfully processing the input PCollection, and the second
-    being the set of bad records (those which threw exceptions during
-    processing) along with information about the errors raised.
+    being the set of bad batches of records (those which threw exceptions
+    during processing) along with information about the errors raised.
 
     For example, one would write::
 
@@ -408,8 +408,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
           maybe_error_raising_model_handler
         ).with_exception_handling()
 
-    and `good` will be a PCollection of mapped records and `bad` will contain
-    those that raised exceptions.
+    and `good` will be a PCollection of PredictionResults and `bad` will
+    contain a tuple of all batches that raised exceptions, along with their
+    corresponding exception.
 
 
     Args:
