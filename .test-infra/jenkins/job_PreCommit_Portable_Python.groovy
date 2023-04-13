@@ -52,7 +52,7 @@ builder.build {
     }
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(":sdks:python:test-suites:portable:${highestSupported}:preCommitPy${highestSupported}")
+      tasks(":sdks:python:test-suites:portable:py${highestSupported}:preCommitPy${highestSupported}")
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

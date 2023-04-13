@@ -22,10 +22,12 @@ import 'package:playground_components/playground_components.dart';
 import 'common.dart';
 
 void main() {
+  const snippetId = 'snippetId';
+
   group('UserSharedExampleLoadingDescriptor', () {
     const descriptor = UserSharedExampleLoadingDescriptor(
       sdk: Sdk.go,
-      snippetId: 'snippetId',
+      snippetId: snippetId,
       viewOptions: viewOptions,
     );
 
@@ -44,6 +46,10 @@ void main() {
           snippetId: descriptor.snippetId,
         ),
       );
+    });
+
+    test('token', () {
+      expect(descriptor.token, snippetId);
     });
   });
 }

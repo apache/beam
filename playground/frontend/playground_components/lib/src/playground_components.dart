@@ -20,6 +20,7 @@ import 'package:easy_localization_ext/easy_localization_ext.dart';
 import 'package:get_it/get_it.dart';
 
 import 'locator.dart';
+import 'services/analytics/analytics_service.dart';
 import 'services/toast_notifier.dart';
 
 class PlaygroundComponents {
@@ -37,6 +38,10 @@ class PlaygroundComponents {
   static Future<void> ensureInitialized() async {
     await initializeServiceLocator();
   }
+
+  /// The global [BeamAnalyticsService] instance.
+  static BeamAnalyticsService get analyticsService =>
+      GetIt.instance.get<BeamAnalyticsService>();
 
   /// The global [ToastNotifier] instance that communicates notifications.
   static ToastNotifier get toastNotifier => GetIt.instance.get<ToastNotifier>();

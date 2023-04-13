@@ -393,6 +393,10 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":runners:spark:3:hadoopVersionsTest")
 }
 
+tasks.register("javaAvroVersionsTest") {
+  dependsOn(":sdks:java:extensions:avro:avroVersionsTest")
+}
+
 tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
@@ -533,18 +537,6 @@ tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py311:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
-}
-
-task("python37SickbayPostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
-}
-
-task("python38SickbayPostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitSickbay")
-}
-
-task("python39SickbayPostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
 }
 
 tasks.register("portablePythonPreCommit") {

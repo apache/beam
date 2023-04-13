@@ -229,7 +229,8 @@ ioModulesMap.forEach {cases, ioModules ->
         gradleSwitches: [
           '-PdisableSpotlessCheck=true',
           '-PdisableCheckStyle=true',
-          '-PenableJacocoReport'
+          // TODO(https://github.com/apache/beam/issues/26197) reenable code coverage
+          // '-PenableJacocoReport'
         ], // spotless checked in separate pre-commit
         triggerPathPatterns: triggerPaths,
         defaultPathTriggering: hasDefaultTrigger,
@@ -248,11 +249,13 @@ ioModulesMap.forEach {cases, ioModules ->
           }
           enabledForFailure(true)
         }
-        jacocoCodeCoverage {
-          execPattern('**/build/jacoco/*.exec')
-          exclusionPattern('**/AutoValue_*')
-          inclusionPattern(jacocoPattern)
-        }
+        // TODO(https://github.com/apache/beam/issues/26197) reenable code coverage
+        // after resolving "no-space left on device" error running Jacoco plugin
+        // jacocoCodeCoverage {
+        //  execPattern('**/build/jacoco/*.exec')
+        //  exclusionPattern('**/AutoValue_*')
+        //  inclusionPattern(jacocoPattern)
+        // }
       }
     }
   }
