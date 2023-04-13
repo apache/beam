@@ -137,8 +137,9 @@ public interface AwsOptions extends PipelineOptions {
    *
    * <li>{@link StsAssumeRoleWithWebIdentityCredentialsProvider}
    *
-   *     <p>Please note that this works for batch pipelines which can be completed within the expiration of the web identity token.
-   *     Long batch or streaming pipelines wouldn't work with this Provider.
+   *     <p>Please note that this works for batch pipelines which can be completed within the
+   *     expiration of the web identity token. Long batch or streaming pipelines wouldn't work with
+   *     this Provider.
    *
    *     <pre>{@code --awsCredentialsProvider={
    *   "@type": "StsAssumeRoleWithWebIdentityCredentialsProvider",

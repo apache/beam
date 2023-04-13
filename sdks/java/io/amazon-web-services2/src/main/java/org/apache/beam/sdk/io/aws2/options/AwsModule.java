@@ -50,6 +50,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -60,7 +61,6 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.profiles.ProfileFileSystemSetting;
 import software.amazon.awssdk.regions.Region;
@@ -184,7 +184,10 @@ public class AwsModule extends SimpleModule {
             AssumeRoleWithWebIdentityRequest.serializableBuilderClass();
         return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
             .refreshRequest(jsonParser.getCodec().treeToValue(json, clazz).build())
-            .stsClient(StsClient.builder().credentialsProvider(AnonymousCredentialsProvider.create()).build())
+            .stsClient(
+                StsClient.builder()
+                    .credentialsProvider(AnonymousCredentialsProvider.create())
+                    .build())
             .build();
       } else {
         throw new IOException(
