@@ -17,10 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
+
 import '../../constants/sizes.dart';
-
 import '../../theme/theme.dart';
-
 
 class PipelineOptionsTextField extends StatelessWidget {
   final TextEditingController controller;

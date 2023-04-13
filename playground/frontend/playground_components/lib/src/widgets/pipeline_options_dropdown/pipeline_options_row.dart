@@ -24,8 +24,6 @@ import 'pipeline_option_controller.dart';
 import 'pipeline_options_form.dart';
 import 'pipeline_options_text_field.dart';
 
-const kTextFieldHeight = 50.0;
-
 class PipelineOptionsRow extends StatelessWidget {
   final void Function() onDelete;
   final PipelineOptionController controller;
@@ -41,7 +39,7 @@ class PipelineOptionsRow extends StatelessWidget {
       children: [
         Expanded(
           child: SizedBox(
-            height: kTextFieldHeight,
+            height: BeamSizes.textFieldHeight,
             child: PipelineOptionsTextField(
               controller: controller.nameController,
             ),
@@ -50,7 +48,7 @@ class PipelineOptionsRow extends StatelessWidget {
         kSpace,
         Expanded(
           child: SizedBox(
-            height: kTextFieldHeight,
+            height: BeamSizes.textFieldHeight,
             child: PipelineOptionsTextField(
               controller: controller.valueController,
             ),
@@ -61,12 +59,12 @@ class PipelineOptionsRow extends StatelessWidget {
           child: IconButton(
             iconSize: BeamIconSizes.medium,
             splashRadius: BeamIconSizes.largeSplashRadius,
-            icon: const Icon(
+            icon: Icon(
               Icons.delete_outlined,
-              color: BeamLightThemeColors.primary, //Color(0xFFE74D1A)
+              color: Theme.of(context).primaryColor,
             ),
             color: Theme.of(context).dividerColor,
-            onPressed: () => onDelete(),
+            onPressed: onDelete,
           ),
         ),
       ],

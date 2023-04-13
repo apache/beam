@@ -17,8 +17,6 @@
  */
 
 import 'package:flutter/material.dart';
-import '../../constants/constants.dart';
-import '../../constants/weights.dart';
 
 class PipelineOptionLabel extends StatelessWidget {
   final String text;
@@ -29,10 +27,7 @@ class PipelineOptionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        fontWeight: BeamWeights.medium,
-        fontSize: kLabelFontSize,
-      ),
+      style: Theme.of(context).textTheme.labelLarge,
     );
   }
 }

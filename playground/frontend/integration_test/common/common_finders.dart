@@ -88,7 +88,7 @@ extension CommonFindersExtension on CommonFinders {
   Finder pipelineOptionsDropdown() {
     return find.byType(PipelineOptionsDropdown);
   }
-  
+
   Finder pipelineOptionsListTab() {
     return find.byKey(PipelineOptionsDropdownBody.optionsTabKey);
   }

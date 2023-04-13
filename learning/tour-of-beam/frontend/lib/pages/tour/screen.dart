@@ -23,6 +23,7 @@ import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import 'state.dart';
 import 'widgets/content_tree.dart';
+import 'widgets/pipeline_options.dart';
 import 'widgets/playground_demo.dart';
 import 'widgets/unit_content.dart';
 
@@ -35,7 +36,7 @@ class TourScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
-      tourNotifier: tourNotifier,
+      pageActions: [TobPipelineOptionsDropdown(tourNotifier: tourNotifier)],
       child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
           ? _WideTour(tourNotifier)
           : _NarrowTour(tourNotifier),

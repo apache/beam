@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../pages/tour/state.dart';
 import '../state.dart';
 import 'footer.dart';
 import 'login/button.dart';
@@ -31,11 +30,11 @@ import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
-  final TourNotifier? tourNotifier;
+  final List<Widget> pageActions;
 
   const TobScaffold({
     required this.child,
-    this.tourNotifier,
+    this.pageActions = const [],
   });
 
   @override
@@ -45,11 +44,7 @@ class TobScaffold extends StatelessWidget {
         automaticallyImplyLeading: false,
         title: const Logo(),
         actions: [
-          _ActionVerticalPadding(
-            child: _PipelineOptionsWidget(
-              tourNotifier: tourNotifier,
-            ),
-          ),
+          ...pageActions.map((w) => _ActionVerticalPadding(child: w)),
           const SizedBox(width: BeamSizes.size12),
           const _ActionVerticalPadding(child: _SdkSelector()),
           const SizedBox(width: BeamSizes.size12),
@@ -116,41 +111,6 @@ class _SdkSelector extends StatelessWidget {
                   appNotifier.sdkId = value;
                 },
               );
-      },
-    );
-  }
-}
-
-class _PipelineOptionsWidget extends StatelessWidget {
-  final TourNotifier? tourNotifier;
-
-  const _PipelineOptionsWidget({required this.tourNotifier});
-
-  @override
-  Widget build(BuildContext context) {
-    if (tourNotifier == null) {
-      return const SizedBox.shrink();
-    }
-
-    final controller = tourNotifier!.playgroundController;
-
-    return AnimatedBuilder(
-      animation: tourNotifier!,
-      builder: (_, __) {
-        return AnimatedBuilder(
-          animation: controller,
-          builder: (_, __) {
-            if (!(tourNotifier?.isUnitContainsSnippet ?? false)) {
-              return const SizedBox.shrink();
-            }
-
-            return PipelineOptionsDropdown(
-              pipelineOptions:
-                  controller.snippetEditingController?.pipelineOptions ?? '',
-              setPipelineOptions: controller.setPipelineOptions,
-            );
-          },
-        );
       },
     );
   }

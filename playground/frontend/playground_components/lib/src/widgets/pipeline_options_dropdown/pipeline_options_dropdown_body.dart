@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 
 import '../../../playground_components.dart';
 import 'pipeline_option_controller.dart';
-import 'pipeline_options_dropdown_separator.dart';
 import 'pipeline_options_form.dart';
 
 const kOptionsTabIndex = 0;
@@ -118,7 +117,7 @@ class _PipelineOptionsDropdownBodyState
             ),
           ],
         ),
-        const PipelineOptionsDropdownSeparator(),
+        const BeamDivider(),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(BeamSpacing.extraLarge),
@@ -137,7 +136,7 @@ class _PipelineOptionsDropdownBodyState
             ),
           ),
         ),
-        const PipelineOptionsDropdownSeparator(),
+        const BeamDivider(),
         Padding(
           padding: const EdgeInsets.all(BeamSpacing.extraLarge),
           child: Row(
