@@ -24,6 +24,7 @@ import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.Enumeration;
@@ -64,11 +65,15 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo.Event;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ReportStatsRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ReportStatsResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
@@ -965,11 +970,17 @@ public class GrpcWindmillServer extends WindmillServerStub {
     }
 
     private class WorkItemBuffer {
+
       private String computation;
       private Instant inputDataWatermark;
       private Instant synchronizedProcessingTime;
       private ByteString data = ByteString.EMPTY;
       private long bufferedSize = 0;
+
+      private final Map<Windmill.GetWorkStreamTimingInfo.Event, Instant> getWorkStreamTimings =
+          new HashMap<>();
+
+      private Instant workItemReceiveTime = Instant.EPOCH;
 
       private void setMetadata(Windmill.ComputationWorkItemMetadata metadata) {
         this.computation = metadata.getComputationId();
@@ -987,6 +998,77 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
         this.data = data.concat(chunk.getSerializedWorkItem());
         this.bufferedSize += chunk.getSerializedWorkItem().size();
+        for (GetWorkStreamTimingInfo info : chunk.getPerWorkItemTimingInfosList()) {
+          getWorkStreamTimings.compute(
+              info.getEvent(),
+              (event, recordedTime) -> {
+                Instant newTimingForEvent = Instant.ofEpochMilli(info.getTimestampUsec() / 1000);
+                if (recordedTime == null) {
+                  return newTimingForEvent;
+                }
+                switch (event) {
+                  case GET_WORK_CREATION_START:
+                  case GET_WORK_RECEIVED_BY_DISPATCHER:
+                    return recordedTime.isBefore(newTimingForEvent)
+                        ? recordedTime
+                        : newTimingForEvent;
+                  case GET_WORK_CREATION_END:
+                  case GET_WORK_FORWARDED_BY_DISPATCHER:
+                    return recordedTime.isAfter(newTimingForEvent)
+                        ? recordedTime
+                        : newTimingForEvent;
+                  default:
+                    LOG.error("Unknown GetWorkStreamTimingInfo type: " + event.name());
+                }
+                return recordedTime;
+              });
+          if (workItemReceiveTime.equals(Instant.EPOCH)) {
+            workItemReceiveTime = Instant.now();
+          }
+        }
+      }
+
+      private List<LatencyAttribution> convertGetWorkStreamTimingsToLatencies() {
+        List<LatencyAttribution> latencyAttributions = new ArrayList<>();
+        if (getWorkStreamTimings.isEmpty()) {
+          return latencyAttributions;
+        }
+        if (getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_START)
+            && getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_END)) {
+          latencyAttributions.add(
+              LatencyAttribution.newBuilder()
+                  .setState(State.GET_WORK_IN_WINDMILL_WORKER)
+                  .setTotalDurationMillis(
+                      new Duration(
+                              getWorkStreamTimings.get(Event.GET_WORK_CREATION_START),
+                              getWorkStreamTimings.get(Event.GET_WORK_CREATION_END))
+                          .getMillis())
+                  .build());
+        }
+        if (getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_END)
+            && getWorkStreamTimings.containsKey(Event.GET_WORK_RECEIVED_BY_DISPATCHER)) {
+          latencyAttributions.add(
+              LatencyAttribution.newBuilder()
+                  .setState(State.GET_WORK_IN_TRANSIT_TO_DISPATCHER)
+                  .setTotalDurationMillis(
+                      new Duration(
+                              getWorkStreamTimings.get(Event.GET_WORK_CREATION_END),
+                              getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER))
+                          .getMillis())
+                  .build());
+        }
+        if (getWorkStreamTimings.containsKey(Event.GET_WORK_FORWARDED_BY_DISPATCHER)) {
+          latencyAttributions.add(
+              LatencyAttribution.newBuilder()
+                  .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
+                  .setTotalDurationMillis(
+                      new Duration(
+                              getWorkStreamTimings.get(Event.GET_WORK_FORWARDED_BY_DISPATCHER),
+                              workItemReceiveTime)
+                          .getMillis())
+                  .build());
+        }
+        return latencyAttributions;
       }
 
       public long bufferedSize() {
@@ -995,14 +1077,20 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
       public void runAndReset() {
         try {
+          Windmill.WorkItem workItem = Windmill.WorkItem.parseFrom(data.newInput());
+          List<LatencyAttribution> getWorkStreamLatencies =
+              convertGetWorkStreamTimingsToLatencies();
           receiver.receiveWork(
               computation,
               inputDataWatermark,
               synchronizedProcessingTime,
-              Windmill.WorkItem.parseFrom(data.newInput()));
+              workItem,
+              getWorkStreamLatencies);
         } catch (IOException e) {
           LOG.error("Failed to parse work item from stream: ", e);
         }
+        getWorkStreamTimings.clear();
+        workItemReceiveTime = Instant.EPOCH;
         data = ByteString.EMPTY;
         bufferedSize = 0;
       }
@@ -1284,12 +1372,17 @@ public class GrpcWindmillServer extends WindmillServerStub {
     private class PendingRequest {
       private final String computation;
       private final WorkItemCommitRequest request;
+      private final Collection<LatencyAttribution> latencyAttributions;
       private final Consumer<CommitStatus> onDone;
 
       PendingRequest(
-          String computation, WorkItemCommitRequest request, Consumer<CommitStatus> onDone) {
+          String computation,
+          WorkItemCommitRequest request,
+          Collection<LatencyAttribution> latencyAttributions,
+          Consumer<CommitStatus> onDone) {
         this.computation = computation;
         this.request = request;
+        this.latencyAttributions = latencyAttributions;
         this.onDone = onDone;
       }
 
@@ -1403,8 +1496,12 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     @Override
     public boolean commitWorkItem(
-        String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
-      PendingRequest request = new PendingRequest(computation, commitRequest, onDone);
+        String computation,
+        WorkItemCommitRequest commitRequest,
+        Collection<LatencyAttribution> latencyAttributions,
+        Consumer<CommitStatus> onDone) {
+      PendingRequest request =
+          new PendingRequest(computation, commitRequest, latencyAttributions, onDone);
       if (!batcher.canAccept(request)) {
         return false;
       }
@@ -1441,6 +1538,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
           .setRequestId(id)
           .setShardingKey(pendingRequest.request.getShardingKey())
           .setSerializedWorkItemCommit(pendingRequest.request.toByteString());
+      if (!pendingRequest.latencyAttributions.isEmpty()) {
+        requestBuilder
+            .getCommitChunkBuilder(0)
+            .addAllPerWorkItemLatencyAttributions(pendingRequest.latencyAttributions);
+      }
       StreamingCommitWorkRequest chunk = requestBuilder.build();
       synchronized (this) {
         pending.put(id, pendingRequest);
@@ -1465,6 +1567,9 @@ public class GrpcWindmillServer extends WindmillServerStub {
         chunkBuilder.setRequestId(entry.getKey());
         chunkBuilder.setShardingKey(request.request.getShardingKey());
         chunkBuilder.setSerializedWorkItemCommit(request.request.toByteString());
+        if (!request.latencyAttributions.isEmpty()) {
+          chunkBuilder.addAllPerWorkItemLatencyAttributions(request.latencyAttributions).build();
+        }
       }
       StreamingCommitWorkRequest request = requestBuilder.build();
       synchronized (this) {

@@ -29,6 +29,7 @@ import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -48,6 +49,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetD
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
@@ -273,7 +275,11 @@ class FakeWindmillServer extends WindmillServerStub {
                     computationWork.getInputDataWatermark());
             for (Windmill.WorkItem workItem : computationWork.getWorkList()) {
               receiver.receiveWork(
-                  computationWork.getComputationId(), inputDataWatermark, Instant.now(), workItem);
+                  computationWork.getComputationId(),
+                  inputDataWatermark,
+                  Instant.now(),
+                  workItem,
+                  new ArrayList<>());
             }
           }
         }
@@ -361,6 +367,7 @@ class FakeWindmillServer extends WindmillServerStub {
       public boolean commitWorkItem(
           String computation,
           WorkItemCommitRequest request,
+          Collection<LatencyAttribution> latencyAttributions,
           Consumer<Windmill.CommitStatus> onDone) {
         LOG.debug("commitWorkStream::commitWorkItem: {}", request);
         errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
