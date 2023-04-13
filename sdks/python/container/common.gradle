@@ -84,7 +84,6 @@ docker {
   platform(*project.containerPlatforms())
 }
 
-
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn copyLicenseScripts
