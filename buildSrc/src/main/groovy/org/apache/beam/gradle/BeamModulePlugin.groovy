@@ -814,6 +814,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
         vendored_grpc_1_48_1                        : "org.apache.beam:beam-vendor-grpc-1_48_1:0.1",
+        vendored_grpc_1_54_0                        : "org.apache.beam:beam-vendor-grpc-1_54_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
