@@ -60,6 +60,7 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.profiles.ProfileFileSystemSetting;
 import software.amazon.awssdk.regions.Region;
@@ -183,7 +184,7 @@ public class AwsModule extends SimpleModule {
             AssumeRoleWithWebIdentityRequest.serializableBuilderClass();
         return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
             .refreshRequest(jsonParser.getCodec().treeToValue(json, clazz).build())
-            .stsClient(StsClient.create())
+            .stsClient(StsClient.builder().credentialsProvider(AnonymousCredentialsProvider.create()).build())
             .build();
       } else {
         throw new IOException(
