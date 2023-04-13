@@ -64,7 +64,7 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Dead letter queue support added to RunInference in Python ([#24209](https://github.com/apache/beam/issues/24209)).
 
 ## Breaking Changes
 
