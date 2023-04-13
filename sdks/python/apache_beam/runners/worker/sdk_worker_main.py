@@ -195,9 +195,9 @@ def main(unused_argv):
       service_name = exp
     else:
       service_name = os.environ["JOB_NAME"]
-    service_version = os.environ["JOB_ID"]
     try:
       import googlecloudprofiler
+      service_version = os.environ["JOB_ID"]
       if service_version and service_name:
         googlecloudprofiler.start(
             service=service_name, service_version=service_version, verbose=1)
