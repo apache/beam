@@ -152,7 +152,8 @@ async def get_statuses(
             semaphore.release()
 
     for example in examples:
-        tasks.append(_semaphored_task(example))
+        if not example.tag.never_run:
+            tasks.append(_semaphored_task(example))
     await tqdm.gather(*tasks)
 
 

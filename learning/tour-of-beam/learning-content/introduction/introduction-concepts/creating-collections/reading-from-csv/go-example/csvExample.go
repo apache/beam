@@ -26,6 +26,7 @@
 //   complexity: BASIC
 //   tags:
 //     - hellobeam
+//   never_run: true
 
 package main
 
