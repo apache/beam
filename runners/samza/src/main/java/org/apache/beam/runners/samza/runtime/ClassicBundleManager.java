@@ -59,8 +59,8 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class BundleManager<OutT> {
-  private static final Logger LOG = LoggerFactory.getLogger(BundleManager.class);
+public class ClassicBundleManager<OutT> implements BundleManager<OutT> {
+  private static final Logger LOG = LoggerFactory.getLogger(ClassicBundleManager.class);
   private static final long MIN_BUNDLE_CHECK_TIME_MS = 10L;
 
   private final long maxBundleSize;
@@ -87,7 +87,7 @@ public class BundleManager<OutT> {
   private transient AtomicReference<CompletableFuture<Void>> currentActiveBundleDoneFutureReference;
   private transient CompletionStage<Void> watermarkFuture;
 
-  public BundleManager(
+  public ClassicBundleManager(
       BundleProgressListener<OutT> bundleProgressListener,
       FutureCollector<OutT> futureCollector,
       long maxBundleSize,
@@ -134,7 +134,8 @@ public class BundleManager<OutT> {
         new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());
   }
 
-  void tryStartBundle() {
+  @Override
+  public void tryStartBundle() {
     futureCollector.prepare();
 
     if (isBundleStarted.compareAndSet(false, true)) {
@@ -151,7 +152,8 @@ public class BundleManager<OutT> {
     currentBundleElementCount.incrementAndGet();
   }
 
-  void processWatermark(Instant watermark, OpEmitter<OutT> emitter) {
+  @Override
+  public void processWatermark(Instant watermark, OpEmitter<OutT> emitter) {
     // propagate watermark immediately if no bundle is in progress and all the previous bundles have
     // completed.
     if (!isBundleStarted() && pendingBundleCount.get() == 0) {
@@ -185,7 +187,8 @@ public class BundleManager<OutT> {
     }
   }
 
-  void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter) {
+  @Override
+  public void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter) {
     // this is internal timer in processing time to check whether a bundle should be closed
     if (bundleCheckTimerId.equals(keyedTimerData.getTimerData().getTimerId())) {
       tryFinishBundle(emitter);
@@ -199,7 +202,8 @@ public class BundleManager<OutT> {
    *
    * @param t failure cause
    */
-  void signalFailure(Throwable t) {
+  @Override
+  public void signalFailure(Throwable t) {
     LOG.error("Encountered error during processing the message. Discarding the output due to: ", t);
     futureCollector.discard();
     // reset the bundle start flag only if the bundle has started
@@ -216,7 +220,8 @@ public class BundleManager<OutT> {
     }
   }
 
-  void tryFinishBundle(OpEmitter<OutT> emitter) {
+  @Override
+  public void tryFinishBundle(OpEmitter<OutT> emitter) {
 
     // we need to seal the output for each element within a bundle irrespective of the whether we
     // decide to finish the
@@ -327,23 +332,5 @@ public class BundleManager<OutT> {
         && (currentBundleElementCount.get() >= maxBundleSize
             || System.currentTimeMillis() - bundleStartTime.get() >= maxBundleTimeMs
             || BoundedWindow.TIMESTAMP_MAX_VALUE.equals(bundleWatermarkHold));
-  }
-
-  /**
-   * A listener used to track the lifecycle of a bundle. Typically, the lifecycle of a bundle
-   * consists of 1. Start bundle - Invoked when the bundle is started 2. Finish bundle - Invoked
-   * when the bundle is complete. Refer to the docs under {@link BundleManager} for definition on
-   * when a bundle is considered complete. 3. onWatermark - Invoked when watermark is ready to be
-   * propagated to downstream DAG. Refer to the docs under {@link BundleManager} on when watermark
-   * is held vs propagated.
-   *
-   * @param <OutT>
-   */
-  public interface BundleProgressListener<OutT> {
-    void onBundleStarted();
-
-    void onBundleFinished(OpEmitter<OutT> emitter);
-
-    void onWatermark(Instant watermark, OpEmitter<OutT> emitter);
   }
 }

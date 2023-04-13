@@ -43,7 +43,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 /** Unit tests for {@linkplain ClassicBundleManager}. */
-public final class BundleManagerTest {
+public final class ClassicBundleManagerTest {
   private static final long MAX_BUNDLE_SIZE = 3;
   private static final long MAX_BUNDLE_TIME_MS = 2000;
   private static final String BUNDLE_CHECK_TIMER_ID = "bundle-check-test-timer";

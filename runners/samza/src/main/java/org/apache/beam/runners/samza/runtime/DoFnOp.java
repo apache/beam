@@ -200,7 +200,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 
     this.bundleManager =
-        new BundleManager<>(
+        new ClassicBundleManager<>(
             createBundleProgressListener(),
             outputFutureCollector,
             samzaPipelineOptions.getMaxBundleSize(),
