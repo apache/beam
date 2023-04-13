@@ -29,7 +29,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in job_PreCommit_Spotless
     triggerPathPatterns: [
       '^sdks/java/extensions/sql.*$',
-    ]
+    ],
+    numBuildsToRetain: 40
     )
 builder.build {
   publishers {

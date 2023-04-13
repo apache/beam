@@ -141,3 +141,13 @@ However, it may be possible to pre-build the SDK containers and perform the depe
 Dataflow, see [Pre-building the python SDK custom container image with extra dependencies](https://cloud.google.com/dataflow/docs/guides/using-custom-containers#prebuild).
 
 **NOTE**: This feature is available only for the `Dataflow Runner v2`.
+
+## Pickling and Managing Main Session
+
+Pickling in the Python SDK is set up to pickle the state of the global namespace. By default, global imports, functions, and variables defined in the main session are not saved during the serialization of a Beam job.
+Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any remote runner using portability. To resolve this, manage the main session by
+simply setting the main session. This will load the pickled state of the global namespace onto the Dataflow workers.
+For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
+
+**NOTE**: This applies to the Python SDK executing with the dill pickler on any remote runner using portability. Therefore, this issue will
+not occur in `DirectRunner`. Additionally, note that the dill pickler is the default pickler in the Python SDK.

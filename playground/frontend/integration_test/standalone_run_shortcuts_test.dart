@@ -61,7 +61,7 @@ Future<void> _checkRunShortcut(
   PlaygroundController controller,
 ) async {
   final output = controller.codeRunner.resultLogOutput;
-  await wt.runShortcut(controller.runShortcut);
+  await wt.runShortcut(BeamRunShortcut(onInvoke: () {}));
   await wt.pumpAndSettle();
 
   expect(output, isNot(controller.codeRunner.resultLogOutput));

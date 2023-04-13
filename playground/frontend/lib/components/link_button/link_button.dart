@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LinkButton extends StatelessWidget {
@@ -41,17 +42,16 @@ class LinkButton extends StatelessWidget {
       iconPath,
       color: color,
     );
-    void onTap() => launchUrl(Uri.parse(url));
-    
+
     if (showText) {
       return TextButton.icon(
         icon: icon,
-        onPressed: onTap,
+        onPressed: _onTap,
         label: Text(text),
       );
     } else {
       return InkWell(
-        onTap: onTap,
+        onTap: _onTap,
         borderRadius: const BorderRadius.all(Radius.circular(8)),
         child: Padding(
           padding: const EdgeInsets.all(2.0),
@@ -59,5 +59,14 @@ class LinkButton extends StatelessWidget {
         ),
       );
     }
+  }
+
+  void _onTap() {
+    final uri = Uri.parse(url);
+
+    launchUrl(uri);
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      ExternalUrlNavigatedAnalyticsEvent(url: uri),
+    );
   }
 }

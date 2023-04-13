@@ -17,7 +17,7 @@
 ###############################################################################
 
 FROM node:16
-MAINTAINER "Apache Beam <dev@beam.apache.org>"
+LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
 

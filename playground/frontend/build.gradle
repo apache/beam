@@ -192,6 +192,7 @@ tasks.register("integrationTest") {
   dependsOn("integrationTest_standalone_example_selector")
   dependsOn("integrationTest_standalone_miscellaneous_ui")
   dependsOn("integrationTest_standalone_run_shortcuts")
+  dependsOn("integrationTest_standalone_share_code")
 }
 
 tasks.register("integrationTest_embedded_run") {
@@ -251,6 +252,12 @@ tasks.register("integrationTest_standalone_miscellaneous_ui") {
 tasks.register("integrationTest_standalone_run_shortcuts") {
   doLast {
     runIntegrationTest("standalone_run_shortcuts", "/")
+  }
+}
+
+tasks.register("integrationTest_standalone_share_code") {
+  doLast {
+    runIntegrationTest("standalone_share_code", "/")
   }
 }
 
