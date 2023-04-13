@@ -56,25 +56,32 @@ class ContentTreeController extends ChangeNotifier {
   List<String> get treeIds => _treeIds;
   NodeModel? get currentNode => _currentNode;
 
-  void openNode(NodeModel node) {
-    if (!_expandedIds.contains(node.id)) {
-      _expandedIds.add(node.id);
-    }
-
-    if (node == _currentNode) {
-      return;
-    }
-
+  void onNodePressed(NodeModel node) {
     if (node is GroupModel) {
-      openNode(node.nodes.first);
+      _onGroupPressed(node);
     } else if (node is UnitModel) {
-      _currentNode = node;
+      if (node != _currentNode) {
+        _currentNode = node;
+      }
     }
 
     if (_currentNode != null) {
       _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
     }
     notifyListeners();
+  }
+
+  void _onGroupPressed(GroupModel group) {
+    if (_expandedIds.contains(group.id)) {
+      _expandedIds.remove(group.id);
+      notifyListeners();
+    } else {
+      _expandedIds.add(group.id);
+      final groupFirstUnit = group.nodes.first;
+      if (groupFirstUnit != _currentNode) {
+        onNodePressed(groupFirstUnit);
+      }
+    }
   }
 
   void expandGroup(GroupModel group) {
@@ -103,7 +110,7 @@ class ContentTreeController extends ChangeNotifier {
       return;
     }
 
-    openNode(
+    onNodePressed(
       contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit(),
     );
 

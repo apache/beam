@@ -44,7 +44,7 @@ class UnitWidget extends StatelessWidget {
         final isSelected = contentTreeController.currentNode?.id == unit.id;
 
         return ClickableWidget(
-          onTap: () => contentTreeController.openNode(unit),
+          onTap: () => contentTreeController.onNodePressed(unit),
           child: Container(
             decoration: BoxDecoration(
               color: isSelected ? Theme.of(context).selectedRowColor : null,
