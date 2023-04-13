@@ -182,8 +182,8 @@ def main(unused_argv):
       or [])
   experiments = (sdk_pipeline_options.view_as(DebugOptions).experiments or [])
   exp = None
-  if not exp and ((_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or
-                  (_ENABLE_GOOGLE_CLOUD_PROFILER in dataflow_service_options)):
+  if ((_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or
+      (_ENABLE_GOOGLE_CLOUD_PROFILER in dataflow_service_options)):
     exp = True
   for experiment in experiments:
     if experiment.startswith(_ENABLE_GOOGLE_CLOUD_PROFILER + '='):
