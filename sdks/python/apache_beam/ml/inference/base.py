@@ -404,7 +404,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
     For example, one would write::
 
-        good, bad = Map(maybe_error_raising_function).with_exception_handling()
+        good, bad = RunInference(
+          maybe_error_raising_model_handler
+        ).with_exception_handling()
 
     and `good` will be a PCollection of mapped records and `bad` will contain
     those that raised exceptions.
