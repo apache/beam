@@ -38,4 +38,7 @@ autoscaling:
    rest:
      maxReplicas: 4
      minReplicas: 1
+   utilization:
+     memoryUtilization: 80
+     cpuUtilization: 95
      

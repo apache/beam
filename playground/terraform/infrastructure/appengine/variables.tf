@@ -42,7 +42,7 @@ variable "location_id_eu" {
   default = "europe-west"
 }
 
-variable "feature_flag" {
+variable "skip_appengine_deploy" {
   type    = bool
   default = true
 }

@@ -23,4 +23,4 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: playground-frontend
-  targetCPUUtilizationPercentage: 90
+  targetCPUUtilizationPercentage: {{ .Values.autoscaling.utilization.cpuUtilization }}

@@ -14,14 +14,14 @@
 # limitations under the License.
 
 resource "google_app_engine_application" "app_playground" {
-  count         = var.feature_flag ? 1 : 0
+  count         = var.skip_appengine_deploy ? 1 : 0
   project     = var.project_id
   location_id = var.region == "us-central1" ? var.location_id_us : (var.region == "europe-west1") ? var.location_id_eu : var.region
   database_type = "CLOUD_DATASTORE_COMPATIBILITY"
 }
 
 resource "google_project_service" "firestore" {
-  count      = var.feature_flag ? 1 : 0
+  count      = var.skip_appengine_deploy ? 1 : 0
   project = var.project_id
   service = "firestore.googleapis.com"
   disable_dependent_services = true

@@ -89,7 +89,7 @@ module "appengine" {
  source             = "./appengine"
  project_id         = var.project_id
  region             = var.region
- feature_flag       = var.app_engine_flag
+ skip_appengine_deploy       = var.app_engine_flag
 }
 
 module "api_enable" {
