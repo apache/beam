@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 resource "google_compute_firewall" "playground-firewall-deny-egress" {
   name    = "${var.network_name}-deny-egress"
   network = var.network_name
@@ -54,6 +55,8 @@ resource "google_compute_firewall" "playground-firewall-allow-dns" {
   target_tags = ["beam-playground"]
 }
 
+# Allows for private google access as per:
+# https://cloud.google.com/vpc/docs/configure-private-google-access#config
 resource "google_compute_firewall" "playground-firewall-allow-privateapi" {
   name    = "${var.network_name}-allow-privateapi"
   network = var.network_name
@@ -63,7 +66,7 @@ resource "google_compute_firewall" "playground-firewall-allow-privateapi" {
     protocol = "all"
   }
 
-  destination_ranges = ["199.36.153.8/30"]
+  destination_ranges = [local.private_api_range]
   target_tags = ["beam-playground"]
 }
 
