@@ -58,6 +58,7 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
         responseObserver.onNext(retrievalStub.resolveArtifacts(request));
 
         responseObserver.onCompleted();
+        return;
       } catch (RuntimeException exn) {
         lastError = exn;
       }
@@ -92,6 +93,7 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
         }
 
         responseObserver.onCompleted();
+        return;
       } catch (RuntimeException exn) {
         lastError = exn;
       }
