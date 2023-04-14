@@ -17,14 +17,19 @@
 
 # pytype: skip-file
 
+import time
+from typing import Any
+from typing import List
 import unittest
 
 from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders.coders import Coder
 from apache_beam.runners.worker.data_sampler import DataSampler
+from apache_beam.runners.worker.data_sampler import ElementSampler
 from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -187,6 +192,167 @@ class OutputSamplerTest(unittest.TestCase):
     self.assertEqual(
         data_sampler.samples(), {'1': [coder.encode_nested('Hello, World!')]})
 
+  def test_serial_performance(self):
+    print('test_serial_performance')
+    data_sampler = DataSampler()
+    coder = FastPrimitivesCoder()
+
+    sampler = data_sampler.sample_output('1', coder)
+    sampler._sample_timer.stop()
+
+    num_iterations = 1000000
+    start = time.time()
+    el_sampler = sampler.element_sampler()
+    for i in range(num_iterations):
+      el_sampler.el = i
+      sampler.sample()
+    end = time.time()
+    duration = end - start
+
+    print('total time: %s secs' % duration)
+    print('time per iteration: %s usecs' % (duration / num_iterations * 1e6))
+
+  def test_multithreaded_performance(self):
+    print('test_multithreaded_performance')
+    data_sampler = DataSampler()
+    coder = FastPrimitivesCoder()
+    worker_thread_pool = thread_pool_executor.shared_unbounded_instance()
+
+    num_iterations = 1000000
+    num_tasks = 10
+    timings = [0] * num_tasks
+
+    num_tasks_ready = 0
+
+    class TaskState:
+      num_iterations: int = 0
+      num_tasks: int = 0
+      num_tasks_ready: int = 0
+      ready: bool = False
+
+    def task(task_id, task_state):
+      try:
+        output_sampler = data_sampler.sample_output(str(task_id), coder)
+        element_sampler = output_sampler.element_sampler()
+        task_state.num_tasks_ready += 1
+        while task_state.num_tasks_ready < task_state.num_tasks:
+          pass
+
+        while not task_state.ready:
+          pass
+
+        for i in range(task_state.num_iterations):
+          element_sampler.el = i
+        task_state.num_tasks -= 1
+      except Exception as e:
+        print(e)
+
+    task_state = TaskState()
+    task_state.num_iterations = num_iterations
+    task_state.num_tasks = num_tasks
+    task_state.num_tasks_ready = 0
+
+    for i in range(num_tasks):
+      worker_thread_pool.submit(task, i, task_state)
+
+    while task_state.num_tasks_ready != num_tasks:
+      pass
+
+    start = time.time()
+    task_state.ready = True
+    while task_state.num_tasks > 0:
+      pass
+    end = time.time()
+    worker_thread_pool.shutdown()
+
+    duration = end - start
+    print('total time: %s secs' % duration)
+    print('time per iteration: %s usecs' % (duration / (num_tasks * num_iterations) * 1e6))
+
+    # for i in range(num_tasks):
+    #   duration = timings[i]
+    #   print('thread %s ==============' % i)
+    #   print('total time: %s secs' % duration)
+    #   print('time per iteration: %s usecs' % (duration / num_iterations * 1e6))
+    #   print('')
+
+  def test_contention_performance(self):
+    print('test_contention_performance')
+    data_sampler = DataSampler()
+    coder = FastPrimitivesCoder()
+    worker_thread_pool = thread_pool_executor.shared_unbounded_instance()
+
+    num_iterations = 1000000
+    num_tasks = 10
+    timings = [0] * num_tasks
+
+    num_tasks_ready = 0
+
+    class TaskState:
+      num_iterations: int = 0
+      num_tasks: int = 0
+      num_tasks_ready: int = 0
+      ready: bool = False
+
+    def task(task_id, task_state):
+      try:
+        output_sampler = data_sampler.sample_output('1', coder)
+        element_sampler = output_sampler.element_sampler()
+        task_state.num_tasks_ready += 1
+        while task_state.num_tasks_ready < task_state.num_tasks:
+          pass
+
+        while not task_state.ready:
+          pass
+
+        for i in range(task_state.num_iterations):
+          element_sampler.el = i
+        task_state.num_tasks -= 1
+      except Exception as e:
+        print(e)
+
+    task_state = TaskState()
+    task_state.num_iterations = num_iterations
+    task_state.num_tasks = num_tasks
+    task_state.num_tasks_ready = 0
+
+    for i in range(num_tasks):
+      worker_thread_pool.submit(task, i, task_state)
+
+    while task_state.num_tasks_ready != num_tasks:
+      pass
+
+    start = time.time()
+    task_state.ready = True
+    while task_state.num_tasks > 0:
+      pass
+    end = time.time()
+    worker_thread_pool.shutdown()
+
+    duration = end - start
+    print('total time: %s secs' % duration)
+    print('time per iteration: %s usecs' % (duration / (num_tasks * num_iterations) * 1e6))
+
+  def test_watchdog_performance(self):
+    print('test_watchdog_performance')
+    data_sampler = DataSampler(sample_every_sec=0.5)
+    coder = FastPrimitivesCoder()
+
+    sampler = data_sampler.sample_output('1', coder)
+    el_sampler = sampler.element_sampler()
+
+    num_iterations = 100000000
+    start = time.time()
+
+    for i in range(num_iterations):
+      el_sampler.el = i
+
+    end = time.time()
+    sampler._sample_timer.stop()
+    duration = end - start
+
+    print('total time: %s secs' % duration)
+    print('time per iteration: %s usecs' % (duration / num_iterations * 1e6))
 
 if __name__ == '__main__':
   unittest.main()

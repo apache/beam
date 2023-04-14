@@ -2005,13 +2005,13 @@ class DataSamplingOperation(operations.Operation):
     super().__init__(name_context, None, counter_factory, state_sampler)
     self._coder = sample_coder  # type: coders.Coder
     self._pcoll_id = pcoll_id  # type: str
-
     self._sampler: OutputSampler = data_sampler.sample_output(
         self._pcoll_id, sample_coder)
+    self._element_sampler = self._sampler.element_sampler()
 
   def process(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
-    self._sampler.sample(windowed_value)
+    self._element_sampler.el = windowed_value
 
 
 @BeamTransformFactory.register_urn(SYNTHETIC_DATA_SAMPLING_URN, (bytes))

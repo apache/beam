@@ -21,6 +21,7 @@
 
 import collections
 import threading
+from threading import Timer
 import time
 from typing import Any
 from typing import DefaultDict
@@ -35,6 +36,30 @@ from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import WindowedValueCoderImpl
 from apache_beam.coders.coders import Coder
 from apache_beam.utils.windowed_value import WindowedValue
+
+
+class SampleTimer:
+  def __init__(self, timeout, sampler):  # timeout in seconds
+    self._timeout = timeout
+    self._timer = Timer(self._timeout, self.default_handler)
+    self._timer.start()
+    self._sampler = sampler
+
+  def reset(self):
+    self._timer.cancel()
+    self._timer = Timer(self._timeout, self.default_handler)
+    self._timer.start()
+
+  def stop(self):
+    self._timer.cancel()
+
+  def default_handler(self):
+    self._sampler.sample()
+    self.reset()
+
+
+class ElementSampler:
+  el: Any
 
 
 class OutputSampler:
@@ -56,6 +81,14 @@ class OutputSampler:
     self._sample_every_sec: float = sample_every_sec
     self._clock = clock
     self._last_sample_sec: float = self.time()
+    self._element_sampler = ElementSampler()
+    self._sample_timer = SampleTimer(sample_every_sec, self)
+
+  def stop(self):
+    self._sample_timer.stop()
+
+  def element_sampler(self) -> ElementSampler:
+    return self._element_sampler
 
   def remove_windowed_value(self, el: Union[WindowedValue, Any]) -> Any:
     """Retrieves the value from the WindowedValue.
@@ -83,19 +116,22 @@ class OutputSampler:
     self._samples.clear()
     return [self._coder_impl.encode_nested(s) for s in samples]
 
-  def sample(self, element: Any) -> None:
+  def sample(self) -> None:
     """Samples the given element to an internal buffer.
 
     Samples are only taken for the first 10 elements then every
     `self._sample_every_sec` second after.
     """
-    self._sample_count += 1
-    now = self.time()
-    sample_diff = now - self._last_sample_sec
+    # self._sample_count += 1
+    # now = self.time()
+    # sample_diff = now - self._last_sample_sec
 
-    if self._sample_count <= 10 or sample_diff >= self._sample_every_sec:
-      self._samples.append(element)
-      self._last_sample_sec = now
+    # if self._sample_count <= 10 or self._sample_count % 1000 == 0:#sample_diff >= self._sample_every_sec:
+    try:
+      self._samples.append(self._element_sampler.el)
+    except AttributeError:
+      pass
+      # self._last_sample_sec = now
 
 
 class DataSampler:
