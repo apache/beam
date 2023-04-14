@@ -80,7 +80,7 @@ public abstract class WindmillServerStub implements StatusDataProvider {
         @Nullable Instant inputDataWatermark,
         Instant synchronizedProcessingTime,
         Windmill.WorkItem workItem,
-        List<LatencyAttribution> getWorkStreamLatencies);
+        Collection<LatencyAttribution> getWorkStreamLatencies);
   }
 
   /**

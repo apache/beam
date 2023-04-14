@@ -992,7 +992,7 @@ public class StreamingDataflowWorker {
               inputDataWatermark,
               synchronizedProcessingTime,
               workItem,
-              /*getWorkStreamLatencies=*/ new ArrayList<>());
+              /*getWorkStreamLatencies=*/ Collections.emptyList());
         }
       }
     }
@@ -1011,7 +1011,7 @@ public class StreamingDataflowWorker {
                   Instant inputDataWatermark,
                   Instant synchronizedProcessingTime,
                   Windmill.WorkItem workItem,
-                  List<LatencyAttribution> getWorkStreamLatencies) -> {
+                  Collection<LatencyAttribution> getWorkStreamLatencies) -> {
                 memoryMonitor.waitForResources("GetWork");
                 scheduleWorkItem(
                     getComputationState(computation),
@@ -1038,7 +1038,7 @@ public class StreamingDataflowWorker {
       final Instant inputDataWatermark,
       final Instant synchronizedProcessingTime,
       final Windmill.WorkItem workItem,
-      final List<LatencyAttribution> getWorkStreamLatencies) {
+      final Collection<LatencyAttribution> getWorkStreamLatencies) {
     Preconditions.checkNotNull(inputDataWatermark);
     // May be null if output watermark not yet known.
     final @Nullable Instant outputDataWatermark =
@@ -1148,14 +1148,15 @@ public class StreamingDataflowWorker {
       return stateStartTime;
     }
 
-    public void recordGetWorkStreamLatencies(List<LatencyAttribution> getWorkStreamLatencies) {
+    public void recordGetWorkStreamLatencies(
+        Collection<LatencyAttribution> getWorkStreamLatencies) {
       for (LatencyAttribution latency : getWorkStreamLatencies) {
         totalDurationPerState.put(
             latency.getState(), Duration.millis(latency.getTotalDurationMillis()));
       }
     }
 
-    public Collection<Windmill.LatencyAttribution> getLatencyAttributionList() {
+    public Collection<Windmill.LatencyAttribution> getLatencyAttributions() {
       List<Windmill.LatencyAttribution> list = new ArrayList<>();
       for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
         Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
@@ -1652,7 +1653,7 @@ public class StreamingDataflowWorker {
     if (commitStream.commitWorkItem(
         state.computationId,
         request,
-        commit.getWork().getLatencyAttributionList(),
+        commit.getWork().getLatencyAttributions(),
         (Windmill.CommitStatus status) -> {
           if (status != Windmill.CommitStatus.OK) {
             readerCache.invalidateReader(
@@ -2313,7 +2314,7 @@ public class StreamingDataflowWorker {
                       .setKey(shardedKey.key())
                       .setShardingKey(shardedKey.shardingKey())
                       .setWorkToken(work.getWorkItem().getWorkToken())
-                      .addAllLatencyAttribution(work.getLatencyAttributionList())
+                      .addAllLatencyAttribution(work.getLatencyAttributions())
                       .build());
             }
           }

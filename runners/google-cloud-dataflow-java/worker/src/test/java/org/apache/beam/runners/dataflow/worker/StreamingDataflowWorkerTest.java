@@ -3345,7 +3345,7 @@ public class StreamingDataflowWorkerTest {
     work.setState(StreamingDataflowWorker.Work.State.COMMITTING);
     clock.sleep(Duration.millis(60));
 
-    Iterator<LatencyAttribution> it = work.getLatencyAttributionList().iterator();
+    Iterator<LatencyAttribution> it = work.getLatencyAttributions().iterator();
     assertTrue(it.hasNext());
     LatencyAttribution lat = it.next();
     assertTrue(lat.getState() == LatencyAttribution.State.QUEUED);

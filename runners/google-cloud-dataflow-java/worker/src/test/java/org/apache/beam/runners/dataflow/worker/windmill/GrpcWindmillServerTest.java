@@ -24,6 +24,7 @@ import static org.junit.Assert.fail;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -270,7 +271,7 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 Windmill.WorkItem workItem,
-                List<LatencyAttribution> getWorkStreamLatencies) -> {
+                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
@@ -612,7 +613,7 @@ public class GrpcWindmillServerTest {
       if (stream.commitWorkItem(
           "computation",
           commitRequestList.get(i),
-          new ArrayList<>(),
+          Collections.emptyList(),
           (CommitStatus status) -> {
             assertEquals(status, CommitStatus.OK);
             latch.countDown();
@@ -697,7 +698,7 @@ public class GrpcWindmillServerTest {
       if (stream.commitWorkItem(
           "computation",
           commitRequestList.get(i),
-          new ArrayList<>(),
+          Collections.emptyList(),
           (CommitStatus status) -> {
             assertEquals(status, CommitStatus.OK);
             latch.countDown();
@@ -950,7 +951,7 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 Windmill.WorkItem workItem,
-                List<LatencyAttribution> getWorkStreamLatencies) -> {
+                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
             });
     // Wait for 100 items or 30 seconds.

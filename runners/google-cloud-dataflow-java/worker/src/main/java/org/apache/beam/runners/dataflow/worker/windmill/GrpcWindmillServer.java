@@ -1008,11 +1008,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
                 }
                 switch (event) {
                   case GET_WORK_CREATION_START:
-                  case GET_WORK_RECEIVED_BY_DISPATCHER:
                     return recordedTime.isBefore(newTimingForEvent)
                         ? recordedTime
                         : newTimingForEvent;
                   case GET_WORK_CREATION_END:
+                  case GET_WORK_RECEIVED_BY_DISPATCHER:
                   case GET_WORK_FORWARDED_BY_DISPATCHER:
                     return recordedTime.isAfter(newTimingForEvent)
                         ? recordedTime
@@ -1022,7 +1022,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
                 }
                 return recordedTime;
               });
-          if (workItemReceiveTime.equals(Instant.EPOCH)) {
+          if (Instant.now().isAfter(workItemReceiveTime)) {
             workItemReceiveTime = Instant.now();
           }
         }
@@ -1033,6 +1033,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
         if (getWorkStreamTimings.isEmpty()) {
           return latencyAttributions;
         }
+        // Measures time elapsed from first work item chunk creation start to last work item chunk
+        // creation end time.
         if (getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_START)
             && getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_END)) {
           latencyAttributions.add(
@@ -1045,6 +1047,9 @@ public class GrpcWindmillServer extends WindmillServerStub {
                           .getMillis())
                   .build());
         }
+        // Measures time elapsed from last work item chunk creation end time to last work chunk
+        // received
+        // by windmill dispatcher.
         if (getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_END)
             && getWorkStreamTimings.containsKey(Event.GET_WORK_RECEIVED_BY_DISPATCHER)) {
           latencyAttributions.add(
@@ -1057,13 +1062,15 @@ public class GrpcWindmillServer extends WindmillServerStub {
                           .getMillis())
                   .build());
         }
-        if (getWorkStreamTimings.containsKey(Event.GET_WORK_FORWARDED_BY_DISPATCHER)) {
+        // Measures time elapsed from last work chunk received by the dispatcher to last work item
+        // chunk received by the user worker.
+        if (getWorkStreamTimings.containsKey(Event.GET_WORK_RECEIVED_BY_DISPATCHER)) {
           latencyAttributions.add(
               LatencyAttribution.newBuilder()
                   .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
                   .setTotalDurationMillis(
                       new Duration(
-                              getWorkStreamTimings.get(Event.GET_WORK_FORWARDED_BY_DISPATCHER),
+                              getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER),
                               workItemReceiveTime)
                           .getMillis())
                   .build());
