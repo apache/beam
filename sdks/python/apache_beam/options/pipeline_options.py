@@ -876,6 +876,16 @@ class GoogleCloudOptions(PipelineOptions):
 
     return errors
 
+  def lookup_dataflow_service_option(self, key, default=None):
+    if not self.dataflow_service_options:
+      return None
+    elif key in self.dataflow_service_options:
+      return default
+    for service_name in self.dataflow_service_options:
+      if service_name.startswith(key + '='):
+        return service_name.split('=', 1)[1]
+    return None
+
 
 class AzureOptions(PipelineOptions):
   """Azure Blob Storage options."""

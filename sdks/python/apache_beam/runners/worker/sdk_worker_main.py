@@ -177,24 +177,12 @@ def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   (fn_log_handler, sdk_harness,
    sdk_pipeline_options) = create_harness(os.environ)
-  dataflow_service_options = (
-      sdk_pipeline_options.view_as(GoogleCloudOptions).dataflow_service_options
-      or [])
   experiments = (sdk_pipeline_options.view_as(DebugOptions).experiments or [])
-  exp = None
-  if ((_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or
-      (_ENABLE_GOOGLE_CLOUD_PROFILER in dataflow_service_options)):
-    exp = True
-  for experiment in experiments:
-    if experiment.startswith(_ENABLE_GOOGLE_CLOUD_PROFILER + '='):
-      exp = experiment.split('=', 1)[1]
+  service_name = sdk_pipeline_options.view_as(
+      GoogleCloudOptions).lookup_dataflow_service_option(
+          _ENABLE_GOOGLE_CLOUD_PROFILER, default=os.environ["JOB_NAME"])
 
-  if exp:
-    if not isinstance(exp, bool):
-      # case of user passed profiler service name
-      service_name = exp
-    else:
-      service_name = os.environ["JOB_NAME"]
+  if ((_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or service_name):
     try:
       import googlecloudprofiler
       service_version = os.environ["JOB_ID"]
