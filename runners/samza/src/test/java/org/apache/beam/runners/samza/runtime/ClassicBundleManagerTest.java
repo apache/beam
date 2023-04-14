@@ -69,7 +69,7 @@ public final class ClassicBundleManagerTest {
   }
 
   @Test
-  public void testTryStartBundleStartsBundle() {
+  public void testAddingFirstElementStartsBundle() {
     bundleManager.countNewElement();
 
     verify(bundleProgressListener, times(1)).onBundleStarted();
@@ -82,29 +82,14 @@ public final class ClassicBundleManagerTest {
     assertTrue("tryStartBundle() did not start the bundle", bundleManager.isBundleStarted());
   }
 
-  @Test
-  public void testTryStartBundleThrowsExceptionAndSignalError() {
+  @Test(expected = IllegalArgumentException.class)
+  public void testWhenCurrentBundleDoneFutureIsNotNullThenStartBundleFails() {
     bundleManager.setCurrentBundleDoneFuture(CompletableFuture.completedFuture(null));
-    try {
-      bundleManager.countNewElement();
-    } catch (IllegalArgumentException e) {
-      bundleManager.signalFailure(e);
-    }
-
-    // verify if the signal failure only resets appropriate attributes of bundle
-    verify(mockFutureCollector, times(1)).prepare();
-    verify(mockFutureCollector, times(1)).discard();
-    assertEquals(
-        "Expected the number of element in the current bundle to 0",
-        0L,
-        bundleManager.getCurrentBundleElementCount());
-    assertEquals(
-        "Expected pending bundle count to be 0", 0L, bundleManager.getPendingBundleCount());
-    assertFalse("Error didn't reset the bundle as expected.", bundleManager.isBundleStarted());
+    bundleManager.countNewElement();
   }
 
   @Test
-  public void testWhenSignalFailureAfterBundleStartedThenResetBundle() {
+  public void testWhenSignalFailureThenResetCurrentBundle() {
     doThrow(new RuntimeException("User start bundle threw an exception"))
         .when(bundleProgressListener)
         .onBundleStarted();
