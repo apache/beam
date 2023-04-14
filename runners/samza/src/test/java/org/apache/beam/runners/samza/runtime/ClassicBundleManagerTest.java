@@ -70,7 +70,7 @@ public final class ClassicBundleManagerTest {
 
   @Test
   public void testTryStartBundleStartsBundle() {
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
 
     verify(bundleProgressListener, times(1)).onBundleStarted();
     assertEquals(
@@ -86,7 +86,7 @@ public final class ClassicBundleManagerTest {
   public void testTryStartBundleThrowsExceptionAndSignalError() {
     bundleManager.setCurrentBundleDoneFuture(CompletableFuture.completedFuture(null));
     try {
-      bundleManager.tryStartBundle();
+      bundleManager.countNewElement();
     } catch (IllegalArgumentException e) {
       bundleManager.signalFailure(e);
     }
@@ -104,13 +104,13 @@ public final class ClassicBundleManagerTest {
   }
 
   @Test
-  public void testTryStartBundleThrowsExceptionFromTheListener() {
+  public void testWhenSignalFailureAfterBundleStartedThenResetBundle() {
     doThrow(new RuntimeException("User start bundle threw an exception"))
         .when(bundleProgressListener)
         .onBundleStarted();
 
     try {
-      bundleManager.tryStartBundle();
+      bundleManager.countNewElement();
     } catch (RuntimeException e) {
       bundleManager.signalFailure(e);
     }
@@ -128,9 +128,9 @@ public final class ClassicBundleManagerTest {
   }
 
   @Test
-  public void testMultipleStartBundle() {
-    bundleManager.tryStartBundle();
-    bundleManager.tryStartBundle();
+  public void testWhenAddMultipleElementsThenOnlyStartBundleOnce() {
+    bundleManager.countNewElement();
+    bundleManager.countNewElement();
 
     // second invocation should not start the bundle
     verify(bundleProgressListener, times(1)).onBundleStarted();
@@ -153,15 +153,15 @@ public final class ClassicBundleManagerTest {
    *  2. onBundleFinished callback is invoked on the progress listener
    */
   @Test
-  public void testTryFinishBundleClosesBundle() {
+  public void testWhenTryFinishBundleThenBundleIsReset() {
     OpEmitter<String> mockEmitter = mock(OpEmitter.class);
     when(mockFutureCollector.finish())
         .thenReturn(
             CompletableFuture.completedFuture(Collections.singleton(mock(WindowedValue.class))));
 
-    bundleManager.tryStartBundle();
-    bundleManager.tryStartBundle();
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
+    bundleManager.countNewElement();
+    bundleManager.countNewElement();
     bundleManager.tryFinishBundle(mockEmitter);
 
     verify(mockEmitter, times(1)).emitFuture(anyObject());
@@ -183,8 +183,8 @@ public final class ClassicBundleManagerTest {
             CompletableFuture.completedFuture(Collections.singleton(mock(WindowedValue.class))));
     bundleManager.setBundleWatermarkHold(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
-    bundleManager.tryStartBundle();
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
+    bundleManager.countNewElement();
     bundleManager.tryFinishBundle(mockEmitter);
 
     verify(mockEmitter, times(1)).emitFuture(anyObject());
@@ -208,7 +208,7 @@ public final class ClassicBundleManagerTest {
         .thenReturn(
             CompletableFuture.completedFuture(Collections.singleton(mock(WindowedValue.class))));
 
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
     bundleManager.tryFinishBundle(mockEmitter);
 
     verify(mockFutureCollector, times(1)).finish();
@@ -297,8 +297,8 @@ public final class ClassicBundleManagerTest {
         .thenReturn(
             CompletableFuture.completedFuture(Collections.singleton(mock(WindowedValue.class))));
 
-    bundleManager.tryStartBundle();
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
+    bundleManager.countNewElement();
 
     // should force close bundle
     bundleManager.processWatermark(watermark, mockEmitter);
@@ -325,7 +325,7 @@ public final class ClassicBundleManagerTest {
     when(mockTimerData.getTimerId()).thenReturn(BUNDLE_CHECK_TIMER_ID);
     when(mockTimer.getTimerData()).thenReturn(mockTimerData);
 
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
     bundleManager.processTimer(mockTimer, mockEmitter);
 
     verify(mockEmitter, times(1)).emitFuture(anyObject());
@@ -351,7 +351,7 @@ public final class ClassicBundleManagerTest {
     when(mockFutureCollector.finish())
         .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
     bundleManager.processTimer(mockTimer, mockEmitter);
 
     verify(mockFutureCollector, times(1)).finish();
@@ -375,7 +375,7 @@ public final class ClassicBundleManagerTest {
     when(mockTimerData.getTimerId()).thenReturn("NotBundleTimer");
     when(mockTimer.getTimerData()).thenReturn(mockTimerData);
 
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
     bundleManager.processTimer(mockTimer, mockEmitter);
 
     verify(mockFutureCollector, times(0)).finish();
@@ -392,7 +392,7 @@ public final class ClassicBundleManagerTest {
 
   @Test
   public void testSignalFailureResetsTheBundleAndCollector() {
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
 
     bundleManager.signalFailure(mock(Throwable.class));
     verify(mockFutureCollector, times(1)).prepare();
@@ -456,9 +456,9 @@ public final class ClassicBundleManagerTest {
       Instant watermark) {
     // Starts the bundle and reach the max bundle size so that tryFinishBundle() seals the current
     // bundle
-    bundleManager.tryStartBundle();
-    bundleManager.tryStartBundle();
-    bundleManager.tryStartBundle();
+    bundleManager.countNewElement();
+    bundleManager.countNewElement();
+    bundleManager.countNewElement();
 
     bundleManager.processWatermark(watermark, mockEmitter);
     verify(bundleProgressListener, times(0)).onWatermark(watermark, mockEmitter);

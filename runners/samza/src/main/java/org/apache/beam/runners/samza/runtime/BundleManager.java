@@ -20,14 +20,36 @@ package org.apache.beam.runners.samza.runtime;
 import org.joda.time.Instant;
 
 public interface BundleManager<OutT> {
-  void tryStartBundle();
+  /**
+   * Accounts a new element to the bundle. Also lazy starts the bundle, if it is not started yet.
+   */
+  void countNewElement();
 
+  /**
+   * Signals a watermark event arrived. The BundleManager will decide if the watermark needs to be processed, and notify the listener if needed.
+   * @param watermark
+   * @param emitter
+   */
   void processWatermark(Instant watermark, OpEmitter<OutT> emitter);
 
+  /**
+   * Signals the BundleManager that a timer is up.
+   * @param keyedTimerData
+   * @param emitter
+   */
   void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter);
 
+  /**
+   * Fails the current bundle, throws away the pending output, and resets the bundle to an empty state.
+   *
+   * @param t the throwable that caused the failure.
+   */
   void signalFailure(Throwable t);
 
+  /**
+   * Tries to close the bundle, and reset the bundle to an empty state.
+   * @param emitter
+   */
   void tryFinishBundle(OpEmitter<OutT> emitter);
 
   /**

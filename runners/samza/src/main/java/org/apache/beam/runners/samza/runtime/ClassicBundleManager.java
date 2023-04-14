@@ -135,7 +135,7 @@ public class ClassicBundleManager<OutT> implements BundleManager<OutT> {
   }
 
   @Override
-  public void tryStartBundle() {
+  public void countNewElement() {
     futureCollector.prepare();
 
     if (isBundleStarted.compareAndSet(false, true)) {

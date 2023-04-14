@@ -295,7 +295,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter) {
     try {
-      bundleManager.tryStartBundle();
+      bundleManager.countNewElement();
       final Iterable<WindowedValue<InT>> rejectedValues =
           pushbackFnRunner.processElementInReadyWindows(inputElement);
       for (WindowedValue<InT> rejectedValue : rejectedValues) {
