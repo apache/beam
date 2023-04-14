@@ -186,6 +186,7 @@ public class AwsModule extends SimpleModule {
             .refreshRequest(jsonParser.getCodec().treeToValue(json, clazz).build())
             .stsClient(
                 StsClient.builder()
+                    .region(Region.AWS_GLOBAL)
                     .credentialsProvider(AnonymousCredentialsProvider.create())
                     .build())
             .build();
