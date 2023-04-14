@@ -66,6 +66,7 @@ from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
+  from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
   from apache_beam.io.iobase import RestrictionProgress
@@ -1338,7 +1339,8 @@ class DoFnRunner:
                state=None,
                scoped_metrics_container=None,
                operation_name=None,
-               user_state_context=None  # type: Optional[userstate.UserStateContext]
+               transform_id=None,
+               user_state_context=None,  # type: Optional[userstate.UserStateContext]
               ):
     """Initializes a DoFnRunner.
 
@@ -1354,6 +1356,7 @@ class DoFnRunner:
       state: handle for accessing DoFn state
       scoped_metrics_container: DEPRECATED
       operation_name: The system name assigned by the runner for this operation.
+      transform_id: The PTransform Id in the pipeline proto for this DoFn.
       user_state_context: The UserStateContext instance for the current
                           Stateful DoFn.
     """
@@ -1361,8 +1364,10 @@ class DoFnRunner:
     side_inputs = list(side_inputs)
 
     self.step_name = step_name
+    self.transform_id = transform_id
     self.context = DoFnContext(step_name, state=state)
     self.bundle_finalizer_param = DoFn.BundleFinalizerParam()
+    self.execution_context = None  # type: Optional[ExecutionContext]
 
     do_fn_signature = DoFnSignature(fn)
 
@@ -1417,8 +1422,25 @@ class DoFnRunner:
     try:
       return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
+      self._maybe_sample_exception(exn, windowed_value)
       self._reraise_augmented(exn)
       return []
+
+  def _maybe_sample_exception(
+      self, exn: BaseException, windowed_value: Any) -> None:
+
+    if self.execution_context is None:
+      return
+
+    exception_sampler = self.execution_context.exception_sampler
+    if exception_sampler is None:
+      return
+
+    exception_sampler.sample_exception(
+        windowed_value,
+        exn,
+        self.transform_id,
+        self.execution_context.instruction_id)
 
   def process_batch(self, windowed_batch):
     # type: (WindowedBatch) -> None

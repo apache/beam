@@ -27,6 +27,7 @@ import json
 import logging
 import random
 import threading
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -986,7 +987,7 @@ class BundleProcessor(object):
         expected_input_ops.append(op)
 
     try:
-      execution_context = ExecutionContext()
+      execution_context = ExecutionContext(instruction_id=instruction_id)
       self.current_instruction_id = instruction_id
       self.state_sampler.start()
       # Start all operations.
@@ -1181,10 +1182,17 @@ class BundleProcessor(object):
       op.teardown()
 
 
-class ExecutionContext(object):
-  def __init__(self):
-    self.delayed_applications = [
-    ]  # type: List[Tuple[operations.DoOperation, common.SplitResultResidual]]
+@dataclass
+class ExecutionContext:
+  # Any splits to be processed later.
+  delayed_applications = [
+  ]  # type: List[Tuple[operations.DoOperation, common.SplitResultResidual]]
+
+  # The exception sampler for the currently executing PTransform.
+  exception_sampler: Optional[data_sampler.OutputSampler] = None
+
+  # The current instruction being executed.
+  instruction_id: Optional[str] = None
 
 
 class BeamTransformFactory(object):
