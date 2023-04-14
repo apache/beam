@@ -46,7 +46,7 @@ resource "google_dns_record_set" "a-private-zone" {
 
   managed_zone = each.value.name
 
-  rrdatas = ["199.36.153.8", "199.36.153.9", "199.36.153.10", "199.36.153.11"]
+  rrdatas = local.private_api_ips
 }
 
 resource "google_dns_record_set" "cname-private-zone" {
