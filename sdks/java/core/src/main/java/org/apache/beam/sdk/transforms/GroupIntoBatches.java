@@ -602,7 +602,8 @@ public class GroupIntoBatches<K, InputT>
           maxBufferingDuration);
       flushBatch(
           receiver, key, batch, storedBatchSize, storedBatchSizeBytes, timerTs, minBufferedTs);
-      // Generally this is a noop, since holdTimer is not set if bufferingTimer is set. However we delete the holdTimer
+      // Generally this is a noop, since holdTimer is not set if bufferingTimer is set. However we
+      // delete the holdTimer
       // here in order to allow users to modify this policy on pipeline update.
       holdTimer.clear();
     }
