@@ -58,7 +58,6 @@ class Verifier:
 
         """
         logging.info("Start of executing Playground examples ...")
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         asyncio.run(self._run_and_verify(examples))
         logging.info("Finish of executing Playground examples")
 
