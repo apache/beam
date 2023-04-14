@@ -27,6 +27,7 @@ environment:
 dependencies:
   aligned_dialog: ^0.0.6
   app_state: ^0.9.3
+  clock: ^1.1.1
   collection: ^1.16.0
   connectivity_plus: ^2.3.9
   easy_localization: ^3.0.1

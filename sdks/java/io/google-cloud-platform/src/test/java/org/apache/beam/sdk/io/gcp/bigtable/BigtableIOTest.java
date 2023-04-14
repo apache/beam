@@ -70,7 +70,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
@@ -173,8 +172,6 @@ public class BigtableIOTest {
           .setInstanceId("options_instance")
           .build();
 
-  private static final BigtableServiceFactory.ConfigId configId =
-      BigtableServiceFactory.FACTORY_INSTANCE.newId();
   private static BigtableIO.Read defaultRead =
       BigtableIO.read().withInstanceId("instance").withProjectId("project");
   private static BigtableIO.Write defaultWrite =
@@ -191,11 +188,15 @@ public class BigtableIOTest {
 
   private FakeServiceFactory factory;
 
+  private static BigtableServiceFactory.ConfigId configId;
+
   @Before
   public void setup() throws Exception {
     service = new FakeBigtableService();
 
     factory = new FakeServiceFactory(service);
+
+    configId = factory.newId();
 
     defaultRead = defaultRead.withServiceFactory(factory);
 
@@ -320,7 +321,7 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(
             failureFactory,
-            BigtableServiceFactory.ConfigId.create(1),
+            BigtableServiceFactory.ConfigId.create(),
             failureConfig,
             BigtableReadOptions.builder()
                 .setTableId(StaticValueProvider.of(table))
@@ -1967,25 +1968,22 @@ public class BigtableIOTest {
     }
 
     @Override
-    synchronized BigtableServiceEntry getServiceForReading(
+    BigtableServiceEntry getServiceForReading(
         ConfigId configId,
         BigtableConfig config,
         BigtableReadOptions opts,
         PipelineOptions pipelineOptions) {
-      return BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1));
+      return BigtableServiceEntry.create(configId, service);
     }
 
     @Override
-    synchronized BigtableServiceEntry getServiceForWriting(
+    BigtableServiceEntry getServiceForWriting(
         ConfigId configId,
         BigtableConfig config,
         BigtableWriteOptions opts,
         PipelineOptions pipelineOptions) {
-      return BigtableServiceEntry.create(this, configId, service, new AtomicInteger(1));
+      return BigtableServiceEntry.create(configId, service);
     }
-
-    @Override
-    synchronized void releaseService(BigtableServiceEntry entry) {}
 
     @Override
     boolean checkTableExists(BigtableConfig config, PipelineOptions pipelineOptions, String tableId)
@@ -1995,7 +1993,7 @@ public class BigtableIOTest {
 
     @Override
     synchronized ConfigId newId() {
-      return ConfigId.create(1);
+      return ConfigId.create();
     }
   }
 }

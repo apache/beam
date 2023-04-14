@@ -30,8 +30,11 @@ import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../enums/save_code_status.dart';
 import '../../enums/snippet_type.dart';
+import '../../models/event_context.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
+import '../../services/analytics/events/unit_closed.dart';
+import '../../services/analytics/events/unit_opened.dart';
 import '../../state.dart';
 import 'controllers/content_tree.dart';
 import 'path.dart';
@@ -47,6 +50,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
+  DateTime? _currentUnitOpenedAt;
+
+  TobEventContext _tobEventContext = TobEventContext.empty;
+  TobEventContext get tobEventContext => _tobEventContext;
 
   TourNotifier({
     required String initialSdkId,
@@ -144,7 +151,39 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (unitContent == null || unitContent == _currentUnitContent) {
       return;
     }
+
+    if (_currentUnitOpenedAt != null && _currentUnitContent != null) {
+      _trackUnitClosed();
+    }
+
     _currentUnitContent = unitContent;
+
+    _trackUnitOpened(unitContent.id);
+  }
+
+  void _trackUnitClosed() {
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      UnitClosedTobAnalyticsEvent(
+        tobContext: _tobEventContext,
+        timeSpent: DateTime.now().difference(_currentUnitOpenedAt!),
+      ),
+    );
+  }
+
+  void _trackUnitOpened(String unitId) {
+    _currentUnitOpenedAt = DateTime.now();
+    _tobEventContext = TobEventContext(
+      sdkId: currentSdk.id,
+      unitId: unitId,
+    );
+    playgroundController
+        .requireSnippetEditingController()
+        .setDefaultEventParams(_tobEventContext.toJson());
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      UnitOpenedTobAnalyticsEvent(
+        tobContext: _tobEventContext,
+      ),
+    );
   }
 
   // Save user code.

@@ -25,6 +25,7 @@ import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
 import 'cache/unit_progress.dart';
+import 'config.dart';
 import 'pages/welcome/page.dart';
 import 'repositories/client/client.dart';
 import 'repositories/client/cloud_functions_client.dart';
@@ -38,6 +39,7 @@ Future<void> initializeServiceLocator() async {
   await _initializeRepositories();
   _initializeAuth();
   _initializeState();
+  _initializeServices();
   _initializeCaches();
 }
 
@@ -84,4 +86,11 @@ void _initializeState() {
   GetIt.instance.registerSingleton(AppNotifier());
   GetIt.instance.registerSingleton(pageStack);
   GetIt.instance.registerSingleton(BeamRouterDelegate(pageStack));
+}
+
+void _initializeServices() {
+  final analyticsService = BeamGoogleAnalytics4Service(
+    measurementId: getGoogleAnalyticsMeasurementId(),
+  );
+  GetIt.instance.registerSingleton<BeamAnalyticsService>(analyticsService);
 }

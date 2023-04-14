@@ -24,7 +24,12 @@ import 'example_loading_descriptor.dart';
 class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   /// The identifier of the example in the catalog.
   final String path;
+
+  @override
   final Sdk sdk;
+
+  @override
+  String get token => path;
 
   const StandardExampleLoadingDescriptor({
     required this.path,

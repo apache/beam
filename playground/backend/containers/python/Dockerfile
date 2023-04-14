@@ -17,7 +17,7 @@
 ###############################################################################
 ARG GO_BASE_IMAGE=golang:1.18-bullseye
 ARG SDK_TAG
-ARG BASE_IMAGE=apache/beam_python3.7_sdk:$SDK_TAG
+ARG BASE_IMAGE=apache/beam_python3.10_sdk:$SDK_TAG
 FROM $GO_BASE_IMAGE AS build
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
@@ -85,7 +85,7 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
-  && chmod 777 /usr/local/lib/python3.7/site-packages/certifi/cacert.pem \
+  && chmod 777 /usr/local/lib/python3.10/site-packages/certifi/cacert.pem \
   && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
 
 # Switch to appuser

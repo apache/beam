@@ -55,6 +55,11 @@ abstract class BigtableReadOptions implements Serializable {
   /** Returns the operation timeout of the reads. */
   abstract @Nullable Duration getOperationTimeout();
 
+  /**
+   * Watchdog will kill the stream after waiting this much time for the next response from server.
+   */
+  abstract @Nullable Duration getWaitTimeout();
+
   abstract Builder toBuilder();
 
   static BigtableReadOptions.Builder builder() {
@@ -75,6 +80,8 @@ abstract class BigtableReadOptions implements Serializable {
     abstract Builder setAttemptTimeout(Duration timeout);
 
     abstract Builder setOperationTimeout(Duration timeout);
+
+    abstract Builder setWaitTimeout(Duration timeout);
 
     abstract BigtableReadOptions build();
   }

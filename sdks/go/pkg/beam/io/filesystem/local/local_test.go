@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
@@ -195,5 +196,65 @@ func TestLocal_rename(t *testing.T) {
 
 	if len(files) != 1 || (len(files) == 1 && files[0] != filePath2) {
 		t.Errorf("List(%v) = %v, want []string{%v}", listGlob, files, filePath2)
+	}
+}
+
+func TestLocal_copy(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	dirPath := filepath.Join(tempDir, "beamgolocalfilesystemtest")
+	filePath1 := filepath.Join(dirPath, "file1.txt")
+	filePath2 := filepath.Join(dirPath, "file2.txt")
+	t.Cleanup(func() {
+		os.RemoveAll(tempDir)
+	})
+
+	c, err := filesystem.New(ctx, dirPath)
+	if err != nil {
+		t.Fatalf("filesystem.New(ctx, %q) == %v, want nil", dirPath, err)
+	}
+	t.Cleanup(func() {
+		c.Close()
+	})
+	data := []byte("a meaningless sequence of test words")
+	if err := filesystem.Write(ctx, c, filePath1, data); err != nil {
+		t.Fatalf("filesystem.Write(ctx, %q) == %v, want nil", filePath1, err)
+	}
+
+	if err := filesystem.Copy(ctx, c, filePath1, filePath2); err != nil {
+		t.Fatalf("filesystem.Copy(ctx, %q) == %v, want nil", filePath2, err)
+	}
+
+	gotData, err := filesystem.Read(ctx, c, filePath2)
+	if err != nil {
+		t.Fatalf("filesystem.Read(ctx, %q) == %v, want nil", filePath2, err)
+	}
+	if got, want := string(data), string(gotData); got != want {
+		t.Errorf("filesystem.Read() = %v, want %v", got, want)
+	}
+
+	// Reread old data to make sure that the file still exists.
+	gotData, err = filesystem.Read(ctx, c, filePath1)
+	if err != nil {
+		t.Fatalf("filesystem.Read(ctx, %q) == %v, want nil", filePath1, err)
+	}
+	if got, want := string(data), string(gotData); got != want {
+		t.Errorf("filesystem.Read() = %v, want %v", got, want)
+	}
+
+	listGlob := filepath.Join(dirPath, "*.txt")
+	files, err := c.List(ctx, listGlob)
+	if err != nil {
+		t.Fatalf("List(%q) = %v, want nil", listGlob, err)
+	}
+
+	// Sort the strings to ensure stable output.
+	sort.Strings(files)
+
+	if files[0] != filePath1 {
+		t.Errorf("List(%s) = %v, want []string{%s, %s}", listGlob, files, filePath1, filePath2)
+	}
+	if files[1] != filePath2 {
+		t.Errorf("List(%s) = %v, want []string{%s, %s}", listGlob, files, filePath1, filePath2)
 	}
 }

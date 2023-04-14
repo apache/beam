@@ -31,6 +31,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 /** Helper functions to evaluate the completeness of collection of ByteStringRanges. */
 @Internal
 public class ByteStringRangeHelper {
+  private static int compareStartKey(ByteString s1, ByteString s2) {
+    return ByteString.unsignedLexicographicalComparator().compare(s1, s2);
+  }
+
+  private static int compareEndKey(ByteString e1, ByteString e2) {
+    if (e1.isEmpty() && !e2.isEmpty()) {
+      return 1;
+    }
+    if (e2.isEmpty() && !e1.isEmpty()) {
+      return -1;
+    }
+    return ByteString.unsignedLexicographicalComparator().compare(e1, e2);
+  }
 
   @VisibleForTesting
   static class PartitionComparator implements Comparator<ByteStringRange> {
@@ -43,20 +56,11 @@ public class ByteStringRangeHelper {
     // - The start keys are equal and its end key comes after second's end key
     // An end key of "" represents the final end key, so it needs to be handled as a special case
     public int compare(ByteStringRange first, ByteStringRange second) {
-      int compareStart =
-          ByteString.unsignedLexicographicalComparator()
-              .compare(first.getStart(), second.getStart());
+      int compareStart = compareStartKey(first.getStart(), second.getStart());
       if (compareStart != 0) {
         return compareStart;
       }
-      if (first.getEnd().isEmpty() && !second.getEnd().isEmpty()) {
-        return 1;
-      }
-      if (second.getEnd().isEmpty() && !first.getEnd().isEmpty()) {
-        return -1;
-      }
-      return ByteString.unsignedLexicographicalComparator()
-          .compare(first.getEnd(), second.getEnd());
+      return compareEndKey(first.getEnd(), second.getEnd());
     }
   }
 
@@ -162,22 +166,11 @@ public class ByteStringRangeHelper {
       ByteString parentStartKey, ByteString childStartKey) {
     // Check if the start key of the child partition comes before the start key of the entire
     // parentPartitions
-    return ByteString.unsignedLexicographicalComparator().compare(parentStartKey, childStartKey)
-        > 0;
+    return compareStartKey(parentStartKey, childStartKey) > 0;
   }
 
   private static boolean childEndsAfterParent(ByteString parentEndKey, ByteString childEndKey) {
-    // A final end key is represented by "" but this evaluates to < all characters, so we need to
-    // handle it as a special case.
-    if (childEndKey.isEmpty() && !parentEndKey.isEmpty()) {
-      return true;
-    }
-
-    // Check if the end key of the child partition comes after the end key of the entire
-    // parentPartitions. "" Represents the final end key so we need to handle that as a
-    // special case when it is the end key of the entire parentPartitions
-    return ByteString.unsignedLexicographicalComparator().compare(parentEndKey, childEndKey) < 0
-        && !parentEndKey.isEmpty();
+    return compareEndKey(parentEndKey, childEndKey) < 0;
   }
 
   // This assumes parentPartitions is sorted. If parentPartitions has not already been sorted
@@ -195,5 +188,76 @@ public class ByteStringRangeHelper {
       }
     }
     return false;
+  }
+
+  /**
+   * Returns true if the two ByteStringRange overlaps, otherwise false. End = Start is not
+   * considered overlapping because end is open and start is closed.
+   *
+   * <p>Assume the two ByteStringRange are valid such that the start <= end. There are 2 scenarios
+   * that's considered NOT overlapping. Otherwise, they are overlapping.
+   *
+   * <ul>
+   *   <li>The second's start key is same or after first's end key
+   *   <li>The first's start key is same or after second's end key
+   * </ul>
+   *
+   * @param first first ByteStringRange
+   * @param second second ByteStringRange
+   * @return true if the two ByteStringRange overlaps, otherwise false.
+   */
+  public static boolean doPartitionsOverlap(ByteStringRange first, ByteStringRange second) {
+    if (ByteString.unsignedLexicographicalComparator().compare(second.getStart(), first.getEnd())
+            >= 0
+        && !first.getEnd().isEmpty()) {
+      return false;
+    } else if (ByteString.unsignedLexicographicalComparator()
+                .compare(first.getStart(), second.getEnd())
+            >= 0
+        && !second.getEnd().isEmpty()) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Checks if the partition's start key is before its end key.
+   *
+   * @param partition the partition to verify.
+   * @return true if partition is valid, otherwise false.
+   */
+  public static boolean isValidPartition(ByteStringRange partition) {
+    return ByteString.unsignedLexicographicalComparator()
+                .compare(partition.getStart(), partition.getEnd())
+            < 0
+        || partition.getEnd().isEmpty();
+  }
+
+  /**
+   * Return the overlapping parts of 2 partitions. Throw IllegalArgumentException if the 2
+   * partitions don't overlap at all.
+   *
+   * @param p1 first partition
+   * @param p2 second partition
+   * @return the intersection of the 2 partitions
+   * @throws IllegalArgumentException if the 2 partitions don't overlap at all
+   */
+  public static ByteStringRange getIntersectingPartition(ByteStringRange p1, ByteStringRange p2)
+      throws IllegalArgumentException {
+    if (!doPartitionsOverlap(p1, p2)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "The partitions %s and %s have no overlap",
+              formatByteStringRange(p1), formatByteStringRange(p2)));
+    }
+    ByteString start = p1.getStart();
+    ByteString end = p1.getEnd();
+    if (compareStartKey(start, p2.getStart()) < 0) {
+      start = p2.getStart();
+    }
+    if (compareEndKey(end, p2.getEnd()) > 0) {
+      end = p2.getEnd();
+    }
+    return ByteStringRange.create(start, end);
   }
 }

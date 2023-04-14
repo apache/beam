@@ -105,6 +105,7 @@ jobs:
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
+          { "py_ver": "3.11", "tox_env": "py311" },
         ]
     steps:
       - name: Checkout code
@@ -115,7 +116,7 @@ jobs:
           python-version: ${{ matrix.params.py_ver }}
       - name: Get build dependencies
         working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt
+        run: pip install -r build-requirements.txt --use-pep517
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix
@@ -140,7 +141,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.7", "3.8", "3.9", "3.10"]
+        python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -168,7 +169,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.7", "3.8", "3.9", "3.10"]
+        python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -179,7 +180,7 @@ jobs:
       - name: Install go
         uses: actions/setup-go@v3
         with:
-          go-version: '1.19'
+          go-version: '1.20'
       - name: Download source from artifacts
         uses: actions/download-artifact@v3
         with:

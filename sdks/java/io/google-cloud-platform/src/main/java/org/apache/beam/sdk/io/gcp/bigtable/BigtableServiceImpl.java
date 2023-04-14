@@ -77,6 +77,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@link BigtableService} that actually communicates with the Cloud Bigtable
@@ -86,19 +88,43 @@ import org.joda.time.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BigtableServiceImpl implements BigtableService {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
+
   // Default byte limit is a percentage of the JVM's available memory
   private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .1;
   // Percentage of max number of rows allowed in the buffer
   private static final double WATERMARK_PERCENTAGE = .1;
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
 
-  public BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
-    this.client = BigtableDataClient.create(settings);
+  BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
+    this(settings, null);
+  }
+
+  // TODO remove this constructor once https://github.com/googleapis/gapic-generator-java/pull/1473
+  // is resolved. readWaitTimeout is a hack to workaround incorrect mapping from attempt timeout to
+  // Watchdog's wait timeout.
+  BigtableServiceImpl(BigtableDataSettings settings, Duration readWaitTimeout) throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
     RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
     this.readAttemptTimeout = Duration.millis(retry.getInitialRpcTimeout().toMillis());
     this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
+    BigtableDataSettings.Builder builder = settings.toBuilder();
+    if (readWaitTimeout != null) {
+      builder
+          .stubSettings()
+          .readRowsSettings()
+          .setRetrySettings(
+              retry
+                  .toBuilder()
+                  .setInitialRpcTimeout(
+                      org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
+                  .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
+                  .build());
+    }
+    LOG.info("Started Bigtable service with settings " + builder.build());
+    this.client = BigtableDataClient.create(builder.build());
   }
 
   private final BigtableDataClient client;

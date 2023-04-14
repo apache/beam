@@ -21,9 +21,10 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
+import '../../shortcuts/shortcuts_manager.dart';
 import 'state.dart';
 import 'widgets/content_tree.dart';
-import 'widgets/playground_demo.dart';
+import 'widgets/playground.dart';
 import 'widgets/unit_content.dart';
 
 class TourScreen extends StatelessWidget {
@@ -33,10 +34,14 @@ class TourScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TobScaffold(
-      child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-          ? _WideTour(tourNotifier)
-          : _NarrowTour(tourNotifier),
+    return TobShortcutsManager(
+      tourNotifier: tourNotifier,
+      child: TobScaffold(
+        playgroundController: tourNotifier.playgroundController,
+        child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
+            ? _WideTour(tourNotifier)
+            : _NarrowTour(tourNotifier),
+      ),
     );
   }
 }
@@ -56,8 +61,8 @@ class _WideTour extends StatelessWidget {
           child: SplitView(
             direction: Axis.horizontal,
             first: UnitContentWidget(tourNotifier),
-            second: PlaygroundDemoWidget(
-              playgroundController: tourNotifier.playgroundController,
+            second: PlaygroundWidget(
+              tourNotifier: tourNotifier,
             ),
           ),
         ),

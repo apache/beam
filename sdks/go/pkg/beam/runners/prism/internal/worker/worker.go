@@ -152,10 +152,10 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			if l.Severity >= minsev {
 				// TODO: Connect to the associated Job for this worker instead of
 				// logging locally for SDK side logging.
-				slog.Log(toSlogSev(l.GetSeverity()), l.GetMessage(),
+				slog.LogAttrs(context.TODO(), toSlogSev(l.GetSeverity()), l.GetMessage(),
 					slog.String(slog.SourceKey, l.GetLogLocation()),
 					slog.Time(slog.TimeKey, l.GetTimestamp().AsTime()),
-					"worker", wk,
+					slog.Any("worker", wk),
 				)
 			}
 		}
@@ -220,7 +220,8 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			if b, ok := wk.bundles[resp.GetInstructionId()]; ok {
 				// TODO. Better pipeline error handling.
 				if resp.Error != "" {
-					slog.Log(slog.LevelError, "ctrl.Recv pipeline error", slog.ErrorKey, resp.GetError())
+					slog.LogAttrs(context.TODO(), slog.LevelError, "ctrl.Recv pipeline error",
+						slog.String("error", resp.GetError()))
 					panic(resp.GetError())
 				}
 				b.Resp <- resp.GetProcessBundle()
@@ -285,7 +286,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 
 	for req := range wk.DataReqs {
 		if err := data.Send(req); err != nil {
-			slog.Log(slog.LevelDebug, "data.Send error", slog.ErrorKey, err)
+			slog.LogAttrs(context.TODO(), slog.LevelDebug, "data.Send error", slog.Any("error", err))
 		}
 	}
 	return nil

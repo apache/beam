@@ -38,21 +38,21 @@ RUN go mod download &&\
     cd cmd/server &&\
     go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_java_backend
 
-FROM maven:3.8.6-openjdk-8 as dep
+FROM maven:3.8.6-openjdk-11 as dep
 ARG BEAM_VERSION
 RUN mvn archetype:generate \
     -DinteractiveMode=false \
     -DarchetypeGroupId=org.apache.beam \
     -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-gcp-bom-examples \
     -DarchetypeVersion=$BEAM_VERSION \
-    -DtargetPlatform=8 \
+    -DtargetPlatform=11 \
     -DartifactId=pipeline-dependencies \
     -DgroupId=org.apache.beam.samples
 WORKDIR /pipeline-dependencies/
 RUN mvn dependency:resolve && mvn -o dependency:list
 RUN mvn dependency:copy-dependencies
 
-FROM apache/beam_java8_sdk:$BEAM_VERSION
+FROM apache/beam_java11_sdk:$BEAM_VERSION
 
 ARG BEAM_VERSION
 ARG SPRING_VERSION=5.3.25
@@ -120,7 +120,7 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod -R 775 /opt/apache/beam/jars/ \
-  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-8/jre/lib/security/ \
+  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-11/lib/security/ \
   && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
 
 # Switch to appuser

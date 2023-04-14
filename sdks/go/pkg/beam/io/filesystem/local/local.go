@@ -77,8 +77,25 @@ func (f *fs) Rename(_ context.Context, oldpath, newpath string) error {
 	return os.Rename(oldpath, newpath)
 }
 
+// Copy copies from oldpath to the newpath.
+func (f *fs) Copy(_ context.Context, oldpath, newpath string) error {
+	srcFile, err := os.Open(oldpath)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+	destFile, err := os.Create(newpath)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+	_, err = io.Copy(destFile, srcFile)
+	return err
+}
+
 // Compile time check for interface implementations.
 var (
+	_ filesystem.Copier  = ((*fs)(nil))
 	_ filesystem.Remover = ((*fs)(nil))
 	_ filesystem.Renamer = ((*fs)(nil))
 )
