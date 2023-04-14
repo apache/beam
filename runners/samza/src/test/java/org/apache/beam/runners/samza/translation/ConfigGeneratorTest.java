@@ -27,6 +27,7 @@ import java.util.Set;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.SamzaRunner;
+import org.apache.beam.runners.samza.util.PipelineTransformIOUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
@@ -220,6 +221,48 @@ public class ConfigGeneratorTest {
               SamzaExecutionEnvironment.STANDALONE),
           e);
     }
+  }
+
+  @Test
+  public void testBeamTransformIOConfigGen() {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setJobName("TestEnvConfig");
+    options.setRunner(SamzaRunner.class);
+    options.setSamzaExecutionEnvironment(SamzaExecutionEnvironment.LOCAL);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Impulse.create()).apply(Filter.by(Objects::nonNull));
+    pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
+
+    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
+    SamzaPipelineTranslator.createConfig(
+        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    final String transformIOMap =
+        SamzaPipelineTranslator.buildTransformIOMap(pipeline, options, idMap, nonUniqueStateIds);
+    configBuilder.put(SamzaRunner.BEAM_TRANSFORMS_WITH_IO, transformIOMap);
+    Config config = configBuilder.build();
+
+    // Deserialize the config and verify that the map is correct
+    final Map<String, Map.Entry<String, String>> transformInputOutput =
+        PipelineTransformIOUtils.deserializeTransformIOMap(config);
+
+    assertEquals(2, transformInputOutput.size());
+    assertEquals("", transformInputOutput.get("Impulse").getKey()); // no input to impulse
+    assertEquals(
+        "Impulse.out",
+        transformInputOutput.get("Impulse").getValue()); // PValue for to Impulse.output
+
+    // Input to Filter is PValue Output from Impulse
+    assertEquals(
+        "Impulse.out",
+        transformInputOutput.get("Filter/ParDo(Anonymous)/ParMultiDo(Anonymous)").getKey());
+    // output PValue of filter
+    assertEquals(
+        "Filter/ParDo(Anonymous)/ParMultiDo(Anonymous).output",
+        transformInputOutput.get("Filter/ParDo(Anonymous)/ParMultiDo(Anonymous)").getValue());
   }
 
   @Test

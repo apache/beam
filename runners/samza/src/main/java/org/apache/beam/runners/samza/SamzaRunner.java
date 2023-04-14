@@ -63,6 +63,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
+  public static final String BEAM_TRANSFORMS_WITH_IO = "beamTransformsWithIO";
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
   private static final String BEAM_DOT_GRAPH = "beamDotGraph";
   private static final String BEAM_JSON_GRAPH = "beamJsonGraph";
@@ -143,12 +144,15 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
-    final ConfigBuilder configBuilder = new ConfigBuilder(options);
+    final String transformIOMap =
+        SamzaPipelineTranslator.buildTransformIOMap(pipeline, options, idMap, nonUniqueStateIds);
 
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPipelineTranslator.createConfig(
         pipeline, options, idMap, nonUniqueStateIds, configBuilder);
     configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
     configBuilder.put(BEAM_JSON_GRAPH, jsonGraph);
+    configBuilder.put(BEAM_TRANSFORMS_WITH_IO, transformIOMap);
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);

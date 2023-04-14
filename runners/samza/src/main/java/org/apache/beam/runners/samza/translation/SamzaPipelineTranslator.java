@@ -20,19 +20,26 @@ package org.apache.beam.runners.samza.translation;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
+import java.util.AbstractMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.util.PipelineTransformIOUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** This class knows all the translators from a primitive BEAM transform to a Samza operator. */
@@ -105,6 +112,47 @@ public class SamzaPipelineTranslator {
         };
     final SamzaPipelineVisitor visitor = new SamzaPipelineVisitor(configFn);
     pipeline.traverseTopologically(visitor);
+  }
+
+  /**
+   * Builds a map from PTransform to its input and output PValues. The map is serialized and stored
+   * in the job config.
+   */
+  public static String buildTransformIOMap(
+      Pipeline pipeline,
+      SamzaPipelineOptions options,
+      Map<PValue, String> idMap,
+      Set<String> nonUniqueStateIds) {
+    final ConfigContext ctx = new ConfigContext(idMap, nonUniqueStateIds, options);
+
+    final Map<String, Map.Entry<String, String>> pTransformToInputOutputMap = new HashMap<>();
+    final TransformVisitorFn configFn =
+        new TransformVisitorFn() {
+          @Override
+          public <T extends PTransform<?, ?>> void apply(
+              T transform,
+              TransformHierarchy.Node node,
+              Pipeline pipeline,
+              TransformTranslator<T> translator) {
+            ctx.setCurrentTransform(node.toAppliedPTransform(pipeline));
+            List<String> inputs = getIOPValueList(node.getInputs()).get();
+            List<String> outputs = getIOPValueList(node.getOutputs()).get();
+            pTransformToInputOutputMap.put(
+                node.getFullName(),
+                new AbstractMap.SimpleEntry<>(
+                    String.join(PipelineTransformIOUtils.TRANSFORM_IO_MAP_DELIMITER, inputs),
+                    String.join(PipelineTransformIOUtils.TRANSFORM_IO_MAP_DELIMITER, outputs)));
+            ctx.clearCurrentTransform();
+          }
+        };
+
+    final SamzaPipelineVisitor visitor = new SamzaPipelineVisitor(configFn);
+    pipeline.traverseTopologically(visitor);
+    return PipelineTransformIOUtils.serializeTransformIOMap(pTransformToInputOutputMap);
+  }
+
+  private static Supplier<List<String>> getIOPValueList(Map<TupleTag<?>, PCollection<?>> map) {
+    return () -> map.values().stream().map(pColl -> pColl.getName()).collect(Collectors.toList());
   }
 
   private interface TransformVisitorFn {
