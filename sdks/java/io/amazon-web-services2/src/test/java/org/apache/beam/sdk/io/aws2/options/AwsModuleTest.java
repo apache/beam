@@ -50,6 +50,7 @@ import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -61,6 +62,7 @@ import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
@@ -247,18 +249,16 @@ public class AwsModuleTest {
     Supplier<AwsCredentialsProvider> provider =
         () ->
             StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
-                .stsClient(StsClient.create())
+                .stsClient(
+                    StsClient.builder()
+                        .region(Region.AWS_GLOBAL)
+                        .credentialsProvider(AnonymousCredentialsProvider.create())
+                        .build())
                 .refreshRequest(req)
                 .build();
 
-    Properties overrides = new Properties();
-    overrides.setProperty(AWS_REGION.property(), Regions.US_EAST_1.getName());
-    overrides.setProperty(AWS_ACCESS_KEY_ID.property(), "key");
-    overrides.setProperty(AWS_SECRET_ACCESS_KEY.property(), "secret");
-
-    // Region and credentials for STS client are resolved using default providers
-    AwsCredentialsProvider deserializedProvider =
-        withSystemProperties(overrides, () -> serializeAndDeserialize(provider.get()));
+    // Deserialize without credentials from system properties
+    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider.get());
 
     Supplier<AssumeRoleWithWebIdentityRequest> requestSupplier =
         (Supplier<AssumeRoleWithWebIdentityRequest>)
