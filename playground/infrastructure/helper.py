@@ -152,7 +152,9 @@ async def get_statuses(
             semaphore.release()
 
     for example in examples:
-        if not example.tag.never_run:
+        if example.tag.never_run:
+            logging.info("skipping non runnable example %s", example.filepath)
+        else:
             tasks.append(_semaphored_task(example))
     await tqdm.gather(*tasks)
 

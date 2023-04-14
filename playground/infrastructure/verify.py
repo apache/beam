@@ -81,6 +81,7 @@ class Verifier:
                 example: beam example that should be verified
             """
             if example.tag.never_run:
+                logging.info("populating example fields from provided files %s", example.filepath)
                 _populate_from_repo(example)
             else:
                 await _populate_from_runner(example)
