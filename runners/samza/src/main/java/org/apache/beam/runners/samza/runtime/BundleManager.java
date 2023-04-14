@@ -26,7 +26,9 @@ public interface BundleManager<OutT> {
   void countNewElement();
 
   /**
-   * Signals a watermark event arrived. The BundleManager will decide if the watermark needs to be processed, and notify the listener if needed.
+   * Signals a watermark event arrived. The BundleManager will decide if the watermark needs to be
+   * processed, and notify the listener if needed.
+   *
    * @param watermark
    * @param emitter
    */
@@ -34,13 +36,15 @@ public interface BundleManager<OutT> {
 
   /**
    * Signals the BundleManager that a timer is up.
+   *
    * @param keyedTimerData
    * @param emitter
    */
   void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter);
 
   /**
-   * Fails the current bundle, throws away the pending output, and resets the bundle to an empty state.
+   * Fails the current bundle, throws away the pending output, and resets the bundle to an empty
+   * state.
    *
    * @param t the throwable that caused the failure.
    */
@@ -48,6 +52,7 @@ public interface BundleManager<OutT> {
 
   /**
    * Tries to close the bundle, and reset the bundle to an empty state.
+   *
    * @param emitter
    */
   void tryFinishBundle(OpEmitter<OutT> emitter);
