@@ -138,7 +138,7 @@ def make_preprocessing_fn(frequency_threshold):
             indices=feature.indices,
             values=feature.values,
             dense_shape=[feature.dense_shape[0], 1])
-        feature = tf.sparse_to_dense(feature, default_value=default_value)
+        feature = tf.sparse.to_dense(feature, default_value=default_value)
         # Reshaping from a batch of vectors of size 1 to a batch of scalars and
         # adding a bucketized version.
         feature = tf.squeeze(feature, axis=1)
