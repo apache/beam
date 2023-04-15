@@ -55,6 +55,8 @@ from typing import Any
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Generic
+from typing import TypeVar
 
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
@@ -278,15 +280,19 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
+V = TypeVar("V")
+T = TypeVar("T", bound=TimestampTypes)
+
+
 @total_ordering
-class TimestampedValue(object):
+class TimestampedValue(Generic[V, T]):
   """A timestamped value having a value and a timestamp.
 
   Attributes:
     value: The underlying value.
     timestamp: Timestamp associated with the value as seconds since Unix epoch.
   """
-  def __init__(self, value, timestamp):
+  def __init__(self, value: V, timestamp: T):
     # type: (Any, TimestampTypes) -> None
     self.value = value
     self.timestamp = Timestamp.of(timestamp)

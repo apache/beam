@@ -53,7 +53,6 @@ from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampCombiner
-from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import row_type
@@ -3628,7 +3627,7 @@ def _strip_output_annotations(type_hint):
   # type inferencer understands.
   # Then we can replace them with the correct element types instead of
   # using Any. Refer to typehints.WindowedValue when doing this.
-  annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
+  annotations = (WindowedValue, pvalue.TaggedOutput)
 
   contains_annotation = False
 
