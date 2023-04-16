@@ -36,7 +36,7 @@ authors = [
     {name = 'apache-beam', email = 'dev@beam.apache.org'}
     ]
 description = 'Apache Beam is a unified programming model for both batch and streaming cleadata processing, enabling efficient execution across diverse distributed execution engines and providing extensibility points for connecting to different technologies and user communities.'
-readme = "README.md"
+#readme = "../../README.md"
 keywords = ['apache beam']
 requires-python = ">=3.7"
 dynamic = ['version']
@@ -206,12 +206,20 @@ zip-safe = false
 
 [tool.setuptools.packages.find]
 where = ['apache_beam']
-include = [
-              '*/*.pyx',
-              '*/*/*.pyx',
-              '*/*.pxd',
-              '*/*/*.pxd',
-              '*/*.h',
-              '*/*/*.h',
-              'testing/data/*.yaml'
+
+[tool.setuptools.package-data]
+mypkg = [
+    '*/*.pyx',
+    '*/*/*.pyx',
+    '*/*.pxd',
+    '*/*/*.pxd',
+    '*/*.h',
+    '*/*/*.h',
+    'testing/data/*.yaml',
+    # get portability package data
+    'portability/api/**/*.pyi',
+    'portability/api/**/*.yaml',
 ]
+
+[tool.setuptools.dynamic]
+version = {attr = "apache_beam.__version__"}

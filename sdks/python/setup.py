@@ -67,18 +67,6 @@ class mypy(Command):
     if result != 0:
       raise DistutilsError("mypy exited with status %d" % result)
 
-
-def get_version():
-  global_names = {}
-  exec(  # pylint: disable=exec-used
-      open(os.path.join(
-          os.path.dirname(os.path.abspath(__file__)),
-          'apache_beam/version.py')
-          ).read(),
-      global_names
-  )
-  return global_names['__version__']
-
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
   _PIP_VERSION = get_distribution('pip').version
@@ -133,17 +121,6 @@ def generate_protos_first():
     warnings.warn("Could not import gen_protos, skipping proto generation.")
 
 
-def get_portability_package_data():
-  files = []
-  portability_dir = Path(__file__).parent / 'apache_beam' / \
-                    'portability' / 'api'
-  for ext in ['*.pyi', '*.yaml']:
-    files.extend(
-        str(p.relative_to(portability_dir.parent.parent))
-        for p in portability_dir.rglob(ext))
-
-  return files
-
 if sys.version_info.major == 3 and sys.version_info.minor >= 12:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
@@ -158,19 +135,6 @@ if __name__ == '__main__':
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
-      packages=setuptools.find_packages(),
-      package_data={
-          'apache_beam': [
-              '*/*.pyx',
-              '*/*/*.pyx',
-              '*/*.pxd',
-              '*/*/*.pxd',
-              '*/*.h',
-              '*/*/*.h',
-              'testing/data/*.yaml',
-              *get_portability_package_data()
-          ]
-      },
       ext_modules=cythonize([
           'apache_beam/**/*.pyx',
           'apache_beam/coders/coder_impl.py',
