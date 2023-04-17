@@ -60,12 +60,25 @@ class mypy(Command):
     project_path = normalize_path(ei_cmd.egg_base)
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
-  def run(self):
-    import subprocess
-    args = ['mypy', self.get_project_path()]
-    result = subprocess.call(args)
-    if result != 0:
-      raise DistutilsError("mypy exited with status %d" % result)
+def get_version():
+  global_names = {}
+  exec(  # pylint: disable=exec-used
+      open(os.path.join(
+          os.path.dirname(os.path.abspath(__file__)),
+          'apache_beam/version.py')
+          ).read(),
+      global_names
+  )
+  return global_names['__version__']
+
+PACKAGE_VERSION = get_version()
+
+def run(self):
+  import subprocess
+  args = ['mypy', self.get_project_path()]
+  result = subprocess.call(args)
+  if result != 0:
+    raise DistutilsError("mypy exited with status %d" % result)
 
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
@@ -120,6 +133,16 @@ def generate_protos_first():
   except ImportError:
     warnings.warn("Could not import gen_protos, skipping proto generation.")
 
+def get_portability_package_data():
+  files = []
+  portability_dir = Path(__file__).parent / 'apache_beam' / \
+                    'portability' / 'api'
+  for ext in ['*.pyi', '*.yaml']:
+    files.extend(
+        str(p.relative_to(portability_dir.parent.parent))
+        for p in portability_dir.rglob(ext))
+
+  return files
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 12:
   warnings.warn(
@@ -135,20 +158,34 @@ if __name__ == '__main__':
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
-      ext_modules=cythonize([
-          'apache_beam/**/*.pyx',
-          'apache_beam/coders/coder_impl.py',
-          'apache_beam/metrics/cells.py',
-          'apache_beam/metrics/execution.py',
-          'apache_beam/runners/common.py',
-          'apache_beam/runners/worker/logger.py',
-          'apache_beam/runners/worker/opcounters.py',
-          'apache_beam/runners/worker/operations.py',
-          'apache_beam/transforms/cy_combiners.py',
-          'apache_beam/transforms/stats.py',
-          'apache_beam/utils/counters.py',
-          'apache_beam/utils/windowed_value.py',
+    packages=setuptools.find_packages(),
+    version = PACKAGE_VERSION,
+    package_data={
+        'apache_beam': [
+            '*/*.pyx',
+            '*/*/*.pyx',
+            '*/*.pxd',
+            '*/*/*.pxd',
+            '*/*.h',
+            '*/*/*.h',
+            'testing/data/*.yaml',
+            *get_portability_package_data()
+        ]},
+    ext_modules=cythonize([
+        'apache_beam/**/*.pyx',
+        'apache_beam/coders/coder_impl.py',
+        'apache_beam/metrics/cells.py',
+        'apache_beam/metrics/execution.py',
+        'apache_beam/runners/common.py',
+        'apache_beam/runners/worker/logger.py',
+        'apache_beam/runners/worker/opcounters.py',
+        'apache_beam/runners/worker/operations.py',
+        'apache_beam/transforms/cy_combiners.py',
+        'apache_beam/transforms/stats.py',
+        'apache_beam/utils/counters.py',
+        'apache_beam/utils/windowed_value.py',
       ], language_level=3),
+      zip_safe=False,
       cmdclass={
           'mypy': mypy,
       },
