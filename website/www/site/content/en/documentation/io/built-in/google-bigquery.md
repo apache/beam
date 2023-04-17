@@ -981,6 +981,11 @@ BigQueryIO currently has the following limitations.
    multiple BigQuery tables. The Beam SDK for Java does not have this limitation
    as it partitions your dataset for you.
 
+3. When you [load data](https://cloud.google.com/bigquery/docs/loading-data) into BigQuery, [these limits](https://cloud.google.com/bigquery/quotas#load_jobs) are applied.
+Particularly, a load job fails if it executes for longer than six hours.
+This might be caused if your BigQuery job uses a shared pool of slots.
+It is highly recommended to use [BigQuery reservations](https://cloud.google.com/bigquery/docs/reservations-intro#benefits_of_reservations).
+
 ## Additional examples
 
 You can find additional examples that use BigQuery in Beam's examples
