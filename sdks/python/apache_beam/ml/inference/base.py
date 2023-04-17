@@ -33,6 +33,7 @@ import sys
 import threading
 import time
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Generic
 from typing import Iterable
@@ -59,6 +60,8 @@ _NANOSECOND_TO_MICROSECOND = 1_000
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
 PredictionT = TypeVar('PredictionT')
+PreT = TypeVar('PreT')
+PostT = TypeVar('PostT')
 _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
@@ -301,8 +304,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return self._unkeyed.update_model_path(model_path=model_path)
 
 
-class RunInference(beam.PTransform[beam.PCollection[ExampleT],
-                                   beam.PCollection[PredictionT]]):
+class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
+                                   beam.PCollection[Union[PredictionT,
+                                                          PostT]]]):
   def __init__(
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
@@ -310,7 +314,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None):
+      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
+      preprocess_fn: Optional[Callable[[PreT], ExampleT]] = None,
+      postprocess_fn: Optional[Callable[[PredictionT], PostT]] = None):
     """
     A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
@@ -340,6 +346,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._model_metadata_pcoll = model_metadata_pcoll
     self._enable_side_input_loading = self._model_metadata_pcoll is not None
     self._with_exception_handling = False
+    self._preprocess_fn = preprocess_fn
+    self._postprocess_fn = postprocess_fn
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -363,6 +371,11 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     self._model_handler.validate_inference_args(self._inference_args)
     resource_hints = self._model_handler.get_resource_hints()
+
+    if self._preprocess_fn is not None:
+      pcoll = pcoll | "BeamML_RunInference_Preprocess" >> beam.Map(
+          self._preprocess_fn)
+
     batched_elements_pcoll = (
         pcoll
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
@@ -387,9 +400,15 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
           use_subprocess=self._use_subprocess,
           threshold=self._threshold)
 
-    return (
+    results = (
         batched_elements_pcoll
         | 'BeamML_RunInference' >> run_inference_pardo)
+
+    if self._postprocess_fn is not None:
+      return results | "BeamML_RunInference_Postprocess" >> beam.Map(
+          self._postprocess_fn)
+
+    return results
 
   def with_exception_handling(
       self, *, exc_class=Exception, use_subprocess=False, threshold=1):

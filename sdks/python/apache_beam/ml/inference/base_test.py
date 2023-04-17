@@ -179,6 +179,75 @@ class RunInferenceBaseTest(unittest.TestCase):
           model_handler)
       assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
 
+  def test_run_inference_preprocessing(self):
+    def mult_two(example: str) -> int:
+      return int(example) * 2
+
+    with TestPipeline() as pipeline:
+      examples = ["1", "5", "3", "10"]
+      expected = [int(example) * 2 + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(), preprocess_fn=mult_two)
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_postprocessing(self):
+    def mult_two(example: int) -> str:
+      return str(example * 2)
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [str((example + 1) * 2) for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(), postprocess_fn=mult_two)
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_keyed_pre_and_post_processing(self):
+    def mult_two(element):
+      return (element[0], element[1] * 2)
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [
+          (i, ((example * 2) + 1) * 2) for i, example in enumerate(examples)
+      ]
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(FakeModelHandler()),
+          preprocess_fn=mult_two,
+          postprocess_fn=mult_two)
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_maybe_keyed_pre_and_post_processing(self):
+    def mult_two(element):
+      return element * 2
+
+    def mult_two_keyed(element):
+      return (element[0], element[1] * 2)
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [((2 * example) + 1) * 2 for example in examples]
+      keyed_expected = [
+          (i, ((2 * example) + 1) * 2) for i, example in enumerate(examples)
+      ]
+      model_handler = base.MaybeKeyedModelHandler(FakeModelHandler())
+
+      pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)
+      actual = pcoll | 'RunUnkeyed' >> base.RunInference(
+          model_handler, preprocess_fn=mult_two, postprocess_fn=mult_two)
+      assert_that(actual, equal_to(expected), label='CheckUnkeyed')
+
+      keyed_pcoll = pipeline | 'Keyed' >> beam.Create(keyed_examples)
+      keyed_actual = keyed_pcoll | 'RunKeyed' >> base.RunInference(
+          model_handler,
+          preprocess_fn=mult_two_keyed,
+          postprocess_fn=mult_two_keyed)
+      assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
+
   def test_run_inference_impl_dlq(self):
     with TestPipeline() as pipeline:
       examples = [1, 'TEST', 3, 10, 'TEST2']

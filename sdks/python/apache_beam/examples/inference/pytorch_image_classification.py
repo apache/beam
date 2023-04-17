@@ -69,13 +69,6 @@ def filter_empty_lines(text: str) -> Iterator[str]:
     yield text
 
 
-class PostProcessor(beam.DoFn):
-  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
-    filename, prediction_result = element
-    prediction = torch.argmax(prediction_result.inference, dim=0)
-    yield filename + ',' + str(prediction.item())
-
-
 def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
@@ -130,6 +123,17 @@ def run(
     model_class = models.mobilenet_v2
     model_params = {'num_classes': 1000}
 
+  def preprocess(image_name: str) -> Tuple[str, torch.Tensor]:
+    image_name, image = read_image(
+      image_file_name=image_name,
+      path_to_dir=known_args.images_dir)
+    return (image_name, preprocess_image(image))
+
+  def postprocess(element: Tuple[str, PredictionResult]) -> str:
+    filename, prediction_result = element
+    prediction = torch.argmax(prediction_result.inference, dim=0)
+    return filename + ',' + str(prediction.item())
+
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
   model_handler = KeyedModelHandler(
@@ -148,16 +152,11 @@ def run(
   filename_value_pair = (
       pipeline
       | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
-      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
-      | 'ReadImageData' >> beam.Map(
-          lambda image_name: read_image(
-              image_file_name=image_name, path_to_dir=known_args.images_dir))
-      | 'PreprocessImages' >> beam.MapTuple(
-          lambda file_name, data: (file_name, preprocess_image(data))))
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines))
   predictions = (
       filename_value_pair
-      | 'PyTorchRunInference' >> RunInference(model_handler)
-      | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
+      | 'PyTorchRunInference' >> RunInference(
+          model_handler, preprocess_fn=preprocess, postprocess_fn=postprocess))
 
   predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
     known_args.output,

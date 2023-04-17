@@ -114,13 +114,14 @@ def run(
   image = (
       pipeline
       | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
-      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
-      | "PreProcessInputs" >>
-      beam.Map(lambda image_name: read_image(image_name, known_args.image_dir)))
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines))
 
   predictions = (
       image
-      | "RunInference" >> RunInference(model_loader)
+      | "RunInference" >> RunInference(
+          model_loader,
+          preprocess_fn=lambda image_name: read_image(
+              image_name, known_args.image_dir))
       | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
 
   _ = predictions | "WriteOutput" >> beam.io.WriteToText(
