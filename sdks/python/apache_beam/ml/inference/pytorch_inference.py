@@ -25,8 +25,11 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
+from typing import TypeVar
+from typing import Union
 
 import torch
+import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
@@ -37,6 +40,9 @@ __all__ = [
     'PytorchModelHandlerTensor',
     'PytorchModelHandlerKeyedTensor',
 ]
+
+ExamplePy = TypeVar('ExamplePy')
+PredictionPy = TypeVar('PredictionPy')
 
 TensorInferenceFn = Callable[[
     Sequence[torch.Tensor],
@@ -177,8 +183,8 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
   return attr_fn
 
 
-class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
-                                             PredictionResult,
+class PytorchModelHandlerTensor(ModelHandler[Union[torch.Tensor, ExamplePy],
+                                             Union[PredictionResult, PredictionPy],
                                              torch.nn.Module]):
   def __init__(
       self,
@@ -187,7 +193,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       model_params: Optional[Dict[str, Any]] = None,
       device: str = 'CPU',
       *,
+      preprocess_fn: Optional[Callable[[ExamplePy], torch.Tensor]] = None,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      postprocess_fn: Optional[Callable[[PredictionResult], PredictionPy]] = None,
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None):
@@ -235,7 +243,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params if model_params else {}
+    self._preprocess_fn = preprocess_fn
     self._inference_fn = inference_fn
+    self._postprocess_fn = postprocess_fn
     self._batching_kwargs = {}
     if min_batch_size is not None:
       self._batching_kwargs['min_batch_size'] = min_batch_size
@@ -267,6 +277,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     else:
       self._state_dict_path = (
           model_path if model_path else self._state_dict_path)
+
+  def get_preprocess_fn(self) -> Optional[Callable[[ExamplePy], torch.Tensor]]:
+    return self._preprocess_fn
 
   def run_inference(
       self,
@@ -300,6 +313,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         if not self._torch_script_model_path else self._torch_script_model_path)
     return self._inference_fn(
         batch, model, self._device, inference_args, model_id)
+
+  def get_postprocess_fn(self) -> Optional[Callable[[PredictionResult], PredictionPy]]:
+    return self._postprocess_fn
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -388,8 +404,8 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
 
 
 @experimental(extra_message="No backwards-compatibility guarantees.")
-class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
-                                                  PredictionResult,
+class PytorchModelHandlerKeyedTensor(ModelHandler[Union[Dict[str, torch.Tensor], ExamplePy],
+                                                  Union[PredictionResult, PredictionPy],
                                                   torch.nn.Module]):
   def __init__(
       self,
@@ -398,7 +414,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       model_params: Optional[Dict[str, Any]] = None,
       device: str = 'CPU',
       *,
-      inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn,
+      preprocess_fn: Optional[Callable[[ExamplePy], Dict[str, torch.Tensor]]] = None,
+      inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      postprocess_fn: Optional[Callable[[PredictionResult], PredictionPy]] = None,
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None):
@@ -452,7 +470,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_params = model_params if model_params else {}
+    self._preprocess_fn = preprocess_fn
     self._inference_fn = inference_fn
+    self._postprocess_fn = postprocess_fn
     self._batching_kwargs = {}
     if min_batch_size is not None:
       self._batching_kwargs['min_batch_size'] = min_batch_size
@@ -483,6 +503,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     else:
       self._state_dict_path = (
           model_path if model_path else self._state_dict_path)
+
+  def get_preprocess_fn(self) -> Optional[Callable[[ExamplePy], Dict[str, torch.Tensor]]]:
+    return self._preprocess_fn
 
   def run_inference(
       self,
@@ -516,6 +539,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         if not self._torch_script_model_path else self._torch_script_model_path)
     return self._inference_fn(
         batch, model, self._device, inference_args, model_id)
+
+  def get_postprocess_fn(self) -> Optional[Callable[[PredictionResult], PredictionPy]]:
+    return self._postprocess_fn
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """

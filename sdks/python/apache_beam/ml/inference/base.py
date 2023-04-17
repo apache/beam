@@ -33,6 +33,7 @@ import sys
 import threading
 import time
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Generic
 from typing import Iterable
@@ -113,6 +114,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
 
+  def get_preprocess_fn(self) -> Optional[Callable[[ExampleT], ExampleT]]:
+    """
+    Returns:
+       A function to be invoked on every input example.
+    """
+    return None
+
   def run_inference(
       self,
       batch: Sequence[ExampleT],
@@ -130,6 +138,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       An Iterable of Predictions.
     """
     raise NotImplementedError(type(self))
+
+  def get_postprocess_fn(self) -> Optional[Callable[[PredictionT], PredictionT]]:
+    """
+    Returns:
+       A function to be invoked on every output Prediction.
+    """
+    return None
 
   def get_num_bytes(self, batch: Sequence[ExampleT]) -> int:
     """
@@ -194,6 +209,14 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
+  
+  def get_preprocess_fn(self) -> Optional[Callable[[Tuple[KeyT, ExampleT]], Tuple[KeyT, ExampleT]]]:
+    unkeyed_fn = self._unkeyed.get_preprocess_fn()
+    if unkeyed_fn is None:
+      return None
+    def preprocess(element: Tuple[KeyT, ExampleT]) -> Tuple[KeyT, ExampleT]:
+      return (element[0], unkeyed_fn(element[1]))
+    return preprocess
 
   def run_inference(
       self,
@@ -204,6 +227,14 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     keys, unkeyed_batch = zip(*batch)
     return zip(
         keys, self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
+  
+  def get_postprocess_fn(self) -> Optional[Callable[[Tuple[KeyT, ExampleT]], Tuple[KeyT, ExampleT]]]:
+    unkeyed_fn = self._unkeyed.get_postprocess_fn()
+    if unkeyed_fn is None:
+      return None
+    def postprocess(key: KeyT, value: ExampleT) -> Tuple[KeyT, ExampleT]:
+      return (key, unkeyed_fn(value))
+    return postprocess
 
   def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
     keys, unkeyed_batch = zip(*batch)
@@ -252,6 +283,20 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
+  
+  def get_preprocess_fn(self) -> Optional[Callable[[Union[ExampleT, Tuple[KeyT,
+                                                                ExampleT]]], Union[ExampleT, Tuple[KeyT,
+                                                                ExampleT]]]]:
+    unkeyed_fn = self._unkeyed.get_preprocess_fn()
+    if unkeyed_fn is None:
+      return None
+    def preprocess(element: Union[ExampleT, Tuple[KeyT, ExampleT]]) -> Union[ExampleT, Tuple[KeyT,
+                                                                ExampleT]]:
+      if isinstance(element, tuple):
+        # keyed path
+        return (element[0], unkeyed_fn(element[1]))
+      return unkeyed_fn(element)
+    return preprocess
 
   def run_inference(
       self,
@@ -274,6 +319,20 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return zip(keys, unkeyed_results)
     else:
       return unkeyed_results
+  
+  def get_postprocess_fn(self) -> Optional[Callable[[Union[PredictionT, Tuple[KeyT,
+                                                                PredictionT]]], Union[PredictionT, Tuple[KeyT,
+                                                                PredictionT]]]]:
+    unkeyed_fn = self._unkeyed.get_postprocess_fn()
+    if unkeyed_fn is None:
+      return None
+    def postprocess(element: Union[PredictionT, Tuple[KeyT, PredictionT]]) -> Union[PredictionT, Tuple[KeyT,
+                                                                PredictionT]]:
+      if isinstance(element, tuple):
+        # keyed path
+        return (element[0], unkeyed_fn(element[1]))
+      return unkeyed_fn(element)
+    return postprocess
 
   def get_num_bytes(
       self, batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]]) -> int:
@@ -363,6 +422,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     self._model_handler.validate_inference_args(self._inference_args)
     resource_hints = self._model_handler.get_resource_hints()
+    preprocess_fn = self._model_handler.get_preprocess_fn()
+    if preprocess_fn is not None:
+      pcoll = pcoll | "BeamML_RunInference_Preprocess" >> beam.Map(preprocess_fn)
     batched_elements_pcoll = (
         pcoll
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
@@ -387,9 +449,13 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
           use_subprocess=self._use_subprocess,
           threshold=self._threshold)
 
-    return (
-        batched_elements_pcoll
-        | 'BeamML_RunInference' >> run_inference_pardo)
+    results = batched_elements_pcoll | 'BeamML_RunInference' >> run_inference_pardo
+
+    postprocess_fn = self._model_handler.get_postprocess_fn()
+    if postprocess_fn is not None:
+      results = results | "BeamML_RunInference_Postprocess" >> beam.Map(postprocess_fn)
+
+    return results
 
   def with_exception_handling(
       self, *, exc_class=Exception, use_subprocess=False, threshold=1):

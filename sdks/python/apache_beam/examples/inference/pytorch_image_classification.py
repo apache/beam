@@ -42,12 +42,11 @@ from torchvision import transforms
 
 
 def read_image(image_file_name: str,
-               path_to_dir: Optional[str] = None) -> Tuple[str, Image.Image]:
+               path_to_dir: Optional[str] = None) -> Image.Image:
   if path_to_dir is not None:
     image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
-    data = Image.open(io.BytesIO(file.read())).convert('RGB')
-    return image_file_name, data
+    return Image.open(io.BytesIO(file.read())).convert('RGB')
 
 
 def preprocess_image(data: Image.Image) -> torch.Tensor:
@@ -130,6 +129,11 @@ def run(
     model_class = models.mobilenet_v2
     model_params = {'num_classes': 1000}
 
+  def preprocess(image_name: str) -> torch.Tensor:
+    print(image_name)
+    image = read_image(image_file_name=image_name, path_to_dir=known_args.images_dir)
+    return preprocess_image(image)
+
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
   model_handler = KeyedModelHandler(
@@ -139,7 +143,8 @@ def run(
           model_params=model_params,
           device=device,
           min_batch_size=10,
-          max_batch_size=100))
+          max_batch_size=100,
+          preprocess_fn=preprocess))
 
   pipeline = test_pipeline
   if not test_pipeline:
@@ -149,11 +154,7 @@ def run(
       pipeline
       | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
       | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
-      | 'ReadImageData' >> beam.Map(
-          lambda image_name: read_image(
-              image_file_name=image_name, path_to_dir=known_args.images_dir))
-      | 'PreprocessImages' >> beam.MapTuple(
-          lambda file_name, data: (file_name, preprocess_image(data))))
+      | 'MapToKey' >> beam.Map(lambda image_name: (image_name, image_name)))
   predictions = (
       filename_value_pair
       | 'PyTorchRunInference' >> RunInference(model_handler)
