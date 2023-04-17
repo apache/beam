@@ -265,7 +265,7 @@ public class WorkerCustomSources {
                     + "allowable limit when splitting %s. With %d bundles, total serialized size "
                     + "of %d bytes is still larger than the limit %d. For more information, please "
                     + "check the corresponding FAQ entry at "
-                    + "https://cloud.google.com/dataflow/pipelines/troubleshooting-your-pipeline",
+                    + "https://cloud.google.com/dataflow/docs/guides/common-errors#boundedsource-objects-splitintobundles",
                 source, bundles.size(), serializedSize, apiByteLimit);
         throw new IllegalArgumentException(message);
       }
@@ -296,7 +296,7 @@ public class WorkerCustomSources {
                   + "it generated %d BoundedSource objects with total serialized size of %d bytes "
                   + "which is larger than the limit %d. "
                   + "For more information, please check the corresponding FAQ entry at "
-                  + "https://cloud.google.com/dataflow/pipelines/troubleshooting-your-pipeline",
+                  + "https://cloud.google.com/dataflow/docs/guides/common-errors#boundedsource-objects-splitintobundles",
               source,
               desiredBundleSizeBytes,
               numBundlesBeforeRebundling,
