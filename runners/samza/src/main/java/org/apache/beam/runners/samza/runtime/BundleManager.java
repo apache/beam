@@ -20,10 +20,8 @@ package org.apache.beam.runners.samza.runtime;
 import org.joda.time.Instant;
 
 public interface BundleManager<OutT> {
-  /**
-   * Accounts a new element to the bundle. Also lazy starts the bundle, if it is not started yet.
-   */
-  void countNewElement();
+  /** Starts a new bundle if not already started, then adds an element to the existing bundle. */
+  void tryStartBundle();
 
   /**
    * Signals a watermark event arrived. The BundleManager will decide if the watermark needs to be
