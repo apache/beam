@@ -22,7 +22,11 @@ requires = [
     "grpcio-tools==1.51.3",
     "mypy-protobuf==3.4.0",
     "distlib==0.3.6",
-    "numpy>=1.14.3,<1.25"
+    # Numpy headers
+    "numpy>=1.14.3,<1.25",
+    # required to built platform specific wheels by including the compiled
+    # extensions.
+    "cython==0.29.34"
 ]
 build-backend = "setuptools.build_meta"
 
