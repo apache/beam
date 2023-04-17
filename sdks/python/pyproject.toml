@@ -28,7 +28,7 @@ requires = [
     # extensions.
     "cython==0.29.34"
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "setuptools.build_meta:__legacy__"
 
 
 [project.urls]
