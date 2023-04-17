@@ -26,7 +26,7 @@ tasks.register("mongodbioIT") {
 }
 
 tasks.register("examplesPostCommit") {
-  getVersionsAsList('direct_examples_postcommit_py_versions').each {
+  getVersionsAsList('python_versions').each {
     dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:examples")
   }
 }

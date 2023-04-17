@@ -37,22 +37,6 @@ This section describes what is needed to run the backend application.
 
 ## Go commands to run/test application locally
 
-### Prerequisite
-
-> **Google Cloud Shell note:** `start_datastore_emulator.sh` script makes use of `nc` and `lsof` commands which are not installed on Google Cloud Shell machines. You can install them using `sudo apt install netcat lsof`.
-
-> **Google Cloud Shell note:** run `unset GOOGLE_CLOUD_PROJECT` before running tests so they would use locally running datastore emulator.
-
-Start datastore emulator
-```shell
-bash start_datastore_emulator.sh
-```
-
-After you have finished running tests
-```shell
-bash stop_datastore_emulator.sh
-```
-
 ### Run/build
 Go to the backend directory:
 

@@ -22,7 +22,6 @@ import 'package:playground_components/playground_components.dart';
 import '../../../../constants/font_weight.dart';
 import '../../../../constants/fonts.dart';
 import '../../../../constants/sizes.dart';
-import '../../../../modules/analytics/analytics_service.dart';
 import 'feedback_dropdown_icon_button.dart';
 
 const double kTextFieldWidth = 365.0;
@@ -40,13 +39,16 @@ class FeedbackDropdownContent extends StatelessWidget {
   static const sendButtonKey = Key('sendFeedbackButtonKey');
 
   final void Function() close;
+  final EventSnippetContext eventSnippetContext;
+  final FeedbackRating feedbackRating;
   final TextEditingController textController;
 
   const FeedbackDropdownContent({
-    Key? key,
     required this.close,
+    required this.eventSnippetContext,
+    required this.feedbackRating,
     required this.textController,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -172,8 +174,12 @@ class FeedbackDropdownContent extends StatelessWidget {
                     key: sendButtonKey,
                     onPressed: () {
                       if (textController.text.isNotEmpty) {
-                        AnalyticsService.get(context).trackClickSendFeedback(
-                          textController.text,
+                        PlaygroundComponents.analyticsService.sendUnawaited(
+                          FeedbackFormSentAnalyticsEvent(
+                            rating: feedbackRating,
+                            text: textController.text,
+                            snippetContext: eventSnippetContext,
+                          ),
                         );
                       }
                       close();

@@ -123,19 +123,19 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, cerrors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
 	}
 
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
+	if err = utils.SetToCache(controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
 		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving status of the code processing")
 	}
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
+	if err = utils.SetToCache(controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
 		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial run output")
 	}
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
+	if err = utils.SetToCache(controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
 		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving value for the logs output")
 	}
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
+	if err = utils.SetToCache(controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
 		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial cancel flag")
 	}
@@ -185,7 +185,7 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	newRunOutput := ""
 	if len(runOutput) > lastIndex {
 		newRunOutput = runOutput[lastIndex:]
-		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
+		if err := utils.SetToCache(controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
 			return nil, cerrors.InternalError(errorMessage, "Error during saving pagination value")
 		}
 	}
@@ -215,7 +215,7 @@ func (controller *playgroundController) GetLogs(ctx context.Context, info *pb.Ge
 	newLogs := ""
 	if len(logs) > lastIndex {
 		newLogs = logs[lastIndex:]
-		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, lastIndex+len(newLogs)); err != nil {
+		if err := utils.SetToCache(controller.cacheService, pipelineId, cache.LogsIndex, lastIndex+len(newLogs)); err != nil {
 			return nil, cerrors.InternalError(errorMessage, "Error during saving pagination value")
 		}
 	}
@@ -308,7 +308,7 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 		logger.Errorf("%s: Cancel(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
 		return nil, cerrors.InvalidArgumentError(errorMessage, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
-	if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
+	if err := utils.SetToCache(controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
 		return nil, cerrors.InternalError(errorMessage, "Error during saving cancel flag value")
 	}
 	return &pb.CancelResponse{}, nil

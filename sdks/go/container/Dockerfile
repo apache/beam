@@ -17,7 +17,8 @@
 ###############################################################################
 
 FROM debian:bullseye
-MAINTAINER "Apache Beam <dev@beam.apache.org>"
+LABEL Author "Apache Beam <dev@beam.apache.org>"
+
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -34,11 +35,8 @@ ADD target/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 COPY target/LICENSE /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
 
-# Add golang licenses. Because the go-license directory may be empty if
-# pull_licenses is false, and COPY fails if there are no files,
-# copy an extra LICENSE file then remove it.
-COPY target/LICENSE target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
-RUN rm /opt/apache/beam/third_party_licenses/golang/LICENSE
+# Add Go licenses.
+COPY target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
 RUN if [ "$pull_licenses" = "false" ] ; then \
     # Remove above golang license and dir if pull licenses false
     rm -rf /opt/apache/beam/third_party_licenses ; \

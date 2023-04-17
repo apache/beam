@@ -367,9 +367,9 @@ public class AvroIOTest implements Serializable {
 
       List<T> values =
           ImmutableList.of(
-              (T) new AvroGeneratedUser("Bob", 256, null),
-              (T) new AvroGeneratedUser("Alice", 128, null),
-              (T) new AvroGeneratedUser("Ted", null, "white"));
+              (T) AvroGeneratedUserFactory.newInstance("Bob", 256, null),
+              (T) AvroGeneratedUserFactory.newInstance("Alice", 128, null),
+              (T) AvroGeneratedUserFactory.newInstance("Ted", null, "white"));
 
       writePipeline
           .apply(Create.of(values))

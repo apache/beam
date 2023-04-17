@@ -49,7 +49,6 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
-
 # [2.48.0] - Unreleased
 
 ## Highlights
@@ -59,11 +58,13 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added rename for GCS and copy for local filesystem (Go) ([#25779](https://github.com/apache/beam/issues/26064)).
+* Added support for enhanced fan-out in KinesisIO.Read (Java) ([#19967](https://github.com/apache/beam/issues/19967)).
+  * This change is not compatible with Flink savepoints created by Beam 2.46.0 applications which had KinesisIO sources.
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Dead letter queue support added to RunInference in Python ([#24209](https://github.com/apache/beam/issues/24209)).
 
 ## Breaking Changes
 
@@ -76,12 +77,13 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed Java bootloader failing with Too Long Args due to long classpaths, with a pathing jar. (Java) ([#25582](https://github.com/apache/beam/issues/25582)).
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.47.0] - Unreleased
+# [2.47.0] - Cut, Unreleased
 
 ## Highlights
 

@@ -37,6 +37,7 @@ from typing import TypeVar
 import fasteners
 
 T = TypeVar('T')
+AUTH_KEY = b'mps'
 
 
 class _SingletonProxy:
@@ -201,7 +202,11 @@ class MultiProcessShared(Generic[T]):
                 address = fin.read()
               logging.info('Connecting to remote proxy at %s', address)
               host, port = address.split(':')
-              manager = _SingletonRegistrar(address=(host, int(port)))
+              # We need to be able to authenticate with both the manager and
+              # the process.
+              manager = _SingletonRegistrar(
+                  address=(host, int(port)), authkey=AUTH_KEY)
+              multiprocessing.current_process().authkey = AUTH_KEY
               try:
                 manager.connect()
                 self._manager = manager
@@ -223,7 +228,10 @@ class MultiProcessShared(Generic[T]):
     self._manager.release_singleton(self._tag, obj)
 
   def _create_server(self, address_file):
-    self._serving_manager = _SingletonRegistrar(address=('localhost', 0))
+    # We need to be able to authenticate with both the manager and the process.
+    self._serving_manager = _SingletonRegistrar(
+        address=('localhost', 0), authkey=AUTH_KEY)
+    multiprocessing.current_process().authkey = AUTH_KEY
     # Initialize eagerly to avoid acting as the server if there are issues.
     # Note, however, that _create_server itself is called lazily.
     _process_level_singleton_manager.register_singleton(

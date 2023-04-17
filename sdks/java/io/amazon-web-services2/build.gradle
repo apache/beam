@@ -54,6 +54,7 @@ dependencies {
   implementation library.java.aws_java_sdk2_netty_client, excludeNetty
   implementation "software.amazon.kinesis:amazon-kinesis-client:2.3.4", excludeNetty
   implementation library.java.netty_all // force version of netty used by Beam
+  implementation library.java.netty_transport
   permitUnusedDeclared library.java.netty_all
   implementation library.java.byte_buddy
   implementation library.java.jackson_core
@@ -63,6 +64,7 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.protobuf_java
   implementation "commons-lang:commons-lang:2.6"
+  implementation "org.reactivestreams:reactive-streams:1.0.3"
   implementation library.java.commons_lang3
   implementation library.java.commons_codec
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

@@ -199,6 +199,13 @@ def aliasMap = [
   'mongodb': 'MongoDb',
 ]
 
+// In case the package name is different from the project folder name
+def packageNameMap = [
+  'amazon-web-services': 'aws',
+  'amazon-web-services2': 'aws2',
+  'hadoop-file-system': 'hadoop',
+]
+
 ioModulesMap.forEach {cases, ioModules ->
   def hasDefaultTrigger = (cases == "true")
   ioModules.forEach {
@@ -214,7 +221,7 @@ ioModulesMap.forEach {cases, ioModules ->
     ]
     tasks.addAll(additionalTasks.get(it, []))
     def testName = aliasMap.get(it, it.capitalize())
-    String jacocoPattern = "**/org/apache/beam/sdk/io/${it}/**"
+    String jacocoPattern = "**/org/apache/beam/sdk/io/${packageNameMap.get(it,it)}/**"
     PrecommitJobBuilder builderSingle = new PrecommitJobBuilder(
         scope: this,
         nameBase: 'Java_' + testName + '_IO_Direct',
@@ -222,7 +229,8 @@ ioModulesMap.forEach {cases, ioModules ->
         gradleSwitches: [
           '-PdisableSpotlessCheck=true',
           '-PdisableCheckStyle=true',
-          '-PenableJacocoReport'
+          // TODO(https://github.com/apache/beam/issues/26197) reenable code coverage
+          // '-PenableJacocoReport'
         ], // spotless checked in separate pre-commit
         triggerPathPatterns: triggerPaths,
         defaultPathTriggering: hasDefaultTrigger,
@@ -241,11 +249,13 @@ ioModulesMap.forEach {cases, ioModules ->
           }
           enabledForFailure(true)
         }
-        jacocoCodeCoverage {
-          execPattern('**/build/jacoco/*.exec')
-          exclusionPattern('**/AutoValue_*')
-          inclusionPattern(jacocoPattern)
-        }
+        // TODO(https://github.com/apache/beam/issues/26197) reenable code coverage
+        // after resolving "no-space left on device" error running Jacoco plugin
+        // jacocoCodeCoverage {
+        //  execPattern('**/build/jacoco/*.exec')
+        //  exclusionPattern('**/AutoValue_*')
+        //  inclusionPattern(jacocoPattern)
+        // }
       }
     }
   }
