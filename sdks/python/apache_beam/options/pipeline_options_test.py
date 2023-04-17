@@ -626,6 +626,14 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(
         True, debug_options.lookup_experiment('existing_experiment'))
 
+  def test_get_cloud_profiler_service_name(self):
+    options = PipelineOptions(
+        ['--dataflow_service_options=enable_google_cloud_profiler=sample'])
+    self.assertEqual(
+        'sample',
+        options.view_as(GoogleCloudOptions).get_cloud_profiler_service_name(
+            'enable_google_cloud_profiler'))
+
   def test_transform_name_mapping(self):
     options = PipelineOptions(['--transform_name_mapping={\"from\":\"to\"}'])
     mapping = options.view_as(GoogleCloudOptions).transform_name_mapping

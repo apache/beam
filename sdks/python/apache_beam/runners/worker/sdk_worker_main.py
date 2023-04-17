@@ -173,22 +173,21 @@ def create_harness(environment, dry_run=False):
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
-def main(unused_argv):
-  """Main entry point for SDK Fn Harness."""
-  (fn_log_handler, sdk_harness,
-   sdk_pipeline_options) = create_harness(os.environ)
+def _start_profiler_if_enabled(sdk_pipeline_options):
   experiments = (sdk_pipeline_options.view_as(DebugOptions).experiments or [])
-  service_name = sdk_pipeline_options.view_as(
-      GoogleCloudOptions).lookup_dataflow_service_option(
-          _ENABLE_GOOGLE_CLOUD_PROFILER, default=os.environ["JOB_NAME"])
-
-  if ((_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or service_name):
+  gcp_profiler_service_name = sdk_pipeline_options.view_as(
+      GoogleCloudOptions).get_cloud_profiler_service_name(
+          _ENABLE_GOOGLE_CLOUD_PROFILER)
+  if (_ENABLE_GOOGLE_CLOUD_PROFILER in experiments
+      ) or gcp_profiler_service_name:
     try:
       import googlecloudprofiler
       service_version = os.environ["JOB_ID"]
-      if service_version and service_name:
+      if service_version and gcp_profiler_service_name:
         googlecloudprofiler.start(
-            service=service_name, service_version=service_version, verbose=1)
+            service=gcp_profiler_service_name,
+            service_version=service_version,
+            verbose=1)
         _LOGGER.info('Turning on Google Cloud Profiler.')
       else:
         raise RuntimeError('Unable to find the job id or job name from envvar.')
@@ -199,6 +198,14 @@ def main(unused_argv):
           'https://cloud.google.com/dataflow/docs/guides/profiling-a-pipeline.'
           'For troubleshooting tips with Cloud Profiler see '
           'https://cloud.google.com/profiler/docs/troubleshooting.' % e)
+
+
+def main(unused_argv):
+  """Main entry point for SDK Fn Harness."""
+  (fn_log_handler, sdk_harness,
+   sdk_pipeline_options) = create_harness(os.environ)
+
+  _start_profiler_if_enabled(sdk_pipeline_options)
 
   try:
     _LOGGER.info('Python sdk harness starting.')

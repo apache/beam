@@ -22,6 +22,7 @@
 import argparse
 import json
 import logging
+import os
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -876,14 +877,14 @@ class GoogleCloudOptions(PipelineOptions):
 
     return errors
 
-  def lookup_dataflow_service_option(self, key, default=None):
+  def get_cloud_profiler_service_name(self, key):
     if not self.dataflow_service_options:
       return None
     elif key in self.dataflow_service_options:
-      return default
-    for service_name in self.dataflow_service_options:
-      if service_name.startswith(key + '='):
-        return service_name.split('=', 1)[1]
+      return os.environ["JOB_NAME"]
+    for option_name in self.dataflow_service_options:
+      if option_name.startswith(key + '='):
+        return option_name.split('=', 1)[1]
     return None
 
 
