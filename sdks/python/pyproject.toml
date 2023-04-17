@@ -19,3 +19,4 @@
 # this is the minimum requirements for the build system to execute.
 [build-system]
 requires = ["setuptools", "wheel"]  # PEP 508 specifications.
+build-backend = "setuptools.build_meta:__legacy__"
