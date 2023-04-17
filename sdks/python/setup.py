@@ -152,7 +152,7 @@ def generate_protos_first():
     gen_protos.generate_proto_files()
 
   except ImportError:
-    warnings.warn("Could not import gen_protos, skipping proto generation.")
+    RuntimeError("Could not import gen_protos, skipping proto generation.")
 
 
 def get_portability_package_data():
