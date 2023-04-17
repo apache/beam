@@ -1,9 +1,9 @@
 ---
-title: "Mass Ad Bidding With Beam at Booking.com"
+title: "Mass ad bidding with Beam at Booking.com"
 name: "Booking.com"
 icon: "/images/logos/powered-by/booking.png"
 category: "study"
-cardTitle: "Mass Ad Bidding With Beam at Booking.com"
+cardTitle: "Mass ad bidding with Beam at Booking.com"
 cardDescription: "Apache Beam powers Booking.com’s global ads bidding and performance infrastructure, supporting 1M+ queries monthly for workflows across multiple data systems scanning 2 PB+ of analytical data and terabytes of transactional data. Apache Beam accelerated processing by 36x and expedited time-to-market by as much as 4x."
 authorName: "Booking.com's PPC Team"
 authorPosition: "Marketing Technology Department"
@@ -52,7 +52,7 @@ limitations under the License.
 
 ## Background
 
-[Booking.com](https://www.booking.com/) seamlessly connects millions of travelers to memorable experiences by investing in technology that takes the friction out of travel and making it easier for everyone to experience the world. Booking.com is a brand of [Booking Holdings](https://www.bookingholdings.com/), the world’s largest provider of online travel & related services to consumers and local partners. To help people discover destinations in more than 220 countries and territories, Booking Holdings as a whole spent [$5.99](https://s201.q4cdn.com/865305287/files/doc_financials/2022/q4/BKNG-Earnings-Release-Q4-2022.pdf) billion in marketing in 2022, with Booking.com being a leading travel advertiser on [Google Pay Per Click (PPC) Search Ads](https://ads.google.com/home/campaigns/search-ads/).
+[Booking.com](https://www.googleadservices.com/pagead/aclk?sa=L&ai=DChcSEwj7--GNte_9AhVV7u0KHchMAT0YABAAGgJkZw&ohost=www.google.com&cid=CAESbeD2W88iD9HvJ_hx0vsDimPjmxUYEm1aaIrTZuZxzfAtCSvD-_V5WT2kwqn9otXN_fgTz1jql73qosd5ZP8SmETS3r7xBiXzIeKFizHOSik3KTZU7GSoOltNb_0u7YmTYr-n9xz5sFKUijjzPyw&sig=AOD64_1FAZXpZS-HdiG-rxez4jM1HUiLXw&q&adurl&ved=2ahUKEwjh39yNte_9AhVJSEEAHVBwAGkQ0Qx6BAgJEAE) seamlessly connects millions of travelers to memorable experiences by investing in technology that takes the friction out of travel and making it easier for everyone to experience the world. Booking.com is a brand of [Booking Holdings](https://www.bookingholdings.com/), the world’s largest provider of online travel & related services to consumers and local partners. To help people discover destinations in more than 220 countries and territories, Booking Holdings as a whole spent [$5.99](https://s201.q4cdn.com/865305287/files/doc_financials/2022/q4/BKNG-Earnings-Release-Q4-2022.pdf) billion in marketing in 2022, with Booking.com being a leading travel advertiser on [Google Pay Per Click (PPC) Search Ads](https://ads.google.com/home/campaigns/search-ads/).
 
 The PPC team at Booking.com’s Marketing Technology department is in charge of the infrastructure and internal tooling necessary to run PPC advertising at this scale. The PPC team’s primary goal is to reliably and efficiently optimize their PPC across all search engine providers, measure and analyze ad performance data, manage ad hierarchies, and adjust ad criteria. Apache Beam supports this goal by providing an effective abstraction that helps build reliable, performant, and cost-efficient data processing infrastructure at a very large scale.
 
@@ -157,7 +157,7 @@ When designing the data infrastructure, the PPC team’s primary goal was to max
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
-    Apache Beam enabled us to parallelize data processing and maximize throughput at a very large scale.
+    Apache Beam enabled us to parallelize data processing and maximize throughput at a very large scale
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">
@@ -176,7 +176,7 @@ When designing the data infrastructure, the PPC team’s primary goal was to max
 
 The PPC team uses an internal API interface to submit queries to the mass bidding infrastructure, which routes the queries to the respective ad bidding pipelines for Google and Bing. For the Google branch, the API calls an Invoker cloud function, which reads data from BigQuery, aggregates it, and performs analysis before storing intermediate results in staging tables in BigQuery. The Invoker then calls an Ingestor Apache Beam batch pipeline, which publishes the data into Pub/Sub.
 
-On the other end, the Google Ad Mutator Apache Beam streaming pipeline listens to over 1 billion of Pub/Sub events per day and sends corresponding requests to the Google Ads API. This job is designed with backpressure in mind, ensuring optimal performance while also considering factors such as [partitioning, parallelism, and key-ordered delivery guarantees](/documentation/runtime/model/). The results are then written to the Result Table in BigQuery and the Inventory in Spanner, with over 100 GB processed daily.
+On the other end, the Google Ad Mutator Apache Beam streaming pipeline listens to over 1 billion of Pub/Sub events per day and sends corresponding requests to the Google Ads API. This job is designed with backpressure in mind, ensuring optimal performance while also considering factors such as [partitioning](/documentation/transforms/java/elementwise/partition/), [parallelism](/documentation/runtime/model/#parallelism), and key-ordered [delivery guarantees](/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/). The results are then written to the Result Table in BigQuery and the Inventory in Spanner, with over 100 GB processed daily.
 
 Finally, the Daily Importer Apache Beam batch pipeline grabs the inventory data and disseminates it for downstream tasks, also processing 100 GB daily. Data analysts then match the incoming stream of hotel reservations with the inventory data on what was advertised and evaluate PPC ads performance.
 
