@@ -13,8 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package spannerio provides an API for reading and writing resources to
-// Google Spanner datastores.
 package spannerio
 
 import (
