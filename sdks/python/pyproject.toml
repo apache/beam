@@ -18,5 +18,16 @@
 # since we rely on setuptools and according to https://peps.python.org/pep-0518/#build-system-table
 # this is the minimum requirements for the build system to execute.
 [build-system]
-requires = ["setuptools", "wheel"]  # PEP 508 specifications.
+requires = [
+    "setuptools",
+    "wheel>=0.36.0",
+    "grpcio-tools==1.51.3",
+    "mypy-protobuf==3.4.0",
+    "distlib==0.3.6",
+    # Numpy headers
+    "numpy>=1.14.3,<1.25",
+    # required to built platform specific wheels by including the compiled
+    # extensions.
+    "cython==0.29.34"
+]
 build-backend = "setuptools.build_meta:__legacy__"
