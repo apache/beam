@@ -16,9 +16,10 @@
 package spannerio
 
 import (
-	"cloud.google.com/go/spanner"
 	"context"
 	"fmt"
+
+	"cloud.google.com/go/spanner"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
@@ -133,10 +134,6 @@ func (g *partitionGeneratorImpl) generate(
 		panic("unable to create batch read only transaction: " + err.Error())
 	}
 	defer txn.Close()
-
-	if txn == nil {
-		panic("unable to create a spanner transaction")
-	}
 
 	partitions, err := txn.PartitionQuery(ctx, spanner.Statement{SQL: query}, opts)
 	if err != nil {

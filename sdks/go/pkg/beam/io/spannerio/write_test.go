@@ -16,13 +16,14 @@
 package spannerio
 
 import (
+	"context"
+	"testing"
+
 	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/spanner/spansql"
-	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"google.golang.org/api/iterator"
-	"testing"
 )
 
 func TestWrite(t *testing.T) {

@@ -13,17 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package spannerio provides an API for reading and writing resources to
-// Google Spanner datastores.
 package spannerio
 
 import (
-	"cloud.google.com/go/spanner"
 	"context"
+	"reflect"
+
+	"cloud.google.com/go/spanner"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"google.golang.org/api/iterator"
-	"reflect"
 )
 
 func init() {

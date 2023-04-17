@@ -18,9 +18,10 @@
 package spannerio
 
 import (
-	"cloud.google.com/go/spanner"
 	"context"
 	"fmt"
+
+	"cloud.google.com/go/spanner"
 )
 
 type spannerFn struct {

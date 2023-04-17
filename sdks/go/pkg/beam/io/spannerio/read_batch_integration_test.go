@@ -16,16 +16,17 @@
 package spannerio
 
 import (
-	"cloud.google.com/go/spanner"
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"context"
 	"flag"
+	"reflect"
+	"testing"
+
+	"cloud.google.com/go/spanner"
+	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	"reflect"
-	"testing"
 )
 
 var (

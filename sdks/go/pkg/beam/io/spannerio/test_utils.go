@@ -16,13 +16,14 @@
 package spannerio
 
 import (
+	"context"
+	"testing"
+
 	"cloud.google.com/go/spanner"
 	db "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/spannertest"
-	"context"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
-	"testing"
 )
 
 type TestDto struct {

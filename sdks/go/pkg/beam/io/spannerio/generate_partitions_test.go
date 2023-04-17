@@ -16,12 +16,13 @@
 package spannerio
 
 import (
-	"cloud.google.com/go/spanner"
 	"context"
+	"testing"
+
+	"cloud.google.com/go/spanner"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
-	"testing"
 )
 
 func TestGeneratePartitions(t *testing.T) {
