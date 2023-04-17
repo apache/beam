@@ -20,6 +20,7 @@ import PrecommitJobBuilder
 
 // exclude paths with their own PreCommit tasks
 def excludePaths = [
+  'extensions/avro',
   'extensions/sql',
   'io/amazon-web-services',
   'io/amazon-web-services2',

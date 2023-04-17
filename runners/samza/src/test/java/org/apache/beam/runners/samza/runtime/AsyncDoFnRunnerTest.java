@@ -205,7 +205,7 @@ public class AsyncDoFnRunnerTest implements Serializable {
     options.setNumThreadsForProcessElement(4);
 
     final OpEmitter<Void> opEmitter = new OpAdapter.OpEmitterImpl<>();
-    final FutureCollector<Void> futureCollector = new DoFnOp.FutureCollectorImpl<>();
+    final FutureCollector<Void> futureCollector = new FutureCollectorImpl<>();
     futureCollector.prepare();
 
     final AsyncDoFnRunner<KV<String, Integer>, Void> asyncDoFnRunner =
