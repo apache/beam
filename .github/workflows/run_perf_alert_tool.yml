@@ -41,9 +41,6 @@ jobs:
         with:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
-      - name: Get Apache Beam Build dependencies
-        working-directory: ./sdks/python
-        run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
       - name: Install Apache Beam
         working-directory: ./sdks/python
         run: pip install -e .[gcp,test]

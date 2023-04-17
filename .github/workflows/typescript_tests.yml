@@ -89,10 +89,8 @@ jobs:
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |
-          pip install pip setuptools --upgrade
-          pip install -r build-requirements.txt
           pip install 'pandas>=1.0,<1.5'
-          python setup.py develop
+          python install -e .
       - run: npm ci
         working-directory: ./sdks/typescript
       - run: npm run build
@@ -146,10 +144,7 @@ jobs:
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |
-          pip install pip setuptools --upgrade
-          pip install -r build-requirements.txt
           pip install 'pandas>=1.0,<1.5'
-          python setup.py develop
           pip install -e ".[gcp]"
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
