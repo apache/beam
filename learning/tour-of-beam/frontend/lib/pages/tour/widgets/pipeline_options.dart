@@ -19,27 +19,33 @@
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
-class TobPipelineOptionsDropdown extends StatelessWidget {
-  final PlaygroundController playgroundController;
+import '../state.dart';
 
-  const TobPipelineOptionsDropdown({
-    required this.playgroundController,
-  });
+class TobPipelineOptionsDropdown extends StatelessWidget {
+  final TourNotifier tourNotifier;
+
+  const TobPipelineOptionsDropdown({required this.tourNotifier});
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: playgroundController,
-      builder: (_, __) {
-        if (playgroundController.isEmpty) {
-          return const SizedBox.shrink();
-        }
+    final controller = tourNotifier.playgroundController;
 
-        final pipelineOptions =
-            playgroundController.snippetEditingController?.pipelineOptions;
-        return PipelineOptionsDropdown(
-          pipelineOptions: pipelineOptions ?? '',
-          setPipelineOptions: playgroundController.setPipelineOptions,
+    return AnimatedBuilder(
+      animation: tourNotifier,
+      builder: (_, __) {
+        return AnimatedBuilder(
+          animation: controller,
+          builder: (_, __) {
+            if (!tourNotifier.isUnitContainsSnippet) {
+              return const SizedBox.shrink();
+            }
+
+            return PipelineOptionsDropdown(
+              pipelineOptions:
+                  controller.snippetEditingController?.pipelineOptions ?? '',
+              setPipelineOptions: controller.setPipelineOptions,
+            );
+          },
         );
       },
     );
