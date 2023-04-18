@@ -142,5 +142,5 @@ All of these precompiled objects share the same schema
 | Name/ID | Key is constructed by concatenating example's ID with precompiled object type, e.g. `SDK_GO_WordCount_OUTPUT`, `SDK_GO_WordCount_LOG`, `SDK_GO_WordCount_GRAPH` | Key |
 | `content` | Saved output of the example's run | `string` |
 
-
-
+## Datastore indexes
+Indexes are defined in [`index.yaml`](../index.yaml) file. The file is used during deployment to create indexes in the Datastore.
