@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This output required to assign it to cloud functions
+# This output required to assign service account to cloud functions
 output "service-account-email" {
   value = google_service_account.cloud_function_sa.email
 }

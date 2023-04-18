@@ -15,10 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-output "functions-bucket-id" {
-  value = google_storage_bucket.cloud_functions_bucket.id
-}
-
 output "functions-bucket-name" {
   value = google_storage_bucket.cloud_functions_bucket.name
 }
