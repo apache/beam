@@ -689,7 +689,6 @@ class _CustomBigQuerySource(BoundedSource):
     self.query_priority = query_priority
     self._job_name = job_name or 'BQ_EXPORT_JOB'
     self._step_name = step_name
-    self._source_uuid = unique_id
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -731,7 +730,7 @@ class _CustomBigQuerySource(BoundedSource):
       project = self._get_project()
       query_job_name = bigquery_tools.generate_bq_job_name(
           self._job_name,
-          self._source_uuid,
+          str(uuid.uuid4())[0:10],
           bigquery_tools.BigQueryJobTypes.QUERY,
           '%s_%s' % (int(time.time()), random.randint(0, 1000)))
       job = bq._start_query_job(
@@ -831,7 +830,7 @@ class _CustomBigQuerySource(BoundedSource):
   def _execute_query(self, bq):
     query_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
-        self._source_uuid,
+        str(uuid.uuid4())[0:10],
         bigquery_tools.BigQueryJobTypes.QUERY,
         '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     job = bq._start_query_job(
@@ -858,12 +857,12 @@ class _CustomBigQuerySource(BoundedSource):
         self.bigquery_job_labels)
     export_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
-        self._source_uuid,
+        str(uuid.uuid4())[0:10],
         bigquery_tools.BigQueryJobTypes.EXPORT,
         '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
     gcs_location = bigquery_export_destination_uri(
-        self.gcs_location, temp_location, self._source_uuid)
+        self.gcs_location, temp_location, str(uuid.uuid4())[0:10])
     try:
       if self.use_json_exports:
         job_ref = bq.perform_extract_job([gcs_location],
@@ -999,7 +998,6 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self.use_native_datetime = use_native_datetime
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
-    self._source_uuid = unique_id
 
   def _get_parent_project(self):
     """Returns the project that will be billed."""
@@ -1041,7 +1039,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
   def _execute_query(self, bq):
     query_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
-        self._source_uuid,
+        str(uuid.uuid4())[0:10],
         bigquery_tools.BigQueryJobTypes.QUERY,
         '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     job = bq._start_query_job(
@@ -1082,7 +1080,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
     elif self.query is not None and self.query.is_accessible():
       query_job_name = bigquery_tools.generate_bq_job_name(
           self._job_name,
-          self._source_uuid,
+          str(uuid.uuid4())[0:10],
           bigquery_tools.BigQueryJobTypes.QUERY,
           '%s_%s' % (int(time.time()), random.randint(0, 1000)))
       job = bq._start_query_job(
@@ -2666,11 +2664,10 @@ class ReadFromBigQuery(PTransform):
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
     gcs_location_vp = self.gcs_location
-    unique_id = str(uuid.uuid4())[0:10]
 
     def file_path_to_remove(unused_elm):
       gcs_location = bigquery_export_destination_uri(
-          gcs_location_vp, temp_location, unique_id, True)
+          gcs_location_vp, temp_location, str(uuid.uuid4())[0:10], True)
       return gcs_location + '/'
 
     files_to_remove_pcoll = beam.pvalue.AsList(
@@ -2692,7 +2689,6 @@ class ReadFromBigQuery(PTransform):
                 method=self.method,
                 job_name=job_name,
                 step_name=step_name,
-                unique_id=unique_id,
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanup(files_to_remove_pcoll))
@@ -2837,7 +2833,6 @@ class ReadAllFromBigQuery(PTransform):
   def expand(self, pcoll):
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
     project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
-    unique_id = str(uuid.uuid4())[0:10]
 
     try:
       step_name = self.label
@@ -2854,7 +2849,6 @@ class ReadAllFromBigQuery(PTransform):
             bigquery_job_labels=self.bigquery_job_labels,
             job_name=job_name,
             step_name=step_name,
-            unique_id=unique_id,
             kms_key=self.kms_key,
             project=project,
             temp_dataset=self.temp_dataset,
