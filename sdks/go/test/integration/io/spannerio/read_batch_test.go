@@ -18,6 +18,7 @@ package spannerio
 import (
 	"context"
 	"flag"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 	"os"
 	"reflect"
 	"testing"
@@ -30,7 +31,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-func TestExampleQueryBatch(t *testing.T) {
+func TestSpannerIO_ExampleQueryBatch(t *testing.T) {
+	integration.CheckFilters(t)
+
 	p := beam.NewPipeline()
 	s := p.Root()
 
