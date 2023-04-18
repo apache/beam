@@ -83,13 +83,9 @@ Depending on your data source you should do the following to access data:
 | Source   | Notes                                                     |
 |----------|-----------------------------------------------------------|
 | File     | Put to a GCS bucket in `apache-beam-testing` project.     |
-| BigQuery | The table must be added to `apache-beam-testing` project. |
-
-Machine Learning: PyTorch, SKLearn -- change the playground itself. (request for enhancement to add a dependency to the Python image).
-To request adding, please send an email to dev@...
-
-CLONING 3RD PARTY REPOS.
-IF ML MODELS -- FROM PLAYGROUND BEAM ML EXAMPLES SUPPORT
+| Python package | Add required packages to either [Python SDK container](https://github.com/apache/beam/tree/master/sdks/python/container) or [Playground container](https://github.com/apache/beam/tree/master/playground/backend/containers/python). Send a change request for live Playground environment to dev@beam.apache.org   |
+| BigQuery | Create a dataset/table in `apache-beam-testing` project. |
+| GitHub repos | Copy and access files from a GCS bucket in `apache-beam-testing` project. |
 
 ### Emphasizing parts of code
 
