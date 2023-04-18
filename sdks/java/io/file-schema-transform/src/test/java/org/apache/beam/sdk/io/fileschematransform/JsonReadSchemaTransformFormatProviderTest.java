@@ -41,7 +41,6 @@ import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -57,7 +56,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
-import org.junit.Rule;
 import org.junit.Test;
 
 public class JsonReadSchemaTransformFormatProviderTest
@@ -123,7 +121,7 @@ public class JsonReadSchemaTransformFormatProviderTest
   // or different floating-point types (ie float vs double).
   // When converting to Beam Rows, we default to choosing the type that is less likely to overflow.
   // The following line reformats the expected rows to account for this.
-  private static Row getExpectedRow(Row inputRow) {
+  public static Row getExpectedRow(Row inputRow) {
     Schema outputSchema = getExpectedSchema(inputRow.getSchema());
     Map<String, Object> outputRowFields = new HashMap<>();
 

@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.BYTE_TYPE_SCHEM
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.parquetConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.junit.Assume.assumeTrue;
 
@@ -32,11 +33,20 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -165,5 +175,68 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     writer.println(schemaString);
     writer.close();
     runWriteAndReadTest(schema, rows, filePath, null);
+  }
+
+  @Test
+  public void testWriteAndReadWithSchemaTransforms() {
+    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.allPrimitiveDataTypesRows;
+    String folder = getFolder();
+
+    FileWriteSchemaTransformConfiguration writeConfig =
+        FileWriteSchemaTransformConfiguration.builder()
+            .setFormat(getFormat())
+            .setFilenamePrefix(folder)
+            .build();
+    if (getFormat().equals("parquet")) {
+      writeConfig =
+          writeConfig
+              .toBuilder()
+              .setParquetConfiguration(
+                  parquetConfigurationBuilder()
+                      .setCompressionCodecName(CompressionCodecName.GZIP.name())
+                      .build())
+              .build();
+    }
+    FileReadSchemaTransformConfiguration readConfig =
+        FileReadSchemaTransformConfiguration.builder()
+            .setFormat(getFormat())
+            .setSchema(getStringSchemaFromBeamSchema(schema))
+            .build();
+
+    SchemaTransform writeTransform = new FileWriteSchemaTransformProvider().from(writeConfig);
+    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(readConfig);
+
+    Schema filePatternSchema = getFilepatternSchema();
+    PCollection<Row> inputRows = writePipeline.apply(Create.of(rows).withRowSchema(schema));
+    PCollection<Row> filePatterns =
+        PCollectionRowTuple.of("input", inputRows)
+            .apply(writeTransform.buildTransform())
+            .get("output")
+            .setRowSchema(FileWriteSchemaTransformProvider.OUTPUT_SCHEMA)
+            .apply(
+                MapElements.into(TypeDescriptors.rows())
+                    .via(
+                        (Row row) -> {
+                          String file = row.getString("fileName");
+                          return Row.withSchema(filePatternSchema)
+                              .withFieldValue("filepattern", file)
+                              .build();
+                        }))
+            .setRowSchema(filePatternSchema);
+
+    PCollection<Row> outputRows =
+        PCollectionRowTuple.of("input", filePatterns)
+            .apply(readTransform.buildTransform())
+            .get("output");
+
+    if (getFormat().equals("json")) {
+      rows =
+          rows.stream()
+              .map(row -> JsonReadSchemaTransformFormatProviderTest.getExpectedRow(row))
+              .collect(Collectors.toList());
+    }
+    PAssert.that(outputRows).containsInAnyOrder(rows);
+    writePipeline.run().waitUntilFinish();
   }
 }

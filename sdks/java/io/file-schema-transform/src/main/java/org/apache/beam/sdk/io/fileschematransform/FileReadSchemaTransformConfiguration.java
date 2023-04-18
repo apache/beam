@@ -20,14 +20,12 @@ package org.apache.beam.sdk.io.fileschematransform;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.io.Providers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -36,11 +34,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 @AutoValue
 public abstract class FileReadSchemaTransformConfiguration {
   public void validate() {
-    Set<String> validProviders = Providers.loadProviders(FileReadSchemaTransformFormatProvider.class).keySet();
+    Set<String> validProviders =
+        Providers.loadProviders(FileReadSchemaTransformFormatProvider.class).keySet();
     checkArgument(
         !Strings.isNullOrEmpty(this.getFormat()) && validProviders.contains(this.getFormat()),
-        "A valid file format must be specified. Please specify one of: "
-            + validProviders);
+        "A valid file format must be specified. Please specify one of: " + validProviders);
 
     validProviders.remove("line");
     if (!this.getFormat().equals("line")) {
