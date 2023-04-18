@@ -90,7 +90,7 @@
            GitHub links will not resolve until the markdown source is available on the master branch.
            New pages would fail validation during development / PR test automation.
          -->
-         <a href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore>
+         <a href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore aria-label="edit for mobile">
           {{ with resources.Get "icons/edit-icon.svg" }}
              {{ .Content | safeHTML }}
          {{ end }}
@@ -156,7 +156,7 @@
     </a>
 
 
-   <a target="_blank" href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore>
+   <a target="_blank" href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore aria-label="edit for desktop">
      {{ with resources.Get "icons/edit-icon.svg" }}
         {{ .Content | safeHTML }}
     {{ end }}

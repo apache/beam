@@ -66,6 +66,7 @@ limitations under the License. See accompanying LICENSE file.
             width="100%"
             height="700px"
             class="code-snippet playground"
+            title="Beam Playground"
             allow="clipboard-write">
     </iframe>
     <div class="playground-iframe-overlay"></div>
@@ -83,7 +84,7 @@ limitations under the License. See accompanying LICENSE file.
           {{ $data := index $.Site.Data .Site.Language.Lang }}
           {{ range $item := $data.graphic }}
             <div class="column">
-              <img src="{{ .icon }}" class='icon mobile'/>
+              <img src="{{ .icon }}" alt="{{ .title }}" class='icon mobile'/>
               <h4>{{ .title }}</h4>
               <p>{{ .body }}</p>
             </div>
@@ -146,10 +147,10 @@ limitations under the License. See accompanying LICENSE file.
       <p class="calendar-card-event-title">{{ T "home-calendar-card-events-title" }}</p>
       <div class="calendar-card-events">
         <div class="calendar-desktop">
-          <iframe id='calendar' src="https://calendar.google.com/calendar/embed?src=r24up18ne2ddgl0t93flk0hsj8%40group.calendar.google.com" style="border: 0" width="333" height="320" frameborder="0" scrolling="no"></iframe>
+          <iframe id='calendar' src="https://calendar.google.com/calendar/embed?src=r24up18ne2ddgl0t93flk0hsj8%40group.calendar.google.com" style="border: 0" width="333" height="320" frameborder="0" scrolling="no" title="Desktop Calendar"></iframe>
         </div>
         <div class="calendar-mobile calendar-mobile--events">
-          <iframe id='calendar' src="https://calendar.google.com/calendar/embed?src=r24up18ne2ddgl0t93flk0hsj8%40group.calendar.google.com" style="border: 0" height="300" frameborder="0" scrolling="no"></iframe>
+          <iframe id='calendar' src="https://calendar.google.com/calendar/embed?src=r24up18ne2ddgl0t93flk0hsj8%40group.calendar.google.com" style="border: 0" height="300" frameborder="0" scrolling="no" title="Mobile Calendar"></iframe>
         </div>
       </div>
     </div>
@@ -206,7 +207,7 @@ limitations under the License. See accompanying LICENSE file.
 {{ define "ctas-section" }}
 <div class="ctas">
   <div class='ctas_row'>
-    <a class="ctas_button" href={{ "/get-started/beam-overview/" | relLangURL }}><img src="images/info_icon.svg" /> {{ T "home-learn-more" }}</a>
+    <a class="ctas_button" href={{ "/get-started/beam-overview/" | relLangURL }}><img src="images/info_icon.svg" alt="info" /> {{ T "home-learn-more" }}</a>
   </div>
   <div class='ctas_row'>
     <a class="ctas_button" href={{ "/get-started/quickstart-java/" | relLangURL }}>{{ T "home-java-quickstart" }}</a>
