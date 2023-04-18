@@ -1,9 +1,9 @@
 ---
-title: "Mass ad bidding with Beam at Booking.com"
+title: "Mass Ad Bidding With Beam at Booking.com"
 name: "Booking.com"
 icon: "/images/logos/powered-by/booking.png"
 category: "study"
-cardTitle: "Mass ad bidding with Beam at Booking.com"
+cardTitle: "Mass Ad Bidding With Beam at Booking.com"
 cardDescription: "Apache Beam powers Booking.com’s global ads bidding and performance infrastructure, supporting 1M+ queries monthly for workflows across multiple data systems scanning 2 PB+ of analytical data and terabytes of transactional data. Apache Beam accelerated processing by 36x and expedited time-to-market by as much as 4x."
 authorName: "Booking.com's PPC Team"
 authorPosition: "Marketing Technology Department"
@@ -176,7 +176,7 @@ When designing the data infrastructure, the PPC team’s primary goal was to max
 
 The PPC team uses an internal API interface to submit queries to the mass bidding infrastructure, which routes the queries to the respective ad bidding pipelines for Google and Bing. For the Google branch, the API calls an Invoker cloud function, which reads data from BigQuery, aggregates it, and performs analysis before storing intermediate results in staging tables in BigQuery. The Invoker then calls an Ingestor Apache Beam batch pipeline, which publishes the data into Pub/Sub.
 
-On the other end, the Google Ad Mutator Apache Beam streaming pipeline listens to over 1 billion of Pub/Sub events per day and sends corresponding requests to the Google Ads API. This job is designed with backpressure in mind, ensuring optimal performance while also considering factors such as [partitioning](/documentation/transforms/java/elementwise/partition/), [parallelism](/documentation/runtime/model/#parallelism), and key-ordered [delivery guarantees](/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/). The results are then written to the Result Table in BigQuery and the Inventory in Spanner, with over 100 GB processed daily.
+On the other end, the Google Ad Mutator Apache Beam streaming pipeline listens to over 1 billion of Pub/Sub events per day and sends corresponding requests to the Google Ads API. This job is designed with backpressure in mind, ensuring optimal performance while also considering factors such as [partitioning, parallelism, and key-ordered delivery guarantees](/documentation/runtime/model/). The results are then written to the Result Table in BigQuery and the Inventory in Spanner, with over 100 GB processed daily.
 
 Finally, the Daily Importer Apache Beam batch pipeline grabs the inventory data and disseminates it for downstream tasks, also processing 100 GB daily. Data analysts then match the incoming stream of hotel reservations with the inventory data on what was advertised and evaluate PPC ads performance.
 
