@@ -25,7 +25,6 @@ variable "project_id" {
 
 variable "service_account_id" {
   description = "The ID of the service account responsible for running Google Cloud functions"
-  default = "tourofbeam-cloudfunction-sa"
 }
 
 variable "region" {
@@ -36,6 +35,10 @@ variable "gcloud_init_account" {
   description = "User Account ID logged in with gcloud init command (e.g. username@domain.com)"
 }
 
-variable "pg_router_host" {}
+variable "pg_router_host" {
+  description = "Hostname:port of Playground GKE cluster's router grpc workload"
+}
 
-variable "environment" {}
+variable "environment" {
+  description = "The name of the environment for deployment. Will create directory where terraform config files will be stored"
+}

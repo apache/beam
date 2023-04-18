@@ -37,7 +37,6 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 4. An OS with the following software installed:
 
 * [Java](https://adoptopenjdk.net/)
-* [NodeJS & npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/)
 * [Flutter (3.7.3 >)](https://docs.flutter.dev/get-started/install)
 * [Dart SDK (2.19.2)](https://dart.dev/get-dart)
 * [Firebase-tools CLI](https://www.npmjs.com/package/firebase-tools)
@@ -46,21 +45,22 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 * [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
 * [Go](https://go.dev/doc/install)
 
-5. Apache Beam Git repository cloned locally
+5. Beam Playground environment (Existing GKE Cluster will be required particularly)
+
+6. Apache Beam Git repository cloned locally
 
 # Prepare deployment configuration:
-Tour of Beam backend uses `terraform.tfvars` located in `learning/tour-of-beam/terraform/environment/environment_name/` to define variables specific to an environment (e.g., prod, test, staging). Follow the steps below to prepare the deployment configuration:<br>
-1. Create a folder (referred to as `environment_name`) to define a new environment and place configuration files into it:
+ `common.tfvars` located in `learning/tour-of-beam/terraform` to define variables specific to an environment (e.g., prod, test, staging). Follow the steps below to prepare the deployment configuration:<br>
+1. Create a `common.tfvars` and `state.tfbackend` files in terraform directory `learning/tour-of-beam/terraform`:
 
-* `terraform.tfvars` environment variables:
+* Populate `common.tfvars` with next variables:
 ```
 project_id              = "gcp_project_id"            # Your GCP Project ID
-cloudfunctions_bucket   = "gcs_bucket_name"           # Globally unique name of the bucket to store cloud functions' source code
 region                  = "gcp_region"                # Your GCP resources region
 service_account_id      = "service_account_name"      # Name of GCP service account to run Tour of Beam cloud functions
 
 ```
-* `state.tfbackend` environment variables:
+* `state.tfbackend` with:
 ```
 bucket = "bucket_name"          # Your created bucket name for terraform tfstate file
 ```

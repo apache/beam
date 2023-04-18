@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Data resource to archive source code for cloud functions
 data "archive_file" "source_code" {
   type        = "zip"
   source_dir  = "../backend"

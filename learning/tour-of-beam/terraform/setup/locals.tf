@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-output "cloud-function-trigger-url" {
-  value = google_cloudfunctions_function.cloud_function.*.https_trigger_url
+# Local value to store generated Cloud Functions Service account name
+locals {
+  cloudfunctions_service_account = "${var.resource_name_prefix}-sa-${random_string.id.result}"
 }

@@ -32,7 +32,6 @@ module "functions_buckets" {
 
 module "api_enable" {
   source = "./api_enable"
-  project_id = var.project_id
 }
 
 module "cloud_functions" {

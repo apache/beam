@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "project_id" {
-  description = "The ID of the Google Cloud project within which resources are provisioned"
+# Local value to store generated GCS bucket name for source code (Cloud Functions)
+
+locals {
+  cloudfunctions_bucket = "${var.resource_name_prefix}-cfstorage-${random_string.id.result}"
 }
