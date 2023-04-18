@@ -50,7 +50,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class BigTableReadSchemaTransformProviderTest {
+public class BigTableReadSchemaTransformProviderIT {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   private static final String COLUMN_FAMILY_NAME_1 = "test_cf_1";
@@ -64,26 +64,23 @@ public class BigTableReadSchemaTransformProviderTest {
   @Test
   public void testInvalidConfigs() {
     // All properties are required (project, instance, and table)
-    List<BigTableReadSchemaTransformConfiguration> invalidConfigs =
+    List<BigTableReadSchemaTransformConfiguration.Builder> invalidConfigs =
         Arrays.asList(
             BigTableReadSchemaTransformConfiguration.builder()
                 .setProject("project")
-                .setInstance("instance")
-                .build(),
+                .setInstance("instance"),
             BigTableReadSchemaTransformConfiguration.builder()
                 .setInstance("instance")
-                .setTable("table")
-                .build(),
+                .setTable("table"),
             BigTableReadSchemaTransformConfiguration.builder()
                 .setProject("project")
-                .setTable("table")
-                .build());
+                .setTable("table"));
 
-    for (BigTableReadSchemaTransformConfiguration config : invalidConfigs) {
+    for (BigTableReadSchemaTransformConfiguration.Builder config : invalidConfigs) {
       assertThrows(
-          IllegalArgumentException.class,
+          IllegalStateException.class,
           () -> {
-            config.validate();
+            config.build();
           });
     }
   }
