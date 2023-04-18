@@ -15,13 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-output "service-account-email" {
-  value = module.setup.service-account-email
-}
-
-output "cloud-function-trigger-url" {
-  value = module.cloud_functions.cloud-function-trigger-url
-}
 
 output "functions-bucket-name" {
   value = module.functions_buckets.functions-bucket-name
