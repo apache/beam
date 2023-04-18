@@ -17,5 +17,5 @@
 
 # Local value to store generated Cloud Functions Service account name
 locals {
-  cloudfunctions_service_account = "${var.resource_name_prefix}-sa-${random_string.id.result}"
+  cloudfunctions_service_account = "${var.resource_name_prefix}-cf-sa-${random_string.id.result}"
 }
