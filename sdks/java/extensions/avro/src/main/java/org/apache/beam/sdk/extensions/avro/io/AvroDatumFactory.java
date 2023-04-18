@@ -27,6 +27,7 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 
 /** Create {@link DatumReader} and {@link DatumWriter} for given schemas. */
 public abstract class AvroDatumFactory<T>
@@ -119,6 +120,16 @@ public abstract class AvroDatumFactory<T>
 
     public static <T> ReflectDatumFactory<T> of(Class<T> type) {
       return new ReflectDatumFactory<>(type);
+    }
+  }
+
+  public static <T> AvroDatumFactory<T> of(Class<T> type) {
+    if (GenericRecord.class.equals(type)) {
+      return (AvroDatumFactory<T>) AvroDatumFactory.GenericDatumFactory.INSTANCE;
+    } else if (SpecificRecord.class.isAssignableFrom(type)) {
+      return new AvroDatumFactory.SpecificDatumFactory<>(type);
+    } else {
+      return new AvroDatumFactory.ReflectDatumFactory<>(type);
     }
   }
 }

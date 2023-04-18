@@ -48,7 +48,6 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -138,23 +137,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   @FunctionalInterface
   public interface DatumReaderFactory<T> extends Serializable {
     DatumReader<T> apply(Schema writer, Schema reader);
-  }
-
-  // Keep this logic in sync with AvroCoder.of
-  public static <T> DatumReaderFactory<T> defaultReaderFactory(Class<T> type) {
-    return defaultReaderFactory(type, true);
-  }
-
-  // Keep this logic in sync with AvroCoder.of
-  public static <T> DatumReaderFactory<T> defaultReaderFactory(
-      Class<T> type, boolean useReflectApi) {
-    if (GenericRecord.class.equals(type)) {
-      return (DatumReaderFactory<T>) AvroDatumFactory.GenericDatumFactory.INSTANCE;
-    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
-      return new AvroDatumFactory.SpecificDatumFactory<>(type);
-    } else {
-      return new AvroDatumFactory.ReflectDatumFactory<>(type);
-    }
   }
 
   // Use cases of AvroSource are:
@@ -764,7 +746,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
       DatumReader<?> reader =
           Optional.<DatumReaderFactory<?>>ofNullable(this.getCurrentSource().mode.readerFactory)
-              .orElse(defaultReaderFactory(this.getCurrentSource().mode.type))
+              .orElse(AvroDatumFactory.of(this.getCurrentSource().mode.type))
               .apply(readerSchema, readerSchema);
 
       dataFileReader = new DataFileReader<>(seekableChannelInput, reader);

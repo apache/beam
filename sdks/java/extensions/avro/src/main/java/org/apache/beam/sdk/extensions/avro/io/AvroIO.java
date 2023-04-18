@@ -362,20 +362,10 @@ public class AvroIO {
    * returned by {@link FileIO#readMatches}.
    */
   public static <T> ReadFiles<T> readFiles(Class<T> recordClass) {
-    return readFiles(recordClass, null);
-  }
-
-  /**
-   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link ReadableFile},
-   * returned by {@link FileIO#readMatches}.
-   */
-  public static <T> ReadFiles<T> readFiles(
-      Class<T> recordClass, AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
     return new AutoValue_AvroIO_ReadFiles.Builder<T>()
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
-        .setDatumReaderFactory(readerFactory)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
         .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
@@ -784,14 +774,16 @@ public class AvroIO {
       ReadFiles<T> readFiles =
           (getRecordClass() == GenericRecord.class)
               ? (ReadFiles<T>) readFilesGenericRecords(getSchema())
-              : readFiles(getRecordClass(), getDatumReaderFactory());
+              : readFiles(getRecordClass());
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(
               "Read Matches",
               FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply("Via ReadFiles", readFiles.withCoder(getCoder()));
+          .apply(
+              "Via ReadFiles",
+              readFiles.withDatumReaderFactory(getDatumReaderFactory()).withCoder(getCoder()));
     }
 
     @Override
@@ -2007,6 +1999,7 @@ public class AvroIO {
         .setJsonSchema(ReflectData.get().getSchema(clazz).toString())
         .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
+        .setDatumWriterFactory(AvroDatumFactory.of(clazz))
         .build();
   }
 

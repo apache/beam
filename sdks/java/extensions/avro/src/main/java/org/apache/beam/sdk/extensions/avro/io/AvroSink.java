@@ -25,9 +25,7 @@ import java.util.Optional;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
-import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -47,23 +45,6 @@ public class AvroSink<UserT, DestinationT, OutputT>
   @FunctionalInterface
   public interface DatumWriterFactory<T> extends Serializable {
     DatumWriter<T> apply(Schema writer);
-  }
-
-  // Keep this logic in sync with AvroCoder.of
-  public static <T> DatumWriterFactory<T> defaultWriterFactory(Class<T> type) {
-    return defaultWriterFactory(type, true);
-  }
-
-  // Keep this logic in sync with AvroCoder.of
-  public static <T> DatumWriterFactory<T> defaultWriterFactory(
-      Class<T> type, boolean useReflectApi) {
-    if (GenericRecord.class.equals(type)) {
-      return (DatumWriterFactory<T>) AvroDatumFactory.GenericDatumFactory.INSTANCE;
-    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
-      return new AvroDatumFactory.SpecificDatumFactory<>(type);
-    } else {
-      return new AvroDatumFactory.ReflectDatumFactory<>(type);
-    }
   }
 
   AvroSink(
@@ -137,7 +118,7 @@ public class AvroSink<UserT, DestinationT, OutputT>
       Map<String, Object> metadata = dynamicDestinations.getMetadata(destination);
       DatumWriter<OutputT> datumWriter =
           Optional.ofNullable(dynamicDestinations.getDatumWriterFactory(destination))
-              .orElse(defaultWriterFactory(type))
+              .orElse(AvroDatumFactory.of(type))
               .apply(schema);
 
       dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);

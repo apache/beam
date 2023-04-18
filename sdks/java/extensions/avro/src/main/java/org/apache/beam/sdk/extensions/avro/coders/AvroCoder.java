@@ -114,28 +114,9 @@ public abstract class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(TypeDescriptor<T> type) {
-    return of(type, true);
-  }
-
-  /**
-   * Returns an {@code AvroCoder} instance for the provided element type, respecting whether to use
-   * Avro's Reflect* or Specific* suite for encoding and decoding.
-   *
-   * @param <T> the element type
-   */
-  public static <T> AvroCoder<T> of(TypeDescriptor<T> type, boolean useReflectApi) {
     @SuppressWarnings("unchecked")
     Class<T> clazz = (Class<T>) type.getRawType();
-    return of(clazz, useReflectApi);
-  }
-
-  /**
-   * Returns an {@code AvroCoder} instance for the provided element class.
-   *
-   * @param <T> the element type
-   */
-  public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return of(clazz, true);
+    return of(clazz);
   }
 
   /**
@@ -147,14 +128,18 @@ public abstract class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Returns an {@code AvroCoder} instance for the given class, respecting whether to use Avro's
-   * Reflect* or Specific* suite for encoding and decoding.
+   * Returns an {@code AvroCoder} instance for the provided element class.
    *
    * @param <T> the element type
    */
-  public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
-
-    return useReflectApi ? AvroReflectCoder.of(type) : AvroSpecificCoder.of(type);
+  public static <T> AvroCoder<T> of(Class<T> clazz) {
+    if (GenericRecord.class.equals(clazz)) {
+      throw new IllegalArgumentException("AvroCoder for GenericRecord requires a schema");
+    } else if (SpecificRecord.class.isAssignableFrom(clazz)) {
+      return AvroSpecificCoder.of(clazz);
+    } else {
+      return AvroReflectCoder.of(clazz);
+    }
   }
 
   /**
@@ -166,19 +151,9 @@ public abstract class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> type, Schema schema) {
-    return of(type, schema, true);
-  }
-
-  /**
-   * Returns an {@code AvroCoder} instance for the given class and schema, respecting whether to use
-   * Avro's Reflect* or Specific* suite for encoding and decoding.
-   *
-   * @param <T> the element type
-   */
-  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, boolean useReflectApi) {
     if (GenericRecord.class.equals(type)) {
       return (AvroCoder<T>) AvroGenericCoder.of(schema);
-    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
+    } else if (SpecificRecord.class.isAssignableFrom(type)) {
       return AvroSpecificCoder.of(type, schema);
     } else {
       return AvroReflectCoder.of(type, schema);
