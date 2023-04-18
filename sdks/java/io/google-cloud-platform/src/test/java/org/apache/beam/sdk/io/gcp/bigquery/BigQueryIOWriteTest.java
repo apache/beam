@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toTableSpec;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -62,6 +64,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
@@ -728,12 +731,11 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withoutValidation());
     p.run();
 
-    final int projectIdSplitter = tableRef.indexOf(':');
-    final String projectId =
-        projectIdSplitter == -1 ? "project-id" : tableRef.substring(0, projectIdSplitter);
+    TableReference ref = BigQueryHelpers.parseTableSpec(tableRef);
+    final String projectId = ref.getProjectId() == null ? "project-id" : ref.getProjectId();
 
     assertThat(
-        fakeDatasetService.getAllRows(projectId, "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(projectId, ref.getDatasetId(), ref.getTableId()),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
@@ -745,20 +747,19 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testTriggeredFileLoadsWithTempTables() throws Exception {
-    testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
+    testTriggeredFileLoadsWithTempTables(
+        String.format("project-id:dataset-id.%s", BigQueryHelpers.randomUUIDString()));
   }
 
   @Test
   public void testTriggeredFileLoadsWithTempTablesToExistingNullSchemaTable() throws Exception {
     Table fakeTable = new Table();
     TableReference ref =
-        new TableReference()
-            .setProjectId("project-id")
-            .setDatasetId("dataset-id")
-            .setTableId("table-id");
+        createTempTableReference(
+            "project-id", BigQueryHelpers.randomUUIDString(), Optional.of("dataset-id"));
     fakeTable.setTableReference(ref);
     fakeDatasetService.createTable(fakeTable);
-    testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
+    testTriggeredFileLoadsWithTempTables(toTableSpec(ref));
   }
 
   @Test
@@ -809,10 +810,8 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableFieldSchema().setName("num").setType("INTEGER")));
     Table fakeTable = new Table();
     TableReference ref =
-        new TableReference()
-            .setProjectId("project-id")
-            .setDatasetId("dataset-id")
-            .setTableId("table-id");
+        createTempTableReference(
+            "project-id", BigQueryHelpers.randomUUIDString(), Optional.of("dataset-id"));
     fakeTable.setSchema(schema);
     fakeTable.setTableReference(ref);
     fakeDatasetService.createTable(fakeTable);
@@ -826,7 +825,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.of(elements))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(toTableSpec(ref))
                 .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                 .withTestServices(fakeBqServices)
                 .withMaxBytesPerPartition(1)
@@ -835,7 +834,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(ref.getProjectId(), ref.getDatasetId(), ref.getTableId()),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
