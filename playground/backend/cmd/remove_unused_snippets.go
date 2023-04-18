@@ -152,5 +152,8 @@ func main() {
 			logger.Fatalf("Couldn't remove the code snippet, err: %s \n", err.Error())
 			os.Exit(1)
 		}
+	default:
+		fmt.Printf("Unknown subcommand %s. Expected 'cleanup' or 'remove'\n", os.Args[1])
+		os.Exit(1)
 	}
 }
