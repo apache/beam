@@ -23,7 +23,6 @@ module github.com/apache/beam/sdks/v2
 go 1.19
 
 require (
-
 	cloud.google.com/go/bigquery v1.50.0
 	cloud.google.com/go/bigtable v1.18.1
 	cloud.google.com/go/datastore v1.11.0
@@ -69,10 +68,7 @@ require (
 
 require golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 
-require (
-	github.com/fsouza/fake-gcs-server v1.44.2
-	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-)
+require github.com/fsouza/fake-gcs-server v1.44.2
 
 require (
 	cloud.google.com/go v0.110.0 // indirect

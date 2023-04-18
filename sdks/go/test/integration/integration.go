@@ -68,6 +68,7 @@ var directFilters = []string{
 	"TestXLang.*",
 	"TestKafkaIO.*",
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
 	"TestJDBCIO_PostgresReadWrite",
@@ -113,6 +114,7 @@ var portableFilters = []string{
 	"TestKafkaIO.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The portable runner does not support pipeline drain for SDF.
@@ -140,6 +142,7 @@ var flinkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.
@@ -168,6 +171,7 @@ var samzaFilters = []string{
 	"TestWordCount.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The samza runner does not support pipeline drain for SDF.
@@ -205,6 +209,7 @@ var sparkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The spark runner does not support pipeline drain for SDF.
@@ -226,7 +231,6 @@ var dataflowFilters = []string{
 	"TestJDBCIO_PostgresReadWrite",
 	"TestDebeziumIO_BasicRead",
 	"TestMongoDBIO.*",
-	"TestSpannerIO.*",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
 	// The Dataflow runner does not support the TestStream primitive
