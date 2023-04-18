@@ -15,10 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "cloudfunctions_bucket" {
-  description = "The bucket name that will store functions' source code"
-}
-
 variable "project_id" {
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }

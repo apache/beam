@@ -15,10 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "cloudfunctions_bucket" {
-  description = "The name of the bucket to store cloud functions' source code"
-}
-
 variable "region" {
   description = "The GCP region where GCS bucket will be created (For Cloud Functions source code)"
 }
