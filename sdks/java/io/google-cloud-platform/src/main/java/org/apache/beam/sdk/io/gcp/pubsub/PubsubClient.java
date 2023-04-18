@@ -31,8 +31,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -396,7 +396,7 @@ public abstract class PubsubClient implements Closeable {
    * serialization is never used for non-test clients.
    */
   @AutoValue
-  abstract static class IncomingMessage implements Serializable {
+  public abstract static class IncomingMessage implements Serializable {
 
     /** Underlying Message. */
     public abstract PubsubMessage message();

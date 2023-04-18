@@ -53,6 +53,7 @@ applyJavaNature(
     "org/apache/beam/model/fnexecution/**",
     "org/apache/beam/runners/core/**",
     "org/apache/beam/runners/core/construction/**",
+    "org/apache/beam/sdk/extensions/avro/**",
     "org/apache/beam/sdk/fn/**",
     "org/checkerframework/**",
     "org/hamcrest/**",

@@ -290,7 +290,7 @@ def expand_leaf_transform(spec, scope):
 
 
 def expand_composite_transform(spec, scope):
-  spec = normalize_inputs_outputs(spec)
+  spec = normalize_inputs_outputs(normalize_source_sink(spec))
 
   inner_scope = Scope(
       scope.root, {
@@ -332,6 +332,7 @@ def expand_chain_transform(spec, scope):
 def chain_as_composite(spec):
   # A chain is simply a composite transform where all inputs and outputs
   # are implicit.
+  spec = normalize_source_sink(spec)
   if 'transforms' not in spec:
     raise TypeError(
         f"Chain at {identify_object(spec)} missing transforms property.")
@@ -375,6 +376,18 @@ def pipeline_as_composite(spec):
     }
   else:
     return dict(spec, name=None, type='composite')
+
+
+def normalize_source_sink(spec):
+  if 'source' not in spec and 'sink' not in spec:
+    return spec
+  spec = dict(spec)
+  spec['transforms'] = list(spec.get('transforms', []))
+  if 'source' in spec:
+    spec['transforms'].insert(0, spec.pop('source'))
+  if 'sink' in spec:
+    spec['transforms'].append(spec.pop('sink'))
+  return spec
 
 
 def normalize_inputs_outputs(spec):

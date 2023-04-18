@@ -7,6 +7,7 @@
 
 import 'dart:core' as $core;
 
+import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 import 'api.pbenum.dart';
@@ -1065,6 +1066,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..pc<Dataset>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
     ..aOS(14, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'urlVcs')
     ..aOS(15, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'urlNotebook')
+    ..aOB(16, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'alwaysRun')
     ..hasRequiredFields = false
   ;
 
@@ -1085,6 +1087,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.Iterable<Dataset>? datasets,
     $core.String? urlVcs,
     $core.String? urlNotebook,
+    $core.bool? alwaysRun,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1131,6 +1134,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (urlNotebook != null) {
       _result.urlNotebook = urlNotebook;
+    }
+    if (alwaysRun != null) {
+      _result.alwaysRun = alwaysRun;
     }
     return _result;
   }
@@ -1277,6 +1283,15 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasUrlNotebook() => $_has(14);
   @$pb.TagNumber(15)
   void clearUrlNotebook() => clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.bool get alwaysRun => $_getBF(15);
+  @$pb.TagNumber(16)
+  set alwaysRun($core.bool v) { $_setBool(15, v); }
+  @$pb.TagNumber(16)
+  $core.bool hasAlwaysRun() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearAlwaysRun() => clearField(16);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
@@ -2414,5 +2429,123 @@ class GetSnippetResponse extends $pb.GeneratedMessage {
   $core.bool hasComplexity() => $_has(3);
   @$pb.TagNumber(4)
   void clearComplexity() => clearField(4);
+}
+
+class GetMetadataRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetMetadataRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..hasRequiredFields = false
+  ;
+
+  GetMetadataRequest._() : super();
+  factory GetMetadataRequest() => create();
+  factory GetMetadataRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetMetadataRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetMetadataRequest clone() => GetMetadataRequest()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetMetadataRequest copyWith(void Function(GetMetadataRequest) updates) => super.copyWith((message) => updates(message as GetMetadataRequest)) as GetMetadataRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static GetMetadataRequest create() => GetMetadataRequest._();
+  GetMetadataRequest createEmptyInstance() => create();
+  static $pb.PbList<GetMetadataRequest> createRepeated() => $pb.PbList<GetMetadataRequest>();
+  @$core.pragma('dart2js:noInline')
+  static GetMetadataRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetMetadataRequest>(create);
+  static GetMetadataRequest? _defaultInstance;
+}
+
+class GetMetadataResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetMetadataResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'runnerSdk')
+    ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'buildCommitHash')
+    ..aInt64(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'buildCommitTimestampSecondsSinceEpoch')
+    ..aOS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'beamSdkVersion')
+    ..hasRequiredFields = false
+  ;
+
+  GetMetadataResponse._() : super();
+  factory GetMetadataResponse({
+    $core.String? runnerSdk,
+    $core.String? buildCommitHash,
+    $fixnum.Int64? buildCommitTimestampSecondsSinceEpoch,
+    $core.String? beamSdkVersion,
+  }) {
+    final _result = create();
+    if (runnerSdk != null) {
+      _result.runnerSdk = runnerSdk;
+    }
+    if (buildCommitHash != null) {
+      _result.buildCommitHash = buildCommitHash;
+    }
+    if (buildCommitTimestampSecondsSinceEpoch != null) {
+      _result.buildCommitTimestampSecondsSinceEpoch = buildCommitTimestampSecondsSinceEpoch;
+    }
+    if (beamSdkVersion != null) {
+      _result.beamSdkVersion = beamSdkVersion;
+    }
+    return _result;
+  }
+  factory GetMetadataResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetMetadataResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetMetadataResponse clone() => GetMetadataResponse()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetMetadataResponse copyWith(void Function(GetMetadataResponse) updates) => super.copyWith((message) => updates(message as GetMetadataResponse)) as GetMetadataResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static GetMetadataResponse create() => GetMetadataResponse._();
+  GetMetadataResponse createEmptyInstance() => create();
+  static $pb.PbList<GetMetadataResponse> createRepeated() => $pb.PbList<GetMetadataResponse>();
+  @$core.pragma('dart2js:noInline')
+  static GetMetadataResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetMetadataResponse>(create);
+  static GetMetadataResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get runnerSdk => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set runnerSdk($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasRunnerSdk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRunnerSdk() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get buildCommitHash => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set buildCommitHash($core.String v) { $_setString(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasBuildCommitHash() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBuildCommitHash() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get buildCommitTimestampSecondsSinceEpoch => $_getI64(2);
+  @$pb.TagNumber(3)
+  set buildCommitTimestampSecondsSinceEpoch($fixnum.Int64 v) { $_setInt64(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasBuildCommitTimestampSecondsSinceEpoch() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBuildCommitTimestampSecondsSinceEpoch() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get beamSdkVersion => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set beamSdkVersion($core.String v) { $_setString(3, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasBeamSdkVersion() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearBeamSdkVersion() => clearField(4);
 }
 

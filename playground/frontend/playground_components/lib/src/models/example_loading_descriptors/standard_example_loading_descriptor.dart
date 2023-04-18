@@ -24,7 +24,12 @@ import 'example_loading_descriptor.dart';
 class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   /// The identifier of the example in the catalog.
   final String path;
+
+  @override
   final Sdk sdk;
+
+  @override
+  String get token => path;
 
   const StandardExampleLoadingDescriptor({
     required this.path,
@@ -40,9 +45,17 @@ class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
+  StandardExampleLoadingDescriptor copyWithoutViewOptions() =>
+      StandardExampleLoadingDescriptor(
+        path: path,
+        sdk: sdk,
+      );
+
+  @override
   Map<String, dynamic> toJson() => {
         'path': path,
         'sdk': sdk.id,
+        ...viewOptions.toShortMap(),
       };
 
   static StandardExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {

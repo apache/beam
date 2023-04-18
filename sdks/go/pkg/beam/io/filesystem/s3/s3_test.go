@@ -62,7 +62,7 @@ func Test_fs_List(t *testing.T) {
 		{
 			name:    "List no matches",
 			glob:    "s3://bucket/*.json",
-			want:    []string{},
+			want:    nil,
 			wantErr: false,
 		},
 		{

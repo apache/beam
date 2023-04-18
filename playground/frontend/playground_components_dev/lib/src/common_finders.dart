@@ -21,6 +21,8 @@ import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
+import 'finder.dart';
+
 extension CommonFindersExtension on CommonFinders {
   Finder codeField() {
     return byType(CodeField);
@@ -31,14 +33,9 @@ extension CommonFindersExtension on CommonFinders {
     return widgetWithText(OutputTab, 'Graph');
   }
 
-  Finder outputArea() {
-    return byType(OutputArea);
-  }
-
   Finder outputSelectableText() {
-    final outputArea = find.outputArea();
     return find.descendant(
-      of: outputArea,
+      of: find.outputWidget(),
       matching: find.byType(SelectableText),
     );
   }
@@ -47,9 +44,12 @@ extension CommonFindersExtension on CommonFinders {
     return byType(OutputWidget);
   }
 
+  Finder resetButton() {
+    return find.byType(ResetButton);
+  }
+
   Finder resultTab() {
-    // TODO(alexeyinkin): Use keys when output tabs get to use enum, https://github.com/apache/beam/issues/22663
-    return widgetWithText(OutputTab, 'Result');
+    return find.byType(ResultTab);
   }
 
   Finder runOrCancelButton() {
@@ -61,6 +61,6 @@ extension CommonFindersExtension on CommonFinders {
   }
 
   Finder toggleThemeButton() {
-    return byType(ToggleThemeButton);
+    return byType(ToggleThemeButton).or(byType(ToggleThemeIconButton));
   }
 }

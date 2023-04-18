@@ -17,26 +17,85 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getCompression;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getFilenameSuffix;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getNumShards;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getShardNameTemplate;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.service.AutoService;
+import java.util.Optional;
+import org.apache.beam.sdk.io.WriteFilesResult;
+import org.apache.beam.sdk.io.csv.CsvIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.commons.csv.CSVFormat;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for CSV format. */
 @AutoService(FileWriteSchemaTransformFormatProvider.class)
 public class CsvWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
 
+  final String suffix = String.format(".%s", CSV);
+
   @Override
   public String identifier() {
-    return FileWriteSchemaTransformFormatProviders.CSV;
+    return CSV;
   }
 
   @Override
   public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
-    // TODO(https://github.com/apache/beam/issues/24469)
-    throw new UnsupportedOperationException();
+
+    return new PTransform<PCollection<Row>, PCollection<String>>() {
+      @Override
+      public PCollection<String> expand(PCollection<Row> input) {
+        FileWriteSchemaTransformConfiguration.CsvConfiguration csvConfiguration =
+            getCSVConfiguration(configuration);
+        CSVFormat csvFormat =
+            CSVFormat.Predefined.valueOf(csvConfiguration.getPredefinedCsvFormat()).getFormat();
+        CsvIO.Write<Row> write =
+            CsvIO.writeRows(configuration.getFilenamePrefix(), csvFormat).withSuffix(suffix);
+
+        if (configuration.getCompression() != null) {
+          write = write.withCompression(getCompression(configuration));
+        }
+
+        if (configuration.getNumShards() != null) {
+          int numShards = getNumShards(configuration);
+          // Python SDK external transforms do not support null values requiring additional check.
+          if (numShards > 0) {
+            write = write.withNumShards(numShards);
+          }
+        }
+
+        if (!Strings.isNullOrEmpty(configuration.getShardNameTemplate())) {
+          write = write.withShardTemplate(getShardNameTemplate(configuration));
+        }
+
+        if (!Strings.isNullOrEmpty(configuration.getFilenameSuffix())) {
+          write = write.withSuffix(getFilenameSuffix(configuration));
+        }
+
+        WriteFilesResult<String> result = input.apply("Row to CSV", write);
+        return result
+            .getPerDestinationOutputFilenames()
+            .apply("perDestinationOutputFilenames", Values.create());
+      }
+    };
+  }
+
+  private FileWriteSchemaTransformConfiguration.CsvConfiguration getCSVConfiguration(
+      FileWriteSchemaTransformConfiguration configuration) {
+    // resolves Checker Framework incompatible argument for requireNonNull parameter
+    Optional<FileWriteSchemaTransformConfiguration.CsvConfiguration> safeCsvConfiguration =
+        Optional.ofNullable(configuration.getCsvConfiguration());
+    checkState(safeCsvConfiguration.isPresent());
+    return safeCsvConfiguration.get();
   }
 }

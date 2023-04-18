@@ -21,7 +21,7 @@ on: [pull_request_target]
 permissions: read-all
 jobs:
   label:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write

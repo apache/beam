@@ -44,6 +44,7 @@ from api.v1.api_pb2 import (
 )
 from config import Config, TagFields, PrecompiledExampleType
 from grpc_client import GRPCClient
+from constants import BEAM_ROOT_DIR_ENV_VAR_KEY
 
 from models import Example, Tag, SdkEnum, Dataset
 
@@ -261,7 +262,7 @@ def _get_url_vcs(filepath: str) -> str:
     """
     Construct VCS URL from example's filepath
     """
-    root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
+    root_dir = os.getenv(BEAM_ROOT_DIR_ENV_VAR_KEY, "../..")
     rel_path = os.path.relpath(filepath, root_dir)
     url_vcs = "{}/{}".format(Config.URL_VCS_PREFIX, urllib.parse.quote(rel_path))
     return url_vcs

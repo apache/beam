@@ -985,12 +985,17 @@ class WindmillStateReader {
               throw new RuntimeException("Unable to read value from state", e);
             }
             currentPage = valuesAndContPosition.values.iterator();
-            nextPagePos =
+            StateTag.Builder<ContinuationT> nextPageBuilder =
                 StateTag.of(
-                    nextPagePos.getKind(),
-                    nextPagePos.getTag(),
-                    nextPagePos.getStateFamily(),
-                    valuesAndContPosition.continuationPosition);
+                        nextPagePos.getKind(),
+                        nextPagePos.getTag(),
+                        nextPagePos.getStateFamily(),
+                        valuesAndContPosition.continuationPosition)
+                    .toBuilder();
+            if (secondPagePos.getSortedListRange() != null) {
+              nextPageBuilder.setSortedListRange(secondPagePos.getSortedListRange());
+            }
+            nextPagePos = nextPageBuilder.build();
             pendingNextPage =
                 // NOTE: The results of continuation page reads are never cached.
                 reader.continuationFuture(nextPagePos, coder);

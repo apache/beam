@@ -302,6 +302,18 @@ result.destination_file_pairs       <--> result['destination_file_pairs']
 result.destination_copy_jobid_pairs <--> result['destination_copy_jobid_pairs']
 ```
 
+Writing with Storage Write API using Cross Language
+---------------------------------------------------
+This sink is able to write with BigQuery's Storage Write API. To do so, specify
+the method `WriteToBigQuery.Method.STORAGE_WRITE_API`. This will use the
+StorageWriteToBigQuery() transform to discover and use the Java implementation.
+Using this transform directly will require the use of beam.Row() elements.
+
+Similar to streaming inserts, it returns two dead-letter queue PCollections:
+one containing just the failed rows and the other containing failed rows and
+errors. They can be accessed with `failed_rows` and `failed_rows_with_errors`,
+respectively. See the examples above for how to do this.
+
 
 *** Short introduction to BigQuery concepts ***
 Tables have rows (TableRow) and each row has cells (TableCell).
@@ -397,10 +409,13 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
@@ -432,6 +447,7 @@ __all__ = [
     'BigQueryQueryPriority',
     'WriteToBigQuery',
     'WriteResult',
+    'StorageWriteToBigQuery',
     'ReadFromBigQuery',
     'ReadFromBigQueryRequest',
     'ReadAllFromBigQuery',
@@ -1641,6 +1657,7 @@ class _StreamToBigQuery(PTransform):
       ignore_insert_ids,
       ignore_unknown_columns,
       with_auto_sharding,
+      num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       test_client=None,
       max_retries=None):
     self.table_reference = table_reference
@@ -1658,6 +1675,7 @@ class _StreamToBigQuery(PTransform):
     self.ignore_insert_ids = ignore_insert_ids
     self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
+    self._num_streaming_keys = num_streaming_keys
     self.max_retries = max_retries or MAX_INSERT_RETRIES
 
   class InsertIdPrefixFn(DoFn):
@@ -1690,7 +1708,7 @@ class _StreamToBigQuery(PTransform):
     def _add_random_shard(element):
       key = element[0]
       value = element[1]
-      return ((key, random.randint(0, DEFAULT_SHARDS_PER_DESTINATION)), value)
+      return ((key, random.randint(0, self._num_streaming_keys)), value)
 
     def _restore_table_ref(sharded_table_ref_elems_kv):
       sharded_table_ref = sharded_table_ref_elems_kv[0]
@@ -1754,6 +1772,7 @@ class WriteToBigQuery(PTransform):
     DEFAULT = 'DEFAULT'
     STREAMING_INSERTS = 'STREAMING_INSERTS'
     FILE_LOADS = 'FILE_LOADS'
+    STORAGE_WRITE_API = 'STORAGE_WRITE_API'
 
   def __init__(
       self,
@@ -1775,6 +1794,7 @@ class WriteToBigQuery(PTransform):
       table_side_inputs=None,
       schema_side_inputs=None,
       triggering_frequency=None,
+      use_at_least_once=False,
       validate=True,
       temp_file_format=None,
       ignore_insert_ids=False,
@@ -1782,7 +1802,9 @@ class WriteToBigQuery(PTransform):
       # when the feature is mature.
       with_auto_sharding=False,
       ignore_unknown_columns=False,
-      load_job_project_id=None):
+      load_job_project_id=None,
+      num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
+      expansion_service=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1850,8 +1872,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         temp_location, but for pipelines whose temp_location is not appropriate
         for BQ File Loads, users should pass a specific one.
       method: The method to use to write to BigQuery. It may be
-        STREAMING_INSERTS, FILE_LOADS, or DEFAULT. An introduction on loading
-        data to BigQuery: https://cloud.google.com/bigquery/docs/loading-data.
+        STREAMING_INSERTS, FILE_LOADS, STORAGE_WRITE_API or DEFAULT. An
+        introduction on loading data to BigQuery:
+        https://cloud.google.com/bigquery/docs/loading-data.
         DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
         FILE_LOADS on Batch pipelines.
         Note: FILE_LOADS currently does not support BigQuery's JSON data type:
@@ -1900,6 +1923,13 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         triggering_frequency seconds when data is waiting. The batch can be
         sent earlier if it reaches the maximum batch size set by batch_size.
         Default value is 0.2 seconds.
+
+        When method is STORAGE_WRITE_API:
+        A stream of rows will be committed every triggering_frequency seconds.
+        By default, this will be 5 seconds to ensure exactly-once semantics.
+      use_at_least_once: Intended only for STORAGE_WRITE_API. When True, will
+        use at-least-once semantics. This is cheaper and provides lower
+        latency, but will potentially duplicate records.
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
       temp_file_format: The format to use for file loads into BigQuery. The
@@ -1917,8 +1947,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
       with_auto_sharding: Experimental. If true, enables using a dynamically
         determined number of shards to write to BigQuery. This can be used for
-        both FILE_LOADS and STREAMING_INSERTS. Only applicable to unbounded
-        input.
+        all of FILE_LOADS, STREAMING_INSERTS, and STORAGE_WRITE_API. Only
+        applicable to unbounded input.
       ignore_unknown_columns: Accept rows that contain values that do not match
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. This option is only valid for
@@ -1927,6 +1957,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       load_job_project_id: Specifies an alternate GCP project id to use for
         billingBatch File Loads. By default, the project id of the table is
         used.
+      num_streaming_keys: The number of shards per destination when writing via
+        streaming inserts.
+      expansion_service: The address (host:port) of the expansion service.
+        If no expansion service is provided, will attempt to run the default
+        GCP expansion service. Used for STORAGE_WRITE_API method.
     """
     self._table = table
     self._dataset = dataset
@@ -1951,6 +1986,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.max_files_per_bundle = max_files_per_bundle
     self.method = method or WriteToBigQuery.Method.DEFAULT
     self.triggering_frequency = triggering_frequency
+    self.use_at_least_once = use_at_least_once
+    self.expansion_service = expansion_service
     self.with_auto_sharding = with_auto_sharding
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
@@ -1962,6 +1999,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
     self.load_job_project_id = load_job_project_id
+    self._num_streaming_keys = num_streaming_keys
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2024,14 +2062,15 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           ignore_insert_ids=self._ignore_insert_ids,
           ignore_unknown_columns=self._ignore_unknown_columns,
           with_auto_sharding=self.with_auto_sharding,
-          test_client=self.test_client)
+          test_client=self.test_client,
+          num_streaming_keys=self._num_streaming_keys)
 
       return WriteResult(
           method=WriteToBigQuery.Method.STREAMING_INSERTS,
           failed_rows=outputs[BigQueryWriteFn.FAILED_ROWS],
           failed_rows_with_errors=outputs[
               BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS])
-    else:
+    elif method_to_use == WriteToBigQuery.Method.FILE_LOADS:
       if self._temp_file_format == bigquery_tools.FileFormat.AVRO:
         if self.schema == SCHEMA_AUTODETECT:
           raise ValueError(
@@ -2095,6 +2134,57 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS],
           destination_copy_jobid_pairs=output[
               BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS])
+    else:
+      # Storage Write API
+      if self.schema is None:
+        raise AttributeError(
+            "A schema is required in order to prepare rows"
+            "for writing with STORAGE_WRITE_API.")
+      if callable(self.schema):
+        raise NotImplementedError(
+            "Writing to dynamic destinations is not"
+            "supported for this write method.")
+      elif isinstance(self.schema, vp.ValueProvider):
+        schema = self.schema.get()
+      else:
+        schema = self.schema
+
+      table = bigquery_tools.get_hashable_destination(self.table_reference)
+      # None type is not supported
+      triggering_frequency = self.triggering_frequency or 0
+      # SchemaTransform expects Beam Rows, so map to Rows first
+      output_beam_rows = (
+          pcoll
+          |
+          beam.Map(lambda row: bigquery_tools.beam_row_from_dict(row, schema)).
+          with_output_types(
+              RowTypeConstraint.from_fields(
+                  bigquery_tools.get_beam_typehints_from_tableschema(schema)))
+          | StorageWriteToBigQuery(
+              table=table,
+              create_disposition=self.create_disposition,
+              write_disposition=self.write_disposition,
+              triggering_frequency=triggering_frequency,
+              use_at_least_once=self.use_at_least_once,
+              with_auto_sharding=self.with_auto_sharding,
+              expansion_service=self.expansion_service))
+
+      # return back from Beam Rows to Python dict elements
+      failed_rows = (
+          output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS]
+          | beam.Map(lambda row: row.as_dict()))
+      failed_rows_with_errors = (
+          output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS]
+          | beam.Map(
+              lambda row: {
+                  "error_message": row.error_message,
+                  "failed_row": row.failed_row.as_dict()
+              }))
+
+      return WriteResult(
+          method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+          failed_rows=failed_rows,
+          failed_rows_with_errors=failed_rows_with_errors)
 
   def display_data(self):
     res = {}
@@ -2214,12 +2304,12 @@ class WriteResult:
         destination_copy_jobid_pairs,
     }
 
-  def validate(self, method, attribute):
-    if self._method != method:
+  def validate(self, valid_methods, attribute):
+    if self._method not in valid_methods:
       raise AttributeError(
           f'Cannot get {attribute} because it is not produced '
           f'by the {self._method} write method. Note: only '
-          f'{method} produces this attribute.')
+          f'{valid_methods} produces this attribute.')
 
   @property
   def destination_load_jobid_pairs(
@@ -2231,7 +2321,8 @@ class WriteResult:
 
     Raises: AttributeError: if accessed with a write method
     besides ``FILE_LOADS``."""
-    self.validate(WriteToBigQuery.Method.FILE_LOADS, 'DESTINATION_JOBID_PAIRS')
+    self.validate([WriteToBigQuery.Method.FILE_LOADS],
+                  'DESTINATION_JOBID_PAIRS')
 
     return self._destination_load_jobid_pairs
 
@@ -2244,7 +2335,7 @@ class WriteResult:
 
     Raises: AttributeError: if accessed with a write method
     besides ``FILE_LOADS``."""
-    self.validate(WriteToBigQuery.Method.FILE_LOADS, 'DESTINATION_FILE_PAIRS')
+    self.validate([WriteToBigQuery.Method.FILE_LOADS], 'DESTINATION_FILE_PAIRS')
 
     return self._destination_file_pairs
 
@@ -2258,26 +2349,30 @@ class WriteResult:
 
     Raises: AttributeError: if accessed with a write method
     besides ``FILE_LOADS``."""
-    self.validate(
-        WriteToBigQuery.Method.FILE_LOADS, 'DESTINATION_COPY_JOBID_PAIRS')
+    self.validate([WriteToBigQuery.Method.FILE_LOADS],
+                  'DESTINATION_COPY_JOBID_PAIRS')
 
     return self._destination_copy_jobid_pairs
 
   @property
   def failed_rows(self) -> PCollection[Tuple[str, dict]]:
-    """A ``STREAMING_INSERTS`` method attribute
+    """A ``[STREAMING_INSERTS, STORAGE_WRITE_API]`` method attribute
 
     Returns: A PCollection of rows that failed when inserting to BigQuery.
 
     Raises: AttributeError: if accessed with a write method
-    besides ``STREAMING_INSERTS``."""
-    self.validate(WriteToBigQuery.Method.STREAMING_INSERTS, 'FAILED_ROWS')
+    besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``."""
+    self.validate([
+        WriteToBigQuery.Method.STREAMING_INSERTS,
+        WriteToBigQuery.Method.STORAGE_WRITE_API
+    ],
+                  'FAILED_ROWS')
 
     return self._failed_rows
 
   @property
   def failed_rows_with_errors(self) -> PCollection[Tuple[str, dict, list]]:
-    """A ``STREAMING_INSERTS`` method attribute
+    """A ``[STREAMING_INSERTS, STORAGE_WRITE_API]`` method attribute
 
     Returns:
       A PCollection of rows that failed when inserting to BigQuery,
@@ -2285,9 +2380,12 @@ class WriteResult:
 
     Raises:
       AttributeError: if accessed with a write method
-      besides ``STREAMING_INSERTS``."""
-    self.validate(
-        WriteToBigQuery.Method.STREAMING_INSERTS, 'FAILED_ROWS_WITH_ERRORS')
+      besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``."""
+    self.validate([
+        WriteToBigQuery.Method.STREAMING_INSERTS,
+        WriteToBigQuery.Method.STORAGE_WRITE_API
+    ],
+                  'FAILED_ROWS_WITH_ERRORS')
 
     return self._failed_rows_with_errors
 
@@ -2298,6 +2396,88 @@ class WriteResult:
           'result. Please see __documentation__ for available attributes.')
 
     return self.attributes[key].__get__(self, WriteResult)
+
+
+def _default_io_expansion_service(append_args=None):
+  return BeamJarExpansionService(
+      'sdks:java:io:google-cloud-platform:expansion-service:build',
+      append_args=append_args)
+
+
+class StorageWriteToBigQuery(PTransform):
+  """Writes data to BigQuery using Storage API.
+
+  Experimental; no backwards compatibility guarantees.
+  """
+  URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v1"
+  FAILED_ROWS = "FailedRows"
+  FAILED_ROWS_WITH_ERRORS = "FailedRowsWithErrors"
+
+  def __init__(
+      self,
+      table,
+      create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+      write_disposition=BigQueryDisposition.WRITE_APPEND,
+      triggering_frequency=0,
+      use_at_least_once=False,
+      with_auto_sharding=False,
+      expansion_service=None):
+    """Initialize a StorageWriteToBigQuery transform.
+
+    :param table:
+      Fully-qualified table ID specified as ``'PROJECT:DATASET.TABLE'``.
+    :param create_disposition:
+      String specifying the strategy to take when the table doesn't
+      exist. Possible values are:
+      * ``'CREATE_IF_NEEDED'``: create if does not exist.
+      * ``'CREATE_NEVER'``: fail the write if does not exist.
+    :param write_disposition:
+      String specifying the strategy to take when the table already
+      contains data. Possible values are:
+      * ``'WRITE_TRUNCATE'``: delete existing rows.
+      * ``'WRITE_APPEND'``: add to existing rows.
+      * ``'WRITE_EMPTY'``: fail the write if table not empty.
+    :param triggering_frequency:
+      The time in seconds between write commits. Should only be specified
+      for streaming pipelines. Defaults to 5 seconds.
+    :param use_at_least_once:
+      Use at-least-once semantics. Is cheaper and provides lower latency,
+      but will potentially duplicate records.
+    :param with_auto_sharding:
+      Experimental. If true, enables using a dynamically determined number of
+      shards to write to BigQuery. Only applicable to unbounded input.
+    :param expansion_service:
+      The address (host:port) of the expansion service. If no expansion
+      service is provided, will attempt to run the default GCP expansion
+      service.
+    """
+    super().__init__()
+    self._table = table
+    self._create_disposition = create_disposition
+    self._write_disposition = write_disposition
+    self._triggering_frequency = triggering_frequency
+    self._use_at_least_once = use_at_least_once
+    self._with_auto_sharding = with_auto_sharding
+    self._expansion_service = (
+        expansion_service or _default_io_expansion_service())
+    self.schematransform_config = SchemaAwareExternalTransform.discover_config(
+        self._expansion_service, self.URN)
+
+  def expand(self, input):
+    external_storage_write = SchemaAwareExternalTransform(
+        identifier=self.schematransform_config.identifier,
+        expansion_service=self._expansion_service,
+        autoSharding=self._with_auto_sharding,
+        createDisposition=self._create_disposition,
+        table=self._table,
+        triggeringFrequencySeconds=self._triggering_frequency,
+        useAtLeastOnceSemantics=self._use_at_least_once,
+        writeDisposition=self._write_disposition,
+    )
+
+    input_tag = self.schematransform_config.inputs[0]
+
+    return {input_tag: input} | external_storage_write
 
 
 class ReadFromBigQuery(PTransform):

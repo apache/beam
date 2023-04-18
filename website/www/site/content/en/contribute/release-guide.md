@@ -173,6 +173,10 @@ please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mi
 
 If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Nexus might error out not being able to find the keys), use a keyserver at `ubuntu.com` instead: https://keyserver.ubuntu.com/.
 
+You will need to use an ascii-armored version of your key.
+This can be obtained by running `gpg --export --armor` and copying the whole block
+(including `-----<START/END> PGP PUBLIC KEY BLOCK-----`).
+
 #### Website development setup
 
 Updating the Beam website requires submitting PRs to both the main `apache/beam` repo and the `apache/beam-site` repo.
@@ -198,7 +202,7 @@ You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi
 Ask on the mailing list for assistance.
 
 #### Login to DockerHub
-Run following command manually.
+If you are a member of the [`beammaintainers` DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers), run following command manually.
 It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.
 
 ```
@@ -212,7 +216,9 @@ For example,
    "auth": "xxxxxx"
 }
 ```
-Release managers should have push permission; request membership in the [`beammaintainers` team](https://hub.docker.com/orgs/apache/teams/beammaintainers) by filing a JIRA with the Apache Infrastructure team, like [INFRA-20900](https://issues.apache.org/jira/browse/INFRA-20900).
+
+If you are not already a member of the `beammaintainers` team, please email `dev@` for help with any DockerHub related tasks. We are not able
+to add more members to the DockerHub team because [the ASF has a limited number of seats available](https://infra.apache.org/docker-hub-policy.html).
 
 ### Create a new milestone in GitHub
 
@@ -277,6 +283,9 @@ After cutting the branch, you should manually update `CHANGES.md` on `master` by
 * **Script:** [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
 
 * **Usage**
+
+`RELEASE_VERSION` and `NEXT_VERSION` should be formatted like `{major}.{minor}.{patch}` (e.g. `2.46.0`)
+
   ```
   # Cut a release branch
   ./beam/release/src/main/scripts/cut_release_branch.sh \
@@ -303,6 +312,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
       ./beam/release/src/main/scripts/start_snapshot_build.sh
 
 * **The script will:**
+  1. Ask for the url of your personal clone of Beam (e.g. `https://github.com/<user>/beam`).
   1. Install [hub](https://github.com/github/hub) with your agreement.
   1. Touch an empty txt file and commit changes into ```${your remote beam repo}/snapshot_build```
   1. Use hub to create a PR against apache:master, which triggers a Jenkins job to build snapshot.
@@ -552,6 +562,8 @@ See the source of the script for more details, or to run commands manually in ca
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
+Note: if you are not a member of the [`beammaintainers` DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers) you will need
+help with this step. Please email `dev@` and ask a member of the `beammaintainers` DockerHub team for help.
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
@@ -647,7 +659,6 @@ This pull request is against the `apache/beam` repo, on the `master` branch ([ex
   * Download links will not work until the release is finalized.
 * Update links to prior releases to point to https://archive.apache.org (see
   example PR).
-* Update `website/www/site/static/.htaccess` to redirect to the new version.
 * Create the Blog post:
 
 #### Blog post
@@ -790,6 +801,7 @@ Here’s an email template; please adjust as you see fit.
     * Go artifacts and documentation are available at pkg.go.dev [9]
     * Validation sheet with a tab for 1.2.3 release to help with validation [10].
     * Docker images published to Docker Hub [11].
+    * PR to run tests against release branch [12].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -809,6 +821,7 @@ Here’s an email template; please adjust as you see fit.
     [9] https://pkg.go.dev/github.com/apache/beam/sdks/v2@v1.2.3-RC3/go/pkg/beam
     [10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
     [11] https://hub.docker.com/search?q=apache%2Fbeam&type=image
+    [12] https://github.com/apache/beam/pull/...
 
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote.
 There’s no need to wait 72 hours.
@@ -837,15 +850,20 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
       ```
 
 * **Tasks included**
-  1. Create a PR to trigger python validation job, including
+  1. Create a PR to trigger Python validation job, including
      * Python quickstart in batch and streaming mode with direct runner and Dataflow runner.
      * Python Mobile Games(UserScore, HourlyTeamScore) with direct runner and Dataflow runner.
   1. Run Python Streaming MobileGames, includes
      * Start a new terminal to run Java Pubsub injector.
-     * Start a new terminal to run python LeaderBoard with Direct Runner.
-     * Start a new terminal to run python LeaderBoard with Dataflow Runner.
-     * Start a new terminal to run python GameStats with Direct Runner.
-     * Start a new terminal to run python GameStats with Dataflow Runner.
+     * Start a new terminal to run Python LeaderBoard with Direct Runner.
+     * Start a new terminal to run Python LeaderBoard with Dataflow Runner.
+     * Start a new terminal to run Python GameStats with Direct Runner.
+     * Start a new terminal to run Python GameStats with Dataflow Runner.
+  1. Multi-language pipelines validation, includes
+     * Running the Python quickstart example using Python portable DirectRunner. This will start a new terminal for the Java expansion service.
+     * Running the Java quickstart example using Python portable DirectRunner. This will start new terminals for the Python expansion service and the job server.
+     * Start a new terminal to run Python multi-language Java kafka validation with Dataflow Runner.
+     * Start a new terminal to run Python multi-language Java sql validation with Dataflow Runner.
 
 * **Tasks you need to do manually**
   1. Check whether validations succeed by following console output instructions.
@@ -1108,7 +1126,7 @@ Here’s an email template; please adjust as you see fit.
 ### Checklist to proceed to the next step
 
 1. Issues identified during vote have been resolved, with fixes committed to the release branch.
-2. All issues tagged with `Fix-Version` for the current release should be closed.
+2. All issues in the current release's milestone should be closed.
 3. Community votes to release the proposed candidate, with at least three approving PMC votes.
 
 
@@ -1141,6 +1159,10 @@ All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
 
 ### Deploy docker images to DockerHub
+
+Note: if you are not a member of the [beammaintainers DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers),
+you will need help with this step. Please email dev@ and ask a member of the beammaintainers DockerHub team for help.
+
 * **Script:** [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * **Usage**
 ```
@@ -1192,6 +1214,10 @@ Note this script reads the release notes from the blog post, so you should make 
 
 After running the script, the release notes should be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
+### Mark the version as released in GitHub
+
+In GitHub, in the [milestone page](https://github.com/apache/beam/milestones), click close on the current release.
+
 ### PMC-Only Finalization
 There are a few release finalization tasks that only PMC members have permissions to do.
 Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
@@ -1202,10 +1228,6 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
-
-#### Mark the version as released in GitHub
-
-In GitHub, in the [milestone page](https://github.com/apache/beam/milestones), click close on the current release.
 
 #### Recordkeeping with ASF
 

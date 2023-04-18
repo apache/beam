@@ -40,31 +40,6 @@ task("tidy") {
   }
 }
 
-val startDatastoreEmulator by tasks.registering {
-    doFirst {
-        val process = ProcessBuilder()
-            .directory(projectDir)
-            .inheritIO()
-            .command("sh", "start_datastore_emulator.sh")
-            .start()
-            .waitFor()
-        if (process == 0) {
-            println("Datastore emulator started")
-        } else {
-            println("Failed to start datastore emulator")
-        }
-    }
-}
-
-val stopDatastoreEmulator by tasks.registering {
-    doLast {
-        exec {
-            executable("sh")
-            args("stop_datastore_emulator.sh")
-        }
-    }
-}
-
 val test by tasks.registering {
     group = "verification"
     description = "Test the backend"
@@ -92,12 +67,6 @@ val testWithoutCache by tasks.registering {
         }
     }
 }
-
-test { dependsOn(startDatastoreEmulator) }
-test { finalizedBy(stopDatastoreEmulator) }
-
-testWithoutCache { dependsOn(startDatastoreEmulator) }
-testWithoutCache { finalizedBy(stopDatastoreEmulator) }
 
 task("removeUnusedSnippet") {
     doLast {
@@ -134,6 +103,21 @@ task("benchmark") {
   dependsOn(":playground:backend:benchmarkCodeProcessing")
 }
 
+task("checkFormat") {
+  doLast {
+    val stdout = java.io.ByteArrayOutputStream()
+
+    exec {
+      executable("gofmt")
+      args("-l", "-e", "-d", ".")
+      standardOutput = stdout
+    }
+    if (stdout.size() > 0) {
+      println(stdout.toString())
+      throw GradleException("gofmt check indicates that there are unformatted files")
+    }
+  }
+}
 
 task("installLinter") {
   doLast {
@@ -156,6 +140,7 @@ task("runLint") {
 
 task("precommit") {
   dependsOn(":playground:backend:runLint")
+  dependsOn(":playground:backend:checkFormat")
   dependsOn(":playground:backend:tidy")
   dependsOn(":playground:backend:test")
   dependsOn(":playground:backend:benchmark")

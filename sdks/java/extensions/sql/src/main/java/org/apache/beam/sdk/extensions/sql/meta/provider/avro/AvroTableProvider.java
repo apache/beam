@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.avro;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.extensions.avro.io.AvroIO;
+import org.apache.beam.sdk.extensions.avro.io.AvroSchemaIOProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.io.AvroIO;
-import org.apache.beam.sdk.io.AvroSchemaIOProvider;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 
 /**

@@ -33,7 +33,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
-var datastoreDb *Datastore
+var datastoreDb *EmulatedDatastore
 var ctx context.Context
 
 func TestMain(m *testing.M) {
@@ -44,27 +44,22 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
-	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
-			panic(err)
-		}
-	}
 	ctx = context.Background()
 	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "datastore")
 
 	logger.SetupLogger(ctx, "local", "some_google_project_id")
 
 	var err error
-	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+	datastoreDb, err = NewEmulated(ctx)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func teardown() {
-	if err := datastoreDb.Client.Close(); err != nil {
-		panic(err)
+	clientCloseErr := datastoreDb.Close()
+	if clientCloseErr != nil {
+		panic(clientCloseErr)
 	}
 }
 
@@ -463,7 +458,7 @@ func TestDatastore_GetCatalog(t *testing.T) {
 					actualPCObj.Multifile != false ||
 					actualPCObj.Name != "MOCK_EXAMPLE" ||
 					actualPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-					actualPCObj.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
+					actualPCObj.CloudPath != "SDK_JAVA_MOCK_EXAMPLE" ||
 					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
 					actualPCObj.Description != "MOCK_DESCR" ||
 					actualPCObj.Link != "MOCK_PATH" ||
@@ -599,7 +594,7 @@ func TestDatastore_GetExample(t *testing.T) {
 					example.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
 					example.Link != "MOCK_PATH" ||
 					example.PipelineOptions != "MOCK_OPTIONS" ||
-					example.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
+					example.CloudPath != "SDK_JAVA_MOCK_EXAMPLE" ||
 					example.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 					t.Errorf("GetExample() unexpected result: wrong precompiled obj")
 				}

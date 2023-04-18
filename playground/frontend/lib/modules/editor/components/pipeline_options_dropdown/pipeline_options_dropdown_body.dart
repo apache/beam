@@ -30,6 +30,12 @@ const kOptionsTabIndex = 0;
 const kRawTabIndex = 1;
 
 class PipelineOptionsDropdownBody extends StatefulWidget {
+  static const optionsTabKey = ValueKey('PipelineOptionsOptionsTab');
+  static const rawTabKey = ValueKey('PipelineOptionsRawTab');
+
+  static const saveAndCloseButtonKey = ValueKey('PipelineOptionsSaveAndClose');
+  static const addOptionButtonKey = ValueKey('PipelineOptionsAddOption');
+
   final String pipelineOptions;
   final void Function(String) setPipelineOptions;
   final void Function() close;
@@ -105,8 +111,14 @@ class _PipelineOptionsDropdownBodyState
         TabBar(
           controller: tabController,
           tabs: <Widget>[
-            Tab(text: appLocale.optionsPipelineOptions),
-            Tab(text: appLocale.rawPipelineOptions),
+            Tab(
+              key: PipelineOptionsDropdownBody.optionsTabKey,
+              text: appLocale.optionsPipelineOptions,
+            ),
+            Tab(
+              key: PipelineOptionsDropdownBody.rawTabKey,
+              text: appLocale.rawPipelineOptions,
+            ),
           ],
         ),
         const PipelineOptionsDropdownSeparator(),
@@ -137,6 +149,7 @@ class _PipelineOptionsDropdownBodyState
               SizedBox(
                 height: kButtonHeight,
                 child: ElevatedButton(
+                  key: PipelineOptionsDropdownBody.saveAndCloseButtonKey,
                   child: Text(appLocale.saveAndClose),
                   onPressed: () => _save(context),
                 ),
@@ -146,6 +159,7 @@ class _PipelineOptionsDropdownBodyState
                 SizedBox(
                   height: kButtonHeight,
                   child: OutlinedButton(
+                    key: PipelineOptionsDropdownBody.addOptionButtonKey,
                     child: Text(appLocale.addPipelineOptionParameter),
                     onPressed: () => setState(() {
                       pipelineOptionsList.add(PipelineOptionController());

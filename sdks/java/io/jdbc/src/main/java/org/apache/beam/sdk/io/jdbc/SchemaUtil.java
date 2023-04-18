@@ -27,7 +27,6 @@ import static java.sql.JDBCType.NVARCHAR;
 import static java.sql.JDBCType.VARBINARY;
 import static java.sql.JDBCType.VARCHAR;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
@@ -304,7 +303,10 @@ class SchemaUtil {
     } else {
       ResultSetFieldExtractor extractor = createFieldExtractor(fieldType.getBaseType());
       return (rs, index) -> {
-        BaseT v = checkStateNotNull((BaseT) extractor.extract(rs, index));
+        BaseT v = (BaseT) extractor.extract(rs, index);
+        if (v == null) {
+          return null;
+        }
         return fieldType.toInputType(v);
       };
     }

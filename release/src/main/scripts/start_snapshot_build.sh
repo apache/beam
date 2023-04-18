@@ -86,4 +86,4 @@ cd ~
 rm -rf ${LOCAL_BEAM_DIR}
 echo "Things remained you need to do manually after build successful:"
 echo "1. Close this generated PR in github website."
-echo "2. Delete your remote branch ${BRANCH_NAME} form your beam repo in github website."
+echo "2. Delete your remote branch ${BRANCH_NAME} from your beam repo in github website."

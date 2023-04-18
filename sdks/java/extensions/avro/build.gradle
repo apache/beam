@@ -20,8 +20,8 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.sdk.extensions.avro',
     disableLintWarnings: ['rawtypes'], // Avro-generated test code has raw-type errors
-    publish: false,
-    exportJavadoc: false,
+    publish: true,
+    exportJavadoc: true,
 )
 applyAvroNature()
 

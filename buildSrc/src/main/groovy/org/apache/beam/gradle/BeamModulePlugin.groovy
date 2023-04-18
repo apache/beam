@@ -318,6 +318,48 @@ class BeamModulePlugin implements Plugin<Project> {
     }
   }
 
+  // A class defining the common properties in a given suite of cross-language tests
+  // Properties are shared across runners and are used when creating a CrossLanguageUsingJavaExpansionConfiguration object
+  static class CrossLanguageTaskCommon {
+    // Used as the task name for cross-language
+    String name
+    // The expansion service's project path (required)
+    String expansionProjectPath
+    // Collect Python pipeline tests with this marker
+    String collectMarker
+    // Job server startup task.
+    TaskProvider startJobServer
+    // Job server cleanup task.
+    TaskProvider cleanupJobServer
+  }
+
+  // A class defining the configuration for CrossLanguageUsingJavaExpansion.
+  static class CrossLanguageUsingJavaExpansionConfiguration {
+    // Task name for cross-language tests using Java expansion.
+    String name = 'crossLanguageUsingJavaExpansion'
+    // Python pipeline options to use.
+    List<String> pythonPipelineOptions = [
+      "--runner=PortableRunner",
+      "--job_endpoint=localhost:8099",
+      "--environment_cache_millis=10000",
+      "--experiments=beam_fn_api",
+    ]
+    // Additional pytest options
+    List<String> pytestOptions = []
+    // Job server startup task.
+    TaskProvider startJobServer
+    // Job server cleanup task.
+    TaskProvider cleanupJobServer
+    // Number of parallel test runs.
+    Integer numParallelTests = 1
+    // Whether the pipeline needs --sdk_location option
+    boolean needsSdkLocation = false
+    // Project path for the expansion service to start up
+    String expansionProjectPath
+    // Collect Python pipeline tests with this marker
+    String collectMarker
+  }
+
   // A class defining the configuration for CrossLanguageValidatesRunner.
   static class CrossLanguageValidatesRunnerConfiguration {
     // Task name for cross-language validate runner case.
@@ -390,7 +432,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.46.0'
+    project.version = '2.48.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -409,12 +451,12 @@ class BeamModulePlugin implements Plugin<Project> {
     project.apply plugin: "idea"
 
     // Provide code coverage
-    // TODO: Should this only apply to Java projects?
+    // Enable when 'enableJacocoReport' project property is specified or when running ":javaPreCommit"
     project.apply plugin: "jacoco"
     project.gradle.taskGraph.whenReady { graph ->
       // Disable jacoco unless report requested such that task outputs can be properly cached.
       // https://discuss.gradle.org/t/do-not-cache-if-condition-matched-jacoco-agent-configured-with-append-true-satisfied/23504
-      def enabled = graph.allTasks.any { it instanceof JacocoReport || it.name.contains("javaPreCommit") }
+      def enabled = project.hasProperty('enableJacocoReport') || graph.allTasks.any { it instanceof JacocoReport || it.name.contains('javaPreCommit') }
       project.tasks.withType(Test) { jacoco.enabled = enabled }
     }
 
@@ -442,6 +484,26 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.allFlinkVersions = project.flink_versions.split(',')
     project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
 
+    project.ext.nativeArchitecture = {
+      // Best guess as to this system's normalized native architecture name.
+      System.getProperty('os.arch') == 'aarch64' || System.getProperty('os.arch').contains('arm') ? "arm64" : "amd64"
+    }
+
+    project.ext.containerArchitectures = {
+      if (isRelease(project)) {
+        // Ensure we always publish the expected containers.
+        return ["amd64"];
+      } else if (project.rootProject.findProperty("container-architecture-list") != null) {
+        return project.rootProject.findProperty("container-architecture-list").split(',')
+      } else {
+        return [project.nativeArchitecture()]
+      }
+    }
+
+    project.ext.containerPlatforms = {
+      return project.containerArchitectures().collect { arch -> "linux/" + arch }
+    }
+
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -466,15 +528,15 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.8.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.22.0"
+    def gax_version = "2.23.3"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.35.2"
+    def google_cloud_spanner_version = "6.38.0"
     def google_code_gson_version = "2.9.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.52.1"
+    def grpc_version = "1.53.0"
     def guava_version = "31.1-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -493,6 +555,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
     def protobuf_version = "3.21.12"
+    def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
@@ -503,6 +566,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def testcontainers_version = "1.17.3"
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
+    def jupiter_version = "5.7.0"
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
@@ -598,8 +662,8 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable", // google_cloud_platform_libraries_bom sets version
-        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.26.3",
-        google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.137.1",
+        google_cloud_bigtable_client_core_config    : "com.google.cloud.bigtable:bigtable-client-core-config:1.28.0",
+        google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.147.3",
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
@@ -608,10 +672,10 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
-        // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/26.5.0/artifact_details.html
+        // The release notes shows the versions set by the BOM:
+        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.11.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.5.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.11.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -684,6 +748,9 @@ class BeamModulePlugin implements Plugin<Project> {
         json_org                                    : "org.json:json:20220320", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
         everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
+        jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",
+        jupiter_engine                              : "org.junit.jupiter:junit-jupiter-engine:$jupiter_version",
+        jupiter_params                              : "org.junit.jupiter:junit-jupiter-params:$jupiter_version",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         log4j                                       : "log4j:log4j:1.2.17",
@@ -699,6 +766,7 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.52.Final",
+        netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
@@ -716,6 +784,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
+        qpid_jms_client                             : "org.apache.qpid:qpid-jms-client:$qpid_jms_client_version",
         sbe_tool                                    : "uk.co.real-logic:sbe-tool:$sbe_tool_version",
         singlestore_jdbc                            : "com.singlestore:singlestore-jdbc-client:$singlestore_jdbc_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
@@ -2015,7 +2084,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.19.3"
+      project.ext.goVersion = "go1.20.2"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2034,15 +2103,17 @@ class BeamModulePlugin implements Plugin<Project> {
         ext.goTargets = './...'
         ext.outputLocation = './build/bin/${GOOS}_${GOARCH}/'
         doLast {
-          project.exec {
-            // Set these so the substitutions work.
-            // May cause issues for the folks running gradle commands on other architectures
-            // and operating systems.
-            environment "GOOS", "linux"
-            environment "GOARCH", "amd64"
+          for (goarch in project.containerArchitectures()) {
+            project.exec {
+              // Set these so the substitutions work.
+              // May cause issues for the folks running gradle commands on other architectures
+              // and operating systems.
+              environment "GOOS", "linux"
+              environment "GOARCH", goarch
 
-            executable 'sh'
-            args '-c', "${project.ext.goCmd} build -o "+ ext.outputLocation + ' ' + ext.goTargets
+              executable 'sh'
+              args '-c', "${project.ext.goCmd} build -o "+ ext.outputLocation + ' ' + ext.goTargets
+            }
           }
         }
       }
@@ -2351,6 +2422,108 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn ':sdks:java:container:java8:docker'
         }
       }
+    }
+
+    /** ***********************************************************************************************/
+    // Method to create the createCrossLanguageUsingJavaExpansionTask.
+    // The method takes CrossLanguageUsingJavaExpansionConfiguration as parameter.
+    // This method creates a task that runs Python SDK pipeline tests that use Java transforms via an input expansion service
+    project.ext.createCrossLanguageUsingJavaExpansionTask = {
+      // This task won't work if the python build file doesn't exist.
+      if (!project.project(":sdks:python").buildFile.exists()) {
+        System.err.println 'Python build file not found. Skipping createCrossLanguageUsingJavaExpansionTask.'
+        return
+      }
+      def config = it ? it as CrossLanguageUsingJavaExpansionConfiguration : new CrossLanguageUsingJavaExpansionConfiguration()
+
+      project.evaluationDependsOn(":sdks:python")
+      project.evaluationDependsOn(config.expansionProjectPath)
+      project.evaluationDependsOn(":runners:core-construction-java")
+      project.evaluationDependsOn(":sdks:java:extensions:python")
+
+      // Setting up args to launch the expansion service
+      def envDir = project.project(":sdks:python").envdir
+      def pythonDir = project.project(":sdks:python").projectDir
+      def javaExpansionPort = -1 // will be populated in setupTask
+      def expansionJar = project.project(config.expansionProjectPath).shadowJar.archivePath
+      def javaClassLookupAllowlistFile = project.project(config.expansionProjectPath).projectDir.getPath()
+      def expansionServiceOpts = [
+        "group_id": project.name,
+        "java_expansion_service_jar": expansionJar,
+        "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
+      ]
+      def javaContainerSuffix
+      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+        javaContainerSuffix = 'java8'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+        javaContainerSuffix = 'java11'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+        javaContainerSuffix = 'java17'
+      } else {
+        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
+        throw new GradleException(exceptionMessage)
+      }
+
+      // 1. Builds the chosen expansion service jar and launches it
+      def setupTask = project.tasks.register(config.name+"Setup") {
+        dependsOn ':sdks:java:container:' + javaContainerSuffix + ':docker'
+        dependsOn project.project(config.expansionProjectPath).shadowJar.getPath()
+        dependsOn ":sdks:python:installGcpTest"
+        doLast {
+          project.exec {
+            // Prepare a port to use for the expansion service
+            javaExpansionPort = getRandomPort()
+            expansionServiceOpts.put("java_port", javaExpansionPort)
+            // setup test env
+            def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
+            executable 'sh'
+            args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+          }
+        }
+      }
+
+      // 2. Sets up, collects, and runs Python pipeline tests
+      def sdkLocationOpt = []
+      if (config.needsSdkLocation) {
+        setupTask.configure {dependsOn ':sdks:python:sdist'}
+        sdkLocationOpt = [
+          "--sdk_location=${pythonDir}/build/apache-beam.tar.gz"
+        ]
+      }
+      def beamPythonTestPipelineOptions = [
+        "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
+        "test_opts": config.pytestOptions,
+        "suite": config.name,
+        "collect": config.collectMarker,
+      ]
+      def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
+      def pythonTask = project.tasks.register(config.name+"PythonUsingJava") {
+        group = "Verification"
+        description = "Runs Python SDK pipeline tests that use a Java expansion service"
+        dependsOn setupTask
+        dependsOn config.startJobServer
+        doLast {
+          project.exec {
+            environment "EXPANSION_JAR", expansionJar
+            environment "EXPANSION_PORT", javaExpansionPort
+            executable 'sh'
+            args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+          }
+        }
+      }
+
+      // 3. Shuts down the expansion service
+      def cleanupTask = project.tasks.register(config.name+'Cleanup', Exec) {
+        // teardown test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
+      }
+
+      setupTask.configure {finalizedBy cleanupTask}
+      config.startJobServer.configure {finalizedBy config.cleanupJobServer}
+
+      cleanupTask.configure{mustRunAfter pythonTask}
+      config.cleanupJobServer.configure{mustRunAfter pythonTask}
     }
 
     /** ***********************************************************************************************/

@@ -37,6 +37,7 @@ dependencies {
   implementation project(":runners:core-java")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:expansion-service")
+  implementation project(":sdks:java:extensions:avro")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:protobuf")
@@ -64,10 +65,7 @@ dependencies {
   implementation library.java.google_auth_library_credentials
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_cloud_bigquery_storage
-  implementation(library.java.google_cloud_bigtable_client_core) {
-    exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
-    exclude group: 'io.grpc', module: 'grpc-grpclb'
-  }
+  implementation(library.java.google_cloud_bigtable_client_core_config)
   // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
   // Java7 compatibility. The old google-cloud-bigtable is not compatible with
   // newer version of GAX. Declaring newer google-cloud-bigtable so that Beam
@@ -132,7 +130,6 @@ dependencies {
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   implementation library.java.proto_google_cloud_bigquery_storage_v1
-  implementation library.java.proto_google_cloud_bigtable_admin_v2
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.proto_google_cloud_datastore_v1
   implementation library.java.proto_google_cloud_firestore_v1
@@ -155,6 +152,7 @@ dependencies {
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
@@ -165,6 +163,7 @@ dependencies {
   testImplementation library.java.powermock_mockito
   testImplementation library.java.joda_time
   testImplementation library.java.google_cloud_spanner_test
+  testImplementation library.java.google_cloud_bigtable_emulator
   testRuntimeOnly library.java.slf4j_jdk14
   // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
   permitUnusedDeclared library.java.everit_json_schema
@@ -205,6 +204,11 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
   exclude '**/BigQueryIOJsonTest.class'
+
+  // Failing due to Firestore service-side changes
+  // https://github.com/apache/beam/issues/25851
+  exclude '**/firestore/it/**/*.class'
+
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs

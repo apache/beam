@@ -85,7 +85,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Byte value = element.getByte(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.TINYINT);
                     } else {
                       ps.setByte(i + 1, value);
                     }
@@ -95,7 +95,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Short value = element.getInt16(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.SMALLINT);
                     } else {
                       ps.setInt(i + 1, value);
                     }
@@ -105,7 +105,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Long value = element.getInt64(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.BIGINT);
                     } else {
                       ps.setLong(i + 1, value);
                     }
@@ -119,7 +119,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Float value = element.getFloat(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.FLOAT);
                     } else {
                       ps.setFloat(i + 1, value);
                     }
@@ -129,7 +129,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Double value = element.getDouble(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.DOUBLE);
                     } else {
                       ps.setDouble(i + 1, value);
                     }
@@ -145,7 +145,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Boolean value = element.getBoolean(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.BOOLEAN);
                     } else {
                       ps.setBoolean(i + 1, value);
                     }
@@ -156,7 +156,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Integer value = element.getInt32(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.INTEGER);
                     } else {
                       ps.setInt(i + 1, value);
                     }
@@ -267,8 +267,9 @@ class JdbcUtil {
     ps.setArray(i + 1, null);
   }
 
-  static void setNullToPreparedStatement(PreparedStatement ps, int i) throws SQLException {
-    ps.setNull(i + 1, JDBCType.NULL.getVendorTypeNumber());
+  static void setNullToPreparedStatement(PreparedStatement ps, int i, JDBCType type)
+      throws SQLException {
+    ps.setNull(i + 1, type.getVendorTypeNumber());
   }
 
   static class BeamRowPreparedStatementSetter implements JdbcIO.PreparedStatementSetter<Row> {

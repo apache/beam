@@ -376,7 +376,8 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
 
     BeamFnApi.InstructionResponse response =
         handler
@@ -406,7 +407,8 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
 
     handler.progress(
         BeamFnApi.InstructionRequest.newBuilder()
@@ -485,7 +487,8 @@ public class ProcessBundleHandlerTest {
                 DATA_INPUT_URN, startFinishRecorder,
                 DATA_OUTPUT_URN, startFinishRecorder),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
 
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
@@ -589,7 +592,8 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             urnToPTransformRunnerFactoryMap,
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
 
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
@@ -640,7 +644,8 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(DATA_INPUT_URN, (context) -> null),
             Caches.noop(),
-            new TestBundleProcessorCache());
+            new TestBundleProcessorCache(),
+            null /* dataSampler */);
 
     assertThat(TestBundleProcessor.resetCnt, equalTo(0));
 
@@ -806,7 +811,8 @@ public class ProcessBundleHandlerTest {
                   throw new IllegalStateException("TestException");
                 }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     assertThrows(
         "TestException",
         IllegalStateException.class,
@@ -856,7 +862,8 @@ public class ProcessBundleHandlerTest {
                       return null;
                     }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     BeamFnApi.InstructionResponse.Builder response =
         handler.processBundle(
             BeamFnApi.InstructionRequest.newBuilder()
@@ -909,7 +916,8 @@ public class ProcessBundleHandlerTest {
                       return null;
                     }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     assertThrows(
         "TestException",
         IllegalStateException.class,
@@ -1086,7 +1094,8 @@ public class ProcessBundleHandlerTest {
         executionStateSampler,
         urnToPTransformRunnerFactoryMap,
         Caches.noop(),
-        new BundleProcessorCache());
+        new BundleProcessorCache(),
+        null /* dataSampler */);
   }
 
   @Test
@@ -1418,7 +1427,8 @@ public class ProcessBundleHandlerTest {
                       return null;
                     }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
             .setInstructionId("instructionId")
@@ -1490,7 +1500,8 @@ public class ProcessBundleHandlerTest {
                       return null;
                     }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     assertThrows(
         "TestException",
         IllegalStateException.class,
@@ -1539,7 +1550,8 @@ public class ProcessBundleHandlerTest {
                       return null;
                     }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     assertThrows(
         "TestException",
         IllegalStateException.class,
@@ -1634,7 +1646,8 @@ public class ProcessBundleHandlerTest {
                   }
                 }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
             .setProcessBundle(
@@ -1684,7 +1697,8 @@ public class ProcessBundleHandlerTest {
                   }
                 }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     assertThrows(
         "State API calls are unsupported",
         IllegalStateException.class,
@@ -1786,7 +1800,8 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(DATA_INPUT_URN, startFinishGuard),
             Caches.noop(),
-            bundleProcessorCache);
+            bundleProcessorCache,
+            null /* dataSampler */);
 
     AtomicBoolean progressShouldExit = new AtomicBoolean();
     Future<InstructionResponse> bundleProcessorTask =
@@ -1914,7 +1929,8 @@ public class ProcessBundleHandlerTest {
                   }
                 }),
             Caches.noop(),
-            new BundleProcessorCache());
+            new BundleProcessorCache(),
+            null /* dataSampler */);
     assertThrows(
         "Timers are unsupported",
         IllegalStateException.class,

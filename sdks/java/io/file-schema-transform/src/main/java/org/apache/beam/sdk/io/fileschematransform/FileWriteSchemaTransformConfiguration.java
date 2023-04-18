@@ -39,8 +39,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
   }
 
   public static CsvConfiguration.Builder csvConfigurationBuilder() {
-    return new AutoValue_FileWriteSchemaTransformConfiguration_CsvConfiguration.Builder()
-        .setCsvFormat(CSVFormat.DEFAULT.toString().toLowerCase());
+    return new AutoValue_FileWriteSchemaTransformConfiguration_CsvConfiguration.Builder();
   }
 
   public static ParquetConfiguration.Builder parquetConfigurationBuilder() {
@@ -136,23 +135,19 @@ public abstract class FileWriteSchemaTransformConfiguration {
   public abstract static class CsvConfiguration {
 
     /**
-     * The format of the written CSV file. See <a
-     * href="https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/CSVFormat.html">org.apache.commons.csv.CSVFormat</a>
-     * for allowed values. Defaults to <a
-     * href="https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/CSVFormat.html#DEFAULT">CSVFormat.DEFAULT</a>
+     * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link
+     * CSVFormat.Predefined#values()} for a list of allowed values.
      */
-    public abstract String getCsvFormat();
+    public abstract String getPredefinedCsvFormat();
 
     @AutoValue.Builder
     public abstract static class Builder {
 
       /**
-       * The format of the written CSV file. See <a
-       * href="https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/CSVFormat.html">org.apache.commons.csv.CSVFormat</a>
-       * for allowed values. Defaults to <a
-       * href="https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/CSVFormat.html#DEFAULT">CSVFormat.DEFAULT</a>
+       * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link
+       * CSVFormat.Predefined#values()} for a list of allowed values.
        */
-      public abstract Builder setCsvFormat(String value);
+      public abstract Builder setPredefinedCsvFormat(String value);
 
       public abstract CsvConfiguration build();
     }

@@ -18,12 +18,14 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
 import 'auth/notifier.dart';
 import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
 import 'cache/unit_progress.dart';
+import 'config.dart';
 import 'pages/welcome/page.dart';
 import 'repositories/client/client.dart';
 import 'repositories/client/cloud_functions_client.dart';
@@ -34,6 +36,7 @@ import 'state.dart';
 Future<void> initializeServiceLocator() async {
   _initializeAuth();
   _initializeState();
+  _initializeServices();
   _initializeCaches();
 }
 
@@ -60,4 +63,11 @@ void _initializeState() {
       routeInformationParser: TobRouteInformationParser(),
     ),
   );
+}
+
+void _initializeServices() {
+  final analyticsService = BeamGoogleAnalytics4Service(
+    measurementId: getGoogleAnalyticsMeasurementId(),
+  );
+  GetIt.instance.registerSingleton<BeamAnalyticsService>(analyticsService);
 }

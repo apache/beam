@@ -308,10 +308,10 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 // only occur on element boundaries, but for splittable DoFns this split
 // can land within a restriction and will require splitting that restriction.
 //
-//   - Note: The Go SDK currently does not support dynamic splitting for SDFs,
-//     only initial splitting. Only initially split restrictions can be
-//     distributed by liquid sharding. Stragglers will not be split during
-//     execution with dynamic splitting.
+//   - Note: Dataflow is currently the only runner with support for both
+//     initial and dynamic splitting. Other runners do not support dynamic
+//     splitting, and stragglers will therefore not be split during execution
+//     with liquid sharding.
 //
 // # Splittable DoFn Methods
 //
@@ -322,17 +322,17 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 // user-defined restriction, and can be any type as long as it is consistent
 // throughout all the splittable DoFn methods:
 //
-//   - `CreateInitialRestriction(element) restriction`
+//   - `CreateInitialRestriction(context.Context?, elem) (restriction, error?)`
 //     CreateInitialRestriction creates an initial restriction encompassing an
 //     entire element. The restriction created stays associated with the element
 //     it describes.
-//   - `SplitRestriction(elem, restriction) []restriction`
+//   - `SplitRestriction(context.Context?, elem, restriction) ([]restriction, error?)`
 //     SplitRestriction takes an element and its initial restriction, and
 //     optionally performs an initial split on it, returning a slice of all the
 //     split restrictions. If no splits are desired, the method returns a slice
 //     containing only the original restriction. This method will always be
 //     called on each newly created restriction before they are processed.
-//   - `RestrictionSize(elem, restriction) float64`
+//   - `RestrictionSize(context.Context?, elem, restriction) (float64, error?)`
 //     RestrictionSize returns a cheap size estimation for a restriction. This
 //     size is an abstract non-negative scalar value that represents how much
 //     work a restriction takes compared to other restrictions in the same DoFn.
@@ -341,17 +341,33 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 //     used by runners to estimate work for dynamic work rebalancing. Must be
 //     thread safe. Will be invoked concurrently during bundle processing due to
 //     runner initiated splitting and progress estimation.
-//   - `CreateTracker(restriction) restrictionTracker`
+//   - `CreateTracker(context.Context?, restriction) (restrictionTracker, error?)`
 //     CreateTracker creates and returns a restriction tracker (a concrete type
 //     implementing the `sdf.RTracker` interface) given a restriction. The
 //     restriction tracker is used to track progress processing a restriction,
 //     and to allow for dynamic splits. This method is called on each
 //     restriction right before processing begins.
-//   - `ProcessElement(sdf.RTracker, element, func emit(output))`
+//   - `ProcessElement(context.Context?, sdf.RTracker, elem, func emit(output))
+//     (sdf.ProcessContinuation?, error?)`
 //     For splittable DoFns, ProcessElement requires a restriction tracker
 //     before inputs, and generally requires emits to be used for outputs, since
 //     restrictions will generally produce multiple outputs. For more details
 //     on processing restrictions in a splittable DoFn, see `sdf.RTracker`.
+//     ProcessElement can optionally return a `sdf.ProcessContinuation` to
+//     signal to the runner that processing should be resumed at a later time,
+//     if not all data within the restriction can be processed within the
+//     lifetime of a single bundle. The runner tries to respect the resume time,
+//     however it is not guaranteed.
+//
+// A splittable DoFn can also implement the following optional method:
+//
+//   - `TruncateRestriction(context.Context?, sdf.RTracker, elem) (restriction, error?)`
+//     TruncateRestriction is triggered when a pipeline starts to drain on runners
+//     that support pipeline draining. It helps finish the pipeline faster by
+//     truncating the restriction. If not implemented, the default behavior for
+//     bounded restrictions is to process the remainder of the restriction, and
+//     for unbounded restrictions to process until the next SDF-initiated
+//     checkpoint or runner-initiated split occurs.
 //
 // # Fault Tolerance
 //

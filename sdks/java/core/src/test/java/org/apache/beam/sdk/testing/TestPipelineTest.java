@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNotNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -37,9 +38,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -268,6 +271,29 @@ public class TestPipelineTest implements Serializable {
         exception.expectMessage(P_ASSERT);
         // dangling PAssert
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
+      }
+
+      @Category(NeedsRunner.class)
+      @Test
+      public void testRunWithAdditionalArgsEffective() {
+        ArrayList<String> pipelineArgs = new ArrayList<String>();
+        pipelineArgs.add("--tempLocation=gs://some-location/");
+        pipeline.apply(Create.of("")).apply(new ValidateTempLocation<>());
+        PipelineResult.State result =
+            pipeline.runWithAdditionalOptionArgs(pipelineArgs).waitUntilFinish();
+        assert (result == PipelineResult.State.DONE);
+      }
+
+      static class ValidateTempLocation<T> extends PTransform<PCollection<T>, PCollection<T>> {
+        @Override
+        public void validate(PipelineOptions pipelineOptions) {
+          assert (!Strings.isNullOrEmpty(pipelineOptions.getTempLocation()));
+        }
+
+        @Override
+        public PCollection<T> expand(PCollection<T> input) {
+          return input;
+        }
       }
 
       /**

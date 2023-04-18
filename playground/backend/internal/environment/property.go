@@ -24,7 +24,7 @@ const (
 	configType = "yaml"
 )
 
-//Properties contains all properties that needed to run backend processes.
+// Properties contains all properties that needed to run backend processes.
 type Properties struct {
 	// Salt is the salt to generate the hash to avoid whatever problems a collision may cause.
 	Salt string `mapstructure:"playground_salt"`

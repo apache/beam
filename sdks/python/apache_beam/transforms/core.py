@@ -28,6 +28,7 @@ import sys
 import traceback
 import types
 import typing
+from itertools import dropwhile
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -1387,6 +1388,59 @@ class CallableWrapperPartitionFn(PartitionFn):
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
+def _get_function_body_without_inners(func):
+  source_lines = inspect.getsourcelines(func)[0]
+  source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
+  def_line = next(source_lines).strip()
+  if def_line.startswith("def ") and def_line.endswith(":"):
+    first_line = next(source_lines)
+    indentation = len(first_line) - len(first_line.lstrip())
+    final_lines = [first_line[indentation:]]
+
+    skip_inner_def = False
+    if first_line[indentation:].startswith("def "):
+      skip_inner_def = True
+    for line in source_lines:
+      line_indentation = len(line) - len(line.lstrip())
+
+      if line[indentation:].startswith("def "):
+        skip_inner_def = True
+        continue
+
+      if skip_inner_def and line_indentation == indentation:
+        skip_inner_def = False
+
+      if skip_inner_def and line_indentation > indentation:
+        continue
+      final_lines.append(line[indentation:])
+
+    return "".join(final_lines)
+  else:
+    return def_line.rsplit(":")[-1].strip()
+
+
+def _check_fn_use_yield_and_return(fn):
+  if isinstance(fn, types.BuiltinFunctionType):
+    return False
+  try:
+    source_code = _get_function_body_without_inners(fn)
+    has_yield = False
+    has_return = False
+    for line in source_code.split("\n"):
+      if line.lstrip().startswith("yield ") or line.lstrip().startswith(
+          "yield("):
+        has_yield = True
+      if line.lstrip().startswith("return ") or line.lstrip().startswith(
+          "return("):
+        has_return = True
+      if has_yield and has_return:
+        return True
+    return False
+  except Exception as e:
+    _LOGGER.debug(str(e))
+    return False
+
+
 class ParDo(PTransformWithSideInputs):
   """A :class:`ParDo` transform.
 
@@ -1426,6 +1480,14 @@ class ParDo(PTransformWithSideInputs):
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
+
+    # DoFn.process cannot allow both return and yield
+    if _check_fn_use_yield_and_return(self.fn.process):
+      _LOGGER.warning(
+          'Using yield and return in the process method '
+          'of %s can lead to unexpected behavior, see:'
+          'https://github.com/apache/beam/issues/22969.',
+          self.fn.__class__)
 
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
@@ -2663,6 +2725,7 @@ class CombineValues(PTransformWithSideInputs):
 
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
+
   def __init__(
       self,
       input_pcoll_type,
@@ -2725,6 +2788,7 @@ class CombineValuesDoFn(DoFn):
 
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
+
   def __init__(
       self,
       combine_fn,  # type: CombineFn
@@ -2939,11 +3003,12 @@ class GroupBy(PTransform):
   The GroupBy operation can be made into an aggregating operation by invoking
   its `aggregate_field` method.
   """
+
   def __init__(
       self,
       *fields,  # type: typing.Union[str, typing.Callable]
       **kwargs  # type: typing.Union[str, typing.Callable]
-    ):
+  ):
     if len(fields) == 1 and not kwargs:
       self._force_tuple_keys = False
       name = fields[0] if isinstance(fields[0], str) else 'key'
@@ -2966,7 +3031,7 @@ class GroupBy(PTransform):
       field,  # type: typing.Union[str, typing.Callable]
       combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
-    ):
+  ):
     """Returns a grouping operation that also aggregates grouped values.
 
     Args:
@@ -3054,7 +3119,7 @@ class _GroupAndAggregate(PTransform):
       field,  # type: typing.Union[str, typing.Callable]
       combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
-      ):
+  ):
     field = _expr_to_callable(field, 0)
     return _GroupAndAggregate(
         self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
@@ -3096,10 +3161,12 @@ class Select(PTransform):
 
       pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
-  def __init__(self,
-               *args,  # type: typing.Union[str, typing.Callable]
-               **kwargs  # type: typing.Union[str, typing.Callable]
-               ):
+
+  def __init__(
+      self,
+      *args,  # type: typing.Union[str, typing.Callable]
+      **kwargs  # type: typing.Union[str, typing.Callable]
+  ):
     self._fields = [(
         expr if isinstance(expr, str) else 'arg%02d' % ix,
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
@@ -3164,8 +3231,8 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
-               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum.ValueType]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum.ValueType]
                allowed_lateness=0, # type: typing.Union[int, float]
                environment_id=None, # type: typing.Optional[str]
                ):

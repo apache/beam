@@ -52,7 +52,7 @@ func setup() error {
 	if err != nil {
 		return err
 	}
-	javaConfigPath := filepath.Join(configFolderName, defaultSdk.String()+jsonExt)
+	javaConfigPath := filepath.Join(configFolderName, pb.Sdk_SDK_JAVA.String()+jsonExt)
 	err = os.WriteFile(javaConfigPath, []byte(javaConfig), dirPermission)
 	goConfigPath := filepath.Join(configFolderName, pb.Sdk_SDK_GO.String()+jsonExt)
 	err = os.WriteFile(goConfigPath, []byte(goConfig), dirPermission)
@@ -104,16 +104,16 @@ func TestNewEnvironment(t *testing.T) {
 	}{
 		{name: "Create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
-			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, 0),
+			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
-				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout)); !reflect.DeepEqual(got, tt.want) {
+				*NewBeamEnvs(defaultSdk, defaultBeamVersion, executorConfig, preparedModDir, 0),
+				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
 		})
@@ -131,25 +131,25 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "Not specified beam sdk key in os envs",
-			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, nil, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{},
 			wantErr:   false,
 		},
 		{
 			name:      "Default beam envs",
-			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultNumOfParallelJobs),
-			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
+			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
+			envsToSet: map[string]string{beamSdkKey: "SDK_UNSPECIFIED"},
 			wantErr:   false,
 		},
 		{
 			name:      "Specific sdk key in os envs",
-			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_JAVA, defaultBeamVersion, executorConfig, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "Wrong sdk key in os envs",
-			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, nil, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, defaultBeamVersion, nil, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_J"},
 			wantErr:   false,
 		},
@@ -161,11 +161,11 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 			}
 			got, err := ConfigureBeamEnvs(workingDir)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getSdkEnvsFromOsEnvs() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ConfigureBeamEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getSdkEnvsFromOsEnvs() got = %v, want %v", got, tt.want)
+				t.Errorf("ConfigureBeamEnvs() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -224,7 +224,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "Working dir is provided",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", launchSiteKey: defaultLaunchSite, projectIdKey: defaultProjectId},
 		},
@@ -235,25 +235,25 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the correct value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, convertedTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, convertedTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", cacheKeyExpirationTimeKey: hour},
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the incorrect value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", cacheKeyExpirationTimeKey: "1"},
 		},
 		{
 			name:      "CacheKeyExpirationTimeKey is set with the correct value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, convertedTime, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, convertedTime, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", pipelineExecuteTimeoutKey: hour},
 		},
 		{
 			name:      "PipelineExecuteTimeoutKey is set with the incorrect value",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, defaultSDKConfigPath, defaultPropertyPath, defaultKafkaEmulatorExecutablePath, defaultDatasetsPath, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout, defaultCacheRequestTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", pipelineExecuteTimeoutKey: "1"},
 		},
@@ -291,7 +291,7 @@ func Test_createExecutorConfig(t *testing.T) {
 	}{
 		{
 			name:    "Create executor configuration from json file",
-			args:    args{apacheBeamSdk: defaultSdk, configPath: filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
+			args:    args{apacheBeamSdk: pb.Sdk_SDK_JAVA, configPath: filepath.Join(configFolderName, pb.Sdk_SDK_JAVA.String()+jsonExt)},
 			want:    executorConfig,
 			wantErr: false,
 		},
@@ -322,13 +322,13 @@ func Test_getConfigFromJson(t *testing.T) {
 	}{
 		{
 			name:    "Get object from json",
-			args:    args{filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
+			args:    args{filepath.Join(configFolderName, pb.Sdk_SDK_JAVA.String()+jsonExt)},
 			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-parameters", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}),
 			wantErr: false,
 		},
 		{
 			name:    "Error if wrong json path",
-			args:    args{filepath.Join("wrong_folder", defaultSdk.String()+jsonExt)},
+			args:    args{filepath.Join("wrong_folder", pb.Sdk_SDK_JAVA.String()+jsonExt)},
 			want:    nil,
 			wantErr: true,
 		},
@@ -394,7 +394,7 @@ func TestConfigureBeamEnvs(t *testing.T) {
 		{
 			name:      "BeamSdkKey set to GO sdk",
 			args:      args{workingDir: workingDir},
-			want:      NewBeamEnvs(pb.Sdk_SDK_GO, goExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_GO, defaultBeamVersion, goExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_GO", preparedModDirKey: modDir},
 		},
@@ -407,31 +407,31 @@ func TestConfigureBeamEnvs(t *testing.T) {
 		},
 		{
 			name:      "BeamSdkKey set to Python sdk",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON"},
 		},
 		{
 			name:      "BeamSdkKey set to SCIO sdk",
-			want:      NewBeamEnvs(pb.Sdk_SDK_SCIO, scioExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_SCIO, defaultBeamVersion, scioExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_SCIO"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with a positive number",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, 1),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, 1),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "1"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with a negative number",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "-1"},
 		},
 		{
 			name:      "NumOfParallelJobsKey is set with incorrect value",
-			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, defaultBeamVersion, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "incorrectValue"},
 		},

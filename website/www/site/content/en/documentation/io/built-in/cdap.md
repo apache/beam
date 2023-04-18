@@ -163,7 +163,7 @@ CdapIO<NullWritable, StructuredRecord> readTransform =
 p.apply("readFromZendeskPlugin", readTransform);
 {{< /highlight >}}
 
-To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
+To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap).
 
 ## Batch writing using CdapIO
 

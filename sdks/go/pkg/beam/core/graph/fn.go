@@ -866,14 +866,15 @@ func validateSdfSignatures(fn *Fn, numMainIn mainInputs) error {
 	// CreateInitialRestriction.
 	if numMainIn == MainUnknown {
 		initialRestFn := fn.methods[createInitialRestrictionName]
-		paramNum := len(initialRestFn.Param)
+		paramNum := len(initialRestFn.Params(funcx.FnValue))
+
 		switch paramNum {
 		case int(MainSingle), int(MainKv):
 			num = paramNum
 		default: // Can't infer because method has invalid # of main inputs.
-			err := errors.Errorf("invalid number of params in method %v. got: %v, want: %v or %v",
+			err := errors.Errorf("invalid number of main input params in method %v. got: %v, want: %v or %v",
 				createInitialRestrictionName, paramNum, int(MainSingle), int(MainKv))
-			return errors.SetTopLevelMsgf(err, "Invalid number of parameters in method %v. "+
+			return errors.SetTopLevelMsgf(err, "Invalid number of main input parameters in method %v. "+
 				"Got: %v, Want: %v or %v. Check that the signature conforms to the expected signature for %v, "+
 				"and that elements in SDF method parameters match elements in %v.",
 				createInitialRestrictionName, paramNum, int(MainSingle), int(MainKv), createInitialRestrictionName, processElementName)
@@ -894,7 +895,7 @@ func validateSdfSignatures(fn *Fn, numMainIn mainInputs) error {
 // in each SDF method in the given Fn, and returns an error if a method has an
 // invalid/unexpected number.
 func validateSdfSigNumbers(fn *Fn, num int) error {
-	paramNums := map[string]int{
+	reqParamNums := map[string]int{
 		createInitialRestrictionName: num,
 		splitRestrictionName:         num + 1,
 		restrictionSizeName:          num + 1,
@@ -904,30 +905,50 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 	optionalSdfs := map[string]bool{
 		truncateRestrictionName: true,
 	}
-	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
+	reqReturnNum := 1
 
 	for _, name := range sdfNames {
 		method, ok := fn.methods[name]
 		if !ok && optionalSdfs[name] {
 			continue
 		}
-		if len(method.Param) != paramNums[name] {
-			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v",
-				name, len(method.Param), paramNums[name])
+
+		reqParamNum := reqParamNums[name]
+		if !sdfHasValidParamNum(method.Param, reqParamNum) {
+			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v or optionally %v "+
+				"if first param is of type context.Context", name, len(method.Param), reqParamNum, reqParamNum+1)
 			return errors.SetTopLevelMsgf(err, "Unexpected number of parameters in method %v. "+
-				"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v, "+
-				"and that elements in SDF method parameters match elements in %v.",
-				name, len(method.Param), paramNums[name], name, processElementName)
+				"Got: %v, Want: %v or optionally %v if first param is of type context.Context. "+
+				"Check that the signature conforms to the expected signature for %v, and that elements in SDF method "+
+				"parameters match elements in %v.", name, len(method.Param), reqParamNum, reqParamNum+1,
+				name, processElementName)
 		}
-		if len(method.Ret) != returnNum {
-			err := errors.Errorf("unexpected number of returns in method %v. got: %v, want: %v",
-				name, len(method.Ret), returnNum)
+		if !sdfHasValidReturnNum(method.Ret, reqReturnNum) {
+			err := errors.Errorf("unexpected number of returns in method %v. got: %v, want: %v or optionally %v "+
+				"if last value is of type error", name, len(method.Ret), reqReturnNum, reqReturnNum+1)
 			return errors.SetTopLevelMsgf(err, "Unexpected number of return values in method %v. "+
-				"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v.",
-				name, len(method.Ret), returnNum, name)
+				"Got: %v, Want: %v or optionally %v if last value is of type error. "+
+				"Check that the signature conforms to the expected signature for %v.",
+				name, len(method.Ret), reqReturnNum, reqReturnNum+1, name)
 		}
 	}
 	return nil
+}
+
+func sdfHasValidParamNum(params []funcx.FnParam, requiredNum int) bool {
+	if len(params) == requiredNum {
+		return true
+	}
+
+	return len(params) == requiredNum+1 && params[0].Kind == funcx.FnContext
+}
+
+func sdfHasValidReturnNum(returns []funcx.ReturnParam, requiredNum int) bool {
+	if len(returns) == requiredNum {
+		return true
+	}
+
+	return len(returns) == requiredNum+1 && returns[len(returns)-1].Kind == funcx.RetError
 }
 
 // validateSdfSigTypes validates the types of the parameters and return values
@@ -940,22 +961,25 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 
 	for _, name := range requiredSdfNames {
 		method := fn.methods[name]
+		startIdx := sdfRequiredParamStartIndex(method)
+
 		switch name {
 		case createInitialRestrictionName:
-			if err := validateSdfElementT(fn, createInitialRestrictionName, method, num, 0); err != nil {
+			if err := validateSdfElementT(fn, createInitialRestrictionName, method, num, startIdx); err != nil {
 				return err
 			}
 		case splitRestrictionName:
-			if err := validateSdfElementT(fn, splitRestrictionName, method, num, 0); err != nil {
+			if err := validateSdfElementT(fn, splitRestrictionName, method, num, startIdx); err != nil {
 				return err
 			}
-			if method.Param[num].T != restrictionT {
+			idx := num + startIdx
+			if method.Param[idx].T != restrictionT {
 				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
-					splitRestrictionName, num, method.Param[num].T, restrictionT)
+					splitRestrictionName, idx, method.Param[idx].T, restrictionT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that all restrictions in an SDF are the same type.",
-					splitRestrictionName, num, method.Param[num].T, restrictionT, createInitialRestrictionName)
+					splitRestrictionName, idx, method.Param[idx].T, restrictionT, createInitialRestrictionName)
 			}
 			if method.Ret[0].T.Kind() != reflect.Slice ||
 				method.Ret[0].T.Elem() != restrictionT {
@@ -967,16 +991,17 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					splitRestrictionName, 0, method.Ret[0].T, reflect.SliceOf(restrictionT), createInitialRestrictionName, splitRestrictionName)
 			}
 		case restrictionSizeName:
-			if err := validateSdfElementT(fn, restrictionSizeName, method, num, 0); err != nil {
+			if err := validateSdfElementT(fn, restrictionSizeName, method, num, startIdx); err != nil {
 				return err
 			}
-			if method.Param[num].T != restrictionT {
+			idx := num + startIdx
+			if method.Param[idx].T != restrictionT {
 				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
-					restrictionSizeName, num, method.Param[num].T, restrictionT)
+					restrictionSizeName, idx, method.Param[idx].T, restrictionT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that all restrictions in an SDF are the same type.",
-					restrictionSizeName, num, method.Param[num].T, restrictionT, createInitialRestrictionName)
+					restrictionSizeName, idx, method.Param[idx].T, restrictionT, createInitialRestrictionName)
 			}
 			if method.Ret[0].T != reflectx.Float64 {
 				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
@@ -986,13 +1011,13 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					restrictionSizeName, 0, method.Ret[0].T, reflectx.Float64)
 			}
 		case createTrackerName:
-			if method.Param[0].T != restrictionT {
+			if method.Param[startIdx].T != restrictionT {
 				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
-					createTrackerName, 0, method.Param[0].T, restrictionT)
+					createTrackerName, startIdx, method.Param[startIdx].T, restrictionT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that all restrictions in an SDF are the same type.",
-					createTrackerName, 0, method.Param[0].T, restrictionT, createInitialRestrictionName)
+					createTrackerName, startIdx, method.Param[startIdx].T, restrictionT, createInitialRestrictionName)
 			}
 			if !method.Ret[0].T.Implements(rTrackerT) {
 				err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.RTracker",
@@ -1020,15 +1045,18 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 		if !ok {
 			continue
 		}
+
+		startIdx := sdfRequiredParamStartIndex(method)
+
 		switch name {
 		case truncateRestrictionName:
-			if method.Param[0].T != rTrackerImplT {
+			if method.Param[startIdx].T != rTrackerImplT {
 				err := errors.Errorf("mismatched restriction tracker type in method %v, param %v. got: %v, want: %v",
-					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT)
+					truncateRestrictionName, startIdx, method.Param[startIdx].T, rTrackerImplT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction tracker type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that restriction tracker is the first parameter.",
-					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT, createTrackerName)
+					truncateRestrictionName, startIdx, method.Param[startIdx].T, rTrackerImplT, createTrackerName)
 			}
 			if method.Ret[0].T != restrictionT {
 				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
@@ -1052,6 +1080,14 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 	return nil
 }
 
+func sdfRequiredParamStartIndex(method *funcx.Fn) int {
+	if ctxIndex, ok := method.Context(); ok {
+		return ctxIndex + 1
+	}
+
+	return 0
+}
+
 // validateSdfElementT validates that element types in an SDF method are
 // consistent with the ProcessElement method. This method assumes that the
 // first 'num' parameters starting with startIndex are the elements.
@@ -1062,13 +1098,14 @@ func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int, startIn
 	pos, _, _ := processFn.Inputs()
 
 	for i := 0; i < num; i++ {
-		if method.Param[i+startIndex].T != processFn.Param[pos+i].T {
+		idx := i + startIndex
+		if got, want := method.Param[i+startIndex].T, processFn.Param[pos+i].T; got != want {
 			err := errors.Errorf("mismatched element type in method %v, param %v. got: %v, want: %v",
-				name, i, method.Param[i].T, processFn.Param[pos+i].T)
+				name, idx, got, want)
 			return errors.SetTopLevelMsgf(err, "Mismatched element type in method %v, "+
 				"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 				"Ensure that element parameters in SDF methods have consistent types with element parameters in %v.",
-				name, i, method.Param[i].T, processFn.Param[pos+i].T, processElementName, processElementName)
+				name, idx, got, want, processElementName, processElementName)
 		}
 	}
 	return nil
@@ -1178,7 +1215,8 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 	// CreateInitialRestriction.
 	if numMainIn == int(MainUnknown) {
 		initialRestFn := fn.methods[createInitialRestrictionName]
-		paramNum := len(initialRestFn.Param)
+		paramNum := len(initialRestFn.Params(funcx.FnValue))
+
 		switch paramNum {
 		case int(MainSingle), int(MainKv):
 			numMainIn = paramNum
@@ -1212,7 +1250,7 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 					"Ensure that all restrictions in an SDF are the same type.",
 					initialWatermarkEstimatorStateName, 1, method.Param[1].T, restT, createTrackerName)
 			}
-			if err := validateSdfElementT(fn, restrictionSizeName, method, numMainIn, 2); err != nil {
+			if err := validateSdfElementT(fn, initialWatermarkEstimatorStateName, method, numMainIn, 2); err != nil {
 				return err
 			}
 

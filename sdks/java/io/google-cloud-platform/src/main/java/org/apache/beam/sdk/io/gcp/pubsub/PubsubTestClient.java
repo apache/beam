@@ -100,7 +100,11 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   private static final State STATE = new State();
 
   /** Closing the factory will validate all expected messages were processed. */
-  public interface PubsubTestClientFactory extends PubsubClientFactory, Closeable, Serializable {}
+  public interface PubsubTestClientFactory extends PubsubClientFactory, Closeable, Serializable {
+    default <T> PubsubIO.Read<T> setClock(PubsubIO.Read<T> readTransform, Clock clock) {
+      return readTransform.withClock(clock);
+    }
+  }
 
   /**
    * Return a factory for testing publishers. Only one factory may be in-flight at a time. The
