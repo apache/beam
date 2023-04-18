@@ -120,11 +120,13 @@ public class ConfigBuilder {
   @VisibleForTesting
   static Map<String, String> createBundleConfig(
       SamzaPipelineOptions options, Map<String, String> config) {
-    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+    final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
     builder.put(MAX_CONCURRENCY, String.valueOf(options.getMaxBundleSize()));
 
     if (options.getMaxBundleSize() > 1) {
       final int threadPoolSize = ConfigUtils.asJobConfig(config).getThreadPoolSize();
+      // Since Samza doesn't allow mixing bundle > 1 with multithreading tasks right now,
+      // we disable the task thread pool in both user and autosizing configs.
       LOG.info("Remove threadPoolSize configs when maxBundleSize > 1");
       builder.put(JOB_CONTAINER_THREAD_POOL_SIZE, "0");
       builder.put(JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE, "0");
