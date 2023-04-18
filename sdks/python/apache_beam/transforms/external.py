@@ -361,7 +361,7 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
         self._expansion_service, identifier)
 
     external_config_fields = schematransform_config.configuration_schema._fields
-    ordered_kwargs = {}
+    ordered_kwargs = OrderedDict()
     missing_fields = []
 
     for field in external_config_fields:
