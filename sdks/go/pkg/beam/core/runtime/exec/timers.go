@@ -32,12 +32,12 @@ type UserTimerAdapter interface {
 }
 
 type userTimerAdapter struct {
-	SID            StreamID
+	sID            StreamID
 	wc             WindowEncoder
 	kc             ElementEncoder
-	Dc             ElementDecoder
-	TimerIDToCoder map[string]*coder.Coder
-	C              *coder.Coder
+	dc             ElementDecoder
+	timerIDToCoder map[string]*coder.Coder
+	c              *coder.Coder
 }
 
 func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoders map[string]*coder.Coder) UserTimerAdapter {
@@ -46,14 +46,10 @@ func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoders map[string]*c
 	}
 
 	wc := MakeWindowEncoder(c.Window)
-	var kc ElementEncoder
-	var dc ElementDecoder
-	if coder.IsKV(coder.SkipW(c)) {
-		kc = MakeElementEncoder(coder.SkipW(c).Components[0])
-		dc = MakeElementDecoder(coder.SkipW(c).Components[0])
-	}
+	kc := MakeElementEncoder(coder.SkipW(c).Components[0])
+	dc := MakeElementDecoder(coder.SkipW(c).Components[0])
 
-	return &userTimerAdapter{SID: sID, wc: wc, kc: kc, Dc: dc, C: c, TimerIDToCoder: timerCoders}
+	return &userTimerAdapter{sID: sID, wc: wc, kc: kc, dc: dc, c: c, timerIDToCoder: timerCoders}
 }
 
 func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataManager, inputTs typex.EventTime, w []typex.Window, element *MainInput) (timerProvider, error) {
@@ -70,10 +66,10 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataMan
 		tm:              manager,
 		elementKey:      elementKey,
 		inputTimestamp:  inputTs,
-		SID:             u.SID,
+		sID:             u.sID,
 		window:          w,
 		writersByFamily: make(map[string]io.Writer),
-		codersByFamily:  u.TimerIDToCoder,
+		codersByFamily:  u.timerIDToCoder,
 	}
 
 	return tp, nil
@@ -82,7 +78,7 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataMan
 type timerProvider struct {
 	ctx            context.Context
 	tm             DataManager
-	SID            StreamID
+	sID            StreamID
 	inputTimestamp typex.EventTime
 	elementKey     []byte
 	window         []typex.Window
@@ -97,7 +93,7 @@ func (p *timerProvider) getWriter(family string) (io.Writer, error) {
 	if w, ok := p.writersByFamily[family]; ok {
 		return w, nil
 	} else {
-		w, err := p.tm.OpenTimerWrite(p.ctx, p.SID, family)
+		w, err := p.tm.OpenTimerWrite(p.ctx, p.sID, family)
 		if err != nil {
 			return nil, err
 		}

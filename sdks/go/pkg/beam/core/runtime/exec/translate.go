@@ -596,19 +596,12 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 						log.Debugf(context.TODO(), "userTimers %+v", userTimers)
 						timerIDToCoder := make(map[string]*coder.Coder)
 						for key, _ := range userTimers {
-							// cID := spec.GetTimerFamilyCoderId()
-							// c, err := b.coders.Coder(cID)
-							// if err != nil {
-							// 	return nil, err
-							// }
 							sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
 							ec, wc, err := b.makeCoderForPCollection(input[0])
 							if err != nil {
 								return nil, err
 							}
 							timerIDToCoder[key] = coder.NewT(ec, wc)
-
-							// TODO: ensure this only gets set once or they're always the same.
 							n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerIDToCoder)
 						}
 					}

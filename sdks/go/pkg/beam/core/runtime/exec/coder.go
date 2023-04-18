@@ -17,7 +17,6 @@ package exec
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -29,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
@@ -1259,13 +1257,11 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 // encodeTimer encodes a typex.TimerMap into a byte stream.
 func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.Writer) error {
 	var b bytes.Buffer
-
-	// elm.Encode(&FullValue{Elm: tm.Key}, &b)
-	log.Infof(context.Background(), "encoding timer with timer map: %+v", tm)
 	_, err := b.Write(tm.Key)
 	if err != nil {
 		return errors.WithContext(err, "error encoding key")
 	}
+
 	if err := coder.EncodeStringUTF8(tm.Tag, &b); err != nil {
 		return errors.WithContext(err, "error encoding tag")
 	}
@@ -1273,6 +1269,7 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 	if err := win.Encode(tm.Windows, &b); err != nil {
 		return errors.WithContext(err, "error encoding window")
 	}
+
 	if err := coder.EncodeBool(tm.Clear, &b); err != nil {
 		return errors.WithContext(err, "error encoding clear bit")
 	}
@@ -1288,27 +1285,20 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 			return errors.WithContext(err, "error encoding paneinfo")
 		}
 	}
-
 	w.Write(b.Bytes())
+
 	return nil
 }
 
 // decodeTimer decodes timer byte encoded with standard timer coder spec.
 func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv, error) {
 	tm := TimerRecv{}
-
-	// fv, err := dec.Decode(r)
-	// if err != nil {
-	// 	return tm, errors.WithContext(err, "error decoding timer key")
-	// }
-	// // TODO Change to not type assert once general timers key fix is done.
-	// tm.Key = fv.Elm.([]byte)
-
 	key, err := dec.Decode(r)
 	if err != nil {
 		return tm, errors.WithContext(err, "error decoding key")
 	}
 	tm.Key = key
+
 	s, err := coder.DecodeStringUTF8(r)
 	if err != nil && err != io.EOF {
 		return tm, errors.WithContext(err, "error decoding timer tag")

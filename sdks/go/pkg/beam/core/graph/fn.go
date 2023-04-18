@@ -1393,6 +1393,15 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 	return nil
 }
 
+func validateOnTimerFn(fn *DoFn) error {
+	if _, ok := fn.OnTimerFn(); !ok {
+		err := errors.Errorf("OnTimer function not defined for DoFn: %v", fn.Name())
+		return errors.SetTopLevelMsgf(err, "OnTimer function not defined for DoFn: %v. Ensure that OnTimer function is implemented for the DoFn.", fn.Name())
+	}
+
+	return nil
+}
+
 func validateTimer(fn *DoFn) error {
 	if fn.Fn == nil {
 		return nil
@@ -1402,9 +1411,9 @@ func validateTimer(fn *DoFn) error {
 
 	if _, ok := fn.Fn.TimerProvider(); ok {
 		if len(pt) == 0 {
-			err := errors.Errorf("ProcessElement uses a TimerProvider, but no timer struct-tags are attached to the DoFn")
-			return errors.SetTopLevelMsgf(err, "ProcessElement uses a TimerProvider, but no timer struct-tags are attached to the DoFn"+
-				", Ensure that you are including the timer structs you're using to set/clear global state as uppercase member variables")
+			err := errors.New("ProcessElement uses a TimerProvider, but no Timer fields are defined in the DoFn")
+			return errors.SetTopLevelMsgf(err, "ProcessElement uses a TimerProvider, but no timer fields are defined in the DoFn"+
+				", Ensure that you are including the exported timer field in the DoFn that you're using to set/clear timers.")
 		}
 		timerKeys := make(map[string]PipelineTimer)
 		for _, t := range pt {
@@ -1416,15 +1425,21 @@ func validateTimer(fn *DoFn) error {
 				timerKeys[k] = t
 			}
 		}
+		if err := validateOnTimerFn(fn); err != nil {
+			return err
+		}
 	} else {
 		if len(pt) > 0 {
-			err := errors.Errorf("ProcessElement doesn't  use a TimerProvider, but Timer Struct is attached to the DoFn: %v", pt)
-			return errors.SetTopLevelMsgf(err, "ProcessElement doesn't  use a TimerProvider, but Timer Struct is attached to the DoFn: %v"+
+			err := errors.Errorf("ProcessElement doesn't use a TimerProvider, but Timer field is attached to the DoFn: %v", pt)
+			return errors.SetTopLevelMsgf(err, "ProcessElement doesn't use a TimerProvider, but Timer field is attached to the DoFn: %v"+
 				", Ensure that you are using the TimerProvider to set/clear the timers.", pt)
 		}
+		if err := validateOnTimerFn(fn); err == nil {
+			actualErr := errors.New("OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement.")
+			return errors.SetTopLevelMsgf(actualErr, "OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement."+
+				"Ensure that timers.Provider is defined in the ProcessElement and OnTimer methods of DoFn.")
+		}
 	}
-
-	// DO NOT SUBMIT: Require an OnTimer method existing
 
 	return nil
 }

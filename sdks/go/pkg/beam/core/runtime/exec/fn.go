@@ -28,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 //go:generate specialize --input=fn_arity.tmpl
@@ -294,12 +293,9 @@ func (n *invoker) invokeWithOpts(ctx context.Context, pn typex.PaneInfo, ws []ty
 
 	// (3) Precomputed side input and emitters (or other output).
 	for _, arg := range opts.extra {
-		log.Infof(ctx, "TIMER: i=%v, in[i]=%v, arg=%v", i, in[i], arg)
 		args[in[i]] = arg
 		i++
 	}
-
-	log.Infof(ctx, "args array = %v", args)
 
 	// (4) Invoke
 	return n.call(pn, ws, ts)
