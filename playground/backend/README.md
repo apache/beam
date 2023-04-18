@@ -144,12 +144,3 @@ One more way to run the server is to run it locally how it is described above.
 To call the server from another client – models and client code should be generated using the
 `playground/api/v1/api.proto` file. More information about generating models and client's code using `.proto`
 files for each language can be found [here](https://grpc.io/docs/languages/).
-
-## Running the Beam Code
-### RunCode representation
-The following diagram represents the execution of beam code at the server:
-![RunCode](RunCodeDiagram.png)
-
-### Validators/preparators representation
-To clarify which validators and preparators used with the code:
-![](ValidatorsPreparators.png)
