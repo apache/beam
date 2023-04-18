@@ -158,7 +158,7 @@ Install Beam and dependencies and build a Beam distribution.
 ```sh
 cd beam/sdks/python
 pip install -e '.[gcp]'
-pip install -q build 
+pip install -q build
 python -m build --sdist
 ```
 
