@@ -106,7 +106,7 @@ that illustrates running Scikit-learn models with Apache Beam.&lt;/p>
 &lt;li>Use tensorflow 2.7 or later.&lt;/li>
 &lt;li>Pass the path of the model to the TensorFlow &lt;code>ModelHandler&lt;/code> by using &lt;code>model_uri=&amp;lt;path_to_trained_model&amp;gt;&lt;/code>.&lt;/li>
 &lt;li>Alternatively, you can pass the path to saved weights of the trained model, a function to build the model using &lt;code>create_model_fn=&amp;lt;function&amp;gt;&lt;/code>, and set the &lt;code>model_type=ModelType.SAVED_WEIGHTS&lt;/code>.
-See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow_with_tensorflowhub.ipynb">this notebook&lt;/a> that illustrates running Tensorflow models with Built-in model handlers.&lt;/li>
+See &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb">this notebook&lt;/a> that illustrates running Tensorflow models with Built-in model handlers.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>Using &lt;code>tfx_bsl&lt;/code>.
