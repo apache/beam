@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 resource "google_app_engine_application" "app_playground" {
   count         = var.skip_appengine_deploy ? 0 : 1
   project     = var.project_id
