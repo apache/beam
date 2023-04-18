@@ -453,7 +453,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
     being the set of bad batches of records (those which threw exceptions
     during processing) along with information about the errors raised.
 
-    For example, one would write:
+    For example, one would write::
 
         good, bad = RunInference(
           maybe_error_raising_model_handler
@@ -468,7 +468,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
     returned in order that they occur in the pipeline (preprocessing,
     inference, postprocessing).
 
-    For example, with pre and post processing one would write:
+    For example, with pre and post processing one would write::
 
         good, bad_pre, bad_inference, bad_post = RunInference(
           maybe_error_raising_model_handler,
@@ -476,7 +476,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
           postprocess_fn=postprocess
         ).with_exception_handling()
 
-    Or, with just postprocessing one would write:
+    Or, with just postprocessing one would write::
 
         good, bad_inference, bad_post = RunInference(
           maybe_error_raising_model_handler,
