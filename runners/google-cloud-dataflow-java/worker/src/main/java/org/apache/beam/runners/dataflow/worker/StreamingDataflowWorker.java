@@ -1253,6 +1253,8 @@ public class StreamingDataflowWorker {
 
     ExecutionState executionState = null;
 
+    Boolean isCustomSource = false;
+
     try {
       executionState = computationState.getExecutionStateQueue().poll();
       if (executionState == null) {
@@ -1323,6 +1325,7 @@ public class StreamingDataflowWorker {
             .getName()
             .equals(
                 readNode.getParallelInstruction().getRead().getSource().getSpec().get("@type"))) {
+          isCustomSource = true;
           NameContext nameContext =
               NameContext.create(
                   mapTask.getStageName(),
@@ -1399,6 +1402,25 @@ public class StreamingDataflowWorker {
 
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
+
+      // Report bytes processed for custom source
+      if (isCustomSource) {
+        long sourceBytesProcessed = 0;
+        List<ElementCounter> counters =
+            ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
+                .getReadOperation()
+                .receivers[0]
+                .outputCounters;
+        for (ElementCounter counter : counters) {
+          try {
+            sourceBytesProcessed =
+                (long) ((OutputObjectAndByteCounter) counter).getByteCount().getAggregate();
+          } catch (Exception e) {
+            // ignore
+          }
+        }
+        outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
+      }
 
       Iterables.addAll(
           this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
