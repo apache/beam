@@ -48,11 +48,12 @@ func (f *spannerFn) Setup(ctx context.Context) error {
 
 		// Append emulator options assuming endpoint is local (for testing).
 		if f.endpoint != "" {
-			opts = []option.ClientOption{
-				option.WithEndpoint(f.endpoint),
-				option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
-				option.WithoutAuthentication(),
+			conn, err := grpc.DialContext(ctx, f.endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				return err
 			}
+
+			opts = []option.ClientOption{option.WithGRPCConn(conn)}
 		}
 
 		client, err := spanner.NewClient(ctx, f.Database, opts...)
