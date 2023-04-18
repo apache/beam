@@ -53,7 +53,7 @@ func (f *spannerFn) Setup(ctx context.Context) error {
 				return err
 			}
 
-			opts = []option.ClientOption{option.WithGRPCConn(conn)}
+			opts = []option.ClientOption{option.WithGRPCConn(conn), option.WithoutAuthentication()}
 		}
 
 		client, err := spanner.NewClient(ctx, f.Database, opts...)

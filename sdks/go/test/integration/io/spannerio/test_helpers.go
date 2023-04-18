@@ -76,7 +76,7 @@ func NewClient(ctx context.Context, t *testing.T, endpoint string, db string) *s
 		t.Fatalf("Dialling in-memory fake spanner: %v", err)
 	}
 
-	client, err := spanner.NewClient(ctx, db, option.WithGRPCConn(conn))
+	client, err := spanner.NewClient(ctx, db, option.WithGRPCConn(conn), option.WithoutAuthentication())
 	if err != nil {
 		t.Fatalf("Unable to create spanner client: %v", err)
 	}
@@ -93,7 +93,7 @@ func NewAdminClient(ctx context.Context, t *testing.T, endpoint string) *databas
 	}
 
 	// Admin clients do not respect 'SPANNER_EMULATOR_HOST' currently.
-	admin, err := database.NewDatabaseAdminClient(ctx, option.WithGRPCConn(conn))
+	admin, err := database.NewDatabaseAdminClient(ctx, option.WithGRPCConn(conn), option.WithoutAuthentication())
 	if err != nil {
 		t.Fatalf("Unable to create spanner admin client: %v", err)
 	}
@@ -114,7 +114,7 @@ func NewInstanceAdminClient(ctx context.Context, t *testing.T, endpoint string) 
 	}
 
 	// Admin clients do not respect 'SPANNER_EMULATOR_HOST' currently.
-	instanceAdmin, err := instance.NewInstanceAdminClient(ctx, option.WithGRPCConn(conn))
+	instanceAdmin, err := instance.NewInstanceAdminClient(ctx, option.WithGRPCConn(conn), option.WithoutAuthentication())
 	if err != nil {
 		t.Fatalf("Unable to create spanner instance admin client: %v", err)
 	}
