@@ -29,7 +29,7 @@ import (
 
 type spannerFn struct {
 	Database string          `json:"database"` // Database is the spanner connection string
-	endpoint string          `json:"endpoint"` // Override spanner endpoint in tests
+	endpoint string          // Override spanner endpoint in tests
 	client   *spanner.Client // Spanner Client
 }
 
