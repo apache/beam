@@ -371,10 +371,22 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     self._model_handler.validate_inference_args(self._inference_args)
     resource_hints = self._model_handler.get_resource_hints()
+    # DLQ pcollections
+    bad_preprocessed = None
+    bad_inference = None
+    bad_postprocessed = None
 
     if self._preprocess_fn is not None:
-      pcoll = pcoll | "BeamML_RunInference_Preprocess" >> beam.Map(
-          self._preprocess_fn)
+      if self._with_exception_handling:
+        pcoll, bad_preprocessed = (pcoll
+        | "BeamML_RunInference_Preprocess" >> beam.Map(
+            self._preprocess_fn).with_exception_handling(
+          exc_class=self._exc_class,
+          use_subprocess=self._use_subprocess,
+          threshold=self._threshold))
+      else:
+        pcoll = pcoll | "BeamML_RunInference_Preprocess" >> beam.Map(
+            self._preprocess_fn)
 
     batched_elements_pcoll = (
         pcoll
@@ -395,18 +407,38 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
             **resource_hints)
 
     if self._with_exception_handling:
-      run_inference_pardo = run_inference_pardo.with_exception_handling(
+      results, bad_inference = (
+          batched_elements_pcoll
+          | 'BeamML_RunInference' >>
+          run_inference_pardo.with_exception_handling(
           exc_class=self._exc_class,
           use_subprocess=self._use_subprocess,
-          threshold=self._threshold)
-
-    results = (
-        batched_elements_pcoll
-        | 'BeamML_RunInference' >> run_inference_pardo)
+          threshold=self._threshold))
+    else:
+      results = (
+          batched_elements_pcoll
+          | 'BeamML_RunInference' >> run_inference_pardo)
 
     if self._postprocess_fn is not None:
-      return results | "BeamML_RunInference_Postprocess" >> beam.Map(
-          self._postprocess_fn)
+      if self._with_exception_handling:
+        results, bad_postprocessed = (results
+        | "BeamML_RunInference_Postprocess" >> beam.Map(
+            self._postprocess_fn).with_exception_handling(
+          exc_class=self._exc_class,
+          use_subprocess=self._use_subprocess,
+          threshold=self._threshold))
+      else:
+        results = results | "BeamML_RunInference_Postprocess" >> beam.Map(
+            self._postprocess_fn)
+
+    if self._with_exception_handling:
+      if bad_preprocessed is not None and bad_postprocessed is not None:
+        return results, bad_preprocessed, bad_inference, bad_postprocessed
+      if bad_preprocessed is not None:
+        return results, bad_preprocessed, bad_inference
+      if bad_postprocessed is not None:
+        return results, bad_inference, bad_postprocessed
+      return results, bad_inference
 
     return results
 
@@ -421,7 +453,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
     being the set of bad batches of records (those which threw exceptions
     during processing) along with information about the errors raised.
 
-    For example, one would write::
+    For example, one would write:
 
         good, bad = RunInference(
           maybe_error_raising_model_handler
@@ -431,6 +463,25 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
     contain a tuple of all batches that raised exceptions, along with their
     corresponding exception.
 
+    If RunInference has preprocessing and/or postprocessing functions defined,
+    each will result in its own DLQ of bad results. These results will be
+    returned in order that they occur in the pipeline (preprocessing,
+    inference, postprocessing).
+
+    For example, with pre and post processing one would write:
+
+        good, bad_pre, bad_inference, bad_post = RunInference(
+          maybe_error_raising_model_handler,
+          preprocess_fn=preprocess,
+          postprocess_fn=postprocess
+        ).with_exception_handling()
+
+    Or, with just postprocessing one would write:
+
+        good, bad_inference, bad_post = RunInference(
+          maybe_error_raising_model_handler,
+          postprocess_fn=postprocess
+        ).with_exception_handling()
 
     Args:
       exc_class: An exception class, or tuple of exception classes, to catch.

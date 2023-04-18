@@ -203,6 +203,86 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandler(), postprocess_fn=mult_two)
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_preprocessing_dlq(self):
+    def mult_two(example: str) -> int:
+      if example == "5":
+        raise Exception("TEST")
+      return int(example) * 2
+
+    with TestPipeline() as pipeline:
+      examples = ["1", "5", "3", "10"]
+      expected = [3, 7, 21]
+      expected_bad = ["5"]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      good, bad_pre, bad_infer = pcoll | base.RunInference(
+          FakeModelHandler(), preprocess_fn=mult_two).with_exception_handling()
+      assert_that(good, equal_to(expected), label='assert:inferences')
+      assert_that(bad_infer, equal_to([]), label='assert:bad_infer')
+
+      # bad will be in form [element, error]. Just pull out bad element.
+      bad_without_error = bad_pre | beam.Map(lambda x: x[0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_postprocessing_dlq(self):
+    def mult_two(example: int) -> str:
+      if example == 6:
+        raise Exception("TEST")
+      return str(example * 2)
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = ["4", "8", "22"]
+      expected_bad = [6]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      good, bad_infer, bad_post = pcoll | base.RunInference(
+          FakeModelHandler(), postprocess_fn=mult_two).with_exception_handling()
+      assert_that(good, equal_to(expected), label='assert:inferences')
+      assert_that(bad_infer, equal_to([]), label='assert:bad_infer')
+
+      # bad will be in form [element, error]. Just pull out bad element.
+      bad_without_error = bad_post | beam.Map(lambda x: x[0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_pre_and_post_processing_dlq(self):
+    def mult_two_pre(example: str) -> int:
+      if example == "5":
+        raise Exception("TEST")
+      return int(example) * 2
+
+    def mult_two_post(example: int) -> str:
+      if example == 7:
+        raise Exception("TEST")
+      return str(example * 2)
+
+    with TestPipeline() as pipeline:
+      examples = ["1", "5", "3", "10"]
+      expected = ["6", "42"]
+      expected_bad_pre = ["5"]
+      expected_bad_post = [7]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      good, bad_pre, bad_infer, bad_post = pcoll | base.RunInference(
+          FakeModelHandler(),
+          preprocess_fn=mult_two_pre,
+          postprocess_fn=mult_two_post).with_exception_handling()
+      assert_that(good, equal_to(expected), label='assert:inferences')
+      assert_that(bad_infer, equal_to([]), label='assert:bad_infer')
+
+      # bad will be in form [elements, error]. Just pull out bad element.
+      bad_without_error_pre = bad_pre | beam.Map(lambda x: x[0])
+      assert_that(
+          bad_without_error_pre,
+          equal_to(expected_bad_pre),
+          label='assert:failures_pre')
+
+      # bad will be in form [elements, error]. Just pull out bad element.
+      bad_without_error_post = bad_post | beam.Map(lambda x: x[0])
+      assert_that(
+          bad_without_error_post,
+          equal_to(expected_bad_post),
+          label='assert:failures_post')
+
   def test_run_inference_keyed_pre_and_post_processing(self):
     def mult_two(element):
       return (element[0], element[1] * 2)
