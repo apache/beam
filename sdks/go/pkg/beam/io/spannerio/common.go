@@ -18,14 +18,17 @@
 package spannerio
 
 import (
+	"cloud.google.com/go/spanner"
 	"context"
 	"fmt"
-
-	"cloud.google.com/go/spanner"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type spannerFn struct {
 	Database string          `json:"database"` // Database is the spanner connection string
+	endpoint string          `json:"endpoint"` // Override spanner endpoint in tests
 	client   *spanner.Client // Spanner Client
 }
 
@@ -41,7 +44,18 @@ func newSpannerFn(db string) spannerFn {
 
 func (f *spannerFn) Setup(ctx context.Context) error {
 	if f.client == nil {
-		client, err := spanner.NewClient(ctx, f.Database)
+		var opts []option.ClientOption
+
+		// Append emulator options assuming endpoint is local (for testing).
+		if f.endpoint != "" {
+			opts = []option.ClientOption{
+				option.WithEndpoint(f.endpoint),
+				option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+				option.WithoutAuthentication(),
+			}
+		}
+
+		client, err := spanner.NewClient(ctx, f.Database, opts...)
 		if err != nil {
 			return fmt.Errorf("failed to initialise Spanner client: %v", err)
 		}

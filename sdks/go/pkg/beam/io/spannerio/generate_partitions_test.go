@@ -46,10 +46,10 @@ type partitionGeneratorStub struct {
 }
 
 func (g *partitionGeneratorStub) generate(
-	ctx context.Context,
-	tb spanner.TimestampBound,
-	query string,
-	opts spanner.PartitionOptions,
+	_ context.Context,
+	_ spanner.TimestampBound,
+	_ string,
+	_ spanner.PartitionOptions,
 ) (spanner.BatchReadOnlyTransactionID, []*spanner.Partition) {
-	return spanner.BatchReadOnlyTransactionID{}, []*spanner.Partition{&spanner.Partition{}}
+	return spanner.BatchReadOnlyTransactionID{}, []*spanner.Partition{{}}
 }

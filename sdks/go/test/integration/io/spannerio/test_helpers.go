@@ -18,7 +18,6 @@ package spannerio
 import (
 	"context"
 	"fmt"
-	"os"
 	"regexp"
 	"testing"
 
@@ -66,17 +65,23 @@ func setUpTestContainer(ctx context.Context, t *testing.T) string {
 		t.Fatalf("Unable to get spanner host: %v", err)
 	}
 
-	endpoint := fmt.Sprintf("%s:%s", hostIP, mappedPort)
-
-	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
-
-	return endpoint
+	return fmt.Sprintf("%s:%s", hostIP, mappedPort)
 }
 
-func newClient(ctx context.Context, t *testing.T, endpoint string, db string) *spanner.Client {
+func NewClient(ctx context.Context, t *testing.T, endpoint string, db string) *spanner.Client {
 	t.Helper()
 
-	client, err := spanner.NewClient(ctx, db)
+	var opts []option.ClientOption
+
+	if endpoint != "" {
+		opts = []option.ClientOption{
+			option.WithEndpoint(endpoint),
+			option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+			option.WithoutAuthentication(),
+		}
+	}
+
+	client, err := spanner.NewClient(ctx, db, opts...)
 	if err != nil {
 		t.Fatalf("Unable to create spanner client: %v", err)
 	}
@@ -86,7 +91,7 @@ func newClient(ctx context.Context, t *testing.T, endpoint string, db string) *s
 	return client
 }
 
-func newAdminClient(ctx context.Context, t *testing.T, endpoint string) *database.DatabaseAdminClient {
+func NewAdminClient(ctx context.Context, t *testing.T, endpoint string) *database.DatabaseAdminClient {
 	// Admin clients do not respect 'SPANNER_EMULATOR_HOST' currently.
 	admin, err := database.NewDatabaseAdminClient(ctx,
 		option.WithEndpoint(endpoint),
@@ -105,7 +110,7 @@ func newAdminClient(ctx context.Context, t *testing.T, endpoint string) *databas
 	return admin
 }
 
-func newInstanceAdminClient(ctx context.Context, t *testing.T, endpoint string) *instance.InstanceAdminClient {
+func NewInstanceAdminClient(ctx context.Context, t *testing.T, endpoint string) *instance.InstanceAdminClient {
 	// Admin clients do not respect 'SPANNER_EMULATOR_HOST' currently.
 	instanceAdmin, err := instance.NewInstanceAdminClient(ctx,
 		option.WithEndpoint(endpoint),
@@ -124,7 +129,7 @@ func newInstanceAdminClient(ctx context.Context, t *testing.T, endpoint string) 
 	return instanceAdmin
 }
 
-func createInstance(ctx context.Context, t *testing.T, instanceAdmin *instance.InstanceAdminClient, db string) {
+func CreateInstance(ctx context.Context, t *testing.T, instanceAdmin *instance.InstanceAdminClient, db string) {
 	t.Helper()
 
 	projectId, instanceId, _ := parseDatabaseName(t, db)
@@ -146,7 +151,7 @@ func createInstance(ctx context.Context, t *testing.T, instanceAdmin *instance.I
 	}
 }
 
-func deleteInstance(ctx context.Context, t *testing.T, instanceAdmin *instance.InstanceAdminClient, db string) {
+func DeleteInstance(ctx context.Context, t *testing.T, instanceAdmin *instance.InstanceAdminClient, db string) {
 	t.Helper()
 
 	projectId, instanceId, _ := parseDatabaseName(t, db)
@@ -158,7 +163,7 @@ func deleteInstance(ctx context.Context, t *testing.T, instanceAdmin *instance.I
 	}
 }
 
-func createDatabase(ctx context.Context, t *testing.T, adminClient *database.DatabaseAdminClient, db string) {
+func CreateDatabase(ctx context.Context, t *testing.T, adminClient *database.DatabaseAdminClient, db string) {
 	t.Helper()
 
 	projectId, instanceId, databaseId := parseDatabaseName(t, db)
@@ -177,7 +182,7 @@ func createDatabase(ctx context.Context, t *testing.T, adminClient *database.Dat
 	}
 }
 
-func dropDatabase(ctx context.Context, t *testing.T, adminClient *database.DatabaseAdminClient, db string) {
+func DropDatabase(ctx context.Context, t *testing.T, adminClient *database.DatabaseAdminClient, db string) {
 	t.Helper()
 
 	err := adminClient.DropDatabase(ctx, &adminpb.DropDatabaseRequest{Database: db})
@@ -187,7 +192,7 @@ func dropDatabase(ctx context.Context, t *testing.T, adminClient *database.Datab
 	}
 }
 
-func createTable(ctx context.Context, t *testing.T, adminClient *database.DatabaseAdminClient, db string, ddls []string) {
+func CreateTable(ctx context.Context, t *testing.T, adminClient *database.DatabaseAdminClient, db string, ddls []string) {
 	t.Helper()
 
 	op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{

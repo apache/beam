@@ -21,22 +21,26 @@ import (
 	"testing"
 
 	"cloud.google.com/go/spanner"
-	"cloud.google.com/go/spanner/spansql"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	spannertest "github.com/apache/beam/sdks/v2/go/test/integration/io/spannerio"
 )
 
 func TestRead(t *testing.T) {
+	ctx := context.Background()
+
 	testCases := []struct {
 		name          string
 		database      string
+		table         string
 		rows          []TestDto
 		expectedError bool
 	}{
 		{
 			name:     "Successfully read 4 rows",
 			database: "projects/fake-proj/instances/fake-instance/databases/fake-db-4-rows",
+			table:    "FourRows",
 			rows: []TestDto{
 				{
 					One: "one",
@@ -59,6 +63,7 @@ func TestRead(t *testing.T) {
 		{
 			name:     "Successfully read 1 rows",
 			database: "projects/fake-proj/instances/fake-instance/databases/fake-db-1-rows",
+			table:    "OneRow",
 			rows: []TestDto{
 				{
 					One: "one",
@@ -68,34 +73,20 @@ func TestRead(t *testing.T) {
 		},
 	}
 
+	srv := newServer(t)
+
+	adminClient := spannertest.NewAdminClient(ctx, t, srv.Addr)
+
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			srv, srvCleanup := newServer(t)
-			defer srvCleanup()
-
-			client, _, cleanup, err := createFakeClient(srv.Addr, testCase.database)
-			if err != nil {
-				t.Fatalf("Unable to create fake client: %v", err)
-			}
-			defer cleanup()
-
-			ddl, err := spansql.ParseDDL("",
-				`CREATE TABLE Test (
+			spannertest.CreateTable(ctx, t, adminClient, testCase.database, []string{`CREATE TABLE ` + testCase.table + ` (
 					One STRING(20),
 					Two INT64,
-				) PRIMARY KEY (Two)`)
-			if err != nil {
-				t.Fatalf("Unable to create DDL statement for spanner test: %v", err)
-			}
-
-			err = srv.UpdateDDL(ddl)
-			if err != nil {
-				t.Fatalf("Unable to run DDL into spanner db: %v", err)
-			}
+				) PRIMARY KEY (Two)`})
 
 			var mutations []*spanner.Mutation
 			for _, m := range testCase.rows {
-				mutation, err := spanner.InsertStruct("Test", m)
+				mutation, err := spanner.InsertStruct(testCase.table, m)
 				if err != nil {
 					t.Fatalf("Unable to create mutation to insert struct: %v", err)
 				}
@@ -103,15 +94,15 @@ func TestRead(t *testing.T) {
 				mutations = append(mutations, mutation)
 			}
 
-			_, err = client.Apply(context.Background(), mutations)
+			client := spannertest.NewClient(ctx, t, srv.Addr, testCase.database)
+			_, err := client.Apply(ctx, mutations)
 			if err != nil {
 				t.Fatalf("Applying mutations: %v", err)
 			}
 
-			p := beam.NewPipeline()
-			s := p.Root()
-			fn := newQueryFn(testCase.database, "SELECT * from Test", reflect.TypeOf(TestDto{}))
-			fn.client = client
+			p, s := beam.NewPipelineWithRoot()
+			fn := newQueryFn(testCase.database, "SELECT * from "+testCase.table, reflect.TypeOf(TestDto{}))
+			fn.endpoint = srv.Addr
 
 			imp := beam.Impulse(s)
 			rows := beam.ParDo(s, fn, imp, beam.TypeDefinition{Var: beam.XType, T: reflect.TypeOf(TestDto{})})

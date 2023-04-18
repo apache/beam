@@ -16,14 +16,9 @@
 package spannerio
 
 import (
-	"context"
 	"testing"
 
-	"cloud.google.com/go/spanner"
-	db "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/spannertest"
-	"google.golang.org/api/option"
-	"google.golang.org/grpc"
 )
 
 type TestDto struct {
@@ -31,38 +26,19 @@ type TestDto struct {
 	Two int64  `spanner:"Two"`
 }
 
-func newServer(t *testing.T) (*spannertest.Server, func()) {
-	srv, err := spannertest.NewServer("localhost:0")
+const (
+	spannerHost = "localhost:0"
+)
+
+func newServer(t *testing.T) *spannertest.Server {
+	srv, err := spannertest.NewServer(spannerHost)
 	if err != nil {
 		t.Fatalf("Starting in-memory fake spanner: %v", err)
 	}
 
-	return srv, func() {
-		srv.Close()
-	}
-}
+	srv.SetLogger(t.Logf)
 
-func createFakeClient(address string, database string) (*spanner.Client, *db.DatabaseAdminClient, func(), error) {
-	ctx := context.Background()
+	t.Cleanup(srv.Close)
 
-	conn, err := grpc.DialContext(ctx, address, grpc.WithInsecure())
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	client, err := spanner.NewClient(ctx, database, option.WithGRPCConn(conn))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	admin, err := db.NewDatabaseAdminClient(ctx, option.WithGRPCConn(conn))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return client, admin, func() {
-		client.Close()
-		admin.Close()
-		conn.Close()
-	}, nil
+	return srv
 }

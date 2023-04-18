@@ -18,6 +18,7 @@ package spannerio
 import (
 	"context"
 	"flag"
+	"os"
 	"reflect"
 	"testing"
 
@@ -39,26 +40,28 @@ func TestExampleQueryBatch(t *testing.T) {
 	// Setup a spanner emulator container.
 	endpoint := setUpTestContainer(ctx, t)
 
+	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
+
 	// Create clients that we'll need for this test. Note: these have implicit cleanup func's registered.
-	client := newClient(ctx, t, endpoint, db)
-	instanceAdminClient := newInstanceAdminClient(ctx, t, endpoint)
-	adminClient := newAdminClient(ctx, t, endpoint)
+	client := NewClient(ctx, t, endpoint, db)
+	instanceAdminClient := NewInstanceAdminClient(ctx, t, endpoint)
+	adminClient := NewAdminClient(ctx, t, endpoint)
 
 	// Create a spanner instance. Requires explicit cleanup.
-	createInstance(ctx, t, instanceAdminClient, db)
+	CreateInstance(ctx, t, instanceAdminClient, db)
 	t.Cleanup(func() {
-		deleteInstance(ctx, t, instanceAdminClient, db)
+		DeleteInstance(ctx, t, instanceAdminClient, db)
 	})
 
 	// Create a spanner database. Requires explicit cleanup.
-	createDatabase(ctx, t, adminClient, db)
+	CreateDatabase(ctx, t, adminClient, db)
 	t.Cleanup(func() {
-		dropDatabase(ctx, t, adminClient, db)
+		DropDatabase(ctx, t, adminClient, db)
 	})
 
 	// Create a spanner table. We won't explicitly clean this up as we'll prefer
 	// to create additional databases for subtests in future.
-	createTable(ctx, t, adminClient, db, []string{`CREATE TABLE Test (
+	CreateTable(ctx, t, adminClient, db, []string{`CREATE TABLE Test (
 					One STRING(20),
 					Two INT64,
 				) PRIMARY KEY (Two)`})

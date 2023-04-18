@@ -17,25 +17,29 @@ package spannerio
 
 import (
 	"context"
+	spannertest "github.com/apache/beam/sdks/v2/go/test/integration/io/spannerio"
 	"testing"
 
 	"cloud.google.com/go/spanner"
-	"cloud.google.com/go/spanner/spansql"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"google.golang.org/api/iterator"
 )
 
 func TestWrite(t *testing.T) {
+	ctx := context.Background()
+
 	testCases := []struct {
 		name          string
 		database      string
+		table         string
 		rows          []TestDto
 		expectedError bool
 	}{
 		{
 			name:     "Successfully write 4 rows",
 			database: "projects/fake-proj/instances/fake-instance/databases/fake-db-4-rows",
+			table:    "FourRows",
 			rows: []TestDto{
 				{
 					One: "one",
@@ -57,48 +61,30 @@ func TestWrite(t *testing.T) {
 		},
 	}
 
+	srv := newServer(t)
+
+	adminClient := spannertest.NewAdminClient(ctx, t, srv.Addr)
+
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			srv, srvCleanup := newServer(t)
-			defer srvCleanup()
+			client := spannertest.NewClient(ctx, t, srv.Addr, testCase.database)
 
-			client, _, cleanup, err := createFakeClient(srv.Addr, testCase.database)
-			if err != nil {
-				t.Fatalf("Unable to create fake client: %v", err)
-			}
-			defer cleanup()
-
-			ddl, err := spansql.ParseDDL("",
-				`CREATE TABLE Test (
+			spannertest.CreateTable(ctx, t, adminClient, testCase.database, []string{`CREATE TABLE ` + testCase.table + ` (
 					One STRING(20),
 					Two INT64,
-				) PRIMARY KEY (Two)`)
-			if err != nil {
-				t.Fatalf("Unable to create DDL statement for spanner test: %v", err)
-			}
-
-			err = srv.UpdateDDL(ddl)
-			if err != nil {
-				t.Fatalf("Unable to run DDL into spanner db: %v", err)
-			}
+				) PRIMARY KEY (Two)`})
 
 			p, s, col := ptest.CreateList(testCase.rows)
 
-			fn := newWriteFn(testCase.database, "Test", col.Type().Type())
-			fn.client = client
+			fn := newWriteFn(testCase.database, testCase.table, col.Type().Type())
+			fn.endpoint = srv.Addr
 
 			beam.ParDo0(s, fn, col)
 
 			ptest.RunAndValidate(t, p)
 
-			verifyClient, _, verifyClientCleanup, err := createFakeClient(srv.Addr, testCase.database)
-			if err != nil {
-				t.Fatalf("Unable to create fake client: %v", err)
-			}
-			defer verifyClientCleanup()
-
-			stmt := spanner.Statement{SQL: "SELECT * FROM Test"}
-			it := verifyClient.Single().Query(context.Background(), stmt)
+			stmt := spanner.Statement{SQL: "SELECT * FROM " + testCase.table}
+			it := client.Single().Query(ctx, stmt)
 			defer it.Stop()
 
 			var count int
