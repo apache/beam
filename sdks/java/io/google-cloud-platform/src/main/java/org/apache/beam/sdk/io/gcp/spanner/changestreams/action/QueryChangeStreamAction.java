@@ -218,14 +218,23 @@ public class QueryChangeStreamAction {
       the partition.
       */
       if (isTimestampOutOfRange(e)) {
-        LOG.debug(
-            "[{}] query change stream is out of range for {} to {}, finishing stream",
+        LOG.info(
+            "[{}] query change stream is out of range for {} to {}, finishing stream.",
             token,
             startTimestamp,
-            endTimestamp);
+            endTimestamp,
+            e);
       } else {
         throw e;
       }
+    } catch (Exception e) {
+      LOG.error(
+          "[{}] query change stream had exception processing range {} to {}.",
+          token,
+          startTimestamp,
+          endTimestamp,
+          e);
+      throw e;
     }
 
     LOG.debug("[{}] change stream completed successfully", token);
