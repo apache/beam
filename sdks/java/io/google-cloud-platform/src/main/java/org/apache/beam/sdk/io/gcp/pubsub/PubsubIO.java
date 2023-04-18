@@ -36,7 +36,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.naming.SizeLimitExceededException;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -686,11 +685,22 @@ public class PubsubIO {
    * by the schema-transform library.
    */
   public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz) {
+    return readAvrosWithBeamSchema(clazz, AvroCoder.of(clazz));
+  }
+
+  /**
+   * Returns a {@link PTransform} that continuously reads binary encoded Avro messages of the
+   * specific type.
+   *
+   * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
+   * by the schema-transform library.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz, AvroCoder<T> coder) {
     if (clazz.equals(GenericRecord.class)) {
       throw new IllegalArgumentException("For GenericRecord, please call readAvroGenericRecords");
     }
-    org.apache.avro.Schema avroSchema = ReflectData.get().getSchema(clazz);
-    AvroCoder<T> coder = AvroCoder.of(clazz);
+    org.apache.avro.Schema avroSchema = coder.getSchema();
     Schema schema = AvroUtils.getSchema(clazz, null);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(

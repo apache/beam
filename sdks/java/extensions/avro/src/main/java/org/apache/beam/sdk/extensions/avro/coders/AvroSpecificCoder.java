@@ -18,16 +18,29 @@
 package org.apache.beam.sdk.extensions.avro.coders;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.specific.SpecificData;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 
-/** AvroCoder specialisation for GenericRecord. */
-public class AvroGenericCoder extends AvroCoder<GenericRecord> {
-  AvroGenericCoder(Schema schema) {
-    super(GenericRecord.class, AvroDatumFactory.GenericDatumFactory.INSTANCE, schema);
+/** AvroCoder specialisation for generated avro classes. */
+public class AvroSpecificCoder<T> extends AvroCoder<T> {
+
+  @SuppressWarnings("nullness") // new SpecificData(ClassLoader) is not annotated to accept null
+  AvroSpecificCoder(Class<T> type) {
+    super(
+        type,
+        AvroDatumFactory.SpecificDatumFactory.of(type),
+        new SpecificData(type.getClassLoader()).getSchema(type));
   }
 
-  public static AvroGenericCoder of(Schema schema) {
-    return new AvroGenericCoder(schema);
+  AvroSpecificCoder(Class<T> type, Schema schema) {
+    super(type, AvroDatumFactory.SpecificDatumFactory.of(type), schema);
+  }
+
+  public static <T> AvroSpecificCoder<T> of(Class<T> type) {
+    return new AvroSpecificCoder<>(type);
+  }
+
+  public static <T> AvroSpecificCoder<T> of(Class<T> type, Schema schema) {
+    return new AvroSpecificCoder<>(type, schema);
   }
 }

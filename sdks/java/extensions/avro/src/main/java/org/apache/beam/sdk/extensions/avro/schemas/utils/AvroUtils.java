@@ -60,7 +60,6 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -145,14 +144,6 @@ import org.joda.time.ReadableInstant;
   "rawtypes"
 })
 public class AvroUtils {
-
-  static {
-    // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
-    // of DateTime types.
-    SpecificData.get().addLogicalTypeConversion(new AvroCoder.JodaTimestampConversion());
-    GenericData.get().addLogicalTypeConversion(new AvroCoder.JodaTimestampConversion());
-  }
-
   private static final ForLoadedType BYTES = new ForLoadedType(byte[].class);
   private static final ForLoadedType JAVA_INSTANT = new ForLoadedType(java.time.Instant.class);
   private static final ForLoadedType JAVA_LOCALE_DATE =

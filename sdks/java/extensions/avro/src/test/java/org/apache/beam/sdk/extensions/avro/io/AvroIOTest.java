@@ -334,7 +334,7 @@ public class AvroIOTest implements Serializable {
       writePipeline
           .apply(Create.of(values))
           .apply(
-              AvroIO.<Long, GenericClass>writeCustomType()
+              AvroIO.<Long, GenericClass>writeCustomType(GenericClass.class)
                   .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
                   .withFormatFunction(new CreateGenericClass())
                   .withSchema(ReflectData.get().getSchema(GenericClass.class))
@@ -1529,7 +1529,7 @@ public class AvroIOTest implements Serializable {
       Schema recordSchema = SchemaBuilder.record("root").fields().requiredInt("i1").endRecord();
 
       AvroIO.TypedWrite<Integer, Void, Integer> write =
-          AvroIO.<Integer, Integer>writeCustomType()
+          AvroIO.<Integer, Integer>writeCustomType(Integer.class)
               .to(outputFilePrefix)
               .withSchema(recordSchema)
               .withFormatFunction(f -> f)

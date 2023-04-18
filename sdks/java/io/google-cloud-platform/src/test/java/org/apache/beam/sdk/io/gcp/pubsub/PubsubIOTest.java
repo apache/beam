@@ -42,14 +42,23 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.avro.Conversion;
 import org.apache.avro.Schema;
+import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroSchema;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroSpecificCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
@@ -313,16 +322,57 @@ public class PubsubIOTest {
         hasItem(hasDisplayItem("topic")));
   }
 
-  static class GenericClass {
+  // our avro ReflectClass contains some logical type
+  // to enable that we need a new coder that create DatumReaders and DatumWriters
+  // initialized with the extra logical type conversion
+  static class ReflectWithTimestampDatumFactory<T> extends AvroDatumFactory<T> {
+
+    private final Conversion<DateTime> timestampConversion;
+
+    ReflectWithTimestampDatumFactory(Class<T> type) {
+      super(type);
+      this.timestampConversion = new TimeConversions.TimestampConversion();
+    }
+
+    @Override
+    public DatumReader<T> apply(Schema writer, Schema reader) {
+      ReflectDatumReader<T> datumReader = new ReflectDatumReader<>(this.type);
+      datumReader.getData().addLogicalTypeConversion(timestampConversion);
+      return datumReader;
+    }
+
+    @Override
+    public DatumWriter<T> apply(Schema writer) {
+      ReflectDatumWriter<T> datumWriter = new ReflectDatumWriter<>(this.type);
+      datumWriter.getData().addLogicalTypeConversion(timestampConversion);
+      return datumWriter;
+    }
+  }
+
+  static class AvroReflectWithTimestampCoder<T> extends AvroCoder<T> {
+
+    AvroReflectWithTimestampCoder(Class<T> type) {
+      super(
+          type,
+          new ReflectWithTimestampDatumFactory<>(type),
+          new ReflectData(type.getClassLoader()).getSchema(type));
+    }
+
+    public static <T> AvroReflectWithTimestampCoder<T> of(Class<T> type) {
+      return new AvroReflectWithTimestampCoder<>(type);
+    }
+  }
+
+  static class ReflectClass {
     int intField;
     String stringField;
 
     @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
-    public DateTime timestamp;
+    DateTime timestamp;
 
-    public GenericClass() {}
+    public ReflectClass() {}
 
-    public GenericClass(int intField, String stringField, DateTime timestamp) {
+    public ReflectClass(int intField, String stringField, DateTime timestamp) {
       this.intField = intField;
       this.stringField = stringField;
       this.timestamp = timestamp;
@@ -344,10 +394,10 @@ public class PubsubIOTest {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      if (other == null || !(other instanceof GenericClass)) {
+      if (other == null || !(other instanceof ReflectClass)) {
         return false;
       }
-      GenericClass o = (GenericClass) other;
+      ReflectClass o = (ReflectClass) other;
       return intField == o.intField
           && Objects.equals(stringField, o.stringField)
           && Objects.equals(timestamp, o.timestamp);
@@ -592,17 +642,17 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroPojo() {
-    AvroCoder<GenericClass> coder = AvroCoder.of(GenericClass.class);
-    List<GenericClass> inputs =
+    AvroCoder<ReflectClass> coder = AvroReflectWithTimestampCoder.of(ReflectClass.class);
+    List<ReflectClass> inputs =
         Lists.newArrayList(
-            new GenericClass(
+            new ReflectClass(
                 1, "foo", new DateTime().withDate(2019, 10, 1).withZone(DateTimeZone.UTC)),
-            new GenericClass(
+            new ReflectClass(
                 2, "bar", new DateTime().withDate(1986, 10, 1).withZone(DateTimeZone.UTC)));
     setupTestClient(inputs, coder);
-    PCollection<GenericClass> read =
+    PCollection<ReflectClass> read =
         pipeline.apply(
-            PubsubIO.readAvrosWithBeamSchema(GenericClass.class)
+            PubsubIO.readAvrosWithBeamSchema(ReflectClass.class, coder)
                 .fromSubscription(SUBSCRIPTION.getPath())
                 .withClock(CLOCK)
                 .withClientFactory(clientFactory));
@@ -612,7 +662,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroSpecificRecord() {
-    AvroCoder<AvroGeneratedUser> coder = AvroCoder.of(AvroGeneratedUser.class);
+    AvroCoder<AvroGeneratedUser> coder = AvroSpecificCoder.of(AvroGeneratedUser.class);
     List<AvroGeneratedUser> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),
