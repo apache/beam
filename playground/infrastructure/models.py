@@ -38,7 +38,6 @@ class DatasetFormat(str, Enum):
 
 class DatasetLocation(str, Enum):
     LOCAL = "local"
-    GCS = "GCS"
 
 
 class Dataset(BaseModel):
