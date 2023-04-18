@@ -42,7 +42,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.apache.avro.Conversion;
 import org.apache.avro.Schema;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericRecord;
@@ -327,24 +326,21 @@ public class PubsubIOTest {
   // initialized with the extra logical type conversion
   static class ReflectWithTimestampDatumFactory<T> extends AvroDatumFactory<T> {
 
-    private final Conversion<DateTime> timestampConversion;
-
-    ReflectWithTimestampDatumFactory(Class<T> type) {
+    public ReflectWithTimestampDatumFactory(Class<T> type) {
       super(type);
-      this.timestampConversion = new TimeConversions.TimestampConversion();
     }
 
     @Override
     public DatumReader<T> apply(Schema writer, Schema reader) {
       ReflectDatumReader<T> datumReader = new ReflectDatumReader<>(this.type);
-      datumReader.getData().addLogicalTypeConversion(timestampConversion);
+      datumReader.getData().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
       return datumReader;
     }
 
     @Override
     public DatumWriter<T> apply(Schema writer) {
       ReflectDatumWriter<T> datumWriter = new ReflectDatumWriter<>(this.type);
-      datumWriter.getData().addLogicalTypeConversion(timestampConversion);
+      datumWriter.getData().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
       return datumWriter;
     }
   }
