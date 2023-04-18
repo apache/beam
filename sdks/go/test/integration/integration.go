@@ -187,6 +187,8 @@ var samzaFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+	// TODO(https://github.com/apache/beam/issues/26126): Java runner issue (AcitveBundle has no regsitered handler)
+	"TestDebeziumIO_BasicRead",
 }
 
 var sparkFilters = []string{

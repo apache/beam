@@ -400,9 +400,6 @@ task validatesRunnerStreaming {
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      // GroupIntoBatches.withShardedKey not supported on streaming runner v1
-      // https://github.com/apache/beam/issues/22592
-      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }
@@ -562,6 +559,9 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/gcp/spanner/changestreams/it/*.class'
+  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
+  exclude '**/FirestoreV1IT.class'
+
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -609,6 +609,8 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'
   exclude '**/FhirIOPatientEverythingIT.class'
+  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
+  exclude '**/FirestoreV1IT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest

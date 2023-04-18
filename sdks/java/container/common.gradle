@@ -89,7 +89,7 @@ task copyJdkOptions(type: Copy) {
 
 task skipPullLicenses(type: Exec) {
     executable "sh"
-    args "-c", "mkdir -p build/target/go-licenses build/target/options build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+    args "-c", "mkdir -p build/target/go-licenses build/target/options build/target/third_party_licenses && touch build/target/go-licenses/skip && touch build/target/third_party_licenses/skip"
 }
 
 task validateJavaHome {
@@ -125,9 +125,11 @@ docker {
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
         project.rootProject.hasProperty(["isRelease"])) {
+    project.logger.lifecycle('docker-pull-licenses set, creating go-licenses')
     dockerPrepare.dependsOn copyJavaThirdPartyLicenses
     dockerPrepare.dependsOn copyGolangLicenses
 } else {
+    project.logger.lifecycle('docker-pull-licenses not set, skipping go-licenses')
     dockerPrepare.dependsOn skipPullLicenses
 }
 dockerPrepare.dependsOn copySdkHarnessLauncher

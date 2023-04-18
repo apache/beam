@@ -23,6 +23,7 @@ const _key = 'empty';
 
 /// Indicates that an empty content should be loaded for the [sdk].
 class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
 
   const EmptyExampleLoadingDescriptor({

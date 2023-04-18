@@ -50,6 +50,7 @@ import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -61,9 +62,12 @@ import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest;
 
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
@@ -231,6 +235,34 @@ public class AwsModuleTest {
     Supplier<AssumeRoleRequest> requestSupplier =
         (Supplier<AssumeRoleRequest>)
             readField(deserializedProvider, "assumeRoleRequestSupplier", true);
+    assertThat(requestSupplier.get()).isEqualTo(req);
+  }
+
+  @Test
+  public void testStsAssumeRoleWithWebIdentityCredentialsProviderSerDe() throws Exception {
+    AssumeRoleWithWebIdentityRequest req =
+        AssumeRoleWithWebIdentityRequest.builder()
+            .roleArn("roleArn")
+            .policy("policy")
+            .webIdentityToken("idToken")
+            .build();
+    Supplier<AwsCredentialsProvider> provider =
+        () ->
+            StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
+                .stsClient(
+                    StsClient.builder()
+                        .region(Region.AWS_GLOBAL)
+                        .credentialsProvider(AnonymousCredentialsProvider.create())
+                        .build())
+                .refreshRequest(req)
+                .build();
+
+    // Deserialize without credentials from system properties
+    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider.get());
+
+    Supplier<AssumeRoleWithWebIdentityRequest> requestSupplier =
+        (Supplier<AssumeRoleWithWebIdentityRequest>)
+            readField(deserializedProvider, "assumeRoleWithWebIdentityRequest", true);
     assertThat(requestSupplier.get()).isEqualTo(req);
   }
 

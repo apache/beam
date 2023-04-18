@@ -180,16 +180,19 @@ class BigtableConfigTranslator {
         settings.stubSettings().bulkMutateRowsSettings();
     RetrySettings.Builder retrySettings = callSettings.getRetrySettings().toBuilder();
     BatchingSettings.Builder batchingSettings = callSettings.getBatchingSettings().toBuilder();
+
+    // The default attempt timeout for version <= 2.46.0 is 6 minutes. Reset the timeout to align
+    // with the old behavior.
+    Duration attemptTimeout = Duration.ofMinutes(6);
+
     if (writeOptions.getAttemptTimeout() != null) {
-      // Set the user specified attempt timeout and expand the operation timeout if it's shorter
-      retrySettings.setInitialRpcTimeout(
-          Duration.ofMillis(writeOptions.getAttemptTimeout().getMillis()));
-      retrySettings.setTotalTimeout(
-          Duration.ofMillis(
-              Math.max(
-                  retrySettings.getTotalTimeout().toMillis(),
-                  writeOptions.getAttemptTimeout().getMillis())));
+      attemptTimeout = Duration.ofMillis(writeOptions.getAttemptTimeout().getMillis());
     }
+    retrySettings.setInitialRpcTimeout(attemptTimeout).setMaxRpcTimeout(attemptTimeout);
+    // Expand the operation timeout if it's shorter
+    retrySettings.setTotalTimeout(
+        Duration.ofMillis(
+            Math.max(retrySettings.getTotalTimeout().toMillis(), attemptTimeout.toMillis())));
 
     if (writeOptions.getOperationTimeout() != null) {
       retrySettings.setTotalTimeout(
