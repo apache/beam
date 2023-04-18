@@ -20,10 +20,12 @@ package org.apache.beam.sdk.io.fileschematransform;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.io.Providers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
@@ -33,27 +35,27 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class FileReadSchemaTransformConfiguration {
-  static final Set<String> VALID_FORMATS = Sets.newHashSet("avro", "parquet", "json", "line");
-
   public void validate() {
+    Set<String> validProviders = Providers.loadProviders(FileReadSchemaTransformFormatProvider.class).keySet();
     checkArgument(
-        !Strings.isNullOrEmpty(this.getFormat()) && VALID_FORMATS.contains(this.getFormat()),
+        !Strings.isNullOrEmpty(this.getFormat()) && validProviders.contains(this.getFormat()),
         "A valid file format must be specified. Please specify one of: "
-            + VALID_FORMATS.toString());
+            + validProviders);
 
+    validProviders.remove("line");
     if (!this.getFormat().equals("line")) {
       checkArgument(
           !Strings.isNullOrEmpty(this.getSchema()),
           String.format(
-              "A schema must be specified when reading files with %s format. You may provide a schema string or a path to a file containing the schema.",
-              this.getFormat()));
+              "A schema must be specified when reading files with %s formats. You may provide a schema string or a path to a file containing the schema.",
+              validProviders));
     }
 
-    Integer terminateAfterSecondsSinceNewOutput = this.getTerminateAfterSecondsSinceNewOutput();
-    Integer pollIntervalMillis = this.getPollIntervalMillis();
-    if (terminateAfterSecondsSinceNewOutput != null && terminateAfterSecondsSinceNewOutput > 0) {
+    Long terminateAfterSecondsSinceNewOutput = this.getTerminateAfterSecondsSinceNewOutput();
+    Long pollIntervalMillis = this.getPollIntervalMillis();
+    if (terminateAfterSecondsSinceNewOutput != null && terminateAfterSecondsSinceNewOutput > 0L) {
       checkArgument(
-          pollIntervalMillis != null && pollIntervalMillis > 0,
+          pollIntervalMillis != null && pollIntervalMillis > 0L,
           "Found positive value for terminateAfterSecondsSinceNewOutput but non-positive"
               + "value for pollIntervalMillis. Please set pollIntervalMillis as well to enable"
               + "streaming.");
@@ -97,7 +99,7 @@ public abstract class FileReadSchemaTransformConfiguration {
    * for.
    */
   @Nullable
-  public abstract Integer getPollIntervalMillis();
+  public abstract Long getPollIntervalMillis();
 
   /**
    * If no new files are found after this many seconds, this transform will cease to watch for new
@@ -107,7 +109,7 @@ public abstract class FileReadSchemaTransformConfiguration {
    * provided.
    */
   @Nullable
-  public abstract Integer getTerminateAfterSecondsSinceNewOutput();
+  public abstract Long getTerminateAfterSecondsSinceNewOutput();
 
   abstract Builder toBuilder();
 
@@ -119,9 +121,9 @@ public abstract class FileReadSchemaTransformConfiguration {
 
     public abstract Builder setSchema(String schema);
 
-    public abstract Builder setPollIntervalMillis(Integer millis);
+    public abstract Builder setPollIntervalMillis(Long millis);
 
-    public abstract Builder setTerminateAfterSecondsSinceNewOutput(Integer seconds);
+    public abstract Builder setTerminateAfterSecondsSinceNewOutput(Long seconds);
 
     public abstract FileReadSchemaTransformConfiguration build();
   }

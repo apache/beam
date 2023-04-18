@@ -127,8 +127,8 @@ public class LineReadSchemaTransformFormatProviderTest {
         FileReadSchemaTransformConfiguration.builder()
             .setFormat(getFormat())
             .setFilepattern(folder + "/test_*")
-            .setPollIntervalMillis(100)
-            .setTerminateAfterSecondsSinceNewOutput(3)
+            .setPollIntervalMillis(100L)
+            .setTerminateAfterSecondsSinceNewOutput(3L)
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 

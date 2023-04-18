@@ -63,9 +63,6 @@ import org.junit.Test;
 public class JsonReadSchemaTransformFormatProviderTest
     extends FileReadSchemaTransformFormatProviderTest {
 
-  @Rule public TestPipeline writePipeline = TestPipeline.create();
-  @Rule public TestPipeline readPipeline = TestPipeline.create();
-
   @Override
   protected String getFormat() {
     return new JsonReadSchemaTransformFormatProvider().identifier();
@@ -235,8 +232,8 @@ public class JsonReadSchemaTransformFormatProviderTest
             .setFormat(getFormat())
             .setFilepattern(folder + "/test_*")
             .setSchema(jsonStringSchema)
-            .setPollIntervalMillis(100)
-            .setTerminateAfterSecondsSinceNewOutput(3)
+            .setPollIntervalMillis(100L)
+            .setTerminateAfterSecondsSinceNewOutput(3L)
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
@@ -308,7 +305,7 @@ public class JsonReadSchemaTransformFormatProviderTest
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
     // Create an PCollection<Row> of filepatterns and feed into the read transform
-    Schema patternSchema = Schema.of(Field.of("filepattern", FieldType.STRING));
+    Schema patternSchema = getFilepatternSchema();
     PCollection<Row> filepatterns =
         readPipeline
             .apply(

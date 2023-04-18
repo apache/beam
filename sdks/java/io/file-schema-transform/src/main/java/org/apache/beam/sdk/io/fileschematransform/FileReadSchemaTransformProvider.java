@@ -147,18 +147,18 @@ public class FileReadSchemaTransformProvider
     public PTransform<?, PCollection<MatchResult.Metadata>> maybeApplyStreaming(
         PTransform<?, PCollection<MatchResult.Metadata>> matchTransform) {
       // Two parameters are provided to configure watching for new files.
-      Integer terminateAfterSeconds = configuration.getTerminateAfterSecondsSinceNewOutput();
-      Integer pollIntervalMillis = configuration.getPollIntervalMillis();
+      Long terminateAfterSeconds = configuration.getTerminateAfterSecondsSinceNewOutput();
+      Long pollIntervalMillis = configuration.getPollIntervalMillis();
 
       // Streaming is enabled when a poll interval is provided
-      if (pollIntervalMillis != null && pollIntervalMillis > 0) {
+      if (pollIntervalMillis != null && pollIntervalMillis > 0L) {
         Duration pollDuration = Duration.millis(pollIntervalMillis);
 
         // By default, the file match transform never terminates
         TerminationCondition<String, ?> terminationCondition = Growth.never();
 
         // If provided, will terminate after this many seconds since seeing a new file
-        if (terminateAfterSeconds != null && terminateAfterSeconds > 0) {
+        if (terminateAfterSeconds != null && terminateAfterSeconds > 0L) {
           terminationCondition =
               Growth.afterTimeSinceNewOutput(Duration.standardSeconds(terminateAfterSeconds));
         }
@@ -218,7 +218,7 @@ public class FileReadSchemaTransformProvider
           providers.containsKey(format),
           String.format(
               "Received unsupported file format: %s. Supported formats are %s",
-              format, FileReadSchemaTransformConfiguration.VALID_FORMATS));
+              format, providers.keySet()));
 
       return providers.get(format);
     }

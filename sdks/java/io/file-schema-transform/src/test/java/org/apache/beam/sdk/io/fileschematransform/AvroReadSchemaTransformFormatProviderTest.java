@@ -60,9 +60,6 @@ import org.junit.Test;
 public class AvroReadSchemaTransformFormatProviderTest
     extends FileReadSchemaTransformFormatProviderTest {
 
-  @Rule public TestPipeline writePipeline = TestPipeline.create();
-  @Rule public TestPipeline readPipeline = TestPipeline.create();
-
   @Override
   protected String getFormat() {
     return new AvroReadSchemaTransformFormatProvider().identifier();
@@ -134,8 +131,8 @@ public class AvroReadSchemaTransformFormatProviderTest
             .setFormat(getFormat())
             .setFilepattern(folder + "/test_*")
             .setSchema(stringSchema)
-            .setPollIntervalMillis(100)
-            .setTerminateAfterSecondsSinceNewOutput(3)
+            .setPollIntervalMillis(100L)
+            .setTerminateAfterSecondsSinceNewOutput(3L)
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
@@ -197,7 +194,7 @@ public class AvroReadSchemaTransformFormatProviderTest
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
     // Create a PCollection<Row> of filepatterns and feed into the read transform
-    Schema patternSchema = Schema.of(Field.of("filepattern", FieldType.STRING));
+    Schema patternSchema = getFilepatternSchema();
     PCollection<Row> filepatterns =
         readPipeline
             .apply(

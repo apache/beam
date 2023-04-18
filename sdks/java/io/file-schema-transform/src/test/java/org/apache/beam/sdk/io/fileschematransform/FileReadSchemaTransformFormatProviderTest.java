@@ -33,6 +33,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,8 +59,14 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
       Schema schema, List<Row> rows, String filePath, String schemaFilePath);
 
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TestPipeline writePipeline = TestPipeline.create();
+  @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @Rule public TestName testName = new TestName();
+
+  protected Schema getFilepatternSchema() {
+    return Schema.of(Field.of("filepattern", FieldType.STRING));
+  }
 
   protected String getFilePath() {
     return getFolder() + "/test";

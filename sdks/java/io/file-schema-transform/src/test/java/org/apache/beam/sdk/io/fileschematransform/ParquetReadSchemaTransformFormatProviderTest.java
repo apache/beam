@@ -56,9 +56,6 @@ import org.junit.Test;
 public class ParquetReadSchemaTransformFormatProviderTest
     extends FileReadSchemaTransformFormatProviderTest {
 
-  @Rule public TestPipeline writePipeline = TestPipeline.create();
-  @Rule public TestPipeline readPipeline = TestPipeline.create();
-
   @Override
   protected String getFormat() {
     return new ParquetReadSchemaTransformFormatProvider().identifier();
@@ -134,8 +131,8 @@ public class ParquetReadSchemaTransformFormatProviderTest
             .setFormat(getFormat())
             .setFilepattern(folder + "/test_*")
             .setSchema(stringSchema)
-            .setPollIntervalMillis(100)
-            .setTerminateAfterSecondsSinceNewOutput(3)
+            .setPollIntervalMillis(100L)
+            .setTerminateAfterSecondsSinceNewOutput(3L)
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
@@ -201,7 +198,7 @@ public class ParquetReadSchemaTransformFormatProviderTest
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
     // Create an PCollection<Row> of filepatterns and feed into the read transform
-    Schema patternSchema = Schema.of(Field.of("filepattern", FieldType.STRING));
+    Schema patternSchema = getFilepatternSchema();
     PCollection<Row> filepatterns =
         readPipeline
             .apply(
