@@ -263,11 +263,12 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		}
 	},
 		func(bcr *byteCountReader, ptransformID, timerFamilyID string) error {
-			tmap, err := decodeTimer(cp, wc, bcr)
-			log.Infof(ctx, "DEBUGLOG: timer received for: %v and %v - %+v  err: %v", ptransformID, timerFamilyID, tmap, err)
-			log.Infof(ctx, "OnTimerTransforms = %+v", n.OnTimerTransforms[ptransformID].Fn)
+			dc := MakeElementDecoder(coder.SkipW(c).Components[0])
+			tmap, err := decodeTimer(dc, wc, bcr)
+			if err != nil {
+				return errors.WithContext(err, "error decoding timer in datasource")
+			}
 			if fn, ok := n.OnTimerTransforms[ptransformID].Fn.OnTimerFn(); ok {
-				log.Infof(ctx, "found ontimer method, invoking callback")
 				_, err := n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, fn, timerFamilyID, tmap)
 				if err != nil {
 					return errors.WithContext(err, "ontimer callback invocation failed")

@@ -29,7 +29,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 )
 
@@ -357,20 +356,12 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 }
 
 func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, tmap TimerRecv) (*FullValue, error) {
-	if fn == nil {
-		log.Infof(ctx, "timer function is not attached to pardo")
-		return nil, nil
-	}
-	log.Info(ctx, "InvokeTimerFn invoked")
-
 	var extra []any
 	extra = append(extra, timerFamilyID)
-	log.Infof(ctx, "timerRecv: %+v", tmap)
+
 	if tmap.Tag != "" {
-		log.Infof(ctx, "TIMER: appending tag: %s", tmap.Tag)
 		extra = append(extra, tmap.Tag)
 	}
-	log.Infof(ctx, "fv received from decoder: %+v", *tmap.Key)
 	val, err := InvokeWithOpts(ctx, fn, tmap.Pane, tmap.Windows, tmap.HoldTimestamp, InvokeOpts{
 		opt:   &MainInput{Key: *tmap.Key},
 		bf:    n.bf,

@@ -60,13 +60,9 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataMan
 	if u.kc == nil {
 		return timerProvider{}, fmt.Errorf("cannot make a state provider for an unkeyed input %v", element)
 	}
-	var elementKey []byte
-	var err error
-	if element != nil {
-		elementKey, err = EncodeElement(u.kc, element.Key.Elm)
-		if err != nil {
-			return timerProvider{}, err
-		}
+	elementKey, err := EncodeElement(u.kc, element.Key.Elm)
+	if err != nil {
+		return timerProvider{}, err
 	}
 
 	tp := timerProvider{

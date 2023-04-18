@@ -17,6 +17,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -28,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
@@ -1259,6 +1261,7 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 	var b bytes.Buffer
 
 	// elm.Encode(&FullValue{Elm: tm.Key}, &b)
+	log.Infof(context.Background(), "encoding timer with timer map: %+v", tm)
 	_, err := b.Write(tm.Key)
 	if err != nil {
 		return errors.WithContext(err, "error encoding key")
