@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -44,7 +45,9 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.samza.config.Config;
+import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.JobCoordinatorConfig;
+import org.apache.samza.config.TaskConfig;
 import org.apache.samza.config.ZkConfig;
 import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
@@ -413,5 +416,40 @@ public class ConfigGeneratorTest {
     assertEquals(
         "TestStoreConfig-1-testState-Same_stateful_ParDo_Name2-changelog",
         config2.get("stores.testState-Same_stateful_ParDo_Name2.changelog"));
+  }
+
+  @Test
+  public void testCreateBundleConfig() {
+    final SamzaPipelineOptions options = PipelineOptionsFactory.as(SamzaPipelineOptions.class);
+    final Map<String, String> config = new HashMap<>();
+
+    // bundle size = 1
+    options.setMaxBundleSize(1);
+    config.put(JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE, "5");
+    Map<String, String> bundleConfig = ConfigBuilder.createBundleConfig(options, config);
+
+    assertEquals("1", bundleConfig.get(TaskConfig.MAX_CONCURRENCY));
+    assertNull(bundleConfig.get(JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE));
+    assertNull(bundleConfig.get(JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE));
+    assertEquals(1, options.getNumThreadsForProcessElement());
+
+    // bundle size = 3, NumThreadsForProcessElement = 10
+    options.setMaxBundleSize(3);
+    options.setNumThreadsForProcessElement(10);
+    bundleConfig = ConfigBuilder.createBundleConfig(options, config);
+
+    assertEquals("3", bundleConfig.get(TaskConfig.MAX_CONCURRENCY));
+    assertEquals("0", bundleConfig.get(JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE));
+    assertEquals("0", bundleConfig.get(JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE));
+    assertEquals(10, options.getNumThreadsForProcessElement());
+
+    // bundle size = 3, NumThreadsForProcessElement = 1 (default), threadPoolSize = 5
+    options.setNumThreadsForProcessElement(1);
+    bundleConfig = ConfigBuilder.createBundleConfig(options, config);
+
+    assertEquals("3", bundleConfig.get(TaskConfig.MAX_CONCURRENCY));
+    assertEquals("0", bundleConfig.get(JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE));
+    assertEquals("0", bundleConfig.get(JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE));
+    assertEquals(5, options.getNumThreadsForProcessElement());
   }
 }
