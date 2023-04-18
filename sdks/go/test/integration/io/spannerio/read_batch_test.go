@@ -59,8 +59,7 @@ func TestExampleQueryBatch(t *testing.T) {
 		DropDatabase(ctx, t, adminClient, db)
 	})
 
-	// Create a spanner table. We won't explicitly clean this up as we'll prefer
-	// to create additional databases for subtests in future.
+	// Create a spanner table. We won't explicitly clean this up - cleaning up the database is enough.
 	CreateTable(ctx, t, adminClient, db, []string{`CREATE TABLE Test (
 					One STRING(20),
 					Two INT64,
