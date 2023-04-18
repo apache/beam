@@ -20,11 +20,13 @@ The Go SDK doesn’t use output tags, and instead uses positional ordering for m
 ```
 // beam.ParDo3 returns PCollections in the same order as
 // the emit function parameters in processWords.
+// Now below has the output of s, above has the output of processWords, and marked has the output of words
 below, above, marked := beam.ParDo3(s, processWords, words)
 
 // processWordsMixed uses both a standard return and an emitter function.
 // The standard return produces the first PCollection from beam.ParDo2,
 // and the emitter produces the second PCollection.
+// Now below has the output of s, above has the output of processWords, and marked has the output of words
 length, mixedMarked := beam.ParDo2(s, processWordsMixed, words)
 ```
 
@@ -111,7 +113,7 @@ A `TupleTag` is a typed tag used as the key of a heterogeneously typed tuple, fo
 ### Tags for multiple outputs
 
 ```
-  .of(new DoFn<String, String>() {
+  ParDo.of(new DoFn<String, String>() {
      public void processElement(@Element String word, MultiOutputReceiver out) {
        if (word.length() <= wordLengthCutOff) {
          // Emit short word to the main output.
