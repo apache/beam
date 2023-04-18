@@ -114,7 +114,7 @@ jobs:
           echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_OUTPUT
       - name: Build source
         working-directory: ./sdks/python
-        run: python setup.py sdist --formats=zip
+        run: pip install -U build && python -m build --sdist
       - name: Add checksums
         working-directory: ./sdks/python/dist
         run: |

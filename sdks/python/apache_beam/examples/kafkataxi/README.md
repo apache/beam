@@ -158,7 +158,8 @@ Install Beam and dependencies and build a Beam distribution.
 ```sh
 cd beam/sdks/python
 pip install -e '.[gcp]'
-python setup.py sdist
+pip install -q build 
+python -m build --sdist
 ```
 
 Run the Beam pipeline. You can either use the default Kafka topic name or specify

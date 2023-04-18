@@ -27,9 +27,7 @@ import os
 import platform
 import re
 import shutil
-import subprocess
 import sys
-import time
 from collections import defaultdict
 from importlib import import_module
 
@@ -60,7 +58,7 @@ LICENSE_HEADER = """
 NO_PROMISES_NOTICE = """
 \"\"\"
 For internal use only; no backwards-compatibility guarantees.
-Automatically generated when running setup.py sdist or build[_py].
+Automatically generated when running python -m build.
 \"\"\"
 """
 
