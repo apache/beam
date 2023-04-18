@@ -21,70 +21,50 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/spannerio"
+
 	"cloud.google.com/go/spanner"
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-)
-
-var (
-	integrationTests = flag.Bool("int", false, "")
 )
 
 func TestExampleQueryBatch(t *testing.T) {
-	if !*integrationTests {
-		t.Skip("Not running in integration test mode.")
-	}
-
 	p := beam.NewPipeline()
 	s := p.Root()
 
 	db := "projects/test-project/instances/test-instance/databases/test-database"
+	ctx := context.Background()
 
-	srv, srvCleanup := newServer(t)
-	defer srvCleanup()
+	// Setup a spanner emulator container.
+	endpoint := setUpTestContainer(ctx, t)
 
-	client, admin, cleanup, err := createFakeClient(srv.Addr, db)
-	if err != nil {
-		t.Fatalf("Unable to create fake client: %v", err)
-	}
-	defer cleanup()
+	// Create clients that we'll need for this test. Note: these have implicit cleanup func's registered.
+	client := newClient(ctx, t, endpoint, db)
+	instanceAdminClient := newInstanceAdminClient(ctx, t, endpoint)
+	adminClient := newAdminClient(ctx, t, endpoint)
 
-	populateSpanner(context.Background(), admin, db, client)
-
-	rows := QueryBatch(s, db, "SELECT * FROM TEST", reflect.TypeOf(TestDto{}))
-
-	ptest.RunAndValidate(t, p)
-	passert.Count(s, rows, "Should have 4 rows", 4)
-}
-
-func populateSpanner(ctx context.Context, admin *database.DatabaseAdminClient, db string, client *spanner.Client) error {
-	iter := client.Single().Query(ctx, spanner.Statement{SQL: "SELECT 1 FROM Test"})
-	defer iter.Stop()
-
-	if _, err := iter.Next(); err == nil {
-		return nil
-	}
-
-	op, err := admin.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-		Database: db,
-		Statements: []string{`CREATE TABLE Test (
-					One STRING(20),
-					Two INT64,
-				) PRIMARY KEY (Two)`},
+	// Create a spanner instance. Requires explicit cleanup.
+	createInstance(ctx, t, instanceAdminClient, db)
+	t.Cleanup(func() {
+		deleteInstance(ctx, t, instanceAdminClient, db)
 	})
 
-	if err != nil {
-		return err
-	}
+	// Create a spanner database. Requires explicit cleanup.
+	createDatabase(ctx, t, adminClient, db)
+	t.Cleanup(func() {
+		dropDatabase(ctx, t, adminClient, db)
+	})
 
-	if err := op.Wait(context.Background()); err != nil {
-		return err
-	}
+	// Create a spanner table. We won't explicitly clean this up as we'll prefer
+	// to create additional databases for subtests in future.
+	createTable(ctx, t, adminClient, db, []string{`CREATE TABLE Test (
+					One STRING(20),
+					Two INT64,
+				) PRIMARY KEY (Two)`})
 
-	testRows := []TestDto{
+	// Load some data into spanner
+	testRows := []spannerio.TestDto{
 		{
 			One: "one",
 			Two: 1,
@@ -107,21 +87,30 @@ func populateSpanner(ctx context.Context, admin *database.DatabaseAdminClient, d
 	for _, m := range testRows {
 		mutation, err := spanner.InsertStruct("Test", m)
 		if err != nil {
-			return err
+			t.Fatalf("Unable to create spanner mutation: %v", err)
 		}
 
 		mutations = append(mutations, mutation)
 	}
 
-	_, err = client.Apply(context.Background(), mutations)
+	_, err := client.Apply(ctx, mutations)
 	if err != nil {
-		return err
+		t.Fatalf("Unable to apply spanner mutations: %v", err)
 	}
 
-	return nil
+	// Setup our pipeline
+	rows := spannerio.QueryBatch(s, db, "SELECT * FROM TEST", reflect.TypeOf(spannerio.TestDto{}))
+
+	// Setup our assertion
+	passert.Count(s, rows, "Should have 4 rows", 4)
+
+	// Run
+	ptest.RunAndValidate(t, p)
 }
 
-func TestMain(t *testing.M) {
+func TestMain(m *testing.M) {
 	flag.Parse()
-	t.Run()
+	beam.Init()
+
+	ptest.MainRet(m)
 }
