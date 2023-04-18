@@ -15,8 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Local value to store generated GCS bucket name for source code (Cloud Functions)
+resource "random_string" "id" {
+  length = 4
+  upper = false
+  special = false
+}
 
+variable "resource_name_prefix" {
+  type = string
+  description = "The resource name prefix applied to all resource naming for the application"
+  default = "tour-of-beam"
+}
+
+# Local value to store generated GCS bucket name for source code (Cloud Functions)
 locals {
   cloudfunctions_bucket = "${var.resource_name_prefix}-cfstorage-${random_string.id.result}"
 }

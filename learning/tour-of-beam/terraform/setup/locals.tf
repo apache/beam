@@ -16,6 +16,19 @@
 # under the License.
 
 # Local value to store generated Cloud Functions Service account name
+
+resource "random_string" "id" {
+  length = 4
+  upper = false
+  special = false
+}
+
+variable "resource_name_prefix" {
+  type = string
+  description = "The resource name prefix applied to all resource naming for the application"
+  default = "tour-of-beam"
+}
+
 locals {
   cloudfunctions_service_account = "${var.resource_name_prefix}-cf-sa-${random_string.id.result}"
 }

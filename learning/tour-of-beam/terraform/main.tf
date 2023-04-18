@@ -26,7 +26,7 @@ module "setup" {
 module "functions_buckets" {
   source = "./functions_buckets"
   region      = var.region
-  cloudfunctions_bucket = var.cloudfunctions_bucket
+  cloudfunctions_bucket = module.functions_buckets.cloudfunctions-bucket-name
   depends_on = [module.setup, module.api_enable]
 }
 

@@ -22,3 +22,7 @@ output "functions-bucket-name" {
 output "function-bucket-object" {
   value = google_storage_bucket_object.zip.name
 }
+
+output "cloudfunctions-bucket-name" {
+  value = local.cloudfunctions_bucket
+}

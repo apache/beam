@@ -15,21 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-resource "random_string" "id" {
-  length = 4
-  upper = false
-  special = false
-}
-
-variable "resource_name_prefix" {
-  type = string
-  description = "The resource name prefix applied to all resource naming for the application"
-  default = "tour-of-beam"
-}
-
 variable "cloudfunctions_bucket" {
   description = "The name of the bucket to store cloud functions' source code"
-  default = local.cloudfunctions_bucket
 }
 
 variable "region" {

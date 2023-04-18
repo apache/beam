@@ -55,10 +55,7 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 
 * Populate `common.tfvars` with next variables:
 ```
-project_id              = "gcp_project_id"            # Your GCP Project ID
 region                  = "gcp_region"                # Your GCP resources region
-service_account_id      = "service_account_name"      # Name of GCP service account to run Tour of Beam cloud functions
-
 ```
 * `state.tfbackend` with:
 ```
