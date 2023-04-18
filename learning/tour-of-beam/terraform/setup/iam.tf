@@ -16,7 +16,7 @@
 # under the License.
 
 resource "google_service_account" "cloud_function_sa" {
-  account_id   = var.service_account_id
+  account_id   = local.cloudfunctions_service_account
   display_name = "Service Account to run Cloud Functions"
 }
 
