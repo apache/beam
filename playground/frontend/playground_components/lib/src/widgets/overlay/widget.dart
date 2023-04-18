@@ -19,6 +19,8 @@
 import 'package:flutter/material.dart';
 
 class BeamOverlay extends StatelessWidget {
+  static const dismissibleAreaKey = Key('overlayDismissibleAreaKey');
+
   final VoidCallback close;
   final bool isDismissible;
   final Positioned child;
@@ -36,6 +38,7 @@ class BeamOverlay extends StatelessWidget {
         if (isDismissible)
           Positioned.fill(
             child: GestureDetector(
+              key: dismissibleAreaKey,
               onTap: close,
             ),
           ),

@@ -42,6 +42,10 @@ class Footer extends StatelessWidget {
             spacing: BeamSizes.size16,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              FeedbackWidget(
+                controller: GetIt.instance.get<FeedbackController>(),
+                title: 'ui.feedbackTitle'.tr(),
+              ),
               ReportIssueButton(playgroundController: playgroundController),
               const PrivacyPolicyButton(),
               const CopyrightWidget(),

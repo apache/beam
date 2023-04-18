@@ -16,31 +16,26 @@
  * limitations under the License.
  */
 
-import '../../../enums/feedback_rating.dart';
-import 'abstract.dart';
-import 'constants.dart';
+import 'package:flutter/widgets.dart';
 
-/// A thump-up or thumb-down button pressed without yet entering feedback text.
-class AppRatedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
-  const AppRatedAnalyticsEvent({
-    required this.rating,
-    required super.snippetContext,
-    super.additionalParams,
-  }) : super(
-          name: BeamAnalyticsEvents.appRated,
-        );
+import '../enums/feedback_rating.dart';
+import '../models/event_snippet_context.dart';
 
-  final FeedbackRating rating;
+class FeedbackController extends ChangeNotifier {
+  EventSnippetContext? eventSnippetContext;
+  Map<String, dynamic> additionalParams;
+  final textController = TextEditingController();
 
-  @override
-  List<Object?> get props => [
-        ...super.props,
-        rating,
-      ];
+  FeedbackController({
+    this.eventSnippetContext,
+    this.additionalParams = const {},
+  });
 
-  @override
-  Map<String, dynamic> toJson() => {
-        ...super.toJson(),
-        EventParams.feedbackRating: rating.name,
-      };
+  FeedbackRating? _rating;
+  FeedbackRating? get rating => _rating;
+
+  set rating(FeedbackRating? newValue) {
+    _rating = newValue;
+    notifyListeners();
+  }
 }

@@ -25,7 +25,6 @@ import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
 import 'cache/unit_progress.dart';
-import 'config.dart';
 import 'pages/welcome/page.dart';
 import 'repositories/client/client.dart';
 import 'repositories/client/cloud_functions_client.dart';

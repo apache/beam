@@ -394,10 +394,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_code_editor
-      sha256: "580ead0408e27f44776ed9b12c02993f6f4fcedfbf25f8fe5ebb4625c03c8c20"
+      sha256: "85d0d159ce4f33f3aabedea92c0bdc1ad05c6931bba80ac46660f90c7ab6255c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.13"
+    version: "0.2.14"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -543,6 +543,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.3"
+  hive_test:
+    dependency: transitive
+    description:
+      name: hive_test
+      sha256: dd7a5cf0be7af288566a96180b5d07574023777aa947ef252b69046ec36d8eb2
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   html:
     dependency: transitive
     description:

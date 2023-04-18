@@ -78,7 +78,7 @@ class HiveUserProgressRepository extends AbstractUserProgressRepository {
     final snippetsBox = await Hive.openBox(
       HiveBoxNames.getSdkBoxName(sdk, HiveBoxNames.snippets),
     );
-    final snippetId = 'local_${snippetType.name}_$unitId';
+    final snippetId = 'local_$unitId';
 
     await _saveUnitProgressIfUnsaved(
       sdk: sdk,

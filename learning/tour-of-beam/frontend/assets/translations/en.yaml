@@ -24,6 +24,7 @@ ui:
   copyright: © The Apache Software Foundation
   deleteMyAccount: Delete my account
   deleteTobAccount: Delete my Tour of Beam account
+  feedbackTitle: Enjoying Tour of Beam?
   privacyPolicy: Privacy Policy
   reportIssue: Report Issue in GitHub
   signIn: Sign in

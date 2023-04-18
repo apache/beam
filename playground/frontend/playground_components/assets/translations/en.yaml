@@ -51,6 +51,13 @@ widgets:
   
   closeButton:
     label: 'Close'
+  
+  feedback:
+    hint: "Have feedback? We'd love to hear it, but please don't share sensitive information."
+    negative: 'Bad Experience'
+    positive: 'Good Experience'
+    send: 'Send Feedback'
+    title: 'Feedback'
 
   output:
     filter:
