@@ -42,11 +42,12 @@ def sdist = tasks.register("sdist") {
   description "Create a Python source distribution tarball"
   dependsOn setupVirtualenv
 
+
   doLast {
     // Build artifact
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${buildDir}"
+      args '-c', ". ${envdir}/bin/activate && pip install -U build && python -m build --sdist --outdir=${buildDir}"
     }
 
     def collection = fileTree(buildDir){ include "**/*${project.sdk_version}*.tar.gz" exclude 'srcs/**'}
