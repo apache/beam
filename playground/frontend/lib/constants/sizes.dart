@@ -47,6 +47,3 @@ const double kContainerHeight = 40.0;
 
 const double kLabelFontSize = 16.0;
 const double kTitleFontSize = 18.0;
-
-//divider size
-const double kDividerHeight = 1.0;

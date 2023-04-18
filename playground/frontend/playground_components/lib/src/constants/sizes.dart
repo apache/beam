@@ -39,10 +39,8 @@ class BeamSizes {
 
   static const double appBarHeight = 55;
   static const double buttonHeight = 40;
-  static const double dividerHeight = 1;
   static const double elevation = 2;
   static const double headerButtonHeight = 46;
-  static const double labelFontSize = 16;
   static const double loadingIndicator = 40;
   static const double splitViewSeparator = BeamSizes.size8;
   static const double tabBarHeight = 50;
