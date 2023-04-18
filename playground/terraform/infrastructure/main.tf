@@ -85,11 +85,11 @@ module "ip_address" {
 }
 
 module "appengine" {
- depends_on         = [module.setup, module.api_enable, module.ip_address]
- source             = "./appengine"
- project_id         = var.project_id
- region             = var.region
- skip_appengine_deploy       = var.app_engine_flag
+ depends_on            = [module.setup, module.api_enable, module.ip_address]
+ source                = "./appengine"
+ project_id            = var.project_id
+ region                = var.region
+ skip_appengine_deploy = var.skip_appengine_deploy
 }
 
 module "api_enable" {

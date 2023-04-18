@@ -44,7 +44,7 @@ module "infrastructure" {
   gke_name                      = var.gke_name
   gke_location                  = var.zone
   service_account               = var.service_account
-  app_engine_flag               = var.app_engine_flag
+  skip_appengine_deploy         = var.skip_appengine_deploy
   min_count                     = var.min_count
   max_count                     = var.max_count
 }

@@ -88,10 +88,10 @@ variable "subnetwork_name" {
 }
 
 #AppEngine Flag
-variable "app_engine_flag" {
+variable "skip_appengine_deploy" {
   description = "AppEngine enabled"
   type        = bool
-  default     = true
+  default     = false
 }
 
 #Redis

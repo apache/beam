@@ -44,5 +44,5 @@ variable "location_id_eu" {
 
 variable "skip_appengine_deploy" {
   type    = bool
-  default = true
+  default = false
 }

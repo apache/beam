@@ -64,22 +64,22 @@ Playground uses `terraform.tfvars` located in `playground/terraform/environment/
 
 * `terraform.tfvars` environment variables:
 ```
-project_id           = "project_id"               # GCP Project ID
-network_name         = "playground-network"       # GCP VPC Network Name for Playground deployment
-subnetwork_name      = "playground-subnetwork"    # GCP VPC Subnetwork Name for Playground deployment
-gke_name             = "playground-backend"       # Playground GKE Cluster name
-region               = "us-east1"                 # Deployment region for all created resources
-zone                 = "us-east1-b"               # Deployment zone in the specified region
-state_bucket         = "playground-state-bucket"  # GCS bucket name for Terraform state file. The bucket must be created manually before deployment
-redis_name           = "playground-redis"         # Name for Redis instance
-redis_tier           = "BASIC"                    # Redis tier type. Options: "Basic" or "Standard_HA". Default: "BASIC"
-min_count            = 2                          # Min node count for the GKE cluster
-max_count            = 6                          # Max node count for the GKE cluster
-app_engine_flag      = true                       # AppEngine flag - defined if AppEngine and Datastore need to be installed. Should be "false" if AppEngine and Datastore were installed before
-ip-address-name      = "playground-static-ip"     # GCP Static IP Address name
-repository_id        = "playground-artifacts"     # GCP Artifact repository name for Playground images
-service_account_id   = "playground-gke-account"   # GCP Service account name
-gke_machine_type     = "e2-standard-8"            # Machine type for GKE Nodes
+project_id             = "project_id"               # GCP Project ID
+network_name           = "playground-network"       # GCP VPC Network Name for Playground deployment
+subnetwork_name        = "playground-subnetwork"    # GCP VPC Subnetwork Name for Playground deployment
+gke_name               = "playground-backend"       # Playground GKE Cluster name
+region                 = "us-east1"                 # Deployment region for all created resources
+zone                   = "us-east1-b"               # Deployment zone in the specified region
+state_bucket           = "playground-state-bucket"  # GCS bucket name for Terraform state file. The bucket must be created manually before deployment
+redis_name             = "playground-redis"         # Name for Redis instance
+redis_tier             = "BASIC"                    # Redis tier type. Options: "Basic" or "Standard_HA". Default: "BASIC"
+min_count              = 2                          # Min node count for the GKE cluster
+max_count              = 6                          # Max node count for the GKE cluster
+skip_appengine_deploy  = true                       # AppEngine flag - defined if AppEngine and Datastore need to be installed. Should be "false" if AppEngine and Datastore were installed before
+ip-address-name        = "playground-static-ip"     # GCP Static IP Address name
+repository_id          = "playground-artifacts"     # GCP Artifact repository name for Playground images
+service_account_id     = "playground-gke-account"   # GCP Service account name
+gke_machine_type       = "e2-standard-8"            # Machine type for GKE Nodes
 
 ```
 * `state.tfbackend` environment variables:
