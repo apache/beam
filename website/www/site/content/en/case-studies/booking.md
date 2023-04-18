@@ -52,7 +52,7 @@ limitations under the License.
 
 ## Background
 
-[Booking.com](https://www.googleadservices.com/pagead/aclk?sa=L&ai=DChcSEwj7--GNte_9AhVV7u0KHchMAT0YABAAGgJkZw&ohost=www.google.com&cid=CAESbeD2W88iD9HvJ_hx0vsDimPjmxUYEm1aaIrTZuZxzfAtCSvD-_V5WT2kwqn9otXN_fgTz1jql73qosd5ZP8SmETS3r7xBiXzIeKFizHOSik3KTZU7GSoOltNb_0u7YmTYr-n9xz5sFKUijjzPyw&sig=AOD64_1FAZXpZS-HdiG-rxez4jM1HUiLXw&q&adurl&ved=2ahUKEwjh39yNte_9AhVJSEEAHVBwAGkQ0Qx6BAgJEAE) seamlessly connects millions of travelers to memorable experiences by investing in technology that takes the friction out of travel and making it easier for everyone to experience the world. Booking.com is a brand of [Booking Holdings](https://www.bookingholdings.com/), the world’s largest provider of online travel & related services to consumers and local partners. To help people discover destinations in more than 220 countries and territories, Booking Holdings as a whole spent [$5.99](https://s201.q4cdn.com/865305287/files/doc_financials/2022/q4/BKNG-Earnings-Release-Q4-2022.pdf) billion in marketing in 2022, with Booking.com being a leading travel advertiser on [Google Pay Per Click (PPC) Search Ads](https://ads.google.com/home/campaigns/search-ads/).
+[Booking.com](https://www.booking.com/) seamlessly connects millions of travelers to memorable experiences by investing in technology that takes the friction out of travel and making it easier for everyone to experience the world. Booking.com is a brand of [Booking Holdings](https://www.bookingholdings.com/), the world’s largest provider of online travel & related services to consumers and local partners. To help people discover destinations in more than 220 countries and territories, Booking Holdings as a whole spent [$5.99](https://s201.q4cdn.com/865305287/files/doc_financials/2022/q4/BKNG-Earnings-Release-Q4-2022.pdf) billion in marketing in 2022, with Booking.com being a leading travel advertiser on [Google Pay Per Click (PPC) Search Ads](https://ads.google.com/home/campaigns/search-ads/).
 
 The PPC team at Booking.com’s Marketing Technology department is in charge of the infrastructure and internal tooling necessary to run PPC advertising at this scale. The PPC team’s primary goal is to reliably and efficiently optimize their PPC across all search engine providers, measure and analyze ad performance data, manage ad hierarchies, and adjust ad criteria. Apache Beam supports this goal by providing an effective abstraction that helps build reliable, performant, and cost-efficient data processing infrastructure at a very large scale.
 
@@ -157,7 +157,7 @@ When designing the data infrastructure, the PPC team’s primary goal was to max
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
-    Apache Beam enabled us to parallelize data processing and maximize throughput at a very large scale
+    Apache Beam enabled us to parallelize data processing and maximize throughput at a very large scale.
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">
