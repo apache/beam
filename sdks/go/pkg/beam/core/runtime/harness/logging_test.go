@@ -93,7 +93,7 @@ func TestLogger_connect(t *testing.T) {
 		return cacher, func() {}, nil
 	})
 
-	if got, want := err, bufClosedErr; !errors.Is(got, want) {
+	if got, want := err, errBuffClosed; !errors.Is(got, want) {
 		t.Errorf("connect error: got %v, want %v", got, want)
 	}
 

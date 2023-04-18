@@ -84,3 +84,14 @@ void expectContextLine(int contextLine1Based, WidgetTester wt) {
     contextLine1Based - 1,
   );
 }
+
+void expectLastAnalyticsEvent(
+  AnalyticsEvent event, {
+  String? reason,
+}) {
+  expect(
+    PlaygroundComponents.analyticsService.lastEvent,
+    event,
+    reason: reason,
+  );
+}

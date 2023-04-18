@@ -27,8 +27,11 @@ import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
 import '../../cache/unit_progress.dart';
 import '../../config.dart';
+import '../../models/event_context.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
+import '../../services/analytics/events/unit_closed.dart';
+import '../../services/analytics/events/unit_opened.dart';
 import '../../state.dart';
 import 'controllers/content_tree.dart';
 import 'controllers/unit.dart';
@@ -43,6 +46,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
+  DateTime? _currentUnitOpenedAt;
+
+  TobEventContext _tobEventContext = TobEventContext.empty;
+  TobEventContext get tobEventContext => _tobEventContext;
 
   TourNotifier({
     required String initialSdkId,
@@ -65,7 +72,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         treeIds: contentTreeController.treeIds,
       );
 
-  String? get currentUnitId => currentUnitController?.unitId;
+  String? get currentUnitId => currentUnitController?.unit.id;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
   bool get doesCurrentUnitHaveSolution =>
       currentUnitContent?.solutionSnippetId != null;
@@ -88,10 +95,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
   }
 
-  void _createCurrentUnitController(String sdkId, String unitId) {
+  void _createCurrentUnitController(Sdk sdk, UnitModel unit) {
     currentUnitController = UnitController(
-      unitId: unitId,
-      sdkId: sdkId,
+      unit: unit,
+      sdk: sdk,
     );
   }
 
@@ -113,12 +120,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
       final sdk = contentTreeController.sdk;
-      final content = _unitContentCache.getUnitContent(
-        sdk.id,
-        currentNode.id,
-      );
-      _createCurrentUnitController(contentTreeController.sdkId, currentNode.id);
-      _setCurrentUnitContent(content);
+      _createCurrentUnitController(contentTreeController.sdk, currentNode);
+      _setCurrentUnitContent(currentNode, sdk: sdk);
     } else {
       _emptyPlayground();
     }
@@ -126,16 +129,46 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
+  Future<void> _setCurrentUnitContent(
+    UnitModel unit, {
+    required Sdk sdk,
+  }) async {
+    final content = _unitContentCache.getUnitContent(
+      sdk.id,
+      unit.id,
+    );
     if (content == _currentUnitContent) {
       return;
     }
 
-    _currentUnitContent = content;
+    if (_currentUnitOpenedAt != null && _currentUnitContent != null) {
+      PlaygroundComponents.analyticsService.sendUnawaited(
+        UnitClosedTobAnalyticsEvent(
+          tobContext: _tobEventContext,
+          timeSpent: DateTime.now().difference(_currentUnitOpenedAt!),
+        ),
+      );
+    }
 
+    _currentUnitContent = content;
     if (content == null) {
       return;
     }
+
+    _currentUnitOpenedAt = DateTime.now();
+    _tobEventContext = TobEventContext(
+      sdkId: sdk.id,
+      unitId: unit.id,
+    );
+    playgroundController
+        .requireSnippetEditingController()
+        .setDefaultEventParams(_tobEventContext.toJson());
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      UnitOpenedTobAnalyticsEvent(
+        tobContext: _tobEventContext,
+      ),
+    );
+
     final taskSnippetId = content.taskSnippetId;
     await _setPlaygroundSnippet(taskSnippetId);
     _isShowingSolution = false;
@@ -174,21 +207,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   static PlaygroundController _createPlaygroundController(String initialSdkId) {
-    final exampleRepository = ExampleRepository(
-      client: GrpcExampleClient(url: kApiClientURL),
-    );
-
-    final codeRepository = CodeRepository(
-      client: GrpcCodeClient(
-        url: kApiClientURL,
-        runnerUrlsById: {
-          Sdk.java.id: kApiJavaClientURL,
-          Sdk.go.id: kApiGoClientURL,
-          Sdk.python.id: kApiPythonClientURL,
-          Sdk.scio.id: kApiScioClientURL,
-        },
-      ),
-    );
+    final exampleRepository = GetIt.instance.get<ExampleRepository>();
+    final codeRepository = GetIt.instance.get<CodeRepository>();
 
     final exampleCache = ExampleCache(
       exampleRepository: exampleRepository,
@@ -214,11 +234,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onUnitProgressChanged);
-    super.dispose();
+    await super.dispose();
   }
 }

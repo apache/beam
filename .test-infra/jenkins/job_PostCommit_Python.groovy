@@ -42,6 +42,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
             rootBuildScriptDir(commonJobProperties.checkoutDir)
             tasks(":python${versionSuffix}PostCommit")
             commonJobProperties.setGradleSwitches(delegate)
+            switches("-PuseWheelDistribution")
           }
         }
       }

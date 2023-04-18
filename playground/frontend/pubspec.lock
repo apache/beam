@@ -394,10 +394,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_code_editor
-      sha256: a220a7dcd197d793f46f2c2132551128bb41b1ccc08f7afb781223e1b5e400a1
+      sha256: "580ead0408e27f44776ed9b12c02993f6f4fcedfbf25f8fe5ebb4625c03c8c20"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.12"
+    version: "0.2.13"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -1239,14 +1239,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.0"
-  usage:
-    dependency: "direct main"
-    description:
-      name: usage
-      sha256: ccc861ca619157046d961a1d7fa21a364476c574bb8f3e90219e41b9103adee0
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.1.0"
   vector_graphics:
     dependency: transitive
     description:

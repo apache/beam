@@ -35,6 +35,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   final String pipelineOptions;
 
+  @override
   final Sdk sdk;
 
   const ContentExampleLoadingDescriptor({

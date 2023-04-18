@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground/services/analytics/events/snippet_selected.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
@@ -31,17 +32,21 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   Future<void> changeToJavaAggregationMax(WidgetTester wt) async {
-    await wt.tap(find.exampleSelector());
-    await wt.pumpAndSettle();
-
-    await wt.tap(find.exampleItemInDropdown(javaAggregationMax.name));
-    await wt.pumpAndSettle();
+    await wt.tapAndSettle(find.exampleSelector());
+    await wt.tapAndSettle(find.exampleItemInDropdown(javaAggregationMax.name));
 
     expect(
       wt.findOneCodeController().lastTextSpan!.toPlainText().isAsIfCutFrom(
             await javaAggregationMax.getVisibleText(),
           ),
       true,
+    );
+
+    expectLastAnalyticsEvent(
+      SnippetSelectedAnalyticsEvent(
+        sdk: Sdk.java,
+        snippet: javaAggregationMax.dbPath,
+      ),
     );
   }
 
@@ -58,8 +63,7 @@ public class MyClass {
     await wt.enterText(find.codeField(), code);
     await wt.pumpAndSettle();
 
-    await wt.tap(find.runOrCancelButton());
-    await wt.pumpAndSettle();
+    await wt.tapAndSettle(find.runOrCancelButton());
 
     expectOutputEquals('$_outputPrefix$text', wt);
   }
@@ -73,14 +77,14 @@ public class MyClass {
           ),
       true,
     );
+
+    expectLastAnalyticsEvent(const SdkSelectedAnalyticsEvent(sdk: Sdk.python));
   }
 
   Future<void> changeToPythonAggregationMean(WidgetTester wt) async {
-    await wt.tap(find.exampleSelector());
-    await wt.pumpAndSettle();
-
-    await wt.tap(find.exampleItemInDropdown(pythonAggregationMean.name));
-    await wt.pumpAndSettle();
+    await wt.tapAndSettle(find.exampleSelector());
+    await wt
+        .tapAndSettle(find.exampleItemInDropdown(pythonAggregationMean.name));
 
     // Cannot test this because the DB examples differ from GitHub now.
     // TODO(alexeyinkin): Uncomment when DB is up-to-date.
@@ -102,8 +106,7 @@ public class MyClass {
     await wt.enterText(find.codeField(), code);
     await wt.pumpAndSettle();
 
-    await wt.tap(find.runOrCancelButton());
-    await wt.pumpAndSettle();
+    await wt.tapAndSettle(find.runOrCancelButton());
 
     expectOutputEquals('$_outputPrefix$text', wt);
   }

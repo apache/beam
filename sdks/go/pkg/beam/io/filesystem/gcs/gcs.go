@@ -166,8 +166,31 @@ func (f *fs) Copy(ctx context.Context, srcpath, dstpath string) error {
 	return err
 }
 
+// Rename the old path to the new path.
+func (f *fs) Rename(ctx context.Context, srcpath, dstpath string) error {
+	bucket, src, err := gcsx.ParseObject(srcpath)
+	if err != nil {
+		return err
+	}
+	srcobj := f.client.Bucket(bucket).Object(src)
+
+	bucket, dst, err := gcsx.ParseObject(dstpath)
+	if err != nil {
+		return err
+	}
+	dstobj := f.client.Bucket(bucket).Object(dst)
+
+	cp := dstobj.CopierFrom(srcobj)
+	_, err = cp.Run(ctx)
+	if err != nil {
+		return err
+	}
+	return srcobj.Delete(ctx)
+}
+
 // Compile time check for interface implementations.
 var (
 	_ filesystem.Remover = ((*fs)(nil))
 	_ filesystem.Copier  = ((*fs)(nil))
+	_ filesystem.Renamer = ((*fs)(nil))
 )

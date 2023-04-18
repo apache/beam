@@ -57,6 +57,7 @@ class SnippetEditor extends StatelessWidget {
                 Positioned.fill(
                   child: SnippetFileEditor(
                     controller: controller.fileControllers.first,
+                    eventSnippetContext: controller.eventSnippetContext,
                     isEditable: isEditable,
                   ),
                 ),
@@ -72,6 +73,7 @@ class SnippetEditor extends StatelessWidget {
           default:
             return TabbedSnippetEditor(
               controller: controller,
+              eventSnippetContext: controller.eventSnippetContext,
               isEditable: isEditable,
               trailing: actionsWidget,
             );
