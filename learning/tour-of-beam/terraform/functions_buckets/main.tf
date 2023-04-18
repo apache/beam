@@ -17,7 +17,7 @@
 
 # This creates GCS bucket for source code for cloud functions
 resource "google_storage_bucket" "cloud_functions_bucket" {
-  name          = var.cloudfunctions_bucket
+  name          = local.cloudfunctions_bucket
   location      = var.region
   storage_class = "STANDARD"
 }
