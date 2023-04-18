@@ -54,9 +54,9 @@ if [[ "$JENKINS_HOME" != "" ]]; then
 fi
 
 if [[ ! -z $2 ]]; then
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$2"
+  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$2"
 else
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
+  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
 fi
 
 exit_code=$?
