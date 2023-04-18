@@ -157,7 +157,7 @@ jobs:
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python/dist
         run: |
-          file=$(ls | grep .zip | head -n 1)
+          file=$(ls | grep .tar.gz | head -n 1)
           sha512sum $file > ${file}.sha512
       - name: Unzip RC source
         if: steps.is_rc.outputs.is_rc == 1
