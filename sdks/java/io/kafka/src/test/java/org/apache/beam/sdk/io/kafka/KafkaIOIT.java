@@ -137,8 +137,6 @@ public class KafkaIOIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOIT.class);
 
-  private static String expectedHashcode;
-
   private static SyntheticSourceOptions sourceOptions;
 
   private static Options options;
