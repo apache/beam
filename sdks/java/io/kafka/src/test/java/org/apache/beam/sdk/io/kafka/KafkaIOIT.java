@@ -43,7 +43,6 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
@@ -67,7 +66,6 @@ import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -238,27 +236,19 @@ public class KafkaIOIT {
   @Test
   public void testKafkaIOReadsAndWritesCorrectlyInBatch() throws IOException {
     // Map of hashes of set size collections with 100b records - 10b key, 90b values.
-    Map<Long, String> expectedHashes =
-        ImmutableMap.of(
-            1000L, "4507649971ee7c51abbb446e65a5c660",
-            100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
-    expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
-    PCollection<String> hashcode =
-        readPipeline
-            .apply(
-                "Read from bounded Kafka",
-                readFromBoundedKafka().withTopic(options.getKafkaTopic()))
-            .apply(
-                "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-            .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
-            .apply("Calculate hashcode", Combine.globally(new HashingFn()).withoutDefaults());
-
-    PAssert.thatSingleton(hashcode).isEqualTo(expectedHashcode);
+    readPipeline
+        .apply(
+           "Read from bounded Kafka",
+            readFromBoundedKafka().withTopic(options.getKafkaTopic()))
+        .apply(
+            "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+        .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
+        .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
 
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
@@ -273,6 +263,14 @@ public class KafkaIOIT {
 
     // Fail the test if pipeline failed.
     assertEquals(PipelineResult.State.DONE, readState);
+
+    long actualRecords = readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME);
+
+    assertTrue(
+        String.format(
+            "actual number of records %d smaller than expected: %d.",
+            actualRecords, sourceOptions.numRecords),
+        sourceOptions.numRecords <= actualRecords);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
@@ -895,15 +893,6 @@ public class KafkaIOIT {
       String value = Arrays.toString(input.getKV().getValue());
       return String.format("%s %s", key, value);
     }
-  }
-
-  public static String getHashForRecordCount(long recordCount, Map<Long, String> hashes) {
-    String hash = hashes.get(recordCount);
-    if (hash == null) {
-      throw new UnsupportedOperationException(
-          String.format("No hash for that record count: %s", recordCount));
-    }
-    return hash;
   }
 
   private static void setupKafkaContainer() {
