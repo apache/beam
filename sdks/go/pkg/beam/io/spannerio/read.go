@@ -80,7 +80,6 @@ type queryFn struct {
 	Query   string           `json:"query"`   // Table is the table identifier.
 	Type    beam.EncodedType `json:"type"`    // Type is the encoded schema type.
 	Options queryOptions     `json:"options"` // Options specifies additional query execution options.
-	client  *spanner.Client
 }
 
 func newQueryFn(

@@ -63,7 +63,6 @@ type writeFn struct {
 	Type      beam.EncodedType `json:"type"`    // Type is the encoded schema type.
 	Options   writeOptions     `json:"options"` // Spanner write options
 	mutations []*spanner.Mutation
-	client    *spanner.Client
 }
 
 func newWriteFn(db string, table string, t reflect.Type, options ...func(*writeOptions) error) *writeFn {
