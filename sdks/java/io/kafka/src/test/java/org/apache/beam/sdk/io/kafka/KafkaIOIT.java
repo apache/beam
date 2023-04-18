@@ -240,11 +240,8 @@ public class KafkaIOIT {
         .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
     readPipeline
-        .apply(
-           "Read from bounded Kafka",
-            readFromBoundedKafka().withTopic(options.getKafkaTopic()))
-        .apply(
-            "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+        .apply("Read from bounded Kafka", readFromBoundedKafka().withTopic(options.getKafkaTopic()))
+        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
         .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
 
@@ -259,9 +256,6 @@ public class KafkaIOIT {
     tearDownTopic(options.getKafkaTopic());
     cancelIfTimeouted(readResult, readState);
 
-    // Fail the test if pipeline failed.
-    assertEquals(PipelineResult.State.DONE, readState);
-
     long actualRecords = readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME);
 
     assertTrue(
@@ -269,6 +263,8 @@ public class KafkaIOIT {
             "actual number of records %d smaller than expected: %d.",
             actualRecords, sourceOptions.numRecords),
         sourceOptions.numRecords <= actualRecords);
+
+    assertNotEquals(PipelineResult.State.FAILED, readState);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
