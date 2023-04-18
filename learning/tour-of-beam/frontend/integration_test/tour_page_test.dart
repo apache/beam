@@ -184,7 +184,7 @@ public class MyClass {
 
   final playgroundController = _getPlaygroundController(wt);
   expect(
-    playgroundController.codeRunner.resultLogOutput,
+    playgroundController?.codeRunner.resultLogOutput,
     contains(text),
   );
 }
@@ -197,7 +197,7 @@ Future<void> _runAndCancelExample(WidgetTester wt, Duration duration) async {
 
   final playgroundController = _getPlaygroundController(wt);
   expect(
-    playgroundController.codeRunner.resultLogOutput,
+    playgroundController?.codeRunner.resultLogOutput,
     contains('Pipeline cancelled'),
   );
 }
@@ -222,6 +222,6 @@ TourNotifier _getTourNotifier(WidgetTester wt) {
       .tourNotifier;
 }
 
-PlaygroundController _getPlaygroundController(WidgetTester wt) {
+PlaygroundController? _getPlaygroundController(WidgetTester wt) {
   return _getTourNotifier(wt).playgroundController;
 }

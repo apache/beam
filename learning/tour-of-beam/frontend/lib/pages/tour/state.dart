@@ -37,7 +37,7 @@ import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
-  final PlaygroundController playgroundController;
+  PlaygroundController? playgroundController;
   UnitController? currentUnitController;
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
@@ -106,7 +106,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   void _onAppNotifierChanged() {
     final sdkId = _appNotifier.sdkId;
     if (sdkId != null) {
-      playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
+      playgroundController?.setSdk(Sdk.parseOrCreate(sdkId));
       contentTreeController.sdkId = sdkId;
       _onUnitProgressChanged();
     }
@@ -145,6 +145,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   Future<void> _setPlaygroundSnippet(String? snippetId) async {
     if (snippetId == null) {
+      playgroundController = null;
       return;
     }
 
@@ -152,9 +153,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
 
     final selectedSdk = _appNotifier.sdk;
+    playgroundController ??= _createPlaygroundController(
+      selectedSdk?.id ?? contentTreeController.sdkId,
+    );
+
     if (selectedSdk != null) {
       await _loadExamples(
-        controller: playgroundController,
+        controller: playgroundController!,
         descriptors: [
           UserSharedExampleLoadingDescriptor(
             sdk: selectedSdk,
