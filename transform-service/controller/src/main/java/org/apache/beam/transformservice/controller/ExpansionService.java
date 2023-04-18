@@ -27,8 +27,8 @@ import org.apache.beam.runners.core.construction.ExpansionServiceClientFactory;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings("nullness")
 public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase
     implements AutoCloseable {
 
@@ -40,9 +40,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   final List<Endpoints.ApiServiceDescriptor> endpoints;
 
-  ExpansionService(List<Endpoints.ApiServiceDescriptor> endpoints) {
+  ExpansionService(
+      List<Endpoints.ApiServiceDescriptor> endpoints,
+      @Nullable ExpansionServiceClientFactory clientFactory) {
     this.endpoints = endpoints;
-    this.expansionServiceClientFactory = EXPANSION_SERVICE_CLIENT_FACTORY;
+    this.expansionServiceClientFactory =
+        clientFactory != null ? clientFactory : EXPANSION_SERVICE_CLIENT_FACTORY;
   }
 
   @Override
@@ -116,7 +119,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       try {
         ExpansionApi.DiscoverSchemaTransformResponse response =
             expansionServiceClientFactory.getExpansionServiceClient(endpoint).discover(request);
-        if (!response.getError().isEmpty()) {
+        if (response.getError().isEmpty()) {
           successfulResponses.add(response);
         } else {
           lastErrorResponse = response;

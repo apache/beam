@@ -49,6 +49,9 @@ dependencies {
     implementation library.java.jackson_annotations
     implementation library.java.jackson_databind
     implementation library.java.jackson_dataformat_yaml
+    testImplementation library.java.junit
+    testImplementation library.java.mockito_core
+    testImplementation project(path: ":runners:java-fn-execution")
 }
 
 goBuild {

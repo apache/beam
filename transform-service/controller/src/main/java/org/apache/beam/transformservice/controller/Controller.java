@@ -25,7 +25,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerBuilder;
 
-@SuppressWarnings("nullness")
 public class Controller {
 
   List<Endpoints.ApiServiceDescriptor> endpoints;
@@ -35,7 +34,6 @@ public class Controller {
   public Controller(String[] args) {
     // We use PipelineOptions just a library for parsing arguments here.
     this(PipelineOptionsFactory.fromArgs(args).create());
-    endpoints = new ArrayList<>();
     for (String expansionService : options.getTransformServiceConfig().getExpansionservices()) {
       endpoints.add(Endpoints.ApiServiceDescriptor.newBuilder().setUrl(expansionService).build());
     }
@@ -43,11 +41,12 @@ public class Controller {
 
   public Controller(PipelineOptions opts) {
     this.options = opts.as(TransformServiceOptions.class);
+    endpoints = new ArrayList<>();
   }
 
   private void start() throws Exception {
-    ExpansionService expansionService = new ExpansionService(endpoints);
-    ArtifactService artifactService = new ArtifactService(endpoints);
+    ExpansionService expansionService = new ExpansionService(endpoints, null);
+    ArtifactService artifactService = new ArtifactService(endpoints, null);
 
     System.out.println("Starting transform service at port: " + options.getPort());
 

@@ -20,21 +20,30 @@ package org.apache.beam.transformservice.controller;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetArtifactRequest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetArtifactResponse;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ResolveArtifactsRequest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ResolveArtifactsResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings("nullness")
 public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceImplBase
     implements FnService {
 
   final List<Endpoints.ApiServiceDescriptor> endpoints;
 
-  ArtifactService(List<Endpoints.ApiServiceDescriptor> endpoints) {
+  final @Nullable ArtifactResolver artifactResolver;
+
+  ArtifactService(
+      List<Endpoints.ApiServiceDescriptor> endpoints, @Nullable ArtifactResolver artifactResolver) {
     this.endpoints = endpoints;
+    this.artifactResolver = artifactResolver;
   }
 
   @Override
@@ -47,16 +56,11 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
     RuntimeException lastError = null;
     for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
       try {
-        ManagedChannel channel =
-            ManagedChannelBuilder.forTarget(endpoint.getUrl())
-                .usePlaintext()
-                .maxInboundMessageSize(Integer.MAX_VALUE)
-                .build();
-
-        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
-            ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
-        responseObserver.onNext(retrievalStub.resolveArtifacts(request));
-
+        ArtifactResolver artifactResolver =
+            this.artifactResolver != null
+                ? this.artifactResolver
+                : new EndpointBasedArtifactResolver(endpoint.getUrl());
+        responseObserver.onNext(artifactResolver.resolveArtifacts(request));
         responseObserver.onCompleted();
         return;
       } catch (RuntimeException exn) {
@@ -64,6 +68,11 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
       }
     }
 
+    if (lastError == null) {
+      lastError =
+          new RuntimeException(
+              "Could not successfully resolve the artifact for the request " + request);
+    }
     throw lastError;
   }
 
@@ -77,17 +86,13 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
     RuntimeException lastError = null;
     for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
       try {
-        ManagedChannel channel =
-            ManagedChannelBuilder.forTarget(endpoint.getUrl())
-                .usePlaintext()
-                .maxInboundMessageSize(Integer.MAX_VALUE)
-                .build();
-
-        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
-            ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
+        ArtifactResolver artifactResolver =
+            this.artifactResolver != null
+                ? this.artifactResolver
+                : new EndpointBasedArtifactResolver(endpoint.getUrl());
 
         Iterator<ArtifactApi.GetArtifactResponse> responseIterator =
-            retrievalStub.getArtifact(request);
+            artifactResolver.getArtifact(request);
         while (responseIterator.hasNext()) {
           responseObserver.onNext(responseIterator.next());
         }
@@ -99,11 +104,47 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
       }
     }
 
+    if (lastError == null) {
+      lastError =
+          new RuntimeException(
+              "Could not successfully get the artifact for the request " + request);
+    }
     throw lastError;
   }
 
   @Override
   public void close() {
     // Nothing to close.
+  }
+
+  interface ArtifactResolver {
+    ArtifactApi.ResolveArtifactsResponse resolveArtifacts(
+        ArtifactApi.ResolveArtifactsRequest request);
+
+    Iterator<ArtifactApi.GetArtifactResponse> getArtifact(ArtifactApi.GetArtifactRequest request);
+  }
+
+  static class EndpointBasedArtifactResolver implements ArtifactResolver {
+
+    private ArtifactRetrievalServiceBlockingStub retrievalStub;
+
+    EndpointBasedArtifactResolver(String url) {
+      ManagedChannel channel =
+          ManagedChannelBuilder.forTarget(url)
+              .usePlaintext()
+              .maxInboundMessageSize(Integer.MAX_VALUE)
+              .build();
+      this.retrievalStub = ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
+    }
+
+    @Override
+    public ResolveArtifactsResponse resolveArtifacts(ResolveArtifactsRequest request) {
+      return retrievalStub.resolveArtifacts(request);
+    }
+
+    @Override
+    public Iterator<GetArtifactResponse> getArtifact(GetArtifactRequest request) {
+      return retrievalStub.getArtifact(request);
+    }
   }
 }
