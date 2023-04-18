@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -48,12 +49,12 @@ func (f *spannerFn) Setup(ctx context.Context) error {
 
 		// Append emulator options assuming endpoint is local (for testing).
 		if f.endpoint != "" {
-			conn, err := grpc.DialContext(ctx, f.endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-			if err != nil {
-				return err
+			opts = []option.ClientOption{
+				option.WithEndpoint(f.endpoint),
+				option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+				option.WithoutAuthentication(),
+				internaloption.SkipDialSettingsValidation(),
 			}
-
-			opts = []option.ClientOption{option.WithGRPCConn(conn), option.WithoutAuthentication()}
 		}
 
 		client, err := spanner.NewClient(ctx, f.Database, opts...)

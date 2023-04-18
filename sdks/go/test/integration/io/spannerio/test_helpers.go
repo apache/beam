@@ -18,6 +18,7 @@ package spannerio
 import (
 	"context"
 	"fmt"
+	"google.golang.org/api/option/internaloption"
 	"regexp"
 	"testing"
 
@@ -71,12 +72,14 @@ func setUpTestContainer(ctx context.Context, t *testing.T) string {
 func NewClient(ctx context.Context, t *testing.T, endpoint string, db string) *spanner.Client {
 	t.Helper()
 
-	conn, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Dialling in-memory fake spanner: %v", err)
+	opts := []option.ClientOption{
+		option.WithEndpoint(endpoint),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		option.WithoutAuthentication(),
+		internaloption.SkipDialSettingsValidation(),
 	}
 
-	client, err := spanner.NewClient(ctx, db, option.WithGRPCConn(conn), option.WithoutAuthentication())
+	client, err := spanner.NewClient(ctx, db, opts...)
 	if err != nil {
 		t.Fatalf("Unable to create spanner client: %v", err)
 	}
@@ -87,13 +90,15 @@ func NewClient(ctx context.Context, t *testing.T, endpoint string, db string) *s
 }
 
 func NewAdminClient(ctx context.Context, t *testing.T, endpoint string) *database.DatabaseAdminClient {
-	conn, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Dialling in-memory fake spanner: %v", err)
+	opts := []option.ClientOption{
+		option.WithEndpoint(endpoint),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		option.WithoutAuthentication(),
+		internaloption.SkipDialSettingsValidation(),
 	}
 
 	// Admin clients do not respect 'SPANNER_EMULATOR_HOST' currently.
-	admin, err := database.NewDatabaseAdminClient(ctx, option.WithGRPCConn(conn), option.WithoutAuthentication())
+	admin, err := database.NewDatabaseAdminClient(ctx, opts...)
 	if err != nil {
 		t.Fatalf("Unable to create spanner admin client: %v", err)
 	}
@@ -108,13 +113,15 @@ func NewAdminClient(ctx context.Context, t *testing.T, endpoint string) *databas
 }
 
 func NewInstanceAdminClient(ctx context.Context, t *testing.T, endpoint string) *instance.InstanceAdminClient {
-	conn, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Dialling in-memory fake spanner: %v", err)
+	opts := []option.ClientOption{
+		option.WithEndpoint(endpoint),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		option.WithoutAuthentication(),
+		internaloption.SkipDialSettingsValidation(),
 	}
 
 	// Admin clients do not respect 'SPANNER_EMULATOR_HOST' currently.
-	instanceAdmin, err := instance.NewInstanceAdminClient(ctx, option.WithGRPCConn(conn), option.WithoutAuthentication())
+	instanceAdmin, err := instance.NewInstanceAdminClient(ctx, opts...)
 	if err != nil {
 		t.Fatalf("Unable to create spanner instance admin client: %v", err)
 	}

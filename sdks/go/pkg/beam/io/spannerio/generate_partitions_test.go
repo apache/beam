@@ -30,11 +30,14 @@ func TestGeneratePartitions(t *testing.T) {
 
 	query := "SELECT * from Test"
 
+	srv := newServer(t)
+
 	p := beam.NewPipeline()
 	s := p.Root()
 
 	fn := newGeneratePartitionsFn(database, query)
 	fn.generator = &partitionGeneratorStub{}
+	fn.endpoint = srv.Addr
 
 	partitions := fn.generatePartitions(s)
 
