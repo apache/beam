@@ -214,13 +214,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected = [3, 7, 21]
       expected_bad = ["5"]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      good, bad_pre, bad_infer = pcoll | base.RunInference(
+      main, other = pcoll | base.RunInference(
           FakeModelHandler(), preprocess_fn=mult_two).with_exception_handling()
-      assert_that(good, equal_to(expected), label='assert:inferences')
-      assert_that(bad_infer, equal_to([]), label='assert:bad_infer')
+      assert_that(main, equal_to(expected), label='assert:inferences')
+      assert_that(
+          other.failed_inferences, equal_to([]), label='assert:bad_infer')
 
       # bad will be in form [element, error]. Just pull out bad element.
-      bad_without_error = bad_pre | beam.Map(lambda x: x[0])
+      bad_without_error = other.failed_preprocessing | beam.Map(lambda x: x[0])
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
@@ -235,13 +236,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected = ["4", "8", "22"]
       expected_bad = [6]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      good, bad_infer, bad_post = pcoll | base.RunInference(
+      main, other = pcoll | base.RunInference(
           FakeModelHandler(), postprocess_fn=mult_two).with_exception_handling()
-      assert_that(good, equal_to(expected), label='assert:inferences')
-      assert_that(bad_infer, equal_to([]), label='assert:bad_infer')
+      assert_that(main, equal_to(expected), label='assert:inferences')
+      assert_that(
+          other.failed_inferences, equal_to([]), label='assert:bad_infer')
 
       # bad will be in form [element, error]. Just pull out bad element.
-      bad_without_error = bad_post | beam.Map(lambda x: x[0])
+      bad_without_error = other.failed_postprocessing | beam.Map(lambda x: x[0])
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
@@ -262,22 +264,25 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected_bad_pre = ["5"]
       expected_bad_post = [7]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      good, bad_pre, bad_infer, bad_post = pcoll | base.RunInference(
+      main, other = pcoll | base.RunInference(
           FakeModelHandler(),
           preprocess_fn=mult_two_pre,
           postprocess_fn=mult_two_post).with_exception_handling()
-      assert_that(good, equal_to(expected), label='assert:inferences')
-      assert_that(bad_infer, equal_to([]), label='assert:bad_infer')
+      assert_that(main, equal_to(expected), label='assert:inferences')
+      assert_that(
+          other.failed_inferences, equal_to([]), label='assert:bad_infer')
 
       # bad will be in form [elements, error]. Just pull out bad element.
-      bad_without_error_pre = bad_pre | beam.Map(lambda x: x[0])
+      bad_without_error_pre = other.failed_preprocessing | beam.Map(
+          lambda x: x[0])
       assert_that(
           bad_without_error_pre,
           equal_to(expected_bad_pre),
           label='assert:failures_pre')
 
       # bad will be in form [elements, error]. Just pull out bad element.
-      bad_without_error_post = bad_post | beam.Map(lambda x: x[0])
+      bad_without_error_post = other.failed_postprocessing | beam.Map(
+          lambda x: x[0])
       assert_that(
           bad_without_error_post,
           equal_to(expected_bad_post),
@@ -334,15 +339,16 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected_good = [2, 4, 11]
       expected_bad = ['TEST', 'TEST2']
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      good, bad = pcoll | base.RunInference(
+      main, other = pcoll | base.RunInference(
           FakeModelHandler(
             min_batch_size=1,
             max_batch_size=1
           )).with_exception_handling()
-      assert_that(good, equal_to(expected_good), label='assert:inferences')
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
 
-      # bad will be in form [batch[elements], error]. Just pull out bad element.
-      bad_without_error = bad | beam.Map(lambda x: x[0][0])
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 

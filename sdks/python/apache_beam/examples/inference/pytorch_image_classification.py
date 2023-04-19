@@ -21,7 +21,6 @@ import argparse
 import io
 import logging
 import os
-from typing import Iterable
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
