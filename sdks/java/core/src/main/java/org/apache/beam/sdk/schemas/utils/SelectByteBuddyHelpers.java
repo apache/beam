@@ -180,7 +180,7 @@ class SelectByteBuddyHelpers {
           .make()
           .load(
               ReflectHelpers.findClassLoader(Row.class.getClassLoader()),
-              getClassLoadingStrategy(Row.class))
+              getClassLoadingStrategy(RowSelector.class))
           .getLoaded()
           .getDeclaredConstructor(Schema.class)
           .newInstance(outputSchema);

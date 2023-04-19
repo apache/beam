@@ -464,7 +464,7 @@ public class ByteBuddyUtils {
         .make()
         .load(
             ReflectHelpers.findClassLoader(((Class) fromType).getClassLoader()),
-            getClassLoadingStrategy((Class) fromType))
+            getClassLoadingStrategy(Function.class))
         .getLoaded();
   }
 
