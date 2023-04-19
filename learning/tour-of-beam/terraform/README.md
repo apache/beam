@@ -105,6 +105,7 @@ Where:
 8. Update config.dart configuration file under beam/learning/tour-of-beam/frontend/lib:
 
 Navigate to beam/learning/tour-of-beam/frontend/lib.
+
 Update config.dart file, replacing values in ${ } with your actual values.
 
 Where:
@@ -169,15 +170,13 @@ firebase login --no-localhost
 firebase projects:addfirebase
 ```
 
-12. Create Firebase Web App
+12. Create Firebase Web App and prepare Firebase configuration file
 
 ```
 firebase apps:create WEB ${webapp_name} --project ${project_id}
 ```
 
-13. Get Firebase Web App configuration
-
-Once Firebase Web App has been created, following output will be shown:
+Once Firebase Web App has been created, there will be following output example:
 
 ```
 Create your WEB app in project cloudbuild-383310:
@@ -193,11 +192,9 @@ You can run this command to print out your new app's Google Services config:
 firebase apps:sdkconfig WEB WEBAPP_ID
 ```
 
-14. Prepare Firebase options configuration file
-
 Copy and paste into the terminal last line to get Web App configuration.
 
-Output:
+Output example:
 
 ```
 ✔ Downloading configuration data of your Firebase WEB app
@@ -216,7 +213,8 @@ firebase.initializeApp({
 ```
 
 Copy the lines inside the curly braces.
-Paste and replace the data inside the parentheses in beam/learning/tour-of-beam/frontend/lib/firebase_options.dart file.
+
+Paste (replace) the copied data inside the parentheses in beam/learning/tour-of-beam/frontend/lib/firebase_options.dart file.
 
 ```
 static const FirebaseOptions web = FirebaseOptions(
@@ -225,7 +223,7 @@ static const FirebaseOptions web = FirebaseOptions(
 );
 ```
 
-15. Run flutter and firebase commands to deploy Tour of Beam frontend 
+13. Run flutter and firebase commands to deploy Tour of Beam frontend 
 
 Navigate to beam/playground/frontend/playground_components and run flutter commands
 
@@ -245,9 +243,8 @@ flutter build web --profile --dart-define=Dart2jsOptimization=O0
 firebase deploy --project ${project_id}
 ```
 
-
 # Validate the deployment of the Tour of Beam:
-16. Open the Tour of Beam webpage in a web browser (Hosting URL will be provided in terminal output) to ensure that deployment has been successfully completed.
+14. Open the Tour of Beam webpage in a web browser (Hosting URL will be provided in terminal output) to ensure that deployment has been successfully completed.
 
 Example:
 ```
