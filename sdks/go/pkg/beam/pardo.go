@@ -123,7 +123,10 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 		if !typex.IsKV(col.Type()) {
 			return nil, addParDoCtx(errors.New("DoFn input should be keyed to be used with timers."), s)
 		}
-		c := coder.NewString()
+		c, err := inferCoder(typex.New(reflect.TypeOf(col.Type())))
+		if err != nil {
+			return nil, addParDoCtx(errors.New("error infering coder from col"), s)
+		}
 		edge.TimerCoders = make(map[string]*coder.Coder)
 		for _, pt := range pipelineTimers {
 			tc := coder.NewT(c, wc)

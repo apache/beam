@@ -595,15 +595,15 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					if len(userTimers) > 0 {
 						log.Debugf(context.TODO(), "userTimers %+v", userTimers)
 						timerIDToCoder := make(map[string]*coder.Coder)
-						for key, _ := range userTimers {
-							sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
-							ec, wc, err := b.makeCoderForPCollection(input[0])
-							if err != nil {
-								return nil, err
-							}
-							timerIDToCoder[key] = coder.NewT(ec, wc)
-							n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerIDToCoder)
+						sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
+						ec, wc, err := b.makeCoderForPCollection(input[0])
+						if err != nil {
+							return nil, err
 						}
+						for key, _ := range userTimers {
+							timerIDToCoder[key] = coder.NewT(ec, wc)
+						}
+						n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerIDToCoder)
 					}
 
 					for i := 1; i < len(input); i++ {
