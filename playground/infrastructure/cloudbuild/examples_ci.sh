@@ -177,6 +177,7 @@ do
     if [[ $example_has_changed != "True" ]]
     then
         LogOutput "No changes require validation for SDK_${sdk^^}"
+        eval "ci_${sdk}_passed"='True'
         continue
     fi
 
