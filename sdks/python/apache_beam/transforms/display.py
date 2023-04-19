@@ -217,7 +217,7 @@ class DisplayData(object):
         for k,
         v in pipeline_options.display_data().items()
     }
-    return cls(pipeline_options._namespace(), items)
+    return cls(pipeline_options._get_display_data_namespace(), items)
 
   @classmethod
   def create_from(cls, has_display_data):
