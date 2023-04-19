@@ -51,7 +51,7 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 
 # Prepare deployment configuration:
 
-```
+
 1. Navigate to `beam/learning/tour-of-beam/terraform`
 
 ```
@@ -61,8 +61,7 @@ cd beam/learning/tour-of-beam/terraform
 2. Configure authentication for the Google Cloud Platform (GCP)
 ```
 gcloud init
-```
-```
+
 gcloud auth application-default login
 ```
 
@@ -98,29 +97,157 @@ terraform plan -var gcloud_init_account=$(gcloud config get-value core/account) 
 ```
 
 Where:
-- **environment** - environment name
+- **environment** - Infrastructure environment name
 - **region** - GCP region for your infrastructure
 
 # Deploy the Tour of Beam Frontend Infrastructure:
 
-8. Run the following command and follow the instructions to configure authentication for Firebase:
+8. Update config.dart configuration file under beam/learning/tour-of-beam/frontend/lib:
+
+Navigate to beam/learning/tour-of-beam/frontend/lib.
+Update config.dart file, replacing values in ${ } with your actual values.
+
+Where:
+- **${cloudfunctions_region}** - region where GCP Cloud Functions have been deployed
+- **${project_id}** - GCP project where infrastructure being deployed
+- **${environment}** - Infrastructure environment name
+- **${dns_name}** - DNS record name reserved for Beam Playground environment
+
 ```
+const _cloudFunctionsProjectRegion = '${cloudfunctions_region}';
+const _cloudFunctionsProjectId = '${project_id}';
+const cloudFunctionsBaseUrl = 'https://'
+   '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
+   '.cloudfunctions.net/${environment}_';
+
+
+const String kAnalyticsUA = 'UA-73650088-2';
+const String kApiClientURL =
+'https://router.${dns_name}';
+const String kApiJavaClientURL =
+'https://java.${dns_name}';
+const String kApiGoClientURL =
+'https://go.${dns_name}';
+const String kApiPythonClientURL =
+'https://python.${dns_name}';
+const String kApiScioClientURL =
+'https://scio.${dns_name}';
+```
+
+9. Create file .firebaserc under beam/learning/tour-of-beam/frontend
+
+Navigate to beam/learning/tour-of-beam/frontend.
+Create .firebaserc file with the following content.
+
+Where:
+- **${project_id}** - GCP project where infrastructure being deployed
+
+```
+{
+"projects": {
+"default": "${project_id}"
+   }
+}
+```
+
+10. Login into the Firebase CLI
+
+```
+# To use nteractive mode (forwards to browser webpage from the terminal)
+firebase login 
+```
+
+```
+# To use non-interactive mode (generates link)
 firebase login --no-localhost
 ```
 
-7. Run the following command from the top-level repository folder ("beam") to deploy the Tour of Beam Frontend infrastructure:
+
+11. Create Firebase Project
+
 ```
-./gradlew learning:tour-of-beam:terraform:InitFrontend -Pproject_environment="environment_name" -Pproject_id="gcp-project-id" -Pdns-name="playground-dns-name" -Pregion="gcp-region" -Pwebapp_id="firebase_webapp_name"
+firebase projects:addfirebase
 ```
-Where:
-- **project_environment** - environment name
-- **project_id** - name of your GCP Project ID
-- **dns-name** - DNS name reserved for Beam Playground
-- **region** - name of your GCP Resources region
-- **webapp_id** - name of your Firebase Web Application that will be created (example: Tour-of-Beam-Web-App)
+
+12. Create Firebase Web App
+
+```
+firebase apps:create WEB ${webapp_name} --project ${project_id}
+```
+
+13. Get Firebase Web App configuration
+
+Once Firebase Web App has been created, following output will be shown:
+
+```
+Create your WEB app in project cloudbuild-383310:
+✔ Creating your Web app
+
+🎉🎉🎉 Your Firebase WEB App is ready! 🎉🎉🎉
+
+App information:
+- App ID: WEBAPP_ID
+- Display name: WEBAPP_NAME
+
+You can run this command to print out your new app's Google Services config:
+firebase apps:sdkconfig WEB WEBAPP_ID
+```
+
+14. Prepare Firebase options configuration file
+
+Copy and paste into the terminal last line to get Web App configuration.
+
+Output:
+
+```
+✔ Downloading configuration data of your Firebase WEB app
+// Copy and paste this into your JavaScript code to initialize the Firebase SDK.
+// You will also need to load the Firebase SDK.
+// See https://firebase.google.com/docs/web/setup for more details.
+
+firebase.initializeApp({
+   "projectId": 
+   "appId": 
+   "storageBucket": 
+   "apiKey": 
+   "authDomain": 
+   "messagingSenderId": 
+});
+```
+
+Copy the lines inside the curly braces.
+Paste and replace the data inside the parentheses in beam/learning/tour-of-beam/frontend/lib/firebase_options.dart file.
+
+```
+static const FirebaseOptions web = FirebaseOptions(
+
+
+);
+```
+
+15. Run flutter and firebase commands to deploy Tour of Beam frontend 
+
+Navigate to beam/playground/frontend/playground_components and run flutter commands
+
+```
+# Go to beam/playground/frontend/playground_components first
+flutter pub get 
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+Navigate to beam/learning/tour-of-beam/frontend and run flutter commands
+
+```
+Go to beam/learning/tour-of-beam/frontend first
+flutter pub get 
+flutter pub run build_runner build --delete-conflicting-outputs
+flutter build web --profile --dart-define=Dart2jsOptimization=O0
+firebase deploy --project ${project_id}
+```
+
 
 # Validate the deployment of the Tour of Beam:
-8. Open the Tour of Beam webpage in a web browser (Hosting URL will be provided in terminal output) to ensure that deployment has been successfully completed.
+16. Open the Tour of Beam webpage in a web browser (Hosting URL will be provided in terminal output) to ensure that deployment has been successfully completed.
 
 Example:
 ```
