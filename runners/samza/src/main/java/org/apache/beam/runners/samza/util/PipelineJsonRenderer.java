@@ -66,8 +66,9 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
    * @param pipeline The beam pipeline
    * @return JSON string representation of the pipeline
    */
-  public static String toJsonString(Pipeline pipeline) {
-    final PipelineJsonRenderer visitor = new PipelineJsonRenderer();
+  public static String toJsonString(
+      Pipeline pipeline, Map<String, Map.Entry<String, String>> transformIOMap) {
+    final PipelineJsonRenderer visitor = new PipelineJsonRenderer(transformIOMap);
     pipeline.traverseTopologically(visitor);
     return visitor.jsonBuilder.toString();
   }
@@ -86,9 +87,12 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   private final StringBuilder jsonBuilder = new StringBuilder();
   private final StringBuilder graphLinks = new StringBuilder();
   private final Map<PValue, String> valueToProducerNodeName = new HashMap<>();
+  private final Map<String, Map.Entry<String, String>> transformIOMap;
   private int indent;
 
-  private PipelineJsonRenderer() {}
+  private PipelineJsonRenderer(Map<String, Map.Entry<String, String>> transformIOMap) {
+    this.transformIOMap = transformIOMap;
+  }
 
   @Nullable
   private static SamzaIOInfo loadSamzaIOInfo() {
@@ -162,7 +166,28 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     }
     graphLinks.append("]");
     jsonBuilder.append(graphLinks);
+    // Attach transformIoInfo - transformName to input and output PCollection(PValues)
+    jsonBuilder.append(getTransformI0Info());
     jsonBuilder.append("}");
+  }
+
+  private StringBuilder getTransformI0Info() {
+    final StringBuilder transformIoInfo = new StringBuilder();
+    transformIoInfo.append(",\"transformIOInfo\": [");
+    transformIOMap.forEach(
+        (transform, ioInfo) -> {
+          transformIoInfo.append(
+              String.format(
+                  "{\"transformName\":\"%s\"," + "\"inputs\":\"%s\"," + "\"outputs\":\"%s\"},",
+                  transform, ioInfo.getKey(), ioInfo.getValue()));
+        });
+    // delete the last extra comma
+    int lastIndex = transformIoInfo.length() - 1;
+    if (transformIoInfo.charAt(lastIndex) == ',') {
+      transformIoInfo.deleteCharAt(lastIndex);
+    }
+    transformIoInfo.append("]");
+    return transformIoInfo;
   }
 
   private void enterBlock() {

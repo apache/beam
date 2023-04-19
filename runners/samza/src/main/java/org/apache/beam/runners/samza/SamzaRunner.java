@@ -131,28 +131,27 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
           PipelineDotRenderer.toDotString(pipeline));
       LOG.debug(
           "Pre-processed Beam pipeline in json format:\n{}",
-          PipelineJsonRenderer.toJsonString(pipeline));
+          PipelineJsonRenderer.toJsonString(pipeline, Collections.emptyMap()));
     }
 
     pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
 
+    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final Map<String, Map.Entry<String, String>> transformIOMap =
+        SamzaPipelineTranslator.buildTransformIOMap(pipeline, options, idMap, nonUniqueStateIds);
+
     final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
     LOG.info("Beam pipeline DOT graph:\n{}", dotGraph);
 
-    final String jsonGraph = PipelineJsonRenderer.toJsonString(pipeline);
+    final String jsonGraph = PipelineJsonRenderer.toJsonString(pipeline, transformIOMap);
     LOG.info("Beam pipeline JSON graph:\n{}", jsonGraph);
-
-    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
-    final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
-    final String transformIOMap =
-        SamzaPipelineTranslator.buildTransformIOMap(pipeline, options, idMap, nonUniqueStateIds);
 
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPipelineTranslator.createConfig(
         pipeline, options, idMap, nonUniqueStateIds, configBuilder);
     configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
     configBuilder.put(BEAM_JSON_GRAPH, jsonGraph);
-    configBuilder.put(BEAM_TRANSFORMS_WITH_IO, transformIOMap);
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);

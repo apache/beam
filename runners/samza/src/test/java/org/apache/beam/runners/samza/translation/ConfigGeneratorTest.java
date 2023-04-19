@@ -27,7 +27,6 @@ import java.util.Set;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.SamzaRunner;
-import org.apache.beam.runners.samza.util.PipelineTransformIOUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
@@ -240,14 +239,8 @@ public class ConfigGeneratorTest {
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPipelineTranslator.createConfig(
         pipeline, options, idMap, nonUniqueStateIds, configBuilder);
-    final String transformIOMap =
-        SamzaPipelineTranslator.buildTransformIOMap(pipeline, options, idMap, nonUniqueStateIds);
-    configBuilder.put(SamzaRunner.BEAM_TRANSFORMS_WITH_IO, transformIOMap);
-    Config config = configBuilder.build();
-
-    // Deserialize the config and verify that the map is correct
     final Map<String, Map.Entry<String, String>> transformInputOutput =
-        PipelineTransformIOUtils.deserializeTransformIOMap(config);
+        SamzaPipelineTranslator.buildTransformIOMap(pipeline, options, idMap, nonUniqueStateIds);
 
     assertEquals(2, transformInputOutput.size());
     assertEquals("", transformInputOutput.get("Impulse").getKey()); // no input to impulse

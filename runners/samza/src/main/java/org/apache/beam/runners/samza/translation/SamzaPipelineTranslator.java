@@ -32,7 +32,6 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.util.PipelineTransformIOUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
@@ -49,6 +48,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 })
 public class SamzaPipelineTranslator {
 
+  private static final String TRANSFORM_IO_MAP_DELIMITER = ",";
   private static final Map<String, TransformTranslator<?>> TRANSLATORS = loadTranslators();
 
   private static Map<String, TransformTranslator<?>> loadTranslators() {
@@ -118,7 +118,7 @@ public class SamzaPipelineTranslator {
    * Builds a map from PTransform to its input and output PValues. The map is serialized and stored
    * in the job config.
    */
-  public static String buildTransformIOMap(
+  public static Map<String, Map.Entry<String, String>> buildTransformIOMap(
       Pipeline pipeline,
       SamzaPipelineOptions options,
       Map<PValue, String> idMap,
@@ -140,15 +140,15 @@ public class SamzaPipelineTranslator {
             pTransformToInputOutputMap.put(
                 node.getFullName(),
                 new AbstractMap.SimpleEntry<>(
-                    String.join(PipelineTransformIOUtils.TRANSFORM_IO_MAP_DELIMITER, inputs),
-                    String.join(PipelineTransformIOUtils.TRANSFORM_IO_MAP_DELIMITER, outputs)));
+                    String.join(TRANSFORM_IO_MAP_DELIMITER, inputs),
+                    String.join(TRANSFORM_IO_MAP_DELIMITER, outputs)));
             ctx.clearCurrentTransform();
           }
         };
 
     final SamzaPipelineVisitor visitor = new SamzaPipelineVisitor(configFn);
     pipeline.traverseTopologically(visitor);
-    return PipelineTransformIOUtils.serializeTransformIOMap(pTransformToInputOutputMap);
+    return pTransformToInputOutputMap;
   }
 
   private static Supplier<List<String>> getIOPValueList(Map<TupleTag<?>, PCollection<?>> map) {
