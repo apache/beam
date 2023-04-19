@@ -88,7 +88,7 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        @media (max-width: $tablet) {
+        @media (max-width: $ak-breakpoint-xl) {
           width: 327px;
           height: 216px;
           padding: 24px 19.2px 24.7px 20px;
@@ -151,6 +151,7 @@
         margin-top: 30px;
         margin-bottom: 70px;
         .calendar-desktop {
+          overflow-x: auto;
           @media (max-width: $tablet) {
             display: none;
           }
@@ -241,7 +242,7 @@
   @extend .component-tag;
 }
 
-@media (max-width: $tablet) {
+@media (max-width: $ak-breakpoint-xl) {
   .calendar {
     padding: $pad-md $pad-s;
 
@@ -252,7 +253,6 @@
 
       .calendar-card-big {
         max-width: 327px;
-        height: 356px;
         padding: 32px 20px;
         @media (max-width: $ak-breakpoint-xs) {
           max-width: 260px;
