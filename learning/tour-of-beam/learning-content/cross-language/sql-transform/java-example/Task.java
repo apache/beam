@@ -27,27 +27,21 @@
 //   tags:
 //     - hellobeam
 
-
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.io.Serializable;
 
 public class Task {
     public static void main(String[] args) {
@@ -56,62 +50,20 @@ public class Task {
         // Create the Pipeline object with the options we defined above
         Pipeline pipeline = Pipeline.create(options);
 
-        Schema schema = Schema.builder()
-                .addField("id", Schema.FieldType.INT32)
-                .addField("name", Schema.FieldType.STRING)
-                .build();
-
         PCollection<User> input = pipeline
-                .apply(Create.of(new User(1, "Ab"), new User(103, "RE")))
-                .setCoder(UserCoder.of())
-                .setRowSchema(schema);
+                .apply(Create.of(new User(1, "Josh"), new User(103, "Anna")));
 
         PCollection<Row> result = input
-                .apply(SqlTransform.query("SELECT id, name FROM PCOLLECTION"));
+                .apply(SqlTransform.query("SELECT id,name FROM PCOLLECTION where id > 100"));
 
-        result.apply(ParDo.of(new LogOutput<>()));
+        result.apply(ParDo.of(new LogOutput<>("Sql result")));
 
-        pipeline.run();
+        pipeline.run().waitUntilFinish();
 
     }
 
-    static class UserCoder extends Coder<User> {
-        private static final UserCoder INSTANCE = new UserCoder();
-
-        public static UserCoder of() {
-            return INSTANCE;
-        }
-
-        private static final String NAMES_SEPARATOR = "_";
-
-        // So that the pipeline understands how encode
-        @Override
-        public void encode(User user, OutputStream outStream) throws IOException {
-            String serializableRecord = user.id + NAMES_SEPARATOR + user.name;
-            outStream.write(serializableRecord.getBytes());
-        }
-
-        // So that the pipeline understands how decode
-        @Override
-        public User decode(InputStream inStream) {
-            String serializedRecord = new BufferedReader(new InputStreamReader(inStream)).lines()
-                    .parallel().collect(Collectors.joining("\n"));
-            String[] names = serializedRecord.split(NAMES_SEPARATOR);
-            return new User(Integer.parseInt(names[0]), names[1]);
-        }
-
-        @Override
-        public List<? extends Coder<?>> getCoderArguments() {
-            return null;
-        }
-
-        @Override
-        public void verifyDeterministic() {
-        }
-    }
-
-    @DefaultSchema(JavaFieldSchema.class)
-    static class User {
+    @DefaultSchema(JavaBeanSchema.class)
+    public static class User implements Serializable {
         private Integer id;
 
         private String name;
@@ -123,7 +75,10 @@ public class Task {
                     ", name='" + name + '\'' +
                     '}';
         }
-        @SchemaCreate
+
+        public User() {
+        }
+
         public User(Integer id, String name) {
             this.id = id;
             this.name = name;
@@ -143,6 +98,27 @@ public class Task {
 
         public void setName(String name) {
             this.name = name;
+        }
+    }
+
+    static class LogOutput<T> extends DoFn<T, T> {
+
+        private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
+
+        private final String prefix;
+
+        public LogOutput() {
+            this.prefix = "Processing element";
+        }
+
+        LogOutput(String prefix) {
+            this.prefix = prefix;
+        }
+
+        @ProcessElement
+        public void processElement(ProcessContext c) throws Exception {
+            LOG.info(prefix + ": {}", c.element());
+            c.output(c.element());
         }
     }
 }
