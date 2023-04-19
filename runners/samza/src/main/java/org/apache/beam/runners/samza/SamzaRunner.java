@@ -63,7 +63,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
-  public static final String BEAM_TRANSFORMS_WITH_IO = "beamTransformsWithIO";
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
   private static final String BEAM_DOT_GRAPH = "beamDotGraph";
   private static final String BEAM_JSON_GRAPH = "beamJsonGraph";
