@@ -50,17 +50,14 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 6. Apache Beam Git repository cloned locally
 
 # Prepare deployment configuration:
- `common.tfvars` located in `learning/tour-of-beam/terraform` to define variables specific to an environment (e.g., prod, test, staging). Follow the steps below to prepare the deployment configuration:<br>
-1. Create a `common.tfvars` and `state.tfbackend` files in terraform directory `learning/tour-of-beam/terraform`:
 
-* Populate `common.tfvars` with next variables:
 ```
-region                  = "gcp_region"                # Your GCP resources region
+1. Navigate to `beam/learning/tour-of-beam/terraform`
+
 ```
-* `state.tfbackend` with:
+cd beam/learning/tour-of-beam/terraform
 ```
-bucket = "bucket_name"          # Your created bucket name for terraform tfstate file
-```
+
 2. Configure authentication for the Google Cloud Platform (GCP)
 ```
 gcloud init
@@ -73,24 +70,40 @@ gcloud auth application-default login
 ```
  gcloud auth configure-docker `chosen_region`-docker.pkg.dev
 ```
+
 4. And the authentication in GCP Google Kubernetes Engine:
 ```
 gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` --project `project_id`
 ```
 
+5. Create datastore indexes:
+```
+gcloud datastore indexes create ../backend/internal/storage/index.yaml
+```
+
 # Deploy the Tour of Beam Backend Infrastructure:
 
-5. Run the following command from the top-level repository folder ("beam") to deploy the Tour of Beam Backend infrastructure:
+6. Initialize terraform
 ```
-./gradlew learning:tour-of-beam:terraform:InitBackend -Pgcloud_account=`gcloud config get-value core/account` -Pproject_environment="environment_name" -Pproject_id="gcp-project-id"
+terraform init -backend-config="bucket=`created_gcs_bucket`"
 ```
+
+7. Run terraform apply to create Tour-Of-Beam backend infrastructure
+```
+terraform plan -var gcloud_init_account=$(gcloud config get-value core/account) \
+-var environment="test" \
+-var region="us-east1" \
+-var project_id=$(gcloud config get-value project) \
+-var pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')
+```
+
 Where:
-- **project_environment** - environment name
-- **project_id** - name of your GCP Project ID
+- **environment** - environment name
+- **region** - GCP region for your infrastructure
 
 # Deploy the Tour of Beam Frontend Infrastructure:
 
-6. Run the following command and follow the instructions to configure authentication for Firebase:
+8. Run the following command and follow the instructions to configure authentication for Firebase:
 ```
 firebase login --no-localhost
 ```
