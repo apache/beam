@@ -137,7 +137,7 @@ def addStreamingOptions(test) {
 
 def loadTestJob = { scope, triggeringContext, jobType ->
   scope.description("Runs Python ParDo load tests on Dataflow runner in ${jobType} mode")
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 120)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 180)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   for (testConfiguration in loadTestConfigurations(jobType, datasetName)) {
