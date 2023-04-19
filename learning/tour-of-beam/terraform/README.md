@@ -104,9 +104,9 @@ Where:
 
 8. Update config.dart configuration file under beam/learning/tour-of-beam/frontend/lib:
 
-Navigate to beam/learning/tour-of-beam/frontend/lib.
+   8.1. Navigate to beam/learning/tour-of-beam/frontend/lib.
 
-Update config.dart file, replacing values in ${ } with your actual values.
+   8.2. Update config.dart file, replacing values in ${ } with your actual values.
 
 Where:
 - **${cloudfunctions_region}** - region where GCP Cloud Functions have been deployed
@@ -137,8 +137,9 @@ const String kApiScioClientURL =
 
 9. Create file .firebaserc under beam/learning/tour-of-beam/frontend
 
-Navigate to beam/learning/tour-of-beam/frontend.
-Create .firebaserc file with the following content.
+   9.1. Navigate to beam/learning/tour-of-beam/frontend. 
+
+   9.2. Create .firebaserc file with the following content.
 
 Where:
 - **${project_id}** - GCP project where infrastructure being deployed
@@ -244,6 +245,7 @@ firebase deploy --project ${project_id}
 ```
 
 # Validate the deployment of the Tour of Beam:
+
 14. Open the Tour of Beam webpage in a web browser (Hosting URL will be provided in terminal output) to ensure that deployment has been successfully completed.
 
 Example:
