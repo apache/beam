@@ -118,9 +118,9 @@ func (pom *PrecompiledObjectMapper) ToDefaultPrecompiledObjects(defaultExamplesD
 	return result
 }
 
-func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO) *pb.PrecompiledObject {
+func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleId string, exampleDTO *dto.ExampleDTO) *pb.PrecompiledObject {
 	return &pb.PrecompiledObject{
-		CloudPath:       getCloudPath(exampleDTO.Example),
+		CloudPath:       exampleId,
 		Name:            exampleDTO.Example.Name,
 		Description:     exampleDTO.Example.Descr,
 		Type:            exampleDTO.GetType(),

@@ -39,6 +39,7 @@ build.dependsOn tasks.named("buildPython")
 // Create a Python source distribution tarball.
 def tarball = "apache-beam.tar.gz"
 def sdist = tasks.register("sdist") {
+  description "Create a Python source distribution tarball"
   dependsOn setupVirtualenv
 
   doLast {
@@ -64,6 +65,50 @@ artifacts {
   distTarBall file: file("${buildDir}/${tarball}"), builtBy: sdist
 }
 
+// Create Python wheels for given platform and Python version
+// build identifiers for cibuildwheel
+def platform_identifiers_map = [
+  linux: 'manylinux_*64*', // e.g. manylinux_x86_64, manylinux_aarch64
+  macos:'macosx_*64*',     // e.g. macosx_x86_64, macosx_arm64
+  windows: 'win_*64*',     // e.g. win_amd64, win_arm64
+]
+
+platform_identifiers_map.each { platform, idsuffix ->
+  def archs = 'auto'
+  // note: A fix for arm64 platform in gradle environment. For some reason the
+  // task fails with "Invalid archs option {<Architecture.arm64: 'arm64'>}."
+  // even though os.arch is 'aarch64'
+  // Running cibuildwheel command directly in shell it succeeded, however
+  if (platform == 'linux' && 'aarch64'.equalsIgnoreCase(System.getProperty("os.arch"))) {
+    archs = 'aarch64'
+  }
+  getVersionsAsList('python_versions').each { it ->
+    def pyversion = it.replace('.', '')
+
+    project.tasks.register("bdistPy${pyversion}${platform}") {
+      description "Build a Python wheel distribution for Py${pyversion} ${platform}"
+      dependsOn setupVirtualenv
+      // need sdist task to generate protos
+      dependsOn ':sdks:python:sdist'
+
+      // generated installable Python SDK package
+      doLast {
+        exec {
+          environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
+          environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
+          environment CIBW_BEFORE_BUILD: "pip install cython numpy && pip install --upgrade setuptools"
+          // note: sync cibuildwheel version with GitHub Action
+          // .github/workflow/build_wheel.yml:build_wheels "Install cibuildwheel" step
+          executable 'sh'
+          args '-c', ". ${envdir}/bin/activate && " +
+              "pip install cibuildwheel==2.9.0 && " +
+              "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
+              "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs}"
+        }
+      }
+    }
+  }
+}
 
 /*************************************************************************************************/
 // Non-testing builds and analysis tasks

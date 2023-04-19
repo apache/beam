@@ -108,9 +108,9 @@ func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContex
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-// splitSuccess is a marker error to indicate we've reached the split index.
+// errSplitSuccess is a marker error to indicate we've reached the split index.
 // Akin to io.EOF.
-var splitSuccess = errors.New("split index reached")
+var errSplitSuccess = errors.New("split index reached")
 
 // process handles converting elements from the data source to timers.
 //
@@ -151,7 +151,7 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 				err = timer(&bcr, e.PtransformID, e.TimerFamilyID)
 			}
 
-			if err == splitSuccess {
+			if err == errSplitSuccess {
 				// Returning splitSuccess means we've split, and aren't consuming the remaining buffer.
 				// We mark the PTransform done to ignore further data.
 				splitPrimaryComplete[e.PtransformID] = true
@@ -258,7 +258,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			}
 			//	We've finished processing an element, check if we have finished a split.
 			if n.incrementIndexAndCheckSplit() {
-				return splitSuccess
+				return errSplitSuccess
 			}
 		}
 	},
