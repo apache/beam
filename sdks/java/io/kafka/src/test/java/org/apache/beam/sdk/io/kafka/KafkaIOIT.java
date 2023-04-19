@@ -233,7 +233,6 @@ public class KafkaIOIT {
 
   @Test
   public void testKafkaIOReadsAndWritesCorrectlyInBatch() throws IOException {
-    // Map of hashes of set size collections with 100b records - 10b key, 90b values.
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
@@ -264,7 +263,7 @@ public class KafkaIOIT {
             actualRecords, sourceOptions.numRecords),
         sourceOptions.numRecords <= actualRecords);
 
-    assertNotEquals(PipelineResult.State.FAILED, readState);
+    assertEquals(PipelineResult.State.DONE, readState);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
