@@ -247,6 +247,12 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   /**
    * Builds a map from PTransform to its input and output PValues. The map is serialized as part of
    * Beam_JSON_GRAPH
+   *
+   * <p>Please note this map needs to be built using SamzaPipelineVisitor instead of generic
+   * PipelineVisitor used here, reason being SamzaPipelineVisitor traverses the pipeline differently
+   * i.e. if a composite transform can be translated directly it won't further expand it.
+   * PipelineVisitor used here is not runner dependent visitor, its just used here for rendering
+   * purposes
    */
   @VisibleForTesting
   static Map<String, Map.Entry<String, String>> buildTransformIOMap(
