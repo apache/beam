@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Service account for GCP Cloud Functions
 resource "google_service_account" "cloud_function_sa" {
   account_id   = local.cloudfunctions_service_account
   display_name = "Service Account to run Cloud Functions"
 }
 
+# IAM roles for Cloud Functions service account
 resource "google_project_iam_member" "terraform_service_account_roles" {
   for_each = toset([
     "roles/cloudfunctions.admin", "roles/storage.objectViewer",
@@ -31,6 +33,7 @@ resource "google_project_iam_member" "terraform_service_account_roles" {
   project = var.project_id
 }
 
+# IAM roles to be granted for user account that will be running terraform scripts
 resource "google_project_iam_member" "gcloud_user_required_roles" {
   for_each = toset([
     "roles/cloudfunctions.admin", "roles/firebase.admin"

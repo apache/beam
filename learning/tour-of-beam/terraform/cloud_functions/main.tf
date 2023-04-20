@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
+# GCP Cloud Functions that will serve as a part of the backend of Tour of Beam infrastructure
 resource "google_cloudfunctions_function" "cloud_function" {
   count                 = length(var.entry_point_names)
   name                  = "${var.environment}_${var.entry_point_names[count.index]}"
@@ -45,7 +45,9 @@ resource "google_cloudfunctions_function" "cloud_function" {
 
 }
 
-# Create IAM entry so all users can invoke the function
+# Create IAM entry so all users can invoke the cloud functions
+# Endpoints serve content only
+# Has additional firebase authentication called "Bearer token" for endpoints that update or delete user progress
 resource "google_cloudfunctions_function_iam_member" "invoker" {
   count          = length(google_cloudfunctions_function.cloud_function)
   project        = var.project_id

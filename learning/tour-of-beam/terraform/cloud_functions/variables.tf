@@ -15,20 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This will be used to generate certain variables values
-resource "random_string" "id" {
-  length = 4
-  upper = false
-  special = false
-}
-
-# This will be used to generate certain variables
-variable "resource_name_prefix" {
-  type = string
-  description = "The resource name prefix applied to all resource naming for the application"
-  default = "tour-of-beam"
-}
-
 # Taken from output of SETUP module
 variable "service_account_id" {
   description = "The name of Service Account to run Cloud Function"
@@ -40,15 +26,18 @@ variable "project_id" {
   description = "The GCP Project ID of function"
 }
 
+# GCP region
 variable "region" {
   description = "The GCP Region where cloud functions will be created"
 }
 
+# Source code bucket name, used for cloud functions
 # Taken from output of FUNCTIONS_BUCKETS module
 variable "source_archive_bucket" {
   description = "The GCS bucket containing the zip archive which contains the function"
 }
 
+# Source code objects name, used for cloud functions
 # Taken from output of FUNCTIONS_BUCKETS module
 variable "source_archive_object" {
   description = "The source archive object (file) in archive bucket"
@@ -60,12 +49,14 @@ variable "entry_point_names" {
   default = ["getSdkList", "getContentTree", "getUnitContent", "getUserProgress", "postUnitComplete", "postUserCode", "postDeleteProgress"]
 }
 
-# Generated during execution Kotlin Gradle script
+# Existing Playground environment's router hostname:port details
+# Variable assigned using "kubectl" command
 variable "pg_router_host" {
   description = "Hostname:port of Playground GKE cluster's router grpc workload"
 }
 
-# To be provided manually as argument for Kotlin Gradle script
+# To support multi environment architecture
+# Env name (e.g. test, prod, dev)
 variable "environment" {
   description = "The name of the environment for deployment of cloud functions. Will be appended to the name of cloud functions"
 }

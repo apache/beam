@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Setup module to create service accounts, assign required IAM roles to it and deploying user account
 module "setup" {
   source = "./setup"
   project_id = var.project_id
@@ -22,16 +23,19 @@ module "setup" {
   depends_on = [module.api_enable]
 }
 
+# GCS buckets to create buckets, objects, archive to store source code that cloud functions will use
 module "functions_buckets" {
   source = "./functions_buckets"
   region      = var.region
   depends_on = [module.setup, module.api_enable]
 }
 
+# API services module. Enables required APIs for the infrastructure
 module "api_enable" {
   source = "./api_enable"
 }
 
+# Cloud functions module. Creates cloud functions, as part of Tour of Beam backend infrastructure
 module "cloud_functions" {
   source = "./cloud_functions"
   region = var.region

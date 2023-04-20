@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Outputs to be used in cloud_function module
 output "functions-bucket-name" {
   value = google_storage_bucket.cloud_functions_bucket.name
 }
@@ -23,6 +24,7 @@ output "function-bucket-object" {
   value = google_storage_bucket_object.zip.name
 }
 
+# Output to be used as variable for google_storage_bucket resource
 output "cloudfunctions-bucket-name" {
   value = local.cloudfunctions_bucket
 }

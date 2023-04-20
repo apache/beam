@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Local value to store generated Cloud Functions Service account name
+# Local value to store generated Cloud Functions' Service account name
 
 resource "random_string" "id" {
   length = 4

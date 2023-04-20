@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# GCP region where GCS bucket will be created
 variable "region" {
   description = "The GCP region where GCS bucket will be created (For Cloud Functions source code)"
 }
