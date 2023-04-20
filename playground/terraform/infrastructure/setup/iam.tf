@@ -76,7 +76,7 @@ resource "google_project_iam_custom_role" "playground_datastore_role" {
 
 resource "google_project_iam_member" "terraform_service_account_roles" {
   for_each = toset([
-     "roles/container.developer", "roles/artifactregistry.reader", "roles/datastore.viewer", "roles/datastore.user", "roles/redis.serviceAgent", "roles/redis.viewer", "projects/${var.project_id}/roles/${google_project_iam_custom_role.playground_datastore_role.role_id}",
+     "roles/container.developer", "roles/artifactregistry.reader", "roles/datastore.viewer", "roles/redis.serviceAgent", "roles/redis.viewer", "projects/${var.project_id}/roles/${google_project_iam_custom_role.playground_datastore_role.role_id}",
   ])
   role    = each.value
   member  = "serviceAccount:${google_service_account.playground_service_account.email}"

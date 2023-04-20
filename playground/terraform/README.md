@@ -80,7 +80,7 @@ ip-address-name        = "playground-static-ip"     # GCP Static IP Address name
 repository_id          = "playground-artifacts"     # GCP Artifact repository name for Playground images
 service_account_id     = "playground-gke-account"   # GCP Service account name
 gke_machine_type       = "e2-standard-8"            # Machine type for GKE Nodes
-env                  = "prod"                # Chosen environment 
+env                    = "prod"                     # Chosen environment 
 
 ```
 * `state.tfbackend` environment variables:
