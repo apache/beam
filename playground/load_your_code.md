@@ -182,7 +182,7 @@ beam-playground:
   # Note that lines of the metadata block are cut so line numbers after it are shifted.
   # Optional, defaults to 1 (the first line).
   context_line: 1
-  # Categories this example is included into. Non-existent categories will be created.
+  # Categories this example is included into. See below for the supported values.
   # Optional, defaults to no categories making the example unlisted.
   categories:
     - "Combiners"
@@ -222,6 +222,14 @@ beam-playground:
 ```
 
 For metadata reference see fields in "Tag" class [here](infrastructure/models.py).
+
+##### Categories
+
+The list of supported categories for an example is
+[here](https://github.com/apache/beam/blob/master/playground/categories.yaml).
+Any other category will break the example CI.
+To add a new category, submit a PR that adds it to that file.
+When it is merged, the new category can be used in an example.
 
 ##### Default examples
 
