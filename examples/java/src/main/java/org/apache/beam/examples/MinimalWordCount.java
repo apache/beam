@@ -13,7 +13,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. only
  * See the License for the specific language governing permissions and
- * limitations under the License. test 11 - Storage Object Creator
+ * limitations under the License. test 12 - Storage Object Admin
  */
 package org.apache.beam.examples;
 
