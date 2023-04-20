@@ -19,6 +19,21 @@ package org.apache.beam.runners.samza.runtime;
 
 import org.joda.time.Instant;
 
+/**
+ * Bundle management for the {@link DoFnOp} that handles lifecycle of a bundle. It also serves as a
+ * proxy for the {@link DoFnOp} to process watermark and decides to 1. Hold watermark if there is at
+ * least one bundle in progress. 2. Propagates the watermark to downstream DAG, if all the previous
+ * bundles have completed.
+ *
+ * <p>A bundle is considered complete only when the outputs corresponding to each element in the
+ * bundle have been resolved and the watermark associated with the bundle(if any) is propagated
+ * downstream. The output of an element is considered resolved based on the nature of the ParDoFn 1.
+ * In case of synchronous ParDo, outputs of the element is resolved immediately after the
+ * processElement returns. 2. In case of asynchronous ParDo, outputs of the element is resolved when
+ * all the future emitted by the processElement is resolved.
+ *
+ * @param <OutT> output type of the {@link DoFnOp}
+ */
 public interface BundleManager<OutT> {
   /** Starts a new bundle if not already started, then adds an element to the existing bundle. */
   void tryStartBundle();
