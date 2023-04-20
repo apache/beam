@@ -112,31 +112,6 @@ func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp sta
 
 	s.OutputState.Set(tp, mtime.Time(toFire).ToTime(), timers.WithOutputTimestamp(mtime.Time(minTime).ToTime()), timers.WithTag(word))
 	s.TimerTime.Write(sp, toFire)
-	log.Infof(ctx, "stateful dofn key: %v word: %v, timer: %v, minTime: %v", key, word, toFire, minTime)
-
-	// // Get the Value stored in our state
-	// val, ok, err := s.Val.Read(p)
-	// if err != nil {
-	// 	return err
-	// }
-	// log.Infof(ctx, "stateful dofn state read key: %v word: %v val: %v", key, word, val)
-	// if !ok {
-	// 	s.Val.Write(p, 1)
-	// } else {
-	// 	s.Val.Write(p, val+1)
-	// }
-
-	// if val > 5 {
-	// 	log.Infof(ctx, "stateful dofn clearing key: %v word: %v val: %v", key, word, val)
-	// 	// Example of clearing and starting again with an empty bag
-	// 	s.Val.Clear(p)
-	// }
-	// fire := time.Now().Add(10 * time.Second)
-
-	// log.Infof(ctx, "stateful dofn timer family: %v fire: %v now: %v key: %v word: %v", s.Fire.Family, fire, time.Now(), key, word)
-	// s.Fire.Set(tp, fire)
-
-	// emit(key, word)
 
 	return nil
 }

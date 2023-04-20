@@ -24,7 +24,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 type UserTimerAdapter interface {
@@ -60,10 +59,7 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataMan
 	if err != nil {
 		return timerProvider{}, err
 	}
-
-	log.Infof(ctx, "element key FV: %+v", element.Key)
 	userKey := &FullValue{Elm: element.Key.Elm}
-	log.Infof(ctx, "newly created user key: %+v", userKey)
 	tp := timerProvider{
 		ctx:             ctx,
 		tm:              manager,
@@ -117,7 +113,7 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 		panic(err)
 	}
 	tm := TimerRecv{
-		Key:           p.userKey, //string(p.elementKey),
+		Key:           p.userKey,
 		Tag:           t.Tag,
 		Windows:       p.window,
 		Clear:         t.Clear,
@@ -125,11 +121,7 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 		HoldTimestamp: t.HoldTimestamp,
 		Pane:          p.pn,
 	}
-	log.Debugf(p.ctx, "timer set: %+v", tm)
 	fv := FullValue{Elm: tm}
-
-	// tc := coder.NewT(p.c)
-	log.Infof(p.ctx, "timer coder for %v: %+v", t.Family, p.codersByFamily[t.Family])
 	enc := MakeElementEncoder(p.codersByFamily[t.Family])
 	if err := enc.Encode(&fv, w); err != nil {
 		panic(err)
