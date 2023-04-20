@@ -179,7 +179,8 @@ beam-playground:
   # Contains information about pipeline options of the Beam example/test/kata. Optional.
   pipeline_options: "--name1 value1 --name2 value2"
   # The line number to scroll to when the snippet is loaded.
-  # Note that lines of the metadata block are cut so line numbers after it are shifted. Required.
+  # Note that lines of the metadata block are cut so line numbers after it are shifted.
+  # Optional, defaults to 1 (the first line).
   context_line: 1
   # Categories this example is included into. Non-existent categories will be created.
   # Optional, defaults to no categories making the example unlisted.
@@ -291,8 +292,8 @@ They work and are checked and cached the same way as public examples.
 
 Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog) except:
 1. Use the directory `/learning/beamdoc`
-2. Use an empty list for `categories` attribute: `categories: []`
-3. Do not use the following attributes:
+2. Do not use the following attributes:
+   - `categories`
    - `default_example`
    - `tags`
 
@@ -313,10 +314,9 @@ and allows students to track their learning progress.
 It uses Playground engine, and so its content is added in a similar way.
 
 A Tour of Beam unit consists of learning materials and an optional runnable snippet.
+See [the learning content README] on how to add units and link snippets to them.
 
-#### Adding learning materials
-
-**TODO**
+**TODO** Link to the learning content README when this is merged: https://github.com/apache/beam/pull/25963
 
 #### Adding a snippet
 
@@ -324,9 +324,11 @@ Tour of Beam snippets are checked and cached the same way as Playground examples
 
 Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog) except:
 
-1. Use the directory `/learning/tour-of-beam/learning-content`
-2. Use an empty list for `categories` attribute: `categories: []`
-3. Do not use the following attributes:
+1. Use the directory `/learning/tour-of-beam/learning-content`.
+   It is recommended to follow the directory hierarchy as described in
+   [the learning content README] **TODO** Link
+2. Do not use the following attributes:
+   - `categories`
    - `default_example`
    - `tags`
 
