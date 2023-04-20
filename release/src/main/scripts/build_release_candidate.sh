@@ -295,7 +295,8 @@ if [[ $confirmation = "y" ]]; then
     --repo-url "${GIT_REPO_BASE_URL}" \
     --rc-tag "${RC_TAG}" \
     --release-commit "${RELEASE_COMMIT}" \
-    --artifacts_dir "${SVN_ARTIFACTS_DIR}"
+    --artifacts_dir "${SVN_ARTIFACTS_DIR}" \
+    --rc_num "${RC_NUM}"
 
   cd "${SVN_ARTIFACTS_DIR}"
 
