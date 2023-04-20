@@ -17,82 +17,68 @@
 
 # pytype: skip-file
 
-import hashlib
+import struct
 
-from apache_beam.coders import coders
-from apache_beam.coders.typecoders import registry
+from typing import Iterable
 
-
-def _get_coder_tag(c):
-  # only use two bytes from the hash value
-  hf = hashlib.sha256()
-  hf.update(str(c).encode())
-  return hf.digest()[0:2]
+from apache_beam.coders import Coder
+from apache_beam.coders.coders import FastCoder
+from apache_beam.typehints import typehints
 
 
-class UnionCoder(coders.FastCoder):
-  def __init__(self):
-    # assuming all custom coders are registered
-    self._coder_registry = registry
-    self._tag_to_coders = {}
-    for t, c in self._coder_registry._coders.items():
-      try:
-        if isinstance(t, str):
-          if c and isinstance(c, type):
-            c = c()
-          if c.__module__ == "__main__":
-            self._tag_to_coders[_get_coder_tag(t)] = c
-          else:
-            self._tag_to_coders[_get_coder_tag(type(c))] = c
-          self._tag_to_coders[_get_coder_tag(t)] = c
-        else:
-          c = self._coder_registry.get_coder(t)
-          self._tag_to_coders[_get_coder_tag(c.to_type_hint().__name__)] = c
-      except Exception:  # pylint: disable=broad-except
-        continue
-    self._types_in_str = [
-        c.to_type_hint().__name__ for _, c in self._tag_to_coders.items()
-    ]
+class UnionCoder(FastCoder):
+  def __init__(self, components):
+    # type: (Iterable[Coder]) -> None
+    if not components or not isinstance(components, list):
+      raise ValueError('A valid list of Coders must be provided.')
+
+    if len(components) > 255 or len(components) <= 1:
+      raise ValueError(
+          'The number of components for UnionCoder must be between 2 and 255.')
+
+    self._coders = components
+    self._coder_typehints = [c.to_type_hint() for c in self._coders]
 
   def encode(self, value) -> bytes:
     """
         Encodes the given Union value into bytes.
         """
-    typehint_type = type(value).__name__
-    tag = _get_coder_tag(typehint_type)
-    coder = self._tag_to_coders.get(tag, None)
-    if coder is None:
+    typehint_type = type(value)
+    if typehint_type in self._coder_typehints:
+      coder_index = self._coder_typehints.index(typehint_type)
+      coder = self._coders[coder_index]
+      return struct.pack("B", coder_index) + coder.encode(value)
+    else:
       raise ValueError(
-          "Unknown type {} for UnionCoder with {}. Expected tag is {}. Tags: {}"
-          .format(typehint_type, value, tag, self._tag_to_coders))
-    return tag + coder.encode(value)
+          "Unknown type {} for UnionCoder with the value {}. ".format(
+              typehint_type, value))
 
   def decode(self, encoded: bytes):
     """
         Decodes the given bytes into a Union value.
         """
-    tag = encoded[:2]
-    coder = self._tag_to_coders.get(tag, None)
+    try:
+      coder_index = struct.unpack("B", encoded[:1])[0]
+      coder = self._coders[coder_index]
 
-    if coder:
-      return coder.decode(encoded[2:])
-    else:
+      return coder.decode(encoded[1:])
+    except Exception:  # pylint: disable=broad-except
       raise ValueError(f"cannot decode {encoded}")
 
   def is_deterministic(self) -> bool:
     """
         Returns True if all sub-coders are deterministic.
         """
-    return all(c.is_deterministic() for _, c in self._tag_to_coders.items())
+    return all(c.is_deterministic() for c in self._coders)
 
-  def to_type_hint(self) -> str:
+  def to_type_hint(self) -> typehints.UnionConstraint:
     """
         Returns a type hint representing the Union type with the sub-coders.
         """
-    return "Union[{}]".format(", ".join(self._types_in_str))
+    return typehints.Union[self._coder_typehints]
 
-  def __repr__(self):
+  def __repr__(self) -> str:
     """
         Returns a string representation of the coder with its sub-coders.
         """
-    return "UnionCoder({})".format(", ".join(self._types_in_str))
+    return 'UnionCoder[%s]' % ', '.join(str(c) for c in self._coders)

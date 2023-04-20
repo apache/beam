@@ -22,7 +22,6 @@ import unittest
 from apache_beam.coders import coders
 from apache_beam.coders.union_coder import UnionCoder
 from apache_beam.coders.avro_record import AvroRecord
-from apache_beam.coders.typecoders import registry
 
 
 class AvroTestCoder(coders.AvroGenericCoder):
@@ -42,19 +41,18 @@ class AvroTestCoder(coders.AvroGenericCoder):
 
 class UnionCoderTest(unittest.TestCase):
   def test_basics(self):
-    registry.register_coder(AvroRecord, AvroTestCoder)
 
-    coder = UnionCoder()
+    coder = UnionCoder([AvroTestCoder(), coders.BooleanCoder()])
 
     self.assertEqual(coder.is_deterministic(), False)
 
     assert coder.to_type_hint()
-    assert str(coder)
+    assert str(coder) == 'UnionCoder[AvroTestCoder, BooleanCoder]'
 
     ar = AvroRecord({"name": "Daenerys targaryen", "age": 23})
     self.assertEqual(coder.decode(coder.encode(ar)).record, ar.record)
 
-    for v in [8, 8.0, bytes(8), True, "8"]:
+    for v in [True]:
       self.assertEqual(v, coder.decode(coder.encode(v)))
 
 
