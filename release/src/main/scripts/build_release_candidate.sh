@@ -296,7 +296,7 @@ if [[ $confirmation = "y" ]]; then
     --rc-tag "${RC_TAG}" \
     --release-commit "${RELEASE_COMMIT}" \
     --artifacts_dir "${SVN_ARTIFACTS_DIR}" \
-    --rc_num "${RC_NUM}"
+    --rc_number "${RC_NUM}"
 
   cd "${SVN_ARTIFACTS_DIR}"
 
