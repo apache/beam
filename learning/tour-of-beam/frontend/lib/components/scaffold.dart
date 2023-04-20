@@ -133,17 +133,13 @@ class _PlaygroundControllerActions extends StatelessWidget {
       animation: playgroundController,
       builder: (context, child) {
         final widgets = <Widget>[];
-
-        if (!playgroundController.isEmpty) {
-          widgets.add(
-            _ActionVerticalPadding(
-              child: TobPipelineOptionsDropdown(
-                playgroundController: playgroundController,
-              ),
+        widgets.add(
+          _ActionVerticalPadding(
+            child: TobPipelineOptionsDropdown(
+              playgroundController: playgroundController,
             ),
-          );
-        }
-
+          ),
+        );
         return Row(
           children: widgets
               .map(

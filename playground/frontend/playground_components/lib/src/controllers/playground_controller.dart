@@ -129,11 +129,6 @@ class PlaygroundController with ChangeNotifier {
       selectedExample?.type != ExampleType.test &&
       [Sdk.java, Sdk.python].contains(sdk);
 
-    bool get isEmpty =>
-      selectedExample == null ||
-      selectedExample?.path == '' &&
-          (selectedExample?.files.contains(SnippetFile.empty) ?? false);
-
   /// If no SDK is selected, sets it to [sdk] and creates an empty state for it.
   void setEmptyIfNoSdk(Sdk sdk) {
     if (_sdk != null) {
@@ -160,15 +155,6 @@ class PlaygroundController with ChangeNotifier {
       Example.empty(sdk),
       descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
       setCurrentSdk: setCurrentSdk,
-    );
-  }
-
-  void setEmpty() {
-    examplesLoader.clearDescriptor();
-    setExample(
-      Example.empty(_sdk ?? Sdk.java),
-      descriptor: EmptyExampleLoadingDescriptor(sdk: _sdk ?? Sdk.java),
-      setCurrentSdk: false,
     );
   }
 
