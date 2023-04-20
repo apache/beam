@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections
+import logging
 import threading
 from threading import Timer
 import time
@@ -36,6 +37,8 @@ from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import WindowedValueCoderImpl
 from apache_beam.coders.coders import Coder
 from apache_beam.utils.windowed_value import WindowedValue
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SampleTimer:
@@ -60,7 +63,6 @@ class SampleTimer:
 
 class ElementSampler:
   el: Any
-
 
 class OutputSampler:
   """Represents a way to sample an output of a PTransform.
@@ -154,6 +156,55 @@ class DataSampler:
     self._samplers_lock: threading.Lock = threading.Lock()
     self._max_samples = max_samples
     self._sample_every_sec = sample_every_sec
+    self._element_samplers: Dict[str, List[ElementSampler]] = {}
+
+  def sample_exception(self,
+      sample: ElementSampler,
+      instruction_id: str,
+      transform_id: str):
+    _LOGGER.error('Sampled exception element "%s" from ' +
+                  'instruction %s and transform %s' % (
+        str(sample.el), instruction_id, transform_id))
+
+  def sampler_for_output(self, transform_id, output_index):
+    try:
+      return self._element_samplers[transform_id][output_index]
+    except:
+      _LOGGER.warn('Out-of-bounds access for transform "%s" and output "%s" ' +
+                   'ElementSampler. This may indicate that the transform was ' +
+                   'improperly initialized with the DataSampler.' %
+                   (transform_id, output_index))
+      return ElementSampler()
+
+  def initialize_transform(self, transform_id, descriptor, transform_proto, transform_factory):
+    with self._samplers_lock:
+      for pcoll_id in transform_proto.outputs.values():
+        if pcoll_id in self._samplers:
+          continue
+
+        coder_id = descriptor.pcollections[pcoll_id].coder_id
+        coder = transform_factory.get_coder(coder_id)
+
+        sampler = OutputSampler(
+            coder, self._max_samples, self._sample_every_sec)
+        self._samplers[pcoll_id] = sampler
+
+      if transform_id in self._element_samplers:
+        return
+
+      samplers = {
+          pcoll_id: self._samplers[pcoll_id].element_sampler()
+          for pcoll_id in transform_proto.outputs.values()
+      }
+
+      tagged_samplers = {
+          tag: samplers[pcoll_id]
+          for tag, pcoll_id in transform_proto.outputs.items()
+      }
+
+      outputs = transform_proto.outputs
+      indexed_samplers = [tagged_samplers[tag] for tag in outputs]
+      self._element_samplers[transform_id] = indexed_samplers
 
   def sample_output(self, pcoll_id: str, coder: Coder) -> OutputSampler:
     """Create or get an OutputSampler for a pcoll_id."""

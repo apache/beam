@@ -34,6 +34,7 @@ cdef class ConsumerSet(Receiver):
   cdef public step_name
   cdef public output_index
   cdef public coder
+  cdef public object element_sampler
 
   cpdef update_counters_start(self, WindowedValue windowed_value)
   cpdef update_counters_finish(self)
@@ -80,6 +81,7 @@ cdef class Operation(object):
   cdef readonly object scoped_start_state
   cdef readonly object scoped_process_state
   cdef readonly object scoped_finish_state
+  cdef object data_sampler
 
   cpdef start(self)
   cpdef process(self, WindowedValue windowed_value)

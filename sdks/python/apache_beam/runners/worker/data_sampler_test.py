@@ -200,17 +200,199 @@ class OutputSamplerTest(unittest.TestCase):
     sampler = data_sampler.sample_output('1', coder)
     sampler._sample_timer.stop()
 
-    num_iterations = 1000000
+    warmup = 1000000
+    for i in range(1000000):
+      pass
+
+    num_iterations = 10000000
     start = time.time()
     el_sampler = sampler.element_sampler()
     for i in range(num_iterations):
       el_sampler.el = i
-      sampler.sample()
+      # sampler.sample()
     end = time.time()
     duration = end - start
 
     print('total time: %s secs' % duration)
     print('time per iteration: %s usecs' % (duration / num_iterations * 1e6))
+
+  def test_serial_performance_with_generation(self):
+    print('test_serial_performance_with_generation')
+    data_sampler = DataSampler()
+    coder = FastPrimitivesCoder()
+
+    sampler = data_sampler.sample_output('1', coder)
+    sampler._sample_timer.stop()
+
+    warmup = 1000000
+    for i in range(1000000):
+      pass
+
+    num_iterations = 10000000
+    start = time.time()
+    el_sampler = sampler.element_sampler()
+    el_sampler.generation = 0
+    for i in range(num_iterations):
+      try:
+        el_sampler.el = i#(el_sampler.generation, i)
+        # el_sampler.generation += 1
+        # sampler.sample()
+      except:
+        pass
+    end = time.time()
+    duration = end - start
+
+    print('total time: %s secs' % duration)
+    print('time per iteration: %s usecs' % (duration / num_iterations * 1e6))
+
+  def test_serial_performance_with_try(self):
+    print('test_serial_performance_with_try')
+    data_sampler = DataSampler()
+    coder = FastPrimitivesCoder()
+
+    sampler = data_sampler.sample_output('1', coder)
+    sampler._sample_timer.stop()
+
+    warmup = 1000000
+    for i in range(1000000):
+      pass
+
+    num_iterations = 10000000
+    start = time.time()
+    el_sampler = sampler.element_sampler()
+    for i in range(num_iterations):
+      try:
+        sampler.el = i
+        # sampler.sample()
+      except:
+        pass
+    end = time.time()
+    duration = end - start
+
+    print('total time: %s secs' % duration)
+    print('time per iteration: %s usecs' % (duration / num_iterations * 1e6))
+
+  def test_el_sampler_performance(self):
+    print('test_el_sampler_performance')
+    num_trials = 100
+    num_iterations = 10000000
+    data_sampler = DataSampler()
+    coder = FastPrimitivesCoder()
+    sampler = data_sampler.sample_output('1', coder)
+    sampler._sample_timer.stop()
+
+    def do_trial():
+      warmup = 1000000
+      for i in range(1000000):
+        pass
+
+      el_sampler = sampler.element_sampler()
+      start = time.time()
+      a = 0
+      for i in range(num_iterations):
+        el_sampler.el = i
+      end = time.time()
+      duration = end - start
+      return duration / num_iterations * 1e9
+
+    import sys
+    toolbar_width = num_trials
+    sys.stdout.write("[%s]" % (" " * toolbar_width))
+    sys.stdout.flush()
+    sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+
+    durations = []
+    for i in range(num_trials):
+      durations.append(do_trial())
+      sys.stdout.write("-")
+      sys.stdout.flush()
+
+    import numpy as np
+    import scipy.stats as st
+
+    print('')
+    print('mean: ', np.mean(durations), 'ns')
+    print('95%: ',
+          st.t.interval(
+              0.95,
+              df=len(durations)-1,
+              loc=np.mean(durations),
+              scale=st.sem(durations)))
+
+  def test_try_performance(self):
+    print('test_try_performance')
+    num_trials = 100
+    num_iterations = 10000000
+
+    def do_trial_no_try():
+      warmup = 1000000
+      for i in range(1000000):
+        pass
+
+      start = time.time()
+      a = 0
+      for i in range(num_iterations):
+        a += 1
+      end = time.time()
+      duration = end - start
+      return duration / num_iterations * 1e9
+
+    def do_trial_with_try():
+      warmup = 1000000
+      for i in range(1000000):
+        pass
+
+      start = time.time()
+      a = 0
+      for i in range(num_iterations):
+        try:
+          a += 1
+        except:
+          pass
+      end = time.time()
+      duration = end - start
+      ret = duration / num_iterations * 1e9
+      if ret > 60 or ret < 30:
+        print(ret)
+      return ret
+
+    import sys
+    toolbar_width = num_trials
+    sys.stdout.write("[%s]" % (" " * toolbar_width))
+    sys.stdout.flush()
+    sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+
+    no_try_durations = []
+    with_try_durations = []
+    for i in range(num_trials):
+      no_try_durations.append(do_trial_no_try())
+      with_try_durations.append(do_trial_with_try())
+      sys.stdout.write("-")
+      sys.stdout.flush()
+
+    import numpy as np
+    import scipy.stats as st
+
+
+    print('')
+    print('No try mean: ', np.mean(no_try_durations), 'ns')
+    print('Yes try mean: ', np.mean(with_try_durations), 'ns')
+    print('No try 95%: ',
+          st.t.interval(
+              0.95,
+              df=len(no_try_durations)-1,
+              loc=np.mean(no_try_durations),
+              scale=st.sem(no_try_durations)))
+    print('Yes try 95%: ',
+          st.t.interval(
+              0.95,
+              df=len(with_try_durations)-1,
+              loc=np.mean(with_try_durations),
+              scale=st.sem(with_try_durations)))
+
+    # print('total time: %s secs' % duration)
+    # print('time per iteration: %s usecs' % (duration / num_iterations * 1e6))
+
 
   def test_multithreaded_performance(self):
     print('test_multithreaded_performance')

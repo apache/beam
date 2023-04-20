@@ -295,7 +295,8 @@ class DataSamplingTest(unittest.TestCase):
     # Add a simple transform to inject an element into the data sampler. This
     # doesn't use the FnApi, so this uses a simple operation to forward its
     # payload to consumers.
-    test_transform = descriptor.transforms['test_transform']
+    TRANSFORM_ID = 'test_transform'
+    test_transform = descriptor.transforms[TRANSFORM_ID]
     test_transform.outputs['None'] = PCOLLECTION_ID
     test_transform.spec.urn = 'beam:internal:testop:v1'
     test_transform.spec.payload = b'hello, world!'
@@ -305,6 +306,8 @@ class DataSamplingTest(unittest.TestCase):
         descriptor, None, None, data_sampler=data_sampler)
     processor.process_bundle('instruction_id')
 
+    import time
+    time.sleep(1)
     self.assertEqual(
         data_sampler.samples(), {PCOLLECTION_ID: [b'\rhello, world!']})
 

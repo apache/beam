@@ -396,7 +396,9 @@ class SdkHarness(object):
   def create_worker(self):
     # type: () -> SdkWorker
     return SdkWorker(
-        self._bundle_processor_cache, profiler_factory=self._profiler_factory)
+        self._bundle_processor_cache,
+        profiler_factory=self._profiler_factory,
+        data_sampler=self.data_sampler)
 
 
 class BundleProcessorCache(object):
@@ -616,10 +618,12 @@ class SdkWorker(object):
       self,
       bundle_processor_cache,  # type: BundleProcessorCache
       profiler_factory=None,  # type: Optional[Callable[..., Profile]]
+      data_sampler=None,  # type: Optional[data_sampler.DataSampler]
   ):
     # type: (...) -> None
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
+    self.data_sampler = data_sampler
 
   def do_instruction(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse

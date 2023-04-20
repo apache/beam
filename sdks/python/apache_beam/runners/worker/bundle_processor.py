@@ -66,6 +66,7 @@ from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.data_sampler import ElementSampler
 from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
@@ -130,7 +131,8 @@ class RunnerIOOperation(operations.Operation):
                state_sampler,  # type: statesampler.StateSampler
                windowed_coder,  # type: coders.Coder
                transform_id,  # type: str
-               data_channel  # type: data_plane.DataChannel
+               data_channel,  # type: data_plane.DataChannel
+               data_sampler=None  # type: DataSampler
               ):
     # type: (...) -> None
     super().__init__(name_context, None, counter_factory, state_sampler)
@@ -175,7 +177,8 @@ class DataInputOperation(RunnerIOOperation):
                state_sampler,  # type: statesampler.StateSampler
                windowed_coder,  # type: coders.Coder
                transform_id,
-               data_channel  # type: data_plane.GrpcClientDataChannel
+               data_channel,  # type: data_plane.GrpcClientDataChannel
+               data_sampler=None  # type: DataSampler
               ):
     # type: (...) -> None
     super().__init__(
@@ -194,8 +197,8 @@ class DataInputOperation(RunnerIOOperation):
     self.stop = float('inf')
     self.started = False
 
-  def setup(self):
-    super().setup()
+  def setup(self, *args, **kwargs):
+    super().setup(*args, **kwargs)
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(
@@ -205,7 +208,8 @@ class DataInputOperation(RunnerIOOperation):
             consumers=self.consumer,
             coder=self.windowed_coder,
             producer_type_hints=self._get_runtime_performance_hints(),
-            producer_batch_converter=self.get_output_batch_converter())
+            producer_batch_converter=self.get_output_batch_converter(),
+            exception_sampler=ElementSampler())
     ]
 
   def start(self):
@@ -872,6 +876,7 @@ class BundleProcessor(object):
     self.data_channel_factory = data_channel_factory
     self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
+    self.current_element: Any = ElementSampler()
 
     _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
@@ -897,12 +902,12 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
 
-    if self.data_sampler:
-      self.add_data_sampling_operations(process_bundle_descriptor)
+    # if self.data_sampler:
+    #   self.add_data_sampling_operations(process_bundle_descriptor)
 
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
     for op in reversed(self.ops.values()):
-      op.setup()
+      op.setup(self.current_element, self.data_sampler)
     self.splitting_lock = threading.Lock()
 
   def add_data_sampling_operations(self, pbd):
@@ -966,6 +971,11 @@ class BundleProcessor(object):
           for tag,
           pcoll_id in descriptor.transforms[transform_id].outputs.items()
       }
+
+      if self.data_sampler:
+        transform_proto = descriptor.transforms[transform_id]
+        self.data_sampler.initialize_transform(transform_id, descriptor, transform_proto, transform_factory)
+
       return transform_factory.create_operation(
           transform_id, transform_consumers)
 
@@ -1416,7 +1426,8 @@ def create_source_java(
           common.NameContext(transform_proto.unique_name, transform_id),
           spec,
           factory.counter_factory,
-          factory.state_sampler),
+          factory.state_sampler,
+          factory.data_sampler),
       transform_proto.unique_name,
       consumers)
 
@@ -1441,7 +1452,8 @@ def create_deprecated_read(
           common.NameContext(transform_proto.unique_name, transform_id),
           spec,
           factory.counter_factory,
-          factory.state_sampler),
+          factory.state_sampler,
+          factory.data_sampler),
       transform_proto.unique_name,
       consumers)
 
@@ -1462,7 +1474,8 @@ def create_read_from_impulse_python(
       factory.state_sampler,
       consumers,
       iobase.BoundedSource.from_runner_api(parameter.source, factory.context),
-      factory.get_only_output_coder(transform_proto))
+      factory.get_only_output_coder(transform_proto),
+      factory.data_sampler)
 
 
 @BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN, None)
@@ -1709,7 +1722,8 @@ def _create_pardo_operation(
           factory.counter_factory,
           factory.state_sampler,
           side_input_maps,
-          user_state_context),
+          user_state_context,
+          data_sampler=factory.data_sampler),
       transform_proto.unique_name,
       consumers,
       output_tags)
@@ -1904,7 +1918,8 @@ def create_flatten(
           operation_specs.WorkerFlatten(
               None, [factory.get_only_output_coder(transform_proto)]),
           factory.counter_factory,
-          factory.state_sampler),
+          factory.state_sampler,
+          factory.data_sampler),
       transform_proto.unique_name,
       consumers)
 
@@ -1989,50 +2004,50 @@ def create_to_string_fn(
       factory, transform_id, transform_proto, consumers, ToString())
 
 
-class DataSamplingOperation(operations.Operation):
-  """Operation that samples incoming elements."""
+# class DataSamplingOperation(operations.Operation):
+#   """Operation that samples incoming elements."""
+#
+#   def __init__(
+#       self,
+#       name_context,  # type: common.NameContext
+#       counter_factory,  # type: counters.CounterFactory
+#       state_sampler,  # type: statesampler.StateSampler
+#       pcoll_id,  # type: str
+#       sample_coder,  # type: coders.Coder
+#       data_sampler,  # type: data_sampler.DataSampler
+#   ):
+#     # type: (...) -> None
+#     super().__init__(name_context, None, counter_factory, state_sampler)
+#     self._coder = sample_coder  # type: coders.Coder
+#     self._pcoll_id = pcoll_id  # type: str
+#     self._sampler: OutputSampler = data_sampler.sample_output(
+#         self._pcoll_id, sample_coder)
+#     self._element_sampler = self._sampler.element_sampler()
+#
+#   def process(self, windowed_value):
+#     # type: (windowed_value.WindowedValue) -> None
+#     self._element_sampler.el = windowed_value
 
-  def __init__(
-      self,
-      name_context,  # type: common.NameContext
-      counter_factory,  # type: counters.CounterFactory
-      state_sampler,  # type: statesampler.StateSampler
-      pcoll_id,  # type: str
-      sample_coder,  # type: coders.Coder
-      data_sampler,  # type: data_sampler.DataSampler
-  ):
-    # type: (...) -> None
-    super().__init__(name_context, None, counter_factory, state_sampler)
-    self._coder = sample_coder  # type: coders.Coder
-    self._pcoll_id = pcoll_id  # type: str
-    self._sampler: OutputSampler = data_sampler.sample_output(
-        self._pcoll_id, sample_coder)
-    self._element_sampler = self._sampler.element_sampler()
 
-  def process(self, windowed_value):
-    # type: (windowed_value.WindowedValue) -> None
-    self._element_sampler.el = windowed_value
-
-
-@BeamTransformFactory.register_urn(SYNTHETIC_DATA_SAMPLING_URN, (bytes))
-def create_data_sampling_op(
-    factory,  # type: BeamTransformFactory
-    transform_id,  # type: str
-    transform_proto,  # type: beam_runner_api_pb2.PTransform
-    pcoll_and_coder_id,  # type: bytes
-    consumers,  # type: Dict[str, List[operations.Operation]]
-):
-  # Creating this operation should only occur when data sampling is enabled.
-  data_sampler = factory.data_sampler
-  assert data_sampler is not None
-
-  coder = coders.FastPrimitivesCoder()
-  pcoll_id, coder_id = coder.decode(pcoll_and_coder_id)
-  return DataSamplingOperation(
-      common.NameContext(transform_proto.unique_name, transform_id),
-      factory.counter_factory,
-      factory.state_sampler,
-      pcoll_id,
-      factory.get_coder(coder_id),
-      data_sampler,
-  )
+# @BeamTransformFactory.register_urn(SYNTHETIC_DATA_SAMPLING_URN, (bytes))
+# def create_data_sampling_op(
+#     factory,  # type: BeamTransformFactory
+#     transform_id,  # type: str
+#     transform_proto,  # type: beam_runner_api_pb2.PTransform
+#     pcoll_and_coder_id,  # type: bytes
+#     consumers,  # type: Dict[str, List[operations.Operation]]
+# ):
+#   # Creating this operation should only occur when data sampling is enabled.
+#   data_sampler = factory.data_sampler
+#   assert data_sampler is not None
+#
+#   coder = coders.FastPrimitivesCoder()
+#   pcoll_id, coder_id = coder.decode(pcoll_and_coder_id)
+#   return DataSamplingOperation(
+#       common.NameContext(transform_proto.unique_name, transform_id),
+#       factory.counter_factory,
+#       factory.state_sampler,
+#       pcoll_id,
+#       factory.get_coder(coder_id),
+#       data_sampler,
+#   )
