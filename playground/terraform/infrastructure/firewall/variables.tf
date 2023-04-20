@@ -16,40 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-variable "project_id" {
-  description = "Project ID"
-}
-
-variable "docker_registry_address" {
-  description = "Docker registry address"
-}
-
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-frontend"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "service_name" {
-  default = "frontend"
-}
-
 variable "network_name" {
-  description = "VPC Name"
-  default     = "playground-vpc"
+  description = "Name of VPC to be created"
+  default     = "playground-network"
 }
 
-variable "subnetwork_name" {
-  description = "Vpc Name"
-  default     = "playground-vpc"
+variable "gke_controlplane_cidr" {
+  description = "CIDR for gke controlplane rule"
 }
-
-variable "environment" {
-  description = "prod,dev"
-  default     = "dev"
+variable "redis_ip" {
+  description = "IP address for Redis instance"
 }

@@ -17,7 +17,8 @@
 # under the License.
 #
 
-output "server-url" {
-  value = google_app_engine_flexible_app_version.backend_app_go.service
+# Allows for private google access as per:
+# https://cloud.google.com/vpc/docs/configure-private-google-access#config
+locals {
+    private_api_ips = ["199.36.153.8", "199.36.153.9", "199.36.153.10", "199.36.153.11"]
 }
-

@@ -5,7 +5,7 @@
 # (the "License"); you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,21 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ALLOWED_LIST contains all hosts that are allowed to make requests
-# from Beam Playground
-ALLOWED_LIST = [
-    "localhost",
-    "127.0.0.1",
-    "logging.googleapis.com",
-    "datastore.googleapis.com",
-    "oauth2.googleapis.com",
-    "storage.googleapis.com",
-    "repo1.maven.org"
-]
-
-# ALLOWED_BUCKET_LIST contains all public Google Cloud Storage buckets
-# that are allowed to make requests from Beam Playground
-ALLOWED_BUCKET_LIST = [
-    "dataflow-samples",
-    "beam-samples"
-]
+# Allows for private google access as per:
+# https://cloud.google.com/vpc/docs/configure-private-google-access#config
+locals {
+  private_api_range = "199.36.153.8/30"
+}
