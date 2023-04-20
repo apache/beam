@@ -17,7 +17,19 @@
 # under the License.
 #
 
-output "server-url" {
-  value = google_app_engine_flexible_app_version.backend_app_java.service
+variable "network_id" {
+  description = "Network ID to use private dns zone in"
 }
 
+variable "network_name" {
+  description = "Network name to create name for zone"
+}
+
+variable "private_zones" {
+  description = "List of private zones to point to private.googleapis.com"
+  type = set(string)
+}
+
+variable "project_id" {
+  description = "Project ID to use private dns zone in"
+}

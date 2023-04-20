@@ -54,7 +54,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.gson.Gson;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.Gson;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;

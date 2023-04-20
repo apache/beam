@@ -69,7 +69,7 @@ public final class ClassicBundleManagerTest {
   }
 
   @Test
-  public void testTryStartBundleStartsBundle() {
+  public void testWhenFirstTryStartBundleThenStartsBundle() {
     bundleManager.tryStartBundle();
 
     verify(bundleProgressListener, times(1)).onBundleStarted();
@@ -82,29 +82,14 @@ public final class ClassicBundleManagerTest {
     assertTrue("tryStartBundle() did not start the bundle", bundleManager.isBundleStarted());
   }
 
-  @Test
-  public void testTryStartBundleThrowsExceptionAndSignalError() {
+  @Test(expected = IllegalArgumentException.class)
+  public void testWhenCurrentBundleDoneFutureIsNotNullThenStartBundleFails() {
     bundleManager.setCurrentBundleDoneFuture(CompletableFuture.completedFuture(null));
-    try {
-      bundleManager.tryStartBundle();
-    } catch (IllegalArgumentException e) {
-      bundleManager.signalFailure(e);
-    }
-
-    // verify if the signal failure only resets appropriate attributes of bundle
-    verify(mockFutureCollector, times(1)).prepare();
-    verify(mockFutureCollector, times(1)).discard();
-    assertEquals(
-        "Expected the number of element in the current bundle to 0",
-        0L,
-        bundleManager.getCurrentBundleElementCount());
-    assertEquals(
-        "Expected pending bundle count to be 0", 0L, bundleManager.getPendingBundleCount());
-    assertFalse("Error didn't reset the bundle as expected.", bundleManager.isBundleStarted());
+    bundleManager.tryStartBundle();
   }
 
   @Test
-  public void testTryStartBundleThrowsExceptionFromTheListener() {
+  public void testWhenSignalFailureThenResetCurrentBundle() {
     doThrow(new RuntimeException("User start bundle threw an exception"))
         .when(bundleProgressListener)
         .onBundleStarted();
@@ -128,7 +113,7 @@ public final class ClassicBundleManagerTest {
   }
 
   @Test
-  public void testMultipleStartBundle() {
+  public void testWhenMultipleTryStartThenOnlyStartBundleOnce() {
     bundleManager.tryStartBundle();
     bundleManager.tryStartBundle();
 
@@ -153,7 +138,7 @@ public final class ClassicBundleManagerTest {
    *  2. onBundleFinished callback is invoked on the progress listener
    */
   @Test
-  public void testTryFinishBundleClosesBundle() {
+  public void testWhenTryFinishBundleThenBundleIsReset() {
     OpEmitter<String> mockEmitter = mock(OpEmitter.class);
     when(mockFutureCollector.finish())
         .thenReturn(
