@@ -15,82 +15,81 @@
 
 package exec
 
-// import (
-// 	"bytes"
-// 	"testing"
+import (
+	"bytes"
+	"testing"
 
-// 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
-// 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
-// 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-// 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-// )
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+)
 
-// func equalTimers(a, b typex.TimerMap) bool {
-// 	return a.Key == b.Key && a.Tag == b.Tag && (a.FireTimestamp) == b.FireTimestamp && a.Clear == b.Clear
-// }
+func equalTimers(a, b TimerRecv) bool {
+	return a.Key.Elm == b.Key.Elm && a.Tag == b.Tag && (a.FireTimestamp) == b.FireTimestamp && a.Clear == b.Clear
+}
 
-// func TestTimerEncodingDecoding(t *testing.T) {
-// 	tc := coder.NewT(coder.NewString(), window.NewGlobalWindows().Coder())
-// 	ec := MakeElementEncoder(coder.SkipW(tc))
-// 	dec := MakeElementDecoder(coder.SkipW(tc))
+func TestTimerEncodingDecoding(t *testing.T) {
+	tc := coder.NewT(coder.NewKV([]*coder.Coder{coder.NewString(), coder.NewString()}), window.NewGlobalWindows().Coder())
+	ec := MakeElementEncoder(coder.SkipW(tc))
+	dec := MakeElementDecoder(coder.SkipW(tc))
 
-// 	tests := []struct {
-// 		name   string
-// 		tm     typex.TimerMap
-// 		result bool
-// 	}{
-// 		{
-// 			name: "all set fields",
-// 			tm: typex.TimerMap{
-// 				Key:           []byte{byte("Basic")},
-// 				Tag:           "first",
-// 				Windows:       window.SingleGlobalWindow,
-// 				Clear:         false,
-// 				FireTimestamp: mtime.Now(),
-// 			},
-// 			result: true,
-// 		},
-// 		{
-// 			name: "without tag",
-// 			tm: typex.TimerMap{
-// 				Key:           "Basic",
-// 				Tag:           "",
-// 				Windows:       window.SingleGlobalWindow,
-// 				Clear:         false,
-// 				FireTimestamp: mtime.Now(),
-// 			},
-// 			result: true,
-// 		},
-// 		{
-// 			name: "with clear set",
-// 			tm: typex.TimerMap{
-// 				Key:           "Basic",
-// 				Tag:           "first",
-// 				Windows:       window.SingleGlobalWindow,
-// 				Clear:         true,
-// 				FireTimestamp: mtime.Now(),
-// 			},
-// 			result: false,
-// 		},
-// 	}
-// 	for _, test := range tests {
-// 		t.Run(test.name, func(t *testing.T) {
-// 			fv := FullValue{Elm: test.tm}
-// 			var buf bytes.Buffer
-// 			err := ec.Encode(&fv, &buf)
-// 			if err != nil {
-// 				t.Fatalf("error encoding timer: %#v, got: %v", test.tm, err)
-// 			}
+	tests := []struct {
+		name   string
+		tm     TimerRecv
+		result bool
+	}{
+		{
+			name: "all set fields",
+			tm: TimerRecv{
+				Key:           &FullValue{Elm: "Basic"},
+				Tag:           "first",
+				Windows:       window.SingleGlobalWindow,
+				Clear:         false,
+				FireTimestamp: mtime.Now(),
+			},
+			result: true,
+		},
+		{
+			name: "without tag",
+			tm: TimerRecv{
+				Key:           &FullValue{Elm: "Basic"},
+				Tag:           "",
+				Windows:       window.SingleGlobalWindow,
+				Clear:         false,
+				FireTimestamp: mtime.Now(),
+			},
+			result: true,
+		},
+		{
+			name: "with clear set",
+			tm: TimerRecv{
+				Key:           &FullValue{Elm: "Basic"},
+				Tag:           "first",
+				Windows:       window.SingleGlobalWindow,
+				Clear:         true,
+				FireTimestamp: mtime.Now(),
+			},
+			result: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fv := FullValue{Elm: test.tm}
+			var buf bytes.Buffer
+			err := ec.Encode(&fv, &buf)
+			if err != nil {
+				t.Fatalf("error encoding timer: %#v, got: %v", test.tm, err)
+			}
 
-// 			gotFv, err := dec.Decode(&buf)
-// 			if err != nil {
-// 				t.Fatalf("failed to decode timer, got %v", err)
-// 			}
+			gotFv, err := dec.Decode(&buf)
+			if err != nil {
+				t.Fatalf("failed to decode timer, got %v", err)
+			}
 
-// 			if got, want := gotFv.Elm.(typex.TimerMap), test.tm; test.result != equalTimers(got, want) {
-// 				t.Errorf("got timer %v, want %v", got, want)
-// 			}
-// 		})
-// 	}
+			if got, want := gotFv.Elm.(TimerRecv), test.tm; test.result != equalTimers(got, want) {
+				t.Errorf("got timer %v, want %v", got, want)
+			}
+		})
+	}
 
-// }
+}

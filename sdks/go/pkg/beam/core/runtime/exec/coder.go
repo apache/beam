@@ -145,8 +145,15 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 		}
 
 	case coder.Timer:
+		tc := coder.SkipW(c).Components[0]
+		if coder.IsKV(tc) {
+			return &timerEncoder{
+				elm: MakeElementEncoder(tc.Components[0]),
+				win: MakeWindowEncoder(c.Window),
+			}
+		}
 		return &timerEncoder{
-			elm: MakeElementEncoder(coder.SkipW(c).Components[0].Components[0]),
+			elm: MakeElementEncoder(tc),
 			win: MakeWindowEncoder(c.Window),
 		}
 
@@ -266,8 +273,15 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 		}
 
 	case coder.Timer:
+		tc := coder.SkipW(c).Components[0]
+		if coder.IsKV(tc) {
+			return &timerDecoder{
+				elm: MakeElementDecoder(tc.Components[0]),
+				win: MakeWindowDecoder(c.Window),
+			}
+		}
 		return &timerDecoder{
-			elm: MakeElementDecoder(coder.SkipW(c).Components[0]),
+			elm: MakeElementDecoder(tc),
 			win: MakeWindowDecoder(c.Window),
 		}
 
@@ -1254,7 +1268,7 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 	return ws, t, pn, nil
 }
 
-// encodeTimer encodes a typex.TimerMap into a byte stream.
+// encodeTimer encodes a TimerRecv into a byte stream.
 func encodeTimer(elm ElementEncoder, win WindowEncoder, tm TimerRecv, w io.Writer) error {
 	var b bytes.Buffer
 	err := elm.Encode(tm.Key, &b)

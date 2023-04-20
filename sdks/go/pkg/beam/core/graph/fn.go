@@ -313,11 +313,6 @@ type PipelineTimer interface {
 	TimerDomain() timers.TimeDomainEnum
 }
 
-var (
-	_ PipelineTimer = timers.EventTime{}
-	_ PipelineTimer = timers.ProcessingTime{}
-)
-
 func (f *DoFn) OnTimerFn() (*funcx.Fn, bool) {
 	m, ok := f.methods[onTimerName]
 	return m, ok
