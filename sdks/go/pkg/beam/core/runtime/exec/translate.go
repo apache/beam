@@ -600,7 +600,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 						if err != nil {
 							return nil, err
 						}
-						for key, _ := range userTimers {
+						for key := range userTimers {
 							timerIDToCoder[key] = coder.NewT(ec, wc)
 						}
 						n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerIDToCoder)
