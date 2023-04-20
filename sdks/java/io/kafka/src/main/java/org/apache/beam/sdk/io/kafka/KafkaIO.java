@@ -60,6 +60,8 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementation;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityException;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityResult;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -1354,9 +1356,24 @@ public class KafkaIO {
           || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
           || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
-        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
+        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder)).apply(ParDo.of(new RecordKafkaRecords<>()));
       }
-      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder)).apply(ParDo.of(new RecordKafkaRecords<>()));
+    }
+
+    private class RecordKafkaRecords<T> extends DoFn<T,T> {
+
+      private final Counter elementCounter;
+
+      RecordKafkaRecords(){
+        this.elementCounter = Metrics.counter(KafkaIO.class.getName(), "elements_read");
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c){
+        elementCounter.inc();
+        c.output(c.element());
+      }
     }
 
     private void warnAboutUnsafeConfigurations(PBegin input) {

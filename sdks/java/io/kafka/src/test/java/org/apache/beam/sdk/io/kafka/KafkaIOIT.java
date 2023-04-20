@@ -25,7 +25,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -74,7 +73,6 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -201,7 +199,6 @@ public class KafkaIOIT {
     readPipeline
         .apply("Read from unbounded Kafka", readFromKafka().withTopic(options.getKafkaTopic()))
         .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
 
     PipelineResult writeResult = writePipeline.run();
@@ -241,7 +238,6 @@ public class KafkaIOIT {
     readPipeline
         .apply("Read from bounded Kafka", readFromBoundedKafka().withTopic(options.getKafkaTopic()))
         .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
 
     PipelineResult writeResult = writePipeline.run();
@@ -679,7 +675,6 @@ public class KafkaIOIT {
                 .withTopic(options.getKafkaTopic() + "-" + topicSuffix)
                 .withCheckStopReadingFn(function))
         .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
 
     PipelineResult writeResult = writePipeline.run();
@@ -825,7 +820,7 @@ public class KafkaIOIT {
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"));
   }
 
-  private static class CountingFn extends DoFn<String, Void> {
+  private static class CountingFn extends DoFn<KafkaRecord<byte[],byte[]>, Void> {
 
     private final Counter elementCounter;
 
@@ -876,16 +871,6 @@ public class KafkaIOIT {
     String getKafkaContainerVersion();
 
     void setKafkaContainerVersion(String kafkaContainerVersion);
-  }
-
-  private static class MapKafkaRecordsToStrings
-      extends SimpleFunction<KafkaRecord<byte[], byte[]>, String> {
-    @Override
-    public String apply(KafkaRecord<byte[], byte[]> input) {
-      String key = Arrays.toString(input.getKV().getKey());
-      String value = Arrays.toString(input.getKV().getValue());
-      return String.format("%s %s", key, value);
-    }
   }
 
   private static void setupKafkaContainer() {

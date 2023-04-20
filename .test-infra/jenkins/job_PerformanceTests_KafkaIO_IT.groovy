@@ -87,7 +87,7 @@ job(jobName) {
     kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:\$KAFKA_SERVICE_PORT_0,\$KAFKA_BROKER_1:\$KAFKA_SERVICE_PORT_1," +
     "\$KAFKA_BROKER_2:\$KAFKA_SERVICE_PORT_2", //KAFKA_BROKER_ represents IP and KAFKA_SERVICE_ port of outside services
     kafkaTopic                   : 'beam-batch',
-    readTimeout                  : '2700',
+    readTimeout                  : '1800',
     numWorkers                   : '5',
     autoscalingAlgorithm         : 'NONE'
   ]
