@@ -91,7 +91,7 @@ type Interface interface {
 }
 
 // The following interfaces are optional for the filesystems, but
-// to support
+// to support more efficient or composite operations when possible.
 
 // LastModifiedGetter is an interface for getting the last modified time
 // of a file.
