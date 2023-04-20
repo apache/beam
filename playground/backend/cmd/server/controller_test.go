@@ -151,11 +151,11 @@ func setupServer(sdk pb.Sdk) *grpc.Server {
 		new(migration.AddingComplexityProperty),
 	}
 	dbSchema := schema.New(ctx, dbEmulator, appEnv, props, versions)
-	actualSchemaVersion, err := dbSchema.InitiateData()
+	actualSchemaVersion, err := dbSchema.InitializeData()
 	if err != nil {
 		panic(err)
 	}
-	appEnv.SetSchemaVersion(actualSchemaVersion)
+	appEnv.SetSchemaVersion(actualSchemaVersion.String())
 
 	// download test data to the Datastore Emulator
 	test_data.DownloadCatalogsWithMockData(ctx)

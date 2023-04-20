@@ -233,16 +233,16 @@ func setupDBStructure(ctx context.Context, db db.Database, appEnv *environment.A
 		new(migration.AddingComplexityProperty),
 	}
 	dbSchema := schema.New(ctx, db, appEnv, props, versions)
-	actualSchemaVersion, err := dbSchema.InitiateData()
+	currentSchemaVersion, err := dbSchema.InitializeData()
 	if err != nil {
 		return err
 	}
-	if actualSchemaVersion == "" {
+	if currentSchemaVersion == nil {
 		errMsg := "schema version must not be empty"
 		logger.Error(errMsg)
 		return fmt.Errorf(errMsg)
 	}
-	appEnv.SetSchemaVersion(actualSchemaVersion)
+	appEnv.SetSchemaVersion(currentSchemaVersion.String())
 	return nil
 }
 

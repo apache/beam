@@ -40,6 +40,8 @@ type SnippetDatabase interface {
 }
 
 type CatalogDatabase interface {
+	HasSchemaVersion(ctx context.Context, version string) (bool, error)
+
 	PutSchemaVersion(ctx context.Context, id string, schema *entity.SchemaEntity) error
 
 	PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error

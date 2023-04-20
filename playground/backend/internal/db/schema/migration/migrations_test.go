@@ -98,7 +98,7 @@ func TestInitialStructure_InitiateData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			is := new(InitialStructure)
-			err := is.InitiateData(tt.dbArgs)
+			err := is.InitializeData(tt.dbArgs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitiateData(): error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -126,7 +126,7 @@ func TestAddingComplexityProperty_InitiateData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			is := new(AddingComplexityProperty)
-			err := is.InitiateData(tt.dbArgs)
+			err := is.InitializeData(tt.dbArgs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitiateData(): error = %v, wantErr %v", err, tt.wantErr)
 			}

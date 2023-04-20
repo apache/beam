@@ -191,13 +191,28 @@ func (d *Datastore) IncrementSnippetVisitorsCount(ctx context.Context, id string
 	return nil
 }
 
+// HasSchemaVersion returns true if the schema version is applied
+func (d *Datastore) HasSchemaVersion(ctx context.Context, version string) (bool, error) {
+	key := utils.GetSchemaVerKey(ctx, version)
+	schema := new(entity.SchemaEntity)
+	err := d.Client.Get(ctx, key, schema)
+	if err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			return false, nil
+		}
+		logger.Errorf("Datastore: HasSchemaVersionApplied(): error during getting schema version, err: %s\n", err.Error())
+		return false, err
+	}
+	return true, nil
+}
+
 // PutSchemaVersion puts the schema entity to datastore
-func (d *Datastore) PutSchemaVersion(ctx context.Context, id string, schema *entity.SchemaEntity) error {
+func (d *Datastore) PutSchemaVersion(ctx context.Context, version string, schema *entity.SchemaEntity) error {
 	if schema == nil {
 		logger.Errorf("Datastore: PutSchemaVersion(): schema version is nil")
 		return nil
 	}
-	key := utils.GetSchemaVerKey(ctx, id)
+	key := utils.GetSchemaVerKey(ctx, version)
 	if _, err := d.Client.Put(ctx, key, schema); err != nil {
 		logger.Errorf("Datastore: PutSchemaVersion(): error during entity saving, err: %s\n", err.Error())
 		return err

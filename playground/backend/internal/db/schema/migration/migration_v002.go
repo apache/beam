@@ -18,21 +18,40 @@ package migration
 import (
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/schema"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 type AddingComplexityProperty struct {
 }
 
-func (is *AddingComplexityProperty) InitiateData(args *schema.DBArgs) error {
+func (is AddingComplexityProperty) InitializeData(args *schema.DBArgs) error {
+	// Verify if migration is already applied
+	migrationApplied, err := args.Db.HasSchemaVersion(args.Ctx, is.GetVersion().String())
+	if err != nil {
+		logger.Errorf("InitializeData(): error during checking migration version %s: %s", is.GetVersion().String(), err.Error())
+		return err
+	}
+
+	if migrationApplied {
+		return nil
+	}
+
+	logger.Infof("InitializeData(): applying migration version %s", is.GetVersion().String())
+
+	// Apply migration
 	schemaEntity := &entity.SchemaEntity{Descr: is.GetDescription()}
-	if err := args.Db.PutSchemaVersion(args.Ctx, is.GetVersion(), schemaEntity); err != nil {
+	if err := args.Db.PutSchemaVersion(args.Ctx, is.GetVersion().String(), schemaEntity); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (is *AddingComplexityProperty) GetVersion() string {
-	return "0.0.2"
+func (is AddingComplexityProperty) GetVersion() schema.DBVersion {
+	return schema.DBVersion{
+		Major: 0,
+		Minor: 0,
+		Patch: 2,
+	}
 }
 
 func (is AddingComplexityProperty) GetDescription() string {

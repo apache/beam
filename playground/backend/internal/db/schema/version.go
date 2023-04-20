@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
+	"fmt"
 	"sort"
 )
 
@@ -42,21 +43,55 @@ func New(ctx context.Context, db db.Database, appEnv *environment.ApplicationEnv
 	}
 }
 
-func (ds *DBSchema) InitiateData() (string, error) {
-	var versions []string
+func (ds *DBSchema) InitializeData() (*DBVersion, error) {
+	var versions []DBVersion
 	for _, ver := range ds.versions {
-		if err := ver.InitiateData(ds.args); err != nil {
+		if err := ver.InitializeData(ds.args); err != nil {
 			logger.Errorf("DBSchema: InitiateData() error during the data initialization, err: %s", err.Error())
-			return "", err
+			return nil, err
 		}
 		versions = append(versions, ver.GetVersion())
 	}
-	sort.Strings(versions)
-	return versions[len(versions)-1], nil
+	sort.Sort(ByVersion(versions))
+	return &versions[len(versions)-1], nil
 }
 
 type Version interface {
-	GetVersion() string
+	GetVersion() DBVersion
 	GetDescription() string
-	InitiateData(args *DBArgs) error
+	InitializeData(args *DBArgs) error
+}
+
+type DBVersion struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+func (dv DBVersion) String() string {
+	return fmt.Sprintf("%d.%d.%d", dv.Major, dv.Minor, dv.Patch)
+}
+
+// ByVersion implements sort.Interface for []DBVersion based on the Major, Minor and Patch fields.
+type ByVersion []DBVersion
+
+func (bv ByVersion) Len() int      { return len(bv) }
+func (bv ByVersion) Swap(i, j int) { bv[i], bv[j] = bv[j], bv[i] }
+func (bv ByVersion) Less(i, j int) bool {
+	if bv[i].Major < bv[j].Major {
+		return true
+	}
+	if bv[i].Major > bv[j].Major {
+		return false
+	}
+	if bv[i].Minor < bv[j].Minor {
+		return true
+	}
+	if bv[i].Minor > bv[j].Minor {
+		return false
+	}
+	if bv[i].Patch < bv[j].Patch {
+		return true
+	}
+	return false
 }

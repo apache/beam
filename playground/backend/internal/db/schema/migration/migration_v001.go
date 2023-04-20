@@ -19,20 +19,35 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/schema"
+	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
 type InitialStructure struct {
 }
 
-func (is *InitialStructure) InitiateData(args *schema.DBArgs) error {
-	//init schema versions
-	schemaEntity := &entity.SchemaEntity{Descr: is.GetDescription()}
-	if err := args.Db.PutSchemaVersion(args.Ctx, is.GetVersion(), schemaEntity); err != nil {
+func (is InitialStructure) InitializeData(args *schema.DBArgs) error {
+	// Verify if migration is already applied
+	migrationApplied, err := args.Db.HasSchemaVersion(args.Ctx, is.GetVersion().String())
+	if err != nil {
+		logger.Errorf("InitializeData(): error during checking migration version %s: %s", is.GetVersion().String(), err.Error())
 		return err
 	}
 
-	//init sdks
+	if migrationApplied {
+		return nil
+	}
+
+	logger.Infof("InitializeData(): applying migration version %s", is.GetVersion().String())
+
+	// Apply migration
+	// Init schema versions
+	schemaEntity := &entity.SchemaEntity{Descr: is.GetDescription()}
+	if err := args.Db.PutSchemaVersion(args.Ctx, is.GetVersion().String(), schemaEntity); err != nil {
+		return err
+	}
+
+	// Init sdks
 	var sdkEntities []*entity.SDKEntity
 	sdkConfig := new(SdkConfig)
 	if err := utils.ReadYamlFile(args.AppEnv.SdkConfigPath(), sdkConfig); err != nil {
@@ -83,8 +98,12 @@ func getDefaultExample(config *SdkConfig, sdk string) string {
 	}
 }
 
-func (is *InitialStructure) GetVersion() string {
-	return "0.0.1"
+func (is InitialStructure) GetVersion() schema.DBVersion {
+	return schema.DBVersion{
+		Major: 0,
+		Minor: 0,
+		Patch: 1,
+	}
 }
 
 func (is InitialStructure) GetDescription() string {
