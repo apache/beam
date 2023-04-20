@@ -52,8 +52,8 @@ type LogicalTypeProvider = func(reflect.Type) (reflect.Type, error)
 
 // Registry retains mappings from go types to Schemas and LogicalTypes.
 type Registry struct {
-	rwmu            sync.RWMutex
-	
+	rwmu sync.RWMutex
+
 	typeToSchema    map[reflect.Type]*pipepb.Schema
 	idToType        map[string]reflect.Type
 	syntheticToUser map[reflect.Type]reflect.Type
