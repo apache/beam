@@ -144,17 +144,19 @@ Dataflow, see [Pre-building the python SDK custom container image with extra dep
 
 ## Pickling and Managing the Main Session
 
-When the Python SDK submits the pipeline for execution to a remote runner, the pipeline contents, such as transform user code, is serialized (or pickled)  into a bytecode using 
-libraries that perform the serialization (also called picklers).  The default pickler library used by Beam is `dill`. 
+When the Python SDK submits the pipeline for execution to a remote runner, the pipeline contents, such as transform user code, is serialized (or pickled) into a bytecode using
+libraries that perform the serialization (also called picklers).  The default pickler library used by Beam is `dill`.
+To use the `cloudpickle` pickler, supply the `--pickle_library=cloudpickle` pipeline option.
+
 By default, global imports, functions, and variables defined in the main pipeline module are not saved during the serialization of a Beam job.
 Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any remote runner. To resolve this, supply the main session content with the pipeline by
-setting the `--save_main_session` pipeline option. This will load the pickled state of the global namespace onto the Dataflow workers.
+setting the `--save_main_session` pipeline option. This will load the pickled state of the global namespace onto the Dataflow workers (if using `DataflowRunner`).
 For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
 
 Managing the main session in Python SDK is only necessary when using `dill` pickler on any remote runner. Therefore, this issue will
-not occur in `DirectRunner`. To use the `cloudpickle` pickler, supply the `--pickle_library=cloudpickle` pipeline option.
+not occur in `DirectRunner`.
 
-Since serialization of the pipeline happens on the job submision, and deserialization happens at runtime, it is imperative that the same version of pickling library is used at job submission and at runtime.
-To ensure that, beam typically sets a very narrow supported version range for pickling libraries. If for whatever reason users cannot use the version of `dill` or `cloudpickle` required by Beam, and choose to
-install a custom version, they must also ensure that they use the same custom version at runtime (for example in their custom container,
+Since serialization of the pipeline happens on the job submission, and deserialization happens at runtime, it is imperative that the same version of pickling library is used at job submission and at runtime.
+To ensure this, Beam typically sets a very narrow supported version range for pickling libraries. If for whatever reason, users cannot use the version of `dill` or `cloudpickle` required by Beam, and choose to
+install a custom version, they must also ensure that they use the same custom version at runtime (e.g. in their custom container,
 or by specifying a pipeline dependency requirement).
