@@ -53,6 +53,10 @@ class ExamplesLoader {
     _playgroundController = value;
   }
 
+  void clearDescriptor() {
+    _descriptor = null;
+  }
+
   /// Loads examples from [descriptor]'s immediate list.
   ///
   /// Sets empty editor for SDKs of failed examples.

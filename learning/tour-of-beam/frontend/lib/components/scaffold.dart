@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../pages/tour/widgets/pipeline_options.dart';
 import '../state.dart';
 import 'footer.dart';
 import 'login/button.dart';
@@ -30,10 +31,12 @@ import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
+  final PlaygroundController? playgroundController;
   final List<Widget> pageActions;
 
   const TobScaffold({
     required this.child,
+    this.playgroundController,
     this.pageActions = const [],
   });
 
@@ -44,7 +47,10 @@ class TobScaffold extends StatelessWidget {
         automaticallyImplyLeading: false,
         title: const Logo(),
         actions: [
-          ...pageActions.map((w) => _ActionVerticalPadding(child: w)),
+          if (playgroundController != null)
+            _PlaygroundControllerActions(
+              playgroundController: playgroundController!,
+            ),
           const SizedBox(width: BeamSizes.size12),
           const _ActionVerticalPadding(child: _SdkSelector()),
           const SizedBox(width: BeamSizes.size12),
@@ -111,6 +117,45 @@ class _SdkSelector extends StatelessWidget {
                   appNotifier.sdkId = value;
                 },
               );
+      },
+    );
+  }
+}
+
+class _PlaygroundControllerActions extends StatelessWidget {
+  final PlaygroundController playgroundController;
+
+  const _PlaygroundControllerActions({
+    required this.playgroundController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: playgroundController,
+      builder: (context, child) {
+        final widgets = <Widget>[];
+
+        if (!playgroundController.isEmpty) {
+          widgets.add(
+            _ActionVerticalPadding(
+              child: TobPipelineOptionsDropdown(
+                playgroundController: playgroundController,
+              ),
+            ),
+          );
+        }
+
+        return Row(
+          children: widgets
+              .map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(left: BeamSizes.size12),
+                  child: e,
+                ),
+              )
+              .toList(),
+        );
       },
     );
   }

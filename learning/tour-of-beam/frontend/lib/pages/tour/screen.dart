@@ -23,7 +23,6 @@ import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import 'state.dart';
 import 'widgets/content_tree.dart';
-import 'widgets/pipeline_options.dart';
 import 'widgets/playground_demo.dart';
 import 'widgets/unit_content.dart';
 
@@ -36,9 +35,7 @@ class TourScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
-      pageActions: [
-        _PipelineOptionsActionWidget(tourNotifier),
-      ],
+      playgroundController: tourNotifier.playgroundController,
       child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
           ? _WideTour(tourNotifier)
           : _NarrowTour(tourNotifier),
@@ -84,7 +81,7 @@ class _UnitContentWidget extends StatelessWidget {
                 second: tourNotifier.isSnippetLoading
                     ? const Center(child: CircularProgressIndicator())
                     : PlaygroundDemoWidget(
-                        playgroundController: tourNotifier.playgroundController!,
+                        playgroundController: tourNotifier.playgroundController,
                       ),
               );
       },
@@ -130,27 +127,5 @@ class _NarrowScreenPlayground extends StatelessWidget {
   Widget build(BuildContext context) {
     // TODO(alexeyinkin): Even this way the narrow layout breaks, https://github.com/apache/beam/issues/23244
     return const Center(child: Text('TODO: Playground for narrow screen'));
-  }
-}
-
-class _PipelineOptionsActionWidget extends StatelessWidget {
-  final TourNotifier tourNotifier;
-
-  const _PipelineOptionsActionWidget(this.tourNotifier);
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: tourNotifier,
-      builder: (context, widget) {
-        if (tourNotifier.playgroundController == null) {
-          return const SizedBox.shrink();
-        }
-
-        return TobPipelineOptionsDropdown(
-          playgroundController: tourNotifier.playgroundController!,
-        );
-      },
-    );
   }
 }

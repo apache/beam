@@ -145,6 +145,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   Future<void> _setPlaygroundSnippet(String? snippetId) async {
     if (snippetId == null) {
+      playgroundController.setEmpty();
       return;
     }
 
