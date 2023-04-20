@@ -32,12 +32,10 @@ import 'sdk_dropdown.dart';
 class TobScaffold extends StatelessWidget {
   final Widget child;
   final PlaygroundController? playgroundController;
-  final List<Widget> pageActions;
 
   const TobScaffold({
     required this.child,
     this.playgroundController,
-    this.pageActions = const [],
   });
 
   @override
