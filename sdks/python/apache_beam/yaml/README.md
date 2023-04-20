@@ -28,7 +28,7 @@ https://beam.apache.org/blog/beam-starter-projects/ has gone a long
 way in making this easier).
 
 Here we provide a simple declarative syntax for describing pipelines
-that does not require coding experience or learnig how to use an
+that does not require coding experience or learning how to use an
 SDK&mdash;any text editor will do.
 Some installation may be required to actually *execute* a pipeline, but
 we envision various services (such as Dataflow) to accept yaml pipelines

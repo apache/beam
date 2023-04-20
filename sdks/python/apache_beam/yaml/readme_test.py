@@ -1,3 +1,22 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""Runs the examples from the README.md file."""
+
 import argparse
 import logging
 import os
@@ -30,14 +49,14 @@ class FakeSql(beam.PTransform):
     # schema...
     m = re.match('select (.*?) from', self.query, flags=re.IGNORECASE)
     if not m:
-      raise ValueError(query)
+      raise ValueError(self.query)
 
     def guess_name_and_type(expr):
       expr = expr.strip()
       parts = expr.split()
       if len(parts) >= 2 and parts[-2].lower() == 'as':
         name = parts[-1]
-      elif re.match('[\w.]+', parts[0]):
+      elif re.match(r'[\w.]+', parts[0]):
         name = parts[0].split('.')[-1]
       else:
         name = f'expr{hash(expr)}'
@@ -57,7 +76,8 @@ class FakeSql(beam.PTransform):
         else:
           typ = next(iter(inputs.values())).element_type.get_type_for(name)
         # Handle optionals more gracefully.
-        if str(typ).startswith('typing.Union['):
+        if (str(typ).startswith('typing.Union[') or
+            str(typ).startswith('typing.Optional[')):
           if len(typ.__args__) == 2 and type(None) in typ.__args__:
             typ, = [t for t in typ.__args__ if t is not type(None)]
       return name, typ

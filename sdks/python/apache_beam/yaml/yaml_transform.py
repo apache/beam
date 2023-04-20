@@ -453,7 +453,7 @@ class YamlTransform(beam.PTransform):
       return result
 
 
-def expand_pipeline(pipeline, pipeline_spec, providers=[]):
+def expand_pipeline(pipeline, pipeline_spec, providers=None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # Calling expand directly to avoid outer layer of nesting.
@@ -461,5 +461,5 @@ def expand_pipeline(pipeline, pipeline_spec, providers=[]):
       pipeline_as_composite(pipeline_spec['pipeline']),
       {
           **yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
-          **providers
+          **(providers or {})
       }).expand(beam.pvalue.PBegin(pipeline))
