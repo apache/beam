@@ -144,7 +144,7 @@ Dataflow, see [Pre-building the python SDK custom container image with extra dep
 
 ## Pickling and Managing Main Session
 
-Pickling in the Python SDK is set up to pickle the state of the global namespace. By default, global imports, functions, and variables defined in the main session are not saved during the serialization of a Beam job.
+When the Python SDK submits the pipeline for execution to a remote runner, the pipeline contents, such as transform user code, is serialized (or pickled)  into a bytecode using libraries that perform the serialization (also called picklers).  The default pickler library used by Beam is `dill`. By default, global imports, functions, and variables defined in the main pipeline module are not saved during the serialization of a Beam job.
 Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any remote runner. To resolve this, supply the main session content with the pipeline by
 setting the `--save_main_session` pipeline option. This will load the pickled state of the global namespace onto the Dataflow workers.
 For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
