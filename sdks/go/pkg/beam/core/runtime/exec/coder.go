@@ -17,6 +17,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -28,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
@@ -145,8 +147,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 		}
 
 	case coder.Timer:
+		log.Infof(context.Background(), "coder in elementencoder: %+v", coder.SkipW(c).Components[0])
 		return &timerEncoder{
-			elm: MakeElementEncoder(c.Components[0]),
+			elm: MakeElementEncoder(coder.SkipW(c).Components[0].Components[0]),
 			win: MakeWindowEncoder(c.Window),
 		}
 
@@ -267,7 +270,7 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 
 	case coder.Timer:
 		return &timerDecoder{
-			elm: MakeElementDecoder(c.Components[0]),
+			elm: MakeElementDecoder(coder.SkipW(c).Components[0]),
 			win: MakeWindowDecoder(c.Window),
 		}
 
@@ -902,7 +905,7 @@ type timerEncoder struct {
 }
 
 func (e *timerEncoder) Encode(val *FullValue, w io.Writer) error {
-	return encodeTimer(e.elm, e.win, val.Elm.(typex.TimerMap), w)
+	return encodeTimer(e.elm, e.win, val.Elm.(TimerRecv), w)
 }
 
 type timerDecoder struct {
@@ -1255,9 +1258,9 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 }
 
 // encodeTimer encodes a typex.TimerMap into a byte stream.
-func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.Writer) error {
+func encodeTimer(elm ElementEncoder, win WindowEncoder, tm TimerRecv, w io.Writer) error {
 	var b bytes.Buffer
-	_, err := b.Write(tm.Key)
+	err := elm.Encode(tm.Key, &b)
 	if err != nil {
 		return errors.WithContext(err, "error encoding key")
 	}
@@ -1298,6 +1301,7 @@ func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv,
 		return tm, errors.WithContext(err, "error decoding key")
 	}
 	tm.Key = key
+	log.Infof(context.Background(), "decoded key from timer: %v", key)
 
 	s, err := coder.DecodeStringUTF8(r)
 	if err != nil && err != io.EOF {
@@ -1308,17 +1312,22 @@ func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv,
 	}
 	tm.Tag = s
 
+	log.Infof(context.Background(), "decoded tag from timer: %v", tm.Tag)
+
 	w, err := win.Decode(r)
 	if err != nil {
 		return tm, errors.WithContext(err, "error decoding timer window")
 	}
 	tm.Windows = w
+	log.Infof(context.Background(), "decoded win from timer: %v", w)
 
 	c, err := coder.DecodeBool(r)
 	if err != nil {
 		return tm, errors.WithContext(err, "error decoding clear")
 	}
 	tm.Clear = c
+	log.Infof(context.Background(), "decoded bool from timer: %v", c)
+
 	if tm.Clear {
 		return tm, nil
 	}

@@ -61,13 +61,19 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataMan
 		return timerProvider{}, err
 	}
 
+	log.Infof(ctx, "element key FV: %+v", element.Key)
+	userKey := &FullValue{Elm: element.Key.Elm}
+	log.Infof(ctx, "newly created user key: %+v", userKey)
 	tp := timerProvider{
 		ctx:             ctx,
 		tm:              manager,
 		elementKey:      elementKey,
+		userKey:         userKey,
 		inputTimestamp:  inputTs,
 		sID:             u.sID,
 		window:          w,
+		c:               u.c,
+		win:             u.wc,
 		writersByFamily: make(map[string]io.Writer),
 		codersByFamily:  u.timerIDToCoder,
 	}
@@ -81,9 +87,12 @@ type timerProvider struct {
 	sID            StreamID
 	inputTimestamp typex.EventTime
 	elementKey     []byte
+	userKey        *FullValue
 	window         []typex.Window
 
-	pn typex.PaneInfo
+	pn  typex.PaneInfo
+	c   *coder.Coder
+	win WindowEncoder
 
 	writersByFamily map[string]io.Writer
 	codersByFamily  map[string]*coder.Coder
@@ -107,8 +116,8 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 	if err != nil {
 		panic(err)
 	}
-	tm := typex.TimerMap{
-		Key:           p.elementKey, //string(p.elementKey),
+	tm := TimerRecv{
+		Key:           p.userKey, //string(p.elementKey),
 		Tag:           t.Tag,
 		Windows:       p.window,
 		Clear:         t.Clear,
@@ -118,7 +127,10 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 	}
 	log.Debugf(p.ctx, "timer set: %+v", tm)
 	fv := FullValue{Elm: tm}
-	enc := MakeElementEncoder(coder.SkipW(p.codersByFamily[t.Family]))
+
+	// tc := coder.NewT(p.c)
+	log.Infof(p.ctx, "timer coder for %v: %+v", t.Family, p.codersByFamily[t.Family])
+	enc := MakeElementEncoder(p.codersByFamily[t.Family])
 	if err := enc.Encode(&fv, w); err != nil {
 		panic(err)
 	}
