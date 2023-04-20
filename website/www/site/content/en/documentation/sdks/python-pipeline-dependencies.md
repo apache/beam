@@ -151,7 +151,7 @@ For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/gu
 
 The dill pickler is the default pickler in the Python SDK.
 
-**NOTE**: This applies to the Python SDK executing with the dill pickler on any remote runner using portability. Therefore, this issue will
+**NOTE**: This applies to the Python SDK executing with the dill pickler on any remote runner. Therefore, this issue will
 not occur in `DirectRunner`.  Additionally, if users cannot use the version of `dill` or `cloudpickle` required by Beam, and choose to
 install a custom version, they must also ensure that they use the same custom version at runtime (for example in their custom container,
 or by specifying a pipeline dependency requirement).
