@@ -20,17 +20,28 @@ package org.apache.beam.runners.samza.util;
 import com.google.errorprone.annotations.DoNotCall;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
+import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.samza.translation.ConfigContext;
+import org.apache.beam.runners.samza.translation.SamzaPipelineTranslator;
+import org.apache.beam.runners.samza.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 
 /**
@@ -39,6 +50,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterator
  */
 @Experimental
 public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
+  private static final String TRANSFORM_IO_MAP_DELIMITER = ",";
 
   /**
    * Interface to get I/O information for a Beam job. This will help add I/O information to the Beam
@@ -64,10 +76,12 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
    * This method creates a JSON representation of the Beam pipeline.
    *
    * @param pipeline The beam pipeline
+   * @param ctx Config context of the pipeline
    * @return JSON string representation of the pipeline
    */
-  public static String toJsonString(
-      Pipeline pipeline, Map<String, Map.Entry<String, String>> transformIOMap) {
+  public static String toJsonString(Pipeline pipeline, ConfigContext ctx) {
+    final Map<String, Map.Entry<String, String>> transformIOMap =
+        buildTransformIOMap(pipeline, ctx);
     final PipelineJsonRenderer visitor = new PipelineJsonRenderer(transformIOMap);
     pipeline.traverseTopologically(visitor);
     return visitor.jsonBuilder.toString();
@@ -228,5 +242,43 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
       return Optional.empty();
     }
     return SAMZA_IO_INFO.getIOInfo(node);
+  }
+
+  /**
+   * Builds a map from PTransform to its input and output PValues. The map is serialized as part of
+   * Beam_JSON_GRAPH
+   */
+  @VisibleForTesting
+  static Map<String, Map.Entry<String, String>> buildTransformIOMap(
+      Pipeline pipeline, ConfigContext ctx) {
+    final Map<String, Map.Entry<String, String>> pTransformToInputOutputMap = new HashMap<>();
+    final SamzaPipelineTranslator.TransformVisitorFn configFn =
+        new SamzaPipelineTranslator.TransformVisitorFn() {
+          @Override
+          public <T extends PTransform<?, ?>> void apply(
+              T transform,
+              TransformHierarchy.Node node,
+              Pipeline pipeline,
+              TransformTranslator<T> translator) {
+            ctx.setCurrentTransform(node.toAppliedPTransform(pipeline));
+            List<String> inputs = getIOPValueList(node.getInputs()).get();
+            List<String> outputs = getIOPValueList(node.getOutputs()).get();
+            pTransformToInputOutputMap.put(
+                node.getFullName(),
+                new AbstractMap.SimpleEntry<>(
+                    String.join(TRANSFORM_IO_MAP_DELIMITER, inputs),
+                    String.join(TRANSFORM_IO_MAP_DELIMITER, outputs)));
+            ctx.clearCurrentTransform();
+          }
+        };
+
+    final SamzaPipelineTranslator.SamzaPipelineVisitor visitor =
+        new SamzaPipelineTranslator.SamzaPipelineVisitor(configFn);
+    pipeline.traverseTopologically(visitor);
+    return pTransformToInputOutputMap;
+  }
+
+  private static Supplier<List<String>> getIOPValueList(Map<TupleTag<?>, PCollection<?>> map) {
+    return () -> map.values().stream().map(pColl -> pColl.getName()).collect(Collectors.toList());
   }
 }

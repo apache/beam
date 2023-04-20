@@ -75,9 +75,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -88,8 +88,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.beamStore.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-beamStore-changelog", config2.get("stores.beamStore.changelog"));
@@ -108,9 +107,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -121,8 +120,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.beamStore.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     // For stateless jobs, ignore state durable pipeline option.
     assertNull(config2.get("stores.beamStore.changelog"));
@@ -142,9 +140,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertTrue(
@@ -172,9 +170,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     try {
       Config config = configBuilder.build();
       assertEquals(config.get(APP_RUNNER_CLASS), RemoteApplicationRunner.class.getName());
@@ -204,9 +202,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     try {
       Config config = configBuilder.build();
       assertEquals(config.get(APP_RUNNER_CLASS), LocalApplicationRunner.class.getName());
@@ -220,42 +218,6 @@ public class ConfigGeneratorTest {
               SamzaExecutionEnvironment.STANDALONE),
           e);
     }
-  }
-
-  @Test
-  public void testBeamTransformIOConfigGen() {
-    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
-    options.setJobName("TestEnvConfig");
-    options.setRunner(SamzaRunner.class);
-    options.setSamzaExecutionEnvironment(SamzaExecutionEnvironment.LOCAL);
-
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(Impulse.create()).apply(Filter.by(Objects::nonNull));
-    pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
-
-    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
-    final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
-
-    final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
-    final Map<String, Map.Entry<String, String>> transformInputOutput =
-        SamzaPipelineTranslator.buildTransformIOMap(pipeline, options, idMap, nonUniqueStateIds);
-
-    assertEquals(2, transformInputOutput.size());
-    assertEquals("", transformInputOutput.get("Impulse").getKey()); // no input to impulse
-    assertEquals(
-        "Impulse.out",
-        transformInputOutput.get("Impulse").getValue()); // PValue for to Impulse.output
-
-    // Input to Filter is PValue Output from Impulse
-    assertEquals(
-        "Impulse.out",
-        transformInputOutput.get("Filter/ParDo(Anonymous)/ParMultiDo(Anonymous)").getKey());
-    // output PValue of filter
-    assertEquals(
-        "Filter/ParDo(Anonymous)/ParMultiDo(Anonymous).output",
-        transformInputOutput.get("Filter/ParDo(Anonymous)/ParMultiDo(Anonymous)").getValue());
   }
 
   @Test
@@ -283,9 +245,10 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -296,8 +259,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.testState.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-changelog", config2.get("stores.testState.changelog"));
@@ -344,9 +306,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -364,8 +326,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.testState-Second_stateful_ParDo.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-First_stateful_ParDo-changelog",
@@ -416,9 +377,10 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
+
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -440,8 +402,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.testState-Same_stateful_ParDo_Name2.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-Same_stateful_ParDo_Name-changelog",
