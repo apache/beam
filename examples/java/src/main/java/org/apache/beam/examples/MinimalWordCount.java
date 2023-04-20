@@ -13,7 +13,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. only
  * See the License for the specific language governing permissions and
- * limitations under the License. test 10 - GCS Bucket Lister only
+ * limitations under the License. test 11 - Storage Object Creator
  */
 package org.apache.beam.examples;
 
