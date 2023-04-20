@@ -827,7 +827,13 @@ your pipeline.</p></li><li><p>If you are using the Beam SDK for Python, you migh
 issues if you write a very large dataset. As a workaround, you can partition
 the dataset (for example, using Beam&rsquo;s <code>Partition</code> transform) and write to
 multiple BigQuery tables. The Beam SDK for Java does not have this limitation
-as it partitions your dataset for you.</p></li></ol><h2 id=additional-examples>Additional examples</h2><p>You can find additional examples that use BigQuery in Beam&rsquo;s examples
+as it partitions your dataset for you.</p></li><li><p>When you <a href=https://cloud.google.com/bigquery/docs/loading-data>load data</a> into BigQuery, <a href=https://cloud.google.com/bigquery/quotas#load_jobs>these limits</a> are applied.
+By default, BigQuery uses a shared pool of slots to load data.
+This means that the available capacity is not guaranteed, and your load may be queued until
+a slot becomes available. If a slot does not become available within 6 hours,
+the load will fail due to the limits set by BigQuery. To avoid this situation,
+it is highly recommended that you use <a href=https://cloud.google.com/bigquery/docs/reservations-intro#benefits_of_reservations>BigQuery reservations</a>,
+which ensure that your load does not get queued and fail due to capacity issues.</p></li></ol><h2 id=additional-examples>Additional examples</h2><p>You can find additional examples that use BigQuery in Beam&rsquo;s examples
 directories.</p><h3 id=java-cookbook-examples>Java cookbook examples</h3><p>These examples are from the Java <a href=https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/cookbook>cookbook examples</a>
 directory.</p><ul><li><p><a href=https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java>BigQueryTornadoes</a>
 reads the public samples of weather data from BigQuery, counts the number of
