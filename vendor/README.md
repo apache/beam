@@ -32,7 +32,7 @@ The upgrading of the vendored dependencies should be performed in two steps:
 The [linkage tool](https://lists.apache.org/thread.html/eb5d95b9a33d7e32dc9bcd0f7d48ba8711d42bd7ed03b9cf0f1103f1%40%3Cdev.beam.apache.org%3E)
 is useful for the vendored dependency upgrades. It reports the linkage errors across multiple Apache Beam artifact ids.
 
-For example, when we upgrade the version of gRPC to 1.48.1 and the version of the vendored gRPC is 0.1-SNAPSHOT,
+For example, when we upgrade the version of gRPC to 1.54.0 and the version of the vendored gRPC is 0.1-SNAPSHOT,
 we could run the linkage tool as following:
 
 ```
