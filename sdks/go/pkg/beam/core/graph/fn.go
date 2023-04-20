@@ -308,28 +308,25 @@ func (f *DoFn) PipelineState() []state.PipelineState {
 	return s
 }
 
-type PipelineTimer interface {
-	TimerFamily() string
-	TimerDomain() timers.TimeDomainEnum
-}
-
+// OnTimerFn return the "OnTimer" function and a bool indicating whether the
+// function is defined or not for the DoFn.
 func (f *DoFn) OnTimerFn() (*funcx.Fn, bool) {
 	m, ok := f.methods[onTimerName]
 	return m, ok
 }
 
-func (f *DoFn) PipelineTimers() []PipelineTimer {
-	var t []PipelineTimer
+// PipelineTimers returns the list of PipelineTimer objects defined for the DoFn.
+func (f *DoFn) PipelineTimers() []timers.PipelineTimer {
+	var t []timers.PipelineTimer
 	if f.Recv == nil {
 		return t
 	}
 
 	v := reflect.Indirect(reflect.ValueOf(f.Recv))
-
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
 		if f.CanInterface() {
-			if pt, ok := f.Interface().(PipelineTimer); ok {
+			if pt, ok := f.Interface().(timers.PipelineTimer); ok {
 				t = append(t, pt)
 			}
 		}
@@ -1410,7 +1407,7 @@ func validateTimer(fn *DoFn) error {
 			return errors.SetTopLevelMsgf(err, "ProcessElement uses a TimerProvider, but no timer fields are defined in the DoFn"+
 				", Ensure that you are including the exported timer field in the DoFn that you're using to set/clear timers.")
 		}
-		timerKeys := make(map[string]PipelineTimer)
+		timerKeys := make(map[string]timers.PipelineTimer)
 		for _, t := range pt {
 			k := t.TimerFamily()
 			if timer, ok := timerKeys[k]; ok {

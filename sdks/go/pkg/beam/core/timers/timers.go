@@ -24,17 +24,24 @@ import (
 )
 
 var (
+	// ProviderType represents the type of timer provider.
 	ProviderType = reflect.TypeOf((*Provider)(nil)).Elem()
 )
 
+// TimeDomainEnum represents different time domains to set timer.
 type TimeDomainEnum int32
 
 const (
-	TimeDomainUnspecified    TimeDomainEnum = 0
-	TimeDomainEventTime      TimeDomainEnum = 1
+	// TimeDomainUnspecified represents unspecified time domain.
+	TimeDomainUnspecified TimeDomainEnum = 0
+	// TimeDomainEventTime is time from the perspective of the data
+	TimeDomainEventTime TimeDomainEnum = 1
+	// TimeDomainProcessingTime is time from the perspective of the
+	// execution of your pipeline
 	TimeDomainProcessingTime TimeDomainEnum = 2
 )
 
+// TimerMap holds timer information obtained from the pipeline.
 type TimerMap struct {
 	Family                       string
 	Tag                          string
@@ -63,8 +70,15 @@ func WithOutputTimestamp(outputTimestamp time.Time) timerOptions {
 	}
 }
 
+// Provider represents a timer provider interface.
 type Provider interface {
 	Set(t TimerMap)
+}
+
+// PipelineTimer interface represents valid timer type.
+type PipelineTimer interface {
+	TimerFamily() string
+	TimerDomain() TimeDomainEnum
 }
 
 // EventTime represents the event time timer.
@@ -72,10 +86,12 @@ type EventTime struct {
 	Family string
 }
 
+// TimerFamily returns the name of timer family.
 func (et EventTime) TimerFamily() string {
 	return et.Family
 }
 
+// TimerDomain returns the time domain of timer.
 func (et EventTime) TimerDomain() TimeDomainEnum {
 	return TimeDomainEventTime
 }
@@ -104,10 +120,12 @@ type ProcessingTime struct {
 	Family string
 }
 
+// TimerFamily returns the name of timer family.
 func (pt ProcessingTime) TimerFamily() string {
 	return pt.Family
 }
 
+// TimerDomain returns the time domain of timer.
 func (pt ProcessingTime) TimerDomain() TimeDomainEnum {
 	return TimeDomainProcessingTime
 }
@@ -132,10 +150,12 @@ func (pt ProcessingTime) Clear(p Provider) {
 	p.Set(TimerMap{Family: pt.Family, Clear: true})
 }
 
+// InEventTime creates and returns a new EventTime timer object.
 func InEventTime(Key string) EventTime {
 	return EventTime{Family: Key}
 }
 
+// InProcessingTime creates and returns a new ProcessingTime timer object.
 func InProcessingTime(Key string) ProcessingTime {
 	return ProcessingTime{Family: Key}
 }

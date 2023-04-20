@@ -310,6 +310,8 @@ func (u *Fn) StateProvider() (pos int, exists bool) {
 	return -1, false
 }
 
+// TimerProvider returns (index, true) iff the function expects a
+// parameter that implements timers.Provider.
 func (u *Fn) TimerProvider() (pos int, exists bool) {
 	for i, p := range u.Param {
 		if p.Kind == FnTimerProvider {

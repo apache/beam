@@ -26,50 +26,35 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
+// UserTimerAdapter provides a timer provider to be used for manipulating timers.
 type UserTimerAdapter interface {
 	NewTimerProvider(ctx context.Context, manager DataManager, inputTimestamp typex.EventTime, windows []typex.Window, element *MainInput) (timerProvider, error)
 }
 
 type userTimerAdapter struct {
 	sID            StreamID
-	wc             WindowEncoder
-	kc             ElementEncoder
-	dc             ElementDecoder
 	timerIDToCoder map[string]*coder.Coder
-	c              *coder.Coder
 }
 
+// NewUserTimerAdapter returns a user timer adapter for the given StreamID and timer coder.
 func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoders map[string]*coder.Coder) UserTimerAdapter {
 	if !coder.IsW(c) {
 		panic(fmt.Sprintf("expected WV coder for user timer %v: %v", sID, c))
 	}
 
-	wc := MakeWindowEncoder(c.Window)
-	kc := MakeElementEncoder(coder.SkipW(c).Components[0])
-	dc := MakeElementDecoder(coder.SkipW(c).Components[0])
-
-	return &userTimerAdapter{sID: sID, wc: wc, kc: kc, dc: dc, c: c, timerIDToCoder: timerCoders}
+	return &userTimerAdapter{sID: sID, timerIDToCoder: timerCoders}
 }
 
+// NewTimerProvider creates and returns a timer provider to set/clear timers.
 func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataManager, inputTs typex.EventTime, w []typex.Window, element *MainInput) (timerProvider, error) {
-	if u.kc == nil {
-		return timerProvider{}, fmt.Errorf("cannot make a state provider for an unkeyed input %v", element)
-	}
-	elementKey, err := EncodeElement(u.kc, element.Key.Elm)
-	if err != nil {
-		return timerProvider{}, err
-	}
 	userKey := &FullValue{Elm: element.Key.Elm}
 	tp := timerProvider{
 		ctx:             ctx,
 		tm:              manager,
-		elementKey:      elementKey,
 		userKey:         userKey,
 		inputTimestamp:  inputTs,
 		sID:             u.sID,
 		window:          w,
-		c:               u.c,
-		win:             u.wc,
 		writersByFamily: make(map[string]io.Writer),
 		codersByFamily:  u.timerIDToCoder,
 	}
@@ -82,13 +67,10 @@ type timerProvider struct {
 	tm             DataManager
 	sID            StreamID
 	inputTimestamp typex.EventTime
-	elementKey     []byte
 	userKey        *FullValue
 	window         []typex.Window
 
-	pn  typex.PaneInfo
-	c   *coder.Coder
-	win WindowEncoder
+	pn typex.PaneInfo
 
 	writersByFamily map[string]io.Writer
 	codersByFamily  map[string]*coder.Coder
@@ -107,6 +89,8 @@ func (p *timerProvider) getWriter(family string) (io.Writer, error) {
 	}
 }
 
+// Set writes a new timer. This can be used to both Set as well as Clear the timer.
+// Note: This function is intended for internal use only.
 func (p *timerProvider) Set(t timers.TimerMap) {
 	w, err := p.getWriter(t.Family)
 	if err != nil {
@@ -128,6 +112,7 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 	}
 }
 
+// TimerRecv holds the timer metadata while encoding and decoding timers in exec unit.
 type TimerRecv struct {
 	Key                          *FullValue
 	Tag                          string
