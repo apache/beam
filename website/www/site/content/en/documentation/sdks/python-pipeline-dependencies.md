@@ -149,7 +149,6 @@ Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any
 setting the `--save_main_session` pipeline option. This will load the pickled state of the global namespace onto the Dataflow workers.
 For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
 
-The dill pickler is the default pickler in the Python SDK.
 
 **NOTE**: This applies to the Python SDK executing with the dill pickler on any remote runner. Therefore, this issue will
 not occur in `DirectRunner`.  Additionally, if users cannot use the version of `dill` or `cloudpickle` required by Beam, and choose to
