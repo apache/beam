@@ -1,6 +1,9 @@
+import argparse
+import logging
 import os
 import random
 import re
+import sys
 import tempfile
 import unittest
 
@@ -16,6 +19,9 @@ from apache_beam.yaml import yaml_transform
 class FakeSql(beam.PTransform):
   def __init__(self, query):
     self.query = query
+
+  def default_label(self):
+    return 'Sql'
 
   def expand(self, inputs):
     if isinstance(inputs, beam.PCollection):
@@ -59,12 +65,12 @@ class FakeSql(beam.PTransform):
     output_schema = [
         guess_name_and_type(expr) for expr in m.group(1).split(',')
     ]
-    print("SCHEMA", output_schema)
     return next(iter(inputs.values())).pipeline | beam.Create(
         [beam.Row(**{name: typ()
                      for name, typ in output_schema})])
 
 
+RENDER_DIR = None
 TEST_PROVIDERS = {'Sql': [yaml_provider.InlineProvider({'Sql': FakeSql})]}
 
 
@@ -87,7 +93,8 @@ class TestEnvironment:
         'input.json', '{"col1": "abc", "col2": 1, "col3": 2.5"}\n')
 
   def output_file(self):
-    return os.path.join(self.tempdir.name, str(random.randint(0, 1000)) + '.out')
+    return os.path.join(
+        self.tempdir.name, str(random.randint(0, 1000)) + '.out')
 
   def __exit__(self, *args):
     self.tempdir.cleanup()
@@ -125,7 +132,14 @@ def create_test_method(test_type, test_name, test_yaml):
         if write in test_yaml:
           spec = replace_recursive(spec, write, 'path', env.output_file())
       modified_yaml = yaml.dump(spec)
-      p = beam.Pipeline(options=PipelineOptions(pickle_library='cloudpickle'))
+      options = {'pickle_library': 'cloudpickle'}
+      if RENDER_DIR is not None:
+        options['runner'] = 'apache_beam.runners.render.RenderRunner'
+        options['render_output'] = [
+            os.path.join(RENDER_DIR, test_name + '.png')
+        ]
+        options['render_leaf_composite_nodes'] = ['.*']
+      p = beam.Pipeline(options=PipelineOptions(**options))
       yaml_transform.expand_pipeline(p, modified_yaml, TEST_PROVIDERS)
       if test_type == 'BUILD':
         return
@@ -159,8 +173,6 @@ def parse_test_methods(markdown_lines):
 
 def createTestSuite():
   with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
-    print(dict(parse_test_methods(readme)))
-  with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
     return type(
         'ReadMeTest', (unittest.TestCase, ), dict(parse_test_methods(readme)))
 
@@ -168,5 +180,10 @@ def createTestSuite():
 ReadMeTest = createTestSuite()
 
 if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--render_dir', default=None)
+  known_args, unknown_args = parser.parse_known_args(sys.argv)
+  if known_args.render_dir:
+    RENDER_DIR = known_args.render_dir
   logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  unittest.main(argv=unknown_args)
