@@ -156,7 +156,7 @@ public class CrossLanguage {
 
         /** Set this option to specify Python expansion service URL. */
         @Description("URL of Python expansion service")
-        @Default.String("localhost:9999")
+        @Default.String("localhost:1234")
         String getExpansionService();
 
         void setExpansionService(String value);
@@ -166,6 +166,6 @@ public class CrossLanguage {
         SklearnMnistClassificationOptions options =
                 PipelineOptionsFactory.fromArgs(args).as(SklearnMnistClassificationOptions.class);
         CrossLanguage example = new CrossLanguage();
-        example.runExample(options, "localhost:9999");
+        example.runExample(options, "localhost:1234");
     }
 }
