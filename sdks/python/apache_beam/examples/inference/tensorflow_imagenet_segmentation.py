@@ -42,8 +42,7 @@ class PostProcessor(beam.DoFn):
         'ImageNetLabels.txt',
         'https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt'  # pylint: disable=line-too-long
     )
-    self._imagenet_labels = numpy.array(
-        open(labels_path).read().splitlines())
+    self._imagenet_labels = numpy.array(open(labels_path).read().splitlines())
 
   def process(self, element: PredictionResult) -> Iterable[str]:
     predicted_class = numpy.argmax(element.inference, axis=-1)
