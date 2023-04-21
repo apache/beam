@@ -1331,13 +1331,14 @@ public class StreamingDataflowWorker {
                   readNode.getParallelInstruction().getOriginalName(),
                   readNode.getParallelInstruction().getSystemName(),
                   readNode.getParallelInstruction().getName());
-          outputCounter = new OutputObjectAndByteCounter(
-                              new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
-                                  readCoder),
-                              mapTaskExecutor.getOutputCounters(),
-                              nameContext)
-                          .setSamplingPeriod(100)
-                          .countBytes("dataflow_input_size-" + mapTask.getSystemName());
+          outputCounter =
+              new OutputObjectAndByteCounter(
+                      new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
+                          readCoder),
+                      mapTaskExecutor.getOutputCounters(),
+                      nameContext)
+                  .setSamplingPeriod(100)
+                  .countBytes("dataflow_input_size-" + mapTask.getSystemName());
           readOperation.receivers[0].addOutputCounter(outputCounter);
         }
         executionState =
