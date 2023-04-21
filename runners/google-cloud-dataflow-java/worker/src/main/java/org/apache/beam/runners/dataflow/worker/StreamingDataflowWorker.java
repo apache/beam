@@ -1325,7 +1325,6 @@ public class StreamingDataflowWorker {
             .getName()
             .equals(
                 readNode.getParallelInstruction().getRead().getSource().getSpec().get("@type"))) {
-          isCustomSource = true;
           NameContext nameContext =
               NameContext.create(
                   mapTask.getStageName(),
