@@ -17,19 +17,17 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground_components/playground_components.dart';
 
-class PipelineOptionsDropdownSeparator extends StatelessWidget {
-  const PipelineOptionsDropdownSeparator({Key? key}) : super(key: key);
+class PipelineOptionLabel extends StatelessWidget {
+  final String text;
+
+  const PipelineOptionLabel({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: kDividerHeight,
-      decoration: BoxDecoration(
-        color: Theme.of(context).extension<BeamThemeExtension>()?.borderColor,
-      ),
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.labelLarge,
     );
   }
 }

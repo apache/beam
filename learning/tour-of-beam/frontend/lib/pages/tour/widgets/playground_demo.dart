@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
@@ -36,6 +37,13 @@ class PlaygroundDemoWidget extends StatelessWidget {
   }
 
   Widget _buildOnChange(BuildContext context, Widget? child) {
+    if (playgroundController.codeRunner.result?.errorMessage?.isNotEmpty ??
+        false) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleError(context, playgroundController);
+      });
+    }
+
     final snippetController = playgroundController.snippetEditingController;
     if (snippetController == null) {
       return const LoadingIndicator();
@@ -65,5 +73,17 @@ class PlaygroundDemoWidget extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _handleError(BuildContext context, PlaygroundController controller) {
+    //TODO: https://github.com/apache/beam/issues/26319
+    PlaygroundComponents.toastNotifier.add(
+      Toast(
+        description: controller.codeRunner.result?.errorMessage ?? '',
+        title: 'intents.playground.runCode'.tr(),
+        type: ToastType.error,
+      ),
+    );
+    controller.resetErrorMessageText();
   }
 }

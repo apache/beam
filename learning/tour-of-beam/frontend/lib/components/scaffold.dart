@@ -21,11 +21,11 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../pages/tour/widgets/pipeline_options.dart';
 import '../state.dart';
 import 'footer.dart';
 import 'login/button.dart';
 import 'logo.dart';
-import 'pipeline_options/button.dart';
 import 'profile/avatar.dart';
 import 'sdk_dropdown.dart';
 
@@ -46,10 +46,8 @@ class TobScaffold extends StatelessWidget {
         title: const Logo(),
         actions: [
           if (playgroundController != null)
-            _ActionVerticalPadding(
-              child: PipelineOptionsButton(
-                controller: playgroundController!,
-              ),
+            _PlaygroundControllerActions(
+              playgroundController: playgroundController!,
             ),
           const SizedBox(width: BeamSizes.size12),
           const _ActionVerticalPadding(child: _SdkSelector()),
@@ -117,6 +115,41 @@ class _SdkSelector extends StatelessWidget {
                   appNotifier.sdkId = value;
                 },
               );
+      },
+    );
+  }
+}
+
+class _PlaygroundControllerActions extends StatelessWidget {
+  final PlaygroundController playgroundController;
+
+  const _PlaygroundControllerActions({
+    required this.playgroundController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: playgroundController,
+      builder: (context, child) {
+        final widgets = <Widget>[];
+        widgets.add(
+          _ActionVerticalPadding(
+            child: TobPipelineOptionsDropdown(
+              playgroundController: playgroundController,
+            ),
+          ),
+        );
+        return Row(
+          children: widgets
+              .map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(left: BeamSizes.size12),
+                  child: e,
+                ),
+              )
+              .toList(growable: false),
+        );
       },
     );
   }

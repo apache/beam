@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_body.dart';
-import 'package:playground_components/playground_components.dart';
+
+import '../dropdown_button/dropdown_button.dart';
+import 'pipeline_options_dropdown_body.dart';
 
 const kDropdownWidth = 400.0;
 const kDropdownHeight = 375.0;
@@ -29,16 +30,15 @@ class PipelineOptionsDropdown extends StatelessWidget {
   final void Function(String) setPipelineOptions;
 
   const PipelineOptionsDropdown({
-    Key? key,
+    super.key,
     required this.pipelineOptions,
     required this.setPipelineOptions,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
     return AppDropdownButton(
-      buttonText: Text(appLocale.pipelineOptions),
+      buttonText: Text('widgets.pipelineOptions.pipelineOptions'.tr()),
       height: kDropdownHeight,
       width: kDropdownWidth,
       createDropdown: (close) => PipelineOptionsDropdownBody(

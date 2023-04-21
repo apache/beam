@@ -16,20 +16,26 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:flutter/widgets.dart';
+import 'package:playground_components/playground_components.dart';
 
-class PipelineOptionLabel extends StatelessWidget {
-  final String text;
+class TobPipelineOptionsDropdown extends StatelessWidget {
+  final PlaygroundController playgroundController;
 
-  const PipelineOptionLabel({Key? key, required this.text}) : super(key: key);
+  const TobPipelineOptionsDropdown({required this.playgroundController});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(fontWeight: kMediumWeight, fontSize: kLabelFontSize),
+    return AnimatedBuilder(
+      animation: playgroundController,
+      builder: (_, __) {
+        final pipelineOptions =
+            playgroundController.snippetEditingController?.pipelineOptions;
+        return PipelineOptionsDropdown(
+          pipelineOptions: pipelineOptions ?? '',
+          setPipelineOptions: playgroundController.setPipelineOptions,
+        );
+      },
     );
   }
 }

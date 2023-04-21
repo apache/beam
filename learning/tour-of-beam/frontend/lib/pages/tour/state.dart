@@ -152,6 +152,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
 
     final selectedSdk = _appNotifier.sdk;
+
     if (selectedSdk != null) {
       await _loadExamples(
         controller: playgroundController,
