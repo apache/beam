@@ -193,18 +193,16 @@ def _start_profiler(gcp_profiler_service_name, gcp_profiler_service_version):
         'https://cloud.google.com/profiler/docs/troubleshooting.' % e)
 
 
-def _start_profiler_if_enabled(sdk_pipeline_options):
+def _get_gcp_profiler_name_if_enabled(sdk_pipeline_options):
   experiments = (sdk_pipeline_options.view_as(DebugOptions).experiments or [])
   gcp_profiler_service_name = sdk_pipeline_options.view_as(
-      GoogleCloudOptions).get_cloud_profiler_service_name(
-          _ENABLE_GOOGLE_CLOUD_PROFILER)
+      GoogleCloudOptions).get_cloud_profiler_service_name()
 
   if _ENABLE_GOOGLE_CLOUD_PROFILER in experiments and \
     not gcp_profiler_service_name:
     gcp_profiler_service_name = os.environ["JOB_NAME"]
 
-  if gcp_profiler_service_name:
-    _start_profiler(gcp_profiler_service_name, os.environ["JOB_ID"])
+  return gcp_profiler_service_name
 
 
 def main(unused_argv):
@@ -212,7 +210,9 @@ def main(unused_argv):
   (fn_log_handler, sdk_harness,
    sdk_pipeline_options) = create_harness(os.environ)
 
-  _start_profiler_if_enabled(sdk_pipeline_options)
+  gcp_profiler_name = _get_gcp_profiler_name_if_enabled(sdk_pipeline_options)
+  if gcp_profiler_name:
+    _start_profiler(gcp_profiler_name, os.environ["JOB_ID"])
 
   try:
     _LOGGER.info('Python sdk harness starting.')
