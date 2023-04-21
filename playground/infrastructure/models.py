@@ -84,6 +84,7 @@ class Tag(BaseModel):
     datasets: Dict[str, Dataset] = {}
     emulators: List[Emulator] = []
     always_run: bool = False
+    never_run: bool = False
     multifile: bool = False
     default_example: bool = False
     tags: List[str] = []

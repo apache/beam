@@ -109,5 +109,3 @@ COPY --from=third_party_licenses /opt/apache/beam/third_party_licenses /opt/apac
 RUN if [ "$pull_licenses" != "true" ] ; then \
       rm -rf /opt/apache/beam/third_party_licenses ; \
     fi
-
-

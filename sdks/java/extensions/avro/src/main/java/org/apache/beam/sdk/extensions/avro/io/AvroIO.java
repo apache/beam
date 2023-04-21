@@ -816,8 +816,11 @@ public class AvroIO {
       abstract ReadFiles<T> build();
     }
 
-    @VisibleForTesting
-    ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -930,8 +933,11 @@ public class AvroIO {
           getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
-    @VisibleForTesting
-    ReadAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ReadAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -1172,8 +1178,11 @@ public class AvroIO {
       return toBuilder().setFileExceptionHandler(exceptionHandler).build();
     }
 
-    @VisibleForTesting
-    ParseFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ParseFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -1281,8 +1290,11 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
-    @VisibleForTesting
-    ParseAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ParseAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 

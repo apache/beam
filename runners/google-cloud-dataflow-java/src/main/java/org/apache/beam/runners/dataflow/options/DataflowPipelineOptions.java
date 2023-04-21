@@ -51,7 +51,6 @@ public interface DataflowPipelineOptions
         BigQueryOptions,
         GcsOptions,
         StreamingOptions,
-        CloudDebuggerOptions,
         DataflowWorkerLoggingOptions,
         DataflowProfilingOptions,
         PubsubOptions {

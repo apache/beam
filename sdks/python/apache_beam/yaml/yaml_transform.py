@@ -375,7 +375,7 @@ def pipeline_as_composite(spec):
         '__uuid__': str(uuid.uuid4()),
     }
   else:
-    return dict(spec, name=None, type='composite')
+    return dict(spec, name=None, type=spec.get('type', 'composite'))
 
 
 def normalize_source_sink(spec):
@@ -453,11 +453,13 @@ class YamlTransform(beam.PTransform):
       return result
 
 
-def expand_pipeline(pipeline, pipeline_spec):
+def expand_pipeline(pipeline, pipeline_spec, providers=None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),
-      yaml_provider.parse_providers(pipeline_spec.get('providers', []))).expand(
-          beam.pvalue.PBegin(pipeline))
+      {
+          **yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
+          **(providers or {})
+      }).expand(beam.pvalue.PBegin(pipeline))

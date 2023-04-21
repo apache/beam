@@ -96,7 +96,6 @@ dependencies {
   // Ensures SequencedMessage availability for Spotless
   implementation library.java.proto_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
-  implementation library.java.google_api_services_clouddebugger
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
   permitUnusedDeclared library.java.google_api_services_storage // BEAM-11761
@@ -111,7 +110,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")

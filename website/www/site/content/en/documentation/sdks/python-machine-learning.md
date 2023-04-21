@@ -127,7 +127,7 @@ To use TensorFlow with the RunInference API, you have two options:
     * Use tensorflow 2.7 or later.
     * Pass the path of the model to the TensorFlow `ModelHandler` by using `model_uri=<path_to_trained_model>`.
     * Alternatively, you can pass the path to saved weights of the trained model, a function to build the model using `create_model_fn=<function>`, and set the `model_type=ModelType.SAVED_WEIGHTS`.
-  See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow_with_tensorflowhub.ipynb) that illustrates running Tensorflow models with Built-in model handlers.
+  See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb) that illustrates running Tensorflow models with Built-in model handlers.
 2. Using `tfx_bsl`.
     * Use this approach if your model input is of type `tf.Example`.
     * Use `tfx_bsl` version 1.10.0 or later.
@@ -269,8 +269,7 @@ The side input `PCollection` must follow the [`AsSingleton`](https://beam.apache
 
 ## Beam Java SDK support
 
-The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language).
-
+The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language). Additionally, see [Using RunInference from Java SDK](https://beam.apache.org/documentation/ml/multi-language-inference/) for an example of a composite Python transform that uses the RunInference API along with preprocessing and postprocessing from a Beam Java SDK pipeline.
 
 ## Troubleshooting
 

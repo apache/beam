@@ -142,7 +142,16 @@ Run the method to remove unused code snippets from the Cloud Datastore. Unused s
 
 ```
 cd beam
-./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string}
+./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string} -Dnamespace={datastore namespace}
+```
+
+## Removing a specific snippet
+
+Run the method to remove a specific code snippet from the Cloud Datastore.
+
+```
+cd beam
+./gradlew playground:backend:removeSnippet -DsnippetId={string} -DprojectId={string} -Dnamespace={datastore namespace}
 ```
 
 ## Run playground tests without cache
