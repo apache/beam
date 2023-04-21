@@ -221,6 +221,10 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv.getConfig().disableObjectReuse();
     }
 
+    if (!options.getOperatorChaining()) {
+      flinkStreamEnv.disableOperatorChaining();
+    }
+
     // default to event time
     flinkStreamEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 

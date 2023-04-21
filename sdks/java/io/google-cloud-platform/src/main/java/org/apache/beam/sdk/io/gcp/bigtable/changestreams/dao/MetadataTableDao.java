@@ -29,13 +29,16 @@ import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
 import com.google.cloud.bigtable.data.v2.models.Filters.Filter;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.HashMap;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationException;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
 import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -47,7 +50,6 @@ import org.slf4j.LoggerFactory;
  * <p>Metadata table is shared across many beam jobs. Each beam job uses a specific prefix to
  * identify itself which is used as the row prefix.
  */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class MetadataTableDao {
   private static final Logger LOG = LoggerFactory.getLogger(MetadataTableDao.class);
@@ -117,9 +119,23 @@ public class MetadataTableDao {
    * @param partition convert to row key
    * @return row key to insert to Cloud Bigtable.
    */
-  public ByteString convertPartitionToStreamPartitionRowKey(Range.ByteStringRange partition) {
-    return getFullStreamPartitionPrefix()
-        .concat(Range.ByteStringRange.serializeToByteString(partition));
+  public ByteString convertPartitionToStreamPartitionRowKey(ByteStringRange partition) {
+    return getFullStreamPartitionPrefix().concat(ByteStringRange.serializeToByteString(partition));
+  }
+
+  /**
+   * Convert new partition row key to partition to process metadata read from Bigtable.
+   *
+   * <p>RowKey should be directly from Cloud Bigtable and not altered in any way.
+   *
+   * @param rowKey row key from Cloud Bigtable
+   * @return partition extracted from rowKey
+   * @throws InvalidProtocolBufferException if conversion from rowKey to partition fails
+   */
+  public ByteStringRange convertNewPartitionRowKeyToPartition(ByteString rowKey)
+      throws InvalidProtocolBufferException {
+    int prefixLength = changeStreamNamePrefix.size() + NEW_PARTITION_PREFIX.size();
+    return ByteStringRange.toByteStringRange(rowKey.substring(prefixLength));
   }
 
   /**
@@ -129,9 +145,8 @@ public class MetadataTableDao {
    * @param partition convert to row key
    * @return row key to insert to Cloud Bigtable.
    */
-  public ByteString convertPartitionToNewPartitionRowKey(Range.ByteStringRange partition) {
-    return getFullNewPartitionPrefix()
-        .concat(Range.ByteStringRange.serializeToByteString(partition));
+  public ByteString convertPartitionToNewPartitionRowKey(ByteStringRange partition) {
+    return getFullNewPartitionPrefix().concat(ByteStringRange.serializeToByteString(partition));
   }
 
   /**
@@ -153,19 +168,21 @@ public class MetadataTableDao {
    * After a split or merge from a close stream, write the new partition's information to the
    * metadata table.
    *
+   * @param newPartition the new partition
    * @param changeStreamContinuationToken the token that can be used to pick up from where the
    *     parent left off
    * @param parentPartition the parent that stopped and split or merged
    * @param lowWatermark the low watermark of the parent stream
    */
   public void writeNewPartition(
+      ByteStringRange newPartition,
       ChangeStreamContinuationToken changeStreamContinuationToken,
-      Range.ByteStringRange parentPartition,
+      ByteStringRange parentPartition,
       Instant lowWatermark) {
     writeNewPartition(
-        changeStreamContinuationToken.getPartition(),
+        newPartition,
         changeStreamContinuationToken.toByteString(),
-        Range.ByteStringRange.serializeToByteString(parentPartition),
+        ByteStringRange.serializeToByteString(parentPartition),
         lowWatermark);
   }
 
@@ -179,10 +196,11 @@ public class MetadataTableDao {
    * @param lowWatermark low watermark of the parent
    */
   private void writeNewPartition(
-      Range.ByteStringRange newPartition,
+      ByteStringRange newPartition,
       ByteString newPartitionContinuationToken,
       ByteString parentPartition,
       Instant lowWatermark) {
+    LOG.debug("Insert new partition");
     ByteString rowKey = convertPartitionToNewPartitionRowKey(newPartition);
     RowMutation rowMutation =
         RowMutation.create(tableId, rowKey)
@@ -191,7 +209,7 @@ public class MetadataTableDao {
             .setCell(
                 MetadataTableAdminDao.CF_PARENT_LOW_WATERMARKS,
                 parentPartition,
-                ByteString.copyFromUtf8(Long.toString(lowWatermark.getMillis())));
+                lowWatermark.getMillis());
     dataClient.mutateRow(rowMutation);
   }
 
@@ -246,7 +264,7 @@ public class MetadataTableDao {
    * @param currentToken continuation token to set for the cell
    */
   public void updateWatermark(
-      Range.ByteStringRange partition,
+      ByteStringRange partition,
       Instant watermark,
       @Nullable ChangeStreamContinuationToken currentToken) {
     writeToMdTableWatermarkHelper(
@@ -259,8 +277,18 @@ public class MetadataTableDao {
    *
    * @param partition forms the row key of the row to delete
    */
-  public void deleteStreamPartitionRow(Range.ByteStringRange partition) {
+  public void deleteStreamPartitionRow(ByteStringRange partition) {
     ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
+    RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
+    dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * Delete the row.
+   *
+   * @param rowKey row key of the row to delete
+   */
+  public void deleteRowKey(ByteString rowKey) {
     RowMutation rowMutation = RowMutation.create(tableId, rowKey).deleteRow();
     dataClient.mutateRow(rowMutation);
   }
@@ -323,6 +351,60 @@ public class MetadataTableDao {
                 MetadataTableAdminDao.CF_VERSION,
                 MetadataTableAdminDao.QUALIFIER_DEFAULT,
                 MetadataTableAdminDao.CURRENT_METADATA_TABLE_VERSION);
+    dataClient.mutateRow(rowMutation);
+  }
+
+  /**
+   * Read and deserialize missing partition and how long they have been missing from the metadata
+   * table.
+   *
+   * @return deserialized missing partitions and duration.
+   */
+  public HashMap<ByteStringRange, Long> readDetectNewPartitionMissingPartitions() {
+    @Nonnull HashMap<ByteStringRange, Long> missingPartitions = new HashMap<>();
+    Filter missingPartitionsFilter =
+        FILTERS
+            .chain()
+            .filter(FILTERS.family().exactMatch(MetadataTableAdminDao.CF_MISSING_PARTITIONS))
+            .filter(FILTERS.qualifier().exactMatch(MetadataTableAdminDao.QUALIFIER_DEFAULT))
+            .filter(FILTERS.limit().cellsPerColumn(1));
+    Row row = dataClient.readRow(tableId, getFullDetectNewPartition(), missingPartitionsFilter);
+
+    if (row == null
+        || row.getCells(
+                MetadataTableAdminDao.CF_MISSING_PARTITIONS,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT)
+            .isEmpty()) {
+      return missingPartitions;
+    }
+    ByteString serializedMissingPartition =
+        row.getCells(
+                MetadataTableAdminDao.CF_MISSING_PARTITIONS,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT)
+            .get(0)
+            .getValue();
+    try {
+      missingPartitions = SerializationUtils.deserialize(serializedMissingPartition.toByteArray());
+    } catch (SerializationException | NullPointerException exception) {
+      LOG.warn("Failed to deserialize missingPartitions: {}", exception.toString());
+    }
+    return missingPartitions;
+  }
+
+  /**
+   * Write to metadata table serialized missing partitions and how long they have been missing.
+   *
+   * @param missingPartitionDurations missing partitions and duration.
+   */
+  public void writeDetectNewPartitionMissingPartitions(
+      HashMap<ByteStringRange, Long> missingPartitionDurations) {
+    byte[] serializedMissingPartition = SerializationUtils.serialize(missingPartitionDurations);
+    RowMutation rowMutation =
+        RowMutation.create(tableId, getFullDetectNewPartition())
+            .setCell(
+                MetadataTableAdminDao.CF_MISSING_PARTITIONS,
+                ByteString.copyFromUtf8(MetadataTableAdminDao.QUALIFIER_DEFAULT),
+                ByteString.copyFrom(serializedMissingPartition));
     dataClient.mutateRow(rowMutation);
   }
 }

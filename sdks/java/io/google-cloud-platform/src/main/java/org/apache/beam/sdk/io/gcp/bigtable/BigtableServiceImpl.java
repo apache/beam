@@ -77,6 +77,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@link BigtableService} that actually communicates with the Cloud Bigtable
@@ -86,6 +88,9 @@ import org.joda.time.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BigtableServiceImpl implements BigtableService {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
+
   // Default byte limit is a percentage of the JVM's available memory
   private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .1;
   // Percentage of max number of rows allowed in the buffer
@@ -118,6 +123,7 @@ class BigtableServiceImpl implements BigtableService {
                   .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
                   .build());
     }
+    LOG.info("Started Bigtable service with settings " + builder.build());
     this.client = BigtableDataClient.create(builder.build());
   }
 

@@ -141,7 +141,7 @@ except ImportError:
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
-  pyarrow_dependency = 'pyarrow>=3.0.0,<10.0.0'
+  pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
 
 
 # We must generate protos after setup_requires are installed.
@@ -169,7 +169,7 @@ def get_portability_package_data():
 
 python_requires = '>=3.7'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 11:
+if sys.version_info.major == 3 and sys.version_info.minor >= 12:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -275,11 +275,11 @@ if __name__ == '__main__':
             'joblib>=1.0.1',
             'mock>=1.0.1,<6.0.0',
             'pandas<2.0.0',
-            'parameterized>=0.7.1,<0.9.0',
+            'parameterized>=0.7.1,<0.10.0',
             'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
-            'tenacity>=5.0.2,<6.0',
+            'tenacity>=8.0.0,<9',
             'pytest>=7.1.2,<8.0',
             'pytest-xdist>=2.5.0,<4',
             'pytest-timeout>=2.1.0,<3',
@@ -324,7 +324,7 @@ if __name__ == '__main__':
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,!=6.1.13,<8.0.4',
+            'jupyter-client>=6.1.11,!=6.1.13,<8.1.1',
             'timeloop>=1.0.2,<2',
           ],
           'interactive_test': [
@@ -337,11 +337,11 @@ if __name__ == '__main__':
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<10',
           ],
-          'aws': ['boto3 >=1.9'],
+          'aws': ['boto3>=1.9,<2'],
           'azure': [
-            'azure-storage-blob >=12.3.2',
-            'azure-core >=1.7.0',
-            'azure-identity >=1.12.0',
+            'azure-storage-blob>=12.3.2,<13',
+            'azure-core>=1.7.0,<2',
+            'azure-identity>=1.12.0,<2',
           ],
         # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
         # Exclude 1.5.0 and 1.5.1 because of
@@ -365,6 +365,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
+          'Programming Language :: Python :: 3.11',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

@@ -38,6 +38,7 @@ import com.google.rpc.Status;
 import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
@@ -59,6 +60,7 @@ public class ChangeStreamActionTest {
   private PartitionRecord partitionRecord;
   private DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
+  private ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator;
 
   @Before
   public void setUp() {
@@ -67,8 +69,9 @@ public class ChangeStreamActionTest {
     partitionRecord = mock(PartitionRecord.class);
     receiver = mock(DoFn.OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
+    throughputEstimator = mock(ThroughputEstimator.class);
 
-    action = new ChangeStreamAction(metrics);
+    action = new ChangeStreamAction(metrics, throughputEstimator);
     when(tracker.tryClaim(any())).thenReturn(true);
   }
 
@@ -91,6 +94,7 @@ public class ChangeStreamActionTest {
     verify(watermarkEstimator).setWatermark(eq(lowWatermark));
     StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
     verify(tracker).tryClaim(eq(streamProgress));
+    verify(throughputEstimator, never()).update(any(), any());
   }
 
   @Test
@@ -143,6 +147,7 @@ public class ChangeStreamActionTest {
     verify(tracker).tryClaim(eq(streamProgress));
     verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
     verify(watermarkEstimator).setWatermark(eq(lowWatermark));
+    verify(throughputEstimator).update(any(), eq(record));
   }
 
   @Test
@@ -175,5 +180,6 @@ public class ChangeStreamActionTest {
     verify(tracker).tryClaim(eq(streamProgress));
     verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
     verify(watermarkEstimator).setWatermark(eq(lowWatermark));
+    verify(throughputEstimator).update(any(), eq(record));
   }
 }

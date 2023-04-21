@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/sizes.dart';
 import '../controllers/playground_controller.dart';
+import '../models/run_shortcut.dart';
 import '../theme/theme.dart';
 import 'periodic_builder.dart';
 import 'shortcut_tooltip.dart';
@@ -55,7 +56,9 @@ class RunButton extends StatelessWidget {
           width: _width,
           height: BeamSizes.buttonHeight,
           child: ShortcutTooltip(
-            shortcut: playgroundController.runShortcut,
+            shortcut: BeamRunShortcut(
+              onInvoke: () {}, // Only the tooltip is used.
+            ),
             child: ElevatedButton.icon(
               style: const ButtonStyle(
                 padding: MaterialStatePropertyAll(EdgeInsets.zero),
