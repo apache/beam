@@ -142,7 +142,8 @@ def run(
           model_params=model_params,
           device=device,
           min_batch_size=10,
-          max_batch_size=100))
+          max_batch_size=100)).with_preprocess_fn(
+              preprocess).with_postprocess_fn(postprocess)
 
   pipeline = test_pipeline
   if not test_pipeline:
@@ -154,8 +155,7 @@ def run(
       | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines))
   predictions = (
       filename_value_pair
-      | 'PyTorchRunInference' >> RunInference(
-          model_handler, preprocess_fn=preprocess, postprocess_fn=postprocess))
+      | 'PyTorchRunInference' >> RunInference(model_handler))
 
   predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
     known_args.output,

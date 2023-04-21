@@ -59,8 +59,8 @@ _NANOSECOND_TO_MICROSECOND = 1_000
 
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
-PredictionT = TypeVar('PredictionT')
 PreT = TypeVar('PreT')
+PredictionT = TypeVar('PredictionT')
 PostT = TypeVar('PostT')
 _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
@@ -96,8 +96,8 @@ class ModelMetadata(NamedTuple):
 
 class RunInferenceDLQ(NamedTuple):
   failed_inferences: beam.PCollection
-  failed_preprocessing: Optional[beam.PCollection]
-  failed_postprocessing: Optional[beam.PCollection]
+  failed_preprocessing: Sequence[beam.PCollection]
+  failed_postprocessing: Sequence[beam.PCollection]
 
 
 ModelMetadata.model_id.__doc__ = """Unique identifier for the model. This can be
@@ -183,6 +183,38 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """Update the model paths produced by side inputs."""
     pass
 
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    """Gets all preprocessing functions to be run before batching/inference.
+    Functions are in order that they should be applied."""
+    return []
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    """Gets all postprocessing functions to be run after inference.
+    Functions are in order that they should be applied."""
+    return []
+
+  def with_preprocess_fn(
+      self, fn: Callable[[PreT], ExampleT]
+  ) -> 'ModelHandler[PreT, PredictionT, ModelT, PreT]':
+    """Returns a new ModelHandler with a preprocessing function
+    associated with it. The preprocessing function will be run
+    before batching/inference and should map your input PCollection
+    to the base ModelHandler's input type. If you apply multiple
+    preprocessing functions, they will be run on your original
+    PCollection in order from last applied to first applied."""
+    return _PreProcessingModelHandler(self, fn)
+
+  def with_postprocess_fn(
+      self, fn: Callable[[PredictionT], PostT]
+  ) -> 'ModelHandler[ExampleT, PostT, ModelT, PostT]':
+    """Returns a new ModelHandler with a postprocessing function
+    associated with it. The postprocessing function will be run
+    after inference and should map the base ModelHandler's output
+    type to your desired output type. If you apply multiple
+    postprocessing functions, they will be run on your original
+    inference result in order from first applied to last applied."""
+    return _PostProcessingModelHandler(self, fn)
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
@@ -199,6 +231,12 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     Args:
       unkeyed: An implementation of ModelHandler that does not require keys.
     """
+    if len(unkeyed.get_preprocess_fns()) or len(unkeyed.get_postprocess_fns()):
+      raise Exception(
+          'Cannot make make an unkeyed model handler with pre or '
+          'postprocessing functions defined into a keyed model handler. All '
+          'pre/postprocessing functions must be defined on the outer model'
+          'handler.')
     self._unkeyed = unkeyed
 
   def load_model(self) -> ModelT:
@@ -233,6 +271,12 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def update_model_path(self, model_path: Optional[str] = None):
     return self._unkeyed.update_model_path(model_path=model_path)
 
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._unkeyed.get_preprocess_fns()
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._unkeyed.get_postprocess_fns()
+
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                              ModelHandler[Union[ExampleT, Tuple[KeyT,
@@ -257,6 +301,12 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     Args:
       unkeyed: An implementation of ModelHandler that does not require keys.
     """
+    if len(unkeyed.get_preprocess_fns()) or len(unkeyed.get_postprocess_fns()):
+      raise Exception(
+          'Cannot make make an unkeyed model handler with pre or '
+          'postprocessing functions defined into a keyed model handler. All '
+          'pre/postprocessing functions must be defined on the outer model'
+          'handler.')
     self._unkeyed = unkeyed
 
   def load_model(self) -> ModelT:
@@ -309,10 +359,119 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def update_model_path(self, model_path: Optional[str] = None):
     return self._unkeyed.update_model_path(model_path=model_path)
 
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._unkeyed.get_preprocess_fns()
 
-class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
-                                   beam.PCollection[Union[PredictionT,
-                                                          PostT]]]):
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._unkeyed.get_postprocess_fns()
+
+
+class _PreProcessingModelHandler(Generic[ExampleT, PredictionT, ModelT, PreT],
+                                 ModelHandler[PreT, PredictionT, ModelT]):
+  def __init__(
+      self,
+      base: ModelHandler[ExampleT, PredictionT, ModelT],
+      preprocess_fn: Callable[[PreT], ExampleT]):
+    """A ModelHandler that has a preprocessing function associated with it.
+
+    Args:
+      base: An implementation of the underlying model handler.
+      preprocess_fn: the preprocessing function to use.
+    """
+    self._base = base
+    self._preprocess_fn = preprocess_fn
+
+  def load_model(self) -> ModelT:
+    return self._base.load_model()
+
+  def run_inference(
+      self,
+      batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
+      model: ModelT,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
+    return self._base.run_inference(batch, model, inference_args)
+
+  def get_num_bytes(
+      self, batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]]) -> int:
+    return self._base.get_num_bytes(batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._base.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._base.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._base.batch_elements_kwargs()
+
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+    return self._base.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._base.update_model_path(model_path=model_path)
+
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return [self._preprocess_fn] + self._base.get_preprocess_fns()
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_postprocess_fns()
+
+
+class _PostProcessingModelHandler(Generic[ExampleT, PredictionT, ModelT, PostT],
+                                  ModelHandler[ExampleT, PostT, ModelT]):
+  def __init__(
+      self,
+      base: ModelHandler[ExampleT, PredictionT, ModelT],
+      postprocess_fn: Callable[[PredictionT], PostT]):
+    """A ModelHandler that has a preprocessing function associated with it.
+
+    Args:
+      base: An implementation of the underlying model handler.
+      postprocess_fn: the preprocessing function to use.
+    """
+    self._base = base
+    self._postprocess_fn = postprocess_fn
+
+  def load_model(self) -> ModelT:
+    return self._base.load_model()
+
+  def run_inference(
+      self,
+      batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
+      model: ModelT,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
+    return self._base.run_inference(batch, model, inference_args)
+
+  def get_num_bytes(
+      self, batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]]) -> int:
+    return self._base.get_num_bytes(batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._base.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._base.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._base.batch_elements_kwargs()
+
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+    return self._base.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._base.update_model_path(model_path=model_path)
+
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_preprocess_fns()
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_postprocess_fns() + [self._postprocess_fn]
+
+
+class RunInference(beam.PTransform[beam.PCollection[ExampleT],
+                                   beam.PCollection[PredictionT]]):
   def __init__(
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
@@ -320,9 +479,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
-      preprocess_fn: Optional[Callable[[PreT], ExampleT]] = None,
-      postprocess_fn: Optional[Callable[[PredictionT], PostT]] = None):
+      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None):
     """
     A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
@@ -352,8 +509,6 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
     self._model_metadata_pcoll = model_metadata_pcoll
     self._enable_side_input_loading = self._model_metadata_pcoll is not None
     self._with_exception_handling = False
-    self._preprocess_fn = preprocess_fn
-    self._postprocess_fn = postprocess_fn
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -376,23 +531,27 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
   def expand(
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     self._model_handler.validate_inference_args(self._inference_args)
-    resource_hints = self._model_handler.get_resource_hints()
     # DLQ pcollections
-    bad_preprocessed = None
+    bad_preprocessed = []
     bad_inference = None
-    bad_postprocessed = None
+    bad_postprocessed = []
+    preprocess_fns = self._model_handler.get_preprocess_fns()
+    postprocess_fns = self._model_handler.get_postprocess_fns()
 
-    if self._preprocess_fn is not None:
+    for idx in range(len(preprocess_fns)):
+      fn = preprocess_fns[idx]
       if self._with_exception_handling:
-        pcoll, bad_preprocessed = (pcoll
-        | "BeamML_RunInference_Preprocess" >> beam.Map(
-            self._preprocess_fn).with_exception_handling(
+        pcoll, bad = (pcoll
+        | f"BeamML_RunInference_Preprocess-{idx}" >> beam.Map(
+          fn).with_exception_handling(
           exc_class=self._exc_class,
           use_subprocess=self._use_subprocess,
           threshold=self._threshold))
+        bad_preprocessed.append(bad)
       else:
-        pcoll = pcoll | "BeamML_RunInference_Preprocess" >> beam.Map(
-            self._preprocess_fn)
+        pcoll = pcoll | f"BeamML_RunInference_Preprocess-{idx}" >> beam.Map(fn)
+
+    resource_hints = self._model_handler.get_resource_hints()
 
     batched_elements_pcoll = (
         pcoll
@@ -425,17 +584,20 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
           batched_elements_pcoll
           | 'BeamML_RunInference' >> run_inference_pardo)
 
-    if self._postprocess_fn is not None:
+    for idx in range(len(postprocess_fns)):
+      fn = postprocess_fns[idx]
       if self._with_exception_handling:
-        results, bad_postprocessed = (results
-        | "BeamML_RunInference_Postprocess" >> beam.Map(
-            self._postprocess_fn).with_exception_handling(
+        results, bad = (results
+        | f"BeamML_RunInference_Postprocess-{idx}" >> beam.Map(
+          fn).with_exception_handling(
           exc_class=self._exc_class,
           use_subprocess=self._use_subprocess,
           threshold=self._threshold))
+        bad_postprocessed.append(bad)
       else:
-        results = results | "BeamML_RunInference_Postprocess" >> beam.Map(
-            self._postprocess_fn)
+        results = (
+            results
+            | f"BeamML_RunInference_Postprocess-{idx}" >> beam.Map(fn))
 
     if self._with_exception_handling:
       dlq = RunInferenceDLQ(bad_inference, bad_preprocessed, bad_postprocessed)
@@ -456,35 +618,14 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT, PreT]],
 
     For example, one would write::
 
-        main, other = RunInference(
+        good, bad = RunInference(
           maybe_error_raising_model_handler
         ).with_exception_handling()
-        dlq = other.failed_inferences
 
-    and `good` will be a PCollection of PredictionResults and `bad` will be
-    a RunInferenceDLQ object containing all failures. Each failure performing
-    inference will be added as a PCollection to the RunInferenceDLQ object's
-    failed_inferences field. Each failure in preprocessing will be added as a
-    PCollection to the RunInferenceDLQ object's failed_preprocessing. Each
-    failure in postprocessing will be added as a PCollection to the
-    RunInferenceDLQ object's failed_postprocessing. Each failure PCollection
-    will be represented as a tuple of failed records along with their
-    corresponding exception: failed_preprocessing will be a PCollection of
-    tuples of unpreprocessed examples and exceptions, failed_inference will be
-    a PCollection of tuples of batched examples and exceptions, and
-    failed_postprocessing will be a PCollection of tuples of batched inferences
-    and exceptions.
+    and `good` will be a PCollection of PredictionResults and `bad` will
+    contain a tuple of all batches that raised exceptions, along with their
+    corresponding exception.
 
-    For example, with pre and post processing one would write::
-
-        main, other = RunInference(
-          maybe_error_raising_model_handler,
-          preprocess_fn=preprocess,
-          postprocess_fn=postprocess
-        ).with_exception_handling()
-        inferences_dlq = other.failed_inferences
-        preprocess_dlq = other.failed_preprocessing
-        postprocess_dlq = other.failed_postprocessing
 
     Args:
       exc_class: An exception class, or tuple of exception classes, to catch.
