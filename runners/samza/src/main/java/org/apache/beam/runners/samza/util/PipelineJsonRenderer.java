@@ -80,9 +80,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
    * @return JSON string representation of the pipeline
    */
   public static String toJsonString(Pipeline pipeline, ConfigContext ctx) {
-    final Map<String, Map.Entry<String, String>> transformIOMap =
-        buildTransformIOMap(pipeline, ctx);
-    final PipelineJsonRenderer visitor = new PipelineJsonRenderer(transformIOMap);
+    final PipelineJsonRenderer visitor = new PipelineJsonRenderer(ctx);
     pipeline.traverseTopologically(visitor);
     return visitor.jsonBuilder.toString();
   }
@@ -100,12 +98,14 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
 
   private final StringBuilder jsonBuilder = new StringBuilder();
   private final StringBuilder graphLinks = new StringBuilder();
+
+  private final StringBuilder transformIoInfo = new StringBuilder();
   private final Map<PValue, String> valueToProducerNodeName = new HashMap<>();
-  private final Map<String, Map.Entry<String, String>> transformIOMap;
+  private final ConfigContext ctx;
   private int indent;
 
-  private PipelineJsonRenderer(Map<String, Map.Entry<String, String>> transformIOMap) {
-    this.transformIOMap = transformIOMap;
+  private PipelineJsonRenderer(ConfigContext ctx) {
+    this.ctx = ctx;
   }
 
   @Nullable
@@ -121,6 +121,13 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   public void enterPipeline(Pipeline p) {
     writeLine("{ \n \"RootNode\": [");
     graphLinks.append(",\"graphLinks\": [");
+
+    // Do a pre-scan and build transformIoInfo for input and output PValues of each transform
+    // TODO: Refactor PipelineJsonRenderer to use SamzaPipelineVisitor instead of PipelineVisitor to
+    // build Beam_JSON_GRAPH
+    final Map<String, Map.Entry<String, String>> transformIOMap = buildTransformIOMap(p, ctx);
+    buildTransformIoJson(transformIOMap);
+
     enterBlock();
   }
 
@@ -181,12 +188,11 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     graphLinks.append("]");
     jsonBuilder.append(graphLinks);
     // Attach transformIoInfo - transformName to input and output PCollection(PValues)
-    jsonBuilder.append(getTransformI0Info());
+    jsonBuilder.append(transformIoInfo);
     jsonBuilder.append("}");
   }
 
-  private StringBuilder getTransformI0Info() {
-    final StringBuilder transformIoInfo = new StringBuilder();
+  private void buildTransformIoJson(Map<String, Map.Entry<String, String>> transformIOMap) {
     transformIoInfo.append(",\"transformIOInfo\": [");
     transformIOMap.forEach(
         (transform, ioInfo) -> {
@@ -201,7 +207,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
       transformIoInfo.deleteCharAt(lastIndex);
     }
     transformIoInfo.append("]");
-    return transformIoInfo;
   }
 
   private void enterBlock() {
