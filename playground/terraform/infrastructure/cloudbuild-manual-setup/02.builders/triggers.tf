@@ -22,20 +22,28 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
   description = "Creates cloud build manual trigger to deploy Playground infrastructure"
 
   source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
+    uri       = var.trigger_source_repo
     ref       = "refs/heads/master"
     repo_type = "GITHUB"
   }
 
-  git_file_source {
-    path      = ""
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    revision  = "refs/heads/master"
-    repo_type = "GITHUB"
+  build {
+    timeout = "7200s"
+    options {
+      logging = "CLOUD_LOGGING_ONLY"
+    }
+    step {
+      id = "run_gradle"
+      script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_infra.sh")
+      name = "ubuntu"
+      env = local.cloudbuild_init_environment
+        }
   }
 
   substitutions = {
-    _APPENGINE_FLAG : var.appengine_flag
+    _REPO_NAME : var.terraform_source_repo
+    _BRANCH_NAME: var.terraform_source_branch
+    _SKIP_APPENGINE_DEPLOY : var.skip_appengine_deploy
     _GKE_MACHINE_TYPE : var.gke_machine_type
     _ENVIRONMENT_NAME : var.playground_environment_name
     _GKE_NAME : var.playground_gke_name
@@ -47,7 +55,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     _PLAYGROUND_ZONE : var.playground_zone
     _REDIS_NAME: var.redis_name
     _REDIS_TIER: var.redis_tier
-    _REPOSITORY_ID: var.docker_repository_root
+    _REPOSITORY_NAME: var.docker_repository_name
     _SERVICEACCOUNT_ID: var.playground_service_account
     _STATE_BUCKET: var.state_bucket
     _SUBNETWORK_NAME: var.playground_subnetwork_name
@@ -63,20 +71,26 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   description = "Creates cloud build manual trigger to deploy Playground to GKE"
 
   source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
+    uri       = var.trigger_source_repo
     ref       = "refs/heads/master"
     repo_type = "GITHUB"
   }
-
-  git_file_source {
-    path = ""
-    uri       = "https://github.com/beamplayground/deploy-workaround"
-    revision       = "refs/heads/master"
-    repo_type = "GITHUB"
+  build {
+    timeout = "7200s"
+    options {
+      logging = "CLOUD_LOGGING_ONLY"
+    }
+    step {
+      id = "run_gradle"
+      script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_deploy.sh")
+      name = "ubuntu"
+      env = local.cloudbuild_deploy_environment
+        }
   }
-
   substitutions = {
-    _APPENGINE_FLAG : var.appengine_flag
+    _REPO_NAME : var.terraform_source_repo
+    _BRANCH_NAME: var.terraform_source_branch
+    _SKIP_APPENGINE_DEPLOY : var.skip_appengine_deploy
     _DATASTORE_NAMESPACE: var.datastore_namespace
     _DNS_NAME: var.playground_dns_name
     _GKE_MACHINE_TYPE : var.gke_machine_type
@@ -90,12 +104,12 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _PLAYGROUND_ZONE : var.playground_zone
     _REDIS_NAME: var.redis_name
     _REDIS_TIER: var.redis_tier
-    _REPOSITORY_ID: var.docker_repository_root
     _SDK_TAG: var.sdk_tag
     _SERVICEACCOUNT_ID: var.playground_service_account
+    _REPOSITORY_NAME: var.docker_repository_name
     _STATE_BUCKET: var.state_bucket
     _SUBNETWORK_NAME: var.playground_subnetwork_name
-    _TAG_NAME: var.image_tag
+    _CONTAINER_TAG: var.image_tag
   }
 
   service_account = data.google_service_account.playground_infra_deploy_sa.id
@@ -108,20 +122,22 @@ resource "google_cloudbuild_trigger" "playground_helm_update" {
   description = "Creates cloud build manual trigger for Playground Helm update"
 
   source_to_build {
-    uri       = "https://github.com/beamplayground/deploy-workaround"
+    uri       = var.trigger_source_repo
     ref       = "refs/heads/master"
     repo_type = "GITHUB"
   }
 
   git_file_source {
-    path = ""
-    uri       = "https://github.com/beamplayground/deploy-workaround"
+    path      = ""
+    uri       = var.trigger_source_repo
     revision  = "refs/heads/master"
     repo_type = "GITHUB"
   }
 
   substitutions = {
-    _APP_ENGINE_FLAG : var.appengine_flag
+    _REPO_NAME : var.terraform_source_repo
+    _BRANCH_NAME: var.terraform_source_branch
+    _SKIP_APPENGINE_DEPLOY : var.skip_appengine_deploy
     _DATASTORE_NAMESPACE: var.datastore_namespace
     _DNS_NAME: var.playground_dns_name
     _GKE_MACHINE_TYPE : var.gke_machine_type
@@ -135,12 +151,14 @@ resource "google_cloudbuild_trigger" "playground_helm_update" {
     _PLAYGROUND_ZONE : var.playground_zone
     _REDIS_NAME: var.redis_name
     _REDIS_TIER: var.redis_tier
-    _REPOSITORY_ID: var.docker_repository_root
-    _BEAM_VERSION: var.sdk_tag
+    _REPOSITORY_NAME: var.docker_repository_name
+    _SDK_TAG: var.sdk_tag
     _SERVICE_ACCOUNT_ID: var.playground_service_account
     _STATE_BUCKET: var.state_bucket
     _SUBNETWORK_NAME: var.playground_subnetwork_name
     _TAG_NAME: var.image_tag
+    _CONTAINER_TAG: var.image_tag
+
   }
 
   service_account = data.google_service_account.playground_helm_upd_sa.id

@@ -84,7 +84,7 @@ variable "image_tag" {
   description = "The docker images tag for Playground images"
 }
 
-variable "docker_repository_root" {
+variable "docker_repository_name" {
   description = "The name of Google Cloud Platform (GCP) Artifact Registry Repository where Playground images will be saved to"
 }
 
@@ -104,8 +104,8 @@ See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hu
   default = "2.44.0"
 }
 
-variable "appengine_flag" {
-  description = "Boolean. If AppEngine and Datastore need to be installed. Put 'false' if AppEngine and Datastore already installed"
+variable "skip_appengine_deploy" {
+  description = "Boolean. If AppEngine and Datastore need to be installed. Put 'true' if AppEngine and Datastore already installed"
 }
 
 variable "gke_machine_type" {
@@ -162,4 +162,19 @@ variable "data_for_github_pat_secret" {
 
 variable "private_logs_bucket" {
   description = "The GCS bucket name to store CI logs privately"
+}
+
+#What i understand this is mandatoy but not actually used. Should we document it 
+variable "trigger_source_repo" {
+  description = "Source repo used for github trigger, not used but reqired due to cloudbuild limitation"
+}
+
+variable "terraform_source_repo" {
+  description = "Repo used to fetch terraform code"
+  default = "https://github.com/apache/beam"
+}
+
+variable "terraform_source_branch" {
+  description = "Branch used to fetch terraform code"
+  default = "master"
 }

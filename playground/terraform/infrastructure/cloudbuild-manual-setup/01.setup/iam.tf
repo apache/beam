@@ -16,17 +16,17 @@
 # under the License.
 
 resource "google_service_account" "pg_cloudbuild_deploy_sa" {
-  account_id   = var.pg_cloudbuild_deployer_sa_name
+  account_id   = var.pg_cloudbuild_deployer_sa_name == "" ? "playground-deploy" : var.pg_cloudbuild_deployer_sa_name
   description  = "The service account to be used by cloud build to deploy Playground"
 }
 
 resource "google_service_account" "pg_cloudbuild_helm_updater_sa" {
-  account_id   = var.pg_cloudbuild_helm_updater_sa_name
+  account_id   = var.pg_cloudbuild_helm_updater_sa_name == "" ? "playground-pl-helm" : var.pg_cloudbuild_helm_updater_sa_name
   description  = "The service account to be used by cloud build to update Playground"
 }
 
 resource "google_service_account" "pg_cloudbuild_cicd_runner_sa" {
-  account_id   = var.pg_cloudbuild_cicd_sa_name
+  account_id   = var.pg_cloudbuild_cicd_sa_name == "" ? "playground-pl-cicd" : var.pg_cloudbuild_cicd_sa_name
   description  = "The service account to be used by cloud build to run CI/CD scripts and checks"
 }
 
@@ -82,5 +82,15 @@ resource "google_project_iam_member" "playground_cicd_sa_roles" {
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.pg_cloudbuild_cicd_runner_sa.email}"
+  project = var.project_id
+}
+
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+resource "google_project_iam_member" "cloudbuild_sa_role" {
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
   project = var.project_id
 }

@@ -21,12 +21,15 @@ variable "project_id" {
 
 variable "pg_cloudbuild_deployer_sa_name" {
   description = "The ID of the cloud build service account responsible for deploying the Playground"
+  default = ""
 }
 
 variable "pg_cloudbuild_helm_updater_sa_name" {
   description = "The ID of the cloud build service account responsible for updating the Playground"
+  default = ""
 }
 
 variable "pg_cloudbuild_cicd_sa_name" {
   description = "The ID of the cloud build service account responsible for running Playground CI/CD checks and scripts"
+  default = ""
 }
