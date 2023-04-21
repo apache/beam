@@ -36,14 +36,12 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 
 4. An OS with the following software installed:
 
-* [Java](https://adoptopenjdk.net/)
 * [Flutter (3.7.3 >)](https://docs.flutter.dev/get-started/install)
 * [Dart SDK (2.19.2)](https://dart.dev/get-dart)
 * [Firebase-tools CLI](https://www.npmjs.com/package/firebase-tools)
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 * [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
-* [Go](https://go.dev/doc/install)
 
 5. Beam Playground environment (Existing GKE Cluster will be required particularly)
 
