@@ -1214,14 +1214,12 @@ def get_container_image_from_options(pipeline_options):
   version_suffix = '%s%s' % (sys.version_info[0:2])
   container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
   image_name = '{repository}/python{version_suffix}'.format(
-      repository=container_repo,
-      version_suffix=version_suffix)
+      repository=container_repo, version_suffix=version_suffix)
 
   if is_runner_v2:
     version_suffix = '%s.%s' % (sys.version_info[0:2])
     image_name = '{repository}/beam_python{version_suffix}_sdk'.format(
-        repository=container_repo,
-        version_suffix=version_suffix)
+        repository=container_repo, version_suffix=version_suffix)
 
   image_tag = _get_required_container_version(is_runner_v2)
   return image_name + ':' + image_tag
