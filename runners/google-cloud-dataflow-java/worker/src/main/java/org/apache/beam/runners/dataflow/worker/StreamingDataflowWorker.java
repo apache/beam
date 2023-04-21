@@ -99,7 +99,6 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -1254,7 +1253,7 @@ public class StreamingDataflowWorker {
 
     ExecutionState executionState = null;
 
-    Boolean isCustomSource = false;
+    OutputObjectAndByteCounter outputCounter = null;
 
     try {
       executionState = computationState.getExecutionStateQueue().poll();
@@ -1333,14 +1332,14 @@ public class StreamingDataflowWorker {
                   readNode.getParallelInstruction().getOriginalName(),
                   readNode.getParallelInstruction().getSystemName(),
                   readNode.getParallelInstruction().getName());
-          readOperation.receivers[0].addOutputCounter(
-              new OutputObjectAndByteCounter(
-                      new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
-                          readCoder),
-                      mapTaskExecutor.getOutputCounters(),
-                      nameContext)
-                  .setSamplingPeriod(100)
-                  .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
+          outputCounter = new OutputObjectAndByteCounter(
+                              new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
+                                  readCoder),
+                              mapTaskExecutor.getOutputCounters(),
+                              nameContext)
+                          .setSamplingPeriod(100)
+                          .countBytes("dataflow_input_size-" + mapTask.getSystemName());
+          readOperation.receivers[0].addOutputCounter(outputCounter);
         }
         executionState =
             new ExecutionState(mapTaskExecutor, context, keyCoder, executionStateTracker);
@@ -1405,21 +1404,8 @@ public class StreamingDataflowWorker {
       executionState.getWorkExecutor().execute();
 
       // Report bytes processed for custom source
-      if (isCustomSource) {
-        long sourceBytesProcessed = 0;
-        List<ElementCounter> counters =
-            ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
-                .getReadOperation()
-                .receivers[0]
-                .outputCounters;
-        for (ElementCounter counter : counters) {
-          try {
-            sourceBytesProcessed =
-                (long) ((OutputObjectAndByteCounter) counter).getByteCount().getAggregate();
-          } catch (Exception e) {
-            // ignore
-          }
-        }
+      if (outputCounter != null) {
+        long sourceBytesProcessed = outputCounter.getByteCount().getAggregate();
         outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
       }
 
