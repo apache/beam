@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
@@ -46,8 +45,6 @@ import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -65,6 +62,7 @@ import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -196,10 +194,10 @@ public class KafkaIOIT {
 
     // Use streaming pipeline to read Kafka records.
     readPipeline.getOptions().as(Options.class).setStreaming(true);
-    readPipeline
+    PCollection<Long> count = readPipeline
         .apply("Read from unbounded Kafka", readFromKafka().withTopic(options.getKafkaTopic()))
         .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
+        .apply("Counting element", Count.globally());
 
     PipelineResult writeResult = writePipeline.run();
     PipelineResult.State writeState = writeResult.waitUntilFinish();
@@ -214,12 +212,7 @@ public class KafkaIOIT {
     tearDownTopic(options.getKafkaTopic());
     cancelIfTimeouted(readResult, readState);
 
-    long actualRecords = readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME);
-    assertTrue(
-        String.format(
-            "actual number of records %d smaller than expected: %d.",
-            actualRecords, sourceOptions.numRecords),
-        sourceOptions.numRecords <= actualRecords);
+    PAssert.thatSingleton(count).isEqualTo(sourceOptions.numRecords);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
@@ -235,10 +228,10 @@ public class KafkaIOIT {
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
-    readPipeline
+    PCollection<Long> count =readPipeline
         .apply("Read from bounded Kafka", readFromBoundedKafka().withTopic(options.getKafkaTopic()))
         .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
+        .apply("Counting element", Count.globally());
 
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
@@ -251,13 +244,7 @@ public class KafkaIOIT {
     tearDownTopic(options.getKafkaTopic());
     cancelIfTimeouted(readResult, readState);
 
-    long actualRecords = readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME);
-
-    assertTrue(
-        String.format(
-            "actual number of records %d smaller than expected: %d.",
-            actualRecords, sourceOptions.numRecords),
-        sourceOptions.numRecords <= actualRecords);
+    PAssert.thatSingleton(count).isEqualTo(sourceOptions.numRecords);
 
     assertEquals(PipelineResult.State.DONE, readState);
 
@@ -674,8 +661,7 @@ public class KafkaIOIT {
             readFromKafka()
                 .withTopic(options.getKafkaTopic() + "-" + topicSuffix)
                 .withCheckStopReadingFn(function))
-        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
+        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
 
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
@@ -820,19 +806,6 @@ public class KafkaIOIT {
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"));
   }
 
-  private static class CountingFn extends DoFn<KafkaRecord<byte[],byte[]>, Void> {
-
-    private final Counter elementCounter;
-
-    CountingFn(String namespace, String name) {
-      elementCounter = Metrics.counter(namespace, name);
-    }
-
-    @ProcessElement
-    public void processElement() {
-      elementCounter.inc(1L);
-    }
-  }
   /** Pipeline options specific for this test. */
   public interface Options extends IOTestPipelineOptions, StreamingOptions {
 
