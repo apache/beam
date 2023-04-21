@@ -207,6 +207,8 @@ public class KafkaIOIT {
     // Fail the test if pipeline failed.
     assertNotEquals(PipelineResult.State.FAILED, writeState);
 
+    PAssert.thatSingleton(count).isEqualTo(sourceOptions.numRecords);
+
     PipelineResult readResult = readPipeline.run();
     PipelineResult.State readState =
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
@@ -214,8 +216,6 @@ public class KafkaIOIT {
     // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
     tearDownTopic(options.getKafkaTopic());
     cancelIfTimeouted(readResult, readState);
-
-    PAssert.thatSingleton(count).isEqualTo(sourceOptions.numRecords);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
@@ -239,6 +239,8 @@ public class KafkaIOIT {
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
 
+    PAssert.thatSingleton(count).isEqualTo(sourceOptions.numRecords);
+
     PipelineResult readResult = readPipeline.run();
     PipelineResult.State readState =
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
@@ -246,8 +248,6 @@ public class KafkaIOIT {
     // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
     tearDownTopic(options.getKafkaTopic());
     cancelIfTimeouted(readResult, readState);
-
-    PAssert.thatSingleton(count).isEqualTo(sourceOptions.numRecords);
 
     assertEquals(PipelineResult.State.DONE, readState);
 
