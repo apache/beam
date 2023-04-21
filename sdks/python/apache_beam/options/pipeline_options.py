@@ -877,13 +877,13 @@ class GoogleCloudOptions(PipelineOptions):
 
     return errors
 
-  def get_cloud_profiler_service_name(self, key):
+  def get_cloud_profiler_service_name(self):
     if not self.dataflow_service_options:
       return None
-    elif key in self.dataflow_service_options:
+    elif 'enable_google_cloud_profiler' in self.dataflow_service_options:
       return os.environ["JOB_NAME"]
     for option_name in self.dataflow_service_options:
-      if option_name.startswith(key + '='):
+      if option_name.startswith('enable_google_cloud_profiler='):
         return option_name.split('=', 1)[1]
     return None
 
