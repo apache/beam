@@ -148,7 +148,7 @@ class _PlaygroundControllerActions extends StatelessWidget {
                   child: e,
                 ),
               )
-              .toList(),
+              .toList(growable: false),
         );
       },
     );

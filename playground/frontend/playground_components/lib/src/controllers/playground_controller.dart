@@ -35,7 +35,6 @@ import '../models/example_loading_descriptors/user_shared_example_loading_descri
 import '../models/intents.dart';
 import '../models/sdk.dart';
 import '../models/shortcut.dart';
-import '../models/snippet_file.dart';
 import '../repositories/code_repository.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
