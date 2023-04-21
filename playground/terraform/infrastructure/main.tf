@@ -33,6 +33,14 @@ module "network" {
   subnetwork_name = var.subnetwork_name
 }
 
+module "firewall" {
+  depends_on      = [module.network, module.memorystore, module.gke]
+  source          = "./firewall"
+  network_name    = module.network.playground_network_name
+  gke_controlplane_cidr = module.gke.control_plane_cidr
+  redis_ip = module.memorystore.redis_ip
+}
+
 module "artifact_registry" {
   depends_on = [module.setup, module.api_enable, module.ip_address]
   source     = "./artifact_registry"
@@ -73,16 +81,31 @@ module "gke" {
 module "ip_address" {
   source          = "./ip_address"
   depends_on      = [module.setup, module.api_enable]
+  ip-address-name = var.ip-address-name
 }
 
 module "appengine" {
- depends_on         = [module.setup, module.api_enable, module.ip_address]
- source             = "./appengine"
- project_id         = var.project_id
- region             = var.region
+ depends_on            = [module.setup, module.api_enable, module.ip_address]
+ source                = "./appengine"
+ project_id            = var.project_id
+ region                = var.region
+ skip_appengine_deploy = var.skip_appengine_deploy
 }
 
 module "api_enable" {
   source            = "./api_enable"
   project_id         = var.project_id
+}
+
+
+module "private_dns" {
+  source            = "./private_dns"
+  project_id        = var.project_id
+  network_id        = module.network.playground_network_id
+  network_name      = module.network.playground_network_name
+  private_zones     = [
+    "gcr.io",
+    "pkg.dev",
+    "cloud.google.com"
+  ]
 }

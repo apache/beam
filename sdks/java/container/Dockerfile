@@ -17,7 +17,7 @@
 ###############################################################################
 ARG java_version
 FROM eclipse-temurin:${java_version}
-MAINTAINER "Apache Beam <dev@beam.apache.org>"
+LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -46,13 +46,9 @@ ADD target/third_party_licenses /opt/apache/beam/third_party_licenses/
 # Copy Java options. Because the options directory may be empty and
 # COPY fails if there are no files, copy an extra LICENSE file then remove it.
 COPY target/LICENSE target/options/* /opt/apache/beam/options/
-RUN rm /opt/apache/beam/options/LICENSE
 
-# Add golang licenses. Because the go-license directory may be empty if
-# pull_licenses is false, and COPY fails if there are no files,
-# copy an extra LICENSE file then remove it.
-COPY target/LICENSE target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
-RUN rm /opt/apache/beam/third_party_licenses/golang/LICENSE
+# Add golang licenses.
+COPY target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
 RUN if [ "${pull_licenses}" = "false" ] ; then \
     # Remove above license dir if pull licenses false
     rm -rf /opt/apache/beam/third_party_licenses ; \

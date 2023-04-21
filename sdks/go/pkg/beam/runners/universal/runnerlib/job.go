@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
@@ -27,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -63,7 +63,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 		Parallelism:  opt.Parallelism,
 	}
 
-	options, err := provision.OptionsToProto(raw)
+	options, err := tools.OptionsToProto(raw)
 	if err != nil {
 		return "", "", "", errors.WithContext(err, "producing pipeline options")
 	}

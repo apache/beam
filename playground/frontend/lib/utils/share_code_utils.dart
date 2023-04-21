@@ -26,8 +26,9 @@ class ShareCodeUtils {
   static String iframe({
     required Uri src,
   }) {
+    // Not URL-encoding because we expect only safe characters.
     return '<iframe'
-        ' src="${Uri.encodeComponent(src.toString())}"'
+        ' src="$src"'
         ' width="${_htmlEscape(_width)}"'
         ' height="${_htmlEscape(_height)}"'
         ' allow="clipboard-write" '

@@ -17,10 +17,10 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: playground-frontend
 spec:
-  maxReplicas: 10
-  minReplicas: 1
+  maxReplicas: {{ .Values.autoscaling.rest.maxReplicas }}
+  minReplicas: {{ .Values.autoscaling.rest.minReplicas }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: playground-frontend
-  targetCPUUtilizationPercentage: 90
+  targetCPUUtilizationPercentage: {{ .Values.autoscaling.utilization.cpuUtilization }}

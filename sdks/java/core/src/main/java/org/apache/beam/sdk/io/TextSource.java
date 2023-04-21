@@ -32,7 +32,7 @@ import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -53,16 +53,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class TextSource extends FileBasedSource<String> {
+public class TextSource extends FileBasedSource<String> {
   byte[] delimiter;
 
-  TextSource(
+  public TextSource(
       ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
   }
 
-  private TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
+  public TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
     super(metadata, 1L, start, end);
     this.delimiter = delimiter;
   }

@@ -125,15 +125,15 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   @Description("The maximum number of elements in a bundle.")
   @Default.Long(1)
-  Long getMaxBundleSize();
+  long getMaxBundleSize();
 
-  void setMaxBundleSize(Long maxBundleSize);
+  void setMaxBundleSize(long maxBundleSize);
 
   @Description("The maximum time to wait before finalising a bundle (in milliseconds).")
   @Default.Long(1000)
-  Long getMaxBundleTimeMs();
+  long getMaxBundleTimeMs();
 
-  void setMaxBundleTimeMs(Long maxBundleTimeMs);
+  void setMaxBundleTimeMs(long maxBundleTimeMs);
 
   @Description(
       "Wait if necessary for completing a remote bundle processing for at most the given time (in milliseconds). if the value of timeout is negative, wait forever until the bundle processing is completed. Used only in portable mode for now.")
