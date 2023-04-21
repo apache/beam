@@ -60,7 +60,7 @@ and an output prefix on GCS::
 #   tags:
 #     - count
 #     - debug
-#     - string
+#     - strings
 
 import argparse
 import logging

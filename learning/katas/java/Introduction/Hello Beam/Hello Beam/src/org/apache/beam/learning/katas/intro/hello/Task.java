@@ -27,7 +27,7 @@ package org.apache.beam.learning.katas.intro.hello;
 //     - Quickstart
 //   complexity: BASIC
 //   tags:
-//     - hellobeam
+//     - pipeline
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

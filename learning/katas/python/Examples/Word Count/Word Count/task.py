@@ -26,8 +26,8 @@
 #     - count
 #     - map
 #     - combine
-#     - string
-#     - number
+#     - strings
+#     - numbers
 
 import apache_beam as beam
 

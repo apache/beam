@@ -24,7 +24,7 @@
 #   complexity: BASIC
 #   tags:
 #     - count
-#     - nunbers
+#     - numbers
 
 import apache_beam as beam
 
