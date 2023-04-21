@@ -281,19 +281,18 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
 
 
 V = TypeVar("V")
-T = TypeVar("T", bound=TimestampTypes)
 
 
 @total_ordering
-class TimestampedValue(Generic[V, T]):
+class TimestampedValue(Generic[V]):
   """A timestamped value having a value and a timestamp.
 
   Attributes:
     value: The underlying value.
     timestamp: Timestamp associated with the value as seconds since Unix epoch.
   """
-  def __init__(self, value: V, timestamp: T):
-    # type: (Any, TimestampTypes) -> None
+  def __init__(self, value, timestamp):
+    # type: (V, TimestampTypes) -> None
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 

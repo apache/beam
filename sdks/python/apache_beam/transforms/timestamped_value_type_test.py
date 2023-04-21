@@ -7,13 +7,13 @@ import apache_beam as beam
 
 
 class MyDoFn(DoFn):
-  def process(self, plant: TimestampedValue[dict, int]) -> \
-      Iterable[TimestampedValue[dict, int]]:
+  def process(self, plant, timestamp=beam.DoFn.TimestampParam) -> \
+      Iterable[TimestampedValue[dict]]:
     pass
 
 
 class MyDoFn_1(DoFn):
-  def process(self, plant: TimestampedValue) -> \
+  def process(self, plant, timestamp=beam.DoFn.TimestampParam) -> \
       Iterable[TimestampedValue]:
     pass
 
@@ -41,7 +41,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
           p
           | "Garden plants" >> beam.Create(self.data)
           | "With timestamps" >> beam.Map(
-              lambda plant: TimestampedValue[dict, int](plant, plant["season"]))
+              lambda plant: TimestampedValue[dict](plant, plant["season"]))
           | "Test timestamps" >> beam.ParDo(MyDoFn())
           | beam.Map(print))
 
