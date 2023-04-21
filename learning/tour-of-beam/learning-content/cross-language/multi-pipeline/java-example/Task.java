@@ -27,145 +27,108 @@
 //   tags:
 //     - hellobeam
 
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
-import org.apache.beam.sdk.extensions.python.transforms.RunInference;
-import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.Validation.Required;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+public class Task {
+    public static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
 
-/**
- * An example Java Multi-language pipeline that Performs image classification on handwritten digits
- * from the <a href="https://en.wikipedia.org/wiki/MNIST_database">MNIST</a> database.
- *
- * <p>For more details and instructions for running this please see <a
- * href="https://github.com/apache/beam/tree/master/examples/multi-language">here</a>.
- */
-public class CrossLanguage {
+    // Extract the words and create the rows for counting.
+    static class ExtractWordsFn extends DoFn<String, Row> {
+        public static final Schema SCHEMA =
+                Schema.of(
+                        Schema.Field.of("word", Schema.FieldType.STRING),
+                        Schema.Field.of("count", Schema.FieldType.INT32));
+        private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
+        private final Distribution lineLenDist =
+                Metrics.distribution(ExtractWordsFn.class, "lineLenDistro");
 
-    /**
-     * We generate a Python function that produces a KV sklearn model loader and use that to
-     * instantiate {@link RunInference}. Note that {@code RunInference} can be instantiated with any
-     * arbitrary function that produces a model loader.
-     */
-    private String getModelLoaderScript() {
-        String s = "from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy\n";
-        s = s + "from apache_beam.ml.inference.base import KeyedModelHandler\n";
-        s = s + "def get_model_handler(model_uri):\n";
-        s = s + "  return KeyedModelHandler(SklearnModelHandlerNumpy(model_uri))\n";
-
-        return s;
-    }
-
-    /** Filters out the header of the dataset that should not be used for the computation. */
-    static class FilterNonRecordsFn implements SerializableFunction<String, Boolean> {
-
-        @Override
-        public Boolean apply(String input) {
-            return !input.startsWith("label");
-        }
-    }
-
-    /**
-     * Seperates our input records to label and data. Each input record is a set of comma separated
-     * string digits where first digit is the label and rest are data (pixels that represent the
-     * digit).
-     */
-    static class RecordsToLabeledPixelsFn extends SimpleFunction<String, KV<Long, Iterable<Long>>> {
-
-        @Override
-        public KV<Long, Iterable<Long>> apply(String input) {
-            String[] data = Splitter.on(',').splitToList(input).toArray(new String[] {});
-            Long label = Long.valueOf(data[0]);
-            List<Long> pixels = new ArrayList<Long>();
-            for (int i = 1; i < data.length; i++) {
-                pixels.add(Long.valueOf(data[i]));
+        @ProcessElement
+        public void processElement(@Element String element, OutputReceiver<Row> receiver) {
+            lineLenDist.update(element.length());
+            if (element.trim().isEmpty()) {
+                emptyLines.inc();
             }
 
-            return KV.of(label, pixels);
+            // Split the line into words.
+            String[] words = element.split(TOKENIZER_PATTERN, -1);
+
+            // Output each word encountered into the output PCollection.
+            for (String word : words) {
+                if (!word.isEmpty()) {
+                    receiver.output(
+                            Row.withSchema(SCHEMA)
+                                    .withFieldValue("word", word)
+                                    .withFieldValue("count", 1)
+                                    .build());
+                }
+            }
         }
     }
 
-    /** Formats the output to a mapping from the expected digit to the inferred digit. */
-    static class FormatOutput extends SimpleFunction<KV<Long, Row>, String> {
-
+    /**
+     * A SimpleFunction that converts a counted row into a printable string.
+     */
+    public static class FormatAsTextFn extends SimpleFunction<Row, String> {
         @Override
-        public String apply(KV<Long, Row> input) {
-            return input.getKey() + "," + input.getValue().getString("inference");
+        public String apply(Row input) {
+            return input.getString("word") + ": " + input.getInt32("count");
         }
     }
 
-    void runExample(SklearnMnistClassificationOptions options, String expansionService) {
-        // Schema of the output PCollection Row type to be provided to the RunInference transform.
-        Schema schema =
-                Schema.of(
-                        Schema.Field.of("example", Schema.FieldType.array(Schema.FieldType.INT64)),
-                        Schema.Field.of("inference", FieldType.STRING));
+    /**
+     * Options supported by {@link PythonDataframeWordCount}.
+     */
+    public interface WordCountOptions extends PipelineOptions {
 
-        Pipeline pipeline = Pipeline.create(options);
-        PCollection<KV<Long, Iterable<Long>>> col =
-                pipeline
-                        .apply(TextIO.read().from(options.getInput()))
-                        .apply(Filter.by(new FilterNonRecordsFn()))
-                        .apply(MapElements.via(new RecordsToLabeledPixelsFn()));
-        col.apply(RunInference.ofKVs(getModelLoaderScript(), schema, VarLongCoder.of())
-                        .withKwarg("model_uri", options.getModelPath())
-                        .withExpansionService(expansionService))
-                .apply(MapElements.via(new FormatOutput()))
-                .apply(TextIO.write().to("out.txt"));
+        /**
+         * By default, this example reads from a public dataset containing the text of King Lear. Set
+         * this option to choose a different input file or glob.
+         */
+        @Description("Path of the file to read from")
+        @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
+        String getInputFile();
 
-        pipeline.run().waitUntilFinish();
-    }
+        void setInputFile(String value);
 
-    public interface SklearnMnistClassificationOptions extends PipelineOptions {
-
-        @Description("Path to an input file that contains labels and pixels to feed into the model")
-        @Default.String("gs://apache-beam-samples/multi-language/mnist/example_input.csv")
-        String getInput();
-
-        void setInput(String value);
-
-        @Description("Path for storing the output")
+        /**
+         * Set this required option to specify where to write the output.
+         */
+        @Description("Path of the file to write to")
         @Required
         String getOutput();
 
         void setOutput(String value);
 
-        @Description(
-                "Path to a model file that contains the pickled file of a scikit-learn model trained on MNIST data")
-        @Default.String("gs://apache-beam-samples/multi-language/mnist/example_model")
-        String getModelPath();
-
-        void setModelPath(String value);
-
-        /** Set this option to specify Python expansion service URL. */
+        /**
+         * Set this option to specify Python expansion service URL.
+         */
         @Description("URL of Python expansion service")
-        @Default.String("localhost:1234")
         String getExpansionService();
 
         void setExpansionService(String value);
     }
 
+    static void runWordCount(WordCountOptions options) {
+        options.setOutput("input.txt");
+        Pipeline p = Pipeline.create(options);
+
+        p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
+                .apply(ParDo.of(new ExtractWordsFn()))
+                .setRowSchema(ExtractWordsFn.SCHEMA)
+                .apply(
+                        PythonExternalTransform.<PCollection<Row>, PCollection<Row>>from(
+                                        "apache_beam.dataframe.transforms.DataframeTransform",
+                                        options.getExpansionService())
+                                .withKwarg("func", PythonCallableSource.of("lambda df: df.groupby('word').sum()"))
+                                .withKwarg("include_indexes", true))
+                .apply(MapElements.via(new FormatAsTextFn()))
+                .apply("WriteCounts", TextIO.write().to(options.getOutput()));
+
+        p.run().waitUntilFinish();
+    }
+
     public static void main(String[] args) {
-        SklearnMnistClassificationOptions options =
-                PipelineOptionsFactory.fromArgs(args).as(SklearnMnistClassificationOptions.class);
-        CrossLanguage example = new CrossLanguage();
-        example.runExample(options, "localhost:1234");
+        WordCountOptions options =
+                PipelineOptionsFactory.fromArgs(args).withValidation().as(WordCountOptions.class);
+
+        runWordCount(options);
     }
 }
