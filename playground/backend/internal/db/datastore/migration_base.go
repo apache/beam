@@ -13,9 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package entity
+package datastore
 
-type SchemaEntity struct {
-	Version int    `datastore:"version"`
-	Descr   string `datastore:"descr,noindex"`
+import (
+	"cloud.google.com/go/datastore"
+	"context"
+)
+
+type Migration interface {
+	Apply(ctx context.Context, tx *datastore.Transaction, sdkConfigPath string) error
+	GetVersion() int
+	GetDescription() string
+}
+
+type MigrationBase struct {
+	Version     int
+	Description string
+}
+
+func (m MigrationBase) GetVersion() int {
+	return m.Version
+}
+
+func (m MigrationBase) GetDescription() string {
+	return m.Description
 }

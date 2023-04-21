@@ -16,6 +16,7 @@
 package db
 
 import (
+	"beam.apache.org/playground/backend/internal/db/datastore"
 	"context"
 	"time"
 
@@ -27,6 +28,7 @@ type Database interface {
 	SnippetDatabase
 	CatalogDatabase
 	ExampleDatabase
+	MigrationsDatabase
 }
 
 type SnippetDatabase interface {
@@ -40,12 +42,6 @@ type SnippetDatabase interface {
 }
 
 type CatalogDatabase interface {
-	HasSchemaVersion(ctx context.Context, version string) (bool, error)
-
-	PutSchemaVersion(ctx context.Context, id string, schema *entity.SchemaEntity) error
-
-	PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
-
 	GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error)
 }
 
@@ -63,4 +59,10 @@ type ExampleDatabase interface {
 	GetExampleLogs(ctx context.Context, id string) (string, error)
 
 	GetExampleGraph(ctx context.Context, id string) (string, error)
+}
+
+type MigrationsDatabase interface {
+	GetCurrentDbMigrationVersion(ctx context.Context) (int, error)
+
+	ApplyMigrations(ctx context.Context, migrations []datastore.Migration, sdkConfigPath string) error
 }

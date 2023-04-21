@@ -13,9 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package entity
+package schema
 
-type SchemaEntity struct {
-	Version int    `datastore:"version"`
-	Descr   string `datastore:"descr,noindex"`
+import ds "beam.apache.org/playground/backend/internal/db/datastore"
+
+// Migrations List of all migrations
+var Migrations = []ds.Migration{
+	GetMigration_v001(),
 }

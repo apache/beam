@@ -32,8 +32,6 @@ import (
 	"beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
-	"beam.apache.org/playground/backend/internal/db/schema"
-	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/tasks"
@@ -81,9 +79,12 @@ func runServer() error {
 
 		downloadCatalogsToDatastoreEmulator(ctx)
 
-		if err = setupDBStructure(ctx, dbClient, &envService.ApplicationEnvs, props); err != nil {
+		migrationVersion, err := dbClient.GetCurrentDbMigrationVersion(ctx)
+		if err != nil {
 			return err
 		}
+
+		envService.ApplicationEnvs.SetSchemaVersion(migrationVersion)
 
 		sdks, err := setupSdkCatalog(ctx, cacheService, dbClient)
 		if err != nil {
@@ -223,26 +224,6 @@ func setupExamplesCatalogFromDatastore(ctx context.Context, cacheService cache.C
 			return err
 		}
 	}
-	return nil
-}
-
-// setupDBStructure initializes the data structure
-func setupDBStructure(ctx context.Context, db db.Database, appEnv *environment.ApplicationEnvs, props *environment.Properties) error {
-	versions := []schema.Version{
-		new(migration.InitialStructure),
-		new(migration.AddingComplexityProperty),
-	}
-	dbSchema := schema.New(ctx, db, appEnv, props, versions)
-	currentSchemaVersion, err := dbSchema.InitializeData()
-	if err != nil {
-		return err
-	}
-	if currentSchemaVersion == nil {
-		errMsg := "schema version must not be empty"
-		logger.Error(errMsg)
-		return fmt.Errorf(errMsg)
-	}
-	appEnv.SetSchemaVersion(currentSchemaVersion.String())
 	return nil
 }
 

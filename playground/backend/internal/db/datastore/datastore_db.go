@@ -81,18 +81,25 @@ func (d *Datastore) DeleteObsoleteSnippets(ctx context.Context, snipKey *datasto
 
 // PutSnippet puts the snippet entity to datastore using cloud function proxy
 func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.Snippet) error {
-	if d.externalFunctions == nil {
-		logger.Warnf("Datastore: PutSnippet(): external functions are not set, accessing the datastore directly")
+	logger.Debugf("putting snippet %q, persistent key %q...", snipId, snip.Snippet.PersistenceKey)
+
+	var err error
+	if d.externalFunctions != nil {
+		err = d.externalFunctions.PutSnippet(ctx, snipId, snip)
+	}
+	if err != nil || d.externalFunctions == nil {
+		if err != nil {
+			logger.Errorf("Datastore: PutSnippet(): error during the PutSnippet() call to the cloud function, "+
+				"accessing the datastore directly, err: %s\n", err.Error())
+		}
+		if d.externalFunctions == nil {
+			logger.Warnf("Datastore: PutSnippet(): external functions are not set, " +
+				"accessing the datastore directly")
+		}
 		return d.PutSnippetDirect(ctx, snipId, snip)
 	}
 
-	logger.Debugf("putting snippet %q, persistent key %q...", snipId, snip.Snippet.PersistenceKey)
-	if snip == nil {
-		logger.Errorf("Datastore: PutSnippet(): snippet is nil")
-		return nil
-	}
-
-	return d.externalFunctions.PutSnippet(ctx, snipId, snip)
+	return nil
 }
 
 // PutSnippetDirect puts the snippet entity to datastore
@@ -186,52 +193,6 @@ func (d *Datastore) IncrementSnippetVisitorsCount(ctx context.Context, id string
 	})
 	if err != nil {
 		logger.Errorf("Datastore: IncrementSnippetVisitorsCount: error updating snippet: %s\n", err.Error())
-		return err
-	}
-	return nil
-}
-
-// HasSchemaVersion returns true if the schema version is applied
-func (d *Datastore) HasSchemaVersion(ctx context.Context, version string) (bool, error) {
-	key := utils.GetSchemaVerKey(ctx, version)
-	schema := new(entity.SchemaEntity)
-	err := d.Client.Get(ctx, key, schema)
-	if err != nil {
-		if err == datastore.ErrNoSuchEntity {
-			return false, nil
-		}
-		logger.Errorf("Datastore: HasSchemaVersionApplied(): error during getting schema version, err: %s\n", err.Error())
-		return false, err
-	}
-	return true, nil
-}
-
-// PutSchemaVersion puts the schema entity to datastore
-func (d *Datastore) PutSchemaVersion(ctx context.Context, version string, schema *entity.SchemaEntity) error {
-	if schema == nil {
-		logger.Errorf("Datastore: PutSchemaVersion(): schema version is nil")
-		return nil
-	}
-	key := utils.GetSchemaVerKey(ctx, version)
-	if _, err := d.Client.Put(ctx, key, schema); err != nil {
-		logger.Errorf("Datastore: PutSchemaVersion(): error during entity saving, err: %s\n", err.Error())
-		return err
-	}
-	return nil
-}
-
-// PutSDKs puts the SDK entity to datastore
-func (d *Datastore) PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error {
-	if sdks == nil || len(sdks) == 0 {
-		logger.Errorf("Datastore: PutSDKs(): sdks are empty")
-		return nil
-	}
-	var keys []*datastore.Key
-	for _, sdk := range sdks {
-		keys = append(keys, utils.GetSdkKey(ctx, sdk.Name))
-	}
-	if _, err := d.Client.PutMulti(ctx, keys, sdks); err != nil {
-		logger.Errorf("Datastore: PutSDK(): error during entity saving, err: %s\n", err.Error())
 		return err
 	}
 	return nil

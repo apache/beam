@@ -101,7 +101,7 @@ type ApplicationEnvs struct {
 	pipelinesFolder string
 
 	// schemaVersion is the database schema version
-	schemaVersion string
+	schemaVersion int
 
 	// sdkConfigPath is a sdk configuration file
 	sdkConfigPath string
@@ -193,7 +193,7 @@ func (ae *ApplicationEnvs) PipelinesFolder() string {
 }
 
 // SchemaVersion returns the database schema version
-func (ae *ApplicationEnvs) SchemaVersion() string {
+func (ae *ApplicationEnvs) SchemaVersion() int {
 	return ae.schemaVersion
 }
 
@@ -208,7 +208,7 @@ func (ae *ApplicationEnvs) PropertyPath() string {
 }
 
 // SetSchemaVersion sets the database schema version
-func (ae *ApplicationEnvs) SetSchemaVersion(schemaVersion string) {
+func (ae *ApplicationEnvs) SetSchemaVersion(schemaVersion int) {
 	ae.schemaVersion = schemaVersion
 }
 

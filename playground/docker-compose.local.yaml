@@ -77,6 +77,7 @@ services:
       CACHE_ADDRESS: redis:6379
       SDK_CONFIG: /opt/playground/backend/sdks-emulator.yaml
       SERVER_PORT: 8082
+      APPLY_MIGRATIONS: "True"
     ports:
       - "8082:8082"
     depends_on:
