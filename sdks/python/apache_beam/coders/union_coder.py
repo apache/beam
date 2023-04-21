@@ -19,7 +19,7 @@
 
 import struct
 
-from typing import Iterable
+from typing import Iterable, List
 
 from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder
@@ -37,17 +37,20 @@ class UnionCoder(FastCoder):
           'The number of components for UnionCoder must be between 2 and 255.')
 
     self._coders = components
-    self._coder_typehints = [c.to_type_hint() for c in self._coders]
+    self._coder_typehints = {
+        c.to_type_hint(): (struct.pack("B", i), c)
+        for i,
+        c in enumerate(self._coders)
+    }
 
   def encode(self, value) -> bytes:
     """
         Encodes the given Union value into bytes.
         """
     typehint_type = type(value)
-    if typehint_type in self._coder_typehints:
-      coder_index = self._coder_typehints.index(typehint_type)
-      coder = self._coders[coder_index]
-      return struct.pack("B", coder_index) + coder.encode(value)
+    coder_t = self._coder_typehints.get(typehint_type, None)
+    if coder_t:
+      return coder_t[0] + coder_t[1].encode(value)
     else:
       raise ValueError(
           "Unknown type {} for UnionCoder with the value {}. ".format(
@@ -75,7 +78,14 @@ class UnionCoder(FastCoder):
     """
         Returns a type hint representing the Union type with the sub-coders.
         """
-    return typehints.Union[self._coder_typehints]
+    return typehints.Union[list(self._coder_typehints.keys())]
+
+  def coders(self):
+    # type: () -> List[Coder]
+    return self._coders
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self._coders == other.coders()
 
   def __repr__(self) -> str:
     """

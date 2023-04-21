@@ -41,6 +41,20 @@ class AvroTestCoder(coders.AvroGenericCoder):
 
 class UnionCoderTest(unittest.TestCase):
   def test_basics(self):
+    coder_0 = UnionCoder([
+        coders.StrUtf8Coder(),
+        coders.VarIntCoder(),
+    ])
+    coder = UnionCoder([
+        coders.StrUtf8Coder(),
+        coders.VarIntCoder(),
+        coders.FloatCoder(),
+    ])
+    assert coder != coder_0
+    for v in ["8", 8, 8.0]:
+      self.assertEqual(v, coder.decode(coder.encode(v)))
+
+  def test_custom_coder(self):
 
     coder = UnionCoder([AvroTestCoder(), coders.BooleanCoder()])
 
