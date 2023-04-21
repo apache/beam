@@ -26,7 +26,7 @@ import java.util.List;
  */
 public class OutputReceiver implements Receiver {
   private final List<Receiver> outputs = new ArrayList<>();
-  private final List<ElementCounter> outputCounters = new ArrayList<>();
+  public final List<ElementCounter> outputCounters = new ArrayList<>();
 
   /** Adds a new receiver that this OutputReceiver forwards to. */
   public void addOutput(Receiver receiver) {
