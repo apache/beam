@@ -143,6 +143,14 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 else:
   pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
 
+# Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
+# Exclude 1.5.0 and 1.5.1 because of
+# https://github.com/pandas-dev/pandas/issues/45725
+dataframe_dependency = [
+    'pandas<1.6.0;python_version=="3.7"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
+]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -276,7 +284,7 @@ if __name__ == '__main__':
             'mock>=1.0.1,<6.0.0',
             'pandas<2.0.0',
             'parameterized>=0.7.1,<0.10.0',
-            'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
+            'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
             'tenacity>=8.0.0,<9',
@@ -326,7 +334,7 @@ if __name__ == '__main__':
             # https://github.com/jupyter/jupyter_client/issues/637
             'jupyter-client>=6.1.11,!=6.1.13,<8.1.1',
             'timeloop>=1.0.2,<2',
-          ],
+          ] + dataframe_dependency,
           'interactive_test': [
             # notebok utils
             'nbformat>=5.0.5,<6',
@@ -343,13 +351,7 @@ if __name__ == '__main__':
             'azure-core>=1.7.0,<2',
             'azure-identity>=1.12.0,<2',
           ],
-        # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
-        # Exclude 1.5.0 and 1.5.1 because of
-        # https://github.com/pandas-dev/pandas/issues/45725
-          'dataframe': [
-            'pandas<1.6.0;python_version=="3.7"',
-            'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
-          ],
+          'dataframe': dataframe_dependency,
           'dask': [
             'dask >= 2022.6',
             'distributed >= 2022.6',
