@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+evaluationDependsOn(':sdks:python:test-suites:xlang')
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 def pythonContainerVersion = project.ext.pythonVersion
@@ -347,4 +348,28 @@ project.tasks.register("inferencePostCommitIT") {
    // uncomment tfx bsl tests once tfx supports protobuf 4.x
   // 'tfxInferenceTest',
   ]
+}
+
+// Create cross-language tasks for running tests against Java expansion service(s)
+def gcpProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+
+project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
+    createCrossLanguageUsingJavaExpansionTask(
+      name: taskMetadata.name,
+      expansionProjectPath: taskMetadata.expansionProjectPath,
+      collectMarker: taskMetadata.collectMarker,
+      startJobServer: taskMetadata.startJobServer,
+      cleanupJobServer: taskMetadata.cleanupJobServer,
+      numParallelTests: 1,
+      pythonPipelineOptions: [
+        "--runner=TestDirectRunner",
+        "--project=${gcpProject}",
+      ],
+      pytestOptions: [
+        "--capture=no",  // print stdout instantly
+        "--timeout=4500", // timeout of whole command execution
+        "--color=yes", // console color
+        "--log-cli-level=INFO" //log level info
+      ]
+    )
 }

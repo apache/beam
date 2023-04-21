@@ -23,7 +23,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 const kThemeMode = 'theme_mode';
 
 class ThemeSwitchNotifier extends ChangeNotifier {
-  ThemeMode themeMode = ThemeMode.light;
+  Brightness brightness = Brightness.light;
+
+  ThemeMode get themeMode {
+    switch (brightness) {
+      case Brightness.dark:
+        return ThemeMode.dark;
+      case Brightness.light:
+        return ThemeMode.light;
+    }
+  }
 
   void init() {
     _setPreferences();
@@ -31,20 +40,21 @@ class ThemeSwitchNotifier extends ChangeNotifier {
 
   Future<void> _setPreferences() async {
     final preferences = await SharedPreferences.getInstance();
-    themeMode = preferences.getString(kThemeMode) == ThemeMode.dark.toString()
-        ? ThemeMode.dark
-        : ThemeMode.light;
+    brightness = preferences.getString(kThemeMode) == Brightness.dark.toString()
+        ? Brightness.dark
+        : Brightness.light;
     notifyListeners();
   }
 
   bool get isDarkMode {
-    return themeMode == ThemeMode.dark;
+    return brightness == ThemeMode.dark;
   }
 
   Future<void> toggleTheme() async {
-    themeMode = themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    brightness =
+        brightness == Brightness.light ? Brightness.dark : Brightness.light;
     final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(kThemeMode, themeMode.toString());
+    await preferences.setString(kThemeMode, brightness.toString());
     notifyListeners();
   }
 }

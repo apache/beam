@@ -747,9 +747,7 @@ public class KafkaIOIT {
 
       PipelineResult readResult = sdfReadPipeline.run();
 
-      // By adding a sleep & verify here, we don't cause the pipeline to progress before we verify
-      // Dividing by 2 to limit how long the test takes
-      Thread.sleep(options.getReadTimeout() * 1000 / 2);
+      Thread.sleep(options.getReadTimeout() * 1000);
 
       for (String value : records.values()) {
         kafkaIOITExpectedLogs.verifyError(value);
@@ -913,6 +911,8 @@ public class KafkaIOIT {
         new KafkaContainer(
             DockerImageName.parse("confluentinc/cp-kafka")
                 .withTag(options.getKafkaContainerVersion()));
+    // Adding startup attempts to try and deflake
+    kafkaContainer.withStartupAttempts(3);
     kafkaContainer.start();
     options.setKafkaBootstrapServerAddresses(kafkaContainer.getBootstrapServers());
   }

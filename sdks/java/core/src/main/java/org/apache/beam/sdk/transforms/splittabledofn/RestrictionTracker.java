@@ -176,6 +176,9 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
   @AutoValue
   public abstract static class Progress {
 
+    /** Constant Progress instance to be used when no work has been completed yet. */
+    public static final Progress NONE = from(0, 1);
+
     /**
      * A representation for the amount of known completed and remaining work. See {@link
      * HasProgress#getProgress()} for details.

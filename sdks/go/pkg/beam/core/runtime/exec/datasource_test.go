@@ -16,7 +16,6 @@
 package exec
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -43,20 +42,20 @@ func TestDataSource_PerElement(t *testing.T) {
 		name     string
 		expected []any
 		Coder    *coder.Coder
-		driver   func(*coder.Coder, io.WriteCloser, []any)
+		driver   func(*coder.Coder, *chanWriter, []any)
 	}{
 		{
 			name:     "perElement",
 			expected: []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder:    coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, pw io.WriteCloser, expected []any) {
+			driver: func(c *coder.Coder, cw *chanWriter, expected []any) {
 				wc := MakeWindowEncoder(c.Window)
 				ec := MakeElementEncoder(coder.SkipW(c))
 				for _, v := range expected {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw)
-					ec.Encode(&FullValue{Elm: v}, pw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), cw)
+					ec.Encode(&FullValue{Elm: v}, cw)
 				}
-				pw.Close()
+				cw.Close()
 			},
 		},
 	}
@@ -70,11 +69,11 @@ func TestDataSource_PerElement(t *testing.T) {
 				Coder: test.Coder,
 				Out:   out,
 			}
-			pr, pw := io.Pipe()
-			go test.driver(source.Coder, pw, test.expected)
+			cw := makeChanWriter()
+			go test.driver(source.Coder, cw, test.expected)
 
 			constructAndExecutePlanWithContext(t, []Unit{out, source}, DataContext{
-				Data: &TestDataManager{R: pr},
+				Data: &TestDataManager{Ch: cw.Ch},
 			})
 
 			validateSource(t, out, source, makeValues(test.expected...))
@@ -98,14 +97,14 @@ func TestDataSource_Iterators(t *testing.T) {
 		name       string
 		keys, vals []any
 		Coder      *coder.Coder
-		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []any)
+		driver     func(c *coder.Coder, dmw *chanWriter, siwFn func() io.WriteCloser, ks, vs []any)
 	}{
 		{
 			name:  "beam:coder:iterable:v1-singleChunk",
 			keys:  []any{int64(42), int64(53)},
 			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []any) {
+			driver: func(c *coder.Coder, dmw *chanWriter, _ func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -123,7 +122,7 @@ func TestDataSource_Iterators(t *testing.T) {
 			keys:  []any{int64(42), int64(53)},
 			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []any) {
+			driver: func(c *coder.Coder, dmw *chanWriter, _ func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -144,7 +143,7 @@ func TestDataSource_Iterators(t *testing.T) {
 			keys:  []any{int64(42), int64(53)},
 			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []any) {
+			driver: func(c *coder.Coder, dmw *chanWriter, swFn func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -155,6 +154,8 @@ func TestDataSource_Iterators(t *testing.T) {
 					token := []byte(tokenString)
 					coder.EncodeVarInt(int64(len(token)), dmw) // token.
 					dmw.Write(token)
+					dmw.Flush() // Flush here to allow state IO from this goroutine.
+
 					// Each state stream needs to be a different writer, so get a new writer.
 					sw := swFn()
 					for _, v := range vs {
@@ -170,6 +171,7 @@ func TestDataSource_Iterators(t *testing.T) {
 	for _, singleIterate := range []bool{true, false} {
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
+				fmt.Println(test.name)
 				capture := &IteratorCaptureNode{CaptureNode: CaptureNode{UID: 1}}
 				out := Node(capture)
 				units := []Unit{out}
@@ -187,8 +189,7 @@ func TestDataSource_Iterators(t *testing.T) {
 					Out:   out,
 				}
 				units = append(units, source)
-				dmr, dmw := io.Pipe()
-
+				cw := makeChanWriter()
 				// Simulate individual state channels with pipes and a channel.
 				sRc := make(chan io.ReadCloser)
 				swFn := func() io.WriteCloser {
@@ -196,10 +197,10 @@ func TestDataSource_Iterators(t *testing.T) {
 					sRc <- sr
 					return sw
 				}
-				go test.driver(source.Coder, dmw, swFn, test.keys, test.vals)
+				go test.driver(source.Coder, cw, swFn, test.keys, test.vals)
 
 				constructAndExecutePlanWithContext(t, units, DataContext{
-					Data:  &TestDataManager{R: dmr},
+					Data:  &TestDataManager{Ch: cw.Ch},
 					State: &TestStateReader{Rc: sRc},
 				})
 				if len(capture.CapturedInputs) == 0 {
@@ -240,7 +241,7 @@ func TestDataSource_Iterators(t *testing.T) {
 
 func TestDataSource_Split(t *testing.T) {
 	elements := []any{int64(1), int64(2), int64(3), int64(4), int64(5)}
-	initSourceTest := func(name string) (*DataSource, *CaptureNode, io.ReadCloser) {
+	initSourceTest := func(name string) (*DataSource, *CaptureNode, chan Elements) {
 		out := &CaptureNode{UID: 1}
 		c := coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow())
 		source := &DataSource{
@@ -250,7 +251,7 @@ func TestDataSource_Split(t *testing.T) {
 			Coder: c,
 			Out:   out,
 		}
-		pr, pw := io.Pipe()
+		cw := makeChanWriter()
 
 		go func(c *coder.Coder, pw io.WriteCloser, elements []any) {
 			wc := MakeWindowEncoder(c.Window)
@@ -260,8 +261,8 @@ func TestDataSource_Split(t *testing.T) {
 				ec.Encode(&FullValue{Elm: v}, pw)
 			}
 			pw.Close()
-		}(c, pw, elements)
-		return source, out, pr
+		}(c, cw, elements)
+		return source, out, cw.Ch
 	}
 
 	tests := []struct {
@@ -289,12 +290,12 @@ func TestDataSource_Split(t *testing.T) {
 			test.expected = elements[:test.splitIdx]
 		}
 		t.Run(test.name, func(t *testing.T) {
-			source, out, pr := initSourceTest(test.name)
+			source, out, ch := initSourceTest(test.name)
 			p, err := NewPlan("a", []Unit{out, source})
 			if err != nil {
 				t.Fatalf("failed to construct plan: %v", err)
 			}
-			dc := DataContext{Data: &TestDataManager{R: pr}}
+			dc := DataContext{Data: &TestDataManager{Ch: ch}}
 			ctx := context.Background()
 
 			// StartBundle resets the source, so no splits can be actuated before then,
@@ -358,7 +359,7 @@ func TestDataSource_Split(t *testing.T) {
 				test.expected = elements[:test.splitIdx]
 			}
 			t.Run(test.name, func(t *testing.T) {
-				source, out, pr := initSourceTest(test.name)
+				source, out, ch := initSourceTest(test.name)
 				unblockCh, blockedCh := make(chan struct{}), make(chan struct{}, 1)
 				// Block on the one less than the desired split,
 				// so the desired split is the first valid split.
@@ -401,7 +402,7 @@ func TestDataSource_Split(t *testing.T) {
 				}()
 
 				constructAndExecutePlanWithContext(t, []Unit{out, blocker, source}, DataContext{
-					Data: &TestDataManager{R: pr},
+					Data: &TestDataManager{Ch: ch},
 				})
 
 				validateSource(t, out, source, makeValues(test.expected...))
@@ -427,12 +428,12 @@ func TestDataSource_Split(t *testing.T) {
 			expected: elements[:3],
 		}
 
-		source, out, pr := initSourceTest("bufSize")
+		source, out, ch := initSourceTest("bufSize")
 		p, err := NewPlan("a", []Unit{out, source})
 		if err != nil {
 			t.Fatalf("failed to construct plan: %v", err)
 		}
-		dc := DataContext{Data: &TestDataManager{R: pr}}
+		dc := DataContext{Data: &TestDataManager{Ch: ch}}
 		ctx := context.Background()
 
 		// StartBundle resets the source, so no splits can be actuated before then,
@@ -490,7 +491,7 @@ func TestDataSource_Split(t *testing.T) {
 			test := test
 			name := fmt.Sprintf("withFraction_%v", test.fraction)
 			t.Run(name, func(t *testing.T) {
-				source, out, pr := initSourceTest(name)
+				source, out, ch := initSourceTest(name)
 				unblockCh, blockedCh := make(chan struct{}), make(chan struct{}, 1)
 				// Block on the one less than the desired split,
 				// so the desired split is the first valid split.
@@ -527,10 +528,10 @@ func TestDataSource_Split(t *testing.T) {
 							t.Errorf("error in Split: got sub-element split = %t, want %t", isSubElm, test.isSubElm)
 						}
 						if isSubElm {
-							if got, want := splitRes.TId, testTransformId; got != want {
+							if got, want := splitRes.TId, testTransformID; got != want {
 								t.Errorf("error in Split: got incorrect Transform Id = %v, want %v", got, want)
 							}
-							if got, want := splitRes.InId, testInputId; got != want {
+							if got, want := splitRes.InId, testInputID; got != want {
 								t.Errorf("error in Split: got incorrect Input Id = %v, want %v", got, want)
 							}
 							if _, ok := splitRes.OW["output1"]; !ok {
@@ -558,7 +559,7 @@ func TestDataSource_Split(t *testing.T) {
 				}()
 
 				constructAndExecutePlanWithContext(t, []Unit{out, blocker, source}, DataContext{
-					Data: &TestDataManager{R: pr},
+					Data: &TestDataManager{Ch: ch},
 				})
 
 				validateSource(t, out, source, makeValues(elements[:test.splitIdx]...))
@@ -571,12 +572,12 @@ func TestDataSource_Split(t *testing.T) {
 
 	// Test expects splitting errors, but for processing to be successful.
 	t.Run("errors", func(t *testing.T) {
-		source, out, pr := initSourceTest("noSplitsUntilStarted")
+		source, out, ch := initSourceTest("noSplitsUntilStarted")
 		p, err := NewPlan("a", []Unit{out, source})
 		if err != nil {
 			t.Fatalf("failed to construct plan: %v", err)
 		}
-		dc := DataContext{Data: &TestDataManager{R: pr}}
+		dc := DataContext{Data: &TestDataManager{Ch: ch}}
 		ctx := context.Background()
 
 		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
@@ -620,8 +621,8 @@ func TestDataSource_Split(t *testing.T) {
 	})
 }
 
-const testTransformId = "transform_id"
-const testInputId = "input_id"
+const testTransformID = "transform_id"
+const testInputID = "input_id"
 
 // TestSplittableUnit is an implementation of the SplittableUnit interface
 // for DataSource tests.
@@ -651,12 +652,12 @@ func (n *TestSplittableUnit) GetProgress() float64 {
 
 // GetTransformId returns a constant transform ID that can be tested for.
 func (n *TestSplittableUnit) GetTransformId() string {
-	return testTransformId
+	return testTransformID
 }
 
 // GetInputId returns a constant input ID that can be tested for.
 func (n *TestSplittableUnit) GetInputId() string {
-	return testInputId
+	return testInputID
 }
 
 // GetOutputWatermark gets the current output watermark of the splittable unit
@@ -966,20 +967,21 @@ func TestCheckpointing(t *testing.T) {
 		}
 
 		enc := MakeElementEncoder(wvERSCoder)
-		var buf bytes.Buffer
+		cw := makeChanWriter()
 
 		// We encode the element several times to ensure we don't
 		// drop any residuals, the root of issue #24931.
 		wantCount := 3
 		for i := 0; i < wantCount; i++ {
-			if err := enc.Encode(value, &buf); err != nil {
+			if err := enc.Encode(value, cw); err != nil {
 				t.Fatalf("couldn't encode value: %v", err)
 			}
 		}
+		cw.Close()
 
 		if err := root.StartBundle(ctx, "testBund", DataContext{
 			Data: &TestDataManager{
-				R: io.NopCloser(&buf),
+				Ch: cw.Ch,
 			},
 		},
 		); err != nil {
@@ -1017,16 +1019,43 @@ func runOnRoots(ctx context.Context, t *testing.T, p *Plan, name string, mthd fu
 }
 
 type TestDataManager struct {
-	R io.ReadCloser
+	Ch chan Elements
 }
 
-func (dm *TestDataManager) OpenRead(ctx context.Context, id StreamID) (io.ReadCloser, error) {
-	return dm.R, nil
+func (dm *TestDataManager) OpenElementChan(ctx context.Context, id StreamID, expectedTimerTransforms []string) (<-chan Elements, error) {
+	return dm.Ch, nil
 }
 
 func (dm *TestDataManager) OpenWrite(ctx context.Context, id StreamID) (io.WriteCloser, error) {
 	return nil, nil
 }
+
+func (dm *TestDataManager) OpenTimerWrite(ctx context.Context, id StreamID, family string) (io.WriteCloser, error) {
+	return nil, nil
+}
+
+type chanWriter struct {
+	Ch  chan Elements
+	Buf []byte
+}
+
+func (cw *chanWriter) Write(p []byte) (int, error) {
+	cw.Buf = append(cw.Buf, p...)
+	return len(p), nil
+}
+
+func (cw *chanWriter) Close() error {
+	cw.Flush()
+	close(cw.Ch)
+	return nil
+}
+
+func (cw *chanWriter) Flush() {
+	cw.Ch <- Elements{Data: cw.Buf, PtransformID: "myPTransform"}
+	cw.Buf = nil
+}
+
+func makeChanWriter() *chanWriter { return &chanWriter{Ch: make(chan Elements, 20)} }
 
 // TestSideInputReader simulates state reads using channels.
 type TestStateReader struct {

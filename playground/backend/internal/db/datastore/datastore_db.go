@@ -387,7 +387,7 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 		}
 	}
 
-	return d.ResponseMapper.ToPrecompiledObj(&dto.ExampleDTO{
+	return d.ResponseMapper.ToPrecompiledObj(id, &dto.ExampleDTO{
 		Example:            example,
 		Snippet:            snippet,
 		Files:              []*entity.FileEntity{file},
@@ -469,6 +469,33 @@ func (d *Datastore) GetExampleGraph(ctx context.Context, id string) (string, err
 	return pcObj.Content, nil
 }
 
+func (d *Datastore) deleteSnippetByKey(ctx context.Context, key *datastore.Key) error {
+	// Get the snippet from db
+	var snippet = new(entity.SnippetEntity)
+	if err := d.Client.Get(ctx, key, snippet); err != nil {
+		logger.Errorf("error during getting snippet by identifier, err: %s", err.Error())
+		return err
+	}
+
+	var fileKeys []*datastore.Key
+	for fileIndex := 0; fileIndex < snippet.NumberOfFiles; fileIndex++ {
+		fileKeys = append(fileKeys, utils.GetFileKey(ctx, key.Name, fileIndex))
+	}
+
+	_, err := d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		err := tx.DeleteMulti(fileKeys)
+		err = tx.Delete(key)
+		return err
+	})
+
+	if err != nil {
+		logger.Errorf("error during deleting snippet by identifier, err: %s", err.Error())
+		return err
+	}
+
+	return nil
+}
+
 func (d *Datastore) deleteSnippets(ctx context.Context, snippetQuery *datastore.Query, skipKey *datastore.Key) error {
 	snippetQuery = snippetQuery.
 		Project("numberOfFiles")
@@ -500,6 +527,13 @@ func (d *Datastore) deleteSnippets(ctx context.Context, snippetQuery *datastore.
 		}
 	}
 	return nil
+}
+
+// DeleteSnippet removes snippet by its identified
+func (d *Datastore) DeleteSnippet(ctx context.Context, id string) error {
+	key := utils.GetSnippetKey(ctx, id)
+
+	return d.deleteSnippetByKey(ctx, key)
 }
 
 // DeleteUnusedSnippets deletes all unused snippets

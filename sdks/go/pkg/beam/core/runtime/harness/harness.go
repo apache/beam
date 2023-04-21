@@ -37,7 +37,6 @@ import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -91,8 +90,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		go diagnostics.SampleForHeapProfile(ctx, samplingFrequencySeconds, maxTimeBetweenDumpsSeconds)
 	}
 
-	recordHeader()
-
 	// Connect to FnAPI control server. Receive and execute work.
 	conn, err := dial(ctx, controlEndpoint, "control", 60*time.Second)
 	if err != nil {
@@ -125,7 +122,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	go func() {
 		defer wg.Done()
 		for resp := range respc {
-			log.Debugf(ctx, "RESP: %v", proto.MarshalTextString(resp))
+			// TODO(lostluck): 2023/03/29 fix debug level logging to be flagged.
+			// log.Debugf(ctx, "RESP: %v", proto.MarshalTextString(resp))
 
 			if err := stub.Send(resp); err != nil {
 				log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
@@ -177,24 +175,20 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			close(respc)
 			wg.Wait()
 			if err == io.EOF {
-				recordFooter()
 				return nil
 			}
 			return errors.Wrapf(err, "control.Recv failed")
 		}
 
 		// Launch a goroutine to handle the control message.
-		// TODO(wcn): implement a rate limiter for 'heavy' messages?
 		fn := func(ctx context.Context, req *fnpb.InstructionRequest) {
-			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
-			recordInstructionRequest(req)
-
+			// TODO(lostluck): 2023/03/29 fix debug level logging to be flagged.
+			// log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 			ctx = hooks.RunRequestHooks(ctx, req)
 			resp := ctrl.handleInstruction(ctx, req)
 
 			hooks.RunResponseHooks(ctx, req, resp)
 
-			recordInstructionResponse(resp)
 			if resp != nil && atomic.LoadInt32(&shutdown) == 0 {
 				respc <- resp
 			}
@@ -353,7 +347,7 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	instID := instructionID(req.GetInstructionId())
-	ctx = setInstID(ctx, instID)
+	ctx = metrics.SetBundleID(ctx, string(instID))
 
 	switch {
 	case req.GetRegister() != nil:
@@ -376,9 +370,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetProcessBundle()
 
 		// NOTE: the harness sends a 0-length process bundle request to sources (changed?)
-
 		bdID := bundleDescriptorID(msg.GetProcessBundleDescriptorId())
-		log.Debugf(ctx, "PB [%v]: %v", instID, msg)
+
+		// TODO(lostluck): 2023/03/29 fix debug level logging to be flagged.
+		// log.Debugf(ctx, "PB [%v]: %v", instID, msg)
 		plan, err := c.getOrCreatePlan(bdID)
 
 		// Make the plan active.
@@ -386,7 +381,6 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.inactive.Remove(instID)
 		c.active[instID] = plan
 		// Get the user metrics store for this bundle.
-		ctx = metrics.SetBundleID(ctx, string(instID))
 		store := metrics.GetStore(ctx)
 		c.metStore[instID] = store
 		c.mu.Unlock()
@@ -546,7 +540,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 	case req.GetProcessBundleSplit() != nil:
 		msg := req.GetProcessBundleSplit()
 
-		log.Debugf(ctx, "PB Split: %v", msg)
+		// TODO(lostluck): 2023/03/29 fix debug level logging to be flagged.
+		// log.Debugf(ctx, "PB Split: %v", msg)
 		ref := instructionID(msg.GetInstructionId())
 
 		plan, _, resp := c.getPlanOrResponse(ctx, "split", instID, ref)

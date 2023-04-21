@@ -327,16 +327,60 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
   :param expansion_service: an expansion service to use. This should already be
       available and the Schema-aware transforms to be used must already be
       deployed.
+  :param rearrange_based_on_discovery: if this flag is set, the input kwargs
+      will be rearranged to match the order of fields in the external
+      SchemaTransform configuration. A discovery call will be made to fetch
+      the configuration.
   :param classpath: (Optional) A list paths to additional jars to place on the
       expansion service classpath.
   :kwargs: field name to value mapping for configuring the schema transform.
       keys map to the field names of the schema of the SchemaTransform
       (in-order).
   """
-  def __init__(self, identifier, expansion_service, classpath=None, **kwargs):
+  def __init__(
+      self,
+      identifier,
+      expansion_service,
+      rearrange_based_on_discovery=False,
+      classpath=None,
+      **kwargs):
     self._expansion_service = expansion_service
-    self._payload_builder = SchemaTransformPayloadBuilder(identifier, **kwargs)
+    self._kwargs = kwargs
     self._classpath = classpath
+
+    _kwargs = kwargs
+    if rearrange_based_on_discovery:
+      _kwargs = self._rearrange_kwargs(identifier)
+
+    self._payload_builder = SchemaTransformPayloadBuilder(identifier, **_kwargs)
+
+  def _rearrange_kwargs(self, identifier):
+    # discover and fetch the external SchemaTransform configuration then
+    # use it to build an appropriate payload
+    schematransform_config = SchemaAwareExternalTransform.discover_config(
+        self._expansion_service, identifier)
+
+    external_config_fields = schematransform_config.configuration_schema._fields
+    ordered_kwargs = OrderedDict()
+    missing_fields = []
+
+    for field in external_config_fields:
+      if field not in self._kwargs:
+        missing_fields.append(field)
+      else:
+        ordered_kwargs[field] = self._kwargs[field]
+
+    extra_fields = list(set(self._kwargs.keys()) - set(external_config_fields))
+    if missing_fields:
+      raise ValueError(
+          'Input parameters are missing the following SchemaTransform config '
+          'fields: %s' % missing_fields)
+    elif extra_fields:
+      raise ValueError(
+          'Input parameters include the following extra fields that are not '
+          'found in the SchemaTransform config schema: %s' % extra_fields)
+
+    return ordered_kwargs
 
   def expand(self, pcolls):
     # Expand the transform using the expansion service.
@@ -366,6 +410,36 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
             configuration_schema=schema,
             inputs=proto_config.input_pcollection_names,
             outputs=proto_config.output_pcollection_names)
+
+  @staticmethod
+  def discover_config(expansion_service, name):
+    """Discover one SchemaTransform by name in the given expansion service.
+
+    :return: one SchemaTransformsConfig that represents the discovered
+        SchemaTransform
+
+    :raises:
+      ValueError: if more than one SchemaTransform is discovered, or if none
+      are discovered
+    """
+
+    schematransforms = SchemaAwareExternalTransform.discover(expansion_service)
+    matched = []
+
+    for st in schematransforms:
+      if name in st.identifier:
+        matched.append(st)
+
+    if not matched:
+      raise ValueError(
+          "Did not discover any SchemaTransforms resembling the name '%s'" %
+          name)
+    elif len(matched) > 1:
+      raise ValueError(
+          "Found multiple SchemaTransforms with the name '%s':\n%s\n" %
+          (name, [st.identifier for st in matched]))
+
+    return matched[0]
 
 
 class JavaExternalTransform(ptransform.PTransform):

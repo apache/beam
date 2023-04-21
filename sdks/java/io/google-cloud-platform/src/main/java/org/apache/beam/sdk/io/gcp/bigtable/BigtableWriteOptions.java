@@ -54,6 +54,9 @@ abstract class BigtableWriteOptions implements Serializable {
   /** Returns the max number of concurrent bytes allowed before enforcing flow control. */
   abstract @Nullable Long getMaxOutstandingBytes();
 
+  /** Returns the target latency if latency based throttling is enabled. */
+  abstract @Nullable Integer getThrottlingTargetMs();
+
   abstract Builder toBuilder();
 
   static Builder builder() {
@@ -76,6 +79,8 @@ abstract class BigtableWriteOptions implements Serializable {
     abstract Builder setMaxOutstandingElements(long count);
 
     abstract Builder setMaxOutstandingBytes(long bytes);
+
+    abstract Builder setThrottlingTargetMs(int targetMs);
 
     abstract BigtableWriteOptions build();
   }

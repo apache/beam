@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.ByteBuffer;
@@ -304,7 +306,7 @@ public class AvroSchemaTest {
   private static final LocalDate DATE = new LocalDate(1979, 3, 14);
   private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
   private static final TestAvro AVRO_SPECIFIC_RECORD =
-      new TestAvro(
+      TestAvroFactory.newInstance(
           true,
           43,
           44L,
@@ -377,7 +379,9 @@ public class AvroSchemaTest {
 
   @Test
   public void testPojoSchema() {
-    assertEquals(POJO_SCHEMA, new AvroRecordSchema().schemaFor(TypeDescriptor.of(AvroPojo.class)));
+    assertThat(
+        new AvroRecordSchema().schemaFor(TypeDescriptor.of(AvroPojo.class)),
+        equivalentTo(POJO_SCHEMA));
   }
 
   @Test
@@ -449,7 +453,7 @@ public class AvroSchemaTest {
   public void testPojoRecordToRow() {
     SerializableFunction<AvroPojo, Row> toRow =
         new AvroRecordSchema().toRowFunction(TypeDescriptor.of(AvroPojo.class));
-    assertEquals(ROW_FOR_POJO, toRow.apply(AVRO_POJO));
+    assertThat(toRow.apply(AVRO_POJO), equivalentTo(ROW_FOR_POJO));
   }
 
   @Test
