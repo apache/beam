@@ -243,6 +243,7 @@ if __name__ == '__main__':
         'objsize>=0.6.1,<0.7.0',
         'pymongo>=3.8.0,<5.0.0',
         'proto-plus>=1.7.1,<2',
+        
         # use a tighter upper bound in protobuf dependency
         # to make sure the minor version at job submission
         # does not exceed the minor version at runtime.
