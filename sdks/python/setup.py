@@ -149,7 +149,7 @@ else:
 dataframe_dependency = [
     'pandas<1.6.0;python_version=="3.7"',
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
-],
+]
 
 
 # We must generate protos after setup_requires are installed.
