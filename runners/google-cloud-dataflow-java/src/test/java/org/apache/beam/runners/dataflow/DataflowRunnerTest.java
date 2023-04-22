@@ -2384,7 +2384,7 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testPubsubSinkDynamicOverride() throws IOException {
+  public void testPubinkDynamicOverride() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     dataflowOptions.setStreaming(true);
