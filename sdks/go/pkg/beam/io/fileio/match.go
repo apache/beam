@@ -20,15 +20,26 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/periodic"
 )
 
 func init() {
 	register.DoFn3x1[context.Context, string, func(FileMetadata), error](&matchFn{})
+	register.DoFn2x0[[]byte, func(string)](&matchContFn{})
+	register.DoFn4x1[state.Provider, string, FileMetadata, func(FileMetadata), error](
+		&dedupFn{},
+	)
 	register.Emitter1[FileMetadata]()
+	register.Emitter1[string]()
+	register.Function1x2[FileMetadata, string, FileMetadata](keyByPath)
 }
 
 // emptyTreatment controls how empty matches of a pattern are treated.
@@ -186,4 +197,147 @@ func metadataFromFiles(
 	}
 
 	return metadata, nil
+}
+
+// duplicateTreatment controls how duplicate matches are treated.
+type duplicateTreatment int
+
+const (
+	// duplicateAllow allows duplicate matches.
+	duplicateAllow duplicateTreatment = iota
+	// duplicateSkip skips duplicate matches.
+	duplicateSkip
+)
+
+type matchContOption struct {
+	Start              time.Time
+	End                time.Time
+	DuplicateTreatment duplicateTreatment
+	ApplyWindow        bool
+}
+
+// MatchContOptionFn is a function that can be passed to MatchContinuously to configure options for
+// matching files.
+type MatchContOptionFn func(*matchContOption)
+
+// MatchStart specifies the start time for matching files.
+func MatchStart(start time.Time) MatchContOptionFn {
+	return func(o *matchContOption) {
+		o.Start = start
+	}
+}
+
+// MatchEnd specifies the end time for matching files.
+func MatchEnd(end time.Time) MatchContOptionFn {
+	return func(o *matchContOption) {
+		o.End = end
+	}
+}
+
+// MatchDuplicateAllow specifies that file path matches will not be deduplicated.
+func MatchDuplicateAllow() MatchContOptionFn {
+	return func(o *matchContOption) {
+		o.DuplicateTreatment = duplicateAllow
+	}
+}
+
+// MatchDuplicateSkip specifies that file path matches will be deduplicated.
+func MatchDuplicateSkip() MatchContOptionFn {
+	return func(o *matchContOption) {
+		o.DuplicateTreatment = duplicateSkip
+	}
+}
+
+// MatchApplyWindow specifies that each element will be assigned to an individual window.
+func MatchApplyWindow() MatchContOptionFn {
+	return func(o *matchContOption) {
+		o.ApplyWindow = true
+	}
+}
+
+// MatchContinuously finds all files matching the glob pattern at the given interval and returns a
+// PCollection<FileMetadata> of the matching files. MatchContinuously accepts a variadic number of
+// MatchContOptionFn that can be used to configure:
+//
+//   - Start: start time for matching files. Defaults to the current timestamp
+//   - End: end time for matching files. Defaults to the maximum timestamp
+//   - DuplicateAllow: allow emitting matches that have already been observed. Defaults to false
+//   - DuplicateSkip: skip emitting matches that have already been observed. Defaults to true
+//   - ApplyWindow: assign each element to an individual window with a fixed size equivalent to the
+//     interval. Defaults to false, i.e. all elements will reside in the global window
+func MatchContinuously(
+	s beam.Scope,
+	glob string,
+	interval time.Duration,
+	opts ...MatchContOptionFn,
+) beam.PCollection {
+	s = s.Scope("fileio.MatchContinuously")
+
+	filesystem.ValidateScheme(glob)
+
+	option := &matchContOption{
+		Start:              mtime.Now().ToTime(),
+		End:                mtime.MaxTimestamp.ToTime(),
+		ApplyWindow:        false,
+		DuplicateTreatment: duplicateSkip,
+	}
+
+	for _, opt := range opts {
+		opt(option)
+	}
+
+	imp := periodic.Impulse(s, option.Start, option.End, interval, false)
+	globs := beam.ParDo(s, &matchContFn{Glob: glob}, imp)
+	matches := MatchAll(s, globs, MatchEmptyAllow())
+
+	var out beam.PCollection
+
+	if option.DuplicateTreatment == duplicateAllow {
+		out = matches
+	} else {
+		keyed := beam.ParDo(s, keyByPath, matches)
+		out = beam.ParDo(s, &dedupFn{}, keyed)
+	}
+
+	if option.ApplyWindow {
+		return beam.WindowInto(s, window.NewFixedWindows(interval), out)
+	}
+	return out
+}
+
+type matchContFn struct {
+	Glob string
+}
+
+func (fn *matchContFn) ProcessElement(_ []byte, emit func(string)) {
+	emit(fn.Glob)
+}
+
+func keyByPath(md FileMetadata) (string, FileMetadata) {
+	return md.Path, md
+}
+
+type dedupFn struct {
+	State state.Value[struct{}]
+}
+
+func (fn *dedupFn) ProcessElement(
+	sp state.Provider,
+	_ string,
+	md FileMetadata,
+	emit func(FileMetadata),
+) error {
+	_, ok, err := fn.State.Read(sp)
+	if err != nil {
+		return fmt.Errorf("error reading state: %v", err)
+	}
+
+	if !ok {
+		emit(md)
+		if err := fn.State.Write(sp, struct{}{}); err != nil {
+			return fmt.Errorf("error writing state: %v", err)
+		}
+	}
+
+	return nil
 }

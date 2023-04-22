@@ -78,7 +78,7 @@ The mass bidding infrastructure had undergone several rewrites before Apache Bea
           Igor Dralyuk
         </div>
         <div class="case-study-quote-author-position">
-          Senior Software Engineer @ Booking.com
+          Principal Engineer @ Booking.com
         </div>
     </div>
   </div>
@@ -141,7 +141,7 @@ The quality of documentation, as well as the vibrant Apache Beam open-source com
           Igor Dralyuk
         </div>
         <div class="case-study-quote-author-position">
-          Senior Software Engineer @ Booking.com
+          Principal Engineer @ Booking.com
         </div>
     </div>
   </div>
