@@ -9,7 +9,7 @@ import (
 const (
 	inputRowTupleTag  = "input"
 	outputRowTupleTag = "output"
-	expansionUri      = "beam:schematransform:org.apache.beam:file_write:v1"
+	expansionUri      = "beam:transform:org.apache.beam:file_write:v1"
 )
 
 func Write(s beam.Scope, expansionAddress string, configuration *WriteConfiguration, input beam.PCollection) beam.PCollection {
@@ -28,23 +28,30 @@ func Write(s beam.Scope, expansionAddress string, configuration *WriteConfigurat
 // WriteConfiguration is based on the FileWriteSchemaTransformConfiguration.
 // See https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/fileschematransform/FileWriteSchemaTransformConfiguration.html
 type WriteConfiguration struct {
-	Compression          string
-	FilenamePrefix       string
-	FilenameSuffix       string
-	Format               string
-	NumShards            int
-	ShardNameTemplate    string
-	CsvConfiguration     *CsvWrite
-	ParquetConfiguration *ParquetWrite
-	XmlConfiguration     *XmlWrite
+	Format               string        `beam:"format"`
+	FilenamePrefix       string        `beam:"filenamePrefix"`
+	Compression          string        `beam:"compression"`
+	NumShards            int           `beam:"numShards"`
+	ShardNameTemplate    string        `beam:"shardNameTemplate"`
+	FilenameSuffix       string        `beam:"filenameSuffix"`
+	CsvConfiguration     *CsvWrite     `beam:"csvConfiguration"`
+	ParquetConfiguration *ParquetWrite `beam:"parquetConfiguration"`
+	XmlConfiguration     *XmlWrite     `beam:"xmlConfiguration"`
 }
 
 // CsvWrite configures details for writing CSV formatted data to a file or object system.
 // CsvWrite is based on the FileWriteSchemaTransformConfiguration.CsvConfiguration.
 // See https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/fileschematransform/FileWriteSchemaTransformConfiguration.CsvConfiguration.html
 type CsvWrite struct {
+	PredefinedCsvFormat string `beam:"predefinedCsvFormat"`
 }
 
-type ParquetWrite struct{}
+type ParquetWrite struct {
+	CompressionCodecName string `beam:"compressionCodecName"`
+	RowGroupSize         int    `beam:"rowGroupSize"`
+}
 
-type XmlWrite struct{}
+type XmlWrite struct {
+	RootElement string `beam:"rootElement"`
+	Charset     string `beam:"charset"`
+}
