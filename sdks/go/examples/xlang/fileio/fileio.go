@@ -48,7 +48,7 @@ func run(ctx context.Context) error {
 
 	input := beam.Create(s.Scope("input"), elements...)
 
-	filePathsWritten := fileiox.Write(s, expansionAddress, &fileiox.WriteConfiguration{
+	filePathsWritten := fileiox.Write(s, expansionAddress, fileiox.WriteConfiguration{
 		FilenamePrefix: "gs://acb654db-6269-43f6-92b9-07dbc9066baa/output",
 		Format:         "json",
 		NumShards:      1,

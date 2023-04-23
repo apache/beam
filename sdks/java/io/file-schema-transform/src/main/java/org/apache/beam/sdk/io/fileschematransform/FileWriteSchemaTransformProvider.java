@@ -53,7 +53,7 @@ public class FileWriteSchemaTransformProvider
   public static final Field FILE_NAME_FIELD = Field.of("fileName", FieldType.STRING);
   public static final Schema OUTPUT_SCHEMA = Schema.of(FILE_NAME_FIELD);
 
-  static final String IDENTIFIER = "beam:schematransform:org.apache.beam:file_write:v1";
+  private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:file_write:v1";
   static final String INPUT_TAG = "input";
   static final String OUTPUT_TAG = "output";
 

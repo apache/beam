@@ -2,26 +2,45 @@ package fileio
 
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"os"
+	"reflect"
 )
 
 const (
 	inputRowTupleTag  = "input"
 	outputRowTupleTag = "output"
-	expansionUri      = "beam:transform:org.apache.beam:file_write:v1"
+	//expansionUri      = "beam:transform:org.apache.beam:file_write:v1"
+	identifier   = "beam:schematransform:org.apache.beam:file_write:v1"
+	expansionUri = "beam:expansion:payload:schematransform:v1"
 )
 
-func Write(s beam.Scope, expansionAddress string, configuration *WriteConfiguration, input beam.PCollection) beam.PCollection {
-	pl := beam.CrossLanguagePayload(configuration)
-	namedInput := map[string]beam.PCollection{
-		inputRowTupleTag: input,
+func Write(s beam.Scope, expansionAddress string, configuration WriteConfiguration, input beam.PCollection) beam.PCollection {
+	ss, err := schema.FromType(reflect.TypeOf(WriteConfiguration{}))
+	if err != nil {
+		panic(err)
 	}
-	outputTypes := map[string]typex.FullType{
-		outputRowTupleTag: typex.New(reflectx.String),
+	schemaTransformPayload := &pipeline_v1.SchemaTransformPayload{
+		Identifier:          identifier,
+		ConfigurationSchema: ss,
+		ConfigurationRow:    beam.CrossLanguagePayload(configuration),
 	}
-	output := beam.CrossLanguage(s.Scope(expansionUri), expansionUri, pl, expansionAddress, namedInput, outputTypes)
-	return output[outputRowTupleTag]
+	_ = beam.CrossLanguagePayload(schemaTransformPayload)
+
+	os.Exit(0)
+	//
+	//namedInput := map[string]beam.PCollection{
+	//	inputRowTupleTag: input,
+	//}
+	//
+	//outputTypes := map[string]typex.FullType{
+	//	outputRowTupleTag: typex.New(reflectx.String),
+	//}
+	//
+	//output := beam.CrossLanguage(s.Scope(expansionUri), expansionUri, pl, expansionAddress, namedInput, outputTypes)
+	//return output[outputRowTupleTag]
+	return beam.Create(s, "hi")
 }
 
 // WriteConfiguration configures a struct-based DoFn that writes to a file or object system.
@@ -31,7 +50,7 @@ type WriteConfiguration struct {
 	Format               string        `beam:"format"`
 	FilenamePrefix       string        `beam:"filenamePrefix"`
 	Compression          string        `beam:"compression"`
-	NumShards            int           `beam:"numShards"`
+	NumShards            int32         `beam:"numShards"`
 	ShardNameTemplate    string        `beam:"shardNameTemplate"`
 	FilenameSuffix       string        `beam:"filenameSuffix"`
 	CsvConfiguration     *CsvWrite     `beam:"csvConfiguration"`
@@ -48,7 +67,7 @@ type CsvWrite struct {
 
 type ParquetWrite struct {
 	CompressionCodecName string `beam:"compressionCodecName"`
-	RowGroupSize         int    `beam:"rowGroupSize"`
+	RowGroupSize         int32  `beam:"rowGroupSize"`
 }
 
 type XmlWrite struct {

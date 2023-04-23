@@ -31,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.FileWriteSchemaTransform;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -44,6 +45,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Objects;
+
 /** Tests for {@link FileWriteSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
 public class FileWriteSchemaTransformProviderTest {
@@ -54,6 +57,8 @@ public class FileWriteSchemaTransformProviderTest {
       AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
   private static final FileWriteSchemaTransformProvider PROVIDER =
       new FileWriteSchemaTransformProvider();
+
+  static final Schema CONFIGURATION_SCHEMA = Objects.requireNonNull(AUTO_VALUE_SCHEMA.schemaFor(TYPE_DESCRIPTOR));
 
   @Rule
   public TestPipeline errorPipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
