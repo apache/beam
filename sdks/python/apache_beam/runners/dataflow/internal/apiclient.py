@@ -1211,15 +1211,17 @@ def get_container_image_from_options(pipeline_options):
 
   # Legacy and runner v2 exist in different repositories.
   # Set to legacy format, override if runner v2
-  version_suffix = '%s%s' % (sys.version_info[0:2])
   container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
-  image_name = '{repository}/python{version_suffix}'.format(
-      repository=container_repo, version_suffix=version_suffix)
+  image_name = '{repository}/python{major}{minor}'.format(
+      repository=container_repo,
+      major=sys.version_info[0],
+      minor=sys.version_info[1])
 
   if is_runner_v2:
-    version_suffix = '%s.%s' % (sys.version_info[0:2])
-    image_name = '{repository}/beam_python{version_suffix}_sdk'.format(
-        repository=container_repo, version_suffix=version_suffix)
+    image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
+        repository=container_repo,
+        major=sys.version_info[0],
+        minor=sys.version_info[1])
 
   image_tag = _get_required_container_version(is_runner_v2)
   return image_name + ':' + image_tag
