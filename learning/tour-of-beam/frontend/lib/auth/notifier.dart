@@ -25,12 +25,9 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../cache/unit_progress.dart';
-import '../repositories/client/client.dart';
 
 class AuthNotifier extends ChangeNotifier {
-  final TobClient client;
-
-  AuthNotifier({required this.client}) {
+  AuthNotifier() {
     FirebaseAuth.instance.authStateChanges().listen((user) {
       notifyListeners();
     });

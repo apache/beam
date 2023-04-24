@@ -37,7 +37,7 @@ class ContentTreeWidget extends StatelessWidget {
     return SizedBox(
       width: 250,
       child: ContentTreeBuilder(
-        sdkId: controller.sdkId,
+        sdk: controller.sdk,
         builder: (context, contentTree, child) {
           if (contentTree == null) {
             return Container();

@@ -15,34 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import 'package:enum_map/enum_map.dart';
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
-import 'package:playground_components/playground_components.dart';
+part 'tour_view.g.dart';
 
-import '../../cache/content_tree.dart';
-import '../../models/content_tree.dart';
-
-class ContentTreeBuilder extends StatelessWidget {
-  final Sdk sdk;
-  final ValueWidgetBuilder<ContentTreeModel?> builder;
-
-  const ContentTreeBuilder({
-    required this.sdk,
-    required this.builder,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
-
-    return AnimatedBuilder(
-      animation: contentTreeCache,
-      builder: (context, child) => builder(
-        context,
-        contentTreeCache.getContentTree(sdk),
-        child,
-      ),
-    );
-  }
+@unmodifiableEnumMap
+enum TourView {
+  content,
+  playground,
 }

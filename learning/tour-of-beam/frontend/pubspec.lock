@@ -5,10 +5,10 @@ packages:
     dependency: transitive
     description:
       name: _fe_analyzer_shared
-      sha256: e440ac42679dfc04bbbefb58ed225c994bc7e07fccc8a68ec7d3631a127e5da9
+      sha256: "4897882604d919befd350648c7f91926a9d5de99e67b455bf0917cc2362f4bb8"
       url: "https://pub.dev"
     source: hosted
-    version: "54.0.0"
+    version: "47.0.0"
   _flutterfire_internals:
     dependency: transitive
     description:
@@ -29,10 +29,10 @@ packages:
     dependency: transitive
     description:
       name: analyzer
-      sha256: "2c2e3721ee9fb36de92faa060f3480c81b23e904352b087e5c64224b1a044427"
+      sha256: "690e335554a8385bc9d787117d9eb52c0c03ee207a607e593de3c9d71b1cfe80"
       url: "https://pub.dev"
     source: hosted
-    version: "5.6.0"
+    version: "4.7.0"
   app_state:
     dependency: "direct main"
     description:
@@ -109,10 +109,10 @@ packages:
     dependency: transitive
     description:
       name: build_resolvers
-      sha256: db49b8609ef8c81cca2b310618c3017c00f03a92af44c04d310b907b2d692d95
+      sha256: "687cf90a3951affac1bd5f9ecb5e3e90b60487f3d9cdc359bb310f8876bb02a6"
       url: "https://pub.dev"
     source: hosted
-    version: "2.2.0"
+    version: "2.0.10"
   build_runner:
     dependency: "direct dev"
     description:
@@ -338,13 +338,21 @@ packages:
     source: hosted
     version: "0.0.2"
   enum_map:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: enum_map
       sha256: "0dfe18306d2e9b0e9d381f5e11aac4c8255d5f5eddc68b0ab037f7d00aa36126"
       url: "https://pub.dev"
     source: hosted
     version: "0.2.1"
+  enum_map_gen:
+    dependency: "direct dev"
+    description:
+      name: enum_map_gen
+      sha256: "5c99bdd426f4ea457ad6e928eeb44111224881791025cf8afa1921e7a55cf232"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
   equatable:
     dependency: "direct main"
     description:
@@ -442,10 +450,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_code_editor
-      sha256: "85d0d159ce4f33f3aabedea92c0bdc1ad05c6931bba80ac46660f90c7ab6255c"
+      sha256: "73313c8235b242102af1935312933134774f62c7ed8ad8297beedb88340cc7e1"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.14"
+    version: "0.2.18"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -672,20 +680,20 @@ packages:
     dependency: "direct main"
     description:
       name: json_annotation
-      sha256: c33da08e136c3df0190bd5bbe51ae1df4a7d96e7954d1d7249fea2968a72d317
+      sha256: "3520fa844009431b5d4491a5a778603520cdc399ab3406332dcc50f93547258c"
       url: "https://pub.dev"
     source: hosted
-    version: "4.8.0"
+    version: "4.7.0"
   json_serializable:
     dependency: "direct dev"
     description:
       name: json_serializable
-      sha256: dadc08bd61f72559f938dd08ec20dbfec6c709bba83515085ea943d2078d187a
+      sha256: f3c2c18a7889580f71926f30c1937727c8c7d4f3a435f8f5e8b0ddd25253ef5d
       url: "https://pub.dev"
     source: hosted
-    version: "6.6.1"
+    version: "6.5.4"
   keyed_collection_widgets:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: keyed_collection_widgets
       sha256: "9db2df4c4897c35fe167bdca82d307d81baa4161c3118da3f06ab4fd2d75291b"
@@ -1060,10 +1068,10 @@ packages:
     dependency: transitive
     description:
       name: source_gen
-      sha256: c2bea18c95cfa0276a366270afaa2850b09b4a76db95d546f3d003dcc7011298
+      sha256: "2d79738b6bbf38a43920e2b8d189e9a3ce6cc201f4b8fc76be5e4fe377b1c38d"
       url: "https://pub.dev"
     source: hosted
-    version: "1.2.7"
+    version: "1.2.6"
   source_helper:
     dependency: transitive
     description:

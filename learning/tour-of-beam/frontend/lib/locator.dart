@@ -63,7 +63,7 @@ Future<void> _initializeRepositories() async {
 }
 
 void _initializeAuth() {
-  GetIt.instance.registerSingleton(AuthNotifier(client: _client));
+  GetIt.instance.registerSingleton(AuthNotifier());
 }
 
 void _initializeCaches() {

@@ -53,11 +53,11 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyD-yN7OO9xjPQ5M-SJug96M2EfHwvjzd1A"',
-    authDomain: 'river-key-378010.firebaseapp.com"',
-    projectId: 'us-east1-river-key-378010',
-    storageBucket: 'river-key-378010.appspot.com',
-    messagingSenderId: '11155893632',
-    appId: '1:11155893632:web:0154abc4765db232086565',
+    apiKey: 'AIzaSyAg7ZLslQRrEhwVVVzZb1OFMRMHL8kNL38',
+    authDomain: 'apache-beam-testing.firebaseapp.com',
+    projectId: 'apache-beam-testing',
+    storageBucket: 'apache-beam-testing.appspot.com',
+    messagingSenderId: '844138762903',
+    appId: '1:844138762903:web:c0094c4e6bba87d73d8fd2',
   );
 }

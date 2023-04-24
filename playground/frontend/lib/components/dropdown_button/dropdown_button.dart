@@ -179,7 +179,7 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
   void _open() {
     animationController.forward();
     dropdown = createDropdown();
-    Overlay.of(context)?.insert(dropdown!);
+    Overlay.of(context).insert(dropdown!);
     setState(() {
       isOpen = true;
     });

@@ -56,14 +56,14 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   TobEventContext get tobEventContext => _tobEventContext;
 
   TourNotifier({
-    required String initialSdkId,
+    required Sdk initialSdk,
     List<String> initialTreeIds = const [],
   })  : contentTreeController = ContentTreeController(
-          initialSdkId: initialSdkId,
+          initialSdk: initialSdk,
           initialTreeIds: initialTreeIds,
         ),
-        playgroundController = _createPlaygroundController(initialSdkId) {
-    _appNotifier.sdkId ??= initialSdkId;
+        playgroundController = _createPlaygroundController(initialSdk.id) {
+    _appNotifier.sdk ??= initialSdk;
     contentTreeController.addListener(_onUnitChanged);
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
@@ -80,12 +80,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   @override
   void setStateMap(Map<String, dynamic> state) {
     super.setStateMap(state);
-    _appNotifier.sdkId = state['sdkId'];
+    _appNotifier.sdk = Sdk.parseOrCreate(state['sdkId']);
   }
 
   @override
   PagePath get path => TourPath(
-        sdkId: contentTreeController.sdkId,
+        sdkId: contentTreeController.sdk.id,
         treeIds: contentTreeController.treeIds,
       );
 
@@ -119,7 +119,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onAppNotifierChanged() async {
-    contentTreeController.sdkId = currentSdk.id;
+    contentTreeController.sdk = currentSdk;
     playgroundController.setSdk(currentSdk);
     _listenToCurrentSnippetEditingController();
 

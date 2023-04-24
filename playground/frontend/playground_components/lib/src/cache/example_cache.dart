@@ -135,7 +135,6 @@ class ExampleCache extends ChangeNotifier {
       complexity: result.complexity,
       files: result.files,
       name: 'User Snippet',
-      // TODO(nausharipov): review: make isMultiFile more reliable?
       isMultiFile: result.files.length > 1,
       path: id,
       sdk: result.sdk,

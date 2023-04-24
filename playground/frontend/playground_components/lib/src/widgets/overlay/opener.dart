@@ -37,5 +37,5 @@ void showOverlay({
     },
   );
   closeNotifier.addListener(overlay.remove);
-  Overlay.of(context)?.insert(overlay);
+  Overlay.of(context).insert(overlay);
 }
