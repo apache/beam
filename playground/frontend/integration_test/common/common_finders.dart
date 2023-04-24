@@ -30,8 +30,6 @@ import 'package:playground/modules/sdk/components/sdk_selector.dart';
 import 'package:playground/modules/sdk/components/sdk_selector_row.dart';
 import 'package:playground/modules/shortcuts/components/shortcuts_dialog.dart';
 import 'package:playground/pages/standalone_playground/widgets/editor_textarea_wrapper.dart';
-import 'package:playground/pages/standalone_playground/widgets/feedback/feedback_dropdown_content.dart';
-import 'package:playground/pages/standalone_playground/widgets/feedback/feedback_dropdown_icon_button.dart';
 import 'package:playground/pages/standalone_playground/widgets/more_actions.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components/src/widgets/drag_handle.dart';
@@ -66,24 +64,24 @@ extension CommonFindersExtension on CommonFinders {
     return byType(ExampleSelector);
   }
 
-  Finder feedbackDropdownCancelButton() {
-    return find.byKey(FeedbackDropdownContent.cancelButtonKey);
+  Finder dismissibleOverlay() {
+    return find.byKey(BeamOverlay.dismissibleAreaKey);
   }
 
   Finder feedbackDropdownContent() {
-    return byType(FeedbackDropdownContent);
+    return byType(FeedbackDropdown);
   }
 
   Finder feedbackDropdownSendButton() {
-    return find.byKey(FeedbackDropdownContent.sendButtonKey);
+    return find.byKey(FeedbackDropdown.sendButtonKey);
   }
 
   Finder feedbackDropdownTextField() {
-    return find.byKey(FeedbackDropdownContent.textFieldKey);
+    return find.byKey(FeedbackDropdown.textFieldKey);
   }
 
   Finder feedbackThumb(FeedbackRating rating) {
-    return find.byType(FeedbackDropdownIconButton).and(
+    return find.byType(InkWell).and(
           find.byKey(Key(rating.name)),
         );
   }

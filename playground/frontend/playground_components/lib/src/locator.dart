@@ -19,11 +19,13 @@
 import 'package:get_it/get_it.dart';
 
 import 'controllers/build_metadata.dart';
+import 'controllers/feedback_controller.dart';
 import 'services/symbols/symbols_notifier.dart';
 import 'services/toast_notifier.dart';
 
 Future<void> initializeServiceLocator() async {
   GetIt.instance.registerSingleton(BuildMetadataController());
+  GetIt.instance.registerSingleton(FeedbackController());
   GetIt.instance.registerSingleton(SymbolsNotifier());
   GetIt.instance.registerSingleton(ToastNotifier());
 }

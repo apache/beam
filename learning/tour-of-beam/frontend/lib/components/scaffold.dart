@@ -103,13 +103,13 @@ class _SdkSelector extends StatelessWidget {
     return AnimatedBuilder(
       animation: appNotifier,
       builder: (context, child) {
-        final sdkId = appNotifier.sdkId;
-        return sdkId == null
+        final sdk = appNotifier.sdk;
+        return sdk == null
             ? Container()
             : SdkDropdown(
-                sdkId: sdkId,
+                value: sdk,
                 onChanged: (value) {
-                  appNotifier.sdkId = value;
+                  appNotifier.sdk = value;
                 },
               );
       },

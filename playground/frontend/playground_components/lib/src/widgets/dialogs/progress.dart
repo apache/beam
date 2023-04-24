@@ -16,35 +16,43 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 
-import '../../../assets/assets.gen.dart';
-import '../state.dart';
+class ProgressDialog extends StatelessWidget {
+  const ProgressDialog();
 
-class SolutionButton extends StatelessWidget {
-  final TourNotifier tourNotifier;
-
-  const SolutionButton({
-    required this.tourNotifier,
-  });
+  /// Shows a dialog with [CircularProgressIndicator] until [future] completes.
+  static void show({
+    required Future future,
+    required GlobalKey<NavigatorState> navigatorKey,
+  }) {
+    var shown = true;
+    unawaited(
+      showDialog(
+        barrierDismissible: false,
+        context: navigatorKey.currentContext!,
+        builder: (_) => const ProgressDialog(),
+      ).whenComplete(() {
+        shown = false;
+      }),
+    );
+    unawaited(
+      future.whenComplete(() {
+        if (shown) {
+          navigatorKey.currentState!.pop();
+        }
+      }),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: tourNotifier,
-      builder: (context, child) => TextButton.icon(
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(
-            tourNotifier.isShowingSolution
-                ? Theme.of(context).splashColor
-                : null,
-          ),
-        ),
-        onPressed: tourNotifier.toggleShowingSolution,
-        icon: SvgPicture.asset(Assets.svg.solution),
-        label: const Text('ui.solution').tr(),
+    return const Dialog(
+      backgroundColor: Colors.transparent,
+      child: Center(
+        child: CircularProgressIndicator(),
       ),
     );
   }

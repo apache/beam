@@ -15,29 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import 'package:enum_map/enum_map.dart';
 
-import 'package:flutter/material.dart';
+part 'tour_view.g.dart';
 
-class DismissibleOverlay extends StatelessWidget {
-  final VoidCallback close;
-  final Positioned child;
-
-  const DismissibleOverlay({
-    required this.close,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: close,
-          ),
-        ),
-        child,
-      ],
-    );
-  }
+@unmodifiableEnumMap
+enum TourView {
+  content,
+  playground,
 }
