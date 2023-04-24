@@ -21,8 +21,8 @@
 
 import io
 import logging
-import unittest
 import os
+import unittest
 
 from hamcrest import all_of
 from hamcrest import assert_that

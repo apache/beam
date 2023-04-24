@@ -176,14 +176,14 @@ def create_harness(environment, dry_run=False):
 def _start_profiler(gcp_profiler_service_name, gcp_profiler_service_version):
   try:
     import googlecloudprofiler
-    if gcp_profiler_service_version:
+    if gcp_profiler_service_name and gcp_profiler_service_version:
       googlecloudprofiler.start(
           service=gcp_profiler_service_name,
           service_version=gcp_profiler_service_version,
           verbose=1)
       _LOGGER.info('Turning on Google Cloud Profiler.')
     else:
-      raise RuntimeError('Unable to find the job id from envvar.')
+      raise RuntimeError('Unable to find the job id or job name from envvar.')
   except Exception as e:  # pylint: disable=broad-except
     _LOGGER.warning(
         'Unable to start google cloud profiler due to error: %s. For how to '
@@ -194,13 +194,8 @@ def _start_profiler(gcp_profiler_service_name, gcp_profiler_service_version):
 
 
 def _get_gcp_profiler_name_if_enabled(sdk_pipeline_options):
-  experiments = (sdk_pipeline_options.view_as(DebugOptions).experiments or [])
   gcp_profiler_service_name = sdk_pipeline_options.view_as(
       GoogleCloudOptions).get_cloud_profiler_service_name()
-
-  if _ENABLE_GOOGLE_CLOUD_PROFILER in experiments and \
-    not gcp_profiler_service_name:
-    gcp_profiler_service_name = os.environ["JOB_NAME"]
 
   return gcp_profiler_service_name
 
