@@ -105,7 +105,7 @@ ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
 apt install -y python3.8-venv > /dev/null 2>&1
 
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
-pip install -r /workspace/beam/playground/infrastructure/requirements.txt
+pip install -r playground/infrastructure/requirements.txt
 
 LogOutput "Looking for files changed by the merge commit $MERGE_COMMIT"
 diff_log=$(git diff --name-only $MERGE_COMMIT~ $MERGE_COMMIT)
