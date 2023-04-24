@@ -1,18 +1,3 @@
-# Licensed to the Apache Software Foundation (ASF) under one or more
- # contributor license agreements.  See the NOTICE file distributed with
- # this work for additional information regarding copyright ownership.
- # The ASF licenses this file to You under the Apache License, Version 2.0
- # (the "License"); you may not use this file except in compliance with
- # the License.  You may obtain a copy of the License at
- #
- #     http://www.apache.org/licenses/LICENSE-2.0
- #
- # Unless required by applicable law or agreed to in writing, software
- # distributed under the License is distributed on an "AS IS" BASIS,
- # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- # See the License for the specific language governing permissions and
- # limitations under the License.
-
 steps:
   - name: ubuntu
     args:
@@ -25,7 +10,7 @@ steps:
         Commit: $_PR_COMMIT; WebHook Action: $_PR_TYPE; Merge to: $_BASE_REF;"
 
         if [[ "${_BASE_REF}" != "master" ]]; then
-            echo "CILOG Merging not into master, but into the branch apache/${_BASE_REF}. Exiting."
+            echo "CILOG Merge to branch apache/${_BASE_REF}. Exiting"
             exit 0
         fi
 
@@ -47,23 +32,22 @@ steps:
 
             apt-get update && apt-get install -y google-cloud-sdk > /dev/null
             
-            git clone --branch master https://github.com/apache/beam.git
-            
-            cd beam
-            
-            git remote add forked https://github.com/${_FORK_REPO}.git
-
-            curl -O --output-dir /tmp https://raw.githubusercontent.com/apache/beam/master/playground/infrastructure/cloudbuild/examples_ci.sh
-            
-            curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${_PR_COMMIT} -d '{"state":"pending","target_url":null,"description":"Examples validation (CI) for current commit is in the progress","context":"GCP Cloud Build CI/CD"}'
+            curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${_PR_COMMIT} -d '{"state":"pending","target_url":null,"description":"Examples validation (CI) for current commit is in progress","context":"GCP Cloud Build CI/CD"}'
 
             echo "CILOG $(date --utc '+%D %T') Starting validation script"
             
             echo "$(date --utc '+%D %T') Starting validation script" >> ${_PUBLIC_LOG_LOCAL}
             
-            chmod +x /tmp/examples_ci.sh
+            git clone --branch master https://github.com/apache/beam.git
+            
+            git remote add forked https://github.com/${_FORK_REPO}.git
+
+            curl -O --output-dir beam/playground/infrastructure/cloudbuild
+        https://raw.githubusercontent.com/akvelon/beam/test_ci/playground/infrastructure/cloudbuild/playground_ci_examples.sh
+            
+            chmod +x ${_CI_SCRIPT_PATH}
               
-            env -i bash -c "/tmp/examples_ci.sh PROJECT_ID='"'${PROJECT_ID}'"' LOG_PATH='"'${_PUBLIC_LOG_LOCAL}'"' BEAM_VERSION='"'${_BEAM_VERSION}'"' COMMIT='"'${_PR_COMMIT}'"' "
+            env -i bash -c "${_CI_SCRIPT_PATH} PROJECT_ID='"'${PROJECT_ID}'"' LOG_PATH='"'${_PUBLIC_LOG_LOCAL}'"' BEAM_VERSION='"'${_BEAM_VERSION}'"' COMMIT='"'${_PR_COMMIT}'"' BEAM_CONCURRENCY='"'${_BEAM_CONCURRENCY}'"'"
             
             ci_script_status=$?
 
@@ -73,7 +57,7 @@ steps:
                 
                 echo "CILOG Writing SUCCESS status message to PR${_PR_NUMBER}, commit:  ${_PR_COMMIT}, branch: ${_PR_BRANCH}"
                 
-                curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${_PR_COMMIT} -d '{"state":"success","target_url":"${_PUBLIC_LOG_URL}","description":"Examples validation (CI) has been successfully completed","context":"GCP Cloud Build CI/CD"}'
+                curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${_PR_COMMIT} -d '{"state":"success","target_url":"${_PUBLIC_LOG_URL}","description":"Examples validation (CI) successfully completed","context":"GCP Cloud Build CI/CD"}'
             else
             
                 echo "CILOG Writing FAIL status message to PR${_PR_NUMBER}, commit:  ${_PR_COMMIT}, branch: ${_PR_BRANCH}"
@@ -87,23 +71,28 @@ steps:
     secretEnv:
       - PAT
 timeout: 7200s
+logsBucket: '${_PRIVATE_BUCKET}'
 options:
-  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_32
+  logging: GCS_ONLY
 substitutions:
-  _PR_NUMBER: $(body.number)
-  _PUBLIC_LOG: 'CI_PR${_PR_NUMBER}_${_PR_COMMIT}_${BUILD_ID}.txt'
-  _PUBLIC_LOG_URL: >-
-    https://storage.googleapis.com/$_PUBLIC_LOGS_BUCKET/$_PUBLIC_LOG
-  _PR_URL: $(body.pull_request._links.html.href)
-  _BEAM_VERSION: 2.44.0
-  _PR_TYPE: $(body.action)
-  _PUBLIC_LOG_LOCAL: '/tmp/${_PUBLIC_LOG}'
-  _FORK_REPO: $(body.pull_request.head.repo.full_name)
-  _PR_COMMIT: $(body.pull_request.head.sha)
-  _BASE_REF: $(body.pull_request.base.ref)
   _PR_BRANCH: $(body.pull_request.head.ref)
+  _PUBLIC_LOG_URL: >-
+    https://storage.googleapis.com/playground-cloudbuild-logs-public/${_PUBLIC_LOG}
+  _PUBLIC_LOG_LOCAL: '/tmp/${_PUBLIC_LOG}'
+  _PUBLIC_BUCKET: 'gs://playground-cloudbuild-logs-public/'
+  _PUBLIC_LOG: 'CI_PR${_PR_NUMBER}_${_PR_COMMIT}_${BUILD_ID}.txt'
+  _PRIVATE_BUCKET: 'gs://playground-cloudbuild-logs-private/'
+  _PAT_SECRET: 'github_pat_playground_deployment'
+  _CI_SCRIPT_PATH: 'beam/playground/infrastructure/cloudbuild/playground_ci_examples.sh'
+  _PR_COMMIT: $(body.pull_request.head.sha)
+  _PR_URL: $(body.pull_request._links.html.href)
+  _FORK_REPO: $(body.pull_request.head.repo.full_name)
+  _BASE_REF: $(body.pull_request.base.ref)
+  _PR_NUMBER: $(body.number)
+  _PR_TYPE: $(body.action)
 availableSecrets:
   secretManager:
     - versionName: >-
-        projects/${PROJECT_ID}/secrets/$_PAT_SECRET_NAME/versions/latest
+        projects/${PROJECT_ID}/secrets/${_PAT_SECRET}/versions/latest
       env: PAT

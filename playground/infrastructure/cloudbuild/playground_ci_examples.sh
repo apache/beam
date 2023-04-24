@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -42,7 +42,7 @@ done
 
 export LOG_PATH=${LOG_PATH-"/dev/null"}
 export BEAM_ROOT_DIR=${BEAM_ROOT_DIR-"/workspace/beam"}
-export PROJECT_ID=${PROJECT_ID}
+export PROJECT_ID=${PROJECT_ID-"test"}
 export BEAM_VERSION=${BEAM_VERSION-"2.44.0"}
 export SUBDIRS=${SUBDIRS-"./learning/katas ./examples ./sdks"}
 export SDKS=${SDKS-"java python go"}
@@ -80,12 +80,11 @@ fi
 if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
-
-export STEP=CI
+export STEP=CI 
 export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
 export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
 export GRADLE_VERSION=7.5.1
-export GO_VERSION=1.18
+export GO_VERSION=1.18 
 
 LogOutput "Installing python java8 and dependencies"
 apt-get update > /dev/null
@@ -96,12 +95,13 @@ LogOutput "Installing Python environment"
 apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
-apt install -y --reinstall python3.8-distutils > /dev/null
+apt install --reinstall python3.8-distutils > /dev/null
 pip install --upgrade google-api-python-client > /dev/null
 python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
-apt install -y python3.8-venv > /dev/null
-pip install -r playground/infrastructure/requirements.txt > /dev/null
+apt install python3.8-venv > /dev/null
+LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
+pip install -r playground/infrastructure/requirements.txt
 
 LogOutput "Installing JDK and Gradle"
 apt-get install openjdk-8-jdk -y > /dev/null
@@ -134,11 +134,12 @@ LogOutput "Docker tag for containers: $DOCKERTAG"
 
 LogOutput "git fetch -all"
 git fetch --all > /dev/null
+# Docker containers will build from the current PR commit
 LogOutput "git checkout $COMMIT"
 git checkout $COMMIT
 if [ $? -ne 0 ]; then
    LogOutput "Can't checkout to $COMMIT. Exiting script"
-   exit 1
+   exit 1 
 fi
 
 diff_log=$(git diff --name-only $DIFF_BASE...$COMMIT)
@@ -152,7 +153,7 @@ for sdk in $SDKS
 do
     eval "ci_${sdk}_passed"='False'
     example_has_changed="UNKNOWN"
-    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
+    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
     cd $BEAM_ROOT_DIR/playground/infrastructure
     python3 checker.py \
     --verbose \
@@ -178,6 +179,7 @@ do
     if [[ $example_has_changed != "True" ]]
     then
         LogOutput "No changes require validation for SDK_${sdk^^}"
+        eval "ci_${sdk}_passed"='True'
         continue
     fi
 
@@ -188,13 +190,13 @@ do
     if [ "$sdk" == "python" ]
     then
         # Build fails without docker-pull-licenses=true in Cloud Build
-        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG -Pdocker-pull-licenses=true"
-        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
+        LogOutput "Building Python base image container apache/beam_python3.10_sdk:$DOCKERTAG"
+        LogOutput "./gradlew -i :sdks:python:container:py310:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
         sdk_tag=$DOCKERTAG
-        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG #-Pdocker-pull-licenses=true
+        ./gradlew -i :sdks:python:container:py310:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true
         if [ $? -ne 0 ]
         then
-            LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
+            LogOutput "Build failed for apache/beam_python3.10_sdk:$DOCKERTAG"
             continue
         fi
     fi
@@ -237,7 +239,7 @@ for sdk in $SDKS
 do
     result=$(eval echo '$'"ci_${sdk}_passed")
     if [ "$result" != "True" ]; then
-        "At least one of the checks has failed"
+        LogOutput "At least one of the checks has failed for $sdk SDK"
         exit 1
     fi
 done

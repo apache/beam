@@ -35,29 +35,34 @@ export BEAM_EXAMPLE_CATEGORIES=${BEAM_EXAMPLE_CATEGORIES-"$BEAM_ROOT_DIR/playgro
 export BEAM_USE_WEBGRPC=${BEAM_USE_WEBGRPC-"yes"}
 export BEAM_CONCURRENCY=${BEAM_CONCURRENCY-2}
 export SDKS=${SDKS-"java python go"}
-export COMMIT=${COMMIT-"HEAD"}
-export DNS_NAME=${DNS_NAME}
+export FORCE_CD=${FORCE_CD-'false'}
+
+# Playground FQDN
 if [[ -z "${DNS_NAME}" ]]; then
   echo "DNS_NAME is empty or not set. Exiting"
   exit 1
 fi
-export NAMESPACE=${NAMESPACE}
-if [[ -z "${NAMESPACE}" ]]; then
-  echo "Datastore NAMESPACE is empty or not set. Exiting"
+# GCP Datastore namespace to load examples to
+if [[ -z "${DATASTORE_NAMESPACE}" ]]; then
+  echo "DATASTORE_NAMESPACE parameter was not set. Exiting"
   exit 1
 fi
-export SOURCE_BRANCH=${SOURCE_BRANCH}
-if [[ -z "${SOURCE_BRANCH}" ]]; then
-  echo "PR Source Branch is empty or not set. Exiting"
+# Master branch commit after merge
+if [[ -z "${MERGE_COMMIT}" ]]; then
+  echo "MERGE_COMMIT paramter was not set. Exiting"
   exit 1
 fi
-export ALLOWLIST=${ALLOWLIST-"learning/katas sdks/ examples/"}
-export DIFF_BASE=${DIFF_BASE-"origin/master"}
+if [[ "${FORCE_CD}" != "false" &&  "${FORCE_CD}" != "true" ]]; then
+  echo "FORCE_CD paramter must be either 'true' or 'false'. Exiting"
+  exit 1
+fi
+
+# Constants
+export STEP=CD
 
 # This function logs the given message to a file and outputs it to the console.
 function LogOutput ()
 {
-    echo "$(date --utc '+%D %T') $1" >> $LOG_PATH
     # CDLOG keyword to simplify search over the global log
     echo "CDLOG $(date --utc '+%D %T') $1"
 }
@@ -72,11 +77,12 @@ LogOutput "Input variables:
  BEAM_EXAMPLE_CATEGORIES=$BEAM_EXAMPLE_CATEGORIES
  BEAM_CONCURRENCY=$BEAM_CONCURRENCY
  SDKS=$SDKS
- COMMIT=$COMMIT
+ MERGE_COMMIT=$MERGE_COMMIT
  DNS_NAME=$DNS_NAME
  BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC
- NAMESPACE=$NAMESPACE
- SOURCE_BRANCH=$SOURCE_BRANCH"
+ DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE
+ FORCE_CD=$FORCE_CD"
+ 
 
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
@@ -86,12 +92,8 @@ if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
 
-export STEP=CD
-
 LogOutput "Installing python and dependencies."
-# Install Python 3 and dependencies
-set -e  # Exit immediately if any command fails
-apt update > /dev/null 2>&1
+# set -e  # Exit immediately if any command fails
 export DEBIAN_FRONTEND=noninteractive
 apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null 2>&1
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
@@ -101,61 +103,85 @@ pip install --upgrade google-api-python-client > /dev/null 2>&1
 python3.8 -m pip install pip --upgrade > /dev/null 2>&1
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null 2>&1
 apt install -y python3.8-venv > /dev/null 2>&1
-pip install -r /workspace/beam/playground/infrastructure/requirements.txt > /dev/null 2>&1
 
-LogOutput "Python and dependencies have been successfully installed."
+LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
+cd $BEAM_ROOT_DIR
+pip install -r playground/infrastructure/requirements.txt
 
-LogOutput "Checking what files were changed in the PR."
-
-git fetch --all > /dev/null 2>&1
-
-diff_log=$(git diff --name-only $DIFF_BASE...forked/$SOURCE_BRANCH)
+LogOutput "Looking for files changed by the merge commit $MERGE_COMMIT"
+git fetch origin $MERGE_COMMIT
+diff_log=$(git diff --name-only $MERGE_COMMIT~ $MERGE_COMMIT)
 diff=($(echo "$diff_log" | tr '\n' ' '))
-LogOutput "List of changed files in PR $SOURCE_BRANCH merging into $DIFF_BASE are:
-$diff_log"
-
-LogOutput "Looking for changes that require CD validation for [$SDKS] SDKs"
-allowlist_array=($ALLOWLIST)
+LogOutput "Discovered changes introduced by $MERGE_COMMIT: $diff_log"
+git checkout $MERGE_COMMIT
+if [ $? -ne 0 ]; then
+    LogOutput "Can't checkout to $MERGE_COMMIT. Exiting"
+    exit 1
+fi
+declare -a allowlist_array
 for sdk in $SDKS
 do
-    eval "example_for_${sdk}_changed"='False'
-    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
-    cd $BEAM_ROOT_DIR/playground/infrastructure
-    python3 checker.py \
-    --verbose \
-    --sdk SDK_"${sdk^^}" \
-    --allowlist "" \
-    --paths "${diff[@]}"
-    checker_status=$?
-    if [ $checker_status -eq 0 ]; then
-        LogOutput "Checker found changed examples for SDK_${sdk^^}"
-        eval "example_for_${sdk}_changed"='True'
-    elif [ $checker_status -eq 11 ]; then
-        LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
-        eval "example_for_${sdk}_changed"='False'
-        continue
+    eval "check_${sdk}_passed"="false"
+    example_has_changed="UNKNOWN"
+    if [ "$FORCE_CD" = "true" ]; then
+        LogOutput "FORCE_CD is true. Example deployment for SDK_${sdk^^} is forced"
+        example_has_changed="true"
     else
-        LogOutput "Error: Checker is broken. Exiting the script."
-        exit 1
-    fi
-
-    result=$(eval echo '$'"example_for_${sdk}_changed")
-
-    if [[ $result == True ]]; then
-        LogOutput "Running ci_cd.py for SDK $sdk"
-
-        export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
-        python3 ci_cd.py \
-        --datastore-project ${PROJECT_ID} \
-        --namespace ${NAMESPACE} \
-        --step ${STEP} \
+        LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
+        cd $BEAM_ROOT_DIR/playground/infrastructure
+        python3 checker.py \
+        --verbose \
         --sdk SDK_"${sdk^^}" \
-        --origin ${ORIGIN} \
-        --subdirs ${SUBDIRS}
-        if [ $? -eq 0 ]; then
-            LogOutput "Examples for $sdk SDK have been successfully deployed."
+        --allowlist "${allowlist_array[@]}" \
+        --paths "${diff[@]}"
+
+        checker_status=$?
+        if [ $checker_status -eq 0 ]
+        then
+            LogOutput "Checker found changed examples for SDK_${sdk^^}"
+            example_has_changed="true"
+        elif [ $checker_status -eq 11 ]
+        then
+            LogOutput "Checker did not find any changed examples for SDK_${sdk^^}"
+            example_has_changed="false"
         else
-            LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
+            LogOutput "Error: Checker is broken. Exiting the script."
+            exit 1
         fi
     fi
+    #Nothing to check
+    if [[ $example_has_changed != "true" ]]
+    then
+        LogOutput "No changes require validation for SDK_${sdk^^}"
+        eval "check_${sdk}_passed"="true"
+        continue
+    fi
+    
+    cd $BEAM_ROOT_DIR/playground/infrastructure
+    LogOutput "Running ci_cd.py for SDK $sdk"
+
+    export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
+    python3 ci_cd.py \
+    --datastore-project ${PROJECT_ID} \
+    --namespace ${DATASTORE_NAMESPACE} \
+    --step ${STEP} \
+    --sdk SDK_"${sdk^^}" \
+    --origin ${ORIGIN} \
+    --subdirs ${SUBDIRS}
+    if [ $? -eq 0 ]; then
+        LogOutput "Examples for $sdk SDK have been successfully deployed."
+        eval "check_${sdk}_passed"="true"
+    else
+        LogOutput "Examples for $sdk SDK were not deployed. Please see the logs."
+    fi
 done
+LogOutput "Script finished"
+for sdk in $SDKS
+do
+    result=$(eval echo '$'"check_${sdk}_passed")
+    if [ "$result" != "true" ]; then
+        LogOutput "At least one of the checks has failed for $sdk SDK"
+        exit 1
+    fi
+done
+exit 0

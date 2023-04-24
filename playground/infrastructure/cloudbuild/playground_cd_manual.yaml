@@ -1,0 +1,101 @@
+steps:
+  - name: ubuntu
+    args:
+      - '-c'
+      - >-
+        echo "Search for CDLOG keyword to find valuable logs entries"
+
+        echo "CDLOG $(date --utc '+%D %T') Trigger run inputs:
+         PR URL: $_PR_URL
+         Merged to: $_TARGET_PR_REPO_BRANCH
+         WebHook Action: $_PR_TYPE
+         Merge Status: $_MERGE_STATUS
+         Merge commit: $_MERGE_COMMIT
+         Playground DNS: $_DNS_NAME
+         Datastore namespace: $_DATASTORE_NAMESPACE"
+         
+        if [[ -z "$_DNS_NAME" || -z "$_DATASTORE_NAMESPACE" ]]; then
+          echo "_DNS_NAME and _DATASTORE_NAMESPACE substitutions must be set in the triger"
+          exit 1
+        fi
+
+
+        if [[ ${_TARGET_PR_REPO_BRANCH} != "apache:master" ]]; then
+            echo "CDLOG Merging not into the master, but into the branch apache/${_TARGET_PR_REPO_BRANCH}. Exiting"
+            exit 0
+        fi
+
+
+        if [[ ${_PR_TYPE} != "closed" ]] || [[ ${_MERGE_STATUS} != "true" ]];
+        then
+            echo "CDLOG $(date --utc '+%D %T') PR in $_PR_URL for the COMMIT $_PR_COMMIT is not in closed state or not merged into the Apache/Beam master repo."
+            exit 0
+        fi
+
+
+        echo "CDLOG Pull Request $_PR_URL has been successfully merged into
+        Apache Beam GitHub repository. Continuing the process."
+          
+        echo "CDLOG Continous Deployment of Playground Examples (CD) in the
+        progress."
+
+
+        apt update > /dev/null 2>&1
+
+
+        apt install -y git curl > /dev/null 2>&1
+
+
+        apt-get install -y apt-transport-https ca-certificates gnupg > /dev/null
+        2>&1
+
+
+        echo "deb https://packages.cloud.google.com/apt cloud-sdk main" >
+        /dev/null 2>&1 | tee -a
+
+        /etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null 2>&1
+
+
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null
+        2>&1 | apt-key add - > /dev/null 2>&1 
+
+
+        apt-get update && apt-get install -y google-cloud-sdk > /dev/null 2>&1
+
+        echo "CDLOG $(date --utc '+%D %T') Starting deployment script"
+
+        git clone --branch master https://github.com/apache/beam.git
+
+        curl -O --output-dir ./beam/playground/infrastructure/cloudbuild
+        https://raw.githubusercontent.com/akvelon/beam/test_cd/playground/infrastructure/cloudbuild/playground_cd_examples.sh
+
+        chmod +x ${_CD_SCRIPT_PATH}
+
+        env -i bash -c "${_CD_SCRIPT_PATH}
+        DATASTORE_NAMESPACE='"'${_DATASTORE_NAMESPACE}'"'
+        DNS_NAME='"'${_DNS_NAME}'"' PROJECT_ID='"'${PROJECT_ID}'"' 
+        MERGE_COMMIT='"'${_MERGE_COMMIT}'"' FORCE_CD='"'${_FORCE_CD}'"'
+        ORIGIN='"'${_ORIGIN}'"' SUBDIRS='"'${_SUBDIRS}'"' SDKS='"'${_SDKS}'"' BEAM_CONCURRENCY='"'${_BEAM_CONCURRENCY}'"' "
+
+        cd_script_status=$?
+
+        if [ $cd_script_status -eq 0 ]; then
+            echo "CDLOG $(date --utc '+%D %T') Examples deployment has been successfully completed. Please check Playground DNS https://${_DNS_NAME}."
+        else
+            echo "CDLOG $(date --utc '+%D %T') Examples deployment has failed. Please check the Cloud Build logs."
+        fi
+    entrypoint: bash
+timeout: 7200s
+logsBucket: '${_PRIVATE_BUCKET}'
+options:
+  machineType: E2_HIGHCPU_32
+  logging: GCS_ONLY
+substitutions:
+  _PR_TYPE: closed
+  _CD_SCRIPT_PATH: beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh
+  _FORCE_CD: 'true'
+  _PR_URL: URL
+  _MERGE_STATUS: 'true'
+  _PRIVATE_BUCKET: 'gs://playground-cloudbuild-logs-private/'
+  _TARGET_PR_REPO_BRANCH: 'apache:master'
+  _BEAM_CONCURRENCY: '4'
