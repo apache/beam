@@ -100,7 +100,8 @@ pip install --upgrade google-api-python-client > /dev/null
 python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
 apt install python3.8-venv > /dev/null
-pip install -r playground/infrastructure/requirements.txt > /dev/null
+LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
+pip install -r playground/infrastructure/requirements.txt
 
 LogOutput "Installing JDK and Gradle"
 apt-get install openjdk-8-jdk -y > /dev/null
@@ -188,13 +189,13 @@ do
     if [ "$sdk" == "python" ]
     then
         # Build fails without docker-pull-licenses=true in Cloud Build
-        LogOutput "Building Python base image container apache/beam_python3.7_sdk:$DOCKERTAG"
-        LogOutput "./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
+        LogOutput "Building Python base image container apache/beam_python3.10_sdk:$DOCKERTAG"
+        LogOutput "./gradlew -i :sdks:python:container:py310:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
         sdk_tag=$DOCKERTAG
-        ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true
+        ./gradlew -i :sdks:python:container:py310:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true
         if [ $? -ne 0 ]
         then
-            LogOutput "Build failed for apache/beam_python3.7_sdk:$DOCKERTAG"
+            LogOutput "Build failed for apache/beam_python3.10_sdk:$DOCKERTAG"
             continue
         fi
     fi
