@@ -52,7 +52,7 @@ class GroupWidget extends StatelessWidget {
           title: GroupTitleWidget(
             group: group,
             onTap: () {
-              contentTreeController.openNode(group);
+              contentTreeController.onNodePressed(group);
             },
           ),
           child: GroupNodesWidget(

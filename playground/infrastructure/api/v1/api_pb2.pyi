@@ -221,7 +221,7 @@ class CancelResponse(_message.Message):
     def __init__(self) -> None: ...
 
 class PrecompiledObject(_message.Message):
-    __slots__ = ["cloud_path", "name", "description", "type", "pipeline_options", "link", "multifile", "context_line", "default_example", "sdk", "complexity", "tags", "datasets", "url_vcs", "url_notebook", "always_run"]
+    __slots__ = ["cloud_path", "name", "description", "type", "pipeline_options", "link", "multifile", "context_line", "default_example", "sdk", "complexity", "tags", "datasets", "url_vcs", "url_notebook", "always_run", "never_run"]
     CLOUD_PATH_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -238,6 +238,7 @@ class PrecompiledObject(_message.Message):
     URL_VCS_FIELD_NUMBER: _ClassVar[int]
     URL_NOTEBOOK_FIELD_NUMBER: _ClassVar[int]
     ALWAYS_RUN_FIELD_NUMBER: _ClassVar[int]
+    NEVER_RUN_FIELD_NUMBER: _ClassVar[int]
     cloud_path: str
     name: str
     description: str
@@ -254,7 +255,8 @@ class PrecompiledObject(_message.Message):
     url_vcs: str
     url_notebook: str
     always_run: bool
-    def __init__(self, cloud_path: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., type: _Optional[_Union[PrecompiledObjectType, str]] = ..., pipeline_options: _Optional[str] = ..., link: _Optional[str] = ..., multifile: bool = ..., context_line: _Optional[int] = ..., default_example: bool = ..., sdk: _Optional[_Union[Sdk, str]] = ..., complexity: _Optional[_Union[Complexity, str]] = ..., tags: _Optional[_Iterable[str]] = ..., datasets: _Optional[_Iterable[_Union[Dataset, _Mapping]]] = ..., url_vcs: _Optional[str] = ..., url_notebook: _Optional[str] = ..., always_run: bool = ...) -> None: ...
+    never_run: bool
+    def __init__(self, cloud_path: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., type: _Optional[_Union[PrecompiledObjectType, str]] = ..., pipeline_options: _Optional[str] = ..., link: _Optional[str] = ..., multifile: bool = ..., context_line: _Optional[int] = ..., default_example: bool = ..., sdk: _Optional[_Union[Sdk, str]] = ..., complexity: _Optional[_Union[Complexity, str]] = ..., tags: _Optional[_Iterable[str]] = ..., datasets: _Optional[_Iterable[_Union[Dataset, _Mapping]]] = ..., url_vcs: _Optional[str] = ..., url_notebook: _Optional[str] = ..., always_run: bool = ..., never_run: bool = ...) -> None: ...
 
 class Categories(_message.Message):
     __slots__ = ["sdk", "categories"]

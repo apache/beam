@@ -58,7 +58,8 @@ __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 class HasDisplayData(object):
   """ Basic mixin for elements that contain display data.
 
-  It implements only the display_data method and a _namespace method.
+  It implements only the display_data method and a
+  _get_display_data_namespace method.
   """
   def display_data(self):
     # type: () -> dict
@@ -85,7 +86,7 @@ class HasDisplayData(object):
     """
     return {}
 
-  def _namespace(self):
+  def _get_display_data_namespace(self):
     # type: () -> str
     return '{}.{}'.format(self.__module__, self.__class__.__name__)
 
@@ -109,7 +110,7 @@ class DisplayData(object):
     for key, element in display_data_dict.items():
       if isinstance(element, HasDisplayData):
         subcomponent_display_data = DisplayData(
-            element._namespace(), element.display_data())
+            element._get_display_data_namespace(), element.display_data())
         self.items += subcomponent_display_data.items
         continue
 
@@ -216,7 +217,7 @@ class DisplayData(object):
         for k,
         v in pipeline_options.display_data().items()
     }
-    return cls(pipeline_options._namespace(), items)
+    return cls(pipeline_options._get_display_data_namespace(), items)
 
   @classmethod
   def create_from(cls, has_display_data):
@@ -236,7 +237,9 @@ class DisplayData(object):
       raise ValueError(
           'Element of class {}.{} does not subclass HasDisplayData'.format(
               has_display_data.__module__, has_display_data.__class__.__name__))
-    return cls(has_display_data._namespace(), has_display_data.display_data())
+    return cls(
+        has_display_data._get_display_data_namespace(),
+        has_display_data.display_data())
 
 
 class DisplayDataItem(object):

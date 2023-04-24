@@ -57,6 +57,8 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
     /** True if has been primed for a test but not yet validated. */
     boolean isActive;
 
+    boolean isPublish;
+
     /** Publish mode only: Only publish calls for this topic are allowed. */
     @Nullable TopicPath expectedTopic;
 
@@ -111,7 +113,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
    * factory must be closed when the test is complete, at which point final validation will occur.
    */
   public static PubsubTestClientFactory createFactoryForPublish(
-      final TopicPath expectedTopic,
+      final @Nullable TopicPath expectedTopic,
       final Iterable<OutgoingMessage> expectedOutgoingMessages,
       final Iterable<OutgoingMessage> failingOutgoingMessages) {
     activate(
@@ -315,9 +317,10 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
 
   /** Handles setting {@code STATE} values for a publishing client. */
   private static void setPublishState(
-      final TopicPath expectedTopic,
+      final @Nullable TopicPath expectedTopic,
       final Iterable<OutgoingMessage> expectedOutgoingMessages,
       final Iterable<OutgoingMessage> failingOutgoingMessages) {
+    STATE.isPublish = true;
     STATE.expectedTopic = expectedTopic;
     STATE.remainingExpectedOutgoingMessages = Sets.newHashSet(expectedOutgoingMessages);
     STATE.remainingFailingOutgoingMessages = Sets.newHashSet(failingOutgoingMessages);
@@ -422,7 +425,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   /** Return true if in publish mode. */
   private boolean inPublishMode() {
     checkState(STATE.isActive, "No test is active");
-    return STATE.expectedTopic != null;
+    return STATE.isPublish;
   }
 
   /**
@@ -452,12 +455,20 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     synchronized (STATE) {
       checkState(inPublishMode(), "Can only publish in publish mode");
-      checkState(
-          topic.equals(STATE.expectedTopic),
-          "Topic %s does not match expected %s",
-          topic,
-          STATE.expectedTopic);
+      boolean isDynamic = STATE.expectedTopic == null;
+      if (!isDynamic) {
+        checkState(
+            topic.equals(STATE.expectedTopic),
+            "Topic %s does not match expected %s",
+            topic,
+            STATE.expectedTopic);
+      }
       for (OutgoingMessage outgoingMessage : outgoingMessages) {
+        if (isDynamic) {
+          checkState(outgoingMessage.topic().equals(topic.getPath()));
+        } else {
+          checkState(outgoingMessage.topic() == null);
+        }
         if (STATE.remainingFailingOutgoingMessages.remove(outgoingMessage)) {
           throw new RuntimeException("Simulating failure for " + outgoingMessage);
         }

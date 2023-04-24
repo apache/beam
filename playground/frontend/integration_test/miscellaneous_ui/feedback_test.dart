@@ -52,7 +52,7 @@ Future<void> _checkFeedback(
   expect(find.feedbackDropdownContent(), findsOneWidget);
 
   if (!send) {
-    await wt.tapAndSettle(find.feedbackDropdownCancelButton());
+    await wt.tapAndSettle(find.dismissibleOverlay());
   } else {
     final text = 'This is $rating text.';
     await wt.enterText(find.feedbackDropdownTextField(), text);

@@ -19,8 +19,8 @@
 import 'dart:async';
 
 import '../../cache/example_cache.dart';
+import '../../exceptions/multiple_exceptions.dart';
 import '../../models/example.dart';
-import '../../models/example_base.dart';
 import '../../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../../models/sdk.dart';
 import 'example_loader.dart';
@@ -35,10 +35,9 @@ class StandardExampleLoader extends ExampleLoader {
 
   final ExampleCache exampleCache;
   final _completer = Completer<Example>();
-  Sdk? _sdk;
 
   @override
-  Sdk? get sdk => _sdk;
+  Sdk? get sdk => descriptor.sdk;
 
   @override
   Future<Example> get future => _completer.future;
@@ -52,31 +51,39 @@ class StandardExampleLoader extends ExampleLoader {
 
   Future<void> _load() async {
     try {
-      final example = await _loadExampleBase();
-
-      if (example == null) {
-        _completer.completeError(Exception('Example not found: $descriptor'));
-        return;
-      }
-
-      _completer.complete(
-        exampleCache.loadExampleInfo(example),
+      final exampleBase = await exampleCache.getPrecompiledObject(
+        descriptor.path,
+        descriptor.sdk,
       );
 
-      // ignore: avoid_catches_without_on_clauses
-    } catch (ex, trace) {
-      _completer.completeError(ex, trace);
-      return;
+      _completer.complete(
+        await exampleCache.loadExampleInfo(exampleBase),
+      );
+    } on Exception catch (ex, trace) {
+      await _tryLoadSharedExample(
+        previousExceptions: [ex],
+        previousStackTraces: [trace],
+      );
     }
   }
 
-  Future<ExampleBase?> _loadExampleBase() async {
-    _sdk = Sdk.tryParseExamplePath(descriptor.path);
-
-    if (_sdk == null) {
-      return null;
+  Future<void> _tryLoadSharedExample({
+    required List<Exception> previousExceptions,
+    required List<StackTrace> previousStackTraces,
+  }) async {
+    try {
+      final example = await exampleCache.loadSharedExample(
+        descriptor.path,
+        viewOptions: descriptor.viewOptions,
+      );
+      _completer.complete(example);
+    } on Exception catch (ex, trace) {
+      _completer.completeError(
+        MultipleExceptions(
+          exceptions: [...previousExceptions, ex],
+          stackTraces: [...previousStackTraces, trace],
+        ),
+      );
     }
-
-    return exampleCache.getPrecompiledObject(descriptor.path, _sdk!);
   }
 }

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -38,7 +39,7 @@ type Plan struct {
 	bf          *bundleFinalizer
 	checkpoints []*Checkpoint
 
-	status Status
+	status Status // Uses atomic getter and setter to avoid dataraces on Splits.
 
 	// TODO: there can be more than 1 DataSource in a bundle.
 	source *DataSource
@@ -86,6 +87,14 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 	}, nil
 }
 
+func (p *Plan) getStatus() Status {
+	return Status(atomic.LoadInt32((*int32)(&p.status)))
+}
+
+func (p *Plan) setStatus(s Status) {
+	atomic.StoreInt32((*int32)(&p.status), int32(s))
+}
+
 // ID returns the plan identifier.
 func (p *Plan) ID() string {
 	return p.id
@@ -100,29 +109,29 @@ func (p *Plan) SourcePTransformID() string {
 // are brought up on the first execution. If a bundle fails, the plan cannot
 // be reused for further bundles. Does not panic. Blocking.
 func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) error {
-	if p.status == Initializing {
+	if p.getStatus() == Initializing {
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
-				p.status = Broken
+				p.setStatus(Broken)
 				return errors.Wrapf(err, "while executing Up for %v", p)
 			}
 		}
-		p.status = Up
+		p.setStatus(Up)
 	}
 	if p.source != nil {
 		p.source.InitSplittable()
 	}
 
-	if p.status != Up {
-		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
+	if s := p.getStatus(); s != Up {
+		return errors.Errorf("invalid status for plan %v: %v", p.id, s)
 	}
 
 	// Process bundle. If there are any kinds of failures, we bail and mark the plan broken.
 
-	p.status = Active
+	p.setStatus(Active)
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, func(ctx context.Context) error { return root.StartBundle(ctx, id, manager) }); err != nil {
-			p.status = Broken
+			p.setStatus(Broken)
 			return errors.Wrapf(err, "while executing StartBundle for %v", p)
 		}
 	}
@@ -132,25 +141,24 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 			p.checkpoints = cps
 			return err
 		}); err != nil {
-			p.status = Broken
+			p.setStatus(Broken)
 			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.FinishBundle); err != nil {
-			p.status = Broken
+			p.setStatus(Broken)
 			return errors.Wrapf(err, "while executing FinishBundle for %v", p)
 		}
 	}
-
-	p.status = Up
+	p.setStatus(Up)
 	return nil
 }
 
 // Finalize runs any callbacks registered by the bundleFinalizer. Should be run on bundle finalization.
 func (p *Plan) Finalize() error {
-	if p.status != Up {
-		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
+	if s := p.getStatus(); s != Up {
+		return errors.Errorf("invalid status for plan %v: %v", p.id, s)
 	}
 	failedIndices := []int{}
 	for idx, bfc := range p.bf.callbacks {
@@ -189,10 +197,11 @@ func (p *Plan) GetExpirationTime() time.Time {
 
 // Down takes the plan and associated units down. Does not panic.
 func (p *Plan) Down(ctx context.Context) error {
-	if p.status == Down {
+	// Technically racy, but only one thread calls this method on the plan.
+	if p.getStatus() == Down {
 		return nil // ok: already down
 	}
-	p.status = Down
+	p.setStatus(Down)
 
 	var errs []error
 	for _, u := range p.units {
@@ -277,7 +286,8 @@ type SplitResult struct {
 // Returns an error when unable to split.
 func (p *Plan) Split(ctx context.Context, s SplitPoints) (SplitResult, error) {
 	// Can't split inactive plans.
-	if p.status != Active {
+	// Split occurs asynchronously, so the state check here must be atomic.
+	if p.getStatus() != Active {
 		return SplitResult{Unsuccessful: true}, nil
 	}
 	// TODO: When bundles with multiple sources, are supported, perform splits

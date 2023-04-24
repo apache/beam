@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/google/go-cmp/cmp"
@@ -264,6 +265,62 @@ func Test_fs_Size(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("Size() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_fs_LastModified(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  []byte
+		filename string
+		wantErr  bool
+	}{
+		{
+			name:     "Last modified timestamp",
+			content:  []byte("content"),
+			filename: "s3://bucket/file.txt",
+			wantErr:  false,
+		},
+		{
+			name:     "Error: invalid S3 uri",
+			filename: "bucket/without/scheme",
+			wantErr:  true,
+		},
+		{
+			name:     "Error: object does not exist",
+			content:  []byte("content"),
+			filename: "s3://bucket/non-existing-file.txt",
+			wantErr:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			server := newServer(t)
+			client := newClient(ctx, t, server.URL)
+
+			bucket := "bucket"
+			key := "file.txt"
+			createBucket(ctx, t, client, bucket)
+
+			// Account for a timestamp resolution of one second.
+			t1 := time.Now().Truncate(time.Second)
+			createObject(ctx, t, client, bucket, key, tt.content)
+			t2 := time.Now()
+
+			fileSystem := &fs{client: client}
+			got, err := fileSystem.LastModified(ctx, tt.filename)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LastModified() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+
+			if got.Before(t1) || got.After(t2) {
+				t.Errorf("LastModified() got = %v, want in range [%v, %v]", got, t1, t2)
 			}
 		})
 	}

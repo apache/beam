@@ -82,12 +82,12 @@ func ReadDirectoryDisallow() ReadOptionFn {
 	}
 }
 
-// ReadMatches accepts the result of MatchFiles or MatchAll as a PCollection<FileMetadata> and
-// converts it to a PCollection<ReadableFile>. The ReadableFile can be used to retrieve file
-// metadata, open the file for reading or read the entire file into memory. ReadMatches accepts a
-// variadic number of ReadOptionFn that can be used to configure the compression type of the files
-// and treatment of directories. By default, the compression type is determined by the file
-// extension and directories are skipped.
+// ReadMatches accepts the result of MatchFiles, MatchAll or MatchContinuously as a
+// PCollection<FileMetadata> and converts it to a PCollection<ReadableFile>. The ReadableFile can be
+// used to retrieve file metadata, open the file for reading or read the entire file into memory.
+// ReadMatches accepts a variadic number of ReadOptionFn that can be used to configure the
+// compression type of the files and treatment of directories. By default, the compression type is
+// determined by the file extension and directories are skipped.
 func ReadMatches(s beam.Scope, col beam.PCollection, opts ...ReadOptionFn) beam.PCollection {
 	s = s.Scope("fileio.ReadMatches")
 
