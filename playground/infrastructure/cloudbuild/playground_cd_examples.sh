@@ -109,6 +109,7 @@ cd $BEAM_ROOT_DIR
 pip install -r playground/infrastructure/requirements.txt
 
 LogOutput "Looking for files changed by the merge commit $MERGE_COMMIT"
+git fetch origin $MERGE_COMMIT
 diff_log=$(git diff --name-only $MERGE_COMMIT~ $MERGE_COMMIT)
 diff=($(echo "$diff_log" | tr '\n' ' '))
 LogOutput "Discovered changes introduced by $MERGE_COMMIT: $diff_log"
