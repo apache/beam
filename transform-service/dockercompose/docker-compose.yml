@@ -22,8 +22,15 @@ services:
     image: "apache/beam_java_expansion_service:${BEAM_VERSION}"
     restart: on-failure
     command: -id expansion-service-1 -port 5001
+    volumes:
+      - ${CREDENTIALS_VOLUME}:/credentials_volume
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials_volume/${GOOGLE_APPLICATION_CREDENTIALS_FILE_NAME}
   expansion-service-2:
     image: "apache/beam_python_expansion_service:${BEAM_VERSION}"
     restart: on-failure
     command: -id expansion-service-2 -port 5001
-
+    volumes:
+      - ${CREDENTIALS_VOLUME}:/credentials_volume
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials_volume/${GOOGLE_APPLICATION_CREDENTIALS_FILE_NAME}
