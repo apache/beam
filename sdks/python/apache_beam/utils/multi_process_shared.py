@@ -142,7 +142,7 @@ _SingletonRegistrar.register(
 # singletonProxy_call__ calls (which is a wrapper around the underlying
 # object's __call__ function)
 class _AutoProxyWrapper:
-  def __init__(self, proxyObject: multiprocessing.managers.AutoProxy):
+  def __init__(self, proxyObject: multiprocessing.managers.BaseProxy):
     self._proxyObject = proxyObject
 
   def __call__(self, *args, **kwargs):
