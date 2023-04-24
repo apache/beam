@@ -2,45 +2,31 @@ package fileio
 
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"os"
-	"reflect"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 const (
 	inputRowTupleTag  = "input"
 	outputRowTupleTag = "output"
-	//expansionUri      = "beam:transform:org.apache.beam:file_write:v1"
-	identifier   = "beam:schematransform:org.apache.beam:file_write:v1"
-	expansionUri = "beam:expansion:payload:schematransform:v1"
+	expansionUri      = "beam:transform:org.apache.beam:file_write:v1"
+	//identifier   = "beam:schematransform:org.apache.beam:file_write:v1"
+	//expansionUri = "beam:expansion:payload:schematransform:v1"
 )
 
 func Write(s beam.Scope, expansionAddress string, configuration WriteConfiguration, input beam.PCollection) beam.PCollection {
-	ss, err := schema.FromType(reflect.TypeOf(WriteConfiguration{}))
-	if err != nil {
-		panic(err)
-	}
-	schemaTransformPayload := &pipeline_v1.SchemaTransformPayload{
-		Identifier:          identifier,
-		ConfigurationSchema: ss,
-		ConfigurationRow:    beam.CrossLanguagePayload(configuration),
-	}
-	_ = beam.CrossLanguagePayload(schemaTransformPayload)
+	pl := beam.CrossLanguagePayload(configuration)
 
-	os.Exit(0)
-	//
-	//namedInput := map[string]beam.PCollection{
-	//	inputRowTupleTag: input,
-	//}
-	//
-	//outputTypes := map[string]typex.FullType{
-	//	outputRowTupleTag: typex.New(reflectx.String),
-	//}
-	//
-	//output := beam.CrossLanguage(s.Scope(expansionUri), expansionUri, pl, expansionAddress, namedInput, outputTypes)
-	//return output[outputRowTupleTag]
-	return beam.Create(s, "hi")
+	namedInput := map[string]beam.PCollection{
+		inputRowTupleTag: input,
+	}
+
+	outputTypes := map[string]typex.FullType{
+		outputRowTupleTag: typex.New(reflectx.String),
+	}
+
+	output := beam.CrossLanguage(s.Scope(expansionUri), expansionUri, pl, expansionAddress, namedInput, outputTypes)
+	return output[outputRowTupleTag]
 }
 
 // WriteConfiguration configures a struct-based DoFn that writes to a file or object system.

@@ -35,6 +35,7 @@ dependencies {
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
     implementation project(":sdks:java:io:file-schema-transform")
     permitUnusedDeclared project(":sdks:java:io:file-schema-transform") // BEAM-11761
+    implementation project(":sdks:java:io:google-cloud-platform")
     runtimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":sdks:java:expansion-service")
 }

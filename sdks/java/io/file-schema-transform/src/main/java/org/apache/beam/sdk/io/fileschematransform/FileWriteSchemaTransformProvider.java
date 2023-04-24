@@ -127,7 +127,7 @@ public class FileWriteSchemaTransformProvider
                               .withFieldValue(FILE_NAME_FIELD.getName(), name)
                               .build()));
 
-      return PCollectionRowTuple.of(OUTPUT_TAG, output);
+      return PCollectionRowTuple.of(OUTPUT_TAG, output.setRowSchema(OUTPUT_SCHEMA));
     }
 
     @Override
