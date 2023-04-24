@@ -113,6 +113,11 @@ git fetch origin $MERGE_COMMIT
 diff_log=$(git diff --name-only $MERGE_COMMIT~ $MERGE_COMMIT)
 diff=($(echo "$diff_log" | tr '\n' ' '))
 LogOutput "Discovered changes introduced by $MERGE_COMMIT: $diff_log"
+git checkout $MERGE_COMMIT
+if [ $? -ne 0 ]; then
+    LogOutput "Can't checkout to $MERGE_COMMIT. Exiting"
+    exit 1
+fi
 declare -a allowlist_array
 for sdk in $SDKS
 do
