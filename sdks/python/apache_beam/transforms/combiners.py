@@ -198,8 +198,11 @@ class Top(object):
     """Obtain a list of the compare-most N elements in a PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
-    to which it is applied, where "greatest" is determined by the comparator
-    function supplied as the compare argument.
+    to which it is applied, where "greatest" is determined by a
+    function supplied as the key or reverse arguments.
+
+    Note: The compare argument is deprecated and will result in an error
+    in Python 3.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a global Top operation.
