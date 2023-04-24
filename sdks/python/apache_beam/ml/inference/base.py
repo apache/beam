@@ -618,13 +618,31 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
     For example, one would write::
 
-        good, bad = RunInference(
+        main, other = RunInference(
           maybe_error_raising_model_handler
         ).with_exception_handling()
 
-    and `good` will be a PCollection of PredictionResults and `bad` will
-    contain a tuple of all batches that raised exceptions, along with their
-    corresponding exception.
+    and `good` will be a PCollection of PredictionResults and `other` will
+    contain a `RunInferenceDLQ` object with PCollections containing failed
+    records for each failed inference, preprocess operation, or postprocess
+    operation. To access each collection of failed records, one would write:
+
+        failed_inferences = other.failed_inferences
+        failed_preprocessing = other.failed_preprocessing
+        failed_postprocessing = other.failed_postprocessing
+
+    failed_inferences is in the form
+    PCollection[Tuple[failed batch, exception]].
+
+    failed_preprocessing is in the form
+    PCollectionList[Tuple[failed record, exception]]], where each element of
+    the list corresponds to a preprocess function. These PCollections are
+    in the same order that the preprocess functions are applied.
+
+    failed_postprocessing is in the form
+    PCollectionList[Tuple[failed record, exception]]], where each element of
+    the list corresponds to a postprocess function. These PCollections are
+    in the same order that the postprocess functions are applied.
 
 
     Args:
