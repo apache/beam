@@ -59,9 +59,9 @@ _NANOSECOND_TO_MICROSECOND = 1_000
 
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
-PreT = TypeVar('PreT')
+PreProcessT = TypeVar('PreProcessT')
 PredictionT = TypeVar('PredictionT')
-PostT = TypeVar('PostT')
+PostProcessT = TypeVar('PostProcessT')
 _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
@@ -194,8 +194,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     return []
 
   def with_preprocess_fn(
-      self, fn: Callable[[PreT], ExampleT]
-  ) -> 'ModelHandler[PreT, PredictionT, ModelT, PreT]':
+      self, fn: Callable[[PreProcessT], ExampleT]
+  ) -> 'ModelHandler[PreProcessT, PredictionT, ModelT, PreProcessT]':
     """Returns a new ModelHandler with a preprocessing function
     associated with it. The preprocessing function will be run
     before batching/inference and should map your input PCollection
@@ -205,8 +205,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     return _PreProcessingModelHandler(self, fn)
 
   def with_postprocess_fn(
-      self, fn: Callable[[PredictionT], PostT]
-  ) -> 'ModelHandler[ExampleT, PostT, ModelT, PostT]':
+      self, fn: Callable[[PredictionT], PostProcessT]
+  ) -> 'ModelHandler[ExampleT, PostProcessT, ModelT, PostProcessT]':
     """Returns a new ModelHandler with a postprocessing function
     associated with it. The postprocessing function will be run
     after inference and should map the base ModelHandler's output
@@ -366,12 +366,16 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return self._unkeyed.get_postprocess_fns()
 
 
-class _PreProcessingModelHandler(Generic[ExampleT, PredictionT, ModelT, PreT],
-                                 ModelHandler[PreT, PredictionT, ModelT]):
+class _PreProcessingModelHandler(Generic[ExampleT,
+                                         PredictionT,
+                                         ModelT,
+                                         PreProcessT],
+                                 ModelHandler[PreProcessT, PredictionT,
+                                              ModelT]):
   def __init__(
       self,
       base: ModelHandler[ExampleT, PredictionT, ModelT],
-      preprocess_fn: Callable[[PreT], ExampleT]):
+      preprocess_fn: Callable[[PreProcessT], ExampleT]):
     """A ModelHandler that has a preprocessing function associated with it.
 
     Args:
@@ -418,12 +422,15 @@ class _PreProcessingModelHandler(Generic[ExampleT, PredictionT, ModelT, PreT],
     return self._base.get_postprocess_fns()
 
 
-class _PostProcessingModelHandler(Generic[ExampleT, PredictionT, ModelT, PostT],
-                                  ModelHandler[ExampleT, PostT, ModelT]):
+class _PostProcessingModelHandler(Generic[ExampleT,
+                                          PredictionT,
+                                          ModelT,
+                                          PostProcessT],
+                                  ModelHandler[ExampleT, PostProcessT, ModelT]):
   def __init__(
       self,
       base: ModelHandler[ExampleT, PredictionT, ModelT],
-      postprocess_fn: Callable[[PredictionT], PostT]):
+      postprocess_fn: Callable[[PredictionT], PostProcessT]):
     """A ModelHandler that has a preprocessing function associated with it.
 
     Args:
@@ -525,6 +532,27 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     """
     return cls(model_handler_provider(**kwargs))
 
+  def _apply_fns(
+      self,
+      pcoll: beam.PCollection,
+      fns: Iterable[Callable[[Any], Any]],
+      step_prefix: str) -> Tuple[beam.PCollection, Iterable[beam.PCollection]]:
+    bad_preprocessed = []
+    for idx in range(len(fns)):
+      fn = fns[idx]
+      if self._with_exception_handling:
+        pcoll, bad = (pcoll
+        | f"{step_prefix}-{idx}" >> beam.Map(
+          fn).with_exception_handling(
+          exc_class=self._exc_class,
+          use_subprocess=self._use_subprocess,
+          threshold=self._threshold))
+        bad_preprocessed.append(bad)
+      else:
+        pcoll = pcoll | f"{step_prefix}-{idx}" >> beam.Map(fn)
+
+    return pcoll, bad_preprocessed
+
   # TODO(https://github.com/apache/beam/issues/21447): Add batch_size back off
   # in the case there are functional reasons large batch sizes cannot be
   # handled.
@@ -538,18 +566,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     preprocess_fns = self._model_handler.get_preprocess_fns()
     postprocess_fns = self._model_handler.get_postprocess_fns()
 
-    for idx in range(len(preprocess_fns)):
-      fn = preprocess_fns[idx]
-      if self._with_exception_handling:
-        pcoll, bad = (pcoll
-        | f"BeamML_RunInference_Preprocess-{idx}" >> beam.Map(
-          fn).with_exception_handling(
-          exc_class=self._exc_class,
-          use_subprocess=self._use_subprocess,
-          threshold=self._threshold))
-        bad_preprocessed.append(bad)
-      else:
-        pcoll = pcoll | f"BeamML_RunInference_Preprocess-{idx}" >> beam.Map(fn)
+    pcoll, bad_preprocessed = self._apply_fns(
+      pcoll, preprocess_fns, 'BeamML_RunInference_Preprocess')
 
     resource_hints = self._model_handler.get_resource_hints()
 
@@ -584,20 +602,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
           batched_elements_pcoll
           | 'BeamML_RunInference' >> run_inference_pardo)
 
-    for idx in range(len(postprocess_fns)):
-      fn = postprocess_fns[idx]
-      if self._with_exception_handling:
-        results, bad = (results
-        | f"BeamML_RunInference_Postprocess-{idx}" >> beam.Map(
-          fn).with_exception_handling(
-          exc_class=self._exc_class,
-          use_subprocess=self._use_subprocess,
-          threshold=self._threshold))
-        bad_postprocessed.append(bad)
-      else:
-        results = (
-            results
-            | f"BeamML_RunInference_Postprocess-{idx}" >> beam.Map(fn))
+    results, bad_postprocessed = self._apply_fns(
+      results, postprocess_fns, 'BeamML_RunInference_Postprocess')
 
     if self._with_exception_handling:
       dlq = RunInferenceDLQ(bad_inference, bad_preprocessed, bad_postprocessed)
@@ -622,7 +628,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
           maybe_error_raising_model_handler
         ).with_exception_handling()
 
-    and `good` will be a PCollection of PredictionResults and `other` will
+    and `main` will be a PCollection of PredictionResults and `other` will
     contain a `RunInferenceDLQ` object with PCollections containing failed
     records for each failed inference, preprocess operation, or postprocess
     operation. To access each collection of failed records, one would write:
@@ -635,12 +641,12 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     PCollection[Tuple[failed batch, exception]].
 
     failed_preprocessing is in the form
-    PCollectionList[Tuple[failed record, exception]]], where each element of
+    list[PCollection[Tuple[failed record, exception]]]], where each element of
     the list corresponds to a preprocess function. These PCollections are
     in the same order that the preprocess functions are applied.
 
     failed_postprocessing is in the form
-    PCollectionList[Tuple[failed record, exception]]], where each element of
+    List[PCollection[Tuple[failed record, exception]]]], where each element of
     the list corresponds to a postprocess function. These PCollections are
     in the same order that the postprocess functions are applied.
 
