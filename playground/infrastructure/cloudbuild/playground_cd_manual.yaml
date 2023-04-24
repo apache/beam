@@ -12,7 +12,11 @@ steps:
          Merge Status: $_MERGE_STATUS
          Merge commit: $_MERGE_COMMIT
          Playground DNS: $_DNS_NAME
-         Datastore namespace: $_DATASTORE_NAMESPACE"
+         Datastore namespace: $_DATASTORE_NAMESPACE
+         Exampes Origin: $_ORIGIN
+         Examples Subdirs: $_SUBDIRS
+         SDKs: $_SDKS
+         CD Script Concurrency: $_BEAM_CONCURRENCY"
          
         if [[ -z "$_DNS_NAME" || -z "$_DATASTORE_NAMESPACE" ]]; then
           echo "_DNS_NAME and _DATASTORE_NAMESPACE substitutions must be set in the triger"
@@ -65,9 +69,6 @@ steps:
         echo "CDLOG $(date --utc '+%D %T') Starting deployment script"
 
         git clone --branch master https://github.com/apache/beam.git
-
-        curl -O --output-dir ./beam/playground/infrastructure/cloudbuild
-        https://raw.githubusercontent.com/akvelon/beam/test_cd/playground/infrastructure/cloudbuild/playground_cd_examples.sh
 
         chmod +x ${_CD_SCRIPT_PATH}
 

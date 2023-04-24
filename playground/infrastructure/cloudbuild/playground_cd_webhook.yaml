@@ -12,7 +12,11 @@ steps:
          Merge Status: $_MERGE_STATUS
          Merge commit: $_MERGE_COMMIT
          Playground DNS: $_DNS_NAME
-         Datastore namespace: $_DATASTORE_NAMESPACE"
+         Datastore namespace: $_DATASTORE_NAMESPACE
+         Exampes Origin: $_ORIGIN
+         Examples Subdirs: $_SUBDIRS
+         SDKs: $_SDKS
+         CD Script Concurrency: $_BEAM_CONCURRENCY"
          
         if [[ -z "$_DNS_NAME" || -z "$_DATASTORE_NAMESPACE" ]]; then
           echo "_DNS_NAME and _DATASTORE_NAMESPACE substitutions must be set in the triger"
@@ -93,6 +97,7 @@ substitutions:
   _FORCE_CD: 'false'
   _PR_URL: $(body.pull_request._links.html.href)
   _MERGE_STATUS: $(body.pull_request.merged)
+  _MERGE_COMMIT: $(body.pull_request.merge_commit_sha)
   _PRIVATE_BUCKET: 'gs://playground-cloudbuild-logs-private/'
   _TARGET_PR_REPO_BRANCH: $(body.pull_request.base.label)
   _BEAM_CONCURRENCY: '4'
