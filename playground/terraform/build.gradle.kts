@@ -384,6 +384,23 @@ func_view: ${pgfuncview}
     }
 }
 
+
+task("applyMigrations") {
+    doLast {
+        val namespace = if (project.hasProperty("datastore-namespace")) (project.property("datastore-namespace") as String) else ""
+        val projectId = project.rootProject.extra["playground_gke_project"]
+        val modulePath = project(":playground").projectDir.absolutePath
+        val sdkConfig = "$modulePath/sdks.yaml"
+        exec {
+            executable("go")
+            args("run", "cmd/migration_tool/migration_tool.go",
+            "-project-id", projectId,
+            "-sdk-config", sdkConfig,
+            "-namespace", namespace)
+        }
+    }
+}
+
 tasks.register("helmRelease") {
     group = "deploy"
     val modulePath = project(":playground").projectDir.absolutePath
@@ -404,6 +421,7 @@ tasks.register("gkebackend") {
     val pushFrontTask = tasks.getByName("pushFront")
     val indexcreateTask = tasks.getByName("indexcreate")
     val helmTask = tasks.getByName("helmRelease")
+    var applyMigrations = tasks.getByName("applyMigrations")
     dependsOn(initTask)
     dependsOn(takeConfigTask)
     dependsOn(pushBackTask)
@@ -414,5 +432,6 @@ tasks.register("gkebackend") {
     pushBackTask.mustRunAfter(takeConfigTask)
     pushFrontTask.mustRunAfter(pushBackTask)
     indexcreateTask.mustRunAfter(pushFrontTask)
-    helmTask.mustRunAfter(indexcreateTask)
+    applyMigrations.mustRunAfter(indexcreateTask)
+    helmTask.mustRunAfter(applyMigrations)
 }
