@@ -134,6 +134,7 @@ LogOutput "Docker tag for containers: $DOCKERTAG"
 
 LogOutput "git fetch -all"
 git fetch --all > /dev/null
+# Docker containers will build from the current PR commit
 LogOutput "git checkout $COMMIT"
 git checkout $COMMIT
 if [ $? -ne 0 ]; then
