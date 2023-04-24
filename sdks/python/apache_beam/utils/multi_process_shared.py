@@ -137,7 +137,7 @@ _SingletonRegistrar.register(
 # By default, objects registered with BaseManager.register will have only
 # public methods available (excluding __call__). If you know the functions
 # you would like to expose, you can do so at register time with the `exposed`
-# attribute. Since we don't we will add a wrapper around the returned AutoProxy
+# attribute. Since we don't, we will add a wrapper around the returned AutoProxy
 # object to handle __call__ function calls and turn them into
 # singletonProxy_call__ calls (which is a wrapper around the underlying
 # object's __call__ function)
