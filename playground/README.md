@@ -171,7 +171,7 @@ To shut down the playground, run:
     ```
 
 1. Run the `ci_cd.py` script
-    
+
     ***TODO***: clarify SCIO examples
     ```shell
     export SERVER_ADDRESS=<runner_address> # see the note below
