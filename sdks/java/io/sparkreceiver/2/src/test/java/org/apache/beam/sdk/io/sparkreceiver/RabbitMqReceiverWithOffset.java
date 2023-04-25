@@ -23,12 +23,10 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -48,7 +46,11 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
   private final String streamName;
   private final long totalMessagesNumber;
   private long startOffset;
-  private static final int READ_TIMEOUT_IN_MS = 100;
+  private long recordsProcessed = 0L;
+
+  private final AtomicBoolean isStopped = new AtomicBoolean(false);
+  private transient Connection connection;
+  private transient Channel channel;
 
   RabbitMqReceiverWithOffset(
       final String uri, final String streamName, final long totalMessagesNumber) {
@@ -69,6 +71,11 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
   }
 
   @Override
+  public void setCheckpoint(Long recordsProcessed) {
+    this.recordsProcessed = recordsProcessed;
+  }
+
+  @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public void onStart() {
     Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().build()).submit(this::receive);
@@ -78,14 +85,8 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
   public void onStop() {}
 
   private void receive() {
-    long currentOffset = startOffset;
-
-    final TestConsumer testConsumer;
-    final Connection connection;
-    final Channel channel;
-
     try {
-      LOG.info("Starting receiver with offset {}", currentOffset);
+      LOG.info("Starting receiver with offset {}", startOffset);
       final ConnectionFactory connectionFactory = new ConnectionFactory();
       connectionFactory.setUri(rabbitmqUrl);
       connectionFactory.setAutomaticRecoveryEnabled(true);
@@ -101,32 +102,52 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
       channel.queueDeclare(
           streamName, true, false, false, Collections.singletonMap("x-queue-type", "stream"));
       channel.basicQos(Math.min(MAX_PREFETCH_COUNT, (int) totalMessagesNumber));
-      testConsumer = new TestConsumer(this, channel, this::store);
+      final TestConsumer testConsumer = new TestConsumer(channel, this::store, isStopped);
 
       channel.basicConsume(
           streamName,
           false,
-          Collections.singletonMap("x-stream-offset", currentOffset),
+          Collections.singletonMap("x-stream-offset", startOffset),
           testConsumer);
     } catch (Exception e) {
       LOG.error("Can not basic consume", e);
       throw new RuntimeException(e);
     }
+  }
 
-    while (!isStopped()) {
-      try {
-        TimeUnit.MILLISECONDS.sleep(READ_TIMEOUT_IN_MS);
-      } catch (InterruptedException e) {
-        LOG.error("Interrupted", e);
-      }
-    }
-
+  @Override
+  public void stop(String message) {
+    LOG.info(message);
+    isStopped.set(true);
+    super.stop(message);
     try {
-      LOG.info("Stopping receiver");
-      channel.close();
+      if (recordsProcessed != 0) {
+        LOG.info("Try to multiple ack on {}", recordsProcessed);
+        channel.basicAck(recordsProcessed, true);
+      }
+      channel.abort();
       connection.close();
-    } catch (TimeoutException | IOException e) {
-      throw new RuntimeException(e);
+      LOG.info("RabbitMQ channel and connection were closed");
+    } catch (Exception e) {
+      LOG.error("Exception during stopping of the RabbitMQ receiver", e);
+    }
+  }
+
+  @Override
+  public void stop(String message, Throwable error) {
+    LOG.error(message, error);
+    isStopped.set(true);
+    super.stop(message, error);
+    try {
+      if (recordsProcessed != 0) {
+        LOG.info("Try to multiple ack on {}", recordsProcessed);
+        channel.basicAck(recordsProcessed, true);
+      }
+      channel.abort();
+      connection.close();
+      LOG.info("Closed RabbitMQ channel and connection");
+    } catch (Exception e) {
+      LOG.error("Can't close RabbitMQ channel and connection", e);
     }
   }
 
@@ -134,14 +155,16 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
   static class TestConsumer extends DefaultConsumer {
 
     private final java.util.function.Consumer<String> messageConsumer;
-    private final Receiver<String> receiver;
+    private final AtomicBoolean isReceiverStopped;
+    private final Channel channel;
 
     public TestConsumer(
-        Receiver<String> receiver,
         Channel channel,
-        java.util.function.Consumer<String> messageConsumer) {
+        java.util.function.Consumer<String> messageConsumer,
+        AtomicBoolean isStopped) {
       super(channel);
-      this.receiver = receiver;
+      this.channel = channel;
+      this.isReceiverStopped = isStopped;
       this.messageConsumer = messageConsumer;
     }
 
@@ -150,10 +173,8 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
         String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
       try {
         final String sMessage = new String(body, StandardCharsets.UTF_8);
-        LOG.trace("Adding message to consumer: {}", sMessage);
-        messageConsumer.accept(sMessage);
-        if (getChannel().isOpen() && !receiver.isStopped()) {
-          getChannel().basicAck(envelope.getDeliveryTag(), false);
+        if (channel.isOpen() && !isReceiverStopped.get()) {
+          messageConsumer.accept(sMessage);
         }
       } catch (Exception e) {
         LOG.error("Can't read from RabbitMQ: {}", e.getMessage());
