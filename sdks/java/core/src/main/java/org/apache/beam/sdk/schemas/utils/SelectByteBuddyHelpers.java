@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -67,7 +68,6 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.IfNullElse;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ShortCircuitReturnNull;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
@@ -269,7 +269,7 @@ class SelectByteBuddyHelpers {
     }
 
     StackManipulation store(int arrayIndexToWrite, StackManipulation valueToWrite) {
-      Preconditions.checkArgument(arrayIndexToWrite < arraySize);
+      checkArgument(arrayIndexToWrite < arraySize);
       return new StackManipulation() {
         @Override
         public boolean isValid() {
@@ -429,13 +429,15 @@ class SelectByteBuddyHelpers {
           fieldAccessDescriptor.getNestedFieldsAccessed().entrySet()) {
         FieldDescriptor field = nested.getKey();
         FieldAccessDescriptor nestedAccess = nested.getValue();
-        FieldType nestedInputType = inputSchema.getField(field.getFieldId()).getType();
+        Optional<Integer> fieldId = Optional.ofNullable(field.getFieldId());
+        checkState(fieldId.isPresent());
+        FieldType nestedInputType = inputSchema.getField(fieldId.get()).getType();
 
         StackManipulation.Size subSelectSize =
             selectIntoArrayHelper(
                 field.getQualifiers(),
                 0,
-                field.getFieldId(),
+                fieldId.get(),
                 nestedAccess,
                 nestedInputType,
                 arrayManager,
@@ -451,7 +453,7 @@ class SelectByteBuddyHelpers {
     // a field from the Row stored in currentSelectRowArg. Otherwise we assume that the value has
     // already been stored
     // in fieldValueArg, and we read from there.
-    private StackManipulation loadFieldValue(int fieldId) {
+    private StackManipulation loadFieldValue(Integer fieldId) {
       if (fieldId != -1) {
         // If a field id was specified, then load it.
         return getCurrentRowFieldValue(fieldId);
@@ -464,7 +466,7 @@ class SelectByteBuddyHelpers {
     private StackManipulation.Size selectIntoArrayHelper(
         List<Qualifier> qualifiers,
         int qualifierPosition,
-        int fieldId,
+        Integer fieldId,
         FieldAccessDescriptor fieldAccessDescriptor,
         FieldType inputType,
         ArrayManager arrayManager,
