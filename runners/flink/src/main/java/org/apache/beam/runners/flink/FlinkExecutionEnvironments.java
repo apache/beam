@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
@@ -150,8 +151,7 @@ public class FlinkExecutionEnvironments {
 
     applyLatencyTrackingInterval(flinkBatchEnv.getConfig(), options);
 
-    configureWebUIOptions(
-        flinkBatchEnv.getConfig(), options.as(org.apache.beam.sdk.options.PipelineOptions.class));
+    configureWebUIOptions(flinkBatchEnv.getConfig(), options.as(PipelineOptions.class));
 
     return flinkBatchEnv;
   }
@@ -258,8 +258,7 @@ public class FlinkExecutionEnvironments {
 
     configureStateBackend(options, flinkStreamEnv);
 
-    configureWebUIOptions(
-        flinkStreamEnv.getConfig(), options.as(org.apache.beam.sdk.options.PipelineOptions.class));
+    configureWebUIOptions(flinkStreamEnv.getConfig(), options.as(PipelineOptions.class));
 
     return flinkStreamEnv;
   }
@@ -275,10 +274,7 @@ public class FlinkExecutionEnvironments {
       JsonNode optionsNode = node.get("options");
       Map<String, String> output =
           Streams.stream(optionsNode.fields())
-              .filter(
-                  entry ->
-                      !entry.getValue().asText().isEmpty()
-                          && !"null".equals(entry.getValue().asText()))
+              .filter(entry -> !entry.getValue().isNull())
               .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().asText()));
 
       config.setGlobalJobParameters(new GlobalJobParametersImpl(output));

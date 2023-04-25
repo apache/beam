@@ -490,6 +490,10 @@ public class FlinkExecutionEnvironmentsTest {
     Boolean getKey2();
 
     void setKey2(Boolean value);
+
+    String getKey3();
+
+    void setKey3(String value);
   }
 
   @Test
@@ -501,6 +505,7 @@ public class FlinkExecutionEnvironmentsTest {
         PipelineOptionsFactory.fromArgs(
                 "--key1=value1",
                 "--key2",
+                "--key3=",
                 "--parallelism=10",
                 "--checkpointTimeoutMillis=500",
                 "--checkpointingInterval=100",
@@ -523,6 +528,7 @@ public class FlinkExecutionEnvironmentsTest {
     expectedMap.put("checkpointingInterval", "100");
     expectedMap.put("key1", "value1");
     expectedMap.put("key2", "true");
+    expectedMap.put("key3", "");
     expectedMap.put("optionsId", "0");
     expectedMap.put("appName", "FlinkExecutionEnvironmentsTest");
     expectedMap.put("checkpointTimeoutMillis", "500");
