@@ -36,7 +36,7 @@ from setuptools import Command
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.errors import DistutilsError  # isort:skip
+from distutils.errors import DistutilsError # isort:skip
 
 
 class mypy(Command):
@@ -127,7 +127,6 @@ except DistributionNotFound:
 try:
   # pylint: disable=wrong-import-position
   from Cython.Build import cythonize as cythonize0
-
   def cythonize(*args, **kwargs):
     import numpy
     extensions = cythonize0(*args, **kwargs)
@@ -150,7 +149,6 @@ dataframe_dependency = [
     'pandas<1.6.0;python_version=="3.7"',
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
 ]
-
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -213,6 +211,7 @@ if __name__ == '__main__':
           ]
       },
       ext_modules=cythonize([
+          # Make sure to use language_level=3 cython directive in files below.
           'apache_beam/**/*.pyx',
           'apache_beam/coders/coder_impl.py',
           'apache_beam/metrics/cells.py',
@@ -225,7 +224,7 @@ if __name__ == '__main__':
           'apache_beam/transforms/stats.py',
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
-      ], language_level=3),
+      ]),
       install_requires = [
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
