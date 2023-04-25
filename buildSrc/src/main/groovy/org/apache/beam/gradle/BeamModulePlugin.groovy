@@ -2844,8 +2844,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
-          dependsOn ':sdks:python:sdist'
-
           doLast {
             // Python source directory is also tox execution workspace, We want
             // to isolate them per tox suite to avoid conflict when running
@@ -2853,10 +2851,9 @@ class BeamModulePlugin implements Plugin<Project> {
             project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
 
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-            def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
             }
           }
           inputs.files project.pythonSdkDeps
