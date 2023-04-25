@@ -67,6 +67,7 @@
 ## New Features / Improvements
 
 * Dead letter queue support added to RunInference in Python ([#24209](https://github.com/apache/beam/issues/24209)).
+* Support added for defining pre/postprocessing operations on the RunInference transform ([#26308](https://github.com/apache/beam/issues/26308))
 
 ## Breaking Changes
 
