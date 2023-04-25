@@ -1,5 +1,5 @@
-ARG BEAM_VERSION=2.44.0
-FROM python:3.7-slim-buster
+ARG BEAM_VERSION=2.45.0
+FROM python:3.10-slim-buster
 
 ############
 ## Docker ##
@@ -59,7 +59,7 @@ RUN apt-get install -y wget
 RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
 RUN add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
 RUN apt-get update
-RUN apt-get install -y adoptopenjdk-8-hotspot
+RUN apt-get install -y adoptopenjdk-11-hotspot
 
 # RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
 

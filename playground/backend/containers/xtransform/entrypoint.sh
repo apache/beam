@@ -35,11 +35,11 @@ done
 echo "==> Docker Daemon is up and running!"
 echo "==> Loading pre-pulled docker images!"
 # Import pre-installed images
-for file in /images/*.tar; do
-echo "Loading $file"
-  docker load <$file
-done
-rm -f -r images
+# for file in /images/*.tar; do
+# echo "Loading $file"
+#   docker load <$file
+# done
+# rm -f -r images
 
 docker images
 
@@ -53,7 +53,7 @@ docker images
 # update-ca-certificates
 
 python -m apache_beam.runners.portability.local_job_service_main -p 9091 &> jjs.log  & \
-java -jar beam-sdks-java-extensions-sql-expansion-service-2.44.0.jar 9092 &> jes.log  & \
+java -jar beam-sdks-java-extensions-sql-expansion-service-2.45.0.jar 9092 &> jes.log  & \
 python -m apache_beam.runners.portability.local_job_service_main -p 9093 &> pjs.log  & \
 python -m apache_beam.runners.portability.expansion_service_main -p 9094 --fully_qualified_name_glob "*" &> pes.log  && fg
 
