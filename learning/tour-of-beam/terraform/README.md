@@ -17,7 +17,8 @@
     under the License.
 -->
 # The Tour of Beam deployment on GCP
-This guide provides instructions on how to deploy the Tour of Beam environment on Google Cloud Platform (GCP) and Firebase environment. Before starting the deployment, ensure that you have the following prerequisites in place:
+This guide provides instructions on how to deploy the Tour of Beam environment on Google Cloud Platform (GCP) and Firebase environment. 
+Before starting the deployment, ensure that you have the following prerequisites in place:
 
 ## Prerequisites:
 
@@ -32,7 +33,7 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
 
-3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
+3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state 
 
 4. An OS with the following software installed:
 
@@ -43,20 +44,21 @@ This guide provides instructions on how to deploy the Tour of Beam environment o
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 * [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
 
-5. Beam Playground environment (Existing GKE Cluster will be required particularly)
+5. Existing Beam Playground environment
 
 6. Apache Beam Git repository cloned locally
 
 # Prepare deployment configuration:
 
 
-1. Navigate to `beam/learning/tour-of-beam/terraform`
+1. Navigate to Apache Beam cloned repository's `beam/learning/tour-of-beam/terraform` directory
 
 ```
 cd beam/learning/tour-of-beam/terraform
 ```
 
-2. Configure authentication for the Google Cloud Platform (GCP)
+2. Configure authentication for the Google Cloud Platform (GCP). _(Note: Authentication to the GCP Project required to run gcloud commands)_<br>
+
 ```
 gcloud init
 
@@ -68,7 +70,7 @@ gcloud auth application-default login
  gcloud auth configure-docker `chosen_region`-docker.pkg.dev
 ```
 
-4. And the authentication in GCP Google Kubernetes Engine:
+4. And the authentication in GCP Google Kubernetes Engine: _(Note: Authentication to docker and GKE required to fetch GRPC router ip:port info)_<br>
 ```
 gcloud container clusters get-credentials --region `chosen_gke_zone` `gke_name` --project `project_id`
 ```
