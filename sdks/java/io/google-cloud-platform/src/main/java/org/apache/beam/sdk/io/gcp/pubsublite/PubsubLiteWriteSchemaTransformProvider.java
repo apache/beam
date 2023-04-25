@@ -19,6 +19,10 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.pubsublite.CloudRegionOrZone;
+import com.google.cloud.pubsublite.ProjectId;
+import com.google.cloud.pubsublite.TopicName;
+import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.protobuf.ByteString;
 import java.nio.charset.StandardCharsets;
@@ -26,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -35,11 +40,17 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -55,12 +66,12 @@ public class PubsubLiteWriteSchemaTransformProvider
   public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
-  public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<PubSubMessage> OUTPUT_TAG = new TupleTag<PubSubMessage>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   public static final Schema ERROR_SCHEMA =
       Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
   private static final Logger LOG =
-      LoggerFactory.getLogger(PubsubLiteWriteSchemaTransformConfiguration.class);
+      LoggerFactory.getLogger(PubsubLiteWriteSchemaTransformProvider.class);
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteWriteSchemaTransformConfiguration>
@@ -70,7 +81,7 @@ public class PubsubLiteWriteSchemaTransformProvider
 
   public static class ErrorCounterFn extends DoFn<Row, PubSubMessage> {
     private SerializableFunction<Row, byte[]> toBytesFn;
-    private static Counter errorCounter;
+    private Counter errorCounter;
     private long errorsInBundle = 0L;
 
     public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
@@ -79,16 +90,17 @@ public class PubsubLiteWriteSchemaTransformProvider
     }
 
     @ProcessElement
-    void process(@DoFn.Element com.sun.rowset.internal.Row row, MultiOutputReceiver receiver) {
+    void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
       try {
         PubSubMessage message =
             PubSubMessage.newBuilder()
-                .setData(ByteString.copyFrom(Objects.requireNonNull(toBytesFn.apply(row))));
+                .setData(ByteString.copyFrom(Objects.requireNonNull(toBytesFn.apply(row))))
+                .build();
 
         receiver.get(OUTPUT_TAG).output(message);
       } catch (Exception e) {
         errorsInBundle += 1;
-        LOG.warn("Error while parsing the element", receiver, e);
+        LOG.warn("Error while parsing the element", e);
         receiver
             .get(ERROR_TAG)
             .output(
@@ -159,7 +171,7 @@ public class PubsubLiteWriteSchemaTransformProvider
                             .build()));
 
             return PCollectionRowTuple.of(
-                "errors", outputTuple.get(ERROR_TAG).withSchema(ERROR_SCHEMA));
+                "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
           }
         };
       }
