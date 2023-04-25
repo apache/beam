@@ -84,6 +84,8 @@ else:
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler
 
+import os
+
 from apache_beam import coders
 from apache_beam import io
 from apache_beam import metrics
@@ -96,4 +98,6 @@ from apache_beam.pvalue import Row
 from apache_beam.pvalue import TaggedOutput
 # pylint: enable=wrong-import-position
 
+# use pure python backend for protobuf.
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
 __version__ = version.__version__
