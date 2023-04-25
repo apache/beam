@@ -201,7 +201,6 @@ class Top(object):
     to which it is applied, where "greatest" is determined by a
     function supplied as the key or reverse arguments.
 
-    Note: The compare argument is deprecated and will result in an error.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a global Top operation.
@@ -258,7 +257,6 @@ class Top(object):
     "greatest" is determined by a function supplied as the key or
     reverse arguments.
 
-    Note: The compare argument is deprecated and will result in an error.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a per-key Top operation.
