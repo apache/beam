@@ -17,6 +17,7 @@
 # pytype: skip-file
 
 import logging
+import pytest
 import unittest
 
 from apache_beam.coders import coders
@@ -51,8 +52,19 @@ class UnionCoderTest(unittest.TestCase):
         coders.FloatCoder(),
     ])
     assert coder != coder_0
-    for v in ["8", 8, 8.0]:
+
+    encoded_size = [2, 2, 9]
+    for v, es in zip(["8", 8, 8.0], encoded_size):
       self.assertEqual(v, coder.decode(coder.encode(v)))
+      self.assertEqual(coder.estimate_size(v), es)
+
+    assert hash(coder)
+
+    with pytest.raises(ValueError):
+      coder.encode(True)
+
+    with pytest.raises(ValueError):
+      coder.decode(0)
 
   def test_custom_coder(self):
 
@@ -66,8 +78,7 @@ class UnionCoderTest(unittest.TestCase):
     ar = AvroRecord({"name": "Daenerys targaryen", "age": 23})
     self.assertEqual(coder.decode(coder.encode(ar)).record, ar.record)
 
-    for v in [True]:
-      self.assertEqual(v, coder.decode(coder.encode(v)))
+    self.assertEqual(True, coder.decode(coder.encode(True)))
 
 
 if __name__ == '__main__':

@@ -19,7 +19,7 @@
 
 import struct
 
-from typing import Iterable, List
+from typing import Iterable, List, Tuple
 
 from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder
@@ -43,18 +43,21 @@ class UnionCoder(FastCoder):
         c in enumerate(self._coders)
     }
 
+  def _get_coder(self, value) -> Tuple[bytes, Coder]:
+    typehint_type = type(value)
+    if typehint_type in self._coder_typehints:
+      return self._coder_typehints.get(typehint_type)
+    raise ValueError(
+        'Could not find a matching component coder '
+        'in the coder {} to encode a value {} with a typehint {}.'.format(
+            self, value, typehint_type))
+
   def encode(self, value) -> bytes:
     """
         Encodes the given Union value into bytes.
         """
-    typehint_type = type(value)
-    coder_t = self._coder_typehints.get(typehint_type, None)
-    if coder_t:
-      return coder_t[0] + coder_t[1].encode(value)
-    else:
-      raise ValueError(
-          "Unknown type {} for UnionCoder with the value {}. ".format(
-              typehint_type, value))
+    coder_tag, real_coder = self._get_coder(value)
+    return coder_tag + real_coder.encode(value)
 
   def decode(self, encoded: bytes):
     """
@@ -66,7 +69,7 @@ class UnionCoder(FastCoder):
 
       return coder.decode(encoded[1:])
     except Exception:  # pylint: disable=broad-except
-      raise ValueError(f"cannot decode {encoded}")
+      raise ValueError(f'cannot decode {encoded} with the coder {self}')
 
   def is_deterministic(self) -> bool:
     """
@@ -80,6 +83,10 @@ class UnionCoder(FastCoder):
         """
     return typehints.Union[list(self._coder_typehints.keys())]
 
+  def estimate_size(self, value):
+    _, real_coder = self._get_coder(value)
+    return real_coder.estimate_size(value) + 1
+
   def coders(self):
     # type: () -> List[Coder]
     return self._coders
@@ -92,3 +99,6 @@ class UnionCoder(FastCoder):
         Returns a string representation of the coder with its sub-coders.
         """
     return 'UnionCoder[%s]' % ', '.join(str(c) for c in self._coders)
+
+  def __hash__(self):
+    return hash(tuple(self._coders))
