@@ -196,11 +196,15 @@ public class KafkaIOIT {
 
     // Use streaming pipeline to read Kafka records.
     readPipeline.getOptions().as(Options.class).setStreaming(true);
-    PCollection<Long> count = readPipeline
-        .apply("Read from unbounded Kafka", readFromKafka().withTopic(options.getKafkaTopic()))
-        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Window", Window.into(CalendarWindows.years(1)))
-        .apply("Counting element", Combine.globally(Count.<KafkaRecord<byte[],byte[]>>combineFn()).withoutDefaults());
+    PCollection<Long> count =
+        readPipeline
+            .apply("Read from unbounded Kafka", readFromKafka().withTopic(options.getKafkaTopic()))
+            .apply(
+                "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+            .apply("Window", Window.into(CalendarWindows.years(1)))
+            .apply(
+                "Counting element",
+                Combine.globally(Count.<KafkaRecord<byte[], byte[]>>combineFn()).withoutDefaults());
 
     PipelineResult writeResult = writePipeline.run();
     PipelineResult.State writeState = writeResult.waitUntilFinish();
@@ -231,10 +235,14 @@ public class KafkaIOIT {
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
-    PCollection<Long> count =readPipeline
-        .apply("Read from bounded Kafka", readFromBoundedKafka().withTopic(options.getKafkaTopic()))
-        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Counting element", Count.globally());
+    PCollection<Long> count =
+        readPipeline
+            .apply(
+                "Read from bounded Kafka",
+                readFromBoundedKafka().withTopic(options.getKafkaTopic()))
+            .apply(
+                "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+            .apply("Counting element", Count.globally());
 
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
