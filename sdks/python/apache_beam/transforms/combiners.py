@@ -195,14 +195,13 @@ class Top(object):
   @with_input_types(T)
   @with_output_types(List[T])
   class Of(CombinerWithoutDefaults):
-    """Obtain a list of the compare-most N elements in a PCollection.
+    """Obtain a list of the n greatest elements in a PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
     to which it is applied, where "greatest" is determined by a
     function supplied as the key or reverse arguments.
 
-    Note: The compare argument is deprecated and will result in an error
-    in Python 3.
+    Note: The compare argument is deprecated and will result in an error.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a global Top operation.
