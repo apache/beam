@@ -76,6 +76,8 @@ dependencies {
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation library.java.google_code_gson
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
