@@ -61,9 +61,9 @@ class MultiProcessSharedTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls.shared = multi_process_shared.MultiProcessShared(
-        Counter, always_proxy=True).acquire()
+        Counter, tag='basic', always_proxy=True).acquire()
     cls.sharedCallable = multi_process_shared.MultiProcessShared(
-        CallableCounter, always_proxy=True).acquire()
+        CallableCounter, tag='callable', always_proxy=True).acquire()
 
   def test_call(self):
     self.assertEqual(self.shared.get(), 0)
