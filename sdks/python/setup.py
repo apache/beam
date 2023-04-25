@@ -39,6 +39,9 @@ from setuptools import Command
 from distutils.errors import DistutilsError  # isort:skip
 
 
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION']='python'
+
+
 class mypy(Command):
   user_options = []
 

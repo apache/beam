@@ -38,6 +38,9 @@ RUN apt-get update && \
 # Install required packages for Beam Python SDK and common dependencies used by users.
 ####
 
+# Set protobuf implementation to pure python
+ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION python
+
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
     # use --no-deps to ensure the list includes all transitive dependencies.
@@ -45,7 +48,7 @@ RUN \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
     # Check that the protobuf upb(also called micro protobuf) is used.
-    python -c "from google.protobuf.internal import api_implementation; assert api_implementation._implementation_type == 'upb'; print ('Verified fast protobuf used.')" && \
+    python -c "from google.protobuf.internal import api_implementation; assert api_implementation._implementation_type == 'python'; print ('Verified fast protobuf used.')" && \
     # Remove pip cache.
     rm -rf /root/.cache/pip && \
     rm -rf /tmp/base_image_requirements.txt
