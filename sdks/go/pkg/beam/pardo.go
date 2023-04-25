@@ -120,7 +120,7 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 	pipelineTimers := fn.PipelineTimers()
 	if len(pipelineTimers) > 0 {
 		// check if input is KV type
-		if !typex.IsKV(col.Type()) {
+		if !typex.IsKV(col.Type()) || !typex.IsCoGBK(col.Type()) {
 			return nil, addParDoCtx(errors.New("DoFn input should be keyed to be used with timers."), s)
 		}
 		c, err := inferCoder(typex.New(reflect.TypeOf(col.Type())))
