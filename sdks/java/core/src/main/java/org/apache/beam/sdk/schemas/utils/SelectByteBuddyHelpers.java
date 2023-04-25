@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.lang.reflect.InvocationTargetException;
@@ -26,6 +27,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import net.bytebuddy.ByteBuddy;
@@ -707,8 +709,9 @@ class SelectByteBuddyHelpers {
         MethodVisitor methodVisitor,
         Context implementationContext) {
       StackManipulation.Size size = new StackManipulation.Size(0, 0);
-      FieldType nestedInputType = checkNotNull(inputType.getMapValueType());
-      Schema nestedSchema = getNestedSchema(nestedInputType, fieldAccessDescriptor);
+      Optional<FieldType> nestedInputType = Optional.ofNullable(inputType.getMapValueType());
+      checkState(nestedInputType.isPresent());
+      Schema nestedSchema = getNestedSchema(nestedInputType.get(), fieldAccessDescriptor);
 
       // We create temp local variables to store all the maps we create. Each field in
       // nestedSchema corresponds to a separate array in the output.
@@ -818,7 +821,7 @@ class SelectByteBuddyHelpers {
                   qualifierPosition + 1,
                   -1,
                   fieldAccessDescriptor,
-                  nestedInputType,
+                  nestedInputType.get(),
                   nestedArrayManager,
                   methodVisitor,
                   implementationContext));
