@@ -71,9 +71,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class SelectByteBuddyHelpers {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final String SELECT_SCHEMA_FIELD_NAME = "OUTPUTSCHEMA";
@@ -174,10 +171,13 @@ class SelectByteBuddyHelpers {
               .withParameters(Schema.class)
               .intercept(new SelectInstructionConstructor());
 
+      Optional<ClassLoader> rowClassLoader = Optional.ofNullable(Row.class.getClassLoader());
+      checkState(rowClassLoader.isPresent());
+
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(Row.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(rowClassLoader.get(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor(Schema.class)
           .newInstance(outputSchema);
