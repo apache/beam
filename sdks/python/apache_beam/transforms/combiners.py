@@ -251,12 +251,14 @@ class Top(object):
   @with_input_types(Tuple[K, V])
   @with_output_types(Tuple[K, List[V]])
   class PerKey(ptransform.PTransform):
-    """Identifies the compare-most N elements associated with each key.
+    """Identifies the N greatest elements associated with each key.
 
     This transform will produce a PCollection mapping unique keys in the input
     PCollection to the n greatest elements with which they are associated, where
-    "greatest" is determined by the comparator function supplied as the compare
-    argument in the initializer.
+    "greatest" is determined by a function supplied as the key or
+    reverse arguments.
+
+    Note: The compare argument is deprecated and will result in an error.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a per-key Top operation.
@@ -427,7 +429,7 @@ class _MergeTopPerBundle(core.DoFn):
 class TopCombineFn(core.CombineFn):
   """CombineFn doing the combining for all of the Top transforms.
 
-  This CombineFn uses a key or comparison operator to rank the elements.
+  This CombineFn uses a key or reverse operator to rank the elements.
 
   Args:
     key: (optional) a mapping of elements to a comparable key, similar to
