@@ -24,7 +24,6 @@ build, test, and deploy the frontend and backend services.
 - [Common tasks](#common-tasks)
 - [Run Beam Playground locally](#run-beam-playground-locally)
   - [Configure frontend to use local backend](#configure-frontend-to-use-local-backend)
-  - [Build Python SDK Docker image](#build-python-sdk-docker-image)
   - [Run local deployment using Gradle task](#run-local-deployment-using-gradle-task)
   - [Deploy examples](#deploy-examples)
 - [How to add your own example](#how-to-add-your-own-example)
@@ -121,14 +120,6 @@ To get an overview of common tasks, see [TASKS.md](TASKS.md)
 > **Note:** Follow this step only if you want to have a local deployment of Playground. Skip this step entirely if you want to deploy Playground to Google Cloud.
 
 Uncommend lines after `// Uncomment the following lines to use local backend.` in [frontend/playground_components/lib/src/constants/backend_urls.dart](/playground/frontend/playground_components/lib/src/constants/backend_urls.dart)
-
-## Build Python SDK Docker image
-Run
-```shell
-./gradlew :sdks:python:container:py310:docker
-```
-
-TODO: verify that we can deploy without it with a small patch
 
 ## Run local deployment using Gradle task
 > For more information read the corresponding section in [TASKS.md](./TASKS.md#router-runners-and-frontend)
