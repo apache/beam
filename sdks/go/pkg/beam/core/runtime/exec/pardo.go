@@ -356,12 +356,24 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 }
 
 func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, tmap TimerRecv) (*FullValue, error) {
+	// Defer side input clean-up in case of panic
+	var err error
+	defer func() {
+		if postErr := n.postInvoke(); postErr != nil {
+			err = postErr
+		}
+	}()
+	if err := n.preInvoke(ctx, tmap.Windows, tmap.HoldTimestamp); err != nil {
+		return nil, err
+	}
+
 	var extra []any
 	extra = append(extra, timerFamilyID)
 
 	if tmap.Tag != "" {
 		extra = append(extra, tmap.Tag)
 	}
+	extra = append(extra, n.cache.extra...)
 	val, err := InvokeWithOpts(ctx, fn, tmap.Pane, tmap.Windows, tmap.HoldTimestamp, InvokeOpts{
 		opt:   &MainInput{Key: *tmap.Key},
 		bf:    n.bf,

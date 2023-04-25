@@ -77,7 +77,7 @@ func NewStateful() *Stateful {
 	}
 }
 
-func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Provider, key, timerKey, timerTag string) {
+func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Provider, key, timerKey, timerTag string, emit func(string, string)) {
 	switch timerKey {
 	case "outputState":
 		log.Infof(ctx, "Timer outputState fired on stateful for element: %v.", key)
@@ -86,6 +86,7 @@ func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Pro
 		case "001":
 			log.Infof(ctx, "Timer with tag 001 fired on outputState stateful DoFn.")
 			s.OutputState.Set(tp, mtime.Now().ToTime().Add(1*time.Minute), timers.WithTag(timerTag))
+			emit(timerKey, timerTag)
 		}
 	}
 }
