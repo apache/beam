@@ -42,10 +42,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -63,22 +60,25 @@ public class BigTableReadSchemaTransformProviderIT {
 
   @Test
   public void testInvalidConfigs() {
-    // All properties are required (project, instance, and table)
+    // Properties cannot be empty (project, instance, and table)
     List<BigTableReadSchemaTransformConfiguration.Builder> invalidConfigs =
         Arrays.asList(
             BigTableReadSchemaTransformConfiguration.builder()
                 .setProject("project")
-                .setInstance("instance"),
+                .setInstance("instance")
+                .setTable(""),
             BigTableReadSchemaTransformConfiguration.builder()
+                .setProject("")
                 .setInstance("instance")
                 .setTable("table"),
             BigTableReadSchemaTransformConfiguration.builder()
                 .setProject("project")
+                .setInstance("")
                 .setTable("table"));
 
     for (BigTableReadSchemaTransformConfiguration.Builder config : invalidConfigs) {
       assertThrows(
-          IllegalStateException.class,
+          IllegalArgumentException.class,
           () -> {
             config.build();
           });

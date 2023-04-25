@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigTable Read jobs configured via
@@ -108,17 +107,6 @@ public class BigTableReadSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class BigTableReadSchemaTransformConfiguration {
-
-    public void validate() {
-      String invalidConfigMessage = "Invalid BigTable Read configuration: ";
-      checkArgument(
-          !Strings.isNullOrEmpty(this.getTable()), invalidConfigMessage + "Missing table");
-      checkArgument(
-          !Strings.isNullOrEmpty(this.getInstance()), invalidConfigMessage + "Missing instance");
-      checkArgument(
-          !Strings.isNullOrEmpty(this.getProject()), invalidConfigMessage + "Missing project");
-    }
-
     /** Instantiates a {@link BigTableReadSchemaTransformConfiguration.Builder} instance. */
     public static Builder builder() {
       return new AutoValue_BigTableReadSchemaTransformProvider_BigTableReadSchemaTransformConfiguration
@@ -140,8 +128,22 @@ public class BigTableReadSchemaTransformProvider
 
       public abstract Builder setProject(String project);
 
+      abstract BigTableReadSchemaTransformConfiguration autoBuild();
+
       /** Builds a {@link BigTableReadSchemaTransformConfiguration} instance. */
-      public abstract BigTableReadSchemaTransformConfiguration build();
+      public BigTableReadSchemaTransformConfiguration build() {
+        BigTableReadSchemaTransformConfiguration config = autoBuild();
+
+        String invalidConfigMessage =
+            "Invalid BigTable Read configuration: %s should not be a non-empty String";
+        checkArgument(!config.getTable().isEmpty(), String.format(invalidConfigMessage, "table"));
+        checkArgument(
+            !config.getInstance().isEmpty(), String.format(invalidConfigMessage, "instance"));
+        checkArgument(
+            !config.getProject().isEmpty(), String.format(invalidConfigMessage, "project"));
+
+        return config;
+      };
     }
   }
 
@@ -155,8 +157,6 @@ public class BigTableReadSchemaTransformProvider
     private final BigTableReadSchemaTransformConfiguration configuration;
 
     BigTableReadSchemaTransform(BigTableReadSchemaTransformConfiguration configuration) {
-      // Validate configuration parameters before PTransform expansion
-      configuration.validate();
       this.configuration = configuration;
     }
 
