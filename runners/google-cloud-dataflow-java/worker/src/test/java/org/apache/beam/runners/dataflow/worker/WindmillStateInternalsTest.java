@@ -39,6 +39,7 @@ import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -47,6 +48,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
@@ -1761,6 +1763,8 @@ public class WindmillStateInternalsTest {
     StateTag<MultimapState<String, Integer>> addr =
         StateTags.multimap(tag, StringUtf8Coder.of(), VarIntCoder.of());
     MultimapState<String, Integer> multimapState = underTest.state(NAMESPACE, addr);
+    Random rand = new Random();
+    final int ROUNDS = 100;
 
     SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> entriesFuture =
         SettableFuture.create();
@@ -1768,47 +1772,102 @@ public class WindmillStateInternalsTest {
             false, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
         .thenReturn(entriesFuture);
 
-    // to set up the multimap as cache complete
+    // to set up the multimap as initially empty and cache complete
     waitAndSet(entriesFuture, Collections.emptyList(), 30);
     multimapState.entries().read();
 
+    // mirror mimics all operations on multimapState and is used to verify the correctness.
     Multimap<String, Integer> mirror = ArrayListMultimap.create();
 
-    Random rand = new Random();
+    final BiConsumer<Multimap<String, Integer>, MultimapState<String, Integer>> operateFn =
+        (Multimap<String, Integer> expected, MultimapState<String, Integer> actual) -> {
+          final int OPS_PER_ROUND = 2000;
+          final int NUM_KEY = 20;
+          for (int j = 0; j < OPS_PER_ROUND; j++) {
+            int op = rand.nextInt(100);
+            String key = "key" + rand.nextInt(NUM_KEY);
+            if (op < 50) {
+              // 50% put operation
+              Integer value = rand.nextInt();
+              actual.put(key, value);
+              expected.put(key, value);
+            } else if (op < 95) {
+              // 45% remove key operation
+              actual.remove(key);
+              expected.removeAll(key);
+            } else {
+              // 5% clear operation
+              actual.clear();
+              expected.clear();
+            }
+          }
+        };
 
-    final int ROUNDS = 100;
-    final int OPS_PER_ROUND = 2000;
-    final int NUM_KEY = 20;
+    final BiConsumer<Multimap<String, Integer>, MultimapState<String, Integer>> validateFn =
+        (Multimap<String, Integer> expected, MultimapState<String, Integer> actual) -> {
+          Iterable<String> read = actual.keys().read();
+          Set<String> bytes = expected.keySet();
+          assertThat(read, Matchers.containsInAnyOrder(bytes.toArray()));
+          for (String key : actual.keys().read()) {
+            assertThat(
+                actual.get(key).read(), Matchers.containsInAnyOrder(expected.get(key).toArray()));
+          }
+        };
+
     for (int i = 0; i < ROUNDS; i++) {
-      for (int j = 0; j < OPS_PER_ROUND; j++) {
-        int op = rand.nextInt(100);
-        String key = "key" + rand.nextInt(NUM_KEY);
-        if (op < 50) {
-          // 50% add operation
-          Integer value = rand.nextInt();
-          multimapState.put(key, value);
-          mirror.put(key, value);
-        } else if (op < 95) {
-          // 45% remove key operation
-          multimapState.remove(key);
-          mirror.removeAll(key);
-        } else {
-          // 5% clear operation
-          multimapState.clear();
-          mirror.clear();
-        }
-      }
-      Iterable<String> read = multimapState.keys().read();
-      Set<String> bytes = mirror.keySet();
-      assertThat(read, Matchers.containsInAnyOrder(bytes.toArray()));
-      for (String key : multimapState.keys().read()) {
-        assertThat(
-            multimapState.get(key).read(), Matchers.containsInAnyOrder(mirror.get(key).toArray()));
-      }
-      Windmill.WorkItemCommitRequest.Builder commitBuilder =
-          Windmill.WorkItemCommitRequest.newBuilder();
-      underTest.persist(commitBuilder);
+      operateFn.accept(mirror, multimapState);
+      validateFn.accept(mirror, multimapState);
     }
+
+    // clear cache and recreate multimapState
+    cache.forComputation("comp").invalidate(ByteString.copyFrom("dummyKey", Charsets.UTF_8), 123);
+    resetUnderTest();
+    multimapState = underTest.state(NAMESPACE, addr);
+
+    // create corresponding GetData response based on mirror
+    entriesFuture = SettableFuture.create();
+    when(mockReader.multimapFetchAllFuture(
+            false, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(entriesFuture);
+    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> keysFuture =
+        SettableFuture.create();
+    when(mockReader.multimapFetchAllFuture(
+            true, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(keysFuture);
+
+    List<Map.Entry<ByteString, Iterable<Integer>>> entriesFutureContent = new ArrayList<>();
+    List<Map.Entry<ByteString, Iterable<Integer>>> keysFutureContent = new ArrayList<>();
+
+    // multimapState is not cache complete, state backend should return content in mirror.
+    for (Map.Entry<String, Collection<Integer>> entry : mirror.asMap().entrySet()) {
+      entriesFutureContent.add(
+          new AbstractMap.SimpleEntry<>(
+              encodeWithCoder(entry.getKey(), StringUtf8Coder.of()), entry.getValue()));
+      keysFutureContent.add(
+          new AbstractMap.SimpleEntry<>(
+              encodeWithCoder(entry.getKey(), StringUtf8Coder.of()), Collections.emptyList()));
+      SettableFuture<Iterable<Integer>> getKeyFuture = SettableFuture.create();
+      when(mockReader.multimapFetchSingleEntryFuture(
+              encodeWithCoder(entry.getKey(), StringUtf8Coder.of()),
+              key(NAMESPACE, tag),
+              STATE_FAMILY,
+              VarIntCoder.of()))
+          .thenReturn(getKeyFuture);
+      waitAndSet(getKeyFuture, entry.getValue(), 20);
+    }
+    waitAndSet(entriesFuture, entriesFutureContent, 20);
+    waitAndSet(keysFuture, keysFutureContent, 20);
+
+    validateFn.accept(mirror, multimapState);
+
+    // merge cache and new changes
+    for (int i = 0; i < ROUNDS; i++) {
+      operateFn.accept(mirror, multimapState);
+      validateFn.accept(mirror, multimapState);
+    }
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
   }
 
   public static final Range<Long> FULL_ORDERED_LIST_RANGE =
