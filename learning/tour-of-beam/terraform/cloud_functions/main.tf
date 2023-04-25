@@ -36,6 +36,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
     DATASTORE_PROJECT_ID=var.project_id
     GOOGLE_PROJECT_ID=var.project_id
     PLAYGROUND_ROUTER_HOST=var.pg_router_host
+    DATASTORE_NAMESPACE=var.datastore_namespace
   }
 
   timeouts {

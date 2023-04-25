@@ -60,3 +60,7 @@ variable "pg_router_host" {
 variable "environment" {
   description = "The name of the environment for deployment of cloud functions. Will be appended to the name of cloud functions"
 }
+
+variable "datastore_namespace" {
+  description = "The name of datastore namespace"
+}

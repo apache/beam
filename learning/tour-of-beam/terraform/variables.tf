@@ -43,3 +43,7 @@ variable "pg_router_host" {
 variable "environment" {
   description = "The name of the environment for deployment. Will create directory where terraform config files will be stored"
 }
+
+variable "datastore_namespace" {
+  description = "The name of datastore namespace"
+}
