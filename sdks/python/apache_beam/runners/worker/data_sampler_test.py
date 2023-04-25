@@ -272,6 +272,53 @@ class OutputSamplerTest(unittest.TestCase):
     print('total time: %s secs' % duration)
     print('time per iteration: %s usecs' % (duration / num_iterations * 1e6))
 
+  def test_loop_performance(self):
+    print('test_loop_performance')
+    num_trials = 100
+    num_iterations = 10000000
+    data_sampler = DataSampler()
+    coder = FastPrimitivesCoder()
+    sampler = data_sampler.sample_output('1', coder)
+    sampler._sample_timer.stop()
+
+    def do_trial():
+      warmup = 1000000
+      for i in range(1000000):
+        pass
+
+      el_sampler = sampler.element_sampler()
+      start = time.time()
+      a = 0
+      for i in range(num_iterations):
+        pass
+      end = time.time()
+      duration = end - start
+      return duration / num_iterations * 1e9
+
+    import sys
+    toolbar_width = num_trials
+    sys.stdout.write("[%s]" % (" " * toolbar_width))
+    sys.stdout.flush()
+    sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+
+    durations = []
+    for i in range(num_trials):
+      durations.append(do_trial())
+      sys.stdout.write("-")
+      sys.stdout.flush()
+
+    import numpy as np
+    import scipy.stats as st
+
+    print('')
+    print('mean: ', np.mean(durations), 'ns')
+    print('95%: ',
+          st.t.interval(
+              0.95,
+              df=len(durations)-1,
+              loc=np.mean(durations),
+              scale=st.sem(durations)))
+
   def test_el_sampler_performance(self):
     print('test_el_sampler_performance')
     num_trials = 100
@@ -288,7 +335,6 @@ class OutputSamplerTest(unittest.TestCase):
 
       el_sampler = sampler.element_sampler()
       start = time.time()
-      a = 0
       for i in range(num_iterations):
         el_sampler.el = i
       end = time.time()
