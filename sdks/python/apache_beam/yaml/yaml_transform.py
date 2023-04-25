@@ -123,6 +123,16 @@ class Scope(object):
     for transform_id in self._transforms_by_uuid.keys():
       self.compute_outputs(transform_id)
 
+  def get_input(self, inputs, transform_label, key):
+    if isinstance(inputs, str):
+      return self.get_pcollection(inputs)
+    else:
+      return tuple(
+          self.get_pcollection(x) for x in
+          inputs) | f'{transform_label}-FlattenInputs[{key}]' >> beam.Flatten(
+              pipeline=self.root if isinstance(self.root, beam.Pipeline
+                                               ) else self.root.pipeline)
+
   def get_pcollection(self, name):
     if name in self._inputs:
       return self._inputs[name]
@@ -250,29 +260,35 @@ def expand_transform(spec, scope):
 
 
 def expand_leaf_transform(spec, scope):
+  _LOGGER.info("Expanding %s ", identify_object(spec))
   spec = normalize_inputs_outputs(spec)
-  inputs_dict = {
-      key: scope.get_pcollection(value)
-      for (key, value) in spec['input'].items()
-  }
-  input_type = spec.get('input_type', 'default')
-  if input_type == 'list':
-    inputs = tuple(inputs_dict.values())
-  elif input_type == 'map':
-    inputs = inputs_dict
+  ptransform = scope.create_ptransform(spec)
+  transform_label = scope.unique_name(spec, ptransform)
+
+  if spec['type'] == 'Flatten':
+    # Avoid flattening before the flatten, just to make a nicer graph.
+    inputs = tuple(
+        scope.get_pcollection(input) for key,
+        value in spec['input'].items()
+        for input in ([value] if isinstance(value, str) else value))
+
   else:
+    inputs_dict = {
+        key: scope.get_input(value, transform_label, key)
+        for (key, value) in spec['input'].items()
+    }
+
     if len(inputs_dict) == 0:
       inputs = scope.root
     elif len(inputs_dict) == 1:
       inputs = next(iter(inputs_dict.values()))
     else:
       inputs = inputs_dict
-  _LOGGER.info("Expanding %s ", identify_object(spec))
-  ptransform = scope.create_ptransform(spec)
+
   try:
     # TODO: Move validation to construction?
     with FullyQualifiedNamedTransform.with_filter('*'):
-      outputs = inputs | scope.unique_name(spec, ptransform) >> ptransform
+      outputs = inputs | transform_label >> ptransform
   except Exception as exn:
     raise ValueError(
         f"Error apply transform {identify_object(spec)}: {exn}") from exn
@@ -291,12 +307,15 @@ def expand_leaf_transform(spec, scope):
 
 def expand_composite_transform(spec, scope):
   spec = normalize_inputs_outputs(normalize_source_sink(spec))
+  if 'name' not in spec:
+    spec['name'] = 'Composite'
+  transform_label = scope.unique_name(spec, None)
 
   inner_scope = Scope(
-      scope.root, {
-          key: scope.get_pcollection(value)
-          for key,
-          value in spec['input'].items()
+      scope.root,
+      {
+          key: scope.get_input(value, transform_label, key)
+          for (key, value) in spec['input'].items()
       },
       spec['transforms'],
       yaml_provider.merge_providers(
@@ -312,17 +331,14 @@ def expand_composite_transform(spec, scope):
           for (key, value) in spec['output'].items()
       }
 
-  if 'name' not in spec:
-    spec['name'] = 'Composite'
   if spec['name'] is None:  # top-level pipeline, don't nest
     return CompositePTransform.expand(None)
   else:
     _LOGGER.info("Expanding %s ", identify_object(spec))
     return ({
-        key: scope.get_pcollection(value)
-        for key,
-        value in spec['input'].items()
-    } or scope.root) | scope.unique_name(spec, None) >> CompositePTransform()
+        key: scope.get_input(value, transform_label, key)
+        for (key, value) in spec['input'].items()
+    } or scope.root) | transform_label >> CompositePTransform()
 
 
 def expand_chain_transform(spec, scope):
@@ -395,10 +411,8 @@ def normalize_inputs_outputs(spec):
 
   def normalize_io(tag):
     io = spec.get(tag, {})
-    if isinstance(io, str):
+    if isinstance(io, (str, list)):
       return {tag: io}
-    elif isinstance(io, list):
-      return {f'{tag}{ix}': value for ix, value in enumerate(io)}
     else:
       return SafeLineLoader.strip_metadata(io, tagged_str=False)
 
