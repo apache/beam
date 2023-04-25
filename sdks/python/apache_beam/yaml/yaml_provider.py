@@ -306,7 +306,7 @@ def create_builtin_provider():
         pcolls = tuple(pcolls.values())
       elif isinstance(pcolls, (tuple, list)):
         pipeline_arg = {}
-        pcolls = pcolls
+        pcolls = tuple(pcolls)
       else:
         pipeline_arg = {'pipeline': pcolls.pipeline}
         pcolls = ()
