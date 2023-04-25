@@ -163,7 +163,6 @@ To shut down the playground, run:
 
 1. Run the `ci_cd.py` script
 
-    ***TODO***: clarify SCIO examples
     ```shell
     export SERVER_ADDRESS=<runner_address> # see the note below
     python ci_cd.py --step CD \
@@ -171,7 +170,7 @@ To shut down the playground, run:
                     --namespace Playground \
                     --datastore-project test \
                     --origin PG_EXAMPLES \
-                    --subdirs $BEAM_ROOT_DIR/sdks $BEAM_ROOT_DIR/examples $BEAM_ROOT_DIR/learning/katas
+                    --subdirs $BEAM_ROOT_DIR/sdks $BEAM_ROOT_DIR/examples $BEAM_ROOT_DIR/learning/katas # For SCIO examples see note below
     ```
     > **Note:** The `SERVER_ADDRESS` variable should be set to the address of the runner server for the particular SDK. For the local deployment the default values are:
     > | SDK | Address |
@@ -181,7 +180,11 @@ To shut down the playground, run:
     > | Python | `localhost:8088` |
     > | SCIO | `localhost:8090` |
 
+    > **Note:** SCIO examples are not committed to the Beam tree. You will need to clone the [SCIO](https://github.com/spotify/scio) repository separately and use path to it in the `--subdirs` argument like `--subdirs ~/scio/scio-examples/src/main/scala/com/spotify/scio/examples`
+    > **TODO**: SCIO examples do not have tags.
+
 # How to add your own example
+Please refer to [this document](load_your_code.md).
 ***TODO***: Link to the contribution guide by Alexey from https://github.com/apache/beam/pull/25507
 # Deployment guide
 See deployment guide at [terraform/README.md](/playground/terraform/README.md)
