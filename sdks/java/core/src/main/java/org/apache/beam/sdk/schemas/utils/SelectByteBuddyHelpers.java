@@ -42,7 +42,6 @@ import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.Implementation.Context;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import net.bytebuddy.implementation.bytecode.Duplication;
 import net.bytebuddy.implementation.bytecode.Removal;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
@@ -486,10 +485,13 @@ class SelectByteBuddyHelpers {
                 localVariables.writeVariable(currentSelectRowArg));
         size = size.aggregate(updateLocalVariable.apply(methodVisitor, implementationContext));
 
+        Optional<Schema> rowSchema = Optional.ofNullable(inputType.getRowSchema());
+        checkState(rowSchema.isPresent());
+
         size =
             size.aggregate(
                 selectIntoArray(
-                    inputType.getRowSchema(),
+                    rowSchema.get(),
                     fieldAccessDescriptor,
                     arrayManager,
                     methodVisitor,
