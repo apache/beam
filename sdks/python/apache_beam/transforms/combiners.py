@@ -425,7 +425,7 @@ class _MergeTopPerBundle(core.DoFn):
 class TopCombineFn(core.CombineFn):
   """CombineFn doing the combining for all of the Top transforms.
 
-  This CombineFn uses a key or reverse operator to rank the elements.
+  This CombineFn uses a `key` or `reverse` operator to rank the elements.
 
   Args:
     key: (optional) a mapping of elements to a comparable key, similar to
