@@ -87,7 +87,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.47.0] - Cut, Unreleased
+# [2.47.0] - 2023-05-10
 
 ## Highlights
 
@@ -95,7 +95,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * BigQuery Storage Write API is now available in Python SDK via cross-language ([#21961](https://github.com/apache/beam/issues/21961)).
 * Added HbaseIO support for writing RowMutations (ordered by rowkey) to Hbase (Java) ([#25830](https://github.com/apache/beam/issues/25830)).
 * Added fileio transforms MatchFiles, MatchAll and ReadMatches (Go) ([#25779](https://github.com/apache/beam/issues/25779)).
@@ -120,18 +119,9 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 * Cloud Debugger support and its pipeline options are deprecated and will be removed in the next Beam version,
   in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations).
   (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
-
-## Bugfixes
-
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.46.0] - 2023-03-10
 
