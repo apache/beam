@@ -70,11 +70,11 @@ locals {
     "PROJECT_ID=$PROJECT_ID",
     "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
     "DNS_NAME=$_DNS_NAME",
-    "PR_URL=$(body.pull_request._links.html.href)",
-    "TARGET_PR_REPO_BRANCH=$(body.pull_request.base.label)",
-    "PR_TYPE=$(body.action)",
-    "MERGE_STATUS=$(body.pull_request.merged)",
-    "MERGE_COMMIT=$(body.pull_request.merge_commit_sha)",
+    "PR_URL=_PR_URL",
+    "TARGET_PR_REPO_BRANCH=_TARGET_PR_REPO_BRANCH",
+    "PR_TYPE=_PR_TYPE",
+    "MERGE_STATUS=_MERGE_STATUS",
+    "MERGE_COMMIT=_MERGE_COMMIT",
     "ORIGIN=$_ORIGIN",
     "SUBDIRS=$_SUBDIRS",
     "SDKS=$_SDKS",
@@ -104,17 +104,17 @@ locals {
     ]
 
     cloudbuild_ci_environment = [ 
-    "PR_BRANCH=$(body.pull_request.head.ref)",
-    "PR_URL=$(body.pull_request._links.html.href)",
-    "PR_TYPE=$(body.action)",
-    "PR_COMMIT=$(body.pull_request.head.sha)",
-    "PR_NUMBER=$(body.number)",
+    "PR_BRANCH=_PR_BRANCH",
+    "PR_URL=_PR_URL",
+    "PR_TYPE=_PR_TYPE",
+    "PR_COMMIT=_PR_COMMIT",
+    "PR_NUMBER=_PR_NUMBER",
     "CI_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_ci_examples.sh",
     "PRIVATE_BUCKET=${google_storage_bucket.playground_cloudbuild_private.url}",
     "PUBLIC_BUCKET=${google_storage_bucket.playground_cloudbuild_public.url}",
-    "PUBLIC_LOG=CI_PR$$(body.number)_$$(body.pull_request.head.sha)_$${BUILD_ID}.txt",
+    "PUBLIC_LOG=_PUBLIC_LOG",
     "PAT_SECRET=github_pat_playground_deployment",
-    "FORK_REPO=$(body.pull_request.head.repo.full_name)",
-    "BASE_REF=$(body.pull_request.base.ref)"
+    "FORK_REPO=_FORK_REPO",
+    "BASE_REF=_BASE_REF"
     ]
     }

@@ -145,6 +145,16 @@ resource "google_cloudbuild_trigger" "playground_ci" {
       name = "ubuntu"
       env = local.cloudbuild_ci_environment
         }
+    substitutions = {
+    _PR_BRANCH="$(body.pull_request.head.ref)"
+    _PR_URL="$(body.pull_request._links.html.href)"
+    _PR_TYPE="$(body.action)"
+    _PR_COMMIT="$(body.pull_request.head.sha)"
+    _PR_NUMBER="$(body.number)"
+    _PUBLIC_LOG="CI_PR$(_PR_NUMBER)_$(_PR_COMMIT)_$${BUILD_ID}.txt"
+    _FORK_REPO="$(body.pull_request.head.repo.full_name)"
+    _BASE_REF="$(body.pull_request.base.ref)"
+    }
   }
 
   substitutions = {
@@ -179,11 +189,23 @@ resource "google_cloudbuild_trigger" "playground_cd" {
       name = "ubuntu"
       env = local.cloudbuild_cd_environment
         }
+    substitutions = {
+      _PR_URL = "$(body.pull_request._links.html.href)"
+      _TARGET_PR_REPO_BRANCH = "$(body.pull_request.base.label)"
+      _PR_TYPE = "$(body.action)"
+      _MERGE_STATUS="$(body.pull_request.merged)"
+      _MERGE_COMMIT="$(body.pull_request.merge_commit_sha)"
+
+    }
   }
 
   substitutions = {
      _DNS_NAME = var.playground_dns_name
      _DATASTORE_NAMESPACE = var.datastore_namespace
+     _ORIGIN = "PG_EXAMPLES"
+     _SDKS = "java python go"
+     _SUBDIRS = "./learning/katas ./examples ./sdks"
+     _BEAM_CONCURRENCY: "4"
   }
 
 }
