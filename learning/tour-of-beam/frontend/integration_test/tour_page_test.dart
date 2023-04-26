@@ -175,6 +175,9 @@ public class MyClass {
 }
 ''';
 
+  await _selectExampleWithSnippet(wt);
+  await wt.pumpAndSettle();
+
   await wt.enterText(find.codeField(), code);
   await wt.pumpAndSettle();
 
@@ -215,6 +218,22 @@ Future<void> _checkResizeUnitContent(WidgetTester wt) async {
   final movedHandlePosition = wt.getCenter(dragHandleFinder);
 
   expectSimilar(startHandlePosition.dx, movedHandlePosition.dx - 100);
+}
+
+Future<void> _selectExampleWithSnippet(WidgetTester wt) async {
+  final tourNotifier = _getTourNotifier(wt);
+  final modules = _getModules(wt);
+
+  for (final module in modules) {
+    for (final node in module.nodes) {
+      if (node is UnitModel) {
+        await _checkNode(node, wt);
+        if (tourNotifier.isUnitContainsSnippet) {
+          return;
+        }
+      }
+    }
+  }
 }
 
 TourNotifier _getTourNotifier(WidgetTester wt) {

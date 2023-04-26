@@ -139,10 +139,14 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       await _emptyPlayground();
     } else {
       final sdk = contentTreeController.sdk;
+      _setUnitContent(null);
+      notifyListeners();
+      
       final content = await _unitContentCache.getUnitContent(
         sdk.id,
         currentNode.id,
       );
+      
       _setUnitContent(content);
       await _unitProgressCache.loadUnitProgress(currentSdk);
       _trySetSnippetType(SnippetType.saved);
@@ -152,7 +156,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   void _setUnitContent(UnitContentModel? unitContent) {
-    if (unitContent == null || unitContent == _currentUnitContent) {
+    if (unitContent == _currentUnitContent) {
       return;
     }
 
@@ -162,7 +166,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
     _currentUnitContent = unitContent;
 
-    _trackUnitOpened(unitContent.id);
+    if (_currentUnitContent != null) {
+      _trackUnitOpened(_currentUnitContent!.id);
+    }
   }
 
   void _trackUnitClosed() {
@@ -292,6 +298,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         break;
     }
     _isLoadingSnippet = true;
+    notifyListeners();
+
     await playgroundController.examplesLoader.load(
       ExamplesLoadingDescriptor(
         descriptors: [
@@ -300,6 +308,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       ),
     );
     _isLoadingSnippet = false;
+    notifyListeners();
 
     _fillFeedbackController();
   }
