@@ -81,16 +81,19 @@ public class PubsubLiteWriteSchemaTransformProvider
 
   public static class ErrorCounterFn extends DoFn<Row, PubSubMessage> {
     private SerializableFunction<Row, byte[]> toBytesFn;
-    private Counter errorCounter;
-    private long errorsInBundle = 0L;
+    // private Counter errorCounter;
+    private Counter elementCounter;
+    // private long errorsInBundle = 0L;
+    private long elementsInBundle = 0L;
 
     public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
       this.toBytesFn = toBytesFn;
-      errorCounter = Metrics.counter(PubsubLiteWriteSchemaTransformProvider.class, name);
+      // errorCounter = Metrics.counter(PubsubLiteWriteSchemaTransformProvider.class, name);
+      elementCounter = Metrics.counter(PubsubLiteWriteSchemaTransformProvider.class, "pubsubLite-write-element-counter");
     }
 
     @ProcessElement
-    void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
+    public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
       try {
         PubSubMessage message =
             PubSubMessage.newBuilder()
@@ -98,8 +101,9 @@ public class PubsubLiteWriteSchemaTransformProvider
                 .build();
 
         receiver.get(OUTPUT_TAG).output(message);
+        elementsInBundle += 1;
       } catch (Exception e) {
-        errorsInBundle += 1;
+        // errorsInBundle += 1;
         LOG.warn("Error while parsing the element", e);
         receiver
             .get(ERROR_TAG)
@@ -112,8 +116,10 @@ public class PubsubLiteWriteSchemaTransformProvider
 
     @FinishBundle
     public void finish() {
-      errorCounter.inc(errorsInBundle);
-      errorsInBundle = 0L;
+      // errorCounter.inc(errorsInBundle);
+      elementCounter.inc(elementsInBundle);
+      // errorsInBundle = 0L;
+      elementsInBundle = 0L;
     }
   }
 
