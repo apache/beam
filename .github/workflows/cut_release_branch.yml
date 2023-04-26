@@ -21,8 +21,10 @@
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
 # Workflow used after https://github.com/apache/beam/commit/4183e747becebd18becee5fff547af365910fc9c
-# If help is needed debugging issues, you can view the cut_release_branch.sh script at that commit for guidance on how to do this manually.
-# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/release/src/main/scripts/cut_release_branch.sh)
+# If help is needed debugging issues, you can view the cut_release_branch.sh and start_snapshot_build.sh scripts at that commit
+# for guidance on how to do this manually.
+# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/release/src/main/scripts/cut_release_branch.sh and 
+# https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/release/src/main/scripts/start_snapshot_build.sh).
 name: Cut Release Branch
 on:
   workflow_dispatch:
