@@ -1,5 +1,8 @@
 name: build_release_candidate
 
+# Workflow added after https://github.com/apache/beam/commit/4183e747becebd18becee5fff547af365910fc9c
+# If help is needed debugging issues, you can view the release guide at that commit for guidance on how to do this manually.
+# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/website/www/site/content/en/contribute/release-guide.md)
 on:
   workflow_dispatch:
     inputs:
