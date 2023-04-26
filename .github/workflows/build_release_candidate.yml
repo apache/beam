@@ -1,0 +1,54 @@
+name: build_release_candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Beam version of current release (e.g. 2.XX.0)
+        required: true
+        default: '2.XX.0'
+      RC:
+        description: Integer RC version for the release (e.g. 3 for RC3)
+        required: true
+      PUBLISH_JAVA_ARTIFACTS:
+        description: Whether to publish java artifacts to https://repository.apache.org/#stagingRepositories (yes/no)
+        required: true
+        default: 'no'
+
+jobs:
+  publish_java_artifacts:
+    if: ${{github.event.inputs.PUBLISH_JAVA_ARTIFACTS == 'yes'}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      - name: Auth for nexus
+        run: |
+          mkdir -p ${HOME}/.m2
+          echo "<settings>
+           <servers>
+             <server>
+               <id>apache.releases.https</id>
+               <username>${{ secrets.APACHE_TOKEN_NAME }}</username>
+               <password>${{ secrets.APACHE_TOKEN_PASSWORD }}</password>
+             </server>
+             <server>
+               <id>apache.snapshots.https</id>
+               <username>${{ secrets.APACHE_TOKEN_NAME }}</username>
+               <password>${{ secrets.APACHE_TOKEN_PASSWORD }}</password>
+             </server>
+           </servers>
+          </settings>" > ${HOME}/.m2/settings.xml
+      - name: Build Java Artifacts with Gradle
+        run: git config credential.helper store
+      - name: Stage Java Artifacts into Maven
+        run: ./gradlew publish -Psigning.gnupg.keyName=FC383FCDE7D7E86699954EF2509872C8031C4DFB -PisRelease --no-daemon --no-parallel
