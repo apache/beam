@@ -32,13 +32,13 @@ var (
 type TimeDomain int32
 
 const (
-	// TimeDomainUnspecified represents unspecified time domain.
-	TimeDomainUnspecified TimeDomain = 0
-	// TimeDomainEventTime is time from the perspective of the data
-	TimeDomainEventTime TimeDomain = 1
-	// TimeDomainProcessingTime is time from the perspective of the
+	// UnspecifiedTimeDomain represents unspecified time domain.
+	UnspecifiedTimeDomain TimeDomain = 0
+	// EventTimeDomain is time from the perspective of the data
+	EventTimeDomain TimeDomain = 1
+	// ProcessingTimeDomain is time from the perspective of the
 	// execution of your pipeline
-	TimeDomainProcessingTime TimeDomain = 2
+	ProcessingTimeDomain TimeDomain = 2
 )
 
 // TimerMap holds timer information obtained from the pipeline.
@@ -77,8 +77,7 @@ type Provider interface {
 
 // PipelineTimer interface represents valid timer type.
 type PipelineTimer interface {
-	TimerFamily() string
-	TimerDomain() TimeDomain
+	Timers() map[string]TimeDomain
 }
 
 // EventTime represents the event time timer.
@@ -86,14 +85,9 @@ type EventTime struct {
 	Family string
 }
 
-// TimerFamily returns the name of timer family.
-func (et EventTime) TimerFamily() string {
-	return et.Family
-}
-
-// TimerDomain returns the time domain of timer.
-func (et EventTime) TimerDomain() TimeDomain {
-	return TimeDomainEventTime
+// Timers returns mapping of timer family ID and its time domain.
+func (et EventTime) Timers() map[string]TimeDomain {
+	return map[string]TimeDomain{et.Family: EventTimeDomain}
 }
 
 // Set sets the timer for a event-time timestamp. Calling this method repeatedly for the same key
@@ -120,14 +114,9 @@ type ProcessingTime struct {
 	Family string
 }
 
-// TimerFamily returns the name of timer family.
-func (pt ProcessingTime) TimerFamily() string {
-	return pt.Family
-}
-
-// TimerDomain returns the time domain of timer.
-func (pt ProcessingTime) TimerDomain() TimeDomain {
-	return TimeDomainProcessingTime
+// Timers returns mapping of timer family ID and its time domain.
+func (pt ProcessingTime) Timers() map[string]TimeDomain {
+	return map[string]TimeDomain{pt.Family: ProcessingTimeDomain}
 }
 
 // Set sets the timer for processing time domain. Calling this method repeatedly for the same key

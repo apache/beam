@@ -1393,14 +1393,14 @@ func validateOnTimerFn(fn *DoFn) error {
 
 	if _, ok := fn.methods[onTimerName].TimerProvider(); !ok {
 		err := errors.Errorf("OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v", fn.Name(), fn.PipelineTimers())
-		return errors.SetTopLevelMsgf(err, "OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn: %v"+
+		return errors.SetTopLevelMsgf(err, "OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v"+
 			", Ensure that you are using the TimerProvider to set and clear the timers.", fn.Name(), fn.PipelineTimers())
 	}
 
 	_, otNum, otExists := fn.methods[onTimerName].Emits()
 	_, peNum, peExists := fn.methods[processElementName].Emits()
 
-	if otExists && peExists {
+	if otExists == peExists {
 		if otNum != peNum {
 			return fmt.Errorf("OnTimer and ProcessElement functions for DoFn should have exactly same emitters, no. of emitters used in OnTimer: %v, no. of emitters used in ProcessElement: %v", otNum, peNum)
 		}
@@ -1427,12 +1427,13 @@ func validateTimer(fn *DoFn, numIn mainInputs) error {
 		}
 		timerKeys := make(map[string]timers.PipelineTimer)
 		for _, t := range pt {
-			k := t.TimerFamily()
-			if timer, ok := timerKeys[k]; ok {
-				err := errors.Errorf("Duplicate timer key %v", k)
-				return errors.SetTopLevelMsgf(err, "Duplicate timer family ID %v used by %v and %v. Ensure that timer family IDs are unique per DoFn", k, timer, t)
-			} else {
-				timerKeys[k] = t
+			for timerFamilyID := range t.Timers() {
+				if timer, ok := timerKeys[timerFamilyID]; ok {
+					err := errors.Errorf("Duplicate timer key %v", timerFamilyID)
+					return errors.SetTopLevelMsgf(err, "Duplicate timer family ID %v used by %v and %v. Ensure that timer family IDs are unique per DoFn", timerFamilyID, timer, t)
+				} else {
+					timerKeys[timerFamilyID] = t
+				}
 			}
 		}
 		if err := validateOnTimerFn(fn); err != nil {

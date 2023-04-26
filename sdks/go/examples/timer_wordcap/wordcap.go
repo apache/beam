@@ -13,13 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// timer_wordcap is a toy streaming pipeline that uses State and Timers with PubSub. It
-// does the following:
-//
-//	(1) create a topic and publish a few messages to it
-//	(2) Set user state and timer
-//
-// NOTE: it only runs on Dataflow and must be manually cancelled.
+// timer_wordcap is a toy streaming pipeline that demonstrates the use of State and Timers.
+// Periodic Impulse is used as a streaming source that produces sequence of elements upto 5 minutes
+// from the start of the pipeline every 5 seconds. These elements are keyed and fed to the Stateful DoFn
+// where state and timers are set and cleared. Since this pipeline uses a Periodic Impulse,
+// the pipeline is terminated automatically after it is done producing elements for 5 minutes.
 package main
 
 import (

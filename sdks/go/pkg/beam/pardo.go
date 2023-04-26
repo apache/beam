@@ -119,18 +119,16 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 	wc := inWfn.Coder()
 	pipelineTimers := fn.PipelineTimers()
 	if len(pipelineTimers) > 0 {
-		// check if input is KV type
-		if !typex.IsKV(col.Type()) && !typex.IsCoGBK(col.Type()) {
-			return nil, addParDoCtx(errors.New("DoFn input should be keyed to be used with timers."), s)
-		}
 		c, err := inferCoder(typex.New(reflect.TypeOf(col.Type())))
 		if err != nil {
 			return nil, addParDoCtx(errors.New("error infering coder from col"), s)
 		}
 		edge.TimerCoders = make(map[string]*coder.Coder)
+		tc := coder.NewT(c, wc)
 		for _, pt := range pipelineTimers {
-			tc := coder.NewT(c, wc)
-			edge.TimerCoders[pt.TimerFamily()] = tc
+			for timerFamilyID := range pt.Timers() {
+				edge.TimerCoders[timerFamilyID] = tc
+			}
 		}
 	}
 
