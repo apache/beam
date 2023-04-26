@@ -166,6 +166,98 @@ class YamlTransformTest(unittest.TestCase):
       pd.testing.assert_frame_equal(data, result)
 
 
+class CreateTimestamped(beam.PTransform):
+  def __init__(self, elements):
+    self._elements = elements
+
+  def expand(self, p):
+    return (
+        p
+        | beam.Create(self._elements)
+        | beam.Map(lambda x: beam.transforms.window.TimestampedValue(x, x)))
+
+
+class SumGlobally(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | beam.CombineGlobally(sum).without_defaults()
+
+
+TEST_PROVIDERS = {
+    'CreateTimestamped': CreateTimestamped, 'SumGlobally': SumGlobally
+}
+
+
+class YamlWindowingTest(unittest.TestCase):
+  def test_explicit_window_into(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              elements: [0, 1, 2, 3, 4, 5]
+            - type: WindowInto
+              windowing:
+                type: fixed
+                size: 4
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_windowing_on_input(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              elements: [0, 1, 2, 3, 4, 5]
+            - type: SumGlobally
+              windowing:
+                type: fixed
+                size: 4
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_windowing_on_output(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              elements: [0, 1, 2, 3, 4, 5]
+              windowing:
+                type: fixed
+                size: 4
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_windowing_on_outer(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              elements: [0, 1, 2, 3, 4, 5]
+            - type: SumGlobally
+          windowing:
+            type: fixed
+            size: 4
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

@@ -20,6 +20,7 @@
 import collections
 import json
 import logging
+import pprint
 import re
 import uuid
 from typing import Iterable
@@ -77,8 +78,12 @@ class SafeLineLoader(SafeLoader):
   def construct_mapping(self, node, deep=False):
     mapping = super().construct_mapping(node, deep=deep)
     mapping['__line__'] = node.start_mark.line + 1
-    mapping['__uuid__'] = str(uuid.uuid4())
+    mapping['__uuid__'] = self.create_uuid()
     return mapping
+
+  @classmethod
+  def create_uuid(cls):
+    return str(uuid.uuid4())
 
   @classmethod
   def strip_metadata(cls, spec, tagged_str=True):
@@ -103,12 +108,8 @@ class SafeLineLoader(SafeLoader):
       return getattr(obj, '_line_', 'unknown')
 
 
-class Scope(object):
-  """To look up PCollections (typically outputs of prior transforms) by name."""
-  def __init__(self, root, inputs, transforms, providers):
-    self.root = root
-    self.providers = providers
-    self._inputs = inputs
+class LightweightScope(object):
+  def __init__(self, transforms):
     self._transforms = transforms
     self._transforms_by_uuid = {t['__uuid__']: t for t in self._transforms}
     self._uuid_by_name = collections.defaultdict(list)
@@ -117,6 +118,38 @@ class Scope(object):
         self._uuid_by_name[spec['name']].append(spec['__uuid__'])
       if 'type' in spec:
         self._uuid_by_name[spec['type']].append(spec['__uuid__'])
+
+  def get_transform_id_and_output_name(self, name):
+    if '.' in name:
+      transform_name, output = name.rsplit('.', 1)
+    else:
+      transform_name, output = name, None
+    return self.get_transform_id(transform_name), output
+
+  def get_transform_id(self, transform_name):
+    if transform_name in self._transforms_by_uuid:
+      return transform_name
+    else:
+      candidates = self._uuid_by_name[transform_name]
+      if not candidates:
+        raise ValueError(
+            f'Unknown transform at line '
+            f'{SafeLineLoader.get_line(transform_name)}: {transform_name}')
+      elif len(candidates) > 1:
+        raise ValueError(
+            f'Ambiguous transform at line '
+            f'{SafeLineLoader.get_line(transform_name)}: {transform_name}')
+      else:
+        return only_element(candidates)
+
+
+class Scope(LightweightScope):
+  """To look up PCollections (typically outputs of prior transforms) by name."""
+  def __init__(self, root, inputs, transforms, providers):
+    super().__init__(transforms)
+    self.root = root
+    self._inputs = inputs
+    self.providers = providers
     self._seen_names = set()
 
   def compute_all(self):
@@ -158,21 +191,7 @@ class Scope(object):
             f'{name} has outputs {list(outputs.keys())}')
 
   def get_outputs(self, transform_name):
-    if transform_name in self._transforms_by_uuid:
-      transform_id = transform_name
-    else:
-      candidates = self._uuid_by_name[transform_name]
-      if not candidates:
-        raise ValueError(
-            f'Unknown transform at line '
-            f'{SafeLineLoader.get_line(transform_name)}: {transform_name}')
-      elif len(candidates) > 1:
-        raise ValueError(
-            f'Ambiguous transform at line '
-            f'{SafeLineLoader.get_line(transform_name)}: {transform_name}')
-      else:
-        transform_id = only_element(candidates)
-    return self.compute_outputs(transform_id)
+    return self.compute_outputs(self.get_transform_id(transform_name))
 
   @memoize_method
   def compute_outputs(self, transform_id):
@@ -394,7 +413,7 @@ def pipeline_as_composite(spec):
         'name': None,
         'transforms': spec,
         '__line__': spec[0]['__line__'],
-        '__uuid__': str(uuid.uuid4()),
+        '__uuid__': SafeLineLoader.create_uuid(),
     }
   else:
     return dict(spec, name=None, type=spec.get('type', 'composite'))
@@ -410,6 +429,13 @@ def normalize_source_sink(spec):
   if 'sink' in spec:
     spec['transforms'].append(spec.pop('sink'))
   return spec
+
+
+def preprocess_source_sink(spec):
+  if spec['type'] in ('chain', 'composite'):
+    return normalize_source_sink(spec)
+  else:
+    return spec
 
 
 def normalize_inputs_outputs(spec):
@@ -447,17 +473,131 @@ def extract_name(spec):
     return ''
 
 
+def push_windowing_to_roots(spec):
+  scope = LightweightScope(spec['transforms'])
+  consumed_outputs_by_transform = collections.defaultdict(set)
+  for transform in spec['transforms']:
+    for _, input_ref in transform['input'].items():
+      try:
+        transform_id, output = scope.get_transform_id_and_output_name(input_ref)
+        consumed_outputs_by_transform[transform_id].add(output)
+      except ValueError:
+        # Could be an input or an ambiguity we'll raise later.
+        pass
+
+  for transform in spec['transforms']:
+    if not transform['input'] and 'windowing' not in transform:
+      transform['windowing'] = spec['windowing']
+      transform['__consumed_outputs'] = consumed_outputs_by_transform[
+          transform['__uuid__']]
+
+  return spec
+
+
+def preprocess_windowing(spec):
+  if spec['type'] == 'WindowInto':
+    # This is the transform where it is actually applied.
+    return spec
+  elif 'windowing' not in spec:
+    # Nothing to do.
+    return spec
+
+  if spec['type'] == 'composite':
+    # Apply the windowing to any reads, creates, etc. in this transform
+    # TODO(robertwb): Better handle the case where a read is followed by a
+    # setting of the timestamps. We should be careful of sliding windows
+    # in particular.
+    spec = push_windowing_to_roots(spec)
+
+  windowing = spec.pop('windowing')
+  if spec['input']:
+    # Apply the windowing to all inputs by wrapping it in a trasnform that
+    # first applies windowing and then applies the original transform.
+    original_inputs = spec['input']
+    windowing_transforms = [{
+        'type': 'WindowInto',
+        'name': f'WindowInto[{key}]',
+        'windowing': windowing,
+        'input': key,
+        '__line__': spec['__line__'],
+        '__uuid__': SafeLineLoader.create_uuid(),
+    } for key in original_inputs.keys()]
+    windowed_inputs = {
+        key: t['__uuid__']
+        for (key, t) in zip(original_inputs.keys(), windowing_transforms)
+    }
+    modified_spec = dict(
+        spec, input=windowed_inputs, __uuid__=SafeLineLoader.create_uuid())
+    return {
+        'type': 'composite',
+        'name': spec.get('name', None) or spec['type'],
+        'transforms': [modified_spec] + windowing_transforms,
+        'input': spec['input'],
+        'output': modified_spec['__uuid__'],
+        '__line__': spec['__line__'],
+        '__uuid__': spec['__uuid__'],
+    }
+
+  elif spec['type'] == 'composite':
+    # Pushing the windowing down was sufficient.
+    return spec
+
+  else:
+    # No inputs, apply the windowing to all outputs.
+    consumed_outputs = list(spec.pop('__consumed_outputs', {None}))
+    modified_spec = dict(spec, __uuid__=SafeLineLoader.create_uuid())
+    windowing_transforms = [{
+        'type': 'WindowInto',
+        'name': f'WindowInto[{out}]',
+        'windowing': windowing,
+        'input': modified_spec['__uuid__'] + ('.' + out if out else ''),
+        '__line__': spec['__line__'],
+        '__uuid__': SafeLineLoader.create_uuid(),
+    } for out in consumed_outputs]
+    if consumed_outputs == [None]:
+      windowed_outputs = only_element(windowing_transforms)['__uuid__']
+    else:
+      windowed_outputs = {
+          out: t['__uuid__']
+          for (out, t) in zip(consumed_outputs, windowing_transforms)
+      }
+    return {
+        'type': 'composite',
+        'name': spec.get('name', None) or spec['type'],
+        'transforms': [modified_spec] + windowing_transforms,
+        'output': windowed_outputs,
+        '__line__': spec['__line__'],
+        '__uuid__': spec['__uuid__'],
+    }
+
+
+def preprocess(spec, verbose=False):
+  if verbose:
+    pprint.pprint(spec)
+
+  def apply(phase, spec):
+    spec = phase(spec)
+    if spec['type'] in {'composite', 'chain'}:
+      spec = dict(
+          spec, transforms=[apply(phase, t) for t in spec['transforms']])
+    return spec
+
+  for phase in [preprocess_source_sink,
+                preprocess_chain,
+                normalize_inputs_outputs,
+                preprocess_windowing]:
+    spec = apply(phase, spec)
+    if verbose:
+      print('=' * 20, phase, '=' * 20)
+      pprint.pprint(spec)
+  return spec
+
+
 class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
-
-    for phase in [preprocess_chain]:
-      spec = phase(spec)
-      if spec['type'] in {'composite', 'chain'}:
-        spec = dict(spec, transforms=[phase(t) for t in spec['transforms']])
-
-    self._spec = spec
+    self._spec = preprocess(spec)
     self._providers = yaml_provider.merge_providers(
         {
             key: yaml_provider.as_provider_list(key, value)
