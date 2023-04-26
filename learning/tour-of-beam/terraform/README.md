@@ -241,7 +241,7 @@ Navigate to beam/playground/frontend/playground_components and run flutter comma
 
 ```
 # Go to beam/playground/frontend/playground_components first
-flutter pub get 
+flutter pub get
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
@@ -249,7 +249,7 @@ Navigate to beam/learning/tour-of-beam/frontend and run flutter commands
 
 ```
 # Go to beam/learning/tour-of-beam/frontend first
-flutter pub get 
+flutter pub get
 flutter pub run build_runner build --delete-conflicting-outputs
 flutter build web --profile --dart-define=Dart2jsOptimization=O0
 firebase deploy --project ${project_id}
