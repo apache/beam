@@ -64,6 +64,19 @@ class Provider:
     raise NotImplementedError(type(self))
 
 
+def as_provider(name, provider_or_constructor):
+  if isinstance(provider_or_constructor, Provider):
+    return provider_or_constructor
+  else:
+    return InlineProvider({name: provider_or_constructor})
+
+
+def as_provider_list(name, lst):
+  if not isinstance(lst, list):
+    return as_provider_list(name, [lst])
+  return [as_provider(name, x) for x in lst]
+
+
 class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
   def __init__(self, urns, service):

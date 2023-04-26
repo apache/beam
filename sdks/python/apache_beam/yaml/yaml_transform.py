@@ -448,7 +448,11 @@ class YamlTransform(beam.PTransform):
       spec = yaml.load(spec, Loader=SafeLineLoader)
     self._spec = spec
     self._providers = yaml_provider.merge_providers(
-        providers, yaml_provider.standard_providers())
+        {
+            key: yaml_provider.as_provider_list(key, value)
+            for (key, value) in providers.items()
+        },
+        yaml_provider.standard_providers())
 
   def expand(self, pcolls):
     if isinstance(pcolls, beam.pvalue.PBegin):
@@ -476,5 +480,8 @@ def expand_pipeline(pipeline, pipeline_spec, providers=None):
       pipeline_as_composite(pipeline_spec['pipeline']),
       {
           **yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
-          **(providers or {})
+          **{
+              key: yaml_provider.as_provider_list(key, value)
+              for (key, value) in (providers or {}).items()
+          }
       }).expand(beam.pvalue.PBegin(pipeline))
