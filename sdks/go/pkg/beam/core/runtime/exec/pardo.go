@@ -48,10 +48,11 @@ type ParDo struct {
 	bf       *bundleFinalizer
 	we       sdf.WatermarkEstimator
 
-	Timer        UserTimerAdapter
-	timerManager DataManager
-	reader       StateReader
-	cache        *cacheElm
+	onTimerInvoker *invoker
+	Timer          UserTimerAdapter
+	timerManager   DataManager
+	reader         StateReader
+	cache          *cacheElm
 
 	status Status
 	err    errorx.GuardedError
@@ -88,6 +89,9 @@ func (n *ParDo) Up(ctx context.Context) error {
 	}
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
+	if fn, ok := n.Fn.OnTimerFn(); ok {
+		n.onTimerInvoker = newInvoker(fn)
+	}
 
 	n.states = metrics.NewPTransformState(n.PID)
 
@@ -236,6 +240,9 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	}
 	n.status = Up
 	n.inv.Reset()
+	if n.onTimerInvoker != nil {
+		n.onTimerInvoker.Reset()
+	}
 
 	n.states.Set(n.ctx, metrics.FinishBundle)
 
@@ -374,7 +381,7 @@ func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID s
 		extra = append(extra, tmap.Tag)
 	}
 	extra = append(extra, n.cache.extra...)
-	val, err := InvokeWithOpts(ctx, fn, tmap.Pane, tmap.Windows, tmap.HoldTimestamp, InvokeOpts{
+	val, err := n.onTimerInvoker.invokeWithOpts(ctx, tmap.Pane, tmap.Windows, tmap.HoldTimestamp, InvokeOpts{
 		opt:   &MainInput{Key: *tmap.Key},
 		bf:    n.bf,
 		we:    n.we,

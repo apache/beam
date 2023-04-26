@@ -199,6 +199,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 
 	var cp ElementDecoder    // Decoder for the primary element or the key in CoGBKs.
 	var cvs []ElementDecoder // Decoders for each value stream in CoGBKs.
+	var dc ElementDecoder    // Decoder for timer data
 
 	switch {
 	case coder.IsCoGBK(c):
@@ -209,6 +210,10 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		cvs = []ElementDecoder{MakeElementDecoder(c.Components[1])}
 	default:
 		cp = MakeElementDecoder(c)
+	}
+
+	if len(c.Components) > 0 {
+		dc = MakeElementDecoder(c.Components[0])
 	}
 
 	var checkpoints []*Checkpoint
@@ -263,7 +268,6 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		}
 	},
 		func(bcr *byteCountReader, ptransformID, timerFamilyID string) error {
-			dc := MakeElementDecoder(coder.SkipW(c).Components[0])
 			tmap, err := decodeTimer(dc, wc, bcr)
 			if err != nil {
 				return errors.WithContext(err, "error decoding timer in datasource")

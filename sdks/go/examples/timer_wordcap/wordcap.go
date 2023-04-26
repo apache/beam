@@ -23,35 +23,22 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"flag"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/periodic"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-	"golang.org/x/exp/slog"
-)
-
-var (
-	input = flag.String("input", os.ExpandEnv("$USER-wordcap"), "Pubsub input topic.")
-)
-
-var (
-	data = []string{
-		"foo",
-		"bar",
-		"baz",
-	}
 )
 
 type Stateful struct {
@@ -83,9 +70,8 @@ func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Pro
 		log.Infof(ctx, "Timer outputState fired on stateful for element: %v.", key)
 		s.OutputState.Clear(tp)
 		switch timerTag {
-		case "001":
-			log.Infof(ctx, "Timer with tag 001 fired on outputState stateful DoFn.")
-			s.OutputState.Set(tp, mtime.Now().ToTime().Add(1*time.Minute), timers.WithTag(timerTag))
+		case "1":
+			log.Infof(ctx, "Timer with tag 1 fired on outputState stateful DoFn.")
 			emit(timerKey, timerTag)
 		}
 	}
@@ -107,87 +93,15 @@ func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp sta
 		return err
 	}
 
-	s.OutputState.Set(tp, mtime.Time(toFire).ToTime(), timers.WithOutputTimestamp(mtime.Time(minTime).ToTime()), timers.WithTag(word))
+	s.OutputState.Set(tp, time.UnixMilli(toFire), timers.WithOutputTimestamp(time.UnixMilli(minTime)), timers.WithTag(word))
 	s.TimerTime.Write(sp, toFire)
 
 	return nil
 }
 
-type eventtimeSDFStream struct {
-	RestSize, Mod, Fixed int64
-	Sleep                time.Duration
-}
-
-func (fn *eventtimeSDFStream) Setup() error {
-	return nil
-}
-
-func (fn *eventtimeSDFStream) CreateInitialRestriction(v beam.T) offsetrange.Restriction {
-	return offsetrange.Restriction{Start: 0, End: fn.RestSize}
-}
-
-func (fn *eventtimeSDFStream) SplitRestriction(v beam.T, r offsetrange.Restriction) []offsetrange.Restriction {
-	// No split
-	return []offsetrange.Restriction{r}
-}
-
-func (fn *eventtimeSDFStream) RestrictionSize(v beam.T, r offsetrange.Restriction) float64 {
-	return r.Size()
-}
-
-func (fn *eventtimeSDFStream) CreateTracker(r offsetrange.Restriction) *sdf.LockRTracker {
-	return sdf.NewLockRTracker(offsetrange.NewTracker(r))
-}
-
-func (fn *eventtimeSDFStream) ProcessElement(ctx context.Context, _ *CWE, rt *sdf.LockRTracker, v beam.T, emit func(beam.EventTime, int64)) sdf.ProcessContinuation {
-	r := rt.GetRestriction().(offsetrange.Restriction)
-	i := r.Start
-	if r.Size() < 1 {
-		log.Debugf(ctx, "size 0 restriction, stoping to process sentinel %v", slog.Any("value", v))
-		return sdf.StopProcessing()
-	}
-	slog.Debug("emitting element to restriction", slog.Any("value", v), slog.Group("restriction",
-		slog.Any("value", v),
-		slog.Float64("size", r.Size()),
-		slog.Int64("pos", i),
-	))
-	if rt.TryClaim(i) {
-		v := (i % fn.Mod) + fn.Fixed
-		emit(mtime.Now(), v)
-	}
-	return sdf.ResumeProcessingIn(fn.Sleep)
-}
-
-func (fn *eventtimeSDFStream) InitialWatermarkEstimatorState(_ beam.EventTime, _ offsetrange.Restriction, _ beam.T) int64 {
-	return int64(mtime.MinTimestamp)
-}
-
-func (fn *eventtimeSDFStream) CreateWatermarkEstimator(initialState int64) *CWE {
-	return &CWE{Watermark: initialState}
-}
-
-func (fn *eventtimeSDFStream) WatermarkEstimatorState(e *CWE) int64 {
-	return e.Watermark
-}
-
-type CWE struct {
-	Watermark int64 // uses int64, since the SDK prevent mtime.Time from serialization.
-}
-
-func (e *CWE) CurrentWatermark() time.Time {
-	return mtime.Time(e.Watermark).ToTime()
-}
-
-func (e *CWE) ObserveTimestamp(ts time.Time) {
-	// We add 10 milliseconds to allow window boundaries to
-	// progress after emitting
-	e.Watermark = int64(mtime.FromTime(ts.Add(-90 * time.Millisecond)))
-}
-
 func init() {
 	register.DoFn7x1[context.Context, beam.EventTime, state.Provider, timers.Provider, string, string, func(string, string), error](&Stateful{})
 	register.Emitter2[string, string]()
-	register.DoFn5x1[context.Context, *CWE, *sdf.LockRTracker, beam.T, func(beam.EventTime, int64), sdf.ProcessContinuation]((*eventtimeSDFStream)(nil))
 	register.Emitter2[beam.EventTime, int64]()
 }
 
@@ -197,23 +111,21 @@ func main() {
 
 	ctx := context.Background()
 
-	log.Infof(ctx, "Publishing %v messages to: %v", len(data), *input)
-
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	imp := beam.Impulse(s)
-	elms := 3
-	out := beam.ParDo(s, &eventtimeSDFStream{
-		Sleep:    time.Second,
-		RestSize: int64(elms),
-		Mod:      int64(elms),
-		Fixed:    1,
-	}, imp)
+	out := periodic.Impulse(s, time.Now(), time.Now().Add(5*time.Minute), 5*time.Second, true)
+
+	intOut := beam.ParDo(s, func(b []byte) int64 {
+		var val int64
+		buf := bytes.NewReader(b)
+		binary.Read(buf, binary.BigEndian, &val)
+		return val
+	}, out)
 
 	str := beam.ParDo(s, func(b int64) string {
 		return fmt.Sprintf("%03d", b)
-	}, out)
+	}, intOut)
 
 	keyed := beam.ParDo(s, func(ctx context.Context, ts beam.EventTime, s string) (string, string) {
 		return "test", s

@@ -26,6 +26,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -53,8 +54,8 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &GoodDoFnCoGbk2{}, opt: CoGBKMainInput(3)},
 			{dfn: &GoodDoFnCoGbk7{}, opt: CoGBKMainInput(8)},
 			{dfn: &GoodDoFnCoGbk1wSide{}, opt: NumMainInputs(MainKv)},
-			{dfn: &GoodStatefulDoFn{}, opt: NumMainInputs(MainKv)},
-			{dfn: &GoodStatefulDoFn2{}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn{Timer1: timers.InProcessingTime("processingTimeTimer")}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn2{Timer1: timers.InEventTime("eventTimeTimer")}, opt: NumMainInputs(MainKv)},
 			{dfn: &GoodStatefulDoFn3{State1: state.MakeCombiningState[int, int, int]("state1", func(a, b int) int {
 				return a * b
 			})}, opt: NumMainInputs(MainKv)},
@@ -103,9 +104,13 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &BadDoFnReturnValuesInFinishBundle{}},
 			{dfn: &BadDoFnReturnValuesInSetup{}},
 			{dfn: &BadDoFnReturnValuesInTeardown{}},
+			// Validate stateful DoFn
 			{dfn: &BadStatefulDoFnNoStateProvider{State1: state.Value[int](state.MakeValueState[int]("state1"))}},
 			{dfn: &BadStatefulDoFnNoStateFields{}},
-			{dfn: &BadStatefulDoFnNoKV{State1: state.Value[int](state.MakeValueState[int]("state1"))}, numInputs: 1},
+			{dfn: &BadStatefulDoFnNoKV{State1: state.Value[int](state.MakeValueState[int]("state1")), Timer1: timers.InEventTime("timer1")}, numInputs: 1},
+			{dfn: &BadStatefulDoFnNoTimerProvider{Timer1: timers.InEventTime("timer1")}, numInputs: 2},
+			{dfn: &BadStatefulDoFnNoTimerFields{}, numInputs: 2},
+			{dfn: &BadStatefulDoFnNoOnTimer{Timer1: timers.InEventTime("timer1")}, numInputs: 2},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -1174,17 +1179,27 @@ func (fn *GoodStatefulWatermarkEstimatingKv) WatermarkEstimatorState(estimator *
 
 type GoodStatefulDoFn struct {
 	State1 state.Value[int]
+	Timer1 timers.ProcessingTime
 }
 
-func (fn *GoodStatefulDoFn) ProcessElement(state.Provider, int, int) int {
+func (fn *GoodStatefulDoFn) ProcessElement(state.Provider, timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *GoodStatefulDoFn) OnTimer(state.Provider, timers.Provider, int) int {
 	return 0
 }
 
 type GoodStatefulDoFn2 struct {
 	State1 state.Bag[int]
+	Timer1 timers.EventTime
 }
 
-func (fn *GoodStatefulDoFn2) ProcessElement(state.Provider, int, int) int {
+func (fn *GoodStatefulDoFn2) ProcessElement(state.Provider, timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *GoodStatefulDoFn2) OnTimer(state.Provider, timers.Provider, int) int {
 	return 0
 }
 
@@ -1593,9 +1608,41 @@ func (fn *BadStatefulDoFnNoStateFields) ProcessElement(state.Provider, int) int 
 
 type BadStatefulDoFnNoKV struct {
 	State1 state.Value[int]
+	Timer1 timers.EventTime
 }
 
 func (fn *BadStatefulDoFnNoKV) ProcessElement(state.Provider, int, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoTimerProvider struct {
+	Timer1 timers.EventTime
+}
+
+func (fn *BadStatefulDoFnNoTimerProvider) ProcessElement(int, int) int {
+	return 0
+}
+
+func (fn *BadStatefulDoFnNoTimerProvider) OnTimer(timers.Provider, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoTimerFields struct {
+}
+
+func (fn *BadStatefulDoFnNoTimerFields) ProcessElement(timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *BadStatefulDoFnNoTimerFields) OnTimer(timers.Provider, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoOnTimer struct {
+	Timer1 timers.EventTime
+}
+
+func (fn *BadStatefulDoFnNoOnTimer) ProcessElement(timers.Provider, int, int) int {
 	return 0
 }
 

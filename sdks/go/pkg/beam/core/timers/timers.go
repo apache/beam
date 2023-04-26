@@ -28,17 +28,17 @@ var (
 	ProviderType = reflect.TypeOf((*Provider)(nil)).Elem()
 )
 
-// TimeDomainEnum represents different time domains to set timer.
-type TimeDomainEnum int32
+// TimeDomain represents different time domains to set timer.
+type TimeDomain int32
 
 const (
 	// TimeDomainUnspecified represents unspecified time domain.
-	TimeDomainUnspecified TimeDomainEnum = 0
+	TimeDomainUnspecified TimeDomain = 0
 	// TimeDomainEventTime is time from the perspective of the data
-	TimeDomainEventTime TimeDomainEnum = 1
+	TimeDomainEventTime TimeDomain = 1
 	// TimeDomainProcessingTime is time from the perspective of the
 	// execution of your pipeline
-	TimeDomainProcessingTime TimeDomainEnum = 2
+	TimeDomainProcessingTime TimeDomain = 2
 )
 
 // TimerMap holds timer information obtained from the pipeline.
@@ -78,7 +78,7 @@ type Provider interface {
 // PipelineTimer interface represents valid timer type.
 type PipelineTimer interface {
 	TimerFamily() string
-	TimerDomain() TimeDomainEnum
+	TimerDomain() TimeDomain
 }
 
 // EventTime represents the event time timer.
@@ -92,7 +92,7 @@ func (et EventTime) TimerFamily() string {
 }
 
 // TimerDomain returns the time domain of timer.
-func (et EventTime) TimerDomain() TimeDomainEnum {
+func (et EventTime) TimerDomain() TimeDomain {
 	return TimeDomainEventTime
 }
 
@@ -126,7 +126,7 @@ func (pt ProcessingTime) TimerFamily() string {
 }
 
 // TimerDomain returns the time domain of timer.
-func (pt ProcessingTime) TimerDomain() TimeDomainEnum {
+func (pt ProcessingTime) TimerDomain() TimeDomain {
 	return TimeDomainProcessingTime
 }
 
