@@ -22,19 +22,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BulkIO;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.DocToBulk;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.FAMOUS_SCIENTISTS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.INVALID_DOCS_IDS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_SCIENTISTS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.SCRIPT_SOURCE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.flushAndRefreshAllIndices;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.insertTestDocuments;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputId;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.*;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -43,7 +33,6 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -57,7 +46,6 @@ import java.io.PipedOutputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -95,11 +83,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.http.HttpEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.nio.entity.NStringEntity;
-import org.elasticsearch.client.Request;
-import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
 import org.hamcrest.Description;
@@ -118,21 +101,10 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);
 
-  private static final RetryPredicate CUSTOM_RETRY_PREDICATE = new DefaultRetryPredicate(400);
+  private static final RetryPredicate CUSTOM_RETRY_PREDICATE = new DefaultRetryPredicate(405);
 
   private static final int EXPECTED_RETRIES = 2;
   private static final int MAX_ATTEMPTS = 3;
-  private static final String[] BAD_FORMATTED_DOC = {"{ \"x\" :a,\"y\":\"ab\" }"};
-  private static final String OK_REQUEST =
-      "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
-          + "{ \"field1\" : 1 }\n";
-  private static final String OK_REQUEST_NO_TYPE =
-      "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }\n" + "{ \"field1\" : 1 }\n";
-  private static final String BAD_REQUEST =
-      "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
-          + "{ \"field1\" : @ }\n";
-  private static final String BAD_REQUEST_NO_TYPE =
-      "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }\n" + "{ \"field1\" : @ }\n";
 
   static String getEsIndex() {
     return "beam" + Thread.currentThread().getId();
@@ -1066,32 +1038,9 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
   }
 
-  /** Test that the default predicate correctly parses chosen error code. */
-  void testDefaultRetryPredicate(RestClient restClient) throws IOException {
-    HttpEntity entity1, entity2;
-
-    if (getBackendVersion(restClient) > 7) {
-      entity1 = new NStringEntity(BAD_REQUEST_NO_TYPE, ContentType.APPLICATION_JSON);
-      entity2 = new NStringEntity(OK_REQUEST_NO_TYPE, ContentType.APPLICATION_JSON);
-    } else {
-      entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
-      entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
-    }
-
-    Request request = new Request("POST", "/_bulk");
-    request.addParameters(Collections.emptyMap());
-    request.setEntity(entity1);
-    Response response1 = restClient.performRequest(request);
-    assertTrue(CUSTOM_RETRY_PREDICATE.test(response1.getEntity()));
-
-    request.setEntity(entity2);
-    Response response2 = restClient.performRequest(request);
-    assertFalse(DEFAULT_RETRY_PREDICATE.test(response2.getEntity()));
-  }
-
   /**
    * Test that retries are invoked when Elasticsearch returns a specific error code. We invoke this
-   * by issuing corrupt data and retrying on the `400` error code. Normal behaviour is to retry on
+   * by using empty endpoint and retrying on the `405` error code. Normal behaviour is to retry on
    * `429` only but that is difficult to simulate reliably. The logger is used to verify expected
    * behavior.
    */
@@ -1104,11 +1053,14 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     ElasticsearchIO.Write write =
         ElasticsearchIO.write()
-            .withConnectionConfiguration(connectionConfiguration)
+            .withConnectionConfiguration(connectionConfiguration.withInvalidBulkEndpoint())
             .withRetryConfiguration(
                 ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
                     .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
-    pipeline.apply(Create.of(Arrays.asList(BAD_FORMATTED_DOC))).apply(write);
+    List<String> data =
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline.apply(Create.of(data)).apply(write);
 
     pipeline.run();
   }

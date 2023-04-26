@@ -110,6 +110,7 @@ import org.apache.http.ssl.SSLContexts;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
+import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.joda.time.Duration;
@@ -343,6 +344,8 @@ public class ElasticsearchIO {
 
     public abstract boolean isTrustSelfSignedCerts();
 
+    abstract boolean isInvalidBulkEndpoint();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -373,6 +376,8 @@ public class ElasticsearchIO {
 
       abstract Builder setTrustSelfSignedCerts(boolean trustSelfSignedCerts);
 
+      abstract Builder setInvalidBulkEndpoint(boolean invalidBulkEndpoint);
+
       abstract ConnectionConfiguration build();
     }
 
@@ -394,6 +399,7 @@ public class ElasticsearchIO {
           .setIndex(index)
           .setType(type)
           .setTrustSelfSignedCerts(false)
+          .setInvalidBulkEndpoint(false)
           .build();
     }
 
@@ -413,6 +419,7 @@ public class ElasticsearchIO {
           .setIndex(index)
           .setType("")
           .setTrustSelfSignedCerts(false)
+          .setInvalidBulkEndpoint(false)
           .build();
     }
 
@@ -430,6 +437,7 @@ public class ElasticsearchIO {
           .setIndex("")
           .setType("")
           .setTrustSelfSignedCerts(false)
+          .setInvalidBulkEndpoint(false)
           .build();
     }
 
@@ -468,6 +476,9 @@ public class ElasticsearchIO {
     }
 
     public String getBulkEndPoint() {
+      if (isInvalidBulkEndpoint()) {
+        return "";
+      }
       return getPrefixedEndpoint("_bulk");
     }
 
@@ -640,6 +651,12 @@ public class ElasticsearchIO {
     public ConnectionConfiguration withConnectTimeout(Integer connectTimeout) {
       checkArgument(connectTimeout != null, "connectTimeout can not be null");
       return builder().setConnectTimeout(connectTimeout).build();
+    }
+
+    // Exposed only to allow tests to easily simulate server errors
+    @VisibleForTesting
+    ConnectionConfiguration withInvalidBulkEndpoint() {
+      return builder().setInvalidBulkEndpoint(true).build();
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
@@ -1204,7 +1221,7 @@ public class ElasticsearchIO {
      * the requests to the Elasticsearch server if the {@link RetryConfiguration} permits it.
      */
     @FunctionalInterface
-    interface RetryPredicate extends Predicate<HttpEntity>, Serializable {}
+    interface RetryPredicate extends Predicate<Integer>, Serializable {}
 
     /**
      * This is the default predicate used to test if a failed ES operation should be retried. A
@@ -1224,26 +1241,9 @@ public class ElasticsearchIO {
         this(429);
       }
 
-      /** Returns true if the response has the error code for any mutation. */
-      private static boolean errorCodePresent(HttpEntity responseEntity, int errorCode) {
-        try {
-          JsonNode json = parseResponse(responseEntity);
-          if (json.path("errors").asBoolean()) {
-            for (JsonNode item : json.path("items")) {
-              if (item.findValue("status").asInt() == errorCode) {
-                return true;
-              }
-            }
-          }
-        } catch (IOException e) {
-          LOG.warn("Could not extract error codes from responseEntity {}", responseEntity);
-        }
-        return false;
-      }
-
       @Override
-      public boolean test(HttpEntity responseEntity) {
-        return errorCodePresent(responseEntity, errorCode);
+      public boolean test(Integer statusCode) {
+        return this.errorCode == statusCode;
       }
     }
   }
@@ -2535,8 +2535,7 @@ public class ElasticsearchIO {
           bulkRequest.append(doc.getBulkDirective());
         }
 
-        Response response = null;
-        HttpEntity responseEntity = null;
+        HttpEntity responseEntity;
 
         // Elasticsearch will default to the index/type provided the {@link
         // ConnectionConfiguration} if none are set in the document meta (i.e.
@@ -2546,28 +2545,15 @@ public class ElasticsearchIO {
 
         HttpEntity requestBody =
             new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
-        try {
+        if (spec.getRetryConfiguration() != null) {
+          responseEntity =
+              performRequestWithRetry("POST", endPoint, Collections.emptyMap(), requestBody);
+        } else {
           Request request = new Request("POST", endPoint);
           request.addParameters(Collections.emptyMap());
           request.setEntity(requestBody);
-          response = restClient.performRequest(request);
+          Response response = restClient.performRequest(request);
           responseEntity = new BufferedHttpEntity(response.getEntity());
-        } catch (java.io.IOException ex) {
-          if (spec.getRetryConfiguration() == null || !isRetryableClientException(ex)) {
-            throw ex;
-          }
-          LOG.error("Caught ES timeout, retrying", ex);
-        }
-
-        if (spec.getRetryConfiguration() != null
-            && (response == null
-                || responseEntity == null
-                || spec.getRetryConfiguration().getRetryPredicate().test(responseEntity))) {
-          if (responseEntity != null
-              && spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
-            LOG.warn("ES Cluster is responding with HTP 429 - TOO_MANY_REQUESTS.");
-          }
-          responseEntity = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
         }
 
         List<Document> responses =
@@ -2584,39 +2570,40 @@ public class ElasticsearchIO {
             .collect(Collectors.toList());
       }
 
-      /** retry request based on retry configuration policy. */
-      private HttpEntity handleRetry(
+      /** performe and retry request based on retry configuration policy. */
+      private HttpEntity performRequestWithRetry(
           String method, String endpoint, Map<String, String> params, HttpEntity requestBody)
           throws IOException, InterruptedException {
-        Response response;
-        HttpEntity responseEntity = null;
+        RetryConfiguration.RetryPredicate predicate =
+            Objects.requireNonNull(spec.getRetryConfiguration()).getRetryPredicate();
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = retryBackoff.backoff();
-        int attempt = 0;
+        int attempt = -1;
         // while retry policy exists
-        while (BackOffUtils.next(sleeper, backoff)) {
-          LOG.warn(RETRY_ATTEMPT_LOG, ++attempt);
+        do {
+          if (++attempt > 0) {
+            LOG.warn(RETRY_ATTEMPT_LOG, attempt);
+          }
           try {
             Request request = new Request(method, endpoint);
             request.addParameters(params);
             request.setEntity(requestBody);
-            response = restClient.performRequest(request);
-            responseEntity = new BufferedHttpEntity(response.getEntity());
+            Response response = restClient.performRequest(request);
+            return new BufferedHttpEntity(response.getEntity());
+          } catch (ResponseException ex) {
+            if (predicate.test(ex.getResponse().getStatusLine().getStatusCode())) {
+              LOG.warn("ES Cluster is responding with HTTP 429 - TOO_MANY_REQUESTS.", ex);
+            } else {
+              throw ex;
+            }
           } catch (java.io.IOException ex) {
             if (isRetryableClientException(ex)) {
-              LOG.error("Caught ES timeout, retrying", ex);
-              continue;
+              LOG.warn("Caught ES timeout, retrying", ex);
+            } else {
+              throw ex;
             }
           }
-          // if response has no 429 errors
-          if (!Objects.requireNonNull(spec.getRetryConfiguration())
-              .getRetryPredicate()
-              .test(responseEntity)) {
-            return responseEntity;
-          } else {
-            LOG.warn("ES Cluster is responding with HTP 429 - TOO_MANY_REQUESTS.");
-          }
-        }
+        } while (BackOffUtils.next(sleeper, backoff));
         throw new IOException(String.format(RETRY_FAILED_LOG, attempt));
       }
 

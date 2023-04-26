@@ -244,11 +244,6 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testDefaultRetryPredicate() throws IOException {
-    elasticsearchIOTestCommon.testDefaultRetryPredicate(client);
-  }
-
-  @Test
   public void testWriteRetry() throws Throwable {
     elasticsearchIOTestCommon.setExpectedException(expectedException);
     elasticsearchIOTestCommon.setPipeline(pipeline);
