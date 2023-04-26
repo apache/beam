@@ -195,12 +195,11 @@ class Top(object):
   @with_input_types(T)
   @with_output_types(List[T])
   class Of(CombinerWithoutDefaults):
-    """Obtain a list of the n greatest elements in a PCollection.
+    """Returns the n greatest elements in the PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
     to which it is applied, where "greatest" is determined by a
-    function supplied as the key or reverse arguments.
-
+    function supplied as the `key` or `reverse` arguments.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a global Top operation.
@@ -254,9 +253,8 @@ class Top(object):
 
     This transform will produce a PCollection mapping unique keys in the input
     PCollection to the n greatest elements with which they are associated, where
-    "greatest" is determined by a function supplied as the key or
-    reverse arguments.
-
+    "greatest" is determined by a function supplied as the `key` or
+    `reverse` arguments.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a per-key Top operation.
