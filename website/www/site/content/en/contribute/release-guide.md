@@ -274,27 +274,13 @@ The key points to know:
 - The release branch has the SNAPSHOT/dev version to be released.
 - The Dataflow container image should be modified to the version to be released.
 
-This will all be accomplished by the [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
-script.
+This will all be accomplished by the [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
+workflow.
 
 After cutting the branch, you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
 
 #### Use cut_release_branch.sh to cut a release branch
-* **Script:** [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
-
-* **Usage**
-
-`RELEASE_VERSION` and `NEXT_VERSION` should be formatted like `{major}.{minor}.{patch}` (e.g. `2.46.0`)
-
-  ```
-  # Cut a release branch
-  ./beam/release/src/main/scripts/cut_release_branch.sh \
-  --release=${RELEASE_VERSION} \
-  --next_release=${NEXT_VERSION}
-
-  # Show help page
-  ./beam/release/src/main/scripts/cut_release_branch.sh -h
-  ```
+* **Action:** [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml) (click `run workflow`)
 
 ### Start a snapshot build
 
