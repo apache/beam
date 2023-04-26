@@ -255,8 +255,6 @@ def expand_transform(spec, scope):
   type = spec['type']
   if type == 'composite':
     return expand_composite_transform(spec, scope)
-  elif type == 'chain':
-    return expand_chain_transform(spec, scope)
   else:
     return expand_leaf_transform(spec, scope)
 
@@ -382,6 +380,13 @@ def chain_as_composite(spec):
   return composite_spec
 
 
+def preprocess_chain(spec):
+  if spec['type'] == 'chain':
+    return chain_as_composite(spec)
+  else:
+    return spec
+
+
 def pipeline_as_composite(spec):
   if isinstance(spec, list):
     return {
@@ -446,6 +451,12 @@ class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
+
+    for phase in [preprocess_chain]:
+      spec = phase(spec)
+      if spec['type'] in {'composite', 'chain'}:
+        spec = dict(spec, transforms=[phase(t) for t in spec['transforms']])
+
     self._spec = spec
     self._providers = yaml_provider.merge_providers(
         {
