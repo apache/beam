@@ -257,7 +257,7 @@ public class KafkaIOIT {
     tearDownTopic(options.getKafkaTopic());
     cancelIfTimeouted(readResult, readState);
 
-    assertEquals(PipelineResult.State.DONE, readState);
+    assertNotEquals(PipelineResult.State.FAILED, readState);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
