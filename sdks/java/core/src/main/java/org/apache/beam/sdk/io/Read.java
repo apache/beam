@@ -859,7 +859,7 @@ public class Read {
       }
 
       private void initializeCurrentReader() throws IOException {
-        checkStateNotNull(currentReader);
+        checkState(currentReader == null);
         Object cacheKey =
             createCacheKey(initialRestriction.getSource(), initialRestriction.getCheckpoint());
         currentReader = cachedReaders.getIfPresent(cacheKey);
