@@ -23,6 +23,3 @@ indexes:
     properties:
     - name: persistenceKey
     - name: numberOfFiles
-  - kind: pg_schema_versions
-    properties:
-    - name: version

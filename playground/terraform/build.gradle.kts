@@ -392,6 +392,7 @@ task("applyMigrations") {
         val modulePath = project(":playground").projectDir.absolutePath
         val sdkConfig = "$modulePath/sdks.yaml"
         exec {
+            workingDir("$modulePath/backend")
             executable("go")
             args("run", "cmd/migration_tool/migration_tool.go",
             "-project-id", projectId,
@@ -410,7 +411,7 @@ tasks.register("helmRelease") {
         executable("helm")
     args("upgrade", "--install", "playground", "$helmdir")
     }
-    }
+  }
 }
 
 tasks.register("gkebackend") {
@@ -427,6 +428,7 @@ tasks.register("gkebackend") {
     dependsOn(pushBackTask)
     dependsOn(pushFrontTask)
     dependsOn(indexcreateTask)
+    dependsOn(applyMigrations)
     dependsOn(helmTask)
     takeConfigTask.mustRunAfter(initTask)
     pushBackTask.mustRunAfter(takeConfigTask)
