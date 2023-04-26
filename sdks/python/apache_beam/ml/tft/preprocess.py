@@ -57,15 +57,15 @@ primitive_type_to_tensor_type = {
 }
 
 numpy_to_tensor_type = {
-    np.dtype(np.int32): tf.int32,
+    np.dtype(np.int32): tf.int64,
     np.dtype(np.int64): tf.int64,
     np.dtype(np.float32): tf.float32,
-    np.dtype(np.float16): tf.float16,
-    np.dtype(np.float64): tf.float64
+    np.dtype(np.float16): tf.float32,
+    np.dtype(np.float64): tf.float32
 }
 
-fixed_len_feature_dtypes = (int, str, float, list)
-var_len_feature_dtypes = (np.ndarray, tf.Tensor)
+fixed_len_feature_dtypes = (int, str, float, list, bytes, np.ndarray)
+var_len_feature_dtypes = (tf.Tensor)
 
 
 class ProcessHandler:
@@ -110,28 +110,36 @@ class TFTProcessHandler(ProcessHandler):
         """
     raw_data_feature_spec = {}
     for name in data.keys():
+
       dtype = self._deduce_dtype(data[name])
       # define the schema based on the dtype.
       if isinstance(data[name], fixed_len_feature_dtypes):
-        raw_data_feature_spec[name] = tf.io.FixedLenFeature([], dtype)
+        if hasattr(data[name], 'shape'):
+          shape = data[name].shape
+        else:
+          shape = []
+        raw_data_feature_spec[name] = tf.io.FixedLenFeature(shape, dtype)
       elif isinstance(data[name], var_len_feature_dtypes):
         raw_data_feature_spec[name] = tf.io.VarLenFeature(dtype)
-
     return tft.DatasetMetadata(
         schema_utils.schema_from_feature_spec(raw_data_feature_spec))
 
   def _deduce_dtype(self, element):
+    # improve the logic here
     if hasattr(element, 'dtype'):
       # containers like numpy, tensorflow tensor.
       dtype = element.dtype
     else:
       dtype = type(element)
+
       if dtype in primitive_type_to_tensor_type:
         dtype = primitive_type_to_tensor_type[dtype]
       elif dtype in numpy_to_tensor_type:
         dtype = numpy_to_tensor_type[dtype]
-      else:
-        raise RuntimeError(f"Type {type(element)} is not supported yet")
+      elif dtype == bytes:
+        dtype = tf.string
+      # else:
+      #   raise RuntimeError(f"Type {type(element)} is not supported yet")
     return dtype
 
   def _get_all_transforms_per_column(self):
@@ -145,7 +153,7 @@ class TFTProcessHandler(ProcessHandler):
   def preprocess_fn(self, raw_data):
     """
         What should be the type of data in `raw_data`?
-        """
+    """
     # since we will be changing the raw_data, copy it and then change it.
     output = raw_data.copy()
     column_ops = self._get_all_transforms_per_column()
@@ -156,13 +164,14 @@ class TFTProcessHandler(ProcessHandler):
       output[column] = o
     return output
 
-  def process_data(self, raw_data):
+  def process_data(self, raw_data: List[Dict[str, Any]]):
     """
     This method gets called in the _MLTransformDoFn.
     Every handler should implement this method.
     """
     if not raw_data:
       raise RuntimeError("Provide atlease one data point in the raw data.")
+
     raw_data_metadata = self._get_raw_data_metadata(raw_data[0])
     data = (raw_data, raw_data_metadata)
     with tft_beam.Context(tempfile.mkdtemp()):
@@ -176,15 +185,18 @@ class TFTProcessHandler(ProcessHandler):
     return transformed_dataset
 
 
-import numpy as np
+def preprocess_fn(inputs):
+  return {
+      'y': tft.apply_buckets(
+          inputs['y'], bucket_boundaries=tf.constant([[2.0, 5.0, 10.0]]))
+  }
+
+
 # Remove the main.
 if __name__ == '__main__':
   raw_data = [
       {
-          'x': 1,
-          'y': tf.constant([[4.0, float('nan'), 1.0],
-                            [float('-inf'), 7.5, 10.0]]),
-          's': 'hello'
+          'x': 1, 'y': np.array([[1, 3, 10], [10, 1, 10]]), 's': 'hello'
       },
       # {'x': 2, 'y': 2, 's': 'world'},
       # {'x': 3, 'y': 3, 's': 'hello'}
@@ -202,3 +214,16 @@ if __name__ == '__main__':
       output_record_batches=output_record_batches)
   transformed_dataset = tft_handler.process_data(raw_data)
   print(transformed_dataset[0])
+
+  # raw_data_feature_spec = {'y' : tf.io.FixedLenFeature((2,3), tf.int64)}
+  # raw_data_metadata = tft.DatasetMetadata(
+  #       schema_utils.schema_from_feature_spec(raw_data_feature_spec))
+  # data = (raw_data, raw_data_metadata)
+  # with tft_beam.Context(tempfile.mkdtemp()):
+  #   transformed_dataset, transform_fn = (
+  #         data
+  #         | tft_beam.AnalyzeAndTransformDataset(
+  #       preprocess_fn,
+  #     ))
+
+  # print(transformed_dataset[0])
