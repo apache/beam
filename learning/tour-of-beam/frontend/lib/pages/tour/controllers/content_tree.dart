@@ -24,9 +24,10 @@ import '../../../cache/content_tree.dart';
 import '../../../models/group.dart';
 import '../../../models/node.dart';
 import '../../../models/unit.dart';
+import '../../../state.dart';
 
 class ContentTreeController extends ChangeNotifier {
-  Sdk _sdk;
+  final Sdk initialSdk;
   List<String> _treeIds;
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
@@ -35,23 +36,16 @@ class ContentTreeController extends ChangeNotifier {
   Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
-    required Sdk initialSdk,
+    required this.initialSdk,
     List<String> initialTreeIds = const [],
-  })  : _sdk = initialSdk,
-        _treeIds = initialTreeIds {
+  }) : _treeIds = initialTreeIds {
     _expandedIds.addAll(initialTreeIds);
 
     _contentTreeCache.addListener(_onContentTreeCacheChange);
     _onContentTreeCacheChange();
   }
 
-  Sdk get sdk => _sdk;
-
-  set sdk(Sdk newValue) {
-    _sdk = newValue;
-    notifyListeners();
-  }
-
+  Sdk get sdk => GetIt.instance.get<AppNotifier>().sdk ?? initialSdk;
   List<String> get treeIds => _treeIds;
   NodeModel? get currentNode => _currentNode;
 
@@ -104,7 +98,7 @@ class ContentTreeController extends ChangeNotifier {
   }
 
   void _onContentTreeCacheChange() {
-    final contentTree = _contentTreeCache.getContentTree(_sdk);
+    final contentTree = _contentTreeCache.getContentTree(sdk);
     if (contentTree == null) {
       return;
     }

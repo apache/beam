@@ -119,7 +119,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onAppNotifierChanged() async {
-    contentTreeController.sdk = currentSdk;
     playgroundController.setSdk(currentSdk);
     _listenToCurrentSnippetEditingController();
 
@@ -134,9 +133,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (currentNode is! UnitModel) {
       await _emptyPlayground();
     } else {
-      final sdk = contentTreeController.sdk;
       final content = await _unitContentCache.getUnitContent(
-        sdk.id,
+        currentSdk.id,
         currentNode.id,
       );
       _setUnitContent(content);
@@ -324,7 +322,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     await playgroundController.examplesLoader.loadIfNew(
       ExamplesLoadingDescriptor(
         descriptors: [
-          EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
+          EmptyExampleLoadingDescriptor(sdk: currentSdk),
         ],
       ),
     );
