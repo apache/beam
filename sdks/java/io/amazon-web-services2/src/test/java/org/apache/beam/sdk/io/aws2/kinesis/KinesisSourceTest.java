@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.createIOOptions;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShards;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
@@ -24,9 +25,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -41,6 +44,30 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class KinesisSourceTest {
+  @Test
+  public void testCreateReaderOfCorrectType() throws Exception {
+    KinesisIO.Read readSpec =
+        KinesisIO.read()
+            .withStreamName("stream-xxx")
+            .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON);
+
+    KinesisIO.Read readSpecEFO =
+        KinesisIO.read()
+            .withStreamName("stream-xxx")
+            .withConsumerArn("consumer-aaa")
+            .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON);
+
+    KinesisReaderCheckpoint initCheckpoint = new KinesisReaderCheckpoint(ImmutableList.of());
+
+    UnboundedSource.UnboundedReader<KinesisRecord> reader =
+        new KinesisSource(readSpec, initCheckpoint).createReader(opts(), null);
+    assertThat(reader).isInstanceOf(KinesisReader.class);
+
+    UnboundedSource.UnboundedReader<KinesisRecord> efoReader =
+        new KinesisSource(readSpecEFO, initCheckpoint).createReader(opts(), null);
+    assertThat(efoReader).isInstanceOf(EFOKinesisReader.class);
+  }
+
   @Mock private KinesisClient kinesisClient;
   private KinesisSource source;
 
@@ -101,5 +128,57 @@ public class KinesisSourceTest {
     } finally {
       reset(kinesisClient);
     }
+  }
+
+  @Test
+  public void testConsumerArnNotPassed() {
+    KinesisIO.Read readSpec = KinesisIO.read().withStreamName("stream-xxx");
+    KinesisIOOptions options = createIOOptions();
+    assertThat(KinesisSource.resolveConsumerArn(readSpec, options)).isNull();
+  }
+
+  @Test
+  public void testConsumerArnPassedInIO() {
+    KinesisIO.Read readSpec =
+        KinesisIO.read().withStreamName("stream-xxx").withConsumerArn("arn::consumer-yyy");
+
+    KinesisIOOptions options = createIOOptions();
+    assertThat(KinesisSource.resolveConsumerArn(readSpec, options)).isEqualTo("arn::consumer-yyy");
+  }
+
+  @Test
+  public void testConsumerArnPassedInPipelineOptions() {
+    KinesisIO.Read readSpec = KinesisIO.read().withStreamName("stream-xxx");
+
+    KinesisIOOptions options =
+        createIOOptions("--kinesisIOConsumerArns={\"stream-xxx\": \"arn-01\"}");
+    assertThat(KinesisSource.resolveConsumerArn(readSpec, options)).isEqualTo("arn-01");
+  }
+
+  @Test
+  public void testConsumerArnForSpecificStreamNotPassedInPipelineOptions() {
+    KinesisIO.Read readSpec = KinesisIO.read().withStreamName("stream-xxx");
+    KinesisIOOptions options =
+        createIOOptions("--kinesisIOConsumerArns={\"stream-01\": \"arn-01\"}");
+    assertThat(KinesisSource.resolveConsumerArn(readSpec, options)).isNull();
+  }
+
+  @Test
+  public void testConsumerArnInPipelineOptionsOverwritesIOSetting() {
+    KinesisIO.Read readSpec =
+        KinesisIO.read().withStreamName("stream-xxx").withConsumerArn("arn-ignored");
+
+    KinesisIOOptions options =
+        createIOOptions("--kinesisIOConsumerArns={\"stream-xxx\": \"arn-01\"}");
+    assertThat(KinesisSource.resolveConsumerArn(readSpec, options)).isEqualTo("arn-01");
+  }
+
+  @Test
+  public void testConsumerArnInPipelineOptionsDiscardsIOSetting() {
+    KinesisIO.Read readSpec =
+        KinesisIO.read().withStreamName("stream-xxx").withConsumerArn("arn-ignored");
+
+    KinesisIOOptions options = createIOOptions("--kinesisIOConsumerArns={\"stream-xxx\": null}");
+    assertThat(KinesisSource.resolveConsumerArn(readSpec, options)).isNull();
   }
 }

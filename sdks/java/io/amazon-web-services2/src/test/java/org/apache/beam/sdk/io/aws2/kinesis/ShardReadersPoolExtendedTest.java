@@ -21,12 +21,15 @@ import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.createAggregatedRe
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.createRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShardIterators;
+import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.recordWithMinutesAgo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.List;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -193,6 +196,46 @@ public class ShardReadersPoolExtendedTest {
     // consume the rest of records - filter drops the one with subSeqNum = 2L
     consumerAndCheckAggregatedRecords(3L, 6L);
     assertThat(shardReadersPool.nextRecord().isPresent()).isFalse();
+  }
+
+  @Test
+  public void poolWatermarkReturnsTsOfOldestAcknowledgedRecord() throws TransientKinesisException {
+    KinesisReaderCheckpoint initialCheckpoint =
+        new KinesisReaderCheckpoint(
+            ImmutableList.of(
+                new ShardCheckpoint(STREAM, "0", ShardIteratorType.TRIM_HORIZON, null, null),
+                new ShardCheckpoint(STREAM, "1", ShardIteratorType.TRIM_HORIZON, null, null)));
+
+    shardReadersPool = initPool(initialCheckpoint);
+
+    List<Record> shard0records0 = recordWithMinutesAgo(5);
+    List<Record> shard1records0 = recordWithMinutesAgo(4);
+    List<Record> shard0records1 = recordWithMinutesAgo(3);
+    List<List<Record>> records =
+        ImmutableList.of(
+            ImmutableList.<Record>builder().addAll(shard0records0).addAll(shard0records1).build(),
+            shard1records0);
+
+    Instant ts1 = TimeUtil.toJoda(shard1records0.get(0).approximateArrivalTimestamp());
+
+    mockShardIterators(kinesis, records);
+    mockRecords(kinesis, records, 1);
+    shardReadersPool.start();
+
+    // nothing was ack-ed yet
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    // one of the shards had nothing ack-ed yet
+    assertThat(shardReadersPool.nextRecord().isPresent()).isTrue();
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    // at this point mock might still deliver records from only one shard
+    assertThat(shardReadersPool.nextRecord().isPresent()).isTrue();
+    assertThat(shardReadersPool.getWatermark())
+        .isGreaterThanOrEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    assertThat(shardReadersPool.nextRecord().isPresent()).isTrue();
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(ts1);
   }
 
   @After

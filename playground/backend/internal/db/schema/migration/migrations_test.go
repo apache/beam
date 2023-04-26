@@ -22,12 +22,11 @@ import (
 
 	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db/datastore"
-	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/environment"
 )
 
-var datastoreDb *datastore.Datastore
+var datastoreDb *datastore.EmulatedDatastore
 var ctx context.Context
 var appEnvs *environment.ApplicationEnvs
 var props *environment.Properties
@@ -40,16 +39,13 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
-	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
-			panic(err)
-		}
-	}
 	ctx = context.Background()
 	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "migration")
 	var err error
-	datastoreDb, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+	datastoreDb, err = datastore.NewEmulated(ctx)
+	if err != nil {
+		panic(err)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -61,8 +57,9 @@ func setup() {
 }
 
 func teardown() {
-	if err := datastoreDb.Client.Close(); err != nil {
-		panic(err)
+	clientCloseErr := datastoreDb.Close()
+	if clientCloseErr != nil {
+		panic(clientCloseErr)
 	}
 }
 

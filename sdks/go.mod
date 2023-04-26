@@ -23,18 +23,18 @@ module github.com/apache/beam/sdks/v2
 go 1.19
 
 require (
-	cloud.google.com/go/bigquery v1.50.0
+	cloud.google.com/go/bigquery v1.51.0
 	cloud.google.com/go/bigtable v1.18.1
 	cloud.google.com/go/datastore v1.11.0
 	cloud.google.com/go/profiler v0.3.1
 	cloud.google.com/go/pubsub v1.30.0
-	cloud.google.com/go/spanner v1.44.0
-	cloud.google.com/go/storage v1.30.0
+	cloud.google.com/go/spanner v1.45.0
+	cloud.google.com/go/storage v1.30.1
 	github.com/aws/aws-sdk-go-v2 v1.17.8
 	github.com/aws/aws-sdk-go-v2/config v1.18.21
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.20
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.62
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.31.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.32.0
 	github.com/aws/smithy-go v1.13.5
 	github.com/docker/go-connections v0.4.0
 	github.com/dustin/go-humanize v1.0.1
@@ -48,7 +48,7 @@ require (
 	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
 	github.com/spf13/cobra v1.7.0
 	github.com/testcontainers/testcontainers-go v0.19.0
-	github.com/tetratelabs/wazero v1.0.1
+	github.com/tetratelabs/wazero v1.0.2
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
 	go.mongodb.org/mongo-driver v1.11.4
@@ -57,8 +57,8 @@ require (
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.7.0
 	golang.org/x/text v0.9.0
-	google.golang.org/api v0.117.0
-	google.golang.org/genproto v0.0.0-20230403163135-c38d8f061ccd
+	google.golang.org/api v0.119.0
+	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/retry.v1 v1.0.3
@@ -66,9 +66,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-
-require github.com/fsouza/fake-gcs-server v1.44.1
+require (
+	github.com/fsouza/fake-gcs-server v1.44.2
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+)
 
 require (
 	cloud.google.com/go v0.110.0 // indirect
@@ -104,7 +105,7 @@ require (
 	github.com/containerd/containerd v1.6.19 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/docker/docker v23.0.1+incompatible // indirect
+	github.com/docker/docker v23.0.3+incompatible // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.10.3 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.9.1 // indirect
@@ -116,7 +117,7 @@ require (
 	github.com/google/flatbuffers v2.0.8+incompatible // indirect
 	github.com/google/pprof v0.0.0-20221103000818-d260c55eee4c // indirect
 	github.com/google/renameio/v2 v2.0.0 // indirect
-	github.com/google/s2a-go v0.1.0 // indirect
+	github.com/google/s2a-go v0.1.2 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.8.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect

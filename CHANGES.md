@@ -59,14 +59,19 @@
 ## I/Os
 
 * Added rename for GCS and copy for local filesystem (Go) ([#25779](https://github.com/apache/beam/issues/26064)).
+* Added support for enhanced fan-out in KinesisIO.Read (Java) ([#19967](https://github.com/apache/beam/issues/19967)).
+  * This change is not compatible with Flink savepoints created by Beam 2.46.0 applications which had KinesisIO sources.
+* Added textio.ReadWithFilename transform (Go) ([#25812](https://github.com/apache/beam/issues/25812)).
+* Added fileio.MatchContinuously transform (Go) ([#26186](https://github.com/apache/beam/issues/26186)).
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Dead letter queue support added to RunInference in Python ([#24209](https://github.com/apache/beam/issues/24209)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* CloudDebuggerOptions is removed (deprecated in Beam v2.47.0) for Dataflow runner as the Google Cloud Debugger service is [shutting down](https://cloud.google.com/debugger/docs/deprecations). (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
 
 ## Deprecations
 
@@ -75,12 +80,13 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed Java bootloader failing with Too Long Args due to long classpaths, with a pathing jar. (Java) ([#25582](https://github.com/apache/beam/issues/25582)).
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.47.0] - Unreleased
+# [2.47.0] - Cut, Unreleased
 
 ## Highlights
 

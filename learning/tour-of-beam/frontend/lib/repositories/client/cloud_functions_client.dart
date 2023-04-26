@@ -21,6 +21,7 @@ import 'dart:io';
 
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
+import 'package:playground_components/playground_components.dart';
 
 import '../../auth/notifier.dart';
 import '../../config.dart';
@@ -31,42 +32,76 @@ import '../models/get_sdks_response.dart';
 import '../models/get_user_progress_response.dart';
 import 'client.dart';
 
-// TODO(nausharipov): add repository and handle exceptions
+enum RequestMethod {
+  post,
+  get,
+}
+
 class CloudFunctionsTobClient extends TobClient {
+  Future<dynamic> _makeRequest({
+    required String path,
+    required RequestMethod method,
+    Map<String, dynamic> queryParameters = const {},
+    dynamic body,
+  }) async {
+    final token = await GetIt.instance.get<AuthNotifier>().getToken();
+    final uri = Uri.parse('$cloudFunctionsBaseUrl$path')
+        .replace(queryParameters: queryParameters);
+    final headers = token != null
+        ? {HttpHeaders.authorizationHeader: 'Bearer $token'}
+        : null;
+
+    http.Response response;
+    switch (method) {
+      case RequestMethod.post:
+        response = await http.post(
+          uri,
+          headers: headers,
+          body: body,
+        );
+        break;
+      case RequestMethod.get:
+        response = await http.get(
+          uri,
+          headers: headers,
+        );
+        break;
+    }
+    return jsonDecode(utf8.decode(response.bodyBytes));
+  }
+
   @override
   Future<GetSdksResponse> getSdks() async {
-    final json = await http.get(
-      Uri.parse(
-        '${cloudFunctionsBaseUrl}getSdkList',
-      ),
+    final map = await _makeRequest(
+      method: RequestMethod.get,
+      path: 'getSdkList',
     );
-
-    final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
     return GetSdksResponse.fromJson(map);
   }
 
   @override
   Future<ContentTreeModel> getContentTree(String sdkId) async {
-    final json = await http.get(
-      Uri.parse(
-        '${cloudFunctionsBaseUrl}getContentTree?sdk=$sdkId',
-      ),
+    final map = await _makeRequest(
+      method: RequestMethod.get,
+      path: 'getContentTree',
+      queryParameters: {
+        'sdk': sdkId,
+      },
     );
-
-    final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
     final response = GetContentTreeResponse.fromJson(map);
     return ContentTreeModel.fromResponse(response);
   }
 
   @override
   Future<UnitContentModel> getUnitContent(String sdkId, String unitId) async {
-    final json = await http.get(
-      Uri.parse(
-        '${cloudFunctionsBaseUrl}getUnitContent?sdk=$sdkId&id=$unitId',
-      ),
+    final map = await _makeRequest(
+      method: RequestMethod.get,
+      path: 'getUnitContent',
+      queryParameters: {
+        'sdk': sdkId,
+        'id': unitId,
+      },
     );
-
-    final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
     return UnitContentModel.fromJson(map);
   }
 
@@ -76,29 +111,54 @@ class CloudFunctionsTobClient extends TobClient {
     if (token == null) {
       return null;
     }
-    final json = await http.get(
-      Uri.parse(
-        '${cloudFunctionsBaseUrl}getUserProgress?sdk=$sdkId',
-      ),
-      headers: {
-        HttpHeaders.authorizationHeader: 'Bearer $token',
+    final map = await _makeRequest(
+      method: RequestMethod.get,
+      path: 'getUserProgress',
+      queryParameters: {
+        'sdk': sdkId,
       },
     );
-    final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
     final response = GetUserProgressResponse.fromJson(map);
     return response;
   }
 
   @override
   Future<void> postUnitComplete(String sdkId, String id) async {
-    final token = await GetIt.instance.get<AuthNotifier>().getToken();
-    await http.post(
-      Uri.parse(
-        '${cloudFunctionsBaseUrl}postUnitComplete?sdk=$sdkId&id=$id',
-      ),
-      headers: {
-        HttpHeaders.authorizationHeader: 'Bearer $token',
+    await _makeRequest(
+      method: RequestMethod.post,
+      path: 'postUnitComplete',
+      queryParameters: {
+        'sdk': sdkId,
+        'id': id,
       },
+    );
+  }
+
+  @override
+  Future<void> postDeleteUserProgress() async {
+    await _makeRequest(
+      method: RequestMethod.post,
+      path: 'postDeleteProgress',
+    );
+  }
+
+  @override
+  Future<void> postUserCode({
+    required List<SnippetFile> snippetFiles,
+    required String sdkId,
+    required String unitId,
+  }) async {
+    await _makeRequest(
+      path: 'postUserCode',
+      method: RequestMethod.post,
+      queryParameters: {
+        'sdk': sdkId,
+        'id': unitId,
+      },
+      body: jsonEncode({
+        'files': snippetFiles.map((file) => file.toJson()).toList(),
+        'pipelineOptions': '',
+      }),
     );
   }
 }

@@ -58,9 +58,12 @@ extension CommonFindersExtension on CommonFinders {
     return byType(OutputWidget);
   }
 
+  Finder resetButton() {
+    return find.byType(ResetButton);
+  }
+
   Finder resultTab() {
-    // TODO(alexeyinkin): Use keys when output tabs get to use enum, https://github.com/apache/beam/issues/22663
-    return widgetWithText(OutputTab, 'Result');
+    return find.byType(ResultTab);
   }
 
   Finder runOrCancelButton() {

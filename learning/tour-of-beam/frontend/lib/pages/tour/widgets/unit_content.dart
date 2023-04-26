@@ -16,16 +16,19 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+
 import 'package:playground_components/playground_components.dart';
 
 import '../../../constants/sizes.dart';
+import '../../../enums/save_code_status.dart';
+import '../../../enums/snippet_type.dart';
 import '../../../models/unit_content.dart';
 import '../state.dart';
 import 'complete_unit_button.dart';
 import 'hints.dart';
 import 'markdown/tob_markdown.dart';
-import 'solution_button.dart';
 
 class UnitContentWidget extends StatelessWidget {
   final TourNotifier tourNotifier;
@@ -82,23 +85,25 @@ class _Content extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = unitContent;
-
     if (content == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (content.isChallenge) {
-      return _ChallengeContent(
-        tourNotifier: tourNotifier,
-        unitContent: content,
-      );
-    }
+
     return ListView(
       children: [
-        _Title(title: content.title),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Title(title: content.title),
+            _Buttons(
+              unitContent: content,
+              tourNotifier: tourNotifier,
+            ),
+          ],
+        ),
         TobMarkdown(
-          padding: const EdgeInsets.all(
-            BeamSizes.size12,
-          ),
+          padding: const EdgeInsets.all(BeamSizes.size12),
           data: content.description,
         ),
       ],
@@ -130,74 +135,135 @@ class _Title extends StatelessWidget {
   }
 }
 
-class _ChallengeContent extends StatelessWidget {
+class _Buttons extends StatelessWidget {
   final TourNotifier tourNotifier;
   final UnitContentModel unitContent;
 
-  const _ChallengeContent({
-    required this.unitContent,
-    required this.tourNotifier,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Title(title: unitContent.title),
-            _ChallengeButtons(
-              unitContent: unitContent,
-              tourNotifier: tourNotifier,
-            ),
-          ],
-        ),
-        TobMarkdown(
-          padding: const EdgeInsets.all(BeamSizes.size12),
-          data: unitContent.description,
-        ),
-      ],
-    );
-  }
-}
-
-class _ChallengeButtons extends StatelessWidget {
-  final TourNotifier tourNotifier;
-  final UnitContentModel unitContent;
-
-  const _ChallengeButtons({
+  const _Buttons({
     required this.tourNotifier,
     required this.unitContent,
   });
-
-  static const _buttonPadding = EdgeInsets.only(
-    top: BeamSizes.size10,
-    right: BeamSizes.size10,
-  );
 
   @override
   Widget build(BuildContext context) {
     final hints = unitContent.hints;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (unitContent.isChallenge)
-          Padding(
-            padding: _buttonPadding,
-            child: HintsWidget(
+    return Padding(
+      padding: const EdgeInsets.all(BeamSizes.size10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (hints.isNotEmpty)
+            HintsWidget(
               hints: hints,
             ),
+          _SnippetTypeSwitcher(
+            tourNotifier: tourNotifier,
+            unitContent: unitContent,
           ),
-        if (tourNotifier.doesCurrentUnitHaveSolution)
-          Padding(
-            padding: _buttonPadding,
-            child: SolutionButton(tourNotifier: tourNotifier),
-          ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SnippetTypeSwitcher extends StatelessWidget {
+  final TourNotifier tourNotifier;
+  final UnitContentModel unitContent;
+
+  const _SnippetTypeSwitcher({
+    required this.tourNotifier,
+    required this.unitContent,
+  });
+
+  Future<void> _setSnippetByType(SnippetType snippetType) async {
+    await tourNotifier.showSnippetByType(snippetType);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: tourNotifier,
+      builder: (context, child) {
+        final groupValue = tourNotifier.snippetType;
+
+        return Row(
+          children: [
+            if (tourNotifier.hasSolution)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: 'pages.tour.solution'.tr(),
+                value: SnippetType.solution,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.solution);
+                },
+              ),
+            if (tourNotifier.hasSolution || tourNotifier.isCodeSaved)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: unitContent.isChallenge
+                    ? 'pages.tour.assignment'.tr()
+                    : 'pages.tour.example'.tr(),
+                value: SnippetType.original,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.original);
+                },
+              ),
+            if (tourNotifier.isCodeSaved)
+              _SnippetTypeButton(
+                groupValue: groupValue,
+                title: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
+                    ? 'pages.tour.saving'.tr()
+                    : 'pages.tour.myCode'.tr(),
+                value: SnippetType.saved,
+                onChanged: () async {
+                  await _setSnippetByType(SnippetType.saved);
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SnippetTypeButton extends StatelessWidget {
+  final SnippetType groupValue;
+  final VoidCallback onChanged;
+  final String title;
+  final SnippetType value;
+
+  const _SnippetTypeButton({
+    required this.groupValue,
+    required this.onChanged,
+    required this.value,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = value == groupValue;
+    final Color? bgColor;
+    final Color? fgColor;
+    final VoidCallback? onPressed;
+    if (isSelected) {
+      bgColor = Theme.of(context).splashColor;
+      fgColor = Theme.of(context).colorScheme.onSurface;
+      onPressed = null;
+    } else {
+      bgColor = null;
+      fgColor = null;
+      onPressed = onChanged;
+    }
+
+    return TextButton(
+      style: ButtonStyle(
+        backgroundColor: MaterialStateProperty.all(bgColor),
+        foregroundColor: MaterialStateProperty.all(fgColor),
+      ),
+      onPressed: onPressed,
+      child: Text(title),
     );
   }
 }

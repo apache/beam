@@ -12,15 +12,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-apiVersion: autoscaling/v1
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: playground-go
 spec:
-  maxReplicas: 10
-  minReplicas: 1
+  maxReplicas: {{ .Values.autoscaling.runners.maxReplicas }}
+  minReplicas: {{ .Values.autoscaling.runners.minReplicas }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: playground-go
-  targetCPUUtilizationPercentage: 90
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.autoscaling.utilization.cpuUtilization }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.autoscaling.utilization.memoryUtilization }}

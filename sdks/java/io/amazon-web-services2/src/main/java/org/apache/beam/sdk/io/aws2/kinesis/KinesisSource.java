@@ -18,16 +18,19 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.buildClient;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
@@ -37,8 +40,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.Shard;
+import software.amazon.kinesis.common.KinesisClientUtil;
 
 class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoint> {
   private static final long serialVersionUID = 1L;
@@ -104,7 +110,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
         throw new IOException(e);
       }
     }
-    return new KinesisReader(spec, createSimplifiedKinesisClient(options), initCheckpoint, this);
+    return initReader(spec, options, initCheckpoint, this);
   }
 
   @Override
@@ -115,6 +121,44 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   @Override
   public Coder<KinesisRecord> getOutputCoder() {
     return KinesisRecordCoder.of();
+  }
+
+  /**
+   * Provides final consumer ARN config.
+   *
+   * <p>{@link PipelineOptions} instance will overwrite anything given by {@link Read}.
+   */
+  static @Nullable String resolveConsumerArn(Read spec, PipelineOptions options) {
+    String streamName = Preconditions.checkArgumentNotNull(spec.getStreamName());
+    KinesisIOOptions sourceOptions = options.as(KinesisIOOptions.class);
+    Map<String, String> streamToArnMapping = sourceOptions.getKinesisIOConsumerArns();
+
+    String consumerArn;
+    if (streamToArnMapping.containsKey(streamName)) {
+      consumerArn = streamToArnMapping.get(streamName); // can resolve to null too
+    } else {
+      consumerArn = spec.getConsumerArn();
+    }
+
+    return consumerArn;
+  }
+
+  UnboundedReader<KinesisRecord> initReader(
+      Read spec,
+      PipelineOptions options,
+      KinesisReaderCheckpoint checkpointMark,
+      KinesisSource source) {
+    String consumerArn = resolveConsumerArn(spec, options);
+
+    if (consumerArn == null) {
+      LOG.info("Creating new reader using {}", checkpointMark);
+      return new KinesisReader(
+          spec, createSimplifiedKinesisClient(options), checkpointMark, source);
+    } else {
+      LOG.info("Creating new EFO reader using {}", checkpointMark);
+      return new EFOKinesisReader(
+          spec, consumerArn, createAsyncClient(spec, options), checkpointMark, source);
+    }
   }
 
   KinesisClient createKinesisClient(Read spec, PipelineOptions options) {
@@ -142,6 +186,16 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
     }
     return new SimplifiedKinesisClient(
         kinesisSupplier, cloudWatchSupplier, spec.getRequestRecordsLimit());
+  }
+
+  static KinesisAsyncClient createAsyncClient(Read spec, PipelineOptions options) {
+    AwsOptions awsOptions = options.as(AwsOptions.class);
+    ClientBuilderFactory builderFactory = ClientBuilderFactory.getFactory(awsOptions);
+    KinesisAsyncClientBuilder adjustedBuilder =
+        KinesisClientUtil.adjustKinesisClientBuilder(KinesisAsyncClient.builder());
+    return builderFactory
+        .create(adjustedBuilder, checkArgumentNotNull(spec.getClientConfiguration()), awsOptions)
+        .build();
   }
 
   /**

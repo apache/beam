@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'code_builder.dart';
 
@@ -41,6 +42,11 @@ class TobMarkdown extends StatelessWidget {
       data: data.tabsToSpaces(_spaceCount),
       builders: {
         'code': MarkdownCodeBuilder(),
+      },
+      onTapLink: (text, url, title) async {
+        if (url != null) {
+          await launchUrl(Uri.parse(url));
+        }
       },
       padding: padding,
       selectable: true,

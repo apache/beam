@@ -18,21 +18,10 @@
 
 // TODO(alexeyinkin): Generate this file on deployment.
 
+const environment = 'stg_';
+
 const _cloudFunctionsProjectRegion = 'us-west1';
 const _cloudFunctionsProjectId = 'apache-beam-testing';
 const cloudFunctionsBaseUrl = 'https://'
-    '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId.cloudfunctions.net/stg_';
-
-// Copied from Playground's config.g.dart
-
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-    'https://router.play-dev.beam.apache.org';
-const String kApiJavaClientURL =
-    'https://java.play-dev.beam.apache.org';
-const String kApiGoClientURL =
-    'https://go.play-dev.beam.apache.org';
-const String kApiPythonClientURL =
-    'https://python.play-dev.beam.apache.org';
-const String kApiScioClientURL =
-    'https://scio.play-dev.beam.apache.org';
+    '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
+    '.cloudfunctions.net/$environment';

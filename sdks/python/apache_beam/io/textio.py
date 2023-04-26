@@ -61,8 +61,9 @@ class _TextSource(filebasedsource.FileBasedSource):
   Parses a text file as newline-delimited elements. Supports newline delimiters
   '\n' and '\r\n.
 
-  This implementation only supports reading text encoded using UTF-8 or
-  ASCII.
+  This implementation reads encoded text and uses the input coder's encoding to
+  decode from bytes to str. This does not support ``UTF-16`` or ``UTF-32``
+  encodings.
   """
 
   DEFAULT_READ_BUFFER_SIZE = 8192
@@ -571,8 +572,12 @@ class ReadAllFromText(PTransform):
   similar to ``ReadFromTextWithFilename`` but this ``PTransform`` can be placed
   anywhere in the pipeline.
 
-  This implementation only supports reading text encoded using UTF-8 or ASCII.
-  This does not support other encodings such as UTF-16 or UTF-32.
+  If reading from a text file that that requires a different encoding, you may
+  provide a custom :class:`~apache_beam.coders.coders.Coder` that encodes and
+  decodes with the appropriate codec. For example, see the implementation of
+  :class:`~apache_beam.coders.coders.StrUtf8Coder`.
+
+  This does not support ``UTF-16`` or ``UTF-32`` encodings.
 
   This implementation is only tested with batch pipeline. In streaming,
   reading may happen with delay due to the limitation in ReShuffle involved.
@@ -719,11 +724,14 @@ class ReadFromText(PTransform):
 
   Parses a text file as newline-delimited elements, by default assuming
   ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``
-  or specified delimiter .
+  or specified delimiter.
 
-  This implementation only supports reading text encoded using ``UTF-8`` or
-  ``ASCII``.
-  This does not support other encodings such as ``UTF-16`` or ``UTF-32``.
+  If reading from a text file that that requires a different encoding, you may
+  provide a custom :class:`~apache_beam.coders.coders.Coder` that encodes and
+  decodes with the appropriate codec. For example, see the implementation of
+  :class:`~apache_beam.coders.coders.StrUtf8Coder`.
+
+  This does not support ``UTF-16`` or ``UTF-32`` encodings.
   """
 
   _source_class = _TextSource
@@ -932,7 +940,8 @@ try:
       **kwargs: Extra arguments passed to `pandas.read_csv` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
-    return ReadViaPandas('csv', path, splittable=splittable, **kwargs)
+    return 'ReadFromCsv' >> ReadViaPandas(
+        'csv', path, splittable=splittable, **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_csv, exclude=['path_or_buf', 'index', 'index_label'])
@@ -965,7 +974,7 @@ try:
       kwargs['num_shards'] = num_shards
     if file_naming is not None:
       kwargs['file_naming'] = file_naming
-    return WriteViaPandas('csv', path, index=False, **kwargs)
+    return 'WriteToCsv' >> WriteViaPandas('csv', path, index=False, **kwargs)
 
   @append_pandas_args(pandas.read_json, exclude=['path_or_buf'])
   def ReadFromJson(
@@ -984,7 +993,8 @@ try:
       **kwargs: Extra arguments passed to `pandas.read_json` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
-    return ReadViaPandas('json', path, orient=orient, lines=lines, **kwargs)
+    return 'ReadFromJson' >> ReadViaPandas(
+        'json', path, orient=orient, lines=lines, **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_json, exclude=['path_or_buf', 'index'])
@@ -1028,7 +1038,8 @@ try:
       kwargs['file_naming'] = file_naming
     if lines is None:
       lines = orient == 'records'
-    return WriteViaPandas('json', path, orient=orient, lines=lines, **kwargs)
+    return 'WriteToJson' >> WriteViaPandas(
+        'json', path, orient=orient, lines=lines, **kwargs)
 
 except ImportError:
 

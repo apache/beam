@@ -34,24 +34,25 @@ class ContentTreeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 250,
-      padding: const EdgeInsets.symmetric(horizontal: BeamSizes.size12),
       child: ContentTreeBuilder(
-        sdkId: controller.sdkId,
+        sdk: controller.sdk,
         builder: (context, contentTree, child) {
           if (contentTree == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
           return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: BeamSizes.size12,
+            ),
             child: Column(
               children: [
                 const ContentTreeTitleWidget(),
-                ...contentTree.modules
-                    .map(
-                      (module) => ModuleWidget(
-                        key: ValueKey(module.id),
+                ...contentTree.modules.map(
+                  (module) => ModuleWidget(
+                    key: ValueKey(module.id),
                         module: module,
                         contentTreeController: controller,
                       ),

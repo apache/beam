@@ -67,7 +67,7 @@ class _ExampleSelectorState extends State<ExampleSelector> {
             } else {
               unawaited(_loadCatalogIfNot(widget.playgroundController));
               _overlayEntry = _createExamplesDropdown();
-              Overlay.of(context)?.insert(_overlayEntry!);
+              Overlay.of(context).insert(_overlayEntry!);
               widget.playgroundController.exampleCache.setSelectorOpened(true);
             }
           },

@@ -81,8 +81,8 @@ Future<void> _addTwoOptions(WidgetTester wt) async {
     'test',
   );
 
-  await wt.tap(find.byKey(PipelineOptionsDropdownBody.addOptionButtonKey));
-  await wt.pumpAndSettle();
+  await wt
+      .tapAndSettle(find.byKey(PipelineOptionsDropdownBody.addOptionButtonKey));
 
   await wt.enterText(
     find

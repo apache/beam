@@ -94,6 +94,16 @@ class MockExamplesLoader extends _i1.Mock implements _i5.ExamplesLoader {
         returnValueForMissingStub: null,
       );
   @override
+  _i7.Future<void> loadIfNew(_i8.ExamplesLoadingDescriptor? descriptor) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #loadIfNew,
+          [descriptor],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+  @override
   _i7.Future<void> load(_i8.ExamplesLoadingDescriptor? descriptor) =>
       (super.noSuchMethod(
         Invocation.method(

@@ -91,3 +91,14 @@ void expectVisibleText(String? visibleText, WidgetTester wt) {
   expect(visibleText, isNotNull);
   expect(controller.text, visibleText);
 }
+
+void expectLastAnalyticsEvent(
+  AnalyticsEvent event, {
+  String? reason,
+}) {
+  expect(
+    PlaygroundComponents.analyticsService.lastEvent,
+    event,
+    reason: reason,
+  );
+}

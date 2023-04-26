@@ -128,6 +128,8 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
       widgetWidth: widget.width,
     );
 
+    final child = widget.createDropdown(_close);
+
     return OverlayEntry(
       builder: (context) {
         return Stack(
@@ -157,7 +159,7 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
                         BeamBorderRadius.medium,
                       ),
                     ),
-                    child: widget.createDropdown(_close),
+                    child: child,
                   ),
                 ),
               ),

@@ -46,7 +46,7 @@ class UnitWidget extends StatelessWidget {
         final isSelected = contentTreeController.currentNode?.id == unit.id;
 
         return ClickableWidget(
-          onTap: () => contentTreeController.openNode(unit),
+          onTap: () => contentTreeController.onNodePressed(unit),
           child: Container(
             key: containerKey,
             decoration: BoxDecoration(

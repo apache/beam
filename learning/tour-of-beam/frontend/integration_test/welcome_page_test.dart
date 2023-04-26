@@ -103,7 +103,7 @@ Future<void> _checkSwitchingSdkWorksCorrectly(WidgetTester wt) async {
 void _checkModulesDisplayed() {
   final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
   final appNotifier = GetIt.instance.get<AppNotifier>();
-  final sdkId = appNotifier.sdkId;
+  final sdkId = appNotifier.sdk;
 
   if (sdkId == null) {
     throw Exception('sdkId is null');

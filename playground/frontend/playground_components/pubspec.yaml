@@ -27,6 +27,7 @@ environment:
 dependencies:
   aligned_dialog: ^0.0.6
   app_state: ^0.9.3
+  clock: ^1.1.1
   collection: ^1.16.0
   connectivity_plus: ^2.3.9
   easy_localization: ^3.0.1
@@ -35,7 +36,7 @@ dependencies:
   enum_map: ^0.2.1
   equatable: ^2.0.5
   flutter: { sdk: flutter }
-  flutter_code_editor: ^0.2.12
+  flutter_code_editor: ^0.2.14
   flutter_markdown: ^0.6.12
   flutter_svg: ^2.0.1
   fluttertoast: ^8.1.1
@@ -43,6 +44,8 @@ dependencies:
   google_fonts: ^4.0.3
   grpc: ^3.0.2
   highlight: ^0.7.0
+  hive: ^2.2.3
+  hive_test: ^1.0.1
   http: ^0.13.5
   json_annotation: ^4.7.0
   keyed_collection_widgets: ^0.4.3

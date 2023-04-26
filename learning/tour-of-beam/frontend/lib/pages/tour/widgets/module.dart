@@ -40,7 +40,7 @@ class ModuleWidget extends StatelessWidget {
       children: [
         ModuleTitleWidget(
           module: module,
-          onTap: () => contentTreeController.openNode(module),
+          onTap: () => contentTreeController.onNodePressed(module),
         ),
         ...module.nodes
             .map(
