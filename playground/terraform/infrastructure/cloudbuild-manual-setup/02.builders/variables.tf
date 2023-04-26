@@ -26,14 +26,8 @@ variable "pg_infra_trigger_name" {
 
 variable "pg_gke_trigger_name" {
   description = "The name of the trigger that will deploy Playground to GKE"
-  default     = "Deploy-Playground-environment"
+  default     = "Deploy-Update-Playground-environment"
 }
-
-variable "pg_helm_upd_trigger_name" {
-  description = "The name of the trigger that run Helm update"
-  default     = "Update-Playground-environment"
-}
-
 variable "pg_ci_trigger_name" {
   description = "The name of the trigger to run CI checks"
   default = "Validate-examples-CI"
@@ -48,13 +42,17 @@ variable "playground_deploy_sa" {
   description = "The ID of the cloud build service account responsible for deploying the Playground"
 }
 
-variable "playground_helm_upd_sa" {
+variable "playground_update_sa" {
   description = "The ID of the cloud build service account responsible for updating the Helm"
 }
 
-variable "playground_cicd_sa" {
-  description = "The ID of the cloud build service account responsible for running CI/CD checks and scripts"
+variable "playground_ci_sa" {
+  description = "The ID of the cloud build service account responsible for running CI checks and scripts"
 }
+variable "playground_cd_sa" {
+  description = "The ID of the cloud build service account responsible for running CD checks and scripts"
+}
+
 
 variable "playground_environment_name" {
   description = "An environment name which will have it is own configuration of Playground"
@@ -79,7 +77,23 @@ variable "playground_gke_name" {
 variable "state_bucket" {
   description = "The Google Cloud Platform GCS bucket name for Playground Terraform state file"
 }
+variable "cloudbuild_bucket_private" {
+  description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild Private logs"
+  default = "playground-cloudbuild-private"
+}
 
+variable "cloudbuild_bucket_public" {
+  description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild Private logs"
+  default = "playground-cloudbuild-public"
+}
+variable "cloudbuild_bucket_private_location" {
+  description = "The GCS location for Private bucket"
+  default = "US-CENTRAL1"
+}
+variable "cloudbuild_bucket_public_location" {
+  description = "The GCS location for Public bucket"
+  default = "US-CENTRAL1"
+}
 variable "image_tag" {
   description = "The docker images tag for Playground images"
 }
@@ -167,6 +181,7 @@ variable "private_logs_bucket" {
 #What i understand this is mandatoy but not actually used. Should we document it 
 variable "trigger_source_repo" {
   description = "Source repo used for github trigger, not used but reqired due to cloudbuild limitation"
+  default = "https://github.com/beamplayground/deploy-workaround"
 }
 
 variable "terraform_source_repo" {
@@ -177,4 +192,8 @@ variable "terraform_source_repo" {
 variable "terraform_source_branch" {
   description = "Branch used to fetch terraform code"
   default = "master"
+}
+variable "cloudbuild_machine_type" {
+  description = "Machine type used for cloudbuild runtime"
+  default = "E2_HIGHCPU_32"
 }

@@ -19,10 +19,14 @@ data "google_service_account" "playground_infra_deploy_sa" {
   account_id = var.playground_deploy_sa
 }
 
-data "google_service_account" "playground_helm_upd_sa" {
-  account_id = var.playground_deploy_sa
+data "google_service_account" "playground_update_sa" {
+  account_id = var.playground_update_sa
 }
 
-data "google_service_account" "playground_cicd_sa" {
-  account_id = var.playground_cicd_sa
+data "google_service_account" "playground_ci_sa" {
+  account_id = var.playground_ci_sa
+}
+
+data "google_service_account" "playground_cd_sa" {
+  account_id = var.playground_cd_sa
 }

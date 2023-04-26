@@ -64,4 +64,57 @@ locals {
     "TF_VAR_repository_id=$_REPOSITORY_NAME",
     "TF_VAR_service_account_id=$_SERVICEACCOUNT_ID",
     "TF_VAR_gke_machine_type=$_GKE_MACHINE_TYPE"] 
+
+
+    cloudbuild_cd_environment = [ 
+    "PROJECT_ID=$PROJECT_ID",
+    "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
+    "DNS_NAME=$_DNS_NAME",
+    "PR_URL=$(body.pull_request._links.html.href)",
+    "TARGET_PR_REPO_BRANCH=$(body.pull_request.base.label)",
+    "PR_TYPE=$(body.action)",
+    "MERGE_STATUS=$(body.pull_request.merged)",
+    "MERGE_COMMIT=$(body.pull_request.merge_commit_sha)",
+    "ORIGIN=$_ORIGIN",
+    "SUBDIRS=$_SUBDIRS",
+    "SDKS=$_SDKS",
+    "BEAM_CONCURRENCY=$_BEAM_CONCURRENCY",
+    "PR_COMMIT=$_PR_COMMIT",
+    "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
+    "FORCE_CD=false",
+    ]
+
+    cloudbuild_cd_environment_manual = [ 
+    "PROJECT_ID=$PROJECT_ID",
+    "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
+    "DNS_NAME=$_DNS_NAME",
+    "PR_URL=URL",
+    "TARGET_PR_REPO_BRANCH=apache:master",
+    "PR_TYPE=closed",
+    "MERGE_STATUS=true",
+    "MERGE_COMMIT=$_MERGE_COMMIT",
+    "ORIGIN=$_ORIGIN",
+    "SUBDIRS=$_SUBDIRS",
+    "SDKS=$_SDKS",
+    "BEAM_CONCURRENCY=$_BEAM_CONCURRENCY",
+    "PR_COMMIT=$_PR_COMMIT",
+    "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
+    "FORCE_CD=true",
+    "PRIVATE_BUCKET=${google_storage_bucket.playground_cloudbuild_private.url}"
+    ]
+
+    cloudbuild_ci_environment = [ 
+    "PR_BRANCH=$(body.pull_request.head.ref)",
+    "PR_URL=$(body.pull_request._links.html.href)",
+    "PR_TYPE=$(body.action)",
+    "PR_COMMIT=$(body.pull_request.head.sha)",
+    "PR_NUMBER=$(body.number)",
+    "CI_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_ci_examples.sh",
+    "PRIVATE_BUCKET=${google_storage_bucket.playground_cloudbuild_private.url}",
+    "PUBLIC_BUCKET=${google_storage_bucket.playground_cloudbuild_public.url}",
+    "PUBLIC_LOG=CI_PR$$(body.number)_$$(body.pull_request.head.sha)_$${BUILD_ID}.txt",
+    "PAT_SECRET=github_pat_playground_deployment",
+    "FORK_REPO=$(body.pull_request.head.repo.full_name)",
+    "BASE_REF=$(body.pull_request.base.ref)"
+    ]
     }

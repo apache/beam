@@ -20,14 +20,19 @@ resource "google_service_account" "pg_cloudbuild_deploy_sa" {
   description  = "The service account to be used by cloud build to deploy Playground"
 }
 
-resource "google_service_account" "pg_cloudbuild_helm_updater_sa" {
-  account_id   = var.pg_cloudbuild_helm_updater_sa_name == "" ? "playground-pl-helm" : var.pg_cloudbuild_helm_updater_sa_name
+resource "google_service_account" "pg_cloudbuild_update_sa" {
+  account_id   = var.pg_cloudbuild_update_sa_name == "" ? "playground-update" : var.pg_cloudbuild_update_sa_name
   description  = "The service account to be used by cloud build to update Playground"
 }
 
-resource "google_service_account" "pg_cloudbuild_cicd_runner_sa" {
-  account_id   = var.pg_cloudbuild_cicd_sa_name == "" ? "playground-pl-cicd" : var.pg_cloudbuild_cicd_sa_name
-  description  = "The service account to be used by cloud build to run CI/CD scripts and checks"
+resource "google_service_account" "pg_cloudbuild_ci_runner_sa" {
+  account_id   = var.pg_cloudbuild_ci_sa_name == "" ? "playground-ci" : var.pg_cloudbuild_ci_sa_name
+  description  = "The service account to be used by cloud build to run CI scripts and checks"
+}
+
+resource "google_service_account" "pg_cloudbuild_cd_runner_sa" {
+  account_id   = var.pg_cloudbuild_cd_sa_name == "" ? "playground-cd" : var.pg_cloudbuild_cd_sa_name
+  description  = "The service account to be used by cloud build to run CD scripts and checks"
 }
 
 // Provision IAM roles to the IaC service account required to build and provision resources
@@ -69,19 +74,30 @@ resource "google_project_iam_member" "playground_helm_updater_roles" {
     "roles/logging.logWriter"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.pg_cloudbuild_helm_updater_sa.email}"
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_update_sa.email}"
   project = var.project_id
 }
 
-resource "google_project_iam_member" "playground_cicd_sa_roles" {
+resource "google_project_iam_member" "playground_ci_sa_roles" {
   for_each = toset([
-    "roles/artifactregistry.reader",
     "roles/storage.admin",
-    "roles/logging.logWriter",
     "roles/secretmanager.secretAccessor"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.pg_cloudbuild_cicd_runner_sa.email}"
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_ci_runner_sa.email}"
+  project = var.project_id
+}
+
+resource "google_project_iam_member" "playground_cd_sa_roles" {
+  for_each = toset([
+    "roles/storage.admin",
+    "roles/secretmanager.secretAccessor",
+    "roles/datastore.indexAdmin",
+    "roles/appengine.appAdmin"
+
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_cd_runner_sa.email}"
   project = var.project_id
 }
 

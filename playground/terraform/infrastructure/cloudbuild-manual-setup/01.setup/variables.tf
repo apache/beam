@@ -24,12 +24,17 @@ variable "pg_cloudbuild_deployer_sa_name" {
   default = ""
 }
 
-variable "pg_cloudbuild_helm_updater_sa_name" {
+variable "pg_cloudbuild_update_sa_name" {
   description = "The ID of the cloud build service account responsible for updating the Playground"
   default = ""
 }
 
-variable "pg_cloudbuild_cicd_sa_name" {
-  description = "The ID of the cloud build service account responsible for running Playground CI/CD checks and scripts"
+variable "pg_cloudbuild_ci_sa_name" {
+  description = "The ID of the cloud build service account responsible for running Playground CI checks and scripts"
+  default = ""
+}
+
+variable "pg_cloudbuild_cd_sa_name" {
+  description = "The ID of the cloud build service account responsible for running Playground CD checks and scripts"
   default = ""
 }

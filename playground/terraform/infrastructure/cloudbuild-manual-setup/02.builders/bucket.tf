@@ -15,3 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
+resource "google_storage_bucket" "playground_cloudbuild_private" {
+  name          = var.cloudbuild_bucket_private
+  location      = var.cloudbuild_bucket_private_location
+  public_access_prevention = "enforced"
+
+}
+
+resource "google_storage_bucket" "playground_cloudbuild_public" {
+  name          = var.cloudbuild_bucket_public
+  location      = var.cloudbuild_bucket_public_location
+}
