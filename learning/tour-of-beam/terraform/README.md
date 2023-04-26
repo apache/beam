@@ -148,7 +148,7 @@ const String kApiScioClientURL =
 
 9. Create file .firebaserc under beam/learning/tour-of-beam/frontend
 
-   9.1. Navigate to beam/learning/tour-of-beam/frontend. 
+   9.1. Navigate to beam/learning/tour-of-beam/frontend.
 
    9.2. Create .firebaserc file with the following content.
 
@@ -235,7 +235,7 @@ static const FirebaseOptions web = FirebaseOptions(
 );
 ```
 
-13. Run flutter and firebase commands to deploy Tour of Beam frontend 
+13. Run flutter and firebase commands to deploy Tour of Beam frontend
 
 Navigate to beam/playground/frontend/playground_components and run flutter commands
 
