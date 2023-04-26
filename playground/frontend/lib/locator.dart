@@ -27,6 +27,7 @@ import 'router/route_information_parser.dart';
 Future<void> initializeServiceLocator() async {
   await _initializeRepositories();
   _initializeRouter();
+  _initializeServices();
 }
 
 Future<void> _initializeRepositories() async {
@@ -65,4 +66,13 @@ void _initializeRouter() {
     PlaygroundRouteInformationParser(),
   );
   print('Initialized PageStackRouteInformationParser');
+}
+
+void _initializeServices() {
+  GetIt.instance.registerSingleton(WindowCloseNotifier());
+
+  final analyticsService = BeamGoogleAnalytics4Service(
+    measurementId: getGoogleAnalyticsMeasurementId(),
+  );
+  GetIt.instance.registerSingleton<BeamAnalyticsService>(analyticsService);
 }

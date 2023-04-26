@@ -104,7 +104,7 @@ class ExternalProvider(Provider):
     type = spec['type']
     if spec.get('version', None) == 'BEAM_VERSION':
       spec['version'] = beam_version
-    if type == 'jar':
+    if type == 'javaJar':
       return ExternalJavaProvider(urns, lambda: spec['jar'])
     elif type == 'mavenJar':
       return ExternalJavaProvider(
@@ -130,7 +130,7 @@ class ExternalProvider(Provider):
                   for (key, value) in spec.items() if key in
                   ['gradle_target', 'version', 'appendix', 'artifact_id']
               }))
-    elif type == 'pypi':
+    elif type == 'pythonPackage':
       return ExternalPythonProvider(urns, spec['packages'])
     elif type == 'remote':
       return RemoteProvider(spec['address'])
@@ -327,8 +327,8 @@ def create_builtin_provider():
               python_callable.PythonCallableWithSource(fn)),
           'PyFlatMapTuple': lambda fn: beam.FlatMapTuple(
               python_callable.PythonCallableWithSource(fn)),
-          'PyFilter': lambda fn: beam.Filter(
-              python_callable.PythonCallableWithSource(fn)),
+          'PyFilter': lambda keep: beam.Filter(
+              python_callable.PythonCallableWithSource(keep)),
           'PyTransform': fully_qualified_named_transform,
           'PyToRow': lambda fields: beam.Select(
               **{

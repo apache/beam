@@ -25,6 +25,7 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import '../cache/example_cache.dart';
+import '../models/event_snippet_context.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
@@ -41,6 +42,7 @@ import '../services/symbols/symbols_notifier.dart';
 import '../util/logical_keyboard_key.dart';
 import 'code_runner.dart';
 import 'example_loaders/examples_loader.dart';
+import 'feedback_controller.dart';
 import 'result_filter_controller.dart';
 import 'snippet_editing_controller.dart';
 
@@ -119,6 +121,11 @@ class PlaygroundController with ChangeNotifier {
 
     return controller;
   }
+
+  /// [EventSnippetContext] of the current [SnippetEditingController].
+  EventSnippetContext get eventSnippetContext =>
+      snippetEditingController?.eventSnippetContext ??
+      EventSnippetContext.empty;
 
   String? get source =>
       snippetEditingController?.activeFileController?.codeController.fullText;
@@ -201,19 +208,17 @@ class PlaygroundController with ChangeNotifier {
   }) {
     if (setCurrentSdk) {
       _sdk = example.sdk;
-      final controller = _getOrCreateSnippetEditingController(
-        example.sdk,
-        loadDefaultIfNot: false,
-      );
-
-      controller.setExample(example, descriptor: descriptor);
       _ensureSymbolsInitialized();
-    } else {
-      final controller = _getOrCreateSnippetEditingController(
-        example.sdk,
-        loadDefaultIfNot: false,
-      );
-      controller.setExample(example, descriptor: descriptor);
+    }
+
+    final controller = _getOrCreateSnippetEditingController(
+      example.sdk,
+      loadDefaultIfNot: false,
+    );
+    controller.setExample(example, descriptor: descriptor);
+    if (example.sdk == _sdk) {
+      GetIt.instance.get<FeedbackController>().eventSnippetContext =
+          controller.eventSnippetContext;
     }
 
     codeRunner.reset();
@@ -225,10 +230,12 @@ class PlaygroundController with ChangeNotifier {
     bool notify = true,
   }) {
     _sdk = sdk;
-    _getOrCreateSnippetEditingController(
+    final controller = _getOrCreateSnippetEditingController(
       sdk,
       loadDefaultIfNot: true,
     );
+    GetIt.instance.get<FeedbackController>().eventSnippetContext =
+        controller.eventSnippetContext;
     _ensureSymbolsInitialized();
 
     if (notify) {
@@ -311,17 +318,6 @@ class PlaygroundController with ChangeNotifier {
     );
   }
 
-  late BeamShortcut runShortcut = BeamShortcut(
-    keys: [
-      LogicalKeyboardKeyExtension.metaOrControl,
-      LogicalKeyboardKey.enter,
-    ],
-    actionIntent: const RunIntent(),
-    createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => codeRunner.runCode(),
-    ),
-  );
-
   late BeamShortcut resetShortcut = BeamShortcut(
     keys: [
       LogicalKeyboardKeyExtension.metaOrControl,
@@ -347,7 +343,7 @@ class PlaygroundController with ChangeNotifier {
   );
 
   List<BeamShortcut> get shortcuts => [
-        runShortcut,
+        // TODO(nausharipov): refactor like BeamRunShortcut.
         resetShortcut,
         showSuggestionsShortcut,
       ];

@@ -126,6 +126,8 @@ public class SchemaTestUtils {
             (Map<Object, Object>) expected,
             (Map<Object, Object>) actual,
             fieldType.getMapValueType());
+      } else if (fieldType.getTypeName() == TypeName.ROW) {
+        return rowsEquivalent((Row) expected, (Row) actual);
       } else {
         return Objects.equals(expected, actual);
       }

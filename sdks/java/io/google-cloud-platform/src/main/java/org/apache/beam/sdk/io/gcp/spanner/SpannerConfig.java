@@ -82,6 +82,8 @@ public abstract class SpannerConfig implements Serializable {
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
+  public abstract @Nullable ValueProvider<Boolean> getDataBoostEnabled();
+
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
@@ -152,6 +154,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
 
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
+
+    abstract Builder setDataBoostEnabled(ValueProvider<Boolean> dataBoostEnabled);
 
     abstract Builder setPartitionQueryTimeout(ValueProvider<Duration> partitionQueryTimeout);
 
@@ -272,6 +276,11 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the Cloud Spanner database role. */
   public SpannerConfig withDatabaseRole(ValueProvider<String> databaseRole) {
     return toBuilder().setDatabaseRole(databaseRole).build();
+  }
+
+  /** Specifies if the pipeline has to be run on the independent compute resource. */
+  public SpannerConfig withDataBoostEnabled(ValueProvider<Boolean> dataBoostEnabled) {
+    return toBuilder().setDataBoostEnabled(dataBoostEnabled).build();
   }
 
   /** Specifies the PartitionQuery timeout. */

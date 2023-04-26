@@ -19,6 +19,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/widgets.dart';
 
+import '../controllers/code_runner.dart';
 import '../controllers/playground_controller.dart';
 import '../models/toast.dart';
 import '../models/toast_type.dart';
@@ -26,25 +27,24 @@ import '../playground_components.dart';
 import 'run_button.dart';
 
 class RunOrCancelButton extends StatelessWidget {
-  final VoidCallback? beforeCancel;
-  final VoidCallback? onComplete;
+  final ValueChanged<CodeRunner>? beforeCancel;
   final VoidCallback? beforeRun;
+  final ValueChanged<CodeRunner>? onComplete;
   final PlaygroundController playgroundController;
 
   const RunOrCancelButton({
     required this.playgroundController,
     this.beforeCancel,
-    this.onComplete,
     this.beforeRun,
+    this.onComplete,
   });
 
   @override
   Widget build(BuildContext context) {
     return RunButton(
       playgroundController: playgroundController,
-      isEnabled: !(playgroundController.selectedExample?.isMultiFile ?? false),
       cancelRun: () async {
-        beforeCancel?.call();
+        beforeCancel?.call(playgroundController.codeRunner);
         await playgroundController.codeRunner.cancelRun().catchError(
               (_) => PlaygroundComponents.toastNotifier.add(_getErrorToast()),
             );
@@ -52,7 +52,7 @@ class RunOrCancelButton extends StatelessWidget {
       runCode: () {
         beforeRun?.call();
         playgroundController.codeRunner.runCode(
-          onFinish: onComplete,
+          onFinish: () => onComplete?.call(playgroundController.codeRunner),
         );
       },
     );

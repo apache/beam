@@ -57,14 +57,6 @@ task copyDockerfileDependencies(type: Copy) {
       into 'build/'
    }
    copy {
-      from '../../../infrastructure/proxy/allow_list.py'
-      into 'build/'
-   }
-   copy {
-      from '../../../infrastructure/proxy/allow_list_proxy.py'
-      into 'build/'
-   }
-   copy {
       from '../../../playground'
       into 'build/playground'
    }

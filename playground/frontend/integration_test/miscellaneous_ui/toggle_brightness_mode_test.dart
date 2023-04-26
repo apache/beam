@@ -18,16 +18,27 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
-  final startBrightness = wt.getBrightness();
-  final invertedBrightness =
-      startBrightness == Brightness.light ? Brightness.dark : Brightness.light;
+  final oldBrightness = wt.getBrightness();
+  final newBrightness =
+      oldBrightness == Brightness.light ? Brightness.dark : Brightness.light;
 
   await wt.toggleTheme();
-  expect(wt.getBrightness(), invertedBrightness);
+  expect(wt.getBrightness(), newBrightness);
+  expectLastAnalyticsEvent(
+    ThemeSetAnalyticsEvent(
+      brightness: newBrightness,
+    ),
+  );
 
   await wt.toggleTheme();
-  expect(wt.getBrightness(), startBrightness);
+  expect(wt.getBrightness(), oldBrightness);
+  expectLastAnalyticsEvent(
+    ThemeSetAnalyticsEvent(
+      brightness: oldBrightness,
+    ),
+  );
 }

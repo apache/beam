@@ -19,18 +19,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
-import 'common/common_finders.dart';
+import 'common/examples.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('Testing editing code', (WidgetTester wt) async {
     await init(wt);
-    await _checkResetUnchangedCode(wt);
-    await _checkResetEditedCode(wt);
+    await _checkResetUnmodifiedCode(wt);
+    await _checkResetModifiedCode(wt);
     await _checkAutocomplete(wt);
     await _checkCodeHighlightedMultipleColors(wt);
     await _checkCodeBlockFolding(wt);
@@ -54,7 +55,7 @@ Future<void> _checkAutocomplete(WidgetTester wt) async {
   await wt.tapAndSettle(find.resetButton());
 }
 
-Future<void> _checkResetUnchangedCode(WidgetTester wt) async {
+Future<void> _checkResetUnmodifiedCode(WidgetTester wt) async {
   final playgroundController = wt.findPlaygroundController();
 
   final code = playgroundController.source;
@@ -64,9 +65,12 @@ Future<void> _checkResetUnchangedCode(WidgetTester wt) async {
   await wt.tapAndSettle(find.resetButton());
 
   expect(playgroundController.source, code);
+  expectLastAnalyticsEvent(
+    SnippetResetAnalyticsEvent(snippetContext: defaultEventSnippetContext),
+  );
 }
 
-Future<void> _checkResetEditedCode(WidgetTester wt) async {
+Future<void> _checkResetModifiedCode(WidgetTester wt) async {
   final playgroundController = wt.findPlaygroundController();
   final code = playgroundController.source;
 
@@ -74,10 +78,23 @@ Future<void> _checkResetEditedCode(WidgetTester wt) async {
   await wt.pumpAndSettle();
 
   expect(playgroundController.source, isNot(code));
+  expectLastAnalyticsEvent(
+    SnippetModifiedAnalyticsEvent(
+      additionalParams: {},
+      fileName: javaMinimalWordCount.mainFileName,
+      sdk: defaultEventSnippetContext.sdk!,
+      snippet: defaultEventSnippetContext.originalSnippet!,
+    ),
+  );
 
   await wt.tapAndSettle(find.resetButton());
 
   expect(playgroundController.source, code);
+  expectLastAnalyticsEvent(
+    SnippetResetAnalyticsEvent(
+      snippetContext: modifiedDefaultEventSnippetContext,
+    ),
+  );
 }
 
 Future<void> _checkCodeHighlightedMultipleColors(WidgetTester wt) async {

@@ -37,14 +37,16 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns predicted label.
   """
-  def process(self, element: PredictionResult) -> Iterable[str]:
-    predicted_class = numpy.argmax(element.inference, axis=-1)
+  def setup(self):
     labels_path = tf.keras.utils.get_file(
         'ImageNetLabels.txt',
         'https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt'  # pylint: disable=line-too-long
     )
-    imagenet_labels = numpy.array(open(labels_path).read().splitlines())
-    predicted_class_name = imagenet_labels[predicted_class]
+    self._imagenet_labels = numpy.array(open(labels_path).read().splitlines())
+
+  def process(self, element: PredictionResult) -> Iterable[str]:
+    predicted_class = numpy.argmax(element.inference, axis=-1)
+    predicted_class_name = self._imagenet_labels[predicted_class]
     yield predicted_class_name.title()
 
 

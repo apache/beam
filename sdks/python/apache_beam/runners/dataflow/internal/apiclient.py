@@ -83,7 +83,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.7', '3.8', '3.9', '3.10']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.7', '3.8', '3.9', '3.10', '3.11']
 
 
 class Step(object):
@@ -1207,19 +1207,23 @@ def get_container_image_from_options(pipeline_options):
   if worker_options.sdk_container_image:
     return worker_options.sdk_container_image
 
-  # TODO(tvalentyn): Use enumerated type instead of strings for job types.
-  if _is_runner_v2(pipeline_options):
-    fnapi_suffix = '-fnapi'
-  else:
-    fnapi_suffix = ''
+  is_runner_v2 = _is_runner_v2(pipeline_options)
 
-  version_suffix = '%s%s' % (sys.version_info[0:2])
-  image_name = '{repository}/python{version_suffix}{fnapi_suffix}'.format(
-      repository=names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
-      version_suffix=version_suffix,
-      fnapi_suffix=fnapi_suffix)
+  # Legacy and runner v2 exist in different repositories.
+  # Set to legacy format, override if runner v2
+  container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
+  image_name = '{repository}/python{major}{minor}'.format(
+      repository=container_repo,
+      major=sys.version_info[0],
+      minor=sys.version_info[1])
 
-  image_tag = _get_required_container_version(_is_runner_v2(pipeline_options))
+  if is_runner_v2:
+    image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
+        repository=container_repo,
+        major=sys.version_info[0],
+        minor=sys.version_info[1])
+
+  image_tag = _get_required_container_version(is_runner_v2)
   return image_name + ':' + image_tag
 
 

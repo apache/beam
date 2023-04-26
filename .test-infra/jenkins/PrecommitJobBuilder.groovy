@@ -59,6 +59,9 @@ class PrecommitJobBuilder {
    */
   boolean defaultPathTriggering = true
 
+  /** Number of builds to retain in history. */
+  int numBuildsToRetain = -1
+
   /**
    * Define a set of pre-commit jobs.
    *
@@ -129,7 +132,10 @@ class PrecommitJobBuilder {
       commonJobProperties.setTopLevelMainJobProperties(delegate,
           'master',
           timeoutMins,
-          allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
+          allowRemotePoll,
+          'beam',
+          true,
+          numBuildsToRetain) // needed for included regions PR triggering; see [JENKINS-23606]
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)

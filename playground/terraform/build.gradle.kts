@@ -43,7 +43,7 @@ plugins {
 }
 
 terraformPlugin {
-    terraformVersion.set("1.0.9")
+    terraformVersion.set("1.4.2")
 }
 
 tasks {
@@ -83,88 +83,6 @@ tasks {
             "-var=project_id=$project_id",
             "-var=environment=$environment",
             "-var=region=$region",
-            if (file("./environment/$environment/terraform.tfvars").exists()) {
-                "-var-file=./environment/$environment/terraform.tfvars"
-            } else {
-                "-no-color"
-            }
-        )
-    }
-
-    /* deploy all App */
-    register<TerraformTask>("terraformApplyApp") {
-        var project_id = "unknown"
-        var environment = "unknown"
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
-        }
-        var docker_tag = if (project.hasProperty("docker-tag")) {
-            project.property("docker-tag") as String
-        } else {
-            environment
-        }
-        args(
-            "apply",
-            "-auto-approve",
-            "-lock=false",
-            "-target=module.applications",
-            "-var=project_id=$project_id",
-            "-var=environment=$environment",
-            "-var=docker_image_tag=$docker_tag",
-            if (file("./environment/$environment/terraform.tfvars").exists()) {
-                "-var-file=./environment/$environment/terraform.tfvars"
-            } else {
-                "-no-color"
-            }
-        )
-    }
-
-    /* deploy  App - Only all services for  backend */
-    register<TerraformTask>("terraformApplyAppBack") {
-        var environment = "unknown"
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
-        }
-        args(
-            "apply",
-            "-auto-approve",
-            "-lock=false",
-            "-target=module.applications.module.backend",
-            "-var=environment=$environment",
-            if (file("./environment/$environment/terraform.tfvars").exists()) {
-                "-var-file=./environment/$environment/terraform.tfvars"
-            } else {
-                "-no-color"
-            }
-        )
-    }
-
-    /* deploy  App - Only services for frontend */
-    register<TerraformTask>("terraformApplyAppFront") {
-        var project_id = "unknown"
-        var environment = "unknown"
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
-        }
-        var docker_tag = if (project.hasProperty("docker-tag")) {
-            project.property("docker-tag") as String
-        } else {
-            environment
-        }
-        args(
-            "apply",
-            "-auto-approve",
-            "-lock=false",
-            "-target=module.applications.module.frontend",
-            "-var=project_id=$project_id",
-            "-var=environment=$environment",
-            "-var=docker_image_tag=$docker_tag",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
             } else {
@@ -292,21 +210,6 @@ tasks.register("indexcreate") {
     }
 }
 
-/* build, push, deploy Frontend app */
-tasks.register("deployFrontend") {
-    group = "deploy"
-    description = "deploy Frontend app"
-    val read = tasks.getByName("readState")
-    val push = tasks.getByName("pushFront")
-    val deploy = tasks.getByName("terraformApplyAppFront")
-    dependsOn(read)
-    Thread.sleep(10)
-    push.mustRunAfter(read)
-    deploy.mustRunAfter(push)
-    dependsOn(push)
-    dependsOn(deploy)
-}
-
 tasks.register<TerraformTask>("setPlaygroundStaticIpAddress") {
     group = "deploy"
 
@@ -410,6 +313,7 @@ tasks.register("takeConfig") {
         val proj = project.rootProject.extra["playground_gke_project"]
         val registry = project.rootProject.extra["docker-repository-root"]
         val ipaddrname = project.rootProject.extra["playground_static_ip_address_name"]
+        val datastore_name = if (project.hasProperty("datastore-namespace")) (project.property("datastore-namespace") as String) else ""
 
         file.appendText(
             """
@@ -419,6 +323,7 @@ project_id: ${proj}
 registry: ${registry}
 static_ip_name: ${ipaddrname}
 tag: $d_tag
+datastore_name: ${datastore_name}
 dns_name: ${dns_name}
     """
         )
@@ -428,14 +333,15 @@ dns_name: ${dns_name}
 tasks.register("helmRelease") {
     group = "deploy"
     val modulePath = project(":playground").projectDir.absolutePath
-    val hdir = File("$modulePath/infrastructure/helm-playground/")
-    doLast {
-        exec {
-            executable("helm")
-            args("install", "playground", "$hdir")
-        }
+    val helmdir = File("$modulePath/infrastructure/helm-playground/")
+    doLast{
+    exec {
+        executable("helm")
+    args("upgrade", "--install", "playground", "$helmdir")
+    }
     }
 }
+
 tasks.register("gkebackend") {
     group = "deploy"
     val initTask = tasks.getByName("terraformInit")
@@ -456,4 +362,3 @@ tasks.register("gkebackend") {
     indexcreateTask.mustRunAfter(pushFrontTask)
     helmTask.mustRunAfter(indexcreateTask)
 }
-
