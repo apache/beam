@@ -17,7 +17,7 @@
     under the License.
 -->
 # The Tour of Beam deployment on GCP
-This guide provides instructions on how to deploy the Tour of Beam environment on Google Cloud Platform (GCP) and Firebase environment. 
+This guide provides instructions on how to deploy the Tour of Beam environment on Google Cloud Platform (GCP) and Firebase environment.
 Before starting the deployment, ensure that you have the following prerequisites in place:
 
 ## Prerequisites:
@@ -33,7 +33,7 @@ Before starting the deployment, ensure that you have the following prerequisites
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
 
-3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state 
+3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
 
 4. An OS with the following software installed:
 
@@ -99,7 +99,7 @@ terraform plan -var gcloud_init_account=$(gcloud config get-value core/account) 
 ```
 
 ```
-terraform plan -var gcloud_init_account=$(gcloud config get-value core/account) \
+terraform apply -var gcloud_init_account=$(gcloud config get-value core/account) \
 -var environment="test" \
 -var region="us-east1" \
 -var project_id=$(gcloud config get-value project) \
@@ -167,7 +167,7 @@ Where:
 
 ```
 # To use nteractive mode (forwards to browser webpage from the terminal)
-firebase login 
+firebase login
 ```
 
 ```
@@ -215,12 +215,12 @@ Output example:
 // See https://firebase.google.com/docs/web/setup for more details.
 
 firebase.initializeApp({
-   "projectId": 
-   "appId": 
-   "storageBucket": 
-   "apiKey": 
-   "authDomain": 
-   "messagingSenderId": 
+   "projectId":
+   "appId":
+   "storageBucket":
+   "apiKey":
+   "authDomain":
+   "messagingSenderId":
 });
 ```
 
