@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.concurrent.Future;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.Preconditions;
@@ -44,8 +43,6 @@ import org.slf4j.LoggerFactory;
 class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
   protected transient @Nullable Callback callback;
-
-  private final Counter callbackCounter = Metrics.counter("sink", "callbacks");
 
   @Setup
   public void setup() {
@@ -155,7 +152,6 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
   private class SendCallback implements Callback {
     @Override
     public void onCompletion(RecordMetadata metadata, Exception exception) {
-      callbackCounter.inc();
       if (exception == null) {
         return;
       }

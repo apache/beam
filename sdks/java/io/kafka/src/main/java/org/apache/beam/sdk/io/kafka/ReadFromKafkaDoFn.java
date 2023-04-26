@@ -335,16 +335,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         Preconditions.checkStateNotNull(this.keyDeserializerInstance);
     final Deserializer<V> valueDeserializerInstance =
         Preconditions.checkStateNotNull(this.valueDeserializerInstance);
-    LOG.error(
-        "RFKDF PE: KSD="
-            + kafkaSourceDescriptor.getTopicPartition().topic()
-            + "-"
-            + kafkaSourceDescriptor.getTopicPartition().partition()
-            + " offset=["
-            + tracker.currentRestriction().getFrom()
-            + ","
-            + tracker.currentRestriction().getTo()
-            + "]");
 
     // Stop processing current TopicPartition when it's time to stop.
     if (checkStopReadingFn != null
