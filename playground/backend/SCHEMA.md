@@ -17,7 +17,22 @@
     under the License.
 -->
 
-# Database schema
+- [Database](#database)
+  - [Datastore namespaces](#datastore-namespaces)
+  - [Migrations](#migrations)
+  - [Datastore schema](#datastore-schema)
+    - [pg\_schema\_versions](#pg_schema_versions)
+    - [pg\_sdks](#pg_sdks)
+    - [pg\_examples](#pg_examples)
+    - [pg\_snippets](#pg_snippets)
+      - [DatasetNestedEntity](#datasetnestedentity)
+    - [pg\_datasets](#pg_datasets)
+    - [pg\_files](#pg_files)
+    - [pg\_pc\_objects](#pg_pc_objects)
+  - [Datastore indexes](#datastore-indexes)
+- [Redis](#redis)
+
+# Database
 
 Beam Playground uses Google Cloud Platform Datastore for storing examples and snippets. Redis is used for caching catalog reads from Datastore to avoid having to enumerate all of the exmaples on each catalog request.
 
@@ -144,3 +159,27 @@ All of these precompiled objects share the same schema
 
 ## Datastore indexes
 Indexes are defined in [`index.yaml`](../index.yaml) file. The file is used during deployment to create indexes in the Datastore.
+
+# Redis
+
+Playground uses Redis as a cache for examples catalog to avoid having to re-enumerate all exmaples upon each request, as a temporary storage for examples output (logs, graphs, etc.) and as a message bus to relay events like a user request for pipeline cancellation.
+
+Each pipeline run uses pipleine id as a Redis key, with the following subkeys ([source](internal/cache/cache.go)):
+| Key | Subkey | Description |
+|-----|--------|-------------|
+| Pipeline Id | `STATUS` | Pipeline status. Possible values can be found in [`api.proto`](../api/v1/api.proto) in `Status` enum. |
+| Pipeline Id | `RUN_OUTPUT` | Pipeline run output. |
+| Pipeline Id | `RUN_ERROR` | Pipeline run error message. |
+| Pipeline Id | `VALIDATION_OUTPUT` | Pipeline validation step output. |
+| Pipeline Id | `PREPARATION_OUTPUT` | Pipeline preparation step output. |
+| Pipeline Id | `COMPILE_OUTPUT` | Pipeline compilation step output. |
+| Pipeline Id | `CANCELED` | Used to signal that user has requested pipeline cancellation. Runner periodically polls the cache to check if this key has been set to `true` and cancels the pipeline if it has. |
+| Pipeline Id | `RUN_OUTPUT_INDEX` | Index of the start of the run step's output. Upon each request of the pipeline execution logs this value is set to the end of the returned log and used in subsequent requests to skip already sent log fragment. |
+| Pipeline Id | `LOGS` | Pipeline execution logs. |
+
+Additionally there are keys used globally by the Playground:
+| Key | Subkey | Description |
+|-----|--------|-------------|
+| `EXAMPLES_CATALOG` | None | Used to store cached version of examples catalog. |
+| `SDKS_CATALOG` | None | Used to store cached version of supported SDKS list with list of names of default examples. |
+| `DEFAULT_PRECOMPILED_OBJECTS` | Sdk | Used to store a default example metadata in cache. |
