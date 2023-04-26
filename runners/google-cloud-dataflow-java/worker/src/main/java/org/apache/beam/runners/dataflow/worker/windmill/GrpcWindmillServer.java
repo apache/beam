@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,6 +108,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table.Cell;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -138,6 +142,20 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private static final int GET_DATA_STREAM_CHUNK_SIZE = 2 << 20;
 
   private static final long HEARTBEAT_REQUEST_ID = Long.MAX_VALUE;
+
+  // Maps a LatencyAttribution state to the start event and end event.
+  private static final Table<Event, Event, State> EVENT_STATE_TABLE =
+      ImmutableTable.<Event, Event, State>builder()
+          .put(
+              Event.GET_WORK_CREATION_START,
+              Event.GET_WORK_CREATION_END,
+              State.GET_WORK_IN_WINDMILL_WORKER)
+          .put(
+              Event.GET_WORK_CREATION_END,
+              Event.GET_WORK_RECEIVED_BY_DISPATCHER,
+              State.GET_WORK_IN_TRANSIT_TO_DISPATCHER)
+          .build();
+
   private static final AtomicLong nextId = new AtomicLong(0);
 
   private final StreamingDataflowWorkerOptions options;
@@ -969,6 +987,76 @@ public class GrpcWindmillServer extends WindmillServerStub {
       getWorkThrottleTimer.start();
     }
 
+    private class GetWorkTimingInfosTracker {
+      private final Map<State, Duration> getWorkStreamLatencies;
+
+      public GetWorkTimingInfosTracker() {
+        this.getWorkStreamLatencies = new EnumMap<>(State.class);
+      }
+
+      public void addTimingInfo(Collection<GetWorkStreamTimingInfo> infos) {
+        // We want to record duration for each stage and also be reflective on total work item
+        // processing time. It can be tricky because timings of different
+        // StreamingGetWorkResponseChunks can be interleaved. Current strategy is to record the
+        // maximum duration in each stage across different chunks, this will allow us to identify
+        // the slow stage, but note the sum duration of each slowest stages may be larger than the
+        // duration from first chunk creation to last chunk reception by user worker.
+        Map<Event, Instant> getWorkStreamTimings = new HashMap<>();
+        for (GetWorkStreamTimingInfo info : infos) {
+          getWorkStreamTimings.putIfAbsent(
+              info.getEvent(), Instant.ofEpochMilli(info.getTimestampUsec() / 1000));
+        }
+
+        for (Cell<Event, Event, State> cell : EVENT_STATE_TABLE.cellSet()) {
+          Event start = cell.getRowKey();
+          Event end = cell.getColumnKey();
+          State state = cell.getValue();
+          if (getWorkStreamTimings.containsKey(start) && getWorkStreamTimings.containsKey(end)) {
+            getWorkStreamLatencies.compute(
+                state,
+                (state_key, duration) -> {
+                  Duration newDuration =
+                      new Duration(getWorkStreamTimings.get(start), getWorkStreamTimings.get(end));
+                  if (duration == null) {
+                    return newDuration;
+                  }
+                  return newDuration.isLongerThan(duration) ? newDuration : duration;
+                });
+          }
+        }
+        if (getWorkStreamTimings.containsKey(Event.GET_WORK_RECEIVED_BY_DISPATCHER)) {
+          getWorkStreamLatencies.compute(
+              State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
+              (state_key, duration) -> {
+                Duration newDuration =
+                    new Duration(
+                        getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER),
+                        Instant.now());
+                if (duration == null) {
+                  return newDuration;
+                }
+                return newDuration.isLongerThan(duration) ? newDuration : duration;
+              });
+        }
+      }
+
+      private List<LatencyAttribution> getLatencyAttributions() {
+        List<LatencyAttribution> latencyAttributions = new ArrayList<>();
+        for (Map.Entry<State, Duration> duration : getWorkStreamLatencies.entrySet()) {
+          latencyAttributions.add(
+              LatencyAttribution.newBuilder()
+                  .setState(duration.getKey())
+                  .setTotalDurationMillis(duration.getValue().getMillis())
+                  .build());
+        }
+        return latencyAttributions;
+      }
+
+      public void reset() {
+        this.getWorkStreamLatencies.clear();
+      }
+    }
+
     private class WorkItemBuffer {
 
       private String computation;
@@ -977,10 +1065,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       private ByteString data = ByteString.EMPTY;
       private long bufferedSize = 0;
 
-      private final Map<Windmill.GetWorkStreamTimingInfo.Event, Instant> getWorkStreamTimings =
-          new HashMap<>();
-
-      private Instant workItemReceiveTime = Instant.EPOCH;
+      private GetWorkTimingInfosTracker workTimingInfosTracker = new GetWorkTimingInfosTracker();
 
       private void setMetadata(Windmill.ComputationWorkItemMetadata metadata) {
         this.computation = metadata.getComputationId();
@@ -998,84 +1083,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
         this.data = data.concat(chunk.getSerializedWorkItem());
         this.bufferedSize += chunk.getSerializedWorkItem().size();
-        for (GetWorkStreamTimingInfo info : chunk.getPerWorkItemTimingInfosList()) {
-          getWorkStreamTimings.compute(
-              info.getEvent(),
-              (event, recordedTime) -> {
-                Instant newTimingForEvent = Instant.ofEpochMilli(info.getTimestampUsec() / 1000);
-                if (recordedTime == null) {
-                  return newTimingForEvent;
-                }
-                switch (event) {
-                  case GET_WORK_CREATION_START:
-                    return recordedTime.isBefore(newTimingForEvent)
-                        ? recordedTime
-                        : newTimingForEvent;
-                  case GET_WORK_CREATION_END:
-                  case GET_WORK_RECEIVED_BY_DISPATCHER:
-                  case GET_WORK_FORWARDED_BY_DISPATCHER:
-                    return recordedTime.isAfter(newTimingForEvent)
-                        ? recordedTime
-                        : newTimingForEvent;
-                  default:
-                    LOG.error("Unknown GetWorkStreamTimingInfo type: " + event.name());
-                }
-                return recordedTime;
-              });
-          if (Instant.now().isAfter(workItemReceiveTime)) {
-            workItemReceiveTime = Instant.now();
-          }
-        }
-      }
-
-      private List<LatencyAttribution> convertGetWorkStreamTimingsToLatencies() {
-        List<LatencyAttribution> latencyAttributions = new ArrayList<>();
-        if (getWorkStreamTimings.isEmpty()) {
-          return latencyAttributions;
-        }
-        // Measures time elapsed from first work item chunk creation start to last work item chunk
-        // creation end time.
-        if (getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_START)
-            && getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_END)) {
-          latencyAttributions.add(
-              LatencyAttribution.newBuilder()
-                  .setState(State.GET_WORK_IN_WINDMILL_WORKER)
-                  .setTotalDurationMillis(
-                      new Duration(
-                              getWorkStreamTimings.get(Event.GET_WORK_CREATION_START),
-                              getWorkStreamTimings.get(Event.GET_WORK_CREATION_END))
-                          .getMillis())
-                  .build());
-        }
-        // Measures time elapsed from last work item chunk creation end time to last work chunk
-        // received
-        // by windmill dispatcher.
-        if (getWorkStreamTimings.containsKey(Event.GET_WORK_CREATION_END)
-            && getWorkStreamTimings.containsKey(Event.GET_WORK_RECEIVED_BY_DISPATCHER)) {
-          latencyAttributions.add(
-              LatencyAttribution.newBuilder()
-                  .setState(State.GET_WORK_IN_TRANSIT_TO_DISPATCHER)
-                  .setTotalDurationMillis(
-                      new Duration(
-                              getWorkStreamTimings.get(Event.GET_WORK_CREATION_END),
-                              getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER))
-                          .getMillis())
-                  .build());
-        }
-        // Measures time elapsed from last work chunk received by the dispatcher to last work item
-        // chunk received by the user worker.
-        if (getWorkStreamTimings.containsKey(Event.GET_WORK_RECEIVED_BY_DISPATCHER)) {
-          latencyAttributions.add(
-              LatencyAttribution.newBuilder()
-                  .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
-                  .setTotalDurationMillis(
-                      new Duration(
-                              getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER),
-                              workItemReceiveTime)
-                          .getMillis())
-                  .build());
-        }
-        return latencyAttributions;
+        workTimingInfosTracker.addTimingInfo(chunk.getPerWorkItemTimingInfosList());
       }
 
       public long bufferedSize() {
@@ -1086,7 +1094,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         try {
           Windmill.WorkItem workItem = Windmill.WorkItem.parseFrom(data.newInput());
           List<LatencyAttribution> getWorkStreamLatencies =
-              convertGetWorkStreamTimingsToLatencies();
+              workTimingInfosTracker.getLatencyAttributions();
           receiver.receiveWork(
               computation,
               inputDataWatermark,
@@ -1096,8 +1104,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         } catch (IOException e) {
           LOG.error("Failed to parse work item from stream: ", e);
         }
-        getWorkStreamTimings.clear();
-        workItemReceiveTime = Instant.EPOCH;
+        workTimingInfosTracker.reset();
         data = ByteString.EMPTY;
         bufferedSize = 0;
       }
