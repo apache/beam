@@ -233,6 +233,16 @@ You will need to:
 1) Remove "locationId" line.
 2) Remove quotes (") from key of "key": "value" pair. 
    3) E.g. `projectId: "cloudbuild-384304"`
+4) In overall, redacted and ready to be inserted data should be as follows:
+
+```
+   projectId: "cloudbuild-384304",
+   appId: "1:1111111111:web:111111111111",
+   storageBucket: "cloudbuild-384304.appspot.com",
+   apiKey: "someApiKey",
+   authDomain: "cloudbuild-384304.firebaseapp.com",
+   messagingSenderId: "111111111111"
+```
 
 Paste (replace) the redacted data inside the parentheses in beam/learning/tour-of-beam/frontend/lib/firebase_options.dart file.
 
