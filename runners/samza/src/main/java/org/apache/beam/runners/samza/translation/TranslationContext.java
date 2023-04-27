@@ -162,7 +162,7 @@ public class TranslationContext {
     }
     // add a step to attach OutputMetricOp if registered for Op Stream
     final Config overrideConfig = new MapConfig(getPipelineOptions().getConfigOverride());
-    if (doAttachMetricOp(overrideConfig, enableTransformMetric)) {
+    if (shouldDoAttachMetricOp(overrideConfig, enableTransformMetric)) {
       // add another step if registered for Op Stream
       stream.flatMapAsync(
           OpAdapter.adapt(
@@ -196,7 +196,7 @@ public class TranslationContext {
 
     // add a step to attach InputMetricOp if registered for Op Stream
     final Config overrideConfig = new MapConfig(getPipelineOptions().getConfigOverride());
-    if (doAttachMetricOp(overrideConfig, enableTransformMetric)) {
+    if (shouldDoAttachMetricOp(overrideConfig, enableTransformMetric)) {
       // add another step if registered for Op Stream
       stream.flatMapAsync(
           OpAdapter.adapt(
@@ -324,7 +324,7 @@ public class TranslationContext {
     return dummyInput;
   }
 
-  boolean doAttachMetricOp(Config config, boolean enableTransformMetric) {
+  boolean shouldDoAttachMetricOp(Config config, boolean enableTransformMetric) {
     return enableTransformMetric && !config.getBoolean(DISABLE_TASK_METRICS, false);
   }
 

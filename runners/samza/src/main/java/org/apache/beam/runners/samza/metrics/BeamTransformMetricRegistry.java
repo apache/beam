@@ -84,40 +84,46 @@ public class BeamTransformMetricRegistry implements Serializable {
       String taskName) {
     ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>> avgArrivalTimeMapForTransform =
         avgArrivalTimeMap.get(transformName);
-    if (avgArrivalTimeMapForTransform != null && !inputs.isEmpty() && !outputs.isEmpty()) {
-      List<Long> inputPValuesArrivalTimes =
-          inputs.stream()
-              .map(avgArrivalTimeMapForTransform::get)
-              .map(map -> map == null ? null : map.remove(watermark))
-              .filter(time -> time != null)
-              .collect(Collectors.toList());
 
-      List<Long> outputPValuesArrivalTimes =
-          outputs.stream()
-              .map(avgArrivalTimeMapForTransform::get)
-              .map(map -> map == null ? null : map.remove(watermark))
-              .filter(time -> time != null)
-              .collect(Collectors.toList());
-
-      if (!inputPValuesArrivalTimes.isEmpty() && !outputPValuesArrivalTimes.isEmpty()) {
-        long startTime = Collections.min(inputPValuesArrivalTimes);
-        long endTime = Collections.max(outputPValuesArrivalTimes);
-        long latency = endTime - startTime;
-        transformMetrics.getTransformLatencyMetric(transformName).update(latency);
-        LOG.debug(
-            "Success Emit Metric Transform: {} for watermark: {} for task: {}",
-            transformName,
-            watermark,
-            taskName);
-      } else {
-        LOG.debug(
-            "Failure to Emit Metric for Transform: {} inputArrivalTime: {} or outputArrivalTime: {} not found for Watermark: {} Task: {}",
-            transformName,
-            inputPValuesArrivalTimes,
-            outputPValuesArrivalTimes,
-            watermark,
-            taskName);
-      }
+    if (avgArrivalTimeMapForTransform == null || inputs.isEmpty() || outputs.isEmpty()) {
+      return;
     }
+
+    // get the avg arrival times for all the input PValues
+    List<Long> inputPValuesAvgArrivalTimes =
+        inputs.stream()
+            .map(avgArrivalTimeMapForTransform::get)
+            .map(map -> map == null ? null : map.remove(watermark))
+            .filter(avgArrivalTime -> avgArrivalTime != null)
+            .collect(Collectors.toList());
+
+    // get the avg arrival times for all the output PValues
+    List<Long> outputPValuesAvgArrivalTimes =
+        outputs.stream()
+            .map(avgArrivalTimeMapForTransform::get)
+            .map(map -> map == null ? null : map.remove(watermark))
+            .filter(avgArrivalTime -> avgArrivalTime != null)
+            .collect(Collectors.toList());
+
+    if (inputPValuesAvgArrivalTimes.isEmpty() || outputPValuesAvgArrivalTimes.isEmpty()) {
+      LOG.debug(
+          "Failure to Emit Metric for Transform: {} inputArrivalTime: {} or outputArrivalTime: {} not found for Watermark: {} Task: {}",
+          transformName,
+          inputPValuesAvgArrivalTimes,
+          inputPValuesAvgArrivalTimes,
+          watermark,
+          taskName);
+      return;
+    }
+
+    long startTime = Collections.min(inputPValuesAvgArrivalTimes);
+    long endTime = Collections.max(inputPValuesAvgArrivalTimes);
+    long latency = endTime - startTime;
+    transformMetrics.getTransformLatencyMetric(transformName).update(latency);
+    LOG.debug(
+        "Success Emit Metric Transform: {} for watermark: {} for task: {}",
+        transformName,
+        watermark,
+        taskName);
   }
 }

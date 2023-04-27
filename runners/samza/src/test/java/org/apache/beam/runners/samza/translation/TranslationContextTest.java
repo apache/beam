@@ -119,7 +119,7 @@ public class TranslationContextTest {
     // Verify that the metric op is attached
     OpAdapter.adapt(any(), Mockito.eq(translationContext));
     PowerMockito.verifyNoMoreInteractions(OpAdapter.class);
-    assertTrue(translationContext.doAttachMetricOp(getConfig(), true));
+    assertTrue(translationContext.shouldDoAttachMetricOp(getConfig(), true));
     assertNotNull(translationContext.getMessageStream(output));
   }
 
@@ -137,7 +137,7 @@ public class TranslationContextTest {
     // Verify that the metric op is not attached
     PowerMockito.verifyStatic(OpAdapter.class, Mockito.never());
     OpAdapter.adapt(any(), any());
-    assertFalse(translationContext.doAttachMetricOp(getConfigWithMetricsDisabled(), true));
+    assertFalse(translationContext.shouldDoAttachMetricOp(getConfigWithMetricsDisabled(), true));
     assertNotNull(translationContext.getMessageStream(output));
   }
 
