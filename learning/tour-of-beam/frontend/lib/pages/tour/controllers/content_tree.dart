@@ -26,9 +26,8 @@ import '../../../models/node.dart';
 import '../../../models/unit.dart';
 
 class ContentTreeController extends ChangeNotifier {
-  String _sdkId;
+  Sdk _sdk;
   List<String> _treeIds;
-  // TODO(nausharipov): non-nullable currentNode?
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
   final _expandedIds = <String>{};
@@ -36,9 +35,9 @@ class ContentTreeController extends ChangeNotifier {
   Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
-    required String initialSdkId,
+    required Sdk initialSdk,
     List<String> initialTreeIds = const [],
-  })  : _sdkId = initialSdkId,
+  })  : _sdk = initialSdk,
         _treeIds = initialTreeIds {
     _expandedIds.addAll(initialTreeIds);
 
@@ -46,35 +45,42 @@ class ContentTreeController extends ChangeNotifier {
     _onContentTreeCacheChange();
   }
 
-  Sdk get sdk => Sdk.parseOrCreate(_sdkId);
-  String get sdkId => _sdkId;
-  set sdkId(String newValue) {
-    _sdkId = newValue;
+  Sdk get sdk => _sdk;
+
+  set sdk(Sdk newValue) {
+    _sdk = newValue;
     notifyListeners();
   }
 
   List<String> get treeIds => _treeIds;
   NodeModel? get currentNode => _currentNode;
 
-  void openNode(NodeModel node) {
-    if (!_expandedIds.contains(node.id)) {
-      _expandedIds.add(node.id);
-    }
-
-    if (node == _currentNode) {
-      return;
-    }
-
+  void onNodePressed(NodeModel node) {
     if (node is GroupModel) {
-      openNode(node.nodes.first);
+      _onGroupPressed(node);
     } else if (node is UnitModel) {
-      _currentNode = node;
+      if (node != _currentNode) {
+        _currentNode = node;
+      }
     }
 
     if (_currentNode != null) {
       _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
     }
     notifyListeners();
+  }
+
+  void _onGroupPressed(GroupModel group) {
+    if (_expandedIds.contains(group.id)) {
+      _expandedIds.remove(group.id);
+      notifyListeners();
+    } else {
+      _expandedIds.add(group.id);
+      final groupFirstUnit = group.nodes.first;
+      if (groupFirstUnit != _currentNode) {
+        onNodePressed(groupFirstUnit);
+      }
+    }
   }
 
   void expandGroup(GroupModel group) {
@@ -98,12 +104,12 @@ class ContentTreeController extends ChangeNotifier {
   }
 
   void _onContentTreeCacheChange() {
-    final contentTree = _contentTreeCache.getContentTree(_sdkId);
+    final contentTree = _contentTreeCache.getContentTree(_sdk);
     if (contentTree == null) {
       return;
     }
 
-    openNode(
+    onNodePressed(
       contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit(),
     );
 

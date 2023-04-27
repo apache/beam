@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 import '../../../constants/sizes.dart';
-import 'feedback/playground_feedback.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {
   const PlaygroundPageFooter({Key? key}) : super(key: key);
@@ -43,7 +44,10 @@ class PlaygroundPageFooter extends StatelessWidget {
             spacing: kXlSpacing,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const PlaygroundFeedback(),
+              FeedbackWidget(
+                controller: GetIt.instance.get<FeedbackController>(),
+                title: 'ui.feedbackTitle'.tr(),
+              ),
               ReportIssueButton(playgroundController: playgroundController),
               const PrivacyPolicyButton(),
               const CopyrightWidget(),

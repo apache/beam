@@ -25,8 +25,13 @@ resource "google_container_cluster" "playground-gke" {
   network                    = var.network
   subnetwork                 = var.subnetwork
   remove_default_node_pool = true
-}
 
+  private_cluster_config {
+   enable_private_nodes = true
+   enable_private_endpoint = false
+   master_ipv4_cidr_block = var.control_plane_cidr
+}
+}
 resource "google_container_node_pool" "playground-node-pool" {
   name       = "playground-node-pool"
   cluster    = google_container_cluster.playground-gke.name
