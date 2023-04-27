@@ -260,7 +260,7 @@ Navigate to beam/learning/tour-of-beam/frontend and run flutter commands
 flutter pub get
 flutter pub run build_runner build --delete-conflicting-outputs
 flutter build web --profile --dart-define=Dart2jsOptimization=O0
-firebase deploy --project ${project_id}
+firebase deploy --project=$(gcloud config get-value project)
 ```
 
 # Validate the deployment of the Tour of Beam:
