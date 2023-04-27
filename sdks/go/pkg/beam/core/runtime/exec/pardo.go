@@ -362,9 +362,17 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	return val, nil
 }
 
-func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, tmap TimerRecv) (*FullValue, error) {
+func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, bcr *byteCountReader) (*FullValue, error) {
+	timerAdapter, ok := n.Timer.(*userTimerAdapter)
+	if !ok {
+		return nil, fmt.Errorf("userTimerAdapter empty for ParDo: %v", n.GetPID())
+	}
+	tmap, err := decodeTimer(timerAdapter.dc, timerAdapter.wc, bcr)
+	if err != nil {
+		return nil, errors.WithContext(err, "error decoding received timer callback")
+	}
+
 	// Defer side input clean-up in case of panic
-	var err error
 	defer func() {
 		if postErr := n.postInvoke(); postErr != nil {
 			err = postErr

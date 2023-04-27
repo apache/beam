@@ -146,12 +146,6 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 
 	case coder.Timer:
 		tc := coder.SkipW(c).Components[0]
-		if coder.IsKV(tc) {
-			return &timerEncoder{
-				elm: MakeElementEncoder(tc.Components[0]),
-				win: MakeWindowEncoder(c.Window),
-			}
-		}
 		return &timerEncoder{
 			elm: MakeElementEncoder(tc),
 			win: MakeWindowEncoder(c.Window),
@@ -274,12 +268,6 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 
 	case coder.Timer:
 		tc := coder.SkipW(c).Components[0]
-		if coder.IsKV(tc) {
-			return &timerDecoder{
-				elm: MakeElementDecoder(tc.Components[0]),
-				win: MakeWindowDecoder(c.Window),
-			}
-		}
 		return &timerDecoder{
 			elm: MakeElementDecoder(tc),
 			win: MakeWindowDecoder(c.Window),

@@ -316,10 +316,12 @@ func (f *DoFn) OnTimerFn() (*funcx.Fn, bool) {
 }
 
 // PipelineTimers returns the list of PipelineTimer objects defined for the DoFn.
-func (f *DoFn) PipelineTimers() []timers.PipelineTimer {
+func (f *DoFn) PipelineTimers() ([]timers.PipelineTimer, []string) {
 	var t []timers.PipelineTimer
+	var fieldNames []string
+
 	if f.Recv == nil {
-		return t
+		return t, fieldNames
 	}
 
 	v := reflect.Indirect(reflect.ValueOf(f.Recv))
@@ -328,10 +330,11 @@ func (f *DoFn) PipelineTimers() []timers.PipelineTimer {
 		if f.CanInterface() {
 			if pt, ok := f.Interface().(timers.PipelineTimer); ok {
 				t = append(t, pt)
+				fieldNames = append(fieldNames, v.Type().Field(i).Name)
 			}
 		}
 	}
-	return t
+	return t, fieldNames
 }
 
 // SplittableDoFn represents a DoFn implementing SDF methods.
@@ -1391,10 +1394,12 @@ func validateOnTimerFn(fn *DoFn) error {
 		return errors.SetTopLevelMsgf(err, "OnTimer function not defined for DoFn: %v. Ensure that OnTimer function is implemented for the DoFn.", fn.Name())
 	}
 
+	pipelineTimers, _ := fn.PipelineTimers()
+
 	if _, ok := fn.methods[onTimerName].TimerProvider(); !ok {
-		err := errors.Errorf("OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v", fn.Name(), fn.PipelineTimers())
+		err := errors.Errorf("OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v", fn.Name(), pipelineTimers)
 		return errors.SetTopLevelMsgf(err, "OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v"+
-			", Ensure that you are using the TimerProvider to set and clear the timers.", fn.Name(), fn.PipelineTimers())
+			", Ensure that you are using the TimerProvider to set and clear the timers.", fn.Name(), pipelineTimers)
 	}
 
 	_, otNum, otExists := fn.methods[onTimerName].Emits()
@@ -1412,7 +1417,7 @@ func validateOnTimerFn(fn *DoFn) error {
 }
 
 func validateTimer(fn *DoFn, numIn mainInputs) error {
-	pt := fn.PipelineTimers()
+	pt, fieldNames := fn.PipelineTimers()
 
 	if _, ok := fn.methods[processElementName].TimerProvider(); ok {
 		if numIn == MainSingle {
@@ -1425,14 +1430,14 @@ func validateTimer(fn *DoFn, numIn mainInputs) error {
 			return errors.SetTopLevelMsgf(err, "ProcessElement uses a TimerProvider, but no timer fields are defined in the DoFn"+
 				", Ensure that your DoFn exports the Timer fields used to set and clear timers.")
 		}
-		timerKeys := make(map[string]timers.PipelineTimer)
-		for _, t := range pt {
+		timerKeys := make(map[string]string)
+		for i, t := range pt {
 			for timerFamilyID := range t.Timers() {
 				if timer, ok := timerKeys[timerFamilyID]; ok {
 					err := errors.Errorf("Duplicate timer key %v", timerFamilyID)
-					return errors.SetTopLevelMsgf(err, "Duplicate timer family ID %v used by %v and %v. Ensure that timer family IDs are unique per DoFn", timerFamilyID, timer, t)
+					return errors.SetTopLevelMsgf(err, "Duplicate timer family ID %v used by struct fields %v and %v. Ensure that timer family IDs are unique per DoFn", timerFamilyID, timer, fieldNames[i])
 				} else {
-					timerKeys[timerFamilyID] = t
+					timerKeys[timerFamilyID] = fieldNames[i]
 				}
 			}
 		}

@@ -66,9 +66,10 @@ func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Pro
 	switch timerKey {
 	case "outputState":
 		log.Infof(ctx, "Timer outputState fired on stateful for element: %v.", key)
-		s.OutputState.Clear(tp)
+		s.OutputState.Set(tp, ts.ToTime().Add(5*time.Second), timers.WithTag("1"))
 		switch timerTag {
 		case "1":
+			s.OutputState.Clear(tp)
 			log.Infof(ctx, "Timer with tag 1 fired on outputState stateful DoFn.")
 			emit(timerKey, timerTag)
 		}

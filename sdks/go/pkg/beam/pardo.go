@@ -117,19 +117,14 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 	}
 
 	wc := inWfn.Coder()
-	pipelineTimers := fn.PipelineTimers()
+	pipelineTimers, _ := fn.PipelineTimers()
 	if len(pipelineTimers) > 0 {
 		c, err := inferCoder(typex.New(reflect.TypeOf(col.Type())))
 		if err != nil {
 			return nil, addParDoCtx(errors.New("error infering coder from col"), s)
 		}
-		edge.TimerCoders = make(map[string]*coder.Coder)
 		tc := coder.NewT(c, wc)
-		for _, pt := range pipelineTimers {
-			for timerFamilyID := range pt.Timers() {
-				edge.TimerCoders[timerFamilyID] = tc
-			}
-		}
+		edge.TimerCoders = tc
 	}
 
 	var ret []PCollection

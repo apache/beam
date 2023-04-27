@@ -199,7 +199,6 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 
 	var cp ElementDecoder    // Decoder for the primary element or the key in CoGBKs.
 	var cvs []ElementDecoder // Decoders for each value stream in CoGBKs.
-	var dc ElementDecoder    // Decoder for timer data.
 
 	switch {
 	case coder.IsCoGBK(c):
@@ -210,11 +209,6 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		cvs = []ElementDecoder{MakeElementDecoder(c.Components[1])}
 	default:
 		cp = MakeElementDecoder(c)
-	}
-
-	// for timer decoder
-	if len(c.Components) > 0 {
-		dc = MakeElementDecoder(c.Components[0])
 	}
 
 	var checkpoints []*Checkpoint
@@ -269,12 +263,9 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		}
 	},
 		func(bcr *byteCountReader, ptransformID, timerFamilyID string) error {
-			tmap, err := decodeTimer(dc, wc, bcr)
-			if err != nil {
-				return errors.WithContext(err, "error decoding timer in datasource")
-			}
+
 			if fn, ok := n.OnTimerTransforms[ptransformID].Fn.OnTimerFn(); ok {
-				_, err := n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, fn, timerFamilyID, tmap)
+				_, err := n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, fn, timerFamilyID, bcr)
 				if err != nil {
 					log.Warnf(ctx, "expected transform %v to have an OnTimer method attached to handle"+
 						"Timer Family ID: %v callback, but it did not. Please file an issue with Apache Beam"+

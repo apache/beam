@@ -16,7 +16,6 @@
 package exec
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -31,7 +30,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
@@ -593,17 +591,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 
 					if len(userTimers) > 0 {
-						log.Debugf(context.TODO(), "userTimers %+v", userTimers)
-						timerIDToCoder := make(map[string]*coder.Coder)
 						sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
 						ec, wc, err := b.makeCoderForPCollection(input[0])
 						if err != nil {
 							return nil, err
 						}
-						for key := range userTimers {
-							timerIDToCoder[key] = coder.NewT(ec, wc)
-						}
-						n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerIDToCoder)
+						timerCoder := coder.NewT(ec.Components[0], wc)
+						n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerCoder)
 					}
 
 					for i := 1; i < len(input); i++ {

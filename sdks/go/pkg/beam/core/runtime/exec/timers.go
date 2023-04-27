@@ -32,31 +32,36 @@ type UserTimerAdapter interface {
 }
 
 type userTimerAdapter struct {
-	sID            StreamID
-	timerIDToCoder map[string]*coder.Coder
+	sID StreamID
+	ec  ElementEncoder
+	dc  ElementDecoder
+	wc  WindowDecoder
 }
 
 // NewUserTimerAdapter returns a user timer adapter for the given StreamID and timer coder.
-func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoders map[string]*coder.Coder) UserTimerAdapter {
+func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoder *coder.Coder) UserTimerAdapter {
 	if !coder.IsW(c) {
 		panic(fmt.Sprintf("expected WV coder for user timer %v: %v", sID, c))
 	}
-
-	return &userTimerAdapter{sID: sID, timerIDToCoder: timerCoders}
+	ec := MakeElementEncoder(timerCoder)
+	dc := MakeElementDecoder(coder.SkipW(c).Components[0])
+	wc := MakeWindowDecoder(c.Window)
+	return &userTimerAdapter{sID: sID, ec: ec, wc: wc, dc: dc}
 }
 
 // NewTimerProvider creates and returns a timer provider to set/clear timers.
 func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataManager, inputTs typex.EventTime, w []typex.Window, element *MainInput) (timerProvider, error) {
 	userKey := &FullValue{Elm: element.Key.Elm}
 	tp := timerProvider{
-		ctx:             ctx,
-		tm:              manager,
-		userKey:         userKey,
-		inputTimestamp:  inputTs,
-		sID:             u.sID,
-		window:          w,
-		writersByFamily: make(map[string]io.Writer),
-		codersByFamily:  u.timerIDToCoder,
+		ctx:                 ctx,
+		tm:                  manager,
+		userKey:             userKey,
+		inputTimestamp:      inputTs,
+		sID:                 u.sID,
+		window:              w,
+		writersByFamily:     make(map[string]io.Writer),
+		timerElementEncoder: u.ec,
+		keyElementDecoder:   u.dc,
 	}
 
 	return tp, nil
@@ -72,8 +77,9 @@ type timerProvider struct {
 
 	pn typex.PaneInfo
 
-	writersByFamily map[string]io.Writer
-	codersByFamily  map[string]*coder.Coder
+	writersByFamily     map[string]io.Writer
+	timerElementEncoder ElementEncoder
+	keyElementDecoder   ElementDecoder
 }
 
 func (p *timerProvider) getWriter(family string) (io.Writer, error) {
@@ -106,8 +112,7 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 		Pane:          p.pn,
 	}
 	fv := FullValue{Elm: tm}
-	enc := MakeElementEncoder(p.codersByFamily[t.Family])
-	if err := enc.Encode(&fv, w); err != nil {
+	if err := p.timerElementEncoder.Encode(&fv, w); err != nil {
 		panic(err)
 	}
 }

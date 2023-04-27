@@ -29,7 +29,7 @@ func equalTimers(a, b TimerRecv) bool {
 }
 
 func TestTimerEncodingDecoding(t *testing.T) {
-	tc := coder.NewT(coder.NewKV([]*coder.Coder{coder.NewString(), coder.NewString()}), window.NewGlobalWindows().Coder())
+	tc := coder.NewT(coder.NewString(), window.NewGlobalWindows().Coder())
 	ec := MakeElementEncoder(coder.SkipW(tc))
 	dec := MakeElementDecoder(coder.SkipW(tc))
 
