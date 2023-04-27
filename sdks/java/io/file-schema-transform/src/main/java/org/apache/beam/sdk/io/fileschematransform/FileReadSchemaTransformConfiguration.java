@@ -18,9 +18,10 @@
 package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -28,9 +29,6 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.io.Providers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class FileReadSchemaTransformConfiguration {
@@ -82,20 +80,25 @@ public abstract class FileReadSchemaTransformConfiguration {
 
   // Safely returns a non-null filepattern
   public String getSafeFilepattern() {
-    return Objects.requireNonNull(getFilepattern());
+    Optional<String> filepattern = Optional.ofNullable(getFilepattern());
+    checkState(filepattern.isPresent() && !filepattern.get().isEmpty());
+    return filepattern.get();
   }
 
   /**
    * The schema used by sources to deserialize data and create Beam Rows.
    *
-   * <p>May be provided as a schema String or as a String path to a file that contains the schema.
+   * <p>May provide either a String representation of the schema or a single path to a file that
+   * contains the schema.
    */
   @Nullable
   public abstract String getSchema();
 
   // Safely returns a non-null schema
   public String getSafeSchema() {
-    return Objects.requireNonNull(getSchema());
+    Optional<String> schema = Optional.ofNullable(getSchema());
+    checkState(schema.isPresent() && !schema.get().isEmpty());
+    return schema.get();
   }
 
   /**

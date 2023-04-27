@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileReadSchemaTransformProvider.FILEPATTERN_ROW_FIELD_NAME;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
 
@@ -207,7 +208,7 @@ public class ParquetReadSchemaTransformFormatProviderTest
                     .via(
                         pattern ->
                             Row.withSchema(patternSchema)
-                                .withFieldValue("filepattern", pattern)
+                                .withFieldValue(FILEPATTERN_ROW_FIELD_NAME, pattern)
                                 .build()))
             .setRowSchema(patternSchema);
 

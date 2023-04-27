@@ -21,9 +21,11 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_D
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.BYTE_SEQUENCE_TYPE_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.BYTE_TYPE_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DOUBLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileReadSchemaTransformProvider.FILEPATTERN_ROW_FIELD_NAME;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.parquetConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.junit.Assume.assumeTrue;
@@ -163,6 +165,15 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
   }
 
   @Test
+  public void testDoublyNestedRepeatedDataTypes() {
+    Schema schema = DOUBLY_NESTED_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.doublyNestedDataTypesRepeatRows;
+    String filePath = getFilePath();
+
+    runWriteAndReadTest(schema, rows, filePath, null);
+  }
+
+  @Test
   public void testReadWithSchemaFilePath() throws Exception {
     Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
     List<Row> rows = DATA.allPrimitiveDataTypesRows;
@@ -220,7 +231,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
                         (Row row) -> {
                           String file = row.getString("fileName");
                           return Row.withSchema(filePatternSchema)
-                              .withFieldValue("filepattern", file)
+                              .withFieldValue(FILEPATTERN_ROW_FIELD_NAME, file)
                               .build();
                         }))
             .setRowSchema(filePatternSchema);

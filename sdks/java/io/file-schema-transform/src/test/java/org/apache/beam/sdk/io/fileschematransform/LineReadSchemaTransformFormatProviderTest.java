@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileReadSchemaTransformProvider.FILEPATTERN_ROW_FIELD_NAME;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
 
 import java.io.IOException;
@@ -196,7 +197,7 @@ public class LineReadSchemaTransformFormatProviderTest {
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
     // Create an PCollection<Row> of filepatterns and feed into the read transform
-    Schema patternSchema = Schema.of(Field.of("filepattern", FieldType.STRING));
+    Schema patternSchema = Schema.of(Field.of(FILEPATTERN_ROW_FIELD_NAME, FieldType.STRING));
     PCollection<Row> filepatterns =
         readPipeline
             .apply(

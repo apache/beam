@@ -29,6 +29,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
@@ -133,8 +134,21 @@ public class FileReadSchemaTransformProvider
                     MapElements.into(TypeDescriptors.strings())
                         .via(
                             (Row row) ->
-                                Optional.ofNullable(row.getString(FILEPATTERN_ROW_FIELD_NAME))
-                                    .orElse("null filepattern")))
+                                Objects.requireNonNull(row.getString(FILEPATTERN_ROW_FIELD_NAME)))
+                        .exceptionsInto(TypeDescriptors.nulls())
+                        .exceptionsVia(
+                            exceptionElement -> {
+                              String faultyFilepattern =
+                                  Optional.ofNullable(
+                                          (exceptionElement.element())
+                                              .getString(FILEPATTERN_ROW_FIELD_NAME))
+                                      .orElse("[null filepattern]");
+                              LOG.warn(
+                                  "Could not acquire a faulty filepattern: {}. This will be skipped.",
+                                  faultyFilepattern);
+                              return null;
+                            }))
+                .output()
                 .apply("Match files", matchAllFiles);
       }
 
@@ -147,7 +161,7 @@ public class FileReadSchemaTransformProvider
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
 
-    public PTransform<?, PCollection<MatchResult.Metadata>> maybeApplyStreaming(
+    private PTransform<?, PCollection<MatchResult.Metadata>> maybeApplyStreaming(
         PTransform<?, PCollection<MatchResult.Metadata>> matchTransform) {
       // Two parameters are provided to configure watching for new files.
       Long terminateAfterSeconds = configuration.getTerminateAfterSecondsSinceNewOutput();
@@ -178,7 +192,7 @@ public class FileReadSchemaTransformProvider
       return matchTransform;
     }
 
-    public String resolveSchemaStringOrFilePath(String schema) {
+    private String resolveSchemaStringOrFilePath(String schema) {
       try {
         MatchResult result;
         try {
