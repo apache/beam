@@ -110,6 +110,7 @@ terraform apply -var gcloud_init_account=$(gcloud config get-value core/account)
 Where:
 - **environment** - Infrastructure environment name
 - **region** - GCP region for your infrastructure
+- **datastore_namespace** - Beam Playground Datastore's namespace
 
 # Deploy the Tour of Beam Frontend Infrastructure:
 
