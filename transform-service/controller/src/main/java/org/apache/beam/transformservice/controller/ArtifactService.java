@@ -55,16 +55,20 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
     // TODO: when all services fail, return an aggregated error with errors from all services.
     RuntimeException lastError = null;
     for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
+      ArtifactResolver artifactResolver =
+          this.artifactResolver != null
+              ? this.artifactResolver
+              : new EndpointBasedArtifactResolver(endpoint.getUrl());
       try {
-        ArtifactResolver artifactResolver =
-            this.artifactResolver != null
-                ? this.artifactResolver
-                : new EndpointBasedArtifactResolver(endpoint.getUrl());
         responseObserver.onNext(artifactResolver.resolveArtifacts(request));
         responseObserver.onCompleted();
         return;
       } catch (RuntimeException exn) {
         lastError = exn;
+      } finally {
+        if (this.artifactResolver == null) {
+          artifactResolver.shutdown();
+        }
       }
     }
 
@@ -85,12 +89,11 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
     // TODO: when all services fail, return an aggregated error with errors from all services.
     RuntimeException lastError = null;
     for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
+      ArtifactResolver artifactResolver =
+          this.artifactResolver != null
+              ? this.artifactResolver
+              : new EndpointBasedArtifactResolver(endpoint.getUrl());
       try {
-        ArtifactResolver artifactResolver =
-            this.artifactResolver != null
-                ? this.artifactResolver
-                : new EndpointBasedArtifactResolver(endpoint.getUrl());
-
         Iterator<ArtifactApi.GetArtifactResponse> responseIterator =
             artifactResolver.getArtifact(request);
         while (responseIterator.hasNext()) {
@@ -101,6 +104,10 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
         return;
       } catch (RuntimeException exn) {
         lastError = exn;
+      } finally {
+        if (this.artifactResolver == null) {
+          artifactResolver.shutdown();
+        }
       }
     }
 
@@ -122,14 +129,17 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
         ArtifactApi.ResolveArtifactsRequest request);
 
     Iterator<ArtifactApi.GetArtifactResponse> getArtifact(ArtifactApi.GetArtifactRequest request);
+
+    public void shutdown();
   }
 
   static class EndpointBasedArtifactResolver implements ArtifactResolver {
 
     private ArtifactRetrievalServiceBlockingStub retrievalStub;
+    private ManagedChannel channel;
 
     EndpointBasedArtifactResolver(String url) {
-      ManagedChannel channel =
+      channel =
           ManagedChannelBuilder.forTarget(url)
               .usePlaintext()
               .maxInboundMessageSize(Integer.MAX_VALUE)
@@ -145,6 +155,11 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
     @Override
     public Iterator<GetArtifactResponse> getArtifact(GetArtifactRequest request) {
       return retrievalStub.getArtifact(request);
+    }
+
+    @Override
+    public void shutdown() {
+      this.channel.shutdown();
     }
   }
 }
