@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConvert
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -34,6 +33,7 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
@@ -95,8 +95,7 @@ public class ReadChangeStreamPartitionDoFnTest {
   @Test
   public void testProcessElementAndGetSize() throws IOException, InterruptedException {
     long watermarkLag = 10;
-    Instant tenSecondsAgo =
-        Instant.now().minus(org.joda.time.Duration.standardSeconds(watermarkLag));
+    Instant tenSecondsAgo = Instant.now().minus(Duration.standardSeconds(watermarkLag));
     Range.ByteStringRange partitionRange = Range.ByteStringRange.create("", "");
     ChangeStreamContinuationToken testToken =
         ChangeStreamContinuationToken.create(partitionRange, "test");
@@ -106,6 +105,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             tenSecondsAgo,
             "uid-a",
             tenSecondsAgo,
+            Collections.emptyList(),
             Instant.now().plus(Duration.standardSeconds(60)));
     long mutationSize = 100L;
     when(sizeEstimator.sizeOf(any())).thenReturn(mutationSize);
@@ -124,14 +124,13 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(mockMutation.getToken()).thenReturn(testToken.getToken());
     when(mockMutation.getCommitTimestamp()).thenReturn(toThreetenInstant(tenSecondsAgo));
 
-    when(metadataTableDao.lockPartition(any(), any())).thenReturn(true);
+    when(metadataTableDao.lockAndRecordPartition(any())).thenReturn(true);
     ServerStream<ChangeStreamRecord> mockStream = mock(ServerStream.class);
     Iterator<ChangeStreamRecord> mockResponses = mock(Iterator.class);
     when(mockResponses.hasNext()).thenReturn(true, true, true);
     when(mockResponses.next()).thenReturn(mockMutation, mockMutation, mockMutation);
     when(mockStream.iterator()).thenReturn(mockResponses);
-    when(changeStreamDao.readChangeStreamPartition(
-            anyObject(), anyObject(), anyObject(), anyObject(), anyBoolean()))
+    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any(), anyBoolean()))
         .thenReturn(mockStream);
 
     when(watermarkEstimator.getState()).thenReturn(tenSecondsAgo);

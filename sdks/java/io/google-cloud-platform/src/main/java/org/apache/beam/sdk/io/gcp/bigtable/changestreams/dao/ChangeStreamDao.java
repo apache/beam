@@ -89,7 +89,6 @@ public class ChangeStreamDao {
       query.continuationTokens(Collections.singletonList(currentToken));
     } else if (startTime != null) {
       query.startTime(toThreetenInstant(startTime));
-      // Check if partition has Continuation Tokens
     } else if (changeStreamContinuationTokenList != null) {
       query.continuationTokens(changeStreamContinuationTokenList);
     } else {

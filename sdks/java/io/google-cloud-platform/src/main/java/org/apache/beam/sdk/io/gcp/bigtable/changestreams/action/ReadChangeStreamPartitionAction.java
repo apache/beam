@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.coverSameKeySpace;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isSuperset;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamContinuationTokenHelper.getTokenWithCorrectPartition;
 
@@ -32,6 +32,7 @@ import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.NewPartition;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -138,48 +140,76 @@ public class ReadChangeStreamPartitionAction {
 
     if (shouldDebug) {
       LOG.info(
-          "RCSP: Partition: "
+          "RCSP {}: Partition: "
               + partitionRecord
               + "\n Watermark: "
               + watermarkEstimator.getState()
               + "\n RestrictionTracker: "
-              + tracker.currentRestriction());
+              + tracker.currentRestriction(),
+          formatByteStringRange(partitionRecord.getPartition()));
     }
 
     // Lock the partition
-    if (!metadataTableDao.lockPartition(
-        partitionRecord.getPartition(), partitionRecord.getUuid())) {
-      LOG.info(
-          "RCSP: Could not acquire lock for partition: {}, with uid: {}, because this is a "
-              + "duplicate and another worker is working on this partition already.",
+    if (tracker.currentRestriction().isEmpty()) {
+      boolean lockedPartition = metadataTableDao.lockAndRecordPartition(partitionRecord);
+      // Clean up NewPartition on the first run regardless of locking result. If locking fails it
+      // means this partition is being streamed, then cleaning up NewPartitions avoids lingering
+      // NewPartitions.
+      for (NewPartition newPartition : partitionRecord.getParentPartitions()) {
+        metadataTableDao.deleteNewPartition(newPartition);
+      }
+      if (!lockedPartition) {
+        LOG.info(
+            "RCSP  {} : Could not acquire lock with uid: {}, because this is a "
+                + "duplicate and another worker is working  on this partition already.",
+            formatByteStringRange(partitionRecord.getPartition()),
+            partitionRecord.getUuid());
+        StreamProgress streamProgress = new StreamProgress();
+        streamProgress.setFailToLock(true);
+        metrics.decPartitionStreamCount();
+        tracker.tryClaim(streamProgress);
+        return ProcessContinuation.stop();
+      }
+    } else if (tracker.currentRestriction().getCloseStream() == null
+        && !metadataTableDao.doHoldLock(
+            partitionRecord.getPartition(), partitionRecord.getUuid())) {
+      // We only verify the lock if we are not holding CloseStream because if this is a retry of
+      // CloseStream we might have already cleaned up the lock in a previous attempt.
+      // Failed correctness check on this worker holds the lock on this partition. This shouldn't
+      // fail because there's a restriction tracker which means this worker has already acquired the
+      // lock and once it has acquired the lock it shouldn't fail the lock check.
+      LOG.warn(
+          "RCSP  {} : Subsequent run that doesn't hold the lock {}. This is not unexpected and "
+              + "should probably be reviewed.",
           formatByteStringRange(partitionRecord.getPartition()),
           partitionRecord.getUuid());
       StreamProgress streamProgress = new StreamProgress();
       streamProgress.setFailToLock(true);
       metrics.decPartitionStreamCount();
-      if (!tracker.tryClaim(streamProgress)) {
-        LOG.debug("RCSP: Failed to claim tracker after failing to lock partition.");
-        return ProcessContinuation.stop();
-      }
+      tracker.tryClaim(streamProgress);
       return ProcessContinuation.stop();
     }
 
     // Process CloseStream if it exists
     CloseStream closeStream = tracker.currentRestriction().getCloseStream();
     if (closeStream != null) {
+      LOG.debug("RCSP: Processing CloseStream");
+      metrics.decPartitionStreamCount();
       if (closeStream.getStatus().getCode() == Status.Code.OK) {
         // We need to update watermark here. We're terminating this stream because we have reached
         // endTime. Instant.now is greater or equal to endTime. The goal here is
         // DNP will need to know this stream has passed the endTime so DNP can eventually terminate.
-        watermarkEstimator.setWatermark(Instant.now());
+        Instant terminatingWatermark = Instant.ofEpochMilli(Long.MAX_VALUE);
+        Instant endTime = partitionRecord.getEndTime();
+        if (endTime != null) {
+          terminatingWatermark = endTime;
+        }
+        watermarkEstimator.setWatermark(terminatingWatermark);
         metadataTableDao.updateWatermark(
-            partitionRecord.getPartition(),
-            watermarkEstimator.currentWatermark(),
-            tracker.currentRestriction().getCurrentToken());
+            partitionRecord.getPartition(), watermarkEstimator.currentWatermark(), null);
         LOG.info(
             "RCSP {}: Reached end time, terminating...",
             formatByteStringRange(partitionRecord.getPartition()));
-        metrics.decPartitionStreamCount();
         return ProcessContinuation.stop();
       }
       if (closeStream.getStatus().getCode() != Status.Code.OUT_OF_RANGE) {
@@ -187,14 +217,27 @@ public class ReadChangeStreamPartitionAction {
             "RCSP {}: Reached unexpected terminal state: {}",
             formatByteStringRange(partitionRecord.getPartition()),
             closeStream.getStatus());
-        metrics.decPartitionStreamCount();
         return ProcessContinuation.stop();
       }
-      // The partitions in the continuation tokens should be a superset of this partition.
-      // If there's only 1 token, then the token's partition should be a superset of this partition.
-      // If there are more than 1 tokens, then the tokens should form a continuous row range that is
-      // a superset of this partition.
+      // Release the lock only if the uuid matches. In normal operation this doesn't change
+      // anything. However, it's possible for this RCSP to crash while processing CloseStream but
+      // after the side effects of writing the new partitions to the metadata table. New partitions
+      // can be created while this RCSP restarts from the previous checkpoint and processes the
+      // CloseStream again. In certain race scenarios the child partitions may merge back to this
+      // partition, but as a new RCSP. The new partition (same as this partition) would write the
+      // exact same content to the metadata table but with a different uuid. We don't want to
+      // accidentally delete the StreamPartition because it now belongs to the new RCSP.
+      // If the uuid is the same (meaning this race scenario did not take place) we release the lock
+      // and mark the StreamPartition to be deleted, so we can delete it after we have written the
+      // NewPartitions.
+      metadataTableDao.releaseStreamPartitionLockForDeletion(
+          partitionRecord.getPartition(), partitionRecord.getUuid());
+      // The partitions in the continuation tokens must cover the same key space as this partition.
+      // If there's only 1 token, then the token's partition is equals to this partition.
+      // If there are more than 1 tokens, then the tokens form a continuous row range equals to this
+      // partition.
       List<ByteStringRange> childPartitions = new ArrayList<>();
+      List<ByteStringRange> tokenPartitions = new ArrayList<>();
       // Check if NewPartitions field exists, if not we default to using just the
       // ChangeStreamContinuationTokens.
       boolean useNewPartitionsField =
@@ -212,8 +255,10 @@ public class ReadChangeStreamPartitionAction {
             getTokenWithCorrectPartition(
                 partitionRecord.getPartition(),
                 closeStream.getChangeStreamContinuationTokens().get(i));
+        tokenPartitions.add(token.getPartition());
         metadataTableDao.writeNewPartition(
-            childPartition, token, partitionRecord.getPartition(), watermarkEstimator.getState());
+            new NewPartition(
+                childPartition, Collections.singletonList(token), watermarkEstimator.getState()));
       }
       if (shouldDebug) {
         LOG.info(
@@ -221,14 +266,16 @@ public class ReadChangeStreamPartitionAction {
             formatByteStringRange(partitionRecord.getPartition()),
             partitionsToString(childPartitions));
       }
-      if (!isSuperset(childPartitions, partitionRecord.getPartition())) {
+      if (!coverSameKeySpace(tokenPartitions, partitionRecord.getPartition())) {
         LOG.warn(
-            "RCSP {}: CloseStream has child partition(s) {} that doesn't cover the keyspace",
+            "RCSP {}: CloseStream has tokens {} that don't cover the entire keyspace",
             formatByteStringRange(partitionRecord.getPartition()),
-            partitionsToString(childPartitions));
+            partitionsToString(tokenPartitions));
       }
+      // Perform the real cleanup. This step is no op if the race mentioned above occurs (splits and
+      // merges results back to this partition again) because when we register the "new" partition,
+      // we unset the deletion bit.
       metadataTableDao.deleteStreamPartitionRow(partitionRecord.getPartition());
-      metrics.decPartitionStreamCount();
       return ProcessContinuation.stop();
     }
 
