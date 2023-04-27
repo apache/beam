@@ -24,8 +24,11 @@ import 'package:playground_components/playground_components.dart';
 import 'finder.dart';
 
 extension CommonFindersExtension on CommonFinders {
-  Finder codeField() {
-    return byType(CodeField);
+  Finder snippetCodeField() {
+    return find.descendant(
+      of: find.byType(SnippetEditor),
+      matching: byType(CodeField),
+    );
   }
 
   Finder dropdownMenuItemWithText(String text) {
@@ -40,10 +43,10 @@ extension CommonFindersExtension on CommonFinders {
     return widgetWithText(OutputTab, 'Graph');
   }
 
-  Finder outputSelectableText() {
+  Finder outputCodeField() {
     return find.descendant(
       of: find.outputWidget(),
-      matching: find.byType(SelectableText),
+      matching: byType(CodeField),
     );
   }
 

@@ -178,7 +178,7 @@ public class MyClass {
   await _selectExampleWithSnippet(wt);
   await wt.pumpAndSettle();
 
-  await wt.enterText(find.codeField(), code);
+  await wt.enterText(find.snippetCodeField(), code);
   await wt.pumpAndSettle();
 
   await _runAndCancelExample(wt, const Duration(milliseconds: 300));
