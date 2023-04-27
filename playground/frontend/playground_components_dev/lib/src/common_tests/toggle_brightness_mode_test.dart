@@ -23,7 +23,6 @@ import 'package:playground_components/playground_components.dart';
 import '../expect.dart';
 import '../widget_tester.dart';
 
-
 Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
   final oldBrightness = wt.getBrightness();
   final newBrightness =

@@ -297,18 +297,22 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         );
         break;
     }
-    _isLoadingSnippet = true;
-    notifyListeners();
 
-    await playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          descriptor,
-        ],
-      ),
-    );
-    _isLoadingSnippet = false;
-    notifyListeners();
+    try {
+      _isLoadingSnippet = true;
+      notifyListeners();
+
+      await playgroundController.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: [
+            descriptor,
+          ],
+        ),
+      );
+    } finally {
+      _isLoadingSnippet = false;
+      notifyListeners();
+    }
 
     _fillFeedbackController();
   }
