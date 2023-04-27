@@ -21,8 +21,9 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../cache/content_tree.dart';
-import '../../../models/group.dart';
+
 import '../../../models/node.dart';
+import '../../../models/parent_node.dart';
 import '../../../models/unit.dart';
 import '../../../state.dart';
 
@@ -50,8 +51,8 @@ class ContentTreeController extends ChangeNotifier {
   NodeModel? get currentNode => _currentNode;
 
   void onNodePressed(NodeModel node) {
-    if (node is GroupModel) {
-      _onGroupPressed(node);
+    if (node is ParentNodeModel) {
+      _onParentNodePressed(node);
     } else if (node is UnitModel) {
       if (node != _currentNode) {
         _currentNode = node;
@@ -64,25 +65,26 @@ class ContentTreeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _onGroupPressed(GroupModel group) {
-    if (_expandedIds.contains(group.id)) {
-      _expandedIds.remove(group.id);
+  void _onParentNodePressed(ParentNodeModel node) {
+    if (_expandedIds.contains(node.id)) {
+      _expandedIds.remove(node.id);
       notifyListeners();
     } else {
-      _expandedIds.add(group.id);
-      final groupFirstUnit = group.nodes.first;
-      if (groupFirstUnit != _currentNode) {
-        onNodePressed(groupFirstUnit);
+      _expandedIds.add(node.id);
+
+      final firstChildNode = node.nodes.first;
+      if (firstChildNode != _currentNode) {
+        onNodePressed(firstChildNode);
       }
     }
   }
 
-  void expandGroup(GroupModel group) {
+  void expandParentNode(ParentNodeModel group) {
     _expandedIds.add(group.id);
     notifyListeners();
   }
 
-  void collapseGroup(GroupModel group) {
+  void collapseParentNode(ParentNodeModel group) {
     _expandedIds.remove(group.id);
     notifyListeners();
   }
@@ -104,7 +106,7 @@ class ContentTreeController extends ChangeNotifier {
     }
 
     onNodePressed(
-      contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit(),
+      contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.modules.first,
     );
 
     notifyListeners();
