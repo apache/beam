@@ -21,11 +21,11 @@ sdk:
   - Java
   - Python
   - Go
+complexity: ADVANCED
+id: big-queryIO
+name: BigQueryIO
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
+  - read-table
+  - read-query
+  - table-schema
+  - beam-schema

@@ -21,11 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
+complexity: ADVANCED
+id: read-query
+name: BigQueryIO read query
+taskName: read-query

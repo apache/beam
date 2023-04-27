@@ -21,11 +21,9 @@ sdk:
   - Java
   - Python
   - Go
+complexity: ADVANCED
+id: kafkaIO
+name: KafkaIO
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
+- kafka-read
+- kafka-write
