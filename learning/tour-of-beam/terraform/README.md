@@ -90,21 +90,21 @@ terraform init -backend-config="bucket=`created_gcs_bucket`"
 7. Run terraform apply to create Tour-Of-Beam backend infrastructure
 
 ```
-terraform plan -var gcloud_init_account=$(gcloud config get-value core/account) \
--var environment="test" \
--var region="us-east1" \
--var project_id=$(gcloud config get-value project) \
--var datastore_namespace = "namespace" \
--var pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')
+terraform plan -var "gcloud_init_account=$(gcloud config get-value core/account)" \
+-var "environment=prod" \
+-var "region=us-west1" \
+-var "project_id=$(gcloud config get-value project)" \
+-var "datastore_namespace=playground-datastore-namespace" \
+-var "pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')"
 ```
 
 ```
-terraform apply -var gcloud_init_account=$(gcloud config get-value core/account) \
--var environment="test" \
--var region="us-east1" \
--var project_id=$(gcloud config get-value project) \
--var datastore_namespace = "namespace" \
--var pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')
+terraform apply -var "gcloud_init_account=$(gcloud config get-value core/account)" \
+-var "environment=prod" \
+-var "region=us-west1" \
+-var "project_id=$(gcloud config get-value project)" \
+-var "datastore_namespace=playground-datastore-namespace" \
+-var "pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')"
 ```
 
 Where:
@@ -167,7 +167,7 @@ Where:
 10. Login into the Firebase CLI
 
 ```
-# To use nteractive mode (forwards to browser webpage from the terminal)
+# To use an interactive mode (forwards to a browser webpage)
 firebase login
 ```
 
@@ -186,7 +186,7 @@ firebase projects:addfirebase
 12. Create Firebase Web App and prepare Firebase configuration file
 
 ```
-firebase apps:create WEB ${webapp_name} --project ${project_id}
+firebase apps:create WEB ${webapp_name} --project=$(gcloud config get-value project)
 ```
 
 Once Firebase Web App has been created, there will be following output example:
@@ -216,18 +216,25 @@ Output example:
 // See https://firebase.google.com/docs/web/setup for more details.
 
 firebase.initializeApp({
-   "projectId":
-   "appId":
-   "storageBucket":
-   "apiKey":
-   "authDomain":
-   "messagingSenderId":
+  "projectId": "cloudbuild-384304",
+  "appId": "1:1111111111:web:111111111111",
+  "storageBucket": "cloudbuild-384304.appspot.com",
+  "locationId": "us-west1",
+  "apiKey": "someApiKey",
+  "authDomain": "cloudbuild-384304.firebaseapp.com",
+  "messagingSenderId": "111111111111"
 });
 ```
 
-Copy the lines inside the curly braces.
+Copy the lines inside the curly braces and redact them.
 
-Paste (replace) the copied data inside the parentheses in beam/learning/tour-of-beam/frontend/lib/firebase_options.dart file.
+You will need to:
+
+1) Remove "locationId" line.
+2) Remove quotes (") from key of "key": "value" pair. 
+   3) E.g. `projectId: "cloudbuild-384304"`
+
+Paste (replace) the redacted data inside the parentheses in beam/learning/tour-of-beam/frontend/lib/firebase_options.dart file.
 
 ```
 static const FirebaseOptions web = FirebaseOptions(
