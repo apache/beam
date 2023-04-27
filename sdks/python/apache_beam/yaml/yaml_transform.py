@@ -127,11 +127,13 @@ class Scope(object):
     if isinstance(inputs, str):
       return self.get_pcollection(inputs)
     else:
-      return tuple(
-          self.get_pcollection(x) for x in
-          inputs) | f'{transform_label}-FlattenInputs[{key}]' >> beam.Flatten(
-              pipeline=self.root if isinstance(self.root, beam.Pipeline
-                                               ) else self.root.pipeline)
+      pipeline = (
+          self.root
+          if isinstance(self.root, beam.Pipeline) else self.root.pipeline)
+      label = f'{transform_label}-FlattenInputs[{key}]'
+      return (
+          tuple(self.get_pcollection(x) for x in inputs)
+          | label >> beam.Flatten(pipeline=pipeline))
 
   def get_pcollection(self, name):
     if name in self._inputs:
@@ -268,8 +270,7 @@ def expand_leaf_transform(spec, scope):
   if spec['type'] == 'Flatten':
     # Avoid flattening before the flatten, just to make a nicer graph.
     inputs = tuple(
-        scope.get_pcollection(input) for key,
-        value in spec['input'].items()
+        scope.get_pcollection(input) for (key, value) in spec['input'].items()
         for input in ([value] if isinstance(value, str) else value))
 
   else:
