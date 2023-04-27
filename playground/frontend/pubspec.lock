@@ -394,10 +394,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_code_editor
-      sha256: "85d0d159ce4f33f3aabedea92c0bdc1ad05c6931bba80ac46660f90c7ab6255c"
+      sha256: b1335ee9bd8bc5e766883e066f8601ecade72e0e104a86bc202d1153c8d41527
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.14"
+    version: "0.2.19"
   flutter_driver:
     dependency: transitive
     description: flutter
