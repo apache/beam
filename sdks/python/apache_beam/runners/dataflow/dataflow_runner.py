@@ -368,6 +368,14 @@ class DataflowRunner(PipelineRunner):
 
   def run_pipeline(self, pipeline, options, pipeline_proto=None):
     """Remotely executes entire pipeline or parts reachable from node."""
+    if _is_runner_v2_disabled(options):
+      debug_options = options.view_as(DebugOptions)
+      if not debug_options.lookup_experiment('disable_runner_v2_until_v2.50'):
+        raise ValueError(
+            'disable_runner_v2 is deprecated in Beam Python ' +
+            beam.version.__version__ + '. ' +
+            'If needed, please use disable_runner_v2_until_v2.50.')
+
     # Label goog-dataflow-notebook if job is started from notebook.
     if is_in_notebook():
       notebook_version = (
