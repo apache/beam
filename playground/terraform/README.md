@@ -55,6 +55,7 @@ Ensure that the account has at least following privileges:
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 * [Kubectl authentication](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
+* [GO](https://go.dev/doc/install)
 
 6. Apache Beam Git repository cloned locally
 
