@@ -35,7 +35,7 @@ locals {
     "TF_VAR_max_count=$_MAX_COUNT",
     "TF_VAR_skip_appengine_deploy=$_SKIP_APPENGINE_DEPLOY",
     "TF_VAR_ip_address_name=$_IPADDRESS_NAME",
-    "TF_VAR_repository_id=$_REPOSITORY_NAME",
+    "TF_VAR_repository_id=$_DOCKER_REPO_NAME",
     "TF_VAR_service_account_id=$_SERVICEACCOUNT_ID",
     "TF_VAR_gke_machine_type=$_GKE_MACHINE_TYPE"] 
     

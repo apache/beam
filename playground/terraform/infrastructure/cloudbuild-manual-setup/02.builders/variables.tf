@@ -30,12 +30,12 @@ variable "pg_gke_trigger_name" {
 }
 variable "pg_ci_trigger_name" {
   description = "The name of the trigger to run CI checks"
-  default = "Validate-examples-CI"
+  default = "Playground-CI-stable"
 }
 
 variable "pg_cd_trigger_name" {
   description = "The name of the trigger to run CD checks"
-  default = "Deploy-examples-CD"
+  default = "Playground-CD-stable"
 }
 
 variable "playground_deploy_sa" {

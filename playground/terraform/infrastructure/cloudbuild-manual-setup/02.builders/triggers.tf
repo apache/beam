@@ -19,7 +19,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
   name     = var.pg_infra_trigger_name
   project  = var.project_id
 
-  description = "Creates cloud build manual trigger to deploy Playground infrastructure"
+  description = "Deploy Playgrround Infrastructure Environment"
 
   source_to_build {
     uri       = var.trigger_source_repo
@@ -58,7 +58,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     _PLAYGROUND_ZONE : var.playground_zone
     _REDIS_NAME: var.redis_name
     _REDIS_TIER: var.redis_tier
-    _REPOSITORY_NAME: var.docker_repository_name
+    _DOCKER_REPO_NAME: var.docker_repository_name
     _SERVICEACCOUNT_ID: var.playground_service_account
     _STATE_BUCKET: var.state_bucket
     _SUBNETWORK_NAME: var.playground_subnetwork_name
@@ -111,7 +111,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _REDIS_TIER: var.redis_tier
     _SDK_TAG: var.sdk_tag
     _SERVICEACCOUNT_ID: var.playground_service_account
-    _REPOSITORY_NAME: var.docker_repository_name
+    _DOCKER_REPO_NAME: var.docker_repository_name
     _STATE_BUCKET: var.state_bucket
     _SUBNETWORK_NAME: var.playground_subnetwork_name
     _CONTAINER_TAG: var.image_tag
