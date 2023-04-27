@@ -51,6 +51,11 @@ class ContentTreeController extends ChangeNotifier {
   NodeModel? get currentNode => _currentNode;
 
   void onNodePressed(NodeModel node) {
+    _toggleNode(node);
+    notifyListeners();
+  }
+
+  void _toggleNode(NodeModel node) {
     if (node is ParentNodeModel) {
       _onParentNodePressed(node);
     } else if (node is UnitModel) {
@@ -62,7 +67,6 @@ class ContentTreeController extends ChangeNotifier {
     if (_currentNode != null) {
       _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
     }
-    notifyListeners();
   }
 
   void _onParentNodePressed(ParentNodeModel node) {
@@ -74,7 +78,7 @@ class ContentTreeController extends ChangeNotifier {
 
       final firstChildNode = node.nodes.first;
       if (firstChildNode != _currentNode) {
-        onNodePressed(firstChildNode);
+        _toggleNode(firstChildNode);
       }
     }
   }
@@ -105,7 +109,7 @@ class ContentTreeController extends ChangeNotifier {
       return;
     }
 
-    onNodePressed(
+    _toggleNode(
       contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.modules.first,
     );
 
