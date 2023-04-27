@@ -31,6 +31,9 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 @AutoService(FileReadSchemaTransformFormatProvider.class)
 public class LineReadSchemaTransformFormatProvider
     implements FileReadSchemaTransformFormatProvider {
+
+  private static final Schema LINE_SCHEMA = Schema.builder().addStringField("line").build();
+
   @Override
   public String identifier() {
     return "line";
@@ -43,16 +46,14 @@ public class LineReadSchemaTransformFormatProvider
     return new PTransform<PCollection<ReadableFile>, PCollection<Row>>() {
       @Override
       public PCollection<Row> expand(PCollection<ReadableFile> input) {
-        Schema lineSchema = Schema.builder().addStringField("line").build();
-
         return input
             .apply(TextIO.readFiles())
             .apply(
                 MapElements.into(TypeDescriptors.rows())
                     .via(
                         (String line) ->
-                            Row.withSchema(lineSchema).withFieldValue("line", line).build()))
-            .setRowSchema(lineSchema);
+                            Row.withSchema(LINE_SCHEMA).withFieldValue("line", line).build()))
+            .setRowSchema(LINE_SCHEMA);
       }
     };
   }

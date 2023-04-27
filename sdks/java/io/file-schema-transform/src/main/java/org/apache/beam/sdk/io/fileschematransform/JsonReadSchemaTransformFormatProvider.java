@@ -33,9 +33,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** A {@link FileReadSchemaTransformFormatProvider} that reads newline-delimited JSONs. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(FileReadSchemaTransformFormatProvider.class)
 public class JsonReadSchemaTransformFormatProvider
     implements FileReadSchemaTransformFormatProvider {
@@ -51,7 +48,7 @@ public class JsonReadSchemaTransformFormatProvider
     return new PTransform<PCollection<ReadableFile>, PCollection<Row>>() {
       @Override
       public PCollection<Row> expand(PCollection<ReadableFile> input) {
-        Schema beamSchema = JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema());
+        Schema beamSchema = JsonUtils.beamSchemaFromJsonSchema(configuration.getSafeSchema());
 
         PayloadSerializer payloadSerializer =
             new JsonPayloadSerializerProvider().getSerializer(beamSchema, ImmutableMap.of());

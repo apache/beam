@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.fileschematransform;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -79,6 +80,11 @@ public abstract class FileReadSchemaTransformConfiguration {
   @Nullable
   public abstract String getFilepattern();
 
+  // Safely returns a non-null filepattern
+  public String getSafeFilepattern() {
+    return Objects.requireNonNull(getFilepattern());
+  }
+
   /**
    * The schema used by sources to deserialize data and create Beam Rows.
    *
@@ -86,6 +92,11 @@ public abstract class FileReadSchemaTransformConfiguration {
    */
   @Nullable
   public abstract String getSchema();
+
+  // Safely returns a non-null schema
+  public String getSafeSchema() {
+    return Objects.requireNonNull(getSchema());
+  }
 
   /**
    * The time, in milliseconds, to wait before polling for new files.

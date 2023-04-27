@@ -28,9 +28,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(FileReadSchemaTransformFormatProvider.class)
 public class ParquetReadSchemaTransformFormatProvider
     implements FileReadSchemaTransformFormatProvider {
@@ -47,7 +44,7 @@ public class ParquetReadSchemaTransformFormatProvider
       @Override
       public PCollection<Row> expand(PCollection<ReadableFile> input) {
         org.apache.avro.Schema avroSchema =
-            new org.apache.avro.Schema.Parser().parse(configuration.getSchema());
+            new org.apache.avro.Schema.Parser().parse(configuration.getSafeSchema());
         Schema beamSchema = AvroUtils.toBeamSchema(avroSchema);
 
         return input

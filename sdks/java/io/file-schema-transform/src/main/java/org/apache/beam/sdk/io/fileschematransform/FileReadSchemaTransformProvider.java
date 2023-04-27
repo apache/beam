@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.fileschematransform;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.FileIO;
@@ -52,9 +54,6 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(SchemaTransformProvider.class)
 public class FileReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<FileReadSchemaTransformConfiguration> {
@@ -62,6 +61,7 @@ public class FileReadSchemaTransformProvider
   private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:file_read:v1";
   static final String INPUT_TAG = "input";
   static final String OUTPUT_TAG = "output";
+  static final String FILEPATTERN_ROW_FIELD_NAME = "filepattern";
 
   @Override
   protected Class<FileReadSchemaTransformConfiguration> configurationClass() {
@@ -108,14 +108,14 @@ public class FileReadSchemaTransformProvider
       // Resolve to get a schema String
       String schema = configuration.getSchema();
       if (!Strings.isNullOrEmpty(schema)) {
-        schema = resolveSchemaStringOrFilePath(schema);
+        schema = resolveSchemaStringOrFilePath(configuration.getSafeSchema());
         configuration = configuration.toBuilder().setSchema(schema).build();
       }
 
       PCollection<MatchResult.Metadata> files;
       if (!Strings.isNullOrEmpty(configuration.getFilepattern())) {
         Pipeline p = input.getPipeline();
-        FileIO.Match matchFiles = FileIO.match().filepattern(configuration.getFilepattern());
+        FileIO.Match matchFiles = FileIO.match().filepattern(configuration.getSafeFilepattern());
         // Handle streaming case
         matchFiles = (FileIO.Match) maybeApplyStreaming(matchFiles);
 
@@ -131,7 +131,10 @@ public class FileReadSchemaTransformProvider
                 .apply(
                     "Get filepatterns",
                     MapElements.into(TypeDescriptors.strings())
-                        .via((row) -> row.getString("filepattern")))
+                        .via(
+                            (Row row) ->
+                                Optional.ofNullable(row.getString(FILEPATTERN_ROW_FIELD_NAME))
+                                    .orElse("null filepattern")))
                 .apply("Match files", matchAllFiles);
       }
 
@@ -220,7 +223,10 @@ public class FileReadSchemaTransformProvider
               "Received unsupported file format: %s. Supported formats are %s",
               format, providers.keySet()));
 
-      return providers.get(format);
+      Optional<FileReadSchemaTransformFormatProvider> provider =
+          Optional.ofNullable(providers.get(format));
+      checkState(provider.isPresent());
+      return provider.get();
     }
 
     @Override

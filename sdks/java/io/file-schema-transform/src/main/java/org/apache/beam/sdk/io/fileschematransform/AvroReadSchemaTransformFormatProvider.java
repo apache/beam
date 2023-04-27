@@ -28,9 +28,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(FileReadSchemaTransformFormatProvider.class)
 public class AvroReadSchemaTransformFormatProvider
     implements FileReadSchemaTransformFormatProvider {
@@ -48,10 +45,11 @@ public class AvroReadSchemaTransformFormatProvider
       public PCollection<Row> expand(PCollection<ReadableFile> input) {
         Schema beamSchema =
             AvroUtils.toBeamSchema(
-                new org.apache.avro.Schema.Parser().parse(configuration.getSchema()));
+                new org.apache.avro.Schema.Parser().parse(configuration.getSafeSchema()));
 
         return input
-            .apply(AvroIO.readFilesGenericRecords(configuration.getSchema()).withBeamSchemas(true))
+            .apply(
+                AvroIO.readFilesGenericRecords(configuration.getSafeSchema()).withBeamSchemas(true))
             .apply(
                 MapElements.into(TypeDescriptors.rows())
                     .via(AvroUtils.getGenericRecordToRowFunction(beamSchema)))
