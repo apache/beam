@@ -17,12 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
 import '../../../models/module.dart';
 import '../controllers/content_tree.dart';
 import 'module_title.dart';
-import 'node.dart';
+import 'parent_node.dart';
 
 class ModuleWidget extends StatelessWidget {
   final ModuleModel module;
@@ -35,24 +34,13 @@ class ModuleWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ModuleTitleWidget(
-          module: module,
-          onTap: () => contentTreeController.onNodePressed(module),
-        ),
-        ...module.nodes
-            .map(
-              (node) => NodeWidget(
-                node: node,
-                contentTreeController: contentTreeController,
-              ),
-            )
-            .toList(growable: false),
-        const BeamDivider(
-          margin: EdgeInsets.symmetric(vertical: BeamSizes.size10),
-        ),
-      ],
+    return ParentNodeWidget(
+      contentTreeController: contentTreeController,
+      node: module,
+      title: ModuleTitleWidget(
+        module: module,
+        onTap: () => contentTreeController.onNodePressed(module),
+      ),
     );
   }
 }

@@ -18,31 +18,45 @@
 
 import 'package:flutter/material.dart';
 
-import '../../../models/group.dart';
+import '../../../models/parent_node.dart';
 import '../controllers/content_tree.dart';
-import 'group_title.dart';
-import 'parent_node.dart';
+import 'nodes.dart';
+import 'stateless_expansion_tile.dart';
 
-class GroupWidget extends StatelessWidget {
-  final GroupModel group;
+class ParentNodeWidget extends StatelessWidget {
   final ContentTreeController contentTreeController;
+  final ParentNodeModel node;
+  final Widget title;
 
-  const GroupWidget({
-    required this.group,
+  const ParentNodeWidget({
     required this.contentTreeController,
+    required this.node,
+    required this.title,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ParentNodeWidget(
-      contentTreeController: contentTreeController,
-      node: group,
-      title: GroupTitleWidget(
-        group: group,
-        onTap: () {
-          contentTreeController.onNodePressed(group);
-        },
-      ),
+    return AnimatedBuilder(
+      animation: contentTreeController,
+      builder: (context, child) {
+        final isExpanded = contentTreeController.expandedIds.contains(node.id);
+
+        return StatelessExpansionTile(
+          isExpanded: isExpanded,
+          onExpansionChanged: (isExpanding) {
+            if (isExpanding) {
+              contentTreeController.expandParentNode(node);
+            } else {
+              contentTreeController.collapseParentNode(node);
+            }
+          },
+          title: title,
+          child: NodesWidget(
+            nodes: node.nodes,
+            contentTreeController: contentTreeController,
+          ),
+        );
+      },
     );
   }
 }
