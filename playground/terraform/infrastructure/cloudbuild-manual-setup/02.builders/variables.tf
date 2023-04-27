@@ -173,11 +173,6 @@ variable "data_for_cicd_webhook_secret" {
 variable "data_for_github_pat_secret" {
   description = "The GitHub generated Personal Access Token value"
 }
-
-variable "private_logs_bucket" {
-  description = "The GCS bucket name to store CI logs privately"
-}
-
 #What i understand this is mandatoy but not actually used. Should we document it 
 variable "trigger_source_repo" {
   description = "Source repo used for github trigger, not used but reqired due to cloudbuild limitation"
