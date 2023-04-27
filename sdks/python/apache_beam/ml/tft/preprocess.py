@@ -220,7 +220,9 @@ def preprocess_fn(inputs):
 # Remove the main.
 if __name__ == '__main__':
   raw_data = [{
-      'x': 1, 'y': np.array([1, 10, 15], dtype=np.int32), 's': 'hello'
+      'x': 1,
+      'y': np.array([[1, 10, 15], [1, 3, 111]], dtype=np.int32),
+      's': 'hello'
   }, {
       'x': 2, 'y': 2, 's': 'world'
   }, {
@@ -253,9 +255,15 @@ if __name__ == '__main__':
 
   # print(transformed_dataset[0])
   tft_process_handler = TFTProcessHandler(process_fn_config=[])
+
+  def tmp_fn(element):
+    return element
+
   with beam.Pipeline() as pipeline:
     (
         pipeline
         | "Create" >> beam.Create(raw_data)
-        | "ConvertToTFX" >> MLTransform(tft_process_handler)
+        | "ConvertToRow" >> beam.Map(lambda x: beam.Row(**x))
+        # | "ConvertToTFX" >> MLTransform(tft_process_handler)
+        | beam.Map(tmp_fn)
         | "print" >> beam.Map(print))
