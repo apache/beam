@@ -100,9 +100,6 @@ HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
 BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
 declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.8")
-# Used to define which artifacts should be present in the generated apache repository. Please add/subtract artifacts as they are published/no longer published.
-java_artifacts_path=$( pwd -P )/java_artifacts.txt
-ARTIFACTS=( $(cat  "$java_artifacts_path" |tr "\n" " ") )
 echo ""
 echo "====================Checking Environment & Variables================="
 echo "PLEASE update RC_VALIDATE_CONFIGS in file script.config first."
@@ -126,49 +123,29 @@ if [[ $confirmation != "y" ]]; then
 fi
 
 echo "----------------- Checking published Java artifacts (should take ~1 minute) -----------------"
+
+java_bom=$(curl "${REPO_URL}/org/apache/beam/beam-sdks-java-bom/${RELEASE_VER}/beam-sdks-java-bom-${RELEASE_VER}.pom")
+artifacts=( $(echo $java_bom | grep -Eo "<artifactId>\S+?</artifactId>" | grep -Eo "beam-[a-zA-Z0-9.-]+") )
+if [ ${#artifacts[@]} == 0 ];
+then
+    echo "Couldn't find beam-sdks-java-bom in the generated java artifact."
+    echo "Please check ${REPO_URL} and try regenerating the java artifacts in the build_rc step."
+    exit 1
+fi
+
 FAILED=()
-for i in "${ARTIFACTS[@]}"
+for i in "${artifacts[@]}"
 do
     curl "${REPO_URL}/org/apache/beam/${i}/${RELEASE_VER}" -f || FAILED+=($i)
 done
 if [ ${#FAILED[@]} != 0 ];
 then
-    echo "Failed to find the following artifacts:"
+    echo "Failed to find the following artifacts in the generated java artifact, but they were present as dependencies in beam-sdks-java-bom:"
     for i in "${FAILED[@]}"
     do
         echo "Artifact: ${i} - url: ${REPO_URL}/org/apache/beam/${i}/${RELEASE_VER}"
     done
-    echo "If these artifacts should no longer be published, remove them from java_artifacts.txt and try again."
-    echo "Please check any changes back in to master."
-    exit 1
-fi
-response=$(curl "${REPO_URL}/org/apache/beam/" | grep -Eo "${REPO_URL}/\S+?\"")
-published=($response)
-for p in "${published[@]}"
-do
-    in_artifacts=0
-    for a in "${ARTIFACTS[@]}"
-    do
-        if [ "${REPO_URL}/org/apache/beam/${a}/\"" == $p ]
-        then
-            in_artifacts=1
-        fi
-    done
-
-    if [ $in_artifacts == 0 ]
-    then
-        FAILED+=($a)
-    fi
-done
-if [ ${#FAILED[@]} != 0 ];
-then
-    echo "The following artifacts were published but maybe should not have been:"
-    for i in "${FAILED[@]}"
-    do
-        echo "Artifact: ${i} - url: ${REPO_URL}/org/apache/beam/${i}/${RELEASE_VER}"
-    done
-    echo "If these artifacts should have been published (which is likely), add them to java_artifacts.txt and try again."
-    echo "Please check any changes back in to master."
+    echo "Please check ${REPO_URL} and try regenerating the java artifacts in the build_rc step."
     exit 1
 fi
 
