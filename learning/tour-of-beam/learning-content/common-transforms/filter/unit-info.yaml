@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  
+id: filter
+name: Filter
+complexity: BASIC
+taskName: Filter
