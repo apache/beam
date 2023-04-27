@@ -27,7 +27,11 @@
   - [Removing old snippets](#removing-old-snippets)
   - [Removing a specific snippet](#removing-a-specific-snippet)
   - [Run playground tests without cache](#run-playground-tests-without-cache)
-- [Referenced Beam SDK update](#referenced-beam-sdk-update)
+- [Updating dependencies](#updating-dependencies)
+  - [Referenced Beam SDK update](#referenced-beam-sdk-update)
+  - [Update Go version](#update-go-version)
+  - [Update Python version](#update-python-version)
+  - [Update Java version](#update-java-version)
 - [Deployment](#deployment)
 - [Manual Example deployment](#manual-example-deployment)
   - [Run example deployment script](#run-example-deployment-script)
@@ -129,14 +133,36 @@ cd beam
  ./gradlew playground:backend:testWithoutCache
 ```
 
-# Referenced Beam SDK update
-1. Update default `BEAM_SDK` values in Java contianer [Dockerfile](/playground/backend/containers/java/Dockerfile):
-1. Update SDK version in CI GitHub workflow:
+# Updating dependencies
+## Referenced Beam SDK update
+1. Update default `BEAM_SDK` values in Java contianer [Dockerfile](/playground/backend/containers/java/Dockerfile)
+2. Update `default_beam_version` in [Java container `build.gradle`](/playground/backend/containers/java/build.gradle)
+3. Update `default_beam_version` in [Python container `build.gradle`](/playground/backend/containers/python/build.gradle)
+4. Update SDK version in CI GitHub workflow:
     - [playground_examples_ci_reusable.yml](/.github/workflows/playground_examples_ci_reusable.yml)
-1. Update `-Psdk-tag=` in ["Deploy Playground to Kubernetes" section of the deployment guide](/playground/terraform/README.md#deploy-playground-to-kubernetes)
-1. Update `_BEAM_VERSION` in
+5. Update `-Psdk-tag=` in ["Deploy Playground to Kubernetes" section of the deployment guide](/playground/terraform/README.md#deploy-playground-to-kubernetes)
+6. Update `_BEAM_VERSION` in
     - [playground_ci_stable.yaml](/playground/infrastructure/cloudbuild/playground_ci_stable.yaml)
     - [playground_cd_stable.yaml](/playground/infrastructure/cloudbuild/playground_cd_stable.yaml)
+
+## Update Go version
+
+1. Update Go version in [`go.mod`](backend/go.mod)
+2. Run `go mod download` and `go mod tidy` in [`backend`](backend) directory
+3. Update `BASE_IMAGE` parameter in [router Dockerfile](backend/containers/router/Dockerfile) and [`build.gradle`](backend/containers/router/build.gradle)
+4. Update `GO_BASE_IMAGE` parameter in [Python Dockerfile](backend/containers/python/Dockerfile) and [`build.gradle`](backend/containers/python/build.gradle)
+5. Update `GO_BASE_IMAGE` parameter in [Java Dockerfile](backend/containers/java/Dockerfile) and [`build.gradle`](backend/containers/java/build.gradle)
+6. Update `GO_BASE_IMAGE` parameter in [SCIO Dockerfile](backend/containers/scio/Dockerfile) and [`build.gradle`](backend/containers/scio/build.gradle)
+7. Update [Go runner `build.gradle`](backend/containers/go/build.gradle)
+
+## Update Python version
+
+Update `BASE_IMAGE` in [Python Dockerfile](backend/containers/python/Dockerfile)
+
+## Update Java version
+
+1. Update base images version in `FROM maven:3.8.6-openjdk-11 as dep` and `FROM apache/beam_java11_sdk:$BEAM_VERSION` lines in [Java Dockerfile](backend/containers/java/Dockerfile)
+2. Update `BASE_IMAGE` in [SCIO Dockerfile](backend/containers/scio/Dockerfile) and [`build.gradle`](backend/containers/scio/build.gradle)
 
 # Deployment
 
