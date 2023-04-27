@@ -21,9 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
+id: windowing-motivating-challenge
+name: Windowing motivating challenge
+taskName: WindowingChallenge
+solutionName: WindowingSolution
