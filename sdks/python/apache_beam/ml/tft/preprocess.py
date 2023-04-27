@@ -72,15 +72,33 @@ class ProcessHandler:
   def process_data(self):
     raise NotImplementedError
 
+  def convert_data(self):
+    """No op here."""
+    def _PTransformFn(pcoll_or_pipeline):
+      return pcoll_or_pipeline
+
+    return beam.ptransform_fn(_PTransformFn)()
+
 
 class MLTransform(ptransform.PTransform):
+  """
+  1. Implement dead letter queue?
+  """
   def __init__(self, process_handler):
     self.process_handler = process_handler
 
   def expand(self, pvalue: typing.Dict):
     return (
         pvalue
-        | "ProcessParDo" >> beam.ParDo(_MLTransformDoFn(self.process_handler)))
+        | "BatchElements" >> beam.BatchElements()
+        | "DataConversion" >> beam.ParDo(_DictToRecordBatches())
+        # | "ProcessParDo" >> beam.ParDo(_MLTransformDoFn(self.process_handler))
+    )
+
+
+class _DictToRecordBatches(beam.DoFn):
+  def process(self, element):
+    yield pa.RecordBatch.from_pylist(element)
 
 
 class _MLTransformDoFn(beam.DoFn):
@@ -103,6 +121,13 @@ class TFTProcessHandler(ProcessHandler):
       output_record_batches=False):
     self.process_fn_config = process_fn_config
     self.output_record_batches = output_record_batches
+
+  def convert_data(self, element):
+    def _PTransformFn():
+      import pyarrow as pa
+      return (pcoll_or_pipeline | beam.Map(pa.RecordBatch.from_pydict))
+
+    return beam.ptransform_fn(_PTransformFn)()
 
   def _get_raw_data_metadata(self, data: Dict[str, Any]):
     """
@@ -194,26 +219,26 @@ def preprocess_fn(inputs):
 
 # Remove the main.
 if __name__ == '__main__':
-  raw_data = [
-      {
-          'x': 1, 'y': np.array([[1, 3, 10], [10, 1, 10]]), 's': 'hello'
-      },
-      # {'x': 2, 'y': 2, 's': 'world'},
-      # {'x': 3, 'y': 3, 's': 'hello'}
-  ]
+  raw_data = [{
+      'x': 1, 'y': np.array([1, 10, 15], dtype=np.int32), 's': 'hello'
+  }, {
+      'x': 2, 'y': 2, 's': 'world'
+  }, {
+      'x': 3, 'y': 3, 's': 'hello'
+  }]
 
-  output_record_batches = False
-  tft_handler = TFTProcessHandler(
-      process_fn_config=[
-          # compute_and_apply_vocabulary(columns=['s']),
-          apply_buckets(
-              columns=['y'], bucket_boundaries=tf.constant([[2.0, 5.0, 10.0]])),
-          # scale_to_z_score(columns=['y']),
-          # tf.reduce_mean,
-      ],
-      output_record_batches=output_record_batches)
-  transformed_dataset = tft_handler.process_data(raw_data)
-  print(transformed_dataset[0])
+  # output_record_batches = False
+  # tft_handler = TFTProcessHandler(
+  #     process_fn_config=[
+  #         # compute_and_apply_vocabulary(columns=['s']),
+  #         apply_buckets(
+  #             columns=['y'], bucket_boundaries=tf.constant([[2.0, 5.0, 10.0]])),
+  #         # scale_to_z_score(columns=['y']),
+  #         # tf.reduce_mean,
+  #     ],
+  #     output_record_batches=output_record_batches)
+  # transformed_dataset = tft_handler.process_data(raw_data)
+  # print(transformed_dataset[0])
 
   # raw_data_feature_spec = {'y' : tf.io.FixedLenFeature((2,3), tf.int64)}
   # raw_data_metadata = tft.DatasetMetadata(
@@ -227,3 +252,10 @@ if __name__ == '__main__':
   #     ))
 
   # print(transformed_dataset[0])
+  tft_process_handler = TFTProcessHandler(process_fn_config=[])
+  with beam.Pipeline() as pipeline:
+    (
+        pipeline
+        | "Create" >> beam.Create(raw_data)
+        | "ConvertToTFX" >> MLTransform(tft_process_handler)
+        | "print" >> beam.Map(print))
