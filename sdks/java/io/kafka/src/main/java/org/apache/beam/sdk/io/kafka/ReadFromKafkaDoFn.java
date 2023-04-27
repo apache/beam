@@ -335,7 +335,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         Preconditions.checkStateNotNull(this.keyDeserializerInstance);
     final Deserializer<V> valueDeserializerInstance =
         Preconditions.checkStateNotNull(this.valueDeserializerInstance);
-
     // Stop processing current TopicPartition when it's time to stop.
     if (checkStopReadingFn != null
         && checkStopReadingFn.apply(kafkaSourceDescriptor.getTopicPartition())) {
