@@ -1253,8 +1253,6 @@ public class StreamingDataflowWorker {
 
     ExecutionState executionState = null;
 
-    OutputObjectAndByteCounter outputCounter = null;
-
     try {
       executionState = computationState.getExecutionStateQueue().poll();
       if (executionState == null) {
@@ -1331,15 +1329,14 @@ public class StreamingDataflowWorker {
                   readNode.getParallelInstruction().getOriginalName(),
                   readNode.getParallelInstruction().getSystemName(),
                   readNode.getParallelInstruction().getName());
-          outputCounter =
+          readOperation.receivers[0].addOutputCounter(
               new OutputObjectAndByteCounter(
                       new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
                           readCoder),
                       mapTaskExecutor.getOutputCounters(),
                       nameContext)
                   .setSamplingPeriod(100)
-                  .countBytes("dataflow_input_size-" + mapTask.getSystemName());
-          readOperation.receivers[0].addOutputCounter(outputCounter);
+                  .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
         }
         executionState =
             new ExecutionState(mapTaskExecutor, context, keyCoder, executionStateTracker);
@@ -1402,6 +1399,23 @@ public class StreamingDataflowWorker {
 
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
+
+      // Reports source bytes processed to workitemcommitrequest if available.
+      long sourceBytesProcessed = 0;
+      List<ElementCounter> counters =
+          ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
+              .getReadOperation()
+              .receivers[0]
+              .getOutputCounters();
+      for (ElementCounter counter : counters) {
+        try {
+          sourceBytesProcessed =
+              (long) ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset();
+        } catch (Exception e) {
+          // ignore
+        }
+      }
+      outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
 
       // Report bytes processed for custom source
       if (outputCounter != null) {
