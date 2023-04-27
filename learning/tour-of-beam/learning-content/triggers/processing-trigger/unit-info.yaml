@@ -21,10 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
+complexity: ADVANCED
+id: processing-trigger
+name: Processing trigger
+taskName: processing-trigger

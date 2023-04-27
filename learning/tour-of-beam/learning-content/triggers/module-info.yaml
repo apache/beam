@@ -21,10 +21,13 @@ sdk:
   - Java
   - Python
   - Go
+id: triggers
+name: Triggers
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
+- concept
+- event-time-trigger
+- data-driven-trigger
+- processing-trigger
+- composite-trigger
+
