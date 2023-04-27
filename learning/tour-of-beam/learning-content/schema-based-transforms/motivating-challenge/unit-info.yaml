@@ -19,11 +19,7 @@
 
 sdk:
   - Java
-  - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  
+id: schema-motivating-challenge
+name: Schema Based Challenge
+taskName: SchemaBasedChallenge
+solutionName: SchemaBasedSolution

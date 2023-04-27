@@ -19,11 +19,7 @@
 
 sdk:
   - Java
-  - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  
+id: convert
+name: Convert
+taskName: convert
+complexity: ADVANCED
