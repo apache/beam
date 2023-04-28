@@ -238,8 +238,8 @@
   than requiring them to be passed separately via the `--extra_package` option
   (Python) ([#23684](https://github.com/apache/beam/pull/23684)).
 * Pipeline Resource Hints now supported via `--resource_hints` flag (Go) ([#23990](https://github.com/apache/beam/pull/23990)).
-* Make Python SDK containers reusable on portable runners by installing dependencies to temporary venvs ([BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792)).
-* RunInference model handlers now support the specification of a custom inference function in Python ([#22572](https://github.com/apache/beam/issues/22572))
+* Make Python SDK containers reusable on portable runners by installing dependencies to temporary venvs ([BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792), [#16658](https://github.com/apache/beam/pull/16658)).
+* RunInference model handlers now support the specification of a custom inference function in Python ([#22572](https://github.com/apache/beam/issues/22572)).
 * Support for `map_windows` urn added to Go SDK ([#24307](https://github.apache/beam/pull/24307)).
 
 ## Breaking Changes
@@ -254,6 +254,9 @@
   runner (such as Dataflow Runner v2) will need to provide this package and its dependencies.
 * Slices now use the Beam Iterable Coder. This enables cross language use, but breaks pipeline updates
   if a Slice type is used as a PCollection element or State API element. (Go)[#24339](https://github.com/apache/beam/issues/24339)
+* If you activated a virtual environment in your custom container image, this environment might no longer be activated, since a new environment will be created (see the note about [BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792) above).
+  To work around, install dependencies into the default (global) python environment. When using poetry you may need to use `poetry config virtualenvs.create false` before installing deps, see an example in: [#25085](https://github.com/apache/beam/issues/25085).
+  If you were negatively impacted by this change and cannot find a workaround, feel free to chime in on [#16658](https://github.com/apache/beam/pull/16658).
 
 ## Deprecations
 
