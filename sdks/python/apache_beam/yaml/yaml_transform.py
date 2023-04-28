@@ -566,7 +566,7 @@ def preprocess_flattened_inputs(spec):
     if t['type'] == 'Flatten':
       # Don't flatten before explicit flatten.
       # But we do have to expand list inputs into singleton inputs.
-      def all_inputs():
+      def all_inputs(t):
         for key, values in t.get('input', {}).items():
           if isinstance(values, list):
             for ix, values in enumerate(values):
@@ -575,7 +575,7 @@ def preprocess_flattened_inputs(spec):
             yield key, values
 
       inputs_dict = {}
-      for key, value in all_inputs():
+      for key, value in all_inputs(t):
         while key in inputs_dict:
           key += '_'
         inputs_dict[key] = value
