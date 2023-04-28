@@ -17,6 +17,7 @@
 # under the License.
 #
 
+# Terraform state to be saved in GCS bucket
 terraform {
   backend "gcs" {
   }
@@ -29,6 +30,7 @@ terraform {
   }
 }
 
+# GCP Provider resource
 provider "google" {
   project = var.project_id
   region = var.region

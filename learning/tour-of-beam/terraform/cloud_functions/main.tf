@@ -47,6 +47,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
 }
 
 # Create IAM entry so all users can invoke the cloud functions
+
 # Endpoints serve content only
 # Has additional firebase authentication called "Bearer token" for endpoints that update or delete user progress
 resource "google_cloudfunctions_function_iam_member" "invoker" {
