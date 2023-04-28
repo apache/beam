@@ -603,13 +603,13 @@ public class StreamingDataflowWorkerTest {
   private WorkItemCommitRequest.Builder makeExpectedTruncationRequestOutput(
       int index, String key, long shardingKey, long estimatedSize) throws Exception {
     StringBuilder expectedCommitRequestBuilder =
-        initializeExpectedCommitRequest(key, shardingKey, index);
+        initializeExpectedCommitRequest(key, shardingKey, index, false);
     appendCommitTruncationFields(expectedCommitRequestBuilder, estimatedSize);
 
     return parseCommitRequest(expectedCommitRequestBuilder.toString());
   }
 
-  private StringBuilder initializeExpectedCommitRequest(String key, long shardingKey, int index) {
+  private StringBuilder initializeExpectedCommitRequest(String key, long shardingKey, int index, bool hasSourceBytesProcessed) {
     StringBuilder requestBuilder = new StringBuilder();
 
     requestBuilder.append("key: \"");
@@ -622,9 +622,13 @@ public class StreamingDataflowWorkerTest {
     requestBuilder.append(index);
     requestBuilder.append(" ");
     requestBuilder.append("cache_token: 3 ");
-    requestBuilder.append("source_bytes_processed: 0 ");
+    if (hasSourceBytesProcessed) requestBuilder.append("source_bytes_processed: 0 ");
+    
+    return requestBuilder; 
+  }
 
-    return requestBuilder;
+  private StringBuilder initializeExpectedCommitRequest(String key, long shardingKey, int index) {
+    return initializeExpectedCommitRequest(key, shardingKey, index, true);
   }
 
   private StringBuilder appendCommitOutputMessages(
@@ -2371,6 +2375,7 @@ public class StreamingDataflowWorkerTest {
                             + "work_token: 1 "
                             + "cache_token: 1 "
                             + "source_backlog_bytes: 7 "
+                            + "source_bytes_processed: 18"
                             + "output_messages {"
                             + "  destination_stream_id: \"out\""
                             + "  bundles {"
@@ -2538,6 +2543,7 @@ public class StreamingDataflowWorkerTest {
                             + "work_token: 2 "
                             + "cache_token: 3 "
                             + "source_backlog_bytes: 7 "
+                            + "source_bytes_processed: 18"
                             + "output_messages {"
                             + "  destination_stream_id: \"out\""
                             + "  bundles {"
@@ -2647,6 +2653,7 @@ public class StreamingDataflowWorkerTest {
                         + "work_token: 1 "
                         + "cache_token: 1 "
                         + "source_backlog_bytes: 7 "
+                        + "source_bytes_processed: 18"
                         + "output_messages {"
                         + "  destination_stream_id: \"out\""
                         + "  bundles {"
@@ -3058,6 +3065,7 @@ public class StreamingDataflowWorkerTest {
       sb.append((sourceState + 1) * 1000);
       sb.append("\n");
       sb.append("source_backlog_bytes: 7\n");
+      sb.append("source_bytes_processed: 18\n");
 
       assertThat(
           // The commit will include a timer to clean up state - this timer is irrelevant
