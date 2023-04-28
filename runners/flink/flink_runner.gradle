@@ -408,13 +408,9 @@ test.dependsOn(generatePipelineOptionsTableJava)
 test.dependsOn(generatePipelineOptionsTablePython)
 
 repositories {
-  ivy {
-//    name 'ext-libraries'
+  maven {
+    name 'ext-libraries'
     url 'https://linkedin.jfrog.io/artifactory/flink-li-custom/'
-    credentials {
-      username project.hasProperty('ARTIFACTORY_USER') ? ARTIFACTORY_USER : ""
-      password project.hasProperty('ARTIFACTORY_KEY') ? ARTIFACTORY_KEY : ""
-    }
   }
 }
 
