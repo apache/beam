@@ -14,7 +14,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+*/
 
 // beam-playground:
 //   name: read-table
@@ -30,49 +30,48 @@
 package main
 
 import (
-    "log"
-    /*
-    "context"
-    beam_log "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-    "cloud.google.com/go/bigquery"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
-    */
+	_ "context"
+	"flag"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	internal_log "log"
+	_ "reflect"
+	"time"
 )
 
-var(projectID = "project-id"
-    datasetID = "dataset"
-    tableID = "table")
+type Comment struct {
+	ID      int       `bigquery:"id"`
+	By      string    `bigquery:"by"`
+	Author  string    `bigquery:"author"`
+	Time    int       `bigquery:"time"`
+	TimeTS  time.Time `bigquery:"time_ts"`
+	Text    string    `bigquery:"text"`
+	Parent  int       `bigquery:"parent"`
+	Deleted bool      `bigquery:"deleted"`
+	Dead    bool      `bigquery:"dead"`
+	Ranking float64   `bigquery:"ranking"`
+}
 
 func main() {
-    log.Println("Running Task")
+	internal_log.Println("Running Task")
+	flag.Parse()
+	beam.Init()
+	/*
+		ctx := context.Background()
+		p := beam.NewPipeline()
+		s := p.Root()
+		project := "tess-372508"
 
-    /*
-    ctx := context.Background()
-    p := beam.NewPipeline()
+		// Build a PCollection<CommentRow> by querying BigQuery.
+		rows := bigqueryio.Read(s, project, "bigquery-public-data:hacker_news.comments", reflect.TypeOf(Comment{}))
 
-    // set up pipeline
+		debug.Print(s, rows)
 
-    s := p.Root()
-    s = s.Scope("ReadFromBigQuery")
-    rows := bigqueryio.Read(s, bigquery.TableReference{ProjectID: projectID, DatasetID: datasetID, TableID: tableID})
-
-    beam.ParDo0(s, &logOutput{}, rows)
-
-    if err := beamx.Run(ctx, p); err != nil {
-      beam_log.Fatalf(ctx, "Failed to execute job: %v", err)
-  }
-*/
+		// Now that the pipeline is fully constructed, we execute it.
+		if err := beamx.Run(ctx, p); err != nil {
+			log.Exitf(ctx, "Failed to execute job: %v", err)
+		}*/
 }
-
-/*
-type logOutput struct{}
-
-func (l *logOutput) ProcessElement(row bigquery.Value, emit func(bigquery.Value)) {
-    log.Printf("Processing element: %v", row)
-    emit(row)
-}
-*/
-
-

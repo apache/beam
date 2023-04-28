@@ -14,56 +14,62 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+*/
 
 // beam-playground:
-//   name: read-query
-//   description: BigQuery read query example.
-//   multifile: false
-//   context_line: 40
-//   categories:
-//     - Quickstart
-//   complexity: ADVANCED
-//   tags:
-//     - hellobeam
-
+//
+//	name: read-query
+//	description: BigQuery read query example.
+//	multifile: false
+//	context_line: 40
+//	categories:
+//	  - Quickstart
+//	complexity: ADVANCED
+//	tags:
+//	  - hellobeam
 package main
 
 import (
-  "log"
-/*
-  "context"
-  beam_log "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-  "cloud.google.com/go/bigquery"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
-*/
+	_ "context"
+	"flag"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	internal_log "log"
+	_ "reflect"
 )
 
+// CommentRow models 1 row of HackerNews comments.
+type CommentRow struct {
+	Text string `bigquery:"text"`
+}
+
+const query = `SELECT text
+FROM ` + "`bigquery-public-data.hacker_news.comments`" + `
+WHERE time_ts BETWEEN '2013-01-01' AND '2014-01-01'
+LIMIT 1000
+`
+
 func main() {
-  log.Println("Running Task")
+	internal_log.Println("Running Task")
+	flag.Parse()
+	beam.Init()
+	/*
+		ctx := context.Background()
+		p := beam.NewPipeline()
+		s := p.Root()
+		project := "tess-372508"
 
-  /*
+		// Build a PCollection<CommentRow> by querying BigQuery.
+		rows := bigqueryio.Query(s, project, query,
+			reflect.TypeOf(CommentRow{}), bigqueryio.UseStandardSQL())
 
-  ctx := context.Background()
-  p := beam.NewPipeline()
+		debug.Print(s, rows)
 
-
-  pCollection, err := bigquery.NewClient(context.Background(), options).Read(p,
-    bigquery.Query("SELECT field FROM `project-id.dataset.table`"),
-    bigquery.WithCoder(bigquery.Float64()))
-  if err != nil {
-    log.Fatalf("Failed to read from BigQuery: %v", err)
-  }
-
-  pCollection.Apply("Log words", ParDo(func(el float64, emit func(float64)) {
-    log.Printf("Processing element: %v", el)
-    emit(el)
-  }, bigquery.Float64()))
-
-  if err := p.Run(); err != nil {
-    log.Fatalf("Failed to execute job: %v", err)
-  }
-*/
+		// Now that the pipeline is fully constructed, we execute it.
+		if err := beamx.Run(ctx, p); err != nil {
+			log.Exitf(ctx, "Failed to execute job: %v", err)
+		}*/
 }
