@@ -82,6 +82,9 @@ include(":runners:core-construction-java")
 include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
+include(":learning")
+include(":learning:tour-of-beam")
+include(":learning:tour-of-beam:terraform")
 /* Begin Flink Runner related settings */
 // Flink 1.12
 include(":runners:flink:1.12")
