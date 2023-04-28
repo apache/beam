@@ -609,7 +609,7 @@ public class StreamingDataflowWorkerTest {
     return parseCommitRequest(expectedCommitRequestBuilder.toString());
   }
 
-  private StringBuilder initializeExpectedCommitRequest(String key, long shardingKey, int index) {
+  private StringBuilder initializeExpectedCommitRequest(String key, long shardingKey, int index, long sourceBytesProcessed = 0) {
     StringBuilder requestBuilder = new StringBuilder();
 
     requestBuilder.append("key: \"");
@@ -622,6 +622,9 @@ public class StreamingDataflowWorkerTest {
     requestBuilder.append(index);
     requestBuilder.append(" ");
     requestBuilder.append("cache_token: 3 ");
+    requestBuilder.append("source_bytes_processed: ");
+    requestBuilder.append(sourceBytesProcessed);
+    requestBuilder.append(" ");
 
     return requestBuilder;
   }
@@ -2370,6 +2373,7 @@ public class StreamingDataflowWorkerTest {
                             + "work_token: 1 "
                             + "cache_token: 1 "
                             + "source_backlog_bytes: 7 "
+                            + "source_bytes_processed: 18 "
                             + "output_messages {"
                             + "  destination_stream_id: \"out\""
                             + "  bundles {"
@@ -2429,6 +2433,7 @@ public class StreamingDataflowWorkerTest {
                         + "work_token: 2 "
                         + "cache_token: 1 "
                         + "source_backlog_bytes: 7 "
+                        + "source_bytes_processed: 18 "
                         + "source_state_updates {"
                         + "  state: \"\000\""
                         + "  finalize_ids: "
@@ -2476,6 +2481,7 @@ public class StreamingDataflowWorkerTest {
                         + "work_token: 3 "
                         + "cache_token: 2 "
                         + "source_backlog_bytes: 7 "
+                        + "source_bytes_processed: 18 "
                         + "source_state_updates {"
                         + "  state: \"\000\""
                         + "  finalize_ids: "
@@ -2537,6 +2543,7 @@ public class StreamingDataflowWorkerTest {
                             + "work_token: 2 "
                             + "cache_token: 3 "
                             + "source_backlog_bytes: 7 "
+                            + "source_bytes_processed: 18 "
                             + "output_messages {"
                             + "  destination_stream_id: \"out\""
                             + "  bundles {"
@@ -2646,6 +2653,7 @@ public class StreamingDataflowWorkerTest {
                         + "work_token: 1 "
                         + "cache_token: 1 "
                         + "source_backlog_bytes: 7 "
+                        + "source_bytes_processed: 18 "
                         + "output_messages {"
                         + "  destination_stream_id: \"out\""
                         + "  bundles {"
@@ -2719,6 +2727,7 @@ public class StreamingDataflowWorkerTest {
                         + "work_token: 2 "
                         + "cache_token: 1 "
                         + "source_backlog_bytes: 7 "
+                        + "source_bytes_processed: 18 "
                         + "source_state_updates {"
                         + "  state: \"\000\""
                         + "  finalize_ids: "
