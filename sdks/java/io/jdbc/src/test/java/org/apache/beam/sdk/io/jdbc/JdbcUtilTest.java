@@ -23,6 +23,12 @@ import static org.hamcrest.number.IsCloseTo.closeTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -36,13 +42,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Test JdbcUtil. */
 @RunWith(JUnit4.class)
 public class JdbcUtilTest {
+
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   // TODO(BEAM-13846): Support string-based partitioning once the transform supports modifying
   //      range properties (inclusive/exclusive).
@@ -235,5 +245,26 @@ public class JdbcUtilTest {
     // Because the query's filter statement is : WHERE column >= lowerBound AND column < upperBound.
     assertEquals(4, ranges.size());
     assertArrayEquals(expectedRanges.toArray(), ranges.toArray());
+  }
+
+  @Test
+  public void testSavesFilesAsExpected() throws IOException {
+    File tempFile1 = temporaryFolder.newFile();
+    File tempFile2 = temporaryFolder.newFile();
+    String expectedContent1 = "hello world";
+    String expectedContent2 = "hello world 2";
+    Files.write(tempFile1.toPath(), expectedContent1.getBytes(StandardCharsets.UTF_8));
+    Files.write(tempFile2.toPath(), expectedContent2.getBytes(StandardCharsets.UTF_8));
+
+    URL[] urls =
+        JdbcUtil.saveFilesLocally(tempFile1.getAbsolutePath() + "," + tempFile2.getAbsolutePath());
+
+    assertEquals(2, urls.length);
+    assertEquals(
+        expectedContent1,
+        new String(Files.readAllBytes(Paths.get(urls[0].getFile())), StandardCharsets.UTF_8));
+    assertEquals(
+        expectedContent2,
+        new String(Files.readAllBytes(Paths.get(urls[1].getFile())), StandardCharsets.UTF_8));
   }
 }
