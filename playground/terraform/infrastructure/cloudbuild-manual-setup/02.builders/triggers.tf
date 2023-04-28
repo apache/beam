@@ -184,7 +184,7 @@ resource "google_cloudbuild_trigger" "playground_cd" {
     }
     logs_bucket = google_storage_bucket.playground_cloudbuild_private.url
     step {
-      id = "Run CI"
+      id = "Run CD"
       script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
       name = "ubuntu"
       env = local.cloudbuild_cd_environment
