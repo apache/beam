@@ -84,12 +84,10 @@ public class PubsubLiteWriteSchemaTransformProvider
     private Counter errorCounter;
     private Counter elementCounter;
     private long errorsInBundle = 0L;
-    private long elementsInBundle = 0L;
 
     public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
       this.toBytesFn = toBytesFn;
       errorCounter = Metrics.counter(PubsubLiteWriteSchemaTransformProvider.class, name);
-      elementCounter = Metrics.counter(PubsubLiteWriteSchemaTransformProvider.class, "pubsubLite-write-element-counter");
     }
 
     @ProcessElement
@@ -101,7 +99,6 @@ public class PubsubLiteWriteSchemaTransformProvider
                 .build();
 
         receiver.get(OUTPUT_TAG).output(message);
-        elementsInBundle += 1;
       } catch (Exception e) {
         errorsInBundle += 1;
         LOG.warn("Error while parsing the element", e);
@@ -118,8 +115,6 @@ public class PubsubLiteWriteSchemaTransformProvider
     public void finish() {
       errorCounter.inc(errorsInBundle);
       errorsInBundle = 0L;
-      elementCounter.inc(elementsInBundle);
-      elementsInBundle = 0L;
     }
   }
 
