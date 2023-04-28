@@ -20,7 +20,6 @@
 sdk:
   - Java
   - Python
-  - Go
 id: cross-language
 name: cross-language
 complexity: ADVANCED
