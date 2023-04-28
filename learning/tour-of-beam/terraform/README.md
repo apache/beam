@@ -231,7 +231,7 @@ Copy the lines inside the curly braces and redact them.
 You will need to:
 
 1) Remove "locationId" line.
-2) Remove quotes (") from key of "key": "value" pair. 
+2) Remove quotes (") from key of "key": "value" pair.
    3) E.g. `projectId: "cloudbuild-384304"`
 4) In overall, redacted and ready to be inserted data should be as follows:
 
