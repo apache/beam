@@ -259,8 +259,9 @@ pipeline:
       topic: anotherPubSubTopic
 ```
 
-Note that the `Sql` operation itself often a from of aggregation, and applying
-a windowing which will cause all grouping to be done per window.
+Note that the `Sql` operation itself is often a from of aggregation, and
+applying a windowing (or consuming an already windowed input) will cause all
+grouping to be done per window.
 
 ```
 pipeline:
