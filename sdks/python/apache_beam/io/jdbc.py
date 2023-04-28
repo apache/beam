@@ -125,7 +125,7 @@ Config = typing.NamedTuple(
      ('autosharding', typing.Optional[bool]),
      ('partition_column', typing.Optional[str]),
      ('partitions', typing.Optional[np.int16]),
-     ('max_connections', typing.Optional[int]),
+     ('max_connections', typing.Optional[np.int16]),
      ('driver_jars', typing.Optional[str])],
 )
 
