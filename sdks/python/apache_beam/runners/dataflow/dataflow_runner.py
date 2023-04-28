@@ -373,8 +373,10 @@ class DataflowRunner(PipelineRunner):
       if not debug_options.lookup_experiment('disable_runner_v2_until_v2.50'):
         raise ValueError(
             'disable_runner_v2 is deprecated in Beam Python ' +
-            beam.version.__version__ + '. ' +
-            'If needed, please use disable_runner_v2_until_v2.50.')
+            beam.version.__version__ +
+            ' and this execution mode will be removed in a future Beam SDK. '
+            'If needed, please use: '
+            '"--experiments=disable_runner_v2_until_v2.50".')
 
     # Label goog-dataflow-notebook if job is started from notebook.
     if is_in_notebook():
