@@ -156,18 +156,6 @@ class Scope(LightweightScope):
     for transform_id in self._transforms_by_uuid.keys():
       self.compute_outputs(transform_id)
 
-  def get_input(self, inputs, transform_label, key):
-    if isinstance(inputs, str):
-      return self.get_pcollection(inputs)
-    else:
-      pipeline = (
-          self.root
-          if isinstance(self.root, beam.Pipeline) else self.root.pipeline)
-      label = f'{transform_label}-FlattenInputs[{key}]'
-      return (
-          tuple(self.get_pcollection(x) for x in inputs)
-          | label >> beam.Flatten(pipeline=pipeline))
-
   def get_pcollection(self, name):
     if name in self._inputs:
       return self._inputs[name]
@@ -279,34 +267,29 @@ def expand_transform(spec, scope):
 
 
 def expand_leaf_transform(spec, scope):
-  _LOGGER.info("Expanding %s ", identify_object(spec))
   spec = normalize_inputs_outputs(spec)
-  ptransform = scope.create_ptransform(spec)
-  transform_label = scope.unique_name(spec, ptransform)
-
-  if spec['type'] == 'Flatten':
-    # Avoid flattening before the flatten, just to make a nicer graph.
-    inputs = tuple(
-        scope.get_pcollection(input) for (key, value) in spec['input'].items()
-        for input in ([value] if isinstance(value, str) else value))
-
+  inputs_dict = {
+      key: scope.get_pcollection(value)
+      for (key, value) in spec['input'].items()
+  }
+  input_type = spec.get('input_type', 'default')
+  if input_type == 'list':
+    inputs = tuple(inputs_dict.values())
+  elif input_type == 'map':
+    inputs = inputs_dict
   else:
-    inputs_dict = {
-        key: scope.get_input(value, transform_label, key)
-        for (key, value) in spec['input'].items()
-    }
-
     if len(inputs_dict) == 0:
       inputs = scope.root
     elif len(inputs_dict) == 1:
       inputs = next(iter(inputs_dict.values()))
     else:
       inputs = inputs_dict
-
+  _LOGGER.info("Expanding %s ", identify_object(spec))
+  ptransform = scope.create_ptransform(spec)
   try:
     # TODO: Move validation to construction?
     with FullyQualifiedNamedTransform.with_filter('*'):
-      outputs = inputs | transform_label >> ptransform
+      outputs = inputs | scope.unique_name(spec, ptransform) >> ptransform
   except Exception as exn:
     raise ValueError(
         f"Error apply transform {identify_object(spec)}: {exn}") from exn
@@ -325,15 +308,12 @@ def expand_leaf_transform(spec, scope):
 
 def expand_composite_transform(spec, scope):
   spec = normalize_inputs_outputs(normalize_source_sink(spec))
-  if 'name' not in spec:
-    spec['name'] = 'Composite'
-  transform_label = scope.unique_name(spec, None)
 
   inner_scope = Scope(
-      scope.root,
-      {
-          key: scope.get_input(value, transform_label, key)
-          for (key, value) in spec['input'].items()
+      scope.root, {
+          key: scope.get_pcollection(value)
+          for key,
+          value in spec['input'].items()
       },
       spec['transforms'],
       yaml_provider.merge_providers(
@@ -349,14 +329,17 @@ def expand_composite_transform(spec, scope):
           for (key, value) in spec['output'].items()
       }
 
+  if 'name' not in spec:
+    spec['name'] = 'Composite'
   if spec['name'] is None:  # top-level pipeline, don't nest
     return CompositePTransform.expand(None)
   else:
     _LOGGER.info("Expanding %s ", identify_object(spec))
     return ({
-        key: scope.get_input(value, transform_label, key)
-        for (key, value) in spec['input'].items()
-    } or scope.root) | transform_label >> CompositePTransform()
+        key: scope.get_pcollection(value)
+        for key,
+        value in spec['input'].items()
+    } or scope.root) | scope.unique_name(spec, None) >> CompositePTransform()
 
 
 def expand_chain_transform(spec, scope):
@@ -571,6 +554,54 @@ def preprocess_windowing(spec):
     }
 
 
+def preprocess_flattened_inputs(spec):
+  if spec['type'] != 'composite':
+    return spec
+
+  # Prefer to add the flattens as sibling operations rather than nesting
+  # to keep graph shape consistent when the number of inputs goes from
+  # one to multiple.
+  new_transforms = []
+  for t in spec['transforms']:
+    if t['type'] == 'Flatten':
+      # Don't flatten before explicit flatten.
+      # But we do have to expand list inputs into singleton inputs.
+      def all_inputs():
+        for key, values in t.get('input', {}).items():
+          if isinstance(values, list):
+            for ix, values in enumerate(values):
+              yield f'{key}{ix}', values
+          else:
+            yield key, values
+
+      inputs_dict = {}
+      for key, value in all_inputs():
+        while key in inputs_dict:
+          key += '_'
+        inputs_dict[key] = value
+      t = dict(t, input=inputs_dict)
+    else:
+      replaced_inputs = {}
+      for key, values in t.get('input', {}).items():
+        if isinstance(values, list):
+          flatten_id = SafeLineLoader.create_uuid()
+          new_transforms.append({
+              'type': 'Flatten',
+              'name': '%s-Flatten[%s]' % (t.get('name', t['type']), key),
+              'input': {
+                  f'input{ix}': value
+                  for (ix, value) in enumerate(values)
+              },
+              '__line__': spec['__line__'],
+              '__uuid__': flatten_id,
+          })
+          replaced_inputs[key] = flatten_id
+      if replaced_inputs:
+        t = dict(t, input={**t['input'], **replaced_inputs})
+    new_transforms.append(t)
+  return dict(spec, transforms=new_transforms)
+
+
 def preprocess(spec, verbose=False):
   if verbose:
     pprint.pprint(spec)
@@ -585,6 +616,7 @@ def preprocess(spec, verbose=False):
   for phase in [preprocess_source_sink,
                 preprocess_chain,
                 normalize_inputs_outputs,
+                preprocess_flattened_inputs,
                 preprocess_windowing]:
     spec = apply(phase, spec)
     if verbose:
