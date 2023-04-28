@@ -20,7 +20,6 @@
 sdk:
   - Java
   - Python
-  - Go
 id: multi-pipeline
 name: Multi pipeline
 complexity: ADVANCED
