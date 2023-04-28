@@ -105,6 +105,26 @@ class YamlTransformTest(unittest.TestCase):
           ''')
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
+  def test_implicit_flatten(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              name: CreateSmall
+              elements: [1, 2, 3]
+            - type: Create
+              name: CreateBig
+              elements: [100, 200]
+            - type: PyMap
+              input: [CreateBig, CreateSmall]
+              fn: "lambda x: x * x"
+          output: PyMap
+          ''')
+      assert_that(result, equal_to([1, 4, 9, 10000, 40000]))
+
   def test_csv_to_json(self):
     try:
       import pandas as pd

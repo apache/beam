@@ -99,7 +99,9 @@ def run(
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   # In this example we will use the TensorflowHub model URL.
-  model_loader = TFModelHandlerTensor(model_uri=known_args.model_path)
+  model_loader = TFModelHandlerTensor(
+      model_uri=known_args.model_path).with_preprocess_fn(
+          lambda image_name: read_image(image_name, known_args.image_dir))
 
   pipeline = test_pipeline
   if not test_pipeline:
@@ -108,9 +110,7 @@ def run(
   image = (
       pipeline
       | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
-      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
-      | "PreProcessInputs" >>
-      beam.Map(lambda image_name: read_image(image_name, known_args.image_dir)))
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines))
 
   predictions = (
       image

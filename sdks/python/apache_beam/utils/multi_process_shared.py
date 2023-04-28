@@ -27,7 +27,6 @@ import multiprocessing.managers
 import os
 import tempfile
 import threading
-import uuid
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -188,7 +187,7 @@ class MultiProcessShared(Generic[T]):
       present in the cache. This function should take no arguments. It should
       return an initialised object, or raise an exception if the object could
       not be initialised / constructed.
-    tag: an optional indentifier to store with the cached object. If multiple
+    tag: an indentifier to store with the cached object. If multiple
       MultiProcessShared instances are created with the same tag, they will all
       share the same proxied object.
     path: a temporary path in which to create the inter-process lock
@@ -198,12 +197,12 @@ class MultiProcessShared(Generic[T]):
   def __init__(
       self,
       constructor: Callable[[], T],
-      tag: Optional[Any] = None,
+      tag: Any,
       *,
       path: str = tempfile.gettempdir(),
       always_proxy: Optional[bool] = None):
     self._constructor = constructor
-    self._tag = tag or uuid.uuid4().hex
+    self._tag = tag
     self._path = path
     self._always_proxy = False if always_proxy is None else always_proxy
     self._proxy = None

@@ -70,6 +70,11 @@ List<ModuleModel> _getModules(WidgetTester wt) {
 }
 
 Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
+  if (!_getExpandedIds(wt).contains(module.id)) {
+    await wt.ensureVisible(find.byKey(Key(module.id)));
+    await wt.tapAndSettle(find.byKey(Key(module.id)));
+  }
+
   for (final node in module.nodes) {
     if (node is UnitModel) {
       await _checkNode(node, wt);
@@ -81,7 +86,10 @@ Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
 }
 
 Future<void> _checkNode(UnitModel node, WidgetTester wt) async {
-  await wt.ensureVisible(find.byKey(Key(node.id)));
+  final finder = find.byKey(Key(node.id));
+  expect(finder, findsOneWidget, reason: node.id);
+
+  await wt.ensureVisible(finder);
   expect(
     find.descendant(
       of: find.byType(ContentTreeBuilder),
@@ -243,4 +251,9 @@ TourNotifier _getTourNotifier(WidgetTester wt) {
 
 PlaygroundController _getPlaygroundController(WidgetTester wt) {
   return _getTourNotifier(wt).playgroundController;
+}
+
+Set<String> _getExpandedIds(WidgetTester wt) {
+  final controller = getContentTreeController(wt);
+  return controller.expandedIds;
 }
