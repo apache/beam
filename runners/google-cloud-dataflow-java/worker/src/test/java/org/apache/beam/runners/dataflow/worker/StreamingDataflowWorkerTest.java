@@ -2396,6 +2396,10 @@ public class StreamingDataflowWorkerTest {
                             + "source_watermark: 1000"))
                 .build()));
 
+    // Counter should be reseted by source_bytes_processed reported via workItemCommitRequest.
+    assertEquals(
+        0L, splitIntToLong(getCounter(counters, "dataflow_input_size-computation").getInteger()));
+
     // Test same key continuing. The counter is done.
     server
         .whenGetWorkCalled()
@@ -2672,6 +2676,9 @@ public class StreamingDataflowWorkerTest {
             .build();
 
     assertThat(commit, equalTo(expectedCommit));
+    // Counter should be reseted by source_bytes_processed reported via workItemCommitRequest.
+    assertEquals(
+        0L, splitIntToLong(getCounter(counters, "dataflow_input_size-computation").getInteger()));
 
     // Test retry of work item, it should return the same result and not start the reader from the
     // position it was left at.
