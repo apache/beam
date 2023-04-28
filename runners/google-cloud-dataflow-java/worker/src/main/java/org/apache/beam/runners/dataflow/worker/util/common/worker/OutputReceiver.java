@@ -55,6 +55,10 @@ public class OutputReceiver implements Receiver {
     }
   }
 
+  public List<ElementCounter> getOutputCounters() {
+    return this.outputCounters;
+  }
+
   /** Invoked by tests only. */
   public int getReceiverCount() {
     return outputs.size();

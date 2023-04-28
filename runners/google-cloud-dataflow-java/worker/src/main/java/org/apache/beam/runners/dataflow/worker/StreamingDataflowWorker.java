@@ -99,6 +99,7 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -1399,6 +1400,23 @@ public class StreamingDataflowWorker {
 
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
+
+      // Reports source bytes processed to workitemcommitrequest if available.
+      long sourceBytesProcessed = 0;
+      List<ElementCounter> counters =
+          ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
+              .getReadOperation()
+              .receivers[0]
+              .getOutputCounters();
+      for (ElementCounter counter : counters) {
+        try {
+          sourceBytesProcessed =
+              (long) ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset();
+        } catch (Exception e) {
+          // ignore
+        }
+      }
+      outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
 
       Iterables.addAll(
           this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
