@@ -66,7 +66,7 @@ import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
 @Experimental(Kind.SCHEMAS)
-class SchemaUtil {
+public class SchemaUtil {
   /**
    * Interface implemented by functions that extract values of different types from a JDBC
    * ResultSet.
@@ -178,7 +178,7 @@ class SchemaUtil {
   }
 
   /** Infers the Beam {@link Schema} from {@link ResultSetMetaData}. */
-  static Schema toBeamSchema(ResultSetMetaData md) throws SQLException {
+  public static Schema toBeamSchema(ResultSetMetaData md) throws SQLException {
     Schema.Builder schemaBuilder = Schema.builder();
 
     for (int i = 1; i <= md.getColumnCount(); i++) {
