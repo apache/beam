@@ -318,9 +318,6 @@ def create_builtin_provider():
       elif isinstance(pcolls, dict):
         pipeline_arg = {}
         pcolls = tuple(pcolls.values())
-      elif isinstance(pcolls, (tuple, list)):
-        pipeline_arg = {}
-        pcolls = tuple(pcolls)
       else:
         pipeline_arg = {'pipeline': pcolls.pipeline}
         pcolls = ()

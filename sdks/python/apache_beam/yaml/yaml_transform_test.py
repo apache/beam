@@ -223,6 +223,29 @@ class YamlWindowingTest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
 
+  def test_windowing_multiple_inputs(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: CreateTimestamped
+              name: Create1
+              elements: [0, 2, 4]
+            - type: CreateTimestamped
+              name: Create2
+              elements: [1, 3, 5]
+            - type: SumGlobally
+              input: [Create1, Create2]
+              windowing:
+                type: fixed
+                size: 4
+          output: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
   def test_windowing_on_output(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
