@@ -67,7 +67,9 @@ public abstract class FileReadSchemaTransformConfiguration {
   // Safely returns a non-null filepattern
   public String getSafeFilepattern() {
     Optional<String> filepattern = Optional.ofNullable(getFilepattern());
-    checkState(filepattern.isPresent() && !filepattern.get().isEmpty(), "Unexpected null or empty filepattern");
+    checkState(
+        filepattern.isPresent() && !filepattern.get().isEmpty(),
+        "Unexpected null or empty filepattern");
     return filepattern.get();
   }
 
@@ -87,7 +89,7 @@ public abstract class FileReadSchemaTransformConfiguration {
   // Safely returns a non-null schema
   public String getSafeSchema() {
     Optional<String> schema = Optional.ofNullable(getSchema());
-    checkState(schema.isPresent() && !schema.get().isEmpty(),"Unexpected null or empty schema");
+    checkState(schema.isPresent() && !schema.get().isEmpty(), "Unexpected null or empty schema");
     return schema.get();
   }
 
