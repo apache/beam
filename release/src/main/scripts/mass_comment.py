@@ -28,7 +28,7 @@ COMMENTS_TO_ADD = [
     ("Run Dataflow Runner Tpcds Tests", "beam_PostCommit_Java_Tpcds_Dataflow"),
     ("Run Dataflow Runner V2 Java 11 Nexmark Tests", "beam_PostCommit_Java_Nexmark_DataflowV2_Java11"),
     ("Run Dataflow Runner V2 Java 17 Nexmark Tests", "beam_PostCommit_Java_Nexmark_DataflowV2_Java17"),
-    ("Run Dataflow Runner V2 Nexmark Tests", "beam_PostCommit_Java_Nexmark_Dataflow_V2"),
+    ("Run Dataflow Runner V2 Nexmark Tests", "beam_PostCommit_Java_Nexmark_DataflowV2"),
     ("Run Dataflow Streaming ValidatesRunner", "beam_PostCommit_Java_ValidatesRunner_Dataflow_Streaming"),
     ("Run Dataflow ValidatesRunner Java 11", "beam_PostCommit_Java_ValidatesRunner_Dataflow_Java11"),
     ("Run Dataflow ValidatesRunner Java 17", "beam_PostCommit_Java_ValidatesRunner_Dataflow_Java17"),
@@ -48,8 +48,8 @@ COMMENTS_TO_ADD = [
     ("Run Go Samza ValidatesRunner", "beam_PostCommit_Go_VR_Samza"),
     ("Run Go Spark ValidatesRunner", "beam_PostCommit_Go_VR_Spark"),
     ("Run GoPortable PreCommit", "beam_PreCommit_GoPortable"),
-    ("Run Java 11 Examples on Dataflow Runner V2", "beam_PostCommit_Java_Examples_Dataflow_V2_Java11"),
-    ("Run Java 17 Examples on Dataflow Runner V2", "beam_PostCommit_Java_Examples_Dataflow_V2_Java17"),
+    ("Run Java 11 Examples on Dataflow Runner V2", "beam_PostCommit_Java_Examples_Dataflow_V2_java11"),
+    ("Run Java 17 Examples on Dataflow Runner V2", "beam_PostCommit_Java_Examples_Dataflow_V2_java17"),
     ("Run Java Dataflow V2 ValidatesRunner Streaming", "beam_PostCommit_Java_VR_Dataflow_V2_Streaming"),
     ("Run Java Dataflow V2 ValidatesRunner", "beam_PostCommit_Java_VR_Dataflow_V2"),
     ("Run Java Examples on Dataflow Runner V2", "beam_PostCommit_Java_Examples_Dataflow_V2"),
@@ -61,10 +61,9 @@ COMMENTS_TO_ADD = [
     ("Run Java PreCommit", "beam_PreCommit_Java"),
     ("Run Java Samza PortableValidatesRunner", "beam_PostCommit_Java_PVR_Samza"),
     ("Run Java Spark PortableValidatesRunner Batch", "beam_PostCommit_Java_PVR_Spark_Batch"),
-    ("Run Java Spark v2 PortableValidatesRunner Streaming", "beam_PostCommit_Java_PVR_Spark2_Streaming"),
     ("Run Java Spark v3 PortableValidatesRunner Streaming", "beam_PostCommit_Java_PVR_Spark3_Streaming"),
-    ("Run Java examples on Dataflow Java 11", "beam_PostCommit_Java_Dataflow_Examples_Java11"),
-    ("Run Java examples on Dataflow Java 17", "beam_PostCommit_Java_Dataflow_Examples_Java17"),
+    ("Run Java examples on Dataflow Java 11", "beam_PostCommit_Java_Examples_Dataflow_Java11"),
+    ("Run Java examples on Dataflow Java 17", "beam_PostCommit_Java_Examples_Dataflow_Java17"),
     ("Run Java_Amazon-Web-Services2_IO_Direct PreCommit", "beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct"),
     ("Run Java_Amazon-Web-Services_IO_Direct PreCommit", "beam_PreCommit_Java_Amazon-Web-Services_IO_Direct"),
     ("Run Java_Amqp_IO_Direct PreCommit", "beam_PreCommit_Java_Amqp_IO_Direct"),
@@ -89,7 +88,7 @@ COMMENTS_TO_ADD = [
     ("Run Java_Kudu_IO_Direct PreCommit", "beam_PreCommit_Java_Kudu_IO_Direct"),
     ("Run Java_MongoDb_IO_Direct PreCommit", "beam_PreCommit_Java_MongoDb_IO_Direct"),
     ("Run Java_Mqtt_IO_Direct PreCommit", "beam_PreCommit_Java_Mqtt_IO_Direct"),
-    ("Run Java_Neo4j_IO_Direct PreCommit", "beam_PreCommit_Java_Neo4j_IO_Direct	"),
+    ("Run Java_Neo4j_IO_Direct PreCommit", "beam_PreCommit_Java_Neo4j_IO_Direct"),
     ("Run Java_PVR_Flink_Batch PreCommit", "beam_PreCommit_Java_PVR_Flink_Batch"),
     ("Run Java_PVR_Flink_Docker PreCommit", "beam_PreCommit_Java_PVR_Flink_Docker"),
     ("Run Java_Parquet_IO_Direct PreCommit", "beam_PreCommit_Java_Parquet_IO_Direct"),
@@ -169,7 +168,6 @@ COMMENTS_TO_ADD = [
     ("Run XVR_PythonUsingJavaSQL_Dataflow PostCommit", "beam_PostCommit_XVR_PythonUsingJavaSQL_Dataflow"),
     ("Run XVR_PythonUsingJava_Dataflow PostCommit", "beam_PostCommit_XVR_PythonUsingJava_Dataflow"),
     ("Run XVR_Samza PostCommit", "beam_PostCommit_XVR_Samza"),
-    ("Run XVR_Spark PostCommit", "beam_PostCommit_XVR_Spark"),
     ("Run XVR_Spark3 PostCommit", "beam_PostCommit_XVR_Spark3"),
 ]
 
@@ -269,7 +267,8 @@ def getRemainingComments(accessToken, pr, initialComments):
   check_urls = str(list(map(lambda c : c["targetUrl"], commit["status"]["contexts"])))
   remainingComments = []
   for comment in initialComments:
-    if f'/{comment[1]}_Phrase/' not in check_urls:
+    if f'/{comment[1]}_Phrase/' not in check_urls and f'/{comment[1]}_PR/' not in check_urls and f'/{comment[1]}_Commit/' not in check_urls and f'/{comment[1]}/' not in check_urls:
+      print(comment)
       remainingComments.append(comment)
   return remainingComments
 
@@ -294,7 +293,9 @@ if __name__ == '__main__':
   pr = input("Enter the Beam PR number to test (e.g. 11403): ")
   subjectId = getSubjectId(accessToken, pr)
   
-  remainingComments = COMMENTS_TO_ADD
+  remainingComments = getRemainingComments(accessToken, pr, COMMENTS_TO_ADD)
+  if len(remainingComments) == 0:
+    print('Jobs have been started for all comments. If you would like to retry all jobs, create a new commit before running this script.')
   while len(remainingComments) > 0:
     postComments(accessToken, subjectId, remainingComments)
     # Sleep 60 seconds to allow checks to start to status
