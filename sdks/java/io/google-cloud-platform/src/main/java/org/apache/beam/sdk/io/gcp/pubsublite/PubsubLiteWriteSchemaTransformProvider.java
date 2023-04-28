@@ -82,7 +82,6 @@ public class PubsubLiteWriteSchemaTransformProvider
   public static class ErrorCounterFn extends DoFn<Row, PubSubMessage> {
     private SerializableFunction<Row, byte[]> toBytesFn;
     private Counter errorCounter;
-    private Counter elementCounter;
     private long errorsInBundle = 0L;
 
     public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
