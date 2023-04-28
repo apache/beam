@@ -3071,16 +3071,11 @@ public class StreamingDataflowWorkerTest {
       sb.append((sourceState + 1) * 1000);
       sb.append("\n");
       sb.append("source_backlog_bytes: 7\n");
-      if (streamingEngine) {
-        sb.append("source_bytes_processed: 18\n");
-      } else {
-        sb.append("source_bytes_processed: 36\n");
-      }
 
       assertThat(
           // The commit will include a timer to clean up state - this timer is irrelevant
-          // for the current test.
-          setValuesTimestamps(commit.toBuilder().clearOutputTimers()).build(),
+          // for the current test. Also remove source_bytes_processed because it's dynamic.
+          setValuesTimestamps(commit.toBuilder().clearOutputTimers().clearSourceBytesProcessed()).build(),
           equalTo(
               setMessagesMetadata(
                       PaneInfo.NO_FIRING,
