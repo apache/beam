@@ -151,7 +151,7 @@ enum Sdk {
           dataset: { dataset_1 }
    datasets:
      { dataset_1 }:
-          location: { local | GCS }
+          location: local
           format: { json | avro }
 ```
 5. Create a PR to the [Apache Beam Repository](https://github.com/apache/beam)
