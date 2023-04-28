@@ -11,4 +11,12 @@ limitations under the License.
 -->
 ### Core Transforms motivating challenge-2
 
-You are given a file with repeated words and the counted number you need to separate by colons. Remove the extra spaces next to the number. `Combine` by key the values should be combined(+)
+You are given a csv file with the players' records, which you need to share with regex.It is necessary to "Sum up" by username using `Combine`, each player's point must be combined(+)
+
+| id                       | username           | score | ... |
+|--------------------------|--------------------|-------|-----|
+| user16_AmaranthKoala     | AmaranthKoala      | 18    | ... |
+| user10_AndroidGreenKoala | AndroidGreenKoala  | 2     | ... |
+| user9_AuburnCockatoo     | AuburnCockatoo     | 5     | ... |
+
+Overview [file](https://storage.googleapis.com/apache-beam-samples/game/small/gaming_data.csv)

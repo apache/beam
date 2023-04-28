@@ -46,10 +46,9 @@ class Output(beam.PTransform):
 
 
 with beam.Pipeline() as p:
-  # FlatMap with split
-  # Map by index
+  # Map with split
   # Combine sum
-  parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000000') \
+  parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/game/small/gaming_data.csv') \
            | beam.combiners.Sample.FixedSizeGlobally(100) \
            | beam.FlatMap(lambda line: line) \
            | Output()
