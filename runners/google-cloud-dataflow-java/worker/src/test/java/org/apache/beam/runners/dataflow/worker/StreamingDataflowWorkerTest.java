@@ -609,7 +609,7 @@ public class StreamingDataflowWorkerTest {
     return parseCommitRequest(expectedCommitRequestBuilder.toString());
   }
 
-  private StringBuilder initializeExpectedCommitRequest(String key, long shardingKey, int index, long sourceBytesProcessed = 0) {
+  private StringBuilder initializeExpectedCommitRequest(String key, long shardingKey, int index) {
     StringBuilder requestBuilder = new StringBuilder();
 
     requestBuilder.append("key: \"");
@@ -622,9 +622,7 @@ public class StreamingDataflowWorkerTest {
     requestBuilder.append(index);
     requestBuilder.append(" ");
     requestBuilder.append("cache_token: 3 ");
-    requestBuilder.append("source_bytes_processed: ");
-    requestBuilder.append(sourceBytesProcessed);
-    requestBuilder.append(" ");
+    requestBuilder.append("source_bytes_processed: 0 ");
 
     return requestBuilder;
   }
