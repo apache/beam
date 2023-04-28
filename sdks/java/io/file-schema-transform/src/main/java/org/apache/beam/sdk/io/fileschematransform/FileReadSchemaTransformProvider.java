@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
 import org.joda.time.Duration;
@@ -89,12 +90,15 @@ public class FileReadSchemaTransformProvider
     return Collections.singletonList(OUTPUT_TAG);
   }
 
-  private static class FileReadSchemaTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
+  @VisibleForTesting
+  static class FileReadSchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple>
+      implements SchemaTransform {
     private FileReadSchemaTransformConfiguration configuration;
+    private boolean useInputPCollection;
 
     FileReadSchemaTransform(FileReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
+      useInputPCollection = Strings.isNullOrEmpty(configuration.getFilepattern());
     }
 
     @Override
@@ -113,18 +117,7 @@ public class FileReadSchemaTransformProvider
       }
 
       PCollection<MatchResult.Metadata> files;
-      if (!Strings.isNullOrEmpty(configuration.getFilepattern())) {
-        Pipeline p = input.getPipeline();
-        FileIO.Match matchFiles = FileIO.match().filepattern(configuration.getSafeFilepattern());
-        // Handle streaming case
-        matchFiles = (FileIO.Match) maybeApplyStreaming(matchFiles);
-
-        files = p.apply(matchFiles);
-      } else {
-        FileIO.MatchAll matchAllFiles = FileIO.matchAll();
-        // Handle streaming case
-        matchAllFiles = (FileIO.MatchAll) maybeApplyStreaming(matchAllFiles);
-
+      if (useInputPCollection) {
         files =
             input
                 .get(INPUT_TAG)
@@ -149,7 +142,10 @@ public class FileReadSchemaTransformProvider
                               return null;
                             }))
                 .output()
-                .apply("Match files", matchAllFiles);
+                .apply("Match files", (FileIO.MatchAll) buildMatchTransform());
+      } else {
+        Pipeline p = input.getPipeline();
+        files = p.apply((FileIO.Match) buildMatchTransform());
       }
 
       // Pass readable files to the appropriate source and output rows.
@@ -161,8 +157,13 @@ public class FileReadSchemaTransformProvider
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
 
-    private PTransform<?, PCollection<MatchResult.Metadata>> maybeApplyStreaming(
-        PTransform<?, PCollection<MatchResult.Metadata>> matchTransform) {
+    @VisibleForTesting
+    PTransform<?, PCollection<MatchResult.Metadata>> buildMatchTransform() {
+      PTransform<?, PCollection<MatchResult.Metadata>> matchTransform =
+          useInputPCollection
+              ? FileIO.matchAll()
+              : FileIO.match().filepattern(configuration.getSafeFilepattern());
+
       // Two parameters are provided to configure watching for new files.
       Long terminateAfterSeconds = configuration.getTerminateAfterSecondsSinceNewOutput();
       Long pollIntervalMillis = configuration.getPollIntervalMillis();
@@ -171,23 +172,19 @@ public class FileReadSchemaTransformProvider
       if (pollIntervalMillis != null && pollIntervalMillis > 0L) {
         Duration pollDuration = Duration.millis(pollIntervalMillis);
 
-        // By default, the file match transform never terminates
-        TerminationCondition<String, ?> terminationCondition = Growth.never();
-
         // If provided, will terminate after this many seconds since seeing a new file
-        if (terminateAfterSeconds != null && terminateAfterSeconds > 0L) {
-          terminationCondition =
-              Growth.afterTimeSinceNewOutput(Duration.standardSeconds(terminateAfterSeconds));
-        }
+        // By default, the file match transform never terminates
+        TerminationCondition<String, ?> terminationCondition =
+            (terminateAfterSeconds != null && terminateAfterSeconds > 0L)
+                ? Growth.afterTimeSinceNewOutput(Duration.standardSeconds(terminateAfterSeconds))
+                : Growth.never();
 
-        // Apply watch for new files
-        if (matchTransform instanceof FileIO.Match) {
-          matchTransform =
-              ((FileIO.Match) matchTransform).continuously(pollDuration, terminationCondition);
-        } else if (matchTransform instanceof FileIO.MatchAll) {
-          matchTransform =
-              ((FileIO.MatchAll) matchTransform).continuously(pollDuration, terminationCondition);
-        }
+        matchTransform =
+            useInputPCollection
+                ? FileIO.matchAll().continuously(pollDuration, terminationCondition)
+                : FileIO.match()
+                    .filepattern(configuration.getSafeFilepattern())
+                    .continuously(pollDuration, terminationCondition);
       }
       return matchTransform;
     }
