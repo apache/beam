@@ -67,6 +67,8 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("fetchSize", FieldType.INT16)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
         .addNullableField("autosharding", FieldType.BOOLEAN)
+        .addNullableField("maxConnections", FieldType.INT16)
+        .addNullableField("driverJars", FieldType.STRING)
         // Partitioning support. If you specify a partition column we will use that instead of
         // readQuery
         .addNullableField("partitionColumn", FieldType.STRING)
@@ -202,11 +204,14 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         dataSourceConfiguration = dataSourceConfiguration.withConnectionInitSqls(initSqls);
       }
 
-      if (config.getSchema().hasField("maxConnections")) {
-        @Nullable Integer maxConnections = config.getInt32("maxConnections");
-        if (maxConnections != null) {
-          dataSourceConfiguration = dataSourceConfiguration.withMaxConnections(maxConnections);
-        }
+      @Nullable Integer maxConnections = config.getInt32("maxConnections");
+      if (maxConnections != null) {
+        dataSourceConfiguration = dataSourceConfiguration.withMaxConnections(maxConnections);
+      }
+
+      @Nullable String driverJars = config.getString("driverJars");
+      if (driverJars != null) {
+        dataSourceConfiguration = dataSourceConfiguration.withDriverJars(driverJars);
       }
 
       return dataSourceConfiguration;
