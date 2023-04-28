@@ -1418,12 +1418,6 @@ public class StreamingDataflowWorker {
       }
       outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
 
-      // Report bytes processed for custom source
-      if (outputCounter != null) {
-        long sourceBytesProcessed = (long) outputCounter.getByteCount().getAggregate();
-        outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
-      }
-
       Iterables.addAll(
           this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
 
