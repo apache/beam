@@ -19,7 +19,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
   name     = var.pg_infra_trigger_name
   project  = var.project_id
 
-  description = "Deploy Playgrround Infrastructure Environment"
+  description = "Deploy IAM accounds and roles for Playground Triggers"
 
   source_to_build {
     uri       = var.trigger_source_repo
