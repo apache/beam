@@ -2437,6 +2437,7 @@ public class StreamingDataflowWorkerTest {
                         + "work_token: 2 "
                         + "cache_token: 1 "
                         + "source_backlog_bytes: 7 "
+                        + "source_bytes_processed: 0 "
                         + "source_state_updates {"
                         + "  state: \"\000\""
                         + "  finalize_ids: "
@@ -2484,6 +2485,7 @@ public class StreamingDataflowWorkerTest {
                         + "work_token: 3 "
                         + "cache_token: 2 "
                         + "source_backlog_bytes: 7 "
+                        + "source_bytes_processed: 0 "
                         + "source_state_updates {"
                         + "  state: \"\000\""
                         + "  finalize_ids: "
@@ -2730,6 +2732,7 @@ public class StreamingDataflowWorkerTest {
                         + "work_token: 2 "
                         + "cache_token: 1 "
                         + "source_backlog_bytes: 7 "
+                        + "source_bytes_processed: 0 "
                         + "source_state_updates {"
                         + "  state: \"\000\""
                         + "  finalize_ids: "
@@ -3068,7 +3071,11 @@ public class StreamingDataflowWorkerTest {
       sb.append((sourceState + 1) * 1000);
       sb.append("\n");
       sb.append("source_backlog_bytes: 7\n");
-      sb.append("source_bytes_processed: 18\n");
+      if (streamingEngine) {
+        sb.append("source_bytes_processed: 18\n");
+      } else {
+        sb.append("source_bytes_processed: 36\n");
+      }
 
       assertThat(
           // The commit will include a timer to clean up state - this timer is irrelevant
