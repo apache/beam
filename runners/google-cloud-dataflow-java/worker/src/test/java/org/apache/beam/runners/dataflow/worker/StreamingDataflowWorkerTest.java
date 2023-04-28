@@ -610,7 +610,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   private StringBuilder initializeExpectedCommitRequest(
-      String key, long shardingKey, int index, bool hasSourceBytesProcessed) {
+      String key, long shardingKey, int index, Boolean hasSourceBytesProcessed) {
     StringBuilder requestBuilder = new StringBuilder();
 
     requestBuilder.append("key: \"");
