@@ -33,6 +33,7 @@
   - [Update Python version](#update-python-version)
   - [Update Java version](#update-java-version)
 - [Deployment](#deployment)
+- [Obtaining SCIO examples](#obtaining-scio-examples)
 - [Manual Example deployment](#manual-example-deployment)
   - [Run example deployment script](#run-example-deployment-script)
 
@@ -168,6 +169,17 @@ Update `BASE_IMAGE` in [Python Dockerfile](backend/containers/python/Dockerfile)
 
 See [this guide](./terraform/README.md) for details on how to build and deploy
 the application and its dependent infrastructure.
+
+# Obtaining SCIO examples
+
+SCIO examples are based  on examples found in the upstream SCIO [repository](https://github.com/spotify/scio). To obtain the examples, use [`fetch_scala_examples.py`](infrastructure/fetch_scala_examples.py) script:
+
+```shell
+python fetch_scala_examples.py --output_dir <output_dir>
+```
+this will download all supported SCIO examples into `<output_dir>`.
+
+To add a new example, add it to the list of examples in the script [`fetch_scala_examples.py`](infrastructure/fetch_scala_examples.py). You will need to provide the path to the example in the `scio` git repository, the name of the example, description, run options, categories and tags.
 
 # Manual Example deployment
 

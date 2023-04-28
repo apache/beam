@@ -180,8 +180,17 @@ To shut down the playground, run:
     > | Python | `localhost:8088` |
     > | SCIO | `localhost:8090` |
 
-    > **Note:** SCIO examples are not committed to the Beam tree. You will need to clone the [SCIO](https://github.com/spotify/scio) repository separately and use path to it in the `--subdirs` argument like `--subdirs ~/scio/scio-examples/src/main/scala/com/spotify/scio/examples`
-    > **TODO**: SCIO examples do not have tags.
+    > **Note:** SCIO examples are not committed to the Beam tree. You will need to use [`fetch_scala_examples.py`](infrastructure/fetch_scala_examples.py) script to download them to some directory and then use `--subdirs` option to point to that directory. For example:
+    > ```shell
+    > python fetch_scala_examples.py --output-dir /tmp/scio-examples
+    > python ci_cd.py --step CD \
+    >                 --sdk SDK_SCIO \
+    >                 --namespace Playground \
+    >                 --datastore-project test \
+    >                 --origin PG_EXAMPLES \
+    >                 --subdirs /tmp/scio-examples
+    > ```
+    > See [this section](TASKS.md##obtaining-scio-examples) for more information.
 
 # How to add your own example
 Please refer to [this document](load_your_code.md).
