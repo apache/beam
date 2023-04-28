@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.samza.metrics.BeamTransformMetricRegistry;
 import org.apache.beam.runners.samza.util.PipelineJsonRenderer;
@@ -80,23 +79,18 @@ public abstract class SamzaMetricOp<T> implements Op<T, T, Void> {
     final Map.Entry<String, String> transformInputOutput =
         PipelineJsonRenderer.getTransformIOMap(config).get(transformFullName);
     this.transformInputs =
-        transformInputOutput != null
-            ? ioFunc(transformInputOutput.getKey()).get()
-            : new ArrayList();
+        transformInputOutput != null ? ioFunc(transformInputOutput.getKey()) : new ArrayList();
     this.transformOutputs =
-        transformInputOutput != null
-            ? ioFunc(transformInputOutput.getValue()).get()
-            : new ArrayList();
+        transformInputOutput != null ? ioFunc(transformInputOutput.getValue()) : new ArrayList();
     // for logging / debugging purposes
     this.task = context.getTaskContext().getTaskModel().getTaskName().getTaskName();
     // Register the transform with BeamTransformMetricRegistry
     beamTransformMetricRegistry.register(transformFullName, pValue, context);
   }
 
-  private static Supplier<List<String>> ioFunc(String ioList) {
-    return () ->
-        Arrays.stream(ioList.split(PipelineJsonRenderer.TRANSFORM_IO_MAP_DELIMITER))
-            .filter(item -> !item.isEmpty())
-            .collect(Collectors.toList());
+  private static List<String> ioFunc(String ioList) {
+    return Arrays.stream(ioList.split(PipelineJsonRenderer.TRANSFORM_IO_MAP_DELIMITER))
+        .filter(item -> !item.isEmpty())
+        .collect(Collectors.toList());
   }
 }
