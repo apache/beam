@@ -194,7 +194,7 @@ To shut down the playground, run:
 
 # How to add your own example
 Please refer to [this document](load_your_code.md).
-***TODO***: Link to the contribution guide by Alexey from https://github.com/apache/beam/pull/25507
+
 # Deployment guide
 See deployment guide at [terraform/README.md](/playground/terraform/README.md)
 # Contribution guide
