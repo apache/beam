@@ -28,6 +28,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING
 import static org.apache.beam.sdk.io.fileschematransform.FileReadSchemaTransformProvider.FILEPATTERN_ROW_FIELD_NAME;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.parquetConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
@@ -89,6 +90,29 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
       return tmpFolder.newFolder(getFormat(), testName.getMethodName()).getAbsolutePath();
     } catch (IOException e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  @Test
+  public void testInvalidConfigsFailToBuild() {
+    List<FileReadSchemaTransformConfiguration.Builder> invalidConfigs =
+        Arrays.asList(
+            // No schema set
+            FileReadSchemaTransformConfiguration.builder().setFormat(getFormat()),
+            // Invalid format
+            FileReadSchemaTransformConfiguration.builder().setFormat("invalid format"),
+            // Setting terminate seconds without a poll interval
+            FileReadSchemaTransformConfiguration.builder()
+                .setFormat(getFormat())
+                .setSchema("schema")
+                .setTerminateAfterSecondsSinceNewOutput(10L));
+
+    for (FileReadSchemaTransformConfiguration.Builder config : invalidConfigs) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> {
+            config.build();
+          });
     }
   }
 

@@ -94,7 +94,6 @@ public class FileReadSchemaTransformProvider
     private FileReadSchemaTransformConfiguration configuration;
 
     FileReadSchemaTransform(FileReadSchemaTransformConfiguration configuration) {
-      configuration.validate();
       this.configuration = configuration;
     }
 
@@ -106,7 +105,7 @@ public class FileReadSchemaTransformProvider
               + "but not both.");
 
       // Input schema can be a schema String or a path to a file containing the schema
-      // Resolve to get a schema String
+      // Resolve to get the String representation of the schema
       String schema = configuration.getSchema();
       if (!Strings.isNullOrEmpty(schema)) {
         schema = resolveSchemaStringOrFilePath(configuration.getSafeSchema());
@@ -140,7 +139,8 @@ public class FileReadSchemaTransformProvider
                             exceptionElement -> {
                               String faultyFilepattern =
                                   Optional.ofNullable(
-                                          (exceptionElement.element())
+                                          exceptionElement
+                                              .element()
                                               .getString(FILEPATTERN_ROW_FIELD_NAME))
                                       .orElse("[null filepattern]");
                               LOG.warn(
