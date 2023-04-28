@@ -402,7 +402,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		sampler.stop()
 
-		data.Close()
+		dataError := data.Close()
 		state.Close()
 
 		c.cache.CompleteBundle(tokens...)
@@ -416,6 +416,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		// Mark the instruction as failed.
 		if err != nil {
 			c.failed[instID] = err
+		} else if dataError != io.EOF && dataError != nil {
+			// If there was an error on the data channel reads, fail this bundle
+			// since we may have had a short read.
+			c.failed[instID] = dataError
 		} else {
 			// Non failure plans should either be moved to the finalized state
 			// or to plans so they can be re-used.
@@ -573,7 +577,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		// Unsuccessful splits without errors indicate we should return an empty response,
-		// as processing can confinue.
+		// as processing can continue.
 		if sr.Unsuccessful {
 			return &fnpb.InstructionResponse{
 				InstructionId: string(instID),
