@@ -121,7 +121,7 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 				resp := &fnpb.ProcessBundleResponse{
 					MonitoringInfos: payload,
 				}
-				ms.ContributeMetrics(resp)
+				ms.ContributeFinalMetrics(resp)
 			}
 
 			got := ms.Results(committed)

@@ -135,10 +135,26 @@ func TestSeparation(t *testing.T) {
 				gsum := beam.WindowInto(s, window.NewGlobalWindows(), sum)
 				passert.Count(s, gsum, "total sums", count)
 			},
+		}, {
+			name: "ChannelSplit",
+			pipeline: func(s beam.Scope) {
+				count := 10
+				imp := beam.Impulse(s)
+				ints := beam.ParDo(s, emitTenFn, imp)
+				out := beam.ParDo(s, &sepHarness{
+					Base: sepHarnessBase{
+						WatcherID:         ws.newWatcher(3),
+						Sleep:             100 * time.Millisecond,
+						IsSentinelEncoded: beam.EncodedFunc{Fn: reflectx.MakeFunc(threeSentinel)},
+						LocalService:      ws.serviceAddress,
+					},
+				}, ints)
+				out = beam.ParDo(s, toInt, out)
+				passert.Sum(s, out, "sum ints", count, 55)
+			},
 		},
 	}
 
-	// TODO: Channel Splits
 	// TODO: SubElement/dynamic splits.
 
 	for _, test := range tests {
@@ -157,12 +173,81 @@ func TestSeparation(t *testing.T) {
 }
 
 func init() {
+	register.Function2x0(emitTenFn)
+	register.Function2x0(toInt)
+	register.Emitter1[int64]()
+	register.Emitter1[int]()
+}
+
+func emitTenFn(_ []byte, emit func(int64)) {
+	for i := int64(1); i <= 10; i++ {
+		emit(i)
+	}
+}
+
+func toInt(v int64, emit func(int)) {
+	emit(int(v))
+}
+
+func TestProgress(t *testing.T) {
+	initRunner(t)
+
+	ws.initRPCServer()
+
+	tests := []struct {
+		name     string
+		pipeline func(s beam.Scope)
+		metrics  func(t *testing.T, pr beam.PipelineResult)
+	}{
+		{
+			name: "ChannelSplit",
+			pipeline: func(s beam.Scope) {
+				count := 10
+				imp := beam.Impulse(s)
+				ints := beam.ParDo(s, emitTenFn, imp)
+				out := beam.ParDo(s, &sepHarness{
+					Base: sepHarnessBase{
+						WatcherID:         ws.newWatcher(3),
+						Sleep:             100 * time.Millisecond,
+						IsSentinelEncoded: beam.EncodedFunc{Fn: reflectx.MakeFunc(threeSentinel)},
+						LocalService:      ws.serviceAddress,
+					},
+				}, ints)
+				out = beam.ParDo(s, toInt, out)
+				passert.Sum(s, out, "sum ints", count, 55)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			pr, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.metrics != nil {
+				test.metrics(t, pr)
+			}
+		})
+	}
+}
+
+func init() {
 	register.Function1x1(allSentinel)
+	register.Function1x1(threeSentinel)
 }
 
 // allSentinel indicates that all elements are sentinels.
 func allSentinel(v beam.T) bool {
 	return true
+}
+
+// allSentinel indicates that every element that's mod 3 == 0 is a sentinel.
+func threeSentinel(v beam.T) bool {
+	i := v.(int64)
+	return i > 0 && i%3 == 0
 }
 
 // Watcher is an instance of the counters.
@@ -304,7 +389,7 @@ func (fn *sepHarnessBase) setup() error {
 	// Check if there's already a local channel for this id, and if not
 	// start a watcher goroutine to poll and unblock the harness when
 	// the expected number of sentinels is reached.
-	if _, ok := sepWaitMap[fn.WatcherID]; !ok {
+	if _, ok := sepWaitMap[fn.WatcherID]; ok {
 		return nil
 	}
 	// We need a channel to block on for this watcherID

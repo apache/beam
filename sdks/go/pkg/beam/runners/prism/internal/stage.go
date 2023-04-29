@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -32,6 +33,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -96,7 +98,57 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 
 	if send {
 		slog.Debug("Execute: processing", "bundle", rb)
+		done := make(chan struct{})
+		// Progress + split loop.
+		go func() {
+			previousIndex := int64(-2)
+			for {
+				time.Sleep(100 * time.Millisecond)
+				select {
+				case <-done:
+					return
+				default:
+					resp := b.Progress(wk)
+					index, unknownIDs := j.ContributeTentativeMetrics(resp)
+					if len(unknownIDs) > 0 {
+						md := wk.MonitoringMetadata(unknownIDs)
+						j.AddMetricShortIDs(md)
+					}
+					slog.Info("progress report", "bundle", rb, "index", index)
+					// Progress for the bundle hasn't advanced. Try splitting.
+					if previousIndex == index {
+						sr := b.Split(wk)
+						slog.Info("split", "bundle", rb, "response", prototext.Format(sr))
+						if sr.GetChannelSplits() == nil {
+							slog.Warn("split failed", "bundle", rb)
+							continue
+						}
+						// TODO, sort out rescheduling primary Roots on bundle failure.
+						var residualData [][]byte
+						for _, rr := range sr.GetResidualRoots() {
+							ba := rr.GetApplication()
+							residualData = append(residualData, ba.GetElement())
+							if len(ba.GetElement()) == 0 {
+								slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
+								panic("sdk returned empty residual application")
+							}
+							// TODO what happens to output watermarks on splits?
+						}
+						if len(sr.GetChannelSplits()) != 1 {
+							slog.Warn("received more than one channel split")
+						}
+						cs := sr.GetChannelSplits()[0]
+						em.ReturnResiduals(rb, int(cs.GetFirstResidualElement()), s.inputInfo, residualData)
+					} else {
+						previousIndex = index
+					}
+				}
+			}
+		}()
+		defer b.Cleanup(wk)
+		// TODO, change this, so we don't need a separate progress goroutine.
 		b.ProcessOn(wk) // Blocks until finished.
+		close(done)
 	}
 	// Tentative Data is ready, commit it to the main datastore.
 	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
@@ -106,7 +158,11 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 		resp = <-b.Resp
 		// Tally metrics immeadiately so they're available before
 		// pipeline termination.
-		j.ContributeMetrics(resp)
+		unknownIDs := j.ContributeFinalMetrics(resp)
+		if len(unknownIDs) > 0 {
+			md := wk.MonitoringMetadata(unknownIDs)
+			j.AddMetricShortIDs(md)
+		}
 	}
 	// TODO handle side input data properly.
 	wk.D.Commit(b.OutputData)

@@ -70,6 +70,10 @@ func (b *B) LogValue() slog.Value {
 		slog.String("stage", b.PBDID))
 }
 
+func (b *B) Respond(resp *fnpb.InstructionResponse) {
+	b.Resp <- resp.GetProcessBundle()
+}
+
 // ProcessOn executes the given bundle on the given W, blocking
 // until all data is complete.
 //
@@ -80,7 +84,7 @@ func (b *B) LogValue() slog.Value {
 // public GRPC APIs up with local calls.
 func (b *B) ProcessOn(wk *W) {
 	wk.mu.Lock()
-	wk.bundles[b.InstID] = b
+	wk.activeInstructions[b.InstID] = b
 	wk.mu.Unlock()
 
 	slog.Debug("processing", "bundle", b, "worker", wk)
@@ -111,4 +115,38 @@ func (b *B) ProcessOn(wk *W) {
 
 	slog.Debug("waiting on data", "bundle", b)
 	b.dataWait.Wait() // Wait until data is ready.
+}
+
+// Cleanup unregisters the bundle from the worker.
+func (b *B) Cleanup(wk *W) {
+	wk.mu.Lock()
+	delete(wk.activeInstructions, b.InstID)
+	wk.mu.Unlock()
+}
+
+func (b *B) Progress(wk *W) *fnpb.ProcessBundleProgressResponse {
+	return wk.sendInstruction(&fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
+			ProcessBundleProgress: &fnpb.ProcessBundleProgressRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	}).GetProcessBundleProgress()
+}
+
+func (b *B) Split(wk *W) *fnpb.ProcessBundleSplitResponse {
+	return wk.sendInstruction(&fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
+			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
+				InstructionId: b.InstID,
+				DesiredSplits: map[string]*fnpb.ProcessBundleSplitRequest_DesiredSplit{
+					b.InputTransformID: {
+						// Todo make this configurable.
+						FractionOfRemainder:    float64(0.66),
+						EstimatedInputElements: int64(len(b.InputData)),
+					},
+				},
+			},
+		},
+	}).GetProcessBundleSplit()
 }

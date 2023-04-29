@@ -81,8 +81,17 @@ type Job struct {
 	metrics metricsStore
 }
 
-func (j *Job) ContributeMetrics(payloads *fnpb.ProcessBundleResponse) {
-	j.metrics.ContributeMetrics(payloads)
+// ContributeTentativeMetrics returns the datachannel read index, and any unknown monitoring short ids.
+func (j *Job) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (int64, []string) {
+	return j.metrics.ContributeTentativeMetrics(payloads)
+}
+
+func (j *Job) ContributeFinalMetrics(payloads *fnpb.ProcessBundleResponse) []string {
+	return j.metrics.ContributeFinalMetrics(payloads)
+}
+
+func (j *Job) AddMetricShortIDs(ids *fnpb.MonitoringInfosMetadataResponse) {
+	j.metrics.AddShortIDs(ids)
 }
 
 func (j *Job) String() string {

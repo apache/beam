@@ -379,6 +379,43 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	em.addRefreshAndClearBundle(stage.ID, rb.BundleID)
 }
 
+func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals [][]byte) {
+	stage := em.stages[rb.StageID]
+
+	stage.splitBundle(rb, firstRsIndex)
+
+	// Return unprocessed to this stage's pending
+	var unprocessedElements []element
+	for _, residual := range residuals {
+		buf := bytes.NewBuffer(residual)
+		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			slog.Error("ReturnResiduals: error decoding residual header", err, "bundle", rb)
+			panic("error decoding residual header")
+		}
+
+		for _, w := range ws {
+			unprocessedElements = append(unprocessedElements,
+				element{
+					window:    w,
+					timestamp: et,
+					pane:      pn,
+					elmBytes:  buf.Bytes(),
+				})
+		}
+	}
+	// Add unprocessed back to the pending stack.
+	if len(unprocessedElements) > 0 {
+		slog.Debug("unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
+		em.pendingElements.Add(len(unprocessedElements))
+		stage.AddPending(unprocessedElements)
+	}
+	em.addRefreshes(singleSet(rb.StageID))
+}
+
 func (em *ElementManager) addRefreshes(stages set[string]) {
 	em.refreshCond.L.Lock()
 	defer em.refreshCond.L.Unlock()
@@ -437,6 +474,10 @@ func (s set[K]) merge(o set[K]) {
 	for k := range o {
 		s.insert(k)
 	}
+}
+
+func singleSet[T comparable](v T) set[T] {
+	return set[T]{v: struct{}{}}
 }
 
 // stageState is the internal watermark and input tracking for a stage.
@@ -567,6 +608,22 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 	bundID := genBundID()
 	ss.inprogress[bundID] = es
 	return bundID, true
+}
+
+func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	es := ss.inprogress[rb.BundleID]
+
+	prim, res := es.es[:firstResidual], es.es[firstResidual:]
+
+	slog.Info("unprocessed elements", "bundle", rb, "primary", len(prim), "res", len(res))
+
+	es.es = prim
+	ss.pending = append(ss.pending, res...)
+	heap.Init(&ss.pending)
+	ss.inprogress[rb.BundleID] = es
 }
 
 // minimumPendingTimestamp returns the minimum pending timestamp from all pending elements,
