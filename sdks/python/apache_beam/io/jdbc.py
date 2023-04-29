@@ -120,12 +120,12 @@ Config = typing.NamedTuple(
      ('connection_init_sqls', typing.Optional[typing.List[str]]),
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
-     ('fetch_size', typing.Optional[int]),
+     ('fetch_size', typing.Optional[np.int16]),
      ('output_parallelization', typing.Optional[bool]),
      ('autosharding', typing.Optional[bool]),
      ('partition_column', typing.Optional[str]),
      ('partitions', typing.Optional[np.int16]),
-     ('max_connections', typing.Optional[int]),
+     ('max_connections', typing.Optional[np.int16]),
      ('driver_jars', typing.Optional[str])],
 )
 
