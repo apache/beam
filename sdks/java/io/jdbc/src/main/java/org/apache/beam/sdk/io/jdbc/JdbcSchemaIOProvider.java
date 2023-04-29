@@ -67,12 +67,12 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("fetchSize", FieldType.INT16)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
         .addNullableField("autosharding", FieldType.BOOLEAN)
-        .addNullableField("maxConnections", FieldType.INT16)
-        .addNullableField("driverJars", FieldType.STRING)
         // Partitioning support. If you specify a partition column we will use that instead of
         // readQuery
         .addNullableField("partitionColumn", FieldType.STRING)
         .addNullableField("partitions", FieldType.INT16)
+        .addNullableField("maxConnections", FieldType.INT16)
+        .addNullableField("driverJars", FieldType.STRING)
         .build();
   }
 
