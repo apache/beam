@@ -1,0 +1,10 @@
+variable "tf_version" {}
+variable "pg_region" {}
+variable "pg_gke_zone" {}
+variable "pg_gke_name" {}
+variable "state_bucket" {}
+variable "env_name" {}
+variable "tob_region" {}
+variable "pg_datastore_namespace" {}
+variable "trigger_source_repo" {}
+variable "machine_type" {}
