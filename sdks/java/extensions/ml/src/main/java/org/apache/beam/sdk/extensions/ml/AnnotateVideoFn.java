@@ -39,9 +39,12 @@ import org.apache.beam.sdk.values.PCollectionView;
  * @param <T> Class of input data being passed in - either ByteString - video data encoded into.
  *     String or String - a GCS URI of the video to be annotated.
  */
+<<<<<<< HEAD
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+=======
+>>>>>>> 9cf7248973 (Remove experimental annotation from Beam)
 abstract class AnnotateVideoFn<T> extends DoFn<T, List<VideoAnnotationResults>> {
 
   protected final PCollectionView<Map<T, VideoContext>> contextSideInput;

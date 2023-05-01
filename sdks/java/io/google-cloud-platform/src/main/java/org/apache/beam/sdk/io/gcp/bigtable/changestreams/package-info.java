@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 /** Change stream for Google Cloud Bigtable. */
+<<<<<<< HEAD
 @Internal
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 
 import org.apache.beam.sdk.annotations.Internal;
+=======
+package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
+>>>>>>> 9cf7248973 (Remove experimental annotation from Beam)

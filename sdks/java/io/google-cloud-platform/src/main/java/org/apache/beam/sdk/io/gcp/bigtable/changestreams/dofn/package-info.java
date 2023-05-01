@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 /** DoFn and SDF definitions to process Google Cloud Bigtable Change Streams. */
+<<<<<<< HEAD
 @Internal
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 
 import org.apache.beam.sdk.annotations.Internal;
+=======
+package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
+>>>>>>> 9cf7248973 (Remove experimental annotation from Beam)

@@ -29,9 +29,12 @@ import org.apache.beam.sdk.values.PCollectionView;
  * Implementation of AnnotateVideoFn accepting Strings as contents of input PCollection. Annotates
  * videos found on GCS based on URIs from input PCollection.
  */
+<<<<<<< HEAD
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+=======
+>>>>>>> 9cf7248973 (Remove experimental annotation from Beam)
 class AnnotateVideoFromURIFn extends AnnotateVideoFn<String> {
 
   public AnnotateVideoFromURIFn(
