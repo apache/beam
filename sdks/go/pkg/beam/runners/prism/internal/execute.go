@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"sync"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -274,23 +273,17 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 		em.Impulse(id)
 	}
 
+	// Use a channel to limit max parallelism for the pipeline.
+	maxParallelism := make(chan struct{}, 8)
 	// Execute stages here
-	bundles := em.Bundles(ctx, wk.NextInst)
-	var wg sync.WaitGroup
-	// TODO, do something better here for
-	// bundle multi processing.
-	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			slog.Info("pipeline executor!", slog.String("job", j.String()), slog.Int("index", i))
-			for rb := range bundles {
-				s := stages[rb.StageID]
-				s.Execute(j, wk, comps, em, rb)
-			}
-		}(i)
+	for rb := range em.Bundles(ctx, wk.NextInst) {
+		maxParallelism <- struct{}{}
+		go func(rb engine.RunBundle) {
+			defer func() { <-maxParallelism }()
+			s := stages[rb.StageID]
+			s.Execute(j, wk, comps, em, rb)
+		}(rb)
 	}
-	wg.Wait()
 	slog.Info("pipeline done!", slog.String("job", j.String()))
 }
 
