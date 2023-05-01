@@ -162,7 +162,6 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
   public void signalFailure(Throwable t) {
     LOG.error("Encountered error during processing the message. Discarding the output due to: ", t);
 
-    // atomic update all states
     isBundleStarted = false;
     currentBundleElementCount = 0;
     bundleStartTime = Long.MAX_VALUE;
@@ -190,7 +189,6 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
   }
 
   private boolean shouldProcessWatermark() {
-    // the 2 states needs to be checked atomically
     return !isBundleStarted && pendingBundleCount == 0;
   }
 
@@ -202,7 +200,6 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
    * @return true - if one of the criteria above is satisfied; false - otherwise
    */
   private boolean shouldFinishBundle() {
-    // checked atomically.
     return isBundleStarted
         && (currentBundleElementCount >= maxBundleSize
             || System.currentTimeMillis() - bundleStartTime >= maxBundleTimeMs
