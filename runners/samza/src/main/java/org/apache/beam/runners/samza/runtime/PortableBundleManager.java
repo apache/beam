@@ -33,13 +33,6 @@ import org.slf4j.LoggerFactory;
  * least one bundle in progress. 2. Propagates the watermark to downstream DAG, if all the previous
  * bundles have completed.
  *
- * <p>A bundle is considered complete only when the outputs corresponding to each element in the
- * bundle have been resolved and the watermark associated with the bundle(if any) is propagated
- * downstream. The output of an element is considered resolved based on the nature of the ParDoFn 1.
- * In case of synchronous ParDo, outputs of the element is resolved immediately after the
- * processElement returns. 2. In case of asynchronous ParDo, outputs of the element is resolved when
- * all the future emitted by the processElement is resolved.
- *
  * <p>This class is not thread safe and the current implementation relies on the assumption that
  * messages are dispatched to BundleManager in a single threaded mode.
  *
