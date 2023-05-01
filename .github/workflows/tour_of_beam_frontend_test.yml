@@ -13,15 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Tour Of Beam Fronend Test
+name: Tour Of Beam Frontend Test
 
 on:
   push:
-    paths: ['learning/tour-of-beam/frontend/**', 'playground/frontend/playground_components']
+    paths:
+      - 'learning/tour-of-beam/frontend/**'
+      - 'playground/frontend/playground_components'
     branches: ['**']
   pull_request:
-    paths: ['learning/tour-of-beam/frontend/**', 'playground/frontend/playground_components']
+    paths:
+      - 'learning/tour-of-beam/frontend/**'
+      - 'playground/frontend/playground_components'
     branches: ['**']
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
