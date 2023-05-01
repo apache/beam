@@ -39,7 +39,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-var capabilities = map[string]struct{}{
+var supportedRequirements = map[string]struct{}{
 	urns.RequirementSplittableDoFn: {},
 }
 
@@ -48,13 +48,13 @@ var capabilities = map[string]struct{}{
 func isSupported(requirements []string) error {
 	var unsupported []string
 	for _, req := range requirements {
-		if _, ok := capabilities[req]; !ok {
+		if _, ok := supportedRequirements[req]; !ok {
 			unsupported = append(unsupported, req)
 		}
 	}
 	if len(unsupported) > 0 {
 		sort.Strings(unsupported)
-		return fmt.Errorf("local runner doesn't support the following required features: %v", strings.Join(unsupported, ","))
+		return fmt.Errorf("prism runner doesn't support the following required features: %v", strings.Join(unsupported, ","))
 	}
 	return nil
 }

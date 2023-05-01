@@ -26,12 +26,15 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -140,6 +143,32 @@ func (wk *W) NextStage() string {
 
 // TODO set logging level.
 var minsev = fnpb.LogEntry_Severity_DEBUG
+
+func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest) (*fnpb.GetProvisionInfoResponse, error) {
+	endpoint := &pipepb.ApiServiceDescriptor{
+		Url: wk.Endpoint(),
+	}
+	resp := &fnpb.GetProvisionInfoResponse{
+		Info: &fnpb.ProvisionInfo{
+			// TODO: Add the job's Pipeline options
+			// TODO: Include runner capabilities with the per job configuration.
+			RunnerCapabilities: []string{
+				urns.CapabilityMonitoringInfoShortIDs,
+			},
+			LoggingEndpoint:  endpoint,
+			ControlEndpoint:  endpoint,
+			ArtifactEndpoint: endpoint,
+			// TODO add this job's RetrievalToken
+			// TODO add this job's artifact Dependencies
+
+			Metadata: map[string]string{
+				"runner":         "prism",
+				"runner_version": core.SdkVersion,
+			},
+		},
+	}
+	return resp, nil
+}
 
 // Logging relates SDK worker messages back to the job that spawned them.
 // Messages are received from the SDK,
