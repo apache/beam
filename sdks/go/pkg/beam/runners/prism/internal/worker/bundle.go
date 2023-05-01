@@ -87,15 +87,15 @@ func (b *B) Respond(resp *fnpb.InstructionResponse) {
 	b.Resp <- resp.GetProcessBundle()
 }
 
-// ProcessOn executes the given bundle on the given W, blocking
-// until all data is complete.
+// ProcessOn executes the given bundle on the given W.
+// The returned channel is closed once all expected data is returned.
 //
 // Assumes the bundle is initialized (all maps are non-nil, and data waitgroup is set, response channel initialized)
 // Assumes the bundle descriptor is already registered with the W.
 //
 // While this method mostly manipulates a W, putting it on a B avoids mixing the workers
 // public GRPC APIs up with local calls.
-func (b *B) ProcessOn(wk *W) {
+func (b *B) ProcessOn(wk *W) <-chan struct{} {
 	wk.mu.Lock()
 	wk.activeInstructions[b.InstID] = b
 	wk.mu.Unlock()
@@ -125,9 +125,7 @@ func (b *B) ProcessOn(wk *W) {
 			},
 		}
 	}
-
-	slog.Debug("waiting on data", "bundle", b)
-	<-b.DataWait // Wait until data is ready.
+	return b.DataWait
 }
 
 // Cleanup unregisters the bundle from the worker.
