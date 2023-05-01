@@ -63,8 +63,7 @@ import org.slf4j.LoggerFactory;
  * ElementCountFnDataReceiver) is returned by calling getMultiplexingConsumer.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class PCollectionConsumerRegistry {
 
@@ -495,7 +494,7 @@ public class PCollectionConsumerRegistry {
     }
 
     final Distribution distribution;
-    ByteSizeObserver byteCountObserver;
+    @Nullable ByteSizeObserver byteCountObserver;
 
     public SampleByteSizeDistribution(Distribution distribution) {
       this.distribution = distribution;

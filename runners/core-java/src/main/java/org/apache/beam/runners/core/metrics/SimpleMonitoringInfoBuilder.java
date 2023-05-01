@@ -27,10 +27,10 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Simplified building of MonitoringInfo fields, allows setting one field at a time with simpler
@@ -52,6 +52,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
+
+  public static class InvalidMonitoringInfoException extends RuntimeException {
+    public InvalidMonitoringInfoException(String message) {
+      super(message);
+    }
+
+    public InvalidMonitoringInfoException(String message, Exception cause) {
+      super(message, cause);
+    }
+
+    public InvalidMonitoringInfoException(Exception cause) {
+      super(cause);
+    }
+  }
+
   private static final SpecMonitoringInfoValidator VALIDATOR = new SpecMonitoringInfoValidator();
   private final boolean validateAndDropInvalid;
 
@@ -169,13 +184,16 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * Builds the provided MonitoringInfo. Returns null if validateAndDropInvalid set and fields do
-   * not match respecting MonitoringInfoSpec based on urn.
+   * Builds the provided MonitoringInfo. Throws {@link InvalidMonitoringInfo} if
+   * validateAndDropInvalid set and fields do not match respecting MonitoringInfoSpec based on urn.
    */
-  public @Nullable MonitoringInfo build() {
+  public MonitoringInfo build() throws InvalidMonitoringInfoException {
     final MonitoringInfo result = this.builder.build();
-    if (validateAndDropInvalid && VALIDATOR.validate(result).isPresent()) {
-      return null;
+    if (validateAndDropInvalid) {
+      Optional<String> validationResult = VALIDATOR.validate(result);
+      if (validationResult.isPresent()) {
+        throw new InvalidMonitoringInfoException(validationResult.get());
+      }
     }
     return result;
   }

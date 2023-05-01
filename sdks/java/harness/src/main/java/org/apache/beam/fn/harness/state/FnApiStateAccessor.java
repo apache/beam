@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness.state;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -72,8 +72,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final PipelineOptions pipelineOptions;
@@ -120,7 +119,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     this.stateFinalizers = new ArrayList<>();
     this.currentWindowSupplier = currentWindowSupplier;
     this.encodedCurrentKeySupplier =
-        memoizeFunction(
+        cacheLatestEncoding(
             currentKeySupplier,
             key -> {
               checkState(
@@ -136,7 +135,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             });
 
     this.encodedCurrentWindowSupplier =
-        memoizeFunction(
+        cacheLatestEncoding(
             currentWindowSupplier,
             window -> {
               ByteStringOutputStream encodedWindowOut = new ByteStringOutputStream();
@@ -149,15 +148,15 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             });
   }
 
-  private static <ArgT, ResultT> Supplier<ResultT> memoizeFunction(
-      Supplier<ArgT> arg, Function<ArgT, ResultT> f) {
-    return new Supplier<ResultT>() {
-      private ArgT memoizedArg;
-      private ResultT memoizedResult;
+  private static <ArgT> Supplier<ByteString> cacheLatestEncoding(
+      Supplier<ArgT> arg, Function<ArgT, ByteString> f) {
+    return new Supplier<ByteString>() {
+      private @Nullable ArgT memoizedArg;
+      private ByteString memoizedResult;
       private boolean initialized;
 
       @Override
-      public ResultT get() {
+      public ByteString get() {
         ArgT currentArg = arg.get();
         if (currentArg != memoizedArg || !initialized) {
           memoizedResult = f.apply(this.memoizedArg = currentArg);
@@ -172,8 +171,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
     TupleTag<?> tag = view.getTagInternal();
 
-    SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);
-    checkArgument(sideInputSpec != null, "Attempting to access unknown side input %s.", view);
+    SideInputSpec<BoundedWindow> sideInputSpec =
+        checkArgumentNotNull(
+            sideInputSpecMap.get(tag), "Attempting to access unknown side input %s.", view);
 
     ByteStringOutputStream encodedWindowOut = new ByteStringOutputStream();
     try {
@@ -296,7 +296,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  public T read() {
+                  public @Nullable T read() {
                     Iterator<T> value = impl.get().iterator();
                     if (value.hasNext()) {
                       return value.next();
@@ -335,7 +335,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   public ReadableState<Boolean> isEmpty() {
                     return new ReadableState<Boolean>() {
                       @Override
-                      public @Nullable Boolean read() {
+                      public Boolean read() {
                         return !impl.get().iterator().hasNext();
                       }
 
@@ -500,7 +500,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   @Override
                   public ReadableState<ValueT> getOrDefault(
                       KeyT key, @Nullable ValueT defaultValue) {
-                    return new ReadableState<ValueT>() {
+                    return new ReadableState<@Nullable ValueT>() {
                       @Override
                       public @Nullable ValueT read() {
                         Iterable<ValueT> values = impl.get(key);
@@ -508,7 +508,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      public ReadableState<ValueT> readLater() {
+                      public ReadableState<@Nullable ValueT> readLater() {
                         impl.get(key).prefetch();
                         return this;
                       }
@@ -675,7 +675,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   public ReadableState<Boolean> isEmpty() {
                     return new ReadableState<Boolean>() {
                       @Override
-                      public @Nullable Boolean read() {
+                      public Boolean read() {
                         return !impl.get().iterator().hasNext();
                       }
 
