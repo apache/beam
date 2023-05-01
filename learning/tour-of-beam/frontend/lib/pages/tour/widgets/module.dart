@@ -27,10 +27,10 @@ class ModuleWidget extends StatelessWidget {
   final ModuleModel module;
   final ContentTreeController contentTreeController;
 
-  const ModuleWidget({
+  ModuleWidget({
     required this.module,
     required this.contentTreeController,
-  });
+  }) : super(key: Key(module.id));
 
   @override
   Widget build(BuildContext context) {

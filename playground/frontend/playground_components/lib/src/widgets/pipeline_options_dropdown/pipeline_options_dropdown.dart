@@ -16,19 +16,35 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground_components/playground_components.dart';
 
-class PipelineOptionsDropdownSeparator extends StatelessWidget {
-  const PipelineOptionsDropdownSeparator({Key? key}) : super(key: key);
+import '../dropdown_button/dropdown_button.dart';
+import 'pipeline_options_dropdown_body.dart';
+
+const kDropdownWidth = 400.0;
+const kDropdownHeight = 375.0;
+
+class PipelineOptionsDropdown extends StatelessWidget {
+  final String pipelineOptions;
+  final void Function(String) setPipelineOptions;
+
+  const PipelineOptionsDropdown({
+    super.key,
+    required this.pipelineOptions,
+    required this.setPipelineOptions,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: kDividerHeight,
-      decoration: BoxDecoration(
-        color: Theme.of(context).extension<BeamThemeExtension>()?.borderColor,
+    return AppDropdownButton(
+      buttonText: Text('widgets.pipelineOptions.pipelineOptions'.tr()),
+      height: kDropdownHeight,
+      width: kDropdownWidth,
+      createDropdown: (close) => PipelineOptionsDropdownBody(
+        pipelineOptions: pipelineOptions,
+        setPipelineOptions: setPipelineOptions,
+        close: close,
       ),
     );
   }

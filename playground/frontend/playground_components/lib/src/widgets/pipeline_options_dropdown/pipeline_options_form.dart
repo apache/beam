@@ -17,36 +17,44 @@
  */
 
 import 'package:collection/collection.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_controller.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_label.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_row.dart';
 
-const kSpace = SizedBox(width: kMdSpacing);
+import '../../constants/sizes.dart';
+import 'pipeline_option_controller.dart';
+import 'pipeline_option_label.dart';
+import 'pipeline_options_row.dart';
+
+const kSpace = SizedBox(width: BeamSpacing.medium);
 
 class PipelineOptionsForm extends StatelessWidget {
   final List<PipelineOptionController> options;
   final void Function(int) onDelete;
 
   const PipelineOptionsForm({
-    Key? key,
+    super.key,
     required this.options,
     required this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: PipelineOptionLabel(text: appLocale.name)),
+            Expanded(
+              child: PipelineOptionLabel(
+                text: 'widgets.pipelineOptions.name'.tr(),
+              ),
+            ),
             kSpace,
-            Expanded(child: PipelineOptionLabel(text: appLocale.value)),
-            const SizedBox(width: kIconSizeLg),
+            Expanded(
+              child: PipelineOptionLabel(
+                text: 'widgets.pipelineOptions.value'.tr(),
+              ),
+            ),
+            const SizedBox(width: BeamIconSizes.large),
           ],
         ),
         ...options.mapIndexed(
