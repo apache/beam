@@ -70,9 +70,7 @@ func (b *B) Init() {
 // DataDone indicates a final element has been received from a Data or Timer output.
 func (b *B) DataDone() {
 	sema := b.dataSema.Add(-1)
-	slog.Info("datadone called", "bundle", b, "sema", sema, "count", b.OutputCount)
 	if sema == 0 {
-		slog.Info("closing DataWait channel", "bundle", b)
 		close(b.DataWait)
 	}
 }

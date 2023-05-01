@@ -409,7 +409,7 @@ func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputI
 	}
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
-		slog.Debug("unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
+		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
 		em.pendingElements.Add(len(unprocessedElements))
 		stage.AddPending(unprocessedElements)
 	}
@@ -618,7 +618,7 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
 
 	prim, res := es.es[:firstResidual], es.es[firstResidual:]
 
-	slog.Info("unprocessed elements", "bundle", rb, "primary", len(prim), "res", len(res))
+	slog.Debug("split elements", "bundle", rb, "primary", len(prim), "res", len(res))
 
 	es.es = prim
 	ss.pending = append(ss.pending, res...)

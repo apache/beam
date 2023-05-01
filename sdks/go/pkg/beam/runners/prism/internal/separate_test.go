@@ -152,10 +152,24 @@ func TestSeparation(t *testing.T) {
 				out = beam.ParDo(s, toInt, out)
 				passert.Sum(s, out, "sum ints", count, 55)
 			},
+		}, {
+			name: "SDFSplit_adjacent_positions",
+			pipeline: func(s beam.Scope) {
+				count := 10
+				imp := beam.Impulse(s)
+				out := beam.ParDo(s, &sepHarnessSdf{
+					Base: sepHarnessBase{
+						WatcherID:         ws.newWatcher(3),
+						Sleep:             100 * time.Millisecond,
+						IsSentinelEncoded: beam.EncodedFunc{Fn: reflectx.MakeFunc(closeSentinel)},
+						LocalService:      ws.serviceAddress,
+					},
+					RestSize: int64(count),
+				}, imp)
+				passert.Count(s, out, "total elements", count)
+			},
 		},
 	}
-
-	// TODO: SubElement/dynamic splits.
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -189,54 +203,10 @@ func toInt(v int64, emit func(int)) {
 	emit(int(v))
 }
 
-func TestProgress(t *testing.T) {
-	initRunner(t)
-
-	ws.initRPCServer()
-
-	tests := []struct {
-		name     string
-		pipeline func(s beam.Scope)
-		metrics  func(t *testing.T, pr beam.PipelineResult)
-	}{
-		{
-			name: "ChannelSplit",
-			pipeline: func(s beam.Scope) {
-				count := 10
-				imp := beam.Impulse(s)
-				ints := beam.ParDo(s, emitTenFn, imp)
-				out := beam.ParDo(s, &sepHarness{
-					Base: sepHarnessBase{
-						WatcherID:         ws.newWatcher(3),
-						Sleep:             100 * time.Millisecond,
-						IsSentinelEncoded: beam.EncodedFunc{Fn: reflectx.MakeFunc(threeSentinel)},
-						LocalService:      ws.serviceAddress,
-					},
-				}, ints)
-				out = beam.ParDo(s, toInt, out)
-				passert.Sum(s, out, "sum ints", count, 55)
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			p, s := beam.NewPipelineWithRoot()
-			test.pipeline(s)
-			pr, err := executeWithT(context.Background(), t, p)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if test.metrics != nil {
-				test.metrics(t, pr)
-			}
-		})
-	}
-}
-
 func init() {
 	register.Function1x1(allSentinel)
 	register.Function1x1(threeSentinel)
+	register.Function2x1(closeSentinel)
 }
 
 // allSentinel indicates that all elements are sentinels.
@@ -244,10 +214,20 @@ func allSentinel(v beam.T) bool {
 	return true
 }
 
-// allSentinel indicates that every element that's mod 3 == 0 is a sentinel.
+// threeSentinel indicates that every element that's mod 3 == 0 is a sentinel.
 func threeSentinel(v beam.T) bool {
 	i := v.(int64)
 	return i > 0 && i%3 == 0
+}
+
+// closeSentinel indicates adjacent positions 3,4,5 are sentinels.
+func closeSentinel(i int64, _ beam.T) bool {
+	switch i {
+	case 3, 4, 5:
+		return true
+	default:
+		return false
+	}
 }
 
 // Watcher is an instance of the counters.

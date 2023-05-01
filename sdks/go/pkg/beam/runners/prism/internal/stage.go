@@ -33,7 +33,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -126,14 +125,13 @@ progress:
 			slog.Debug("progress report", "bundle", rb, "index", index)
 			// Progress for the bundle hasn't advanced. Try splitting.
 			if previousIndex == index && !splitsDone {
-				sr := b.Split(wk, 0.66 /* fraction of remainder */, nil /* allowed splits */)
-				slog.Debug("split", "bundle", rb, "response", prototext.Format(sr))
+				sr := b.Split(wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if sr.GetChannelSplits() == nil {
 					slog.Warn("split failed", "bundle", rb)
 					splitsDone = true
 					continue progress
 				}
-				// TODO, sort out rescheduling primary Roots on bundle failure.
+				// TODO sort out rescheduling primary Roots on bundle failure.
 				var residualData [][]byte
 				for _, rr := range sr.GetResidualRoots() {
 					ba := rr.GetApplication()
@@ -148,7 +146,8 @@ progress:
 					slog.Warn("received non-single channel split")
 				}
 				cs := sr.GetChannelSplits()[0]
-				em.ReturnResiduals(rb, int(cs.GetFirstResidualElement()), s.inputInfo, residualData)
+				ri := cs.GetFirstResidualElement()
+				em.ReturnResiduals(rb, int(ri), s.inputInfo, residualData)
 			} else {
 				previousIndex = index
 			}
