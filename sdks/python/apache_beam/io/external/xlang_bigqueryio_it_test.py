@@ -49,9 +49,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
+# @unittest.skipUnless(
+#     os.environ.get('EXPANSION_PORT'),
+#     "EXPANSION_PORT environment var is not provided.")
 class BigQueryXlangStorageWriteIT(unittest.TestCase):
   BIGQUERY_DATASET = 'python_xlang_storage_write'
 
@@ -108,15 +108,13 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
     _LOGGER.info("expansion port: %s", os.environ.get('EXPANSION_PORT'))
-    self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
+    self.expansion_service = None#('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
   def tearDown(self):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
       _LOGGER.info(
           "Deleting dataset %s in project %s", self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
+      self.bigquery_client._delete_dataset(project_id=self.project, dataset_id=self.dataset_id, delete_contents=True)
     except HttpError:
       _LOGGER.debug(
           'Failed to clean up dataset %s in project %s',
@@ -136,7 +134,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     return data
 
-  def storage_write_test(self, table_name, items, schema):
+  def storage_write_test(self, table_name, items, schema, with_auto_sharding=False, use_at_least_once=False):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table_name)
 
     bq_matcher = BigqueryFullResultMatcher(
@@ -152,6 +150,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=schema,
+              with_auto_sharding=with_auto_sharding,
+              use_at_least_once=use_at_least_once,
               expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
@@ -161,6 +161,20 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
         "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
     self.storage_write_test(table_name, self.ELEMENTS, schema)
+
+  def test_storage_write_with_auto_sharding(self):
+    table_name = "python_storage_write_with_auto_sharding"
+    schema = (
+      "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
+      "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
+    self.storage_write_test(table_name, self.ELEMENTS, schema, with_auto_sharding=True)
+
+  def test_storage_write_with_at_least_once_semantics(self):
+    table_name = "python_storage_write_with_at_least_once_semantics"
+    schema = (
+      "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
+      "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
+    self.storage_write_test(table_name, self.ELEMENTS, schema, use_at_least_once=True)
 
   def test_storage_write_nested_records_and_lists(self):
     table_name = "python_storage_write_nested_records_and_lists"
