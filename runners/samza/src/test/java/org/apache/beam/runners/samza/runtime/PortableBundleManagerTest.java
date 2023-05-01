@@ -17,10 +17,16 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.samza.operators.Scheduler;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -30,6 +36,7 @@ public class PortableBundleManagerTest {
 
   @Mock BundleManager.BundleProgressListener<String> bundleProgressListener;
   @Mock Scheduler<KeyedTimerData<Void>> bundleTimerScheduler;
+  @Mock OpEmitter<String> emitter;
 
   PortableBundleManager<String> portableBundleManager;
 
@@ -61,5 +68,109 @@ public class PortableBundleManagerTest {
     portableBundleManager.tryStartBundle();
 
     verify(bundleProgressListener, times(1)).onBundleStarted();
+  }
+
+  @Test
+  public void testWhenElementCountNotReachedTHenBundleDoesntFinish() {
+    portableBundleManager =
+        new PortableBundleManager<>(
+            bundleProgressListener, 4, MAX_BUNDLE_TIME_MS, bundleTimerScheduler, TIMER_ID);
+    portableBundleManager.tryStartBundle();
+    portableBundleManager.tryStartBundle();
+    portableBundleManager.tryFinishBundle(emitter);
+
+    verify(bundleProgressListener, times(1)).onBundleStarted();
+    verify(bundleProgressListener, times(0)).onBundleFinished(any());
+  }
+
+  @Test
+  public void testWhenElementCountReachedThenFinishBundle() {
+    portableBundleManager =
+        new PortableBundleManager<>(
+            bundleProgressListener, 4, MAX_BUNDLE_TIME_MS, bundleTimerScheduler, TIMER_ID);
+    portableBundleManager.tryStartBundle();
+    portableBundleManager.tryStartBundle();
+    portableBundleManager.tryStartBundle();
+    portableBundleManager.tryStartBundle();
+    portableBundleManager.tryFinishBundle(emitter);
+
+    verify(bundleProgressListener, times(1)).onBundleStarted();
+    verify(bundleProgressListener, times(1)).onBundleFinished(any());
+  }
+
+  @Test
+  public void testWhenBundleTimeReachedThenFinishBundle() throws Exception {
+    portableBundleManager =
+        new PortableBundleManager<>(bundleProgressListener, 4, 1, bundleTimerScheduler, TIMER_ID);
+    portableBundleManager.tryStartBundle();
+    Thread.sleep(2);
+    portableBundleManager.tryFinishBundle(emitter);
+
+    verify(bundleProgressListener, times(1)).onBundleStarted();
+    verify(bundleProgressListener, times(1)).onBundleFinished(any());
+  }
+
+  @Test
+  public void testWhenSignalFailureThenResetBundle() throws Exception {
+    portableBundleManager =
+        new PortableBundleManager<>(bundleProgressListener, 4, 1, bundleTimerScheduler, TIMER_ID);
+    portableBundleManager.tryStartBundle();
+    portableBundleManager.signalFailure(new Exception());
+    portableBundleManager.tryStartBundle();
+
+    verify(bundleProgressListener, times(2)).onBundleStarted();
+  }
+
+  @Test
+  public void testProcessWatermarkWhenBundleNotStarted() {
+    Instant watermark = new Instant();
+    portableBundleManager =
+        new PortableBundleManager<>(bundleProgressListener, 4, 1, bundleTimerScheduler, TIMER_ID);
+    portableBundleManager.processWatermark(watermark, emitter);
+    verify(bundleProgressListener, times(1)).onWatermark(eq(watermark), eq(emitter));
+  }
+
+  @Test
+  public void testQueueWatermarkWhenBundleNotStarted() {
+    Instant watermark = new Instant();
+    portableBundleManager =
+        new PortableBundleManager<>(bundleProgressListener, 1, 1, bundleTimerScheduler, TIMER_ID);
+
+    portableBundleManager.tryStartBundle();
+    portableBundleManager.processWatermark(watermark, emitter);
+    verify(bundleProgressListener, times(0)).onWatermark(eq(watermark), eq(emitter));
+
+    portableBundleManager.tryFinishBundle(emitter);
+    verify(bundleProgressListener, times(1)).onWatermark(eq(watermark), eq(emitter));
+  }
+
+  @Test
+  public void testProcessTimerTriesFinishBundle() {
+    portableBundleManager =
+        new PortableBundleManager<>(bundleProgressListener, 1, 1, bundleTimerScheduler, TIMER_ID);
+
+    portableBundleManager.tryStartBundle();
+    KeyedTimerData<Void> keyedTimerData = mock(KeyedTimerData.class);
+    TimerInternals.TimerData timerData = mock(TimerInternals.TimerData.class);
+    when(keyedTimerData.getTimerData()).thenReturn(timerData);
+    when(timerData.getTimerId()).thenReturn(TIMER_ID);
+
+    portableBundleManager.processTimer(keyedTimerData, emitter);
+    verify(bundleProgressListener, times(1)).onBundleFinished(any());
+  }
+
+  @Test
+  public void testDifferentTimerIdIsIgnored() {
+    portableBundleManager =
+        new PortableBundleManager<>(bundleProgressListener, 1, 1, bundleTimerScheduler, TIMER_ID);
+
+    portableBundleManager.tryStartBundle();
+    KeyedTimerData<Void> keyedTimerData = mock(KeyedTimerData.class);
+    TimerInternals.TimerData timerData = mock(TimerInternals.TimerData.class);
+    when(keyedTimerData.getTimerData()).thenReturn(timerData);
+    when(timerData.getTimerId()).thenReturn("NOT_TIMER_ID");
+
+    portableBundleManager.processTimer(keyedTimerData, emitter);
+    verify(bundleProgressListener, times(0)).onBundleFinished(any());
   }
 }
