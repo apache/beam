@@ -39,6 +39,7 @@ import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
 
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
@@ -131,6 +132,20 @@ public interface AwsOptions extends PipelineOptions {
    *   "roleArn": "role_arn_Value",
    *   "roleSessionName": "session_name_value",
    *   "policy": "policy_value",
+   *   "durationSeconds": 3600
+   * }}</pre>
+   *
+   * <li>{@link StsAssumeRoleWithWebIdentityCredentialsProvider}
+   *
+   *     <p>Please note that this works for batch pipelines which can be completed within the
+   *     expiration of the web identity token. Long batch or streaming pipelines wouldn't work with
+   *     this Provider.
+   *
+   *     <pre>{@code --awsCredentialsProvider={
+   *   "@type": "StsAssumeRoleWithWebIdentityCredentialsProvider",
+   *   "roleArn": "role_arn_Value",
+   *   "roleSessionName": "session_name_value",
+   *   "webIdentityToken": "web_identity_token_value",
    *   "durationSeconds": 3600
    * }}</pre>
    *

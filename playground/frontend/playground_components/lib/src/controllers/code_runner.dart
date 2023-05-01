@@ -18,6 +18,7 @@
 
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -32,12 +33,12 @@ import 'unread_controller.dart';
 
 class CodeRunner extends ChangeNotifier {
   final CodeRepository? _codeRepository;
-  final ValueGetter<SnippetEditingController> _snippetEditingControllerGetter;
+  final ValueGetter<SnippetEditingController?> _snippetEditingControllerGetter;
   SnippetEditingController? snippetEditingController;
   final unreadController = UnreadController();
 
   CodeRunner({
-    required ValueGetter<SnippetEditingController>
+    required ValueGetter<SnippetEditingController?>
         snippetEditingControllerGetter,
     CodeRepository? codeRepository,
   })  : _codeRepository = codeRepository,
@@ -48,8 +49,20 @@ class CodeRunner extends ChangeNotifier {
   DateTime? _runStartDate;
   DateTime? _runStopDate;
 
+  /// [Duration] from the last execution start to finish or to present time.
+  Duration? get elapsed => _runStartDate == null
+      ? null
+      : (_runStopDate ?? clock.now()).difference(_runStartDate!);
+
+  /// The [EventSnippetContext] at the time when execution started.
+  EventSnippetContext? _eventSnippetContext;
+
+  /// [EventSnippetContext] for which the execution last started.
+  EventSnippetContext? get eventSnippetContext => _eventSnippetContext;
+
   String? get pipelineOptions =>
-      _snippetEditingControllerGetter().pipelineOptions;
+      _snippetEditingControllerGetter()?.pipelineOptions;
+
   RunCodeResult? get result => _result;
   DateTime? get runStartDate => _runStartDate;
   DateTime? get runStopDate => _runStopDate;
@@ -60,10 +73,17 @@ class CodeRunner extends ChangeNotifier {
   String get resultLogOutput => resultLog + resultOutput;
 
   bool get isExampleChanged {
-    return _snippetEditingControllerGetter().isChanged;
+    return _snippetEditingControllerGetter()?.isChanged ?? false;
   }
 
+  // Snapshot of additional analytics data at the time when execution started.
+  Map<String, dynamic> _analyticsData = const {};
+  Map<String, dynamic> get analyticsData => _analyticsData;
+
+  bool get canRun => _snippetEditingControllerGetter() != null;
+
   void clearResult() {
+    _eventSnippetContext = null;
     _setResult(null);
     notifyListeners();
   }
@@ -74,15 +94,21 @@ class CodeRunner extends ChangeNotifier {
     }
     _runStartDate = null;
     _runStopDate = null;
+    _eventSnippetContext = null;
     _setResult(null);
     notifyListeners();
   }
 
-  void runCode({void Function()? onFinish}) {
+  void runCode({
+    void Function()? onFinish,
+    Map<String, dynamic> analyticsData = const {},
+  }) {
+    _analyticsData = analyticsData;
     _runStartDate = DateTime.now();
     _runStopDate = null;
     notifyListeners();
     snippetEditingController = _snippetEditingControllerGetter();
+    _eventSnippetContext = snippetEditingController!.eventSnippetContext;
     final sdk = snippetEditingController!.sdk;
 
     final parsedPipelineOptions =
@@ -169,7 +195,7 @@ class CodeRunner extends ChangeNotifier {
     }
 
     snippetEditingController = null;
-    // Awaited cancelling subscription here blocks further method execution. 
+    // Awaited cancelling subscription here blocks further method execution.
     // TODO: Figure out the reason: https://github.com/apache/beam/issues/25509
     unawaited(_runSubscription?.cancel());
     final pipelineUuid = _result?.pipelineUuid ?? '';

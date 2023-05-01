@@ -15,6 +15,9 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
+dialogs:
+  cancel: Cancel
+
 errors:
   error: 'Error'
   failedParseOptions: >
@@ -31,8 +34,11 @@ examples:
   userSharedName: 'User Shared Code'
 
 ui:
+  copyright: '© The Apache Software Foundation'
   darkMode: 'Dark Mode'
   lightMode: 'Light Mode'
+  privacyPolicy: 'Privacy Policy'
+  reportIssue: 'Report Issue on GitHub'
 
 intents:
   playground:
@@ -40,12 +46,18 @@ intents:
     reset: 'Reset Code'
 
 widgets:
-
   codeEditor:
     label: 'Code Text Area'
   
   closeButton:
     label: 'Close'
+  
+  feedback:
+    hint: "Have feedback? We'd love to hear it, but please don't share sensitive information."
+    negative: 'Bad Experience'
+    positive: 'Good Experience'
+    send: 'Send Feedback'
+    title: 'Feedback'
 
   output:
     filter:

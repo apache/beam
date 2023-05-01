@@ -26,6 +26,7 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -363,7 +364,8 @@ public class MongoDbIO {
   static class BoundedMongoDbSource extends BoundedSource<Document> {
     private final Read spec;
 
-    private BoundedMongoDbSource(Read spec) {
+    @VisibleForTesting
+    BoundedMongoDbSource(Read spec) {
       this.spec = spec;
     }
 
@@ -426,7 +428,12 @@ public class MongoDbIO {
                       spec.sslEnabled(),
                       spec.sslInvalidHostNameAllowed(),
                       spec.ignoreSSLCertificate())))) {
-        return getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
+        try {
+          return getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
+        } catch (MongoCommandException exception) {
+          LOG.warn("Cannot estimate size: ", exception);
+          return 0L;
+        }
       }
     }
 

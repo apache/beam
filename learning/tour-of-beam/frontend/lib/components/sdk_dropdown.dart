@@ -22,11 +22,11 @@ import 'package:playground_components/playground_components.dart';
 import 'builders/sdks.dart';
 
 class SdkDropdown extends StatelessWidget {
-  final String sdkId;
-  final ValueChanged<String> onChanged;
+  final Sdk value;
+  final ValueChanged<Sdk> onChanged;
 
   const SdkDropdown({
-    required this.sdkId,
+    required this.value,
     required this.onChanged,
   });
 
@@ -40,10 +40,10 @@ class SdkDropdown extends StatelessWidget {
 
         return _DropdownWrapper(
           child: DropdownButton(
-            value: sdkId,
-            onChanged: (sdk) {
-              if (sdk != null) {
-                onChanged(sdk);
+            value: value.id,
+            onChanged: (sdkId) {
+              if (sdkId != null) {
+                onChanged(Sdk.parseOrCreate(sdkId));
               }
             },
             items: sdks

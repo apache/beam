@@ -53,8 +53,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20230112',
-    'dataflow.fnapi_container_version' : 'beam-master-20230112',
+    'dataflow.legacy_container_version' : 'beam-master-20230426',
+    'dataflow.fnapi_container_version' : 'beam-master-20230426',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -96,7 +96,6 @@ dependencies {
   // Ensures SequencedMessage availability for Spotless
   implementation library.java.proto_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
-  implementation library.java.google_api_services_clouddebugger
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
   permitUnusedDeclared library.java.google_api_services_storage // BEAM-11761
@@ -111,7 +110,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -531,9 +530,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      // TODO(https://github.com/apache/beam/issues/22592)
-      // Reenable once UW supports autosharding
-      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }
@@ -562,6 +558,9 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/gcp/spanner/changestreams/it/*.class'
+  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
+  exclude '**/FirestoreV1IT.class'
+
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -609,6 +608,8 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'
   exclude '**/FhirIOPatientEverythingIT.class'
+  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
+  exclude '**/FirestoreV1IT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest

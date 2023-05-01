@@ -25,7 +25,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Flink',
 
       description('Runs the Python Examples with Flink Runner')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120, true, 'beam', true, 40)
 
       // Publish all test results to Jenkins
       publishers {

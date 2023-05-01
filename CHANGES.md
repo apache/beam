@@ -49,8 +49,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
-
-# [2.47.0] - Unreleased
+# [2.48.0] - Unreleased
 
 ## Highlights
 
@@ -59,8 +58,48 @@
 
 ## I/Os
 
+* Added rename for GCS and copy for local filesystem (Go) ([#25779](https://github.com/apache/beam/issues/26064)).
+* Added support for enhanced fan-out in KinesisIO.Read (Java) ([#19967](https://github.com/apache/beam/issues/19967)).
+  * This change is not compatible with Flink savepoints created by Beam 2.46.0 applications which had KinesisIO sources.
+* Added textio.ReadWithFilename transform (Go) ([#25812](https://github.com/apache/beam/issues/25812)).
+* Added fileio.MatchContinuously transform (Go) ([#26186](https://github.com/apache/beam/issues/26186)).
+
+## New Features / Improvements
+
+* Dead letter queue support added to RunInference in Python ([#24209](https://github.com/apache/beam/issues/24209)).
+* Support added for defining pre/postprocessing operations on the RunInference transform ([#26308](https://github.com/apache/beam/issues/26308))
+
+## Breaking Changes
+
+* Passing a tag into MultiProcessShared is now required in the Python SDK ([#26168](https://github.com/apache/beam/issues/26168)).
+* CloudDebuggerOptions is removed (deprecated in Beam v2.47.0) for Dataflow runner as the Google Cloud Debugger service is [shutting down](https://cloud.google.com/debugger/docs/deprecations). (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed Java bootloader failing with Too Long Args due to long classpaths, with a pathing jar. (Java) ([#25582](https://github.com/apache/beam/issues/25582)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.47.0] - Cut, Unreleased
+
+## Highlights
+
+* Apache Beam adds Python 3.11 support ([#23848](https://github.com/apache/beam/issues/23848)).
+
+## I/Os
+
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * BigQuery Storage Write API is now available in Python SDK via cross-language ([#21961](https://github.com/apache/beam/issues/21961)).
+* Added HbaseIO support for writing RowMutations (ordered by rowkey) to Hbase (Java) ([#25830](https://github.com/apache/beam/issues/25830)).
+* Added fileio transforms MatchFiles, MatchAll and ReadMatches (Go) ([#25779](https://github.com/apache/beam/issues/25779)).
+* Add integration test for JmsIO + fix issue with multiple connections (Java) ([#25887](https://github.com/apache/beam/issues/25887)).
 
 ## New Features / Improvements
 
@@ -70,11 +109,14 @@
   like `df | (Transform1 | Transform2 | ...)` to avoid excessive conversions.)
 * The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
   for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
+* Python SDK now requires `protobuf>=4.21.1,<4.23.0` and no longer supports protobuf 3.x. ([#24599](https://github.com/apache/beam/pull/24599))
+* Several Google client libraries in Python SDK dependency chain were updated to latest available major versions. ([#24599](https://github.com/apache/beam/pull/24599))
 
 ## Breaking Changes
 
 * If a main session fails to load, the pipeline will now fail at worker startup. ([#25401](https://github.com/apache/beam/issues/25401)).
 * Python pipeline options will now ignore unparsed command line flags prefixed with a single dash. ([#25943](https://github.com/apache/beam/issues/25943)).
+* The SmallestPerKey combiner now requires keyword-only arguments for specifying optional parameters, such as `key` and `reverse`. ([#25888](https://github.com/apache/beam/issues/25888)).
 
 ## Deprecations
 
@@ -130,6 +172,10 @@
   fixed cost in this computation to better handle cases where the fixed cost
   is larger than a single second. To get the old behavior, one can pass
   `target_batch_duration_secs_including_fixed_cost=1` to BatchElements.
+* Dataflow runner enables sibling SDK protocol for Python pipelines using custom containers on Beam 2.46.0 and newer SDKs.
+  If your Python pipeline starts to stall after you switch to 2.46.0 and you use a custom container, please verify
+  that your custom container does not include artifacts from older Beam SDK releases. In particular, check in your `Dockerfile`
+  that the Beam container entrypoint and/or Beam base image version match the Beam SDK version used at job submission.
 
 ## Deprecations
 

@@ -20,9 +20,8 @@ import 'package:flutter/material.dart';
 
 import '../../../models/group.dart';
 import '../controllers/content_tree.dart';
-import 'group_nodes.dart';
 import 'group_title.dart';
-import 'stateless_expansion_tile.dart';
+import 'parent_node.dart';
 
 class GroupWidget extends StatelessWidget {
   final GroupModel group;
@@ -35,32 +34,15 @@ class GroupWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: contentTreeController,
-      builder: (context, child) {
-        final isExpanded = contentTreeController.expandedIds.contains(group.id);
-
-        return StatelessExpansionTile(
-          isExpanded: isExpanded,
-          onExpansionChanged: (isExpanding) {
-            if (isExpanding) {
-              contentTreeController.expandGroup(group);
-            } else {
-              contentTreeController.collapseGroup(group);
-            }
-          },
-          title: GroupTitleWidget(
-            group: group,
-            onTap: () {
-              contentTreeController.openNode(group);
-            },
-          ),
-          child: GroupNodesWidget(
-            nodes: group.nodes,
-            contentTreeController: contentTreeController,
-          ),
-        );
-      },
+    return ParentNodeWidget(
+      contentTreeController: contentTreeController,
+      node: group,
+      title: GroupTitleWidget(
+        group: group,
+        onTap: () {
+          contentTreeController.onNodePressed(group);
+        },
+      ),
     );
   }
 }

@@ -156,6 +156,12 @@ public interface FlinkPipelineOptions
 
   void setObjectReuse(Boolean reuse);
 
+  @Description("Sets the behavior of operator chaining.")
+  @Default.Boolean(true)
+  Boolean getOperatorChaining();
+
+  void setOperatorChaining(Boolean chaining);
+
   /**
    * State backend to store Beam's state during computation. Note: Only applicable when executing in
    * streaming mode.
