@@ -19,8 +19,6 @@ package org.apache.beam.sdk.schemas.io.payloads;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
@@ -33,7 +31,6 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils;
  *     instead of this one.
  */
 @Internal
-@Experimental(Kind.SCHEMAS)
 @Deprecated
 @AutoService(PayloadSerializerProvider.class)
 public class AvroPayloadSerializerProvider implements PayloadSerializerProvider {

@@ -40,8 +40,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -317,7 +315,6 @@ public class BigtableIO {
    *       generated string.
    * </ul>
    */
-  @Experimental
   public static ReadChangeStream readChangeStream() {
     return ReadChangeStream.create();
   }
@@ -552,7 +549,6 @@ public class BigtableIO {
      * <p>When we have a builder, we initialize the value. When they call the method then we
      * override the value
      */
-    @Experimental(Kind.SOURCE_SINK)
     public Read withMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()

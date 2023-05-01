@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -50,7 +49,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> Type of input PCollection. Cannot be nullable since it is used as key to a map.
  */
-@Experimental
 abstract class AnnotateImages<T extends @NonNull Object>
     extends PTransform<PCollection<T>, PCollection<List<AnnotateImageResponse>>> {
 

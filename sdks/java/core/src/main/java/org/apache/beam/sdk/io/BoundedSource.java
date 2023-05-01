@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -104,7 +102,6 @@ public abstract class BoundedSource<T> extends Source<T> {
    * org.apache.beam.sdk.io.range.RangeTracker} to manage the (source-specific) range of positions
    * that is being split.
    */
-  @Experimental(Kind.SOURCE_SINK)
   public abstract static class BoundedReader<T> extends Source.Reader<T> {
     /**
      * Returns a value in [0, 1] representing approximately what fraction of the {@link

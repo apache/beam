@@ -53,8 +53,10 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* "Experimental" annotation cleanup: the annotation and concept have been removed from Beam to avoid
+  the misperception of code as "not ready". Any proposed breaking changes will be subject to
+  case-by-case pro/con decision making (and generally avoided) rather than using the "Experimental"
+  to allow them.
 
 ## I/Os
 
