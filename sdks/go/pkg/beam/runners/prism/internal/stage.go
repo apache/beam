@@ -143,11 +143,15 @@ progress:
 					// TODO what happens to output watermarks on splits?
 				}
 				if len(sr.GetChannelSplits()) != 1 {
-					slog.Warn("received non-single channel split")
+					slog.Warn("received non-single channel split", "bundle", rb)
 				}
 				cs := sr.GetChannelSplits()[0]
-				ri := cs.GetFirstResidualElement()
-				em.ReturnResiduals(rb, int(ri), s.inputInfo, residualData)
+				fr := cs.GetFirstResidualElement()
+				// The first residual can be after the end of data, so filter out those cases.
+				if len(b.InputData) >= int(fr) {
+					b.InputData = b.InputData[:int(fr)]
+					em.ReturnResiduals(rb, int(fr), s.inputInfo, residualData)
+				}
 			} else {
 				previousIndex = index
 			}

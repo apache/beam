@@ -600,10 +600,10 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
 	defer ss.mu.Unlock()
 
 	es := ss.inprogress[rb.BundleID]
+	slog.Debug("split elements", "bundle", rb, "elem count", len(es.es), "res", firstResidual)
 
-	prim, res := es.es[:firstResidual], es.es[firstResidual:]
-
-	slog.Debug("split elements", "bundle", rb, "primary", len(prim), "res", len(res))
+	prim := es.es[:firstResidual]
+	res := es.es[firstResidual:]
 
 	es.es = prim
 	ss.pending = append(ss.pending, res...)
