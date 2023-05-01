@@ -32,6 +32,7 @@ Ensure that the account has at least following privileges:
    - Artifact Registry Administrator
    - Cloud Datastore Index Admin
    - Cloud Memorystore Redis Admin
+   - Cloud Functions Developer
    - Compute Admin
    - Create Service Accounts
    - DNS Administrator
@@ -79,9 +80,9 @@ max_count              = 6                          # Max node count for the GKE
 skip_appengine_deploy  = false                      # AppEngine flag - defined if AppEngine and Datastore need to be installed. Should be "true" if AppEngine and Datastore were installed before
 ip-address-name        = "playground-static-ip"     # GCP Static IP Address name
 repository_id          = "playground-artifacts"     # GCP Artifact repository name for Playground images
-service_account_id     = "playground-gke-account"   # GCP Service account name
+service_account_id     = "playground-gke-sa"   # GCP Service account name
 gke_machine_type       = "e2-standard-8"            # Machine type for GKE Nodes
-env                    = "prod"                     # Chosen environment
+env                    = "prod"                     # Environment. The same value as for <environment_name> parameter
 
 ```
 * `state.tfbackend` environment variables:
