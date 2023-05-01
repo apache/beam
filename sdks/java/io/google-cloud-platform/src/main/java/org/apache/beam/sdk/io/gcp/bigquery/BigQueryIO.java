@@ -100,6 +100,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperati
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.ContextContainer;
 import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.OutputType;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -3012,9 +3013,11 @@ public class BigQueryIO {
             ? Method.STORAGE_API_AT_LEAST_ONCE
             : Method.STORAGE_WRITE_API;
       }
+
+      boolean isStreaming = input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming();
       // By default, when writing an Unbounded PCollection, we use StreamingInserts and
       // BigQuery's streaming import API.
-      return (input.isBounded() == IsBounded.UNBOUNDED)
+      return (isStreaming || (input.isBounded() == IsBounded.UNBOUNDED))
           ? Write.Method.STREAMING_INSERTS
           : Write.Method.FILE_LOADS;
     }
@@ -3040,33 +3043,35 @@ public class BigQueryIO {
     public WriteResult expand(PCollection<T> input) {
       // We must have a destination to write to!
       checkArgument(
-          getTableFunction() != null
-              || getJsonTableRef() != null
-              || getDynamicDestinations() != null,
-          "must set the table reference of a BigQueryIO.Write transform");
+              getTableFunction() != null
+                      || getJsonTableRef() != null
+                      || getDynamicDestinations() != null,
+              "must set the table reference of a BigQueryIO.Write transform");
 
       List<?> allToArgs =
-          Lists.newArrayList(getJsonTableRef(), getTableFunction(), getDynamicDestinations());
+              Lists.newArrayList(getJsonTableRef(), getTableFunction(), getDynamicDestinations());
       checkArgument(
-          1
-              == Iterables.size(
-                  allToArgs.stream()
-                      .filter(Predicates.notNull()::apply)
-                      .collect(Collectors.toList())),
-          "Exactly one of jsonTableRef, tableFunction, or dynamicDestinations must be set");
+              1
+                      == Iterables.size(
+                      allToArgs.stream()
+                              .filter(Predicates.notNull()::apply)
+                              .collect(Collectors.toList())),
+              "Exactly one of jsonTableRef, tableFunction, or dynamicDestinations must be set");
 
       List<?> allSchemaArgs =
-          Lists.newArrayList(getJsonSchema(), getSchemaFromView(), getDynamicDestinations());
+              Lists.newArrayList(getJsonSchema(), getSchemaFromView(), getDynamicDestinations());
       checkArgument(
-          2
-              > Iterables.size(
-                  allSchemaArgs.stream()
-                      .filter(Predicates.notNull()::apply)
-                      .collect(Collectors.toList())),
-          "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
+              2
+                      > Iterables.size(
+                      allSchemaArgs.stream()
+                              .filter(Predicates.notNull()::apply)
+                              .collect(Collectors.toList())),
+              "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
 
+      boolean isStreaming = input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()
+    || input.isBounded() == IsBounded.UNBOUNDED;
       Write.Method method = resolveMethod(input);
-      if (input.isBounded() == IsBounded.UNBOUNDED
+      if ((isStreaming)
           && (method == Write.Method.FILE_LOADS || method == Write.Method.STORAGE_WRITE_API)) {
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         Duration triggeringFrequency =
@@ -3102,7 +3107,7 @@ public class BigQueryIO {
             !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
       }
 
-      if (input.isBounded() == IsBounded.BOUNDED) {
+      if (!isStreaming) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
 

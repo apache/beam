@@ -1,0 +1,4 @@
+
+@RunWith(JUnit4.class)
+public class BigQueryStorageApiExactlyOnceIT {
+}

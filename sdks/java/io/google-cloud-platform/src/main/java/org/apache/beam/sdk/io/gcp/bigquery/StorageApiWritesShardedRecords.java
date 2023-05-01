@@ -132,6 +132,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
+  private static volatile @Nullable Instant lastCrash = null;
+
   // Context passed into RetryManager for each call.
   class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
     final ShardedKey<DestinationT> key;
@@ -235,6 +237,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     final long splitSize = bigQueryOptions.getStorageApiAppendThresholdBytes();
     final long maxRequestSize = bigQueryOptions.getStorageWriteApiMaxRequestSize();
+    final long crashDuration = bigQueryOptions.getCrashStorageApiWriteEverySeconds();
 
     String operationName = input.getName() + "/" + getName();
     TupleTagList tupleTagList = TupleTagList.of(failedRowsTag);
@@ -245,7 +248,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     PCollectionTuple writeRecordsResult =
         input.apply(
             "Write Records",
-            ParDo.of(new WriteRecordsDoFn(operationName, streamIdleTime, splitSize, maxRequestSize))
+            ParDo.of(
+                    new WriteRecordsDoFn(
+                        operationName, streamIdleTime, splitSize, maxRequestSize, crashDuration))
                 .withSideInputs(dynamicDestinations.getSideInputs())
                 .withOutputTags(flushTag, tupleTagList));
 
@@ -331,13 +336,19 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     private final Duration streamIdleTime;
     private final long splitSize;
     private final long maxRequestSize;
+    private final long crashDuration;
 
     public WriteRecordsDoFn(
-        String operationName, Duration streamIdleTime, long splitSize, long maxRequestSize) {
+        String operationName,
+        Duration streamIdleTime,
+        long splitSize,
+        long maxRequestSize,
+        long crashDuration) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.streamIdleTime = streamIdleTime;
       this.splitSize = splitSize;
       this.maxRequestSize = maxRequestSize;
+      this.crashDuration = crashDuration;
     }
 
     @StartBundle
@@ -744,6 +755,15 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             if (context.client != null) {
               runAsyncIgnoreFailure(closeWriterExecutor, context.client::unpin);
             }
+          }
+        }
+        if (crashDuration != -1) {
+          Instant value = lastCrash;
+          if (value == null) {
+            lastCrash = Instant.now();
+          } else if (Instant.now().isAfter(value.plusSeconds(crashDuration))) {
+            lastCrash = Instant.now();
+            throw new RuntimeException("Schedule crash!!!!");
           }
         }
         appendSplitDistribution.update(numAppends);
