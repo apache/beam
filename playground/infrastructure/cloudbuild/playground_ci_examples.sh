@@ -135,6 +135,7 @@ LogOutput "Docker tag for containers: $DOCKERTAG"
 cd $BEAM_ROOT_DIR
 LogOutput "git fetch -all"
 git fetch --all > /dev/null
+git fetch origin $COMMIT
 # Docker containers will build from the current PR commit
 LogOutput "git checkout $COMMIT"
 git checkout $COMMIT
