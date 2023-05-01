@@ -93,7 +93,7 @@ func TestSeparation(t *testing.T) {
 				out := beam.ParDo(s, &sepHarnessSdfStream{
 					Base: sepHarnessBase{
 						WatcherID:         ws.newWatcher(3),
-						Sleep:             time.Second,
+						Sleep:             10 * time.Millisecond,
 						IsSentinelEncoded: beam.EncodedFunc{Fn: reflectx.MakeFunc(allSentinel)},
 						LocalService:      ws.serviceAddress,
 					},
@@ -107,7 +107,7 @@ func TestSeparation(t *testing.T) {
 				count := 10
 				imp := beam.Impulse(s)
 				out := beam.ParDo(s, &singleStepSdfStream{
-					Sleep:    time.Second,
+					Sleep:    10 * time.Millisecond,
 					RestSize: int64(count),
 				}, imp)
 				passert.Count(s, out, "global stepped num ints", count)
@@ -121,7 +121,7 @@ func TestSeparation(t *testing.T) {
 				count := int(elms / mod)
 				imp := beam.Impulse(s)
 				out := beam.ParDo(s, &eventtimeSDFStream{
-					Sleep:    time.Second,
+					Sleep:    10 * time.Millisecond,
 					RestSize: int64(elms),
 					Mod:      int64(mod),
 					Fixed:    1,
