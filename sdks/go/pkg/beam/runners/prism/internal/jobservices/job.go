@@ -86,10 +86,12 @@ func (j *Job) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressRes
 	return j.metrics.ContributeTentativeMetrics(payloads)
 }
 
+// ContributeFinalMetrics returns any unknown monitoring short ids.
 func (j *Job) ContributeFinalMetrics(payloads *fnpb.ProcessBundleResponse) []string {
 	return j.metrics.ContributeFinalMetrics(payloads)
 }
 
+// AddMetricShortIDs populates metric short IDs with their metadata.
 func (j *Job) AddMetricShortIDs(ids *fnpb.MonitoringInfosMetadataResponse) {
 	j.metrics.AddShortIDs(ids)
 }
