@@ -284,7 +284,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 					b.OutputData.WriteData(colID, d.GetData())
 				}
 				if d.GetIsLast() {
-					b.dataWait.Done()
+					b.DataDone()
 				}
 			}
 			wk.mu.Unlock()

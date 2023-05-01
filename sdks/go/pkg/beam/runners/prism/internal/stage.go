@@ -117,7 +117,7 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 					slog.Info("progress report", "bundle", rb, "index", index)
 					// Progress for the bundle hasn't advanced. Try splitting.
 					if previousIndex == index {
-						sr := b.Split(wk)
+						sr := b.Split(wk, 0.66 /* fraction of remainder */, nil /* allowed splits */)
 						slog.Info("split", "bundle", rb, "response", prototext.Format(sr))
 						if sr.GetChannelSplits() == nil {
 							slog.Warn("split failed", "bundle", rb)

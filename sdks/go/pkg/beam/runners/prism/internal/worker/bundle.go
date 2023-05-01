@@ -16,7 +16,7 @@
 package worker
 
 import (
-	"sync"
+	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -40,19 +40,18 @@ type B struct {
 	// MultiMapSideInputData is a map from transformID, to inputID, to window, to data key, to data values.
 	MultiMapSideInputData map[string]map[string]map[typex.Window]map[string][][]byte
 
-	// OutputCount is the number of data outputs this bundle has.
+	// OutputCount is the number of data or timer outputs this bundle has.
 	// We need to see this many closed data channels before the bundle is complete.
 	OutputCount int
 	// dataWait is how we determine if a bundle is finished, by waiting for each of
 	// a Bundle's DataSinks to produce their last output.
 	// After this point we can "commit" the bundle's output for downstream use.
-	dataWait   sync.WaitGroup
+	DataWait   chan struct{}
+	dataSema   atomic.Int32
 	OutputData engine.TentativeData
 	Resp       chan *fnpb.ProcessBundleResponse
 
 	SinkToPCollection map[string]string
-
-	// TODO: Metrics for this bundle, can be handled after the fact.
 }
 
 // Init initializes the bundle's internal state for waiting on all
@@ -60,8 +59,22 @@ type B struct {
 func (b *B) Init() {
 	// We need to see final data signals that match the number of
 	// outputs the stage this bundle executes posesses
-	b.dataWait.Add(b.OutputCount)
+	b.dataSema.Store(int32(b.OutputCount))
+	b.DataWait = make(chan struct{})
+	if b.OutputCount == 0 {
+		close(b.DataWait) // Can happen if there's no outputs for the bundle.
+	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
+}
+
+// DataDone indicates a final element has been received from a Data or Timer output.
+func (b *B) DataDone() {
+	sema := b.dataSema.Add(-1)
+	slog.Info("datadone called", "bundle", b, "sema", sema, "count", b.OutputCount)
+	if sema == 0 {
+		slog.Info("closing DataWait channel", "bundle", b)
+		close(b.DataWait)
+	}
 }
 
 func (b *B) LogValue() slog.Value {
@@ -114,7 +127,7 @@ func (b *B) ProcessOn(wk *W) {
 	}
 
 	slog.Debug("waiting on data", "bundle", b)
-	b.dataWait.Wait() // Wait until data is ready.
+	<-b.DataWait // Wait until data is ready.
 }
 
 // Cleanup unregisters the bundle from the worker.
@@ -134,15 +147,15 @@ func (b *B) Progress(wk *W) *fnpb.ProcessBundleProgressResponse {
 	}).GetProcessBundleProgress()
 }
 
-func (b *B) Split(wk *W) *fnpb.ProcessBundleSplitResponse {
+func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) *fnpb.ProcessBundleSplitResponse {
 	return wk.sendInstruction(&fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
 			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
 				InstructionId: b.InstID,
 				DesiredSplits: map[string]*fnpb.ProcessBundleSplitRequest_DesiredSplit{
 					b.InputTransformID: {
-						// Todo make this configurable.
-						FractionOfRemainder:    float64(0.66),
+						FractionOfRemainder:    fraction,
+						AllowedSplitPoints:     allowedSplits,
 						EstimatedInputElements: int64(len(b.InputData)),
 					},
 				},
