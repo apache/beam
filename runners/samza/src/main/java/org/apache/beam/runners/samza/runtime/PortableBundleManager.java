@@ -116,20 +116,14 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
 
   @Override
   public void tryStartBundle() {
-    boolean triggerdStartBundle = false;
 
-    synchronized (this) {
-      if (!isBundleStarted) {
-        LOG.debug("Starting a new bundle.");
-        isBundleStarted = true;
-        bundleStartTime = System.currentTimeMillis();
-        pendingBundleCount++;
-        triggerdStartBundle = true;
-        currentBundleElementCount++;
-      }
-    }
+    currentBundleElementCount++;
 
-    if (triggerdStartBundle) {
+    if (!isBundleStarted) {
+      LOG.debug("Starting a new bundle.");
+      isBundleStarted = true;
+      bundleStartTime = System.currentTimeMillis();
+      pendingBundleCount++;
       bundleProgressListener.onBundleStarted();
     }
   }
@@ -146,9 +140,7 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
 
     // hold back the watermark since there is either a bundle in progress or previously closed
     // bundles are unfinished.
-    synchronized (this) {
-      this.bundleWatermarkHold = watermark;
-    }
+    this.bundleWatermarkHold = watermark;
   }
 
   @Override
@@ -169,34 +161,27 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
   @Override
   public void signalFailure(Throwable t) {
     LOG.error("Encountered error during processing the message. Discarding the output due to: ", t);
-    synchronized (this) {
-      isBundleStarted = false;
-      currentBundleElementCount = 0;
-      bundleStartTime = Long.MAX_VALUE;
-      pendingBundleCount--;
-    }
+
+    // atomic update all states
+    isBundleStarted = false;
+    currentBundleElementCount = 0;
+    bundleStartTime = Long.MAX_VALUE;
+    pendingBundleCount--;
   }
 
   @Override
   public void tryFinishBundle(OpEmitter<OutT> emitter) {
-    boolean triggeredBundleFinish = false;
-    Instant watermarkHold = null;
+    if (shouldFinishBundle()) {
+      LOG.debug("Finishing the current bundle.");
+      isBundleStarted = false;
+      currentBundleElementCount = 0;
+      bundleStartTime = Long.MAX_VALUE;
 
-    synchronized (this) {
-      if (shouldFinishBundle()) {
-        LOG.debug("Finishing the current bundle.");
-        isBundleStarted = false;
-        currentBundleElementCount = 0;
-        bundleStartTime = Long.MAX_VALUE;
-        watermarkHold = bundleWatermarkHold;
-        bundleWatermarkHold = null;
+      Instant watermarkHold = bundleWatermarkHold;
+      bundleWatermarkHold = null;
 
-        pendingBundleCount--;
-        triggeredBundleFinish = true;
-      }
-    }
+      pendingBundleCount--;
 
-    if (triggeredBundleFinish) {
       bundleProgressListener.onBundleFinished(emitter);
       if (watermarkHold != null) {
         bundleProgressListener.onWatermark(watermarkHold, emitter);
@@ -204,7 +189,7 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
     }
   }
 
-  private synchronized boolean shouldProcessWatermark() {
+  private boolean shouldProcessWatermark() {
     // the 2 states needs to be checked atomically
     return !isBundleStarted && pendingBundleCount == 0;
   }
@@ -216,7 +201,7 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
    *
    * @return true - if one of the criteria above is satisfied; false - otherwise
    */
-  private synchronized boolean shouldFinishBundle() {
+  private boolean shouldFinishBundle() {
     // checked atomically.
     return isBundleStarted
         && (currentBundleElementCount >= maxBundleSize
