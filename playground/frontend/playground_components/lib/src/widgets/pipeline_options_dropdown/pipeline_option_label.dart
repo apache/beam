@@ -16,17 +16,18 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+import 'package:flutter/material.dart';
 
-Future<void> init(WidgetTester wt) async {
-  await app.main();
-  await wt.pumpAndSettle();
-}
+class PipelineOptionLabel extends StatelessWidget {
+  final String text;
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
+  const PipelineOptionLabel({super.key, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.labelLarge,
+    );
+  }
 }

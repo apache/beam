@@ -17,7 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/components/dropdown_button/dropdown_button.dart';
+
+import '../widgets/dropdown_button/dropdown_button.dart';
 
 const _bottomToDropdown = 10.0;
 

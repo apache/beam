@@ -86,7 +86,7 @@ class _Content extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = unitContent;
     if (content == null) {
-      return Container();
+      return const Center(child: CircularProgressIndicator());
     }
 
     return ListView(

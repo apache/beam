@@ -16,17 +16,31 @@
  * limitations under the License.
  */
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
 
-Future<void> init(WidgetTester wt) async {
-  await app.main();
-  await wt.pumpAndSettle();
-}
+import 'package:playground_components/playground_components.dart';
+import '../expect.dart';
+import '../widget_tester.dart';
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
+Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
+  final oldBrightness = wt.getBrightness();
+  final newBrightness =
+      oldBrightness == Brightness.light ? Brightness.dark : Brightness.light;
+
+  await wt.toggleTheme();
+  expect(wt.getBrightness(), newBrightness);
+  expectLastAnalyticsEvent(
+    ThemeSetAnalyticsEvent(
+      brightness: newBrightness,
+    ),
+  );
+
+  await wt.toggleTheme();
+  expect(wt.getBrightness(), oldBrightness);
+  expectLastAnalyticsEvent(
+    ThemeSetAnalyticsEvent(
+      brightness: oldBrightness,
+    ),
   );
 }

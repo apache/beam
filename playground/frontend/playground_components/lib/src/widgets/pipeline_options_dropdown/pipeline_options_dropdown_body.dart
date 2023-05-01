@@ -16,15 +16,12 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/colors.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_controller.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_input.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_separator.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_form.dart';
-import 'package:playground_components/playground_components.dart';
+
+import '../../../playground_components.dart';
+import 'pipeline_option_controller.dart';
+import 'pipeline_options_form.dart';
 
 const kOptionsTabIndex = 0;
 const kRawTabIndex = 1;
@@ -105,7 +102,6 @@ class _PipelineOptionsDropdownBodyState
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
     return Column(
       children: [
         TabBar(
@@ -113,18 +109,18 @@ class _PipelineOptionsDropdownBodyState
           tabs: <Widget>[
             Tab(
               key: PipelineOptionsDropdownBody.optionsTabKey,
-              text: appLocale.optionsPipelineOptions,
+              text: 'widgets.pipelineOptions.options'.tr(),
             ),
             Tab(
               key: PipelineOptionsDropdownBody.rawTabKey,
-              text: appLocale.rawPipelineOptions,
+              text: 'widgets.pipelineOptions.raw'.tr(),
             ),
           ],
         ),
-        const PipelineOptionsDropdownSeparator(),
+        const BeamDivider(),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.all(kXlSpacing),
+            padding: const EdgeInsets.all(BeamSpacing.extraLarge),
             child: TabBarView(
               controller: tabController,
               physics: const NeverScrollableScrollPhysics(),
@@ -140,27 +136,26 @@ class _PipelineOptionsDropdownBodyState
             ),
           ),
         ),
-        const PipelineOptionsDropdownSeparator(),
+        const BeamDivider(),
         Padding(
-          padding: const EdgeInsets.all(kXlSpacing),
+          padding: const EdgeInsets.all(BeamSpacing.extraLarge),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
-                height: kButtonHeight,
+                height: BeamSizes.buttonHeight,
                 child: ElevatedButton(
                   key: PipelineOptionsDropdownBody.saveAndCloseButtonKey,
-                  child: Text(appLocale.saveAndClose),
+                  child: Text('widgets.pipelineOptions.saveAndClose'.tr()),
                   onPressed: () => _save(context),
                 ),
               ),
-              const SizedBox(width: kLgSpacing),
+              const SizedBox(width: BeamSpacing.large),
               if (selectedTab == kOptionsTabIndex)
                 SizedBox(
-                  height: kButtonHeight,
+                  height: BeamSizes.buttonHeight,
                   child: OutlinedButton(
                     key: PipelineOptionsDropdownBody.addOptionButtonKey,
-                    child: Text(appLocale.addPipelineOptionParameter),
+                    child: Text('widgets.pipelineOptions.addParameter'.tr()),
                     onPressed: () => setState(() {
                       pipelineOptionsList.add(PipelineOptionController());
                     }),
@@ -169,11 +164,11 @@ class _PipelineOptionsDropdownBodyState
               if (showError && selectedTab == kRawTabIndex)
                 Flexible(
                   child: Text(
-                    appLocale.pipelineOptionsError,
+                    'widgets.pipelineOptions.error'.tr(),
                     style: Theme.of(context)
                         .textTheme
                         .caption!
-                        .copyWith(color: kErrorNotificationColor),
+                        .copyWith(color: BeamNotificationColors.error),
                     softWrap: true,
                   ),
                 ),
@@ -203,7 +198,7 @@ class _PipelineOptionsDropdownBodyState
     return pipelineOptionsToString(pipelineOptionsListValue);
   }
 
-  _save(BuildContext context) {
+  void _save(BuildContext context) {
     if (selectedTab == kRawTabIndex && !_isPipelineOptionsTextValid()) {
       setState(() {
         showError = true;
@@ -220,14 +215,14 @@ class _PipelineOptionsDropdownBodyState
     return options.isEmpty || (parsedOptions != null);
   }
 
-  _updateRawValue() {
+  void _updateRawValue() {
     if (pipelineOptionsListValue.isNotEmpty) {
       pipelineOptionsController.text =
           pipelineOptionsToString(pipelineOptionsListValue);
     }
   }
 
-  _updateFormValue() {
+  void _updateFormValue() {
     final parsedOptions =
         _pipelineOptionsMapToList(pipelineOptionsController.text);
     if (parsedOptions.isNotEmpty) {

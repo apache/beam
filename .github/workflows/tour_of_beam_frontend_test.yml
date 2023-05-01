@@ -13,16 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Playground Frontend Test
+name: Tour Of Beam Frontend Test
 
 on:
   push:
     paths:
-      - 'playground/frontend/**'
+      - 'learning/tour-of-beam/frontend/**'
+      - 'playground/frontend/playground_components'
     branches: ['**']
   pull_request:
     paths:
-      - 'playground/frontend/**'
+      - 'learning/tour-of-beam/frontend/**'
+      - 'playground/frontend/playground_components'
     branches: ['**']
   workflow_dispatch:
 
@@ -32,8 +34,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  playground_frontend_test:
-    name: Playground Frontend Test
+  tour_of_beam_test:
+    name: Tour of Beam Test
     runs-on: ubuntu-latest
 
     env:
@@ -55,38 +57,14 @@ jobs:
           channel: 'stable'
 
       - name: 'Install Dependencies'
-        working-directory: playground/frontend
         run: |
-          cd playground_components && flutter pub get && cd ..
-          cd playground_components_dev && flutter pub get && cd ..
-          flutter pub get
-
-#      - name: 'Formatting'
-#        run: dart format --output=none --set-exit-if-changed .
-
-#      - name: 'Analyze playground_components'
-#        working-directory: playground/frontend/playground_components
-#        run: dart analyze --fatal-infos
-
-#      - name: 'Analyze playground_components_dev'
-#        working-directory: playground/frontend/playground_components_dev
-#        run: dart analyze --fatal-infos
-
-#      - name: 'Analyze playground'
-#        working-directory: playground/frontend
-#        run: dart analyze --fatal-infos lib test
-
-      - name: 'Test playground_components'
-        working-directory: playground/frontend/playground_components
-        run: flutter test
-
-      - name: 'Test playground'
-        working-directory: playground/frontend
-        run: flutter test
+          cd playground/frontend/playground_components && flutter pub get && cd -
+          cd playground/frontend/playground_components_dev && flutter pub get && cd -
+          cd learning/tour-of-beam/frontend && flutter pub get && cd -
 
       - uses: nanasess/setup-chromedriver@v1
 
       - name: 'Integration tests'
         run: |
           chromedriver --port=4444 &
-          ./gradlew :playground:frontend:integrationTest -PdeviceId=web-server
+          ./gradlew :learning:tour-of-beam:frontend:integrationTest -PdeviceId=web-server
