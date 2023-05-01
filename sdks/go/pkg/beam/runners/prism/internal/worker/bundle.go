@@ -49,7 +49,11 @@ type B struct {
 	DataWait   chan struct{}
 	dataSema   atomic.Int32
 	OutputData engine.TentativeData
-	Resp       chan *fnpb.ProcessBundleResponse
+
+	// TODO move response channel to an atomic and an additional
+	// block on the DataWait channel, to allow progress & splits for
+	// no output DoFns.
+	Resp chan *fnpb.ProcessBundleResponse
 
 	SinkToPCollection map[string]string
 }
@@ -62,7 +66,7 @@ func (b *B) Init() {
 	b.dataSema.Store(int32(b.OutputCount))
 	b.DataWait = make(chan struct{})
 	if b.OutputCount == 0 {
-		close(b.DataWait) // Can happen if there's no outputs for the bundle.
+		close(b.DataWait) // Can happen if there are no outputs for the bundle.
 	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
 }

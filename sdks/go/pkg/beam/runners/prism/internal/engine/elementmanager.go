@@ -276,6 +276,34 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 	return es.ToData(info)
 }
 
+// reElementResiduals extracts the windowed value header from residual bytes, and explodes them
+// back out to their windows.
+func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []element {
+	var unprocessedElements []element
+	for _, residual := range residuals {
+		buf := bytes.NewBuffer(residual)
+		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			slog.Error("reElementResiduals: error decoding residual header", err, "bundle", rb)
+			panic("error decoding residual header")
+		}
+
+		for _, w := range ws {
+			unprocessedElements = append(unprocessedElements,
+				element{
+					window:    w,
+					timestamp: et,
+					pane:      pn,
+					elmBytes:  buf.Bytes(),
+				})
+		}
+	}
+	return unprocessedElements
+}
+
 // PersistBundle uses the tentative bundle output to update the watermarks for the stage.
 // Each stage has two monotonically increasing watermarks, the input watermark, and the output
 // watermark.
@@ -330,28 +358,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 
 	// Return unprocessed to this stage's pending
-	var unprocessedElements []element
-	for _, residual := range residuals {
-		buf := bytes.NewBuffer(residual)
-		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			slog.Error("PersistBundle: error decoding residual header", err, "bundle", rb)
-			panic("error decoding residual header")
-		}
-
-		for _, w := range ws {
-			unprocessedElements = append(unprocessedElements,
-				element{
-					window:    w,
-					timestamp: et,
-					pane:      pn,
-					elmBytes:  buf.Bytes(),
-				})
-		}
-	}
+	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
 		em.pendingElements.Add(len(unprocessedElements))
@@ -379,35 +386,13 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	em.addRefreshAndClearBundle(stage.ID, rb.BundleID)
 }
 
+// ReturnResiduals is called after a successful split, so the remaining work
+// can be re-assigned to a new bundle.
 func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals [][]byte) {
 	stage := em.stages[rb.StageID]
 
 	stage.splitBundle(rb, firstRsIndex)
-
-	// Return unprocessed to this stage's pending
-	var unprocessedElements []element
-	for _, residual := range residuals {
-		buf := bytes.NewBuffer(residual)
-		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			slog.Error("ReturnResiduals: error decoding residual header", err, "bundle", rb)
-			panic("error decoding residual header")
-		}
-
-		for _, w := range ws {
-			unprocessedElements = append(unprocessedElements,
-				element{
-					window:    w,
-					timestamp: et,
-					pane:      pn,
-					elmBytes:  buf.Bytes(),
-				})
-		}
-	}
-	// Add unprocessed back to the pending stack.
+	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
 		em.pendingElements.Add(len(unprocessedElements))
