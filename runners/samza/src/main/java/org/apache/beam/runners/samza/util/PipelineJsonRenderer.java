@@ -23,6 +23,7 @@ import com.google.errorprone.annotations.DoNotCall;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -60,7 +61,7 @@ import org.slf4j.LoggerFactory;
 @Experimental
 public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineJsonRenderer.class);
-  public static final String TRANSFORM_IO_MAP_DELIMITER = ",";
+  private static final String TRANSFORM_IO_MAP_DELIMITER = ",";
 
   /**
    * Interface to get I/O information for a Beam job. This will help add I/O information to the Beam
@@ -305,9 +306,10 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
 
   // Reads the config to build transformIOMap, i.e. map of inputs & output PValues for each
   // PTransform
-  public static Map<String, Map.Entry<String, String>> getTransformIOMap(Config config) {
+  public static Map<String, Map.Entry<List<String>, List<String>>> getTransformIOMap(
+      Config config) {
     checkNotNull(config, "Config cannot be null");
-    final Map<String, Map.Entry<String, String>> result = new HashMap<>();
+    final Map<String, Map.Entry<List<String>, List<String>>> result = new HashMap<>();
     final String pipelineJsonGraph = config.get(SamzaRunner.BEAM_JSON_GRAPH);
     if (pipelineJsonGraph == null) {
       LOG.warn(
@@ -323,8 +325,14 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
               transform.getAsJsonObject().get("transformName").getAsString();
           final String inputs = transform.getAsJsonObject().get("inputs").getAsString();
           final String outputs = transform.getAsJsonObject().get("outputs").getAsString();
-          result.put(transformName, new AbstractMap.SimpleEntry<>(inputs, outputs));
+          result.put(transformName, new AbstractMap.SimpleEntry<>(ioFunc(inputs), ioFunc(outputs)));
         });
     return result;
+  }
+
+  private static List<String> ioFunc(String ioList) {
+    return Arrays.stream(ioList.split(PipelineJsonRenderer.TRANSFORM_IO_MAP_DELIMITER))
+        .filter(item -> !item.isEmpty())
+        .collect(Collectors.toList());
   }
 }

@@ -28,11 +28,11 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.metrics.BeamTransformMetricRegistry;
+import org.apache.beam.runners.samza.metrics.SamzaInputMetricOp;
+import org.apache.beam.runners.samza.metrics.SamzaOutputMetricOp;
+import org.apache.beam.runners.samza.metrics.SamzaTransformMetricRegistry;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
-import org.apache.beam.runners.samza.runtime.SamzaInputMetricOp;
-import org.apache.beam.runners.samza.runtime.SamzaOutputMetricOp;
 import org.apache.beam.runners.samza.util.HashIdGenerator;
 import org.apache.beam.runners.samza.util.StoreIdGenerator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
 import org.apache.samza.config.Config;
@@ -83,7 +82,6 @@ import org.slf4j.LoggerFactory;
 }) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TranslationContext {
   private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
-  private static final String DISABLE_TASK_METRICS = "runner.samza.transform.disable.task.metrics";
   private final StreamApplicationDescriptor appDescriptor;
   private final Map<PValue, MessageStream<?>> messsageStreams = new HashMap<>();
   private final Map<PCollectionView<?>, MessageStream<?>> viewStreams = new HashMap<>();
@@ -93,7 +91,7 @@ public class TranslationContext {
   private final SamzaPipelineOptions options;
   private final HashIdGenerator idGenerator = new HashIdGenerator();
   private final StoreIdGenerator storeIdGenerator;
-  private final BeamTransformMetricRegistry beamTransformMetricRegistry;
+  private final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   public TranslationContext(
@@ -105,7 +103,7 @@ public class TranslationContext {
     this.idMap = idMap;
     this.options = options;
     this.storeIdGenerator = new StoreIdGenerator(nonUniqueStateIds);
-    this.beamTransformMetricRegistry = new BeamTransformMetricRegistry();
+    this.samzaTransformMetricRegistry = new SamzaTransformMetricRegistry();
   }
 
   public <OutT> void registerInputMessageStream(
@@ -161,13 +159,13 @@ public class TranslationContext {
       throw new IllegalArgumentException("Stream already registered for pvalue: " + pvalue);
     }
     // add a step to attach OutputMetricOp if registered for Op Stream
-    final Config overrideConfig = new MapConfig(getPipelineOptions().getConfigOverride());
-    if (shouldDoAttachMetricOp(overrideConfig, enableTransformMetric)) {
+    final Boolean userOverride = getPipelineOptions().getEnableTransformMetrics();
+    if (userOverride && enableTransformMetric) {
       // add another step if registered for Op Stream
       stream.flatMapAsync(
           OpAdapter.adapt(
               new SamzaOutputMetricOp<>(
-                  pvalue.getName(), getTransformFullName(), beamTransformMetricRegistry),
+                  pvalue.getName(), getTransformFullName(), samzaTransformMetricRegistry),
               this));
     }
 
@@ -195,13 +193,13 @@ public class TranslationContext {
     }
 
     // add a step to attach InputMetricOp if registered for Op Stream
-    final Config overrideConfig = new MapConfig(getPipelineOptions().getConfigOverride());
-    if (shouldDoAttachMetricOp(overrideConfig, enableTransformMetric)) {
+    final Boolean userOverride = getPipelineOptions().getEnableTransformMetrics();
+    if (userOverride && enableTransformMetric) {
       // add another step if registered for Op Stream
       stream.flatMapAsync(
           OpAdapter.adapt(
               new SamzaInputMetricOp<>(
-                  pvalue.getName(), getTransformFullName(), beamTransformMetricRegistry),
+                  pvalue.getName(), getTransformFullName(), samzaTransformMetricRegistry),
               this));
     }
 
@@ -322,14 +320,5 @@ public class TranslationContext {
     sendFn.accept(new WatermarkMessage(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
     sendFn.accept(new EndOfStreamMessage(null));
     return dummyInput;
-  }
-
-  boolean shouldDoAttachMetricOp(Config config, boolean enableTransformMetric) {
-    return enableTransformMetric && !config.getBoolean(DISABLE_TASK_METRICS, false);
-  }
-
-  @VisibleForTesting
-  BeamTransformMetricRegistry getBeamTransformMetricRegistry() {
-    return beamTransformMetricRegistry;
   }
 }

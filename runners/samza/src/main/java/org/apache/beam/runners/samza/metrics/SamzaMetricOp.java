@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.runtime;
+package org.apache.beam.runners.samza.metrics;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import org.apache.beam.runners.samza.metrics.BeamTransformMetricRegistry;
+import org.apache.beam.runners.samza.runtime.KeyedTimerData;
+import org.apache.beam.runners.samza.runtime.Op;
+import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.util.PipelineJsonRenderer;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
@@ -48,24 +48,24 @@ import org.apache.samza.operators.Scheduler;
 public abstract class SamzaMetricOp<T> implements Op<T, T, Void> {
   // Unique name of the PTransform this MetricOp is associated with
   protected final String transformFullName;
-  protected final BeamTransformMetricRegistry beamTransformMetricRegistry;
-  // Name or identifier of the PCollection which Ptrasform is processing
+  protected final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
+  // Name or identifier of the PCollection which PTransform is processing
   protected final String pValue;
   // List of input PValue(s) for all PCollections processing the PTransform
-  protected List<String> transformInputs;
+  protected transient List<String> transformInputs;
   // List of output PValue(s) for all PCollections processing the PTransform
-  protected List<String> transformOutputs;
+  protected transient List<String> transformOutputs;
   // Name of the task, for logging purpose
-  protected String task;
+  protected transient String task;
 
   // Some fields are initialized in open() method, which is called after the constructor.
   @SuppressWarnings("initialization.fields.uninitialized")
   public SamzaMetricOp(
       String pValue,
       String transformFullName,
-      BeamTransformMetricRegistry beamTransformMetricRegistry) {
+      SamzaTransformMetricRegistry samzaTransformMetricRegistry) {
     this.transformFullName = transformFullName;
-    this.beamTransformMetricRegistry = beamTransformMetricRegistry;
+    this.samzaTransformMetricRegistry = samzaTransformMetricRegistry;
     this.pValue = pValue;
   }
 
@@ -76,21 +76,15 @@ public abstract class SamzaMetricOp<T> implements Op<T, T, Void> {
       Context context,
       Scheduler<KeyedTimerData<Void>> timerRegistry,
       OpEmitter<T> emitter) {
-    final Map.Entry<String, String> transformInputOutput =
+    final Map.Entry<List<String>, List<String>> transformInputOutput =
         PipelineJsonRenderer.getTransformIOMap(config).get(transformFullName);
     this.transformInputs =
-        transformInputOutput != null ? ioFunc(transformInputOutput.getKey()) : new ArrayList();
+        transformInputOutput != null ? transformInputOutput.getKey() : new ArrayList();
     this.transformOutputs =
-        transformInputOutput != null ? ioFunc(transformInputOutput.getValue()) : new ArrayList();
+        transformInputOutput != null ? transformInputOutput.getValue() : new ArrayList();
     // for logging / debugging purposes
     this.task = context.getTaskContext().getTaskModel().getTaskName().getTaskName();
-    // Register the transform with BeamTransformMetricRegistry
-    beamTransformMetricRegistry.register(transformFullName, pValue, context);
-  }
-
-  private static List<String> ioFunc(String ioList) {
-    return Arrays.stream(ioList.split(PipelineJsonRenderer.TRANSFORM_IO_MAP_DELIMITER))
-        .filter(item -> !item.isEmpty())
-        .collect(Collectors.toList());
+    // Register the transform with SamzaTransformMetricRegistry
+    samzaTransformMetricRegistry.register(transformFullName, pValue, context);
   }
 }

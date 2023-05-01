@@ -23,29 +23,32 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.TestSamzaRunner;
+import org.apache.beam.runners.samza.util.InMemoryMetricsReporter;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.samza.metrics.Counter;
 import org.apache.samza.metrics.Gauge;
 import org.apache.samza.metrics.Metric;
-import org.junit.Rule;
 import org.junit.Test;
 
 public class TestSamzaRunnerWithTransformMetrics {
-  @Rule
-  public final transient TestPipeline pipeline =
-      TestPipeline.fromOptions(
-          PipelineOptionsFactory.fromArgs("--runner=TestSamzaRunner").create());
-
   @Test
   public void testSamzaRunnerWithDefaultMetrics() {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    InMemoryMetricsReporter inMemoryMetricsReporter = new InMemoryMetricsReporter();
+    options.setMetricsReporters(ImmutableList.of(inMemoryMetricsReporter));
+    options.setRunner(TestSamzaRunner.class);
+    TestSamzaRunner testSamzaRunner = TestSamzaRunner.fromOptions(options);
+    Pipeline pipeline = Pipeline.create(options);
     // Create a pipeline
     PCollection<KV<String, Integer>> output =
         pipeline
@@ -60,19 +63,18 @@ public class TestSamzaRunnerWithTransformMetrics {
             .apply(Values.create());
     // check pipeline is working fine
     PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
-    pipeline.run();
-    TestSamzaRunner.InMemoryMetricsReporter inMemoryMetricsReporter =
-        TestSamzaRunner.getTestMetricsReporter();
+    testSamzaRunner.run(pipeline);
+
     Map<String, Metric> pTransformContainerMetrics =
         inMemoryMetricsReporter
             .getMetricsRegistry("samza-container-1")
-            .getGroup("BeamTransformMetrics");
+            .getGroup("SamzaBeamTransformMetrics");
     Map<String, Metric> pTransformTaskMetrics =
         inMemoryMetricsReporter
             .getMetricsRegistry("TaskName-Partition 0")
-            .getGroup("BeamTransformMetrics");
+            .getGroup("SamzaBeamTransformMetrics");
 
-    // BeamTransformMetrics group must be initialized
+    // SamzaTransformMetrics group must be initialized
     assertFalse(pTransformTaskMetrics.isEmpty());
     assertFalse(pTransformContainerMetrics.isEmpty());
 

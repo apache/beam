@@ -31,25 +31,15 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.io.FileUtils;
-import org.apache.samza.metrics.MetricsReporter;
-import org.apache.samza.metrics.ReadableMetricsRegistry;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Test {@link SamzaRunner}. */
 public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
 
   private final SamzaRunner delegate;
-  private static InMemoryMetricsReporter testMetricsReporter = new InMemoryMetricsReporter();
 
   public static TestSamzaRunner fromOptions(PipelineOptions options) {
     return new TestSamzaRunner(createSamzaPipelineOptions(options));
-  }
-
-  public static InMemoryMetricsReporter getTestMetricsReporter() {
-    return testMetricsReporter;
   }
 
   public static SamzaPipelineOptions createSamzaPipelineOptions(PipelineOptions options) {
@@ -57,7 +47,6 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
       final SamzaPipelineOptions samzaOptions =
           PipelineOptionsValidator.validate(SamzaPipelineOptions.class, options);
       final Map<String, String> config = new HashMap<>(ConfigBuilder.localRunConfig());
-
       final File storeDir =
           Paths.get(System.getProperty("java.io.tmpdir"), "beam-samza-test").toFile();
       //  Re-create the folder for test stores
@@ -73,7 +62,6 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
       if (samzaOptions.getConfigOverride() != null) {
         config.putAll(samzaOptions.getConfigOverride());
       }
-      samzaOptions.setMetricsReporters(ImmutableList.of(testMetricsReporter));
       samzaOptions.setConfigOverride(config);
       return samzaOptions;
     } catch (Exception e) {
@@ -103,29 +91,6 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
       }
 
       throw t;
-    }
-  }
-
-  public static class InMemoryMetricsReporter implements MetricsReporter {
-    private Map<String, ReadableMetricsRegistry> registries;
-
-    public InMemoryMetricsReporter() {
-      registries = new HashMap<>();
-    }
-
-    @Override
-    public void start() {}
-
-    @Override
-    public void register(String source, ReadableMetricsRegistry registry) {
-      registries.put(source, registry);
-    }
-
-    @Override
-    public void stop() {}
-
-    public @Nullable ReadableMetricsRegistry getMetricsRegistry(@NonNull String source) {
-      return registries.get(source);
     }
   }
 }

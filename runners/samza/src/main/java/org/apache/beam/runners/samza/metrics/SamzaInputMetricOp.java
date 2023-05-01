@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.runtime;
+package org.apache.beam.runners.samza.metrics;
 
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.runners.samza.metrics.BeamTransformMetricRegistry;
+import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -40,14 +40,14 @@ import org.slf4j.LoggerFactory;
 public class SamzaInputMetricOp<T> extends SamzaMetricOp<T> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaInputMetricOp.class);
   // Counters to maintain avg arrival time per watermark for input PCollection.
-  private AtomicLong count;
+  private final AtomicLong count;
   private AtomicReference<BigInteger> sumOfTimestamps;
 
   public SamzaInputMetricOp(
       String pValue,
       String transformFullName,
-      BeamTransformMetricRegistry beamTransformMetricRegistry) {
-    super(pValue, transformFullName, beamTransformMetricRegistry);
+      SamzaTransformMetricRegistry samzaTransformMetricRegistry) {
+    super(pValue, transformFullName, samzaTransformMetricRegistry);
     this.count = new AtomicLong(0L);
     this.sumOfTimestamps = new AtomicReference<>(BigInteger.ZERO);
   }
@@ -56,7 +56,7 @@ public class SamzaInputMetricOp<T> extends SamzaMetricOp<T> {
   public void processElement(WindowedValue<T> inputElement, OpEmitter<T> emitter) {
     count.incrementAndGet();
     sumOfTimestamps.updateAndGet(sum -> sum.add(BigInteger.valueOf(System.nanoTime())));
-    beamTransformMetricRegistry
+    samzaTransformMetricRegistry
         .getTransformMetrics()
         .getTransformInputThroughput(transformFullName)
         .inc();
@@ -78,11 +78,11 @@ public class SamzaInputMetricOp<T> extends SamzaMetricOp<T> {
     if (count.get() > 0) {
       // if BigInt.longValue is out of range for long then only the low-order 64 bits are retained
       long avg = Math.floorDiv(sumOfTimestamps.get().longValue(), count.get());
-      beamTransformMetricRegistry.updateArrivalTimeMap(
+      samzaTransformMetricRegistry.updateArrivalTimeMap(
           transformFullName, pValue, watermark.getMillis(), avg);
     }
     // reset all counters
-    this.count = new AtomicLong(0L);
+    count.set(0L);
     this.sumOfTimestamps = new AtomicReference<>(BigInteger.ZERO);
     super.processWatermark(watermark, emitter);
   }

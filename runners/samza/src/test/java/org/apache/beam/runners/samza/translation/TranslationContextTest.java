@@ -78,6 +78,7 @@ public class TranslationContextTest {
     final String streamName = "testStream";
     KVSerde<Object, Object> serde = KVSerde.of(new NoOpSerde<>(), new NoOpSerde<>());
     pipelineOptions = mock(SamzaPipelineOptions.class);
+    when(pipelineOptions.getEnableTransformMetrics()).thenReturn(true);
     // Create a stream application descriptor with a partitionBy
     streamApplicationDescriptor =
         new StreamApplicationDescriptorImpl(
@@ -119,7 +120,7 @@ public class TranslationContextTest {
     // Verify that the metric op is attached
     OpAdapter.adapt(any(), Mockito.eq(translationContext));
     PowerMockito.verifyNoMoreInteractions(OpAdapter.class);
-    assertTrue(translationContext.shouldDoAttachMetricOp(getConfig(), true));
+    assertTrue(pipelineOptions.getEnableTransformMetrics());
     assertNotNull(translationContext.getMessageStream(output));
   }
 
@@ -128,7 +129,7 @@ public class TranslationContextTest {
     PowerMockito.mockStatic(OpAdapter.class);
     pipelineOptions = mock(SamzaPipelineOptions.class);
     // need to override the config to disable metrics
-    when(pipelineOptions.getConfigOverride()).thenReturn(getConfigWithMetricsDisabled());
+    when(pipelineOptions.getEnableTransformMetrics()).thenReturn(false);
     translationContext =
         new TranslationContext(
             streamApplicationDescriptor, new HashMap<>(), new HashSet<>(), pipelineOptions);
@@ -137,7 +138,7 @@ public class TranslationContextTest {
     // Verify that the metric op is not attached
     PowerMockito.verifyStatic(OpAdapter.class, Mockito.never());
     OpAdapter.adapt(any(), any());
-    assertFalse(translationContext.shouldDoAttachMetricOp(getConfigWithMetricsDisabled(), true));
+    assertFalse(pipelineOptions.getEnableTransformMetrics());
     assertNotNull(translationContext.getMessageStream(output));
   }
 
@@ -153,14 +154,6 @@ public class TranslationContextTest {
     HashMap<String, String> configMap = new HashMap<>();
     configMap.put("job.name", "testJobName");
     configMap.put("job.id", "testJobId");
-    return new MapConfig(configMap);
-  }
-
-  private static Config getConfigWithMetricsDisabled() {
-    HashMap<String, String> configMap = new HashMap<>();
-    configMap.put("job.name", "testJobName");
-    configMap.put("job.id", "testJobId");
-    configMap.put("runner.samza.transform.disable.task.metrics", "true");
     return new MapConfig(configMap);
   }
 }

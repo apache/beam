@@ -27,26 +27,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * BeamTransformMetricRegistry is a registry that maintains the metrics for each transform. It
+ * SamzaTransformMetricRegistry is a registry that maintains the metrics for each transform. It
  * maintains the average arrival time for each PCollection for a primitive transform.
  *
  * <p>For a non-data shuffling primitive transform, the average arrival time is calculated per
  * watermark, per PCollection {@link org.apache.beam.sdk.values.PValue} and updated in
  * avgArrivalTimeMap
  */
-public class BeamTransformMetricRegistry implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamTransformMetricRegistry.class);
+public class SamzaTransformMetricRegistry implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(SamzaTransformMetricRegistry.class);
 
   // TransformName -> PValue for pCollection -> Map<WatermarkId, AvgArrivalTime>
-  private ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>>>
+  private final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>>>
       avgArrivalTimeMap;
 
   // Per Transform Metrics for each primitive transform
-  private final BeamTransformMetrics transformMetrics;
+  private final SamzaTransformMetrics transformMetrics;
 
-  public BeamTransformMetricRegistry() {
+  public SamzaTransformMetricRegistry() {
     this.avgArrivalTimeMap = new ConcurrentHashMap<>();
-    this.transformMetrics = new BeamTransformMetrics();
+    this.transformMetrics = new SamzaTransformMetrics();
   }
 
   public void register(String transformFullName, String pValue, Context ctx) {
@@ -56,7 +56,7 @@ public class BeamTransformMetricRegistry implements Serializable {
     avgArrivalTimeMap.get(transformFullName).putIfAbsent(pValue, new ConcurrentHashMap<>());
   }
 
-  public BeamTransformMetrics getTransformMetrics() {
+  public SamzaTransformMetrics getTransformMetrics() {
     return transformMetrics;
   }
 
@@ -82,7 +82,7 @@ public class BeamTransformMetricRegistry implements Serializable {
       List<String> outputs,
       Long watermark,
       String taskName) {
-    ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>> avgArrivalTimeMapForTransform =
+    final ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>> avgArrivalTimeMapForTransform =
         avgArrivalTimeMap.get(transformName);
 
     if (avgArrivalTimeMapForTransform == null || inputs.isEmpty() || outputs.isEmpty()) {
@@ -90,7 +90,7 @@ public class BeamTransformMetricRegistry implements Serializable {
     }
 
     // get the avg arrival times for all the input PValues
-    List<Long> inputPValuesAvgArrivalTimes =
+    final List<Long> inputPValuesAvgArrivalTimes =
         inputs.stream()
             .map(avgArrivalTimeMapForTransform::get)
             .map(map -> map == null ? null : map.remove(watermark))
@@ -98,7 +98,7 @@ public class BeamTransformMetricRegistry implements Serializable {
             .collect(Collectors.toList());
 
     // get the avg arrival times for all the output PValues
-    List<Long> outputPValuesAvgArrivalTimes =
+    final List<Long> outputPValuesAvgArrivalTimes =
         outputs.stream()
             .map(avgArrivalTimeMapForTransform::get)
             .map(map -> map == null ? null : map.remove(watermark))
@@ -116,9 +116,9 @@ public class BeamTransformMetricRegistry implements Serializable {
       return;
     }
 
-    long startTime = Collections.min(inputPValuesAvgArrivalTimes);
-    long endTime = Collections.max(inputPValuesAvgArrivalTimes);
-    long latency = endTime - startTime;
+    final long startTime = Collections.min(inputPValuesAvgArrivalTimes);
+    final long endTime = Collections.max(inputPValuesAvgArrivalTimes);
+    final long latency = endTime - startTime;
     transformMetrics.getTransformLatencyMetric(transformName).update(latency);
     LOG.debug(
         "Success Emit Metric Transform: {} for watermark: {} for task: {}",

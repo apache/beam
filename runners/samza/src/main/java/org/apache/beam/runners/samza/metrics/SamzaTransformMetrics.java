@@ -32,11 +32,11 @@ import org.apache.samza.metrics.Timer;
  * Metrics like throughput, latency and watermark progress for each Beam transform for Samza Runner.
  */
 @SuppressWarnings("return")
-public class BeamTransformMetrics implements Serializable {
+public class SamzaTransformMetrics implements Serializable {
   private static final String ENABLE_TASK_METRICS = "runner.samza.transform.enable.task.metrics";
 
   private static final int DEFAULT_LOOKBACK_TIMER_WINDOW_SIZE_MS = 180000;
-  private static final String GROUP = "BeamTransformMetrics";
+  private static final String GROUP = "SamzaBeamTransformMetrics";
   private static final String METRIC_NAME_PATTERN = "%s-%s";
   private static final String TRANSFORM_LATENCY_METRIC = "handle-message-ns";
   private static final String TRANSFORM_WATERMARK_PROGRESS = "output-watermark-ms";
@@ -56,7 +56,7 @@ public class BeamTransformMetrics implements Serializable {
   @SuppressFBWarnings("SE_BAD_FIELD")
   private final Map<String, Counter> transformOutputThroughPut;
 
-  public BeamTransformMetrics() {
+  public SamzaTransformMetrics() {
     this.transformLatency = new ConcurrentHashMap<>();
     this.transformOutputThroughPut = new ConcurrentHashMap<>();
     this.transformWatermarkProgress = new ConcurrentHashMap<>();

@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.runtime;
+package org.apache.beam.runners.samza.metrics;
 
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.runners.samza.metrics.BeamTransformMetricRegistry;
+import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -47,8 +47,8 @@ public class SamzaOutputMetricOp<T> extends SamzaMetricOp<T> {
   public SamzaOutputMetricOp(
       String pValue,
       String transformFullName,
-      BeamTransformMetricRegistry beamTransformMetricRegistry) {
-    super(pValue, transformFullName, beamTransformMetricRegistry);
+      SamzaTransformMetricRegistry samzaTransformMetricRegistry) {
+    super(pValue, transformFullName, samzaTransformMetricRegistry);
     this.count = new AtomicLong(0L);
     this.sumOfTimestamps = new AtomicReference<>(BigInteger.ZERO);
   }
@@ -58,7 +58,7 @@ public class SamzaOutputMetricOp<T> extends SamzaMetricOp<T> {
     // update counters for timestamps
     count.incrementAndGet();
     sumOfTimestamps.updateAndGet(sum -> sum.add(BigInteger.valueOf(System.nanoTime())));
-    beamTransformMetricRegistry
+    samzaTransformMetricRegistry
         .getTransformMetrics()
         .getTransformOutputThroughput(transformFullName)
         .inc();
@@ -83,15 +83,15 @@ public class SamzaOutputMetricOp<T> extends SamzaMetricOp<T> {
       // if BigInt.longValue is out of range for long then only the low-order 64 bits are retained
       long avg = Math.floorDiv(sumOfTimestamps.get().longValue(), count.get());
       // Update MetricOp Registry with avg arrival for the pValue
-      beamTransformMetricRegistry.updateArrivalTimeMap(
+      samzaTransformMetricRegistry.updateArrivalTimeMap(
           transformFullName, pValue, watermark.getMillis(), avg);
       // compute & emit the latency metric
-      beamTransformMetricRegistry.emitLatencyMetric(
+      samzaTransformMetricRegistry.emitLatencyMetric(
           transformFullName, transformInputs, transformOutputs, watermark.getMillis(), task);
     }
 
     // update output watermark progress metric
-    beamTransformMetricRegistry
+    samzaTransformMetricRegistry
         .getTransformMetrics()
         .getTransformWatermarkProgress(transformFullName)
         .set(watermark.getMillis());
