@@ -275,11 +275,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
   def test_streaming(self):
     table = 'streaming'
-    self.run_streaming(table)
+    self.run_streaming(table_name=table)
 
   def test_streaming_with_auto_sharding(self):
     table = 'streaming_with_auto_sharding'
-    self.run_streaming(table, auto_sharding=True)
+    self.run_streaming(table_name=table, auto_sharding=True)
 
 
 if __name__ == '__main__':
