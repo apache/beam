@@ -34,7 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class FileReadSchemaTransformConfiguration {
-  public static Set<String> VALID_PROVIDERS =
+  public static final Set<String> VALID_PROVIDERS =
       Providers.loadProviders(FileReadSchemaTransformFormatProvider.class).keySet();
 
   public static Builder builder() {
