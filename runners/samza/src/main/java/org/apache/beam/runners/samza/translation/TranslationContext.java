@@ -153,14 +153,19 @@ public class TranslationContext {
     registerMessageStream(pvalue, stream, true);
   }
 
-  public <OutT> void registerMessageStream(
-      PValue pvalue, MessageStream<OpMessage<OutT>> stream, boolean enableTransformMetric) {
+  public <OutT> void registerMessageStreamWithoutMetricOp(
+      PValue pvalue, MessageStream<OpMessage<OutT>> stream) {
+    registerMessageStream(pvalue, stream, false);
+  }
+
+  private <OutT> void registerMessageStream(
+      PValue pvalue, MessageStream<OpMessage<OutT>> stream, boolean attachTransformMetricOp) {
     if (messsageStreams.containsKey(pvalue)) {
       throw new IllegalArgumentException("Stream already registered for pvalue: " + pvalue);
     }
     // add a step to attach OutputMetricOp if registered for Op Stream
     final Boolean userOverride = getPipelineOptions().getEnableTransformMetrics();
-    if (userOverride && enableTransformMetric) {
+    if (userOverride && attachTransformMetricOp) {
       // add another step if registered for Op Stream
       stream.flatMapAsync(
           OpAdapter.adapt(
@@ -183,8 +188,12 @@ public class TranslationContext {
     return getMessageStream(pvalue, true);
   }
 
-  public <OutT> MessageStream<OpMessage<OutT>> getMessageStream(
-      PValue pvalue, boolean enableTransformMetric) {
+  public <OutT> MessageStream<OpMessage<OutT>> getMessageStreamWithoutMetricOp(PValue pvalue) {
+    return getMessageStream(pvalue, false);
+  }
+
+  private <OutT> MessageStream<OpMessage<OutT>> getMessageStream(
+      PValue pvalue, boolean attachTransformMetricOp) {
     @SuppressWarnings("unchecked")
     final MessageStream<OpMessage<OutT>> stream =
         (MessageStream<OpMessage<OutT>>) messsageStreams.get(pvalue);
@@ -194,7 +203,7 @@ public class TranslationContext {
 
     // add a step to attach InputMetricOp if registered for Op Stream
     final Boolean userOverride = getPipelineOptions().getEnableTransformMetrics();
-    if (userOverride && enableTransformMetric) {
+    if (userOverride && attachTransformMetricOp) {
       // add another step if registered for Op Stream
       stream.flatMapAsync(
           OpAdapter.adapt(
