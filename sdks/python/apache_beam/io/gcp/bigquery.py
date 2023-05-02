@@ -1534,7 +1534,7 @@ class BigQueryWriteFn(DoFn):
           get_deep_size(self._rows_buffer[destination]) + row_byte_size)
 
       # Flush current batch first if adding this row will exceed our limits
-      if ((MAX_INSERT_PAYLOAD_SIZE < buffer_byte_size_with_row) or
+      if ((9 << 20 < buffer_byte_size_with_row) or
           len(self._rows_buffer[destination]) >= self._max_batch_size):
         flushed_batch = self._flush_batch(destination)
         self._rows_buffer[destination].append(row_and_insert_id)
