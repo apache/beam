@@ -59,6 +59,7 @@ module "gke_bucket" {
 
 module "archive_file" {
   depends_on   = [module.setup, module.network, module.api_enable, module.ip_address]
+  source       = "./archive_file"
 }
 
 module "cloudfunctions" {
