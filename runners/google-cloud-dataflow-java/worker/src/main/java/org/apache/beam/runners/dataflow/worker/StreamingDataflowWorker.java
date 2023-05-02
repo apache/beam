@@ -1253,6 +1253,7 @@ public class StreamingDataflowWorker {
             mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName(), this));
 
     ExecutionState executionState = null;
+    String counterName = "dataflow_input_size-" + mapTask.getSystemName();
 
     try {
       executionState = computationState.getExecutionStateQueue().poll();
@@ -1337,7 +1338,7 @@ public class StreamingDataflowWorker {
                       mapTaskExecutor.getOutputCounters(),
                       nameContext)
                   .setSamplingPeriod(100)
-                  .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
+                  .countBytes(counterName));
         }
         executionState =
             new ExecutionState(mapTaskExecutor, context, keyCoder, executionStateTracker);
@@ -1410,10 +1411,14 @@ public class StreamingDataflowWorker {
               .getOutputCounters();
       for (ElementCounter counter : counters) {
         try {
-          sourceBytesProcessed =
-              (long) ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset();
+          ElementCounter counter = ((OutputObjectAndByteCounter) counter).getByteCount();
+          if (!counter.getName().equals(counterName)) continue;
+          sourceBytesProcessed = (long) counter.getAndReset();
         } catch (Exception e) {
-          // ignore
+          // Ignoring because most counter will crash, spamming the logs.
+          // Also safe to ignore because if counter not reset, autoscaling
+          // will be able to fetch the info directly from counter instead
+          // of through source_bytes_processed in WorkItemCommitRequest.
         }
       }
       outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
