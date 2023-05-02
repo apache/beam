@@ -31,6 +31,7 @@ Ensure that the account has at least following privileges:
    - App Engine Creator
    - Artifact Registry Administrator
    - Cloud Datastore Index Admin
+   - Cloud Datastore User
    - Cloud Memorystore Redis Admin
    - Cloud Functions Developer
    - Compute Admin
