@@ -1411,9 +1411,9 @@ public class StreamingDataflowWorker {
               .getOutputCounters();
       for (ElementCounter counter : counters) {
         try {
-          ElementCounter counter = ((OutputObjectAndByteCounter) counter).getByteCount();
-          if (!counter.getName().equals(counterName)) continue;
-          sourceBytesProcessed = (long) counter.getAndReset();
+          Counter<Long, Long> baseCounter = ((OutputObjectAndByteCounter) counter).getByteCount();
+          if (!baseCounter.getName().equals(counterName)) continue;
+          sourceBytesProcessed = (long) baseCounter.getAndReset();
         } catch (Exception e) {
           // Ignoring because most counter will crash, spamming the logs.
           // Also safe to ignore because if counter not reset, autoscaling
