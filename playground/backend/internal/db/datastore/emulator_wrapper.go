@@ -130,7 +130,9 @@ func startEmulator() (*emulator, error) {
 
 		ok := func() bool {
 			workTicker := time.NewTicker(pauseDuration)
+			defer workTicker.Stop()
 			globalTicker := time.NewTicker(waitDuration)
+			defer workTicker.Stop()
 			for {
 				select {
 				case <-workTicker.C:
