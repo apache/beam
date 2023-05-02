@@ -163,9 +163,6 @@ flutter test
 
 ### Integration Tests
 
-Integration tests currently can be run only on a local development machine.
-Server testing has not been verified yet.
-
 1. Install Google Chrome: https://www.google.com/chrome/
 2. Install Chrome Driver: https://chromedriver.chromium.org/downloads
    - Note: This GitHub action installs both Chrome and Chrome Driver:

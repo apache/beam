@@ -198,6 +198,7 @@ Beam offers a way to provide your own custom container image. The easiest way to
 >The version specified in the `RUN` instruction must match the version used to launch the pipeline.<br>
 >**Make sure that the Python or Java runtime version specified in the base image is the same as the version used to run the pipeline.**
 
+>**NOTE**: Any additional Python dependenices should be installed in the global Python environment in the custom image.
 
 2. [Build](https://docs.docker.com/engine/reference/commandline/build/) and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker.
   ```

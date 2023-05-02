@@ -215,6 +215,158 @@ pipeline:
       path: /path/to/big.csv
 ```
 
+## Windowing
+
+This API can be used to define both streaming and batch pipelines.
+In order to meaningfully aggregate elements in a streaming pipeline,
+some kind of windowing is typically required. Beam's
+[windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
+and [triggering](https://beam.apache.org/documentation/programming-guide/#triggers)
+can be be declared using the same WindowInto transform available in all other
+SDKs.
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      topic: myPubSubTopic
+    - type: WindowInto
+      windowing:
+        type: fixed
+        size: 60
+    - type: SomeAggregation
+    - type: WriteToPubSub
+      topic: anotherPubSubTopic
+```
+
+Rather than using an explicit `WindowInto` operation, one may instead tag a
+transform itself with a specified windowing which will cause its inputs
+(and hence the transform itself) to be applied with that windowing.
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      topic: myPubSubTopic
+    - type: SomeAggregation
+      windowing:
+        type: sliding
+        size: 60
+        period: 10
+    - type: WriteToPubSub
+      topic: anotherPubSubTopic
+```
+
+Note that the `Sql` operation itself is often a from of aggregation, and
+applying a windowing (or consuming an already windowed input) will cause all
+grouping to be done per window.
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      topic: myPubSubTopic
+    - type: Sql
+      query: "select col1, count(*) as c from PCOLLECTION"
+      windowing:
+        type: sessions
+        gap: 60
+    - type: WriteToPubSub
+      topic: anotherPubSubTopic
+```
+
+The specified windowing is applied to all inputs, in this case resulting in
+a join per window.
+
+```
+pipeline:
+  - type: ReadFromPubSub
+    name: ReadLeft
+    topic: leftTopic
+
+  - type: ReadFromPubSub
+    name: ReadRight
+    topic: rightTopic
+
+  - type: Sql
+    query: select left.col1, right.col2 from left join right using (col3)
+    input:
+      left: ReadLeft
+      right: ReadRight
+    windowing:
+      type: fixed
+      size: 60
+```
+
+For a transform with no inputs, the specified windowing is instead applied to
+its output(s). As per the Beam model, the windowing is then inherited by all
+consuming operations. This is especially useful for root operations like Read.
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      topic: myPubSubTopic
+      windowing:
+        type: fixed
+        size: 60
+    - type: Sql
+      query: "select col1, count(*) as c from PCOLLECTION"
+    - type: WriteToPubSub
+      topic: anotherPubSubTopic
+```
+
+One can also specify windowing at the top level of a pipeline (or composite),
+which is a shorthand to simply applying this same windowing to all root
+operations (that don't otherwise specify their own windowing),
+and can be an effective way to apply it everywhere.
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      topic: myPubSubTopic
+    - type: Sql
+      query: "select col1, count(*) as c from PCOLLECTION"
+    - type: WriteToPubSub
+      topic: anotherPubSubTopic
+  windowing:
+    type: fixed
+    size: 60
+```
+
+Note that all these windowing specifications are compatible with the `source`
+and `sink` syntax as well
+
+```
+pipeline:
+  type: chain
+
+  source:
+    type: ReadFromPubSub
+    topic: myPubSubTopic
+    windowing:
+      type: fixed
+      size: 10
+
+  transforms:
+    - type: Sql
+      query: "select col1, count(*) as c from PCOLLECTION"
+
+  sink:
+    type: WriteToCsv
+    path: /path/to/output.json
+    windowing:
+      type: fixed
+      size: 300
+```
+
+
 ## Providers
 
 Though we aim to offer a large suite of built-in transforms, it is inevitable

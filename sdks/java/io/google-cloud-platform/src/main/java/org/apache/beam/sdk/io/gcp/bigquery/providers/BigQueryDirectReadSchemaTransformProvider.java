@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTra
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -123,15 +124,22 @@ public class BigQueryDirectReadSchemaTransformProvider
           .Builder();
     }
 
+    @SchemaFieldDescription("The SQL query to be executed to read from the BigQuery table.")
     @Nullable
     public abstract String getQuery();
 
+    @SchemaFieldDescription(
+        "The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}")
     @Nullable
     public abstract String getTableSpec();
 
+    @SchemaFieldDescription(
+        "Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.")
     @Nullable
     public abstract String getRowRestriction();
 
+    @SchemaFieldDescription(
+        "Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: \"col1, col2, col3\"")
     @Nullable
     public abstract List<String> getSelectedFields();
 

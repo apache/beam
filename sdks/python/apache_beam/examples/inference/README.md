@@ -26,10 +26,11 @@ Some examples are also used in [our benchmarks](http://s.apache.org/beam-communi
 
 ## Prerequisites
 
-You must have `apache-beam>=2.40.0` or greater installed in order to run these pipelines,
-because the `apache_beam.examples.inference` module was added in that release.
+You must have the latest (possibly unreleased) `apache-beam` or greater installed from the Beam repo in order to run these pipelines,
+because some examples rely on the latest features that are actively in development. To install Beam, run the following from the `sdks/python` directory:
 ```
-pip install apache-beam==2.40.0
+pip install -r build-requirements.txt
+pip install -e .[gcp]
 ```
 
 ### Tensorflow dependencies
@@ -38,7 +39,7 @@ The following installation requirement is for the Tensorflow model handler examp
 
 The RunInference API supports the Tensorflow framework. To use Tensorflow locally, first install `tensorflow`.
 ```
-pip install tensorflow==2.11.0
+pip install tensorflow==2.12.0
 ```
 
 ### PyTorch dependencies

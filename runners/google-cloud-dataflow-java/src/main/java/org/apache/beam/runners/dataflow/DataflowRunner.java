@@ -1797,8 +1797,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * Suppress application of {@link PubsubUnboundedSink#expand} in streaming mode so that we can
    * instead defer to Windmill's implementation.
    */
-  private static class StreamingPubsubIOWrite
-      extends PTransform<PCollection<PubsubMessage>, PDone> {
+  static class StreamingPubsubIOWrite extends PTransform<PCollection<PubsubMessage>, PDone> {
 
     private final PubsubUnboundedSink transform;
 
@@ -1850,13 +1849,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         StepTranslationContext stepContext,
         PCollection input) {
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
-      if (overriddenTransform.getTopicProvider().isAccessible()) {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getFullPath());
+      if (overriddenTransform.getTopicProvider() != null) {
+        if (overriddenTransform.getTopicProvider().isAccessible()) {
+          stepContext.addInput(
+              PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getFullPath());
+        } else {
+          stepContext.addInput(
+              PropertyNames.PUBSUB_TOPIC_OVERRIDE,
+              ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
+        }
       } else {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_TOPIC_OVERRIDE,
-            ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
+        DataflowPipelineOptions options =
+            input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
+        if (options.getEnableDynamicPubsubDestinations()) {
+          stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
+        } else {
+          throw new RuntimeException(
+              "Dynamic Pubsub destinations not yet supported. Topic must be set.");
+        }
       }
       if (overriddenTransform.getTimestampAttribute() != null) {
         stepContext.addInput(
