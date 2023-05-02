@@ -43,7 +43,7 @@ type B struct {
 	// OutputCount is the number of data or timer outputs this bundle has.
 	// We need to see this many closed data channels before the bundle is complete.
 	OutputCount int
-	// dataWait is how we determine if a bundle is finished, by waiting for each of
+	// DataWait is how we determine if a bundle is finished, by waiting for each of
 	// a Bundle's DataSinks to produce their last output.
 	// After this point we can "commit" the bundle's output for downstream use.
 	DataWait   chan struct{}
