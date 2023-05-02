@@ -263,7 +263,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       _ = (
           p
           | GenerateSequence(
-              start=0, stop=4, expansion_service=self.expansion_service())
+              start=0, stop=4, expansion_service=self.expansion_service)
           | beam.Map(lambda x: elements[x])
           | beam.io.WriteToBigQuery(
               table=table_id,
