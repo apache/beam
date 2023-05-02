@@ -314,7 +314,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                       .createWriteStream(tableUrn, Type.PENDING)
                       .getName();
               this.currentOffset = 0;
-              LOG.error("CREATED NEW STREAM " + this.streamName + " SETTING OFFSET TO 0");
             } else {
               this.streamName = getDefaultStreamName();
             }
@@ -405,7 +404,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       void invalidateWriteStream() {
         if (appendClientInfo != null) {
-          LOG.error("INVALIDATING WRITE STREAM FOR " + this.streamName);
           synchronized (APPEND_CLIENTS) {
             // Unpin in a different thread, as it may execute a blocking close.
             StreamAppendClient client = appendClientInfo.getStreamAppendClient();
@@ -516,10 +514,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
         long offset = -1;
         if (!this.useDefaultStream) {
-          getOrCreateStreamName(); // Force creation of the stream.
+          getOrCreateStreamName(); // Force creation of the stream before we get offsets.
           offset = this.currentOffset;
           this.currentOffset += inserts.getSerializedRowsCount();
-          LOG.error("SCHEDULING APPEND TO STREAM " + this.streamName + " AT OFFSET " + offset + " SETTING NEW OFFSET TO " + this.currentOffset);
         }
         AppendRowsContext appendRowsContext =
             new AppendRowsContext(offset, inserts, insertTimestamps);
@@ -535,7 +532,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 StreamAppendClient writeStream =
                     Preconditions.checkStateNotNull(
                         getAppendClientInfo(true, null).getStreamAppendClient());
-                LOG.error("APPENDING TO STREAM " + this.streamName + " AT OFFSET " + c.offset + " NUM ROWS " + c.protoRows.getSerializedRowsCount());
                 ApiFuture<AppendRowsResponse> response =
                     writeStream.appendRows(c.offset, c.protoRows);
                 inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
@@ -644,7 +640,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         + "doesn't exist");
               }
 
-              LOG.error("INVALIDATING WRITE STREAM FOR " + streamName + " DUE TO ERROR");
               invalidateWriteStream();
 
               appendFailures.inc();
@@ -697,7 +692,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           TableSchema updatedTableSchema =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
           if (updatedTableSchema != null) {
-            LOG.error("INVALIDATING WRITE STREAM FOR " + streamName + " DUE TO NEW SCHEMA");
             invalidateWriteStream();
             appendClientInfo =
                 Preconditions.checkStateNotNull(getAppendClientInfo(false, updatedTableSchema));
