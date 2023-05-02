@@ -281,7 +281,7 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 // DoFn instance via output PCollections, in the absence of external
 // communication mechanisms written by user code.
 //
-// Splittable DoFns
+// # Splittable DoFns
 //
 // Splittable DoFns are DoFns that are able to split work within an element,
 // as opposed to only at element boundaries like normal DoFns. This is useful
