@@ -32,6 +32,6 @@ resource "google_project_iam_member" "tourofbeam_backend_deployer" {
     "roles/logging.logWriter"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.tourofbeam_deployer_name.email}"
+  member  = "serviceAccount:${google_service_account.tourofbeam_deployer.email}"
   project = var.project_id
 }

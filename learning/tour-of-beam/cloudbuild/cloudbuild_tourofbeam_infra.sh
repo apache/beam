@@ -41,7 +41,8 @@ gcloud datastore indexes create ../backend/internal/storage/index.yaml
 
 terraform init -backend-config="bucket=${state_bucket}"
 
-terraform apply -var "gcloud_init_account=$(gcloud config get-value core/account)" \
+terraform apply \
+-var "gcloud_init_account=$(gcloud config get-value core/account)" \
 -var "environment=${env}" \
 -var "region=${tob_region}" \
 -var "project_id=${project_id}" \

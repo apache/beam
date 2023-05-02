@@ -29,15 +29,34 @@ resource "google_cloudbuild_trigger" "tourofbeam_backend_infrastructure" {
   build {
     timeout = "3600s"
     options {
-      machine_type = var.cloudbuild_machine_type
+      machine_type = var.machine_type
       logging = "CLOUD_LOGGING_ONLY"
     }
 
     step {
-      id = "run_terraform"
-      script = file("./cloudbuild_tourofbeam_infra.sh")
       name = "ubuntu"
+      entrypoint = "bash"
       env = local.cloudbuild_init_environment
+      args = [
+        "-c",
+        "export DEBIAN_FRONTEND=noninteractive",
+        "apt-get -qq update",
+        "apt-get -qq install -y wget unzip software-properties-common git curl apt-transport-https ca-certificates gnupg jq lsb-release",
+        "echo 'deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main' | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list",
+        "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+        "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+        "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | tee /etc/apt/sources.list.d/docker.list",
+        "wget -nv https://releases.hashicorp.com/terraform/${var.tf_version}/terraform_${var.tf_version}_linux_amd64.zip ",
+        "unzip terraform_${var.tf_version}_linux_amd64.zip",
+        "mv terraform /usr/local/bin/terraform",
+        "apt-get -qq update",
+        "apt-get -qq install -y google-cloud-sdk-gke-gcloud-auth-plugin google-cloud-sdk openjdk-11-jdk kubectl docker-ce",
+        "gcloud auth configure-docker ${var.pg_region}-docker.pkg.dev",
+        "gcloud container clusters get-credentials --region ${var.pg_gke_zone} ${var.pg_gke_name} --project ${var.project_id}",
+        "gcloud datastore indexes create ../backend/internal/storage/index.yaml",
+        "terraform init -backend-config='bucket=${var.state_bucket}'",
+        "terraform apply -var 'gcloud_init_account=$(gcloud config get-value core/account)' -var 'environment=${var.env_name}' -var 'region=${var.tob_region}' -var 'project_id=${var.project_id}' -var 'datastore_namespace=${var.pg_datastore_namespace}' -var 'pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')"
+          ]
         }
   }
 
@@ -54,5 +73,5 @@ resource "google_cloudbuild_trigger" "tourofbeam_backend_infrastructure" {
     _MACHINE_TYPE: var.machine_type
   }
 
-  service_account = data.google_service_account.playground_infra_deploy_sa.id
+  service_account = data.google_service_account.tourofbeam_backend_deployer.id
 }

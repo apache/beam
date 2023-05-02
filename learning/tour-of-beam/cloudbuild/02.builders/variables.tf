@@ -8,3 +8,5 @@ variable "tob_region" {}
 variable "pg_datastore_namespace" {}
 variable "trigger_source_repo" {}
 variable "machine_type" {}
+variable "project_id" {}
+variable "tourofbeam_deployer_sa_name" {}
