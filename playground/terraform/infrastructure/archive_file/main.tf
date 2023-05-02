@@ -17,19 +17,12 @@
 # under the License.
 #
 
-resource "google_storage_bucket" "bucket" {
-  name          = "${var.bucket_name}-cloudbuild"
-  location      = var.region
-  force_destroy = true
-}
+data "archive_file" "backend_folder" {
+  type        = "zip"
+  source_dir  = "${path.root}/../backend/"
+  output_path = "${path.root}/../cloudfunction.zip"
 
-resource "google_storage_bucket_object" "cloudfunction_object" {
-  name   = "cloudfunction.zip"
-  bucket = google_storage_bucket.bucket.name
-
-  source = "${path.root}/../cloudfunction.zip"
-
-  content_type = "application/zip"
-  content_encoding = "zip"
-
+  excludes = [
+    "containers"
+  ]
 }

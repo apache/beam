@@ -50,11 +50,15 @@ module "artifact_registry" {
 }
 
 module "gke_bucket" {
-  depends_on   = [module.setup, module.network, module.api_enable, module.ip_address]
+  depends_on   = [module.setup, module.network, module.api_enable, module.ip_address, archive_file]
   source       = "./gke_bucket"
   region       = var.region
   bucket_name  = var.state_bucket
 
+}
+
+module "archive_file" {
+  depends_on   = [module.setup, module.network, module.api_enable, module.ip_address]
 }
 
 module "cloudfunctions" {
