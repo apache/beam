@@ -16,6 +16,7 @@
 package backend
 
 import (
+	"beam.apache.org/playground/backend/internal/constants"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -67,7 +68,8 @@ func handleError(w http.ResponseWriter, statusCode int, err error) {
 
 // cleanupSnippets removes old snippets from the database.
 func cleanupSnippets(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	namespace := r.URL.Query().Get("namespace")
+	ctx := context.WithValue(r.Context(), constants.DatastoreNamespaceKey, namespace)
 
 	err := db.DeleteUnusedSnippets(ctx, retentionPeriod)
 	if err != nil {
@@ -80,9 +82,9 @@ func cleanupSnippets(w http.ResponseWriter, r *http.Request) {
 }
 
 func putSnippet(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
 	snipId := r.URL.Query().Get("snipId")
+	namespace := r.URL.Query().Get("namespace")
+	ctx := context.WithValue(r.Context(), constants.DatastoreNamespaceKey, namespace)
 
 	var snip entity.Snippet
 	err := json.NewDecoder(r.Body).Decode(&snip)
@@ -103,9 +105,9 @@ func putSnippet(w http.ResponseWriter, r *http.Request) {
 }
 
 func incrementSnippetViews(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
 	snipId := r.URL.Query().Get("snipId")
+	namespace := r.URL.Query().Get("namespace")
+	ctx := context.WithValue(r.Context(), constants.DatastoreNamespaceKey, namespace)
 
 	err := db.IncrementSnippetVisitorsCount(ctx, snipId)
 	if err != nil {

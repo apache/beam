@@ -16,6 +16,7 @@
 package external_functions
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -90,7 +91,8 @@ func makePostRequest(ctx context.Context, requestUrl string, body any) error {
 }
 
 func (c *externalFunctionsComponent) CleanupSnippets(ctx context.Context) error {
-	requestUrl := fmt.Sprintf("%s", c.cleanupSnippetsFunctionsUrl)
+	namespace := utils.GetNamespace(ctx)
+	requestUrl := fmt.Sprintf("%s?namespace=%s", c.cleanupSnippetsFunctionsUrl, namespace)
 
 	if err := makePostRequest(ctx, requestUrl, nil); err != nil {
 		logger.Errorf("CleanupSnippets(): Couldn't cleanup snippets, err: %s\n", err.Error())
@@ -101,7 +103,8 @@ func (c *externalFunctionsComponent) CleanupSnippets(ctx context.Context) error 
 }
 
 func (c *externalFunctionsComponent) PutSnippet(ctx context.Context, snipId string, snippet *entity.Snippet) error {
-	requestUrl := fmt.Sprintf("%s?snipId=%s", c.putSnippetFunctionsUrl, snipId)
+	namespace := utils.GetNamespace(ctx)
+	requestUrl := fmt.Sprintf("%s?namespace=%s&snipId=%s", c.putSnippetFunctionsUrl, namespace, snipId)
 
 	if err := makePostRequest(ctx, requestUrl, snippet); err != nil {
 		logger.Errorf("DeleteObsoleteSnippets(): Couldn't delete obsolete snippets, err: %s\n", err.Error())
@@ -112,7 +115,8 @@ func (c *externalFunctionsComponent) PutSnippet(ctx context.Context, snipId stri
 }
 
 func (c *externalFunctionsComponent) IncrementSnippetViews(ctx context.Context, snipId string) error {
-	requestUrl := fmt.Sprintf("%s?snipId=%s", c.incrementSnippetViewsFunctionsUrl, snipId)
+	namespace := utils.GetNamespace(ctx)
+	requestUrl := fmt.Sprintf("%s?namespace=%s&snipId=%s", c.incrementSnippetViewsFunctionsUrl, namespace, snipId)
 
 	if err := makePostRequest(ctx, requestUrl, nil); err != nil {
 		logger.Errorf("IncrementSnippetViews(): Couldn't increment snippet views, err: %s\n", err.Error())
