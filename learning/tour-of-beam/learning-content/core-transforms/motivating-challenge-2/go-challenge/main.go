@@ -27,24 +27,22 @@
 //     tags:
 //       - hellobeam
 
-
 package main
 
 import (
 	"context"
-    _ "strings"
-    _ "strconv"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	_ "strconv"
+	_ "strings"
 )
 
-func less(a, b string) bool{
-    return true
+func less(a, b string) bool {
+	return true
 }
 
 func main() {
@@ -52,16 +50,14 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    input := textio.Read(s, "gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000000")
+	input := textio.Read(s, "gs://apache-beam-samples/game/small/gaming_data.csv")
 
-    lines := getLines(s, input)
+	lines := getLines(s, input)
 
-    fixedSizeLines := top.Largest(s,lines,100,less)
+	kvPCollection := getSplitLineAsMap(s, lines)
 
-    kvPCollection := getSplitLineAsMap(s,fixedSizeLines)
-
-    combined := combine(s,kvPCollection)
-    debug.Print(s, combined)
+	combined := combine(s, kvPCollection)
+	debug.Print(s, combined)
 
 	err := beamx.Run(ctx, p)
 
@@ -71,13 +67,20 @@ func main() {
 }
 
 func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return filter.Include(s, input, func(element string) bool {
-        return element != ""
-    })
+	return filter.Include(s, input, func(element string) bool {
+		return element != ""
+	})
 }
 
 func getSplitLineAsMap(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return input
+	c := 0
+	return beam.ParDo(s, func(line string, emit func(string, int)) {
+		if c == 100 {
+			return
+		}
+		c++
+		emit("", 0)
+	}, input)
 }
 
 func combine(s beam.Scope, input beam.PCollection) beam.PCollection {

@@ -16,14 +16,14 @@ You can solve the challenge with this way:
 {{end}}
 
 {{if (eq .Sdk "java")}}
-1. First you need to divide `PCollection` by `FlatMapElements.into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
-   .via((SerializableFunction<String, Iterable<KV<String, Integer>>>) line -> { ... }`.
+1. First you need to divide `PCollection` by `String[] items = c.element().split(REGEX_FOR_CSV);
+   try { c.output(KV.of(items[1], Integer.valueOf(items[2]))); } catch (Exception e) {
+   System.out.println("Skip header"); }`.
 2. Combine by key the values should be combined `(score1 + score2)`, create class which extend Combine `static class SumWordLetterCombineFn extends Combine.BinaryCombineFn<Integer>{}`
 
 {{end}}
 {{if (eq .Sdk "python")}}
-1. First you need to divide `PCollection` by `beam.FlatMap(lambda line : [line.split(':')])`.
-2. It is necessary to divide by indexes the key will be the word the value of its counting, and it is necessary to remove the extra spaces `beam.Map(lambda arr : (arr[0],int(arr[1].strip())))`.
-3. Combine by key the values should be combined `(score1 + score2)`, create class which extend Combine `beam.CombinePerKey(sum)`
+1. First you need to divide `PCollection` by `beam.Map(lambda line: (line.split(',')[1], int(line.split(',')[2])))`.
+2. Combine by key the values should be combined `(score1 + score2)`, create class which extend Combine `beam.CombinePerKey(sum)`
 
 {{end}}

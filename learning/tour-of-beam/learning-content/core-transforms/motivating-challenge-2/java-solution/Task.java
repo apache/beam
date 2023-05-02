@@ -34,54 +34,52 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.beam.sdk.transforms.Flatten;
 
-import java.util.Arrays;
-
 public class Task {
 
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+    private static final String REGEX_FOR_CSV = ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
 
     public static void main(String[] args) {
         LOG.info("Running Task");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<String> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000000"));
+        PCollection<KV<String, Integer>> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"))
+                .apply("Data", ParDo.of(new ExtractDataFn()));
 
-        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+        final PTransform<PCollection<KV<String, Integer>>, PCollection<Iterable<KV<String, Integer>>>> sample = Sample.fixedSizeGlobally(100);
 
-        PCollection<String> limitedPCollection = input.apply(sample).apply(Flatten.iterables());
+        PCollection<KV<String,Integer>> limitedPCollection = input.apply(sample).apply(Flatten.iterables());
 
-        PCollection<KV<String, Integer>> kvPCollection = getSplitLineAsMap(limitedPCollection);
-
-        combine(kvPCollection).apply("Log words", ParDo.of(new LogOutput<>()));
+        combine(limitedPCollection).apply("Log score", ParDo.of(new LogOutput<>()));
 
         pipeline.run();
     }
 
-
-    static PCollection<KV<String, Integer>> getSplitLineAsMap(PCollection<String> input) {
-        return input.apply(FlatMapElements.into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
-                .via((SerializableFunction<String, Iterable<KV<String, Integer>>>) line -> {
-                    String[] splitLine = line.split(":");
-                    String word = splitLine[0];
-                    int count = Integer.parseInt(splitLine[1].trim());
-                    return Arrays.asList(KV.of(word, count));
-                }));
-    }
-
     static PCollection<KV<String, Integer>> combine(PCollection<KV<String, Integer>> input) {
-        return input.apply(Combine.perKey(new SumWordLetterCombineFn()));
+        return input.apply(Combine.perKey(new SumScoreCombineFn()));
     }
 
-    static class SumWordLetterCombineFn extends Combine.BinaryCombineFn<Integer> {
+    static class SumScoreCombineFn extends Combine.BinaryCombineFn<Integer> {
         @Override
         public Integer apply(Integer left, Integer right) {
             return left + right;
+        }
+    }
+
+    static class ExtractDataFn extends DoFn<String, KV<String, Integer>> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            String[] items = c.element().split(REGEX_FOR_CSV);
+            try {
+                c.output(KV.of(items[1], Integer.valueOf(items[2])));
+            } catch (Exception e) {
+                System.out.println("Skip header");
+            }
         }
     }
 
@@ -101,4 +99,6 @@ public class Task {
             LOG.info(prefix + ": {}", c.element());
         }
     }
+
+
 }
