@@ -1403,25 +1403,29 @@ public class StreamingDataflowWorker {
       executionState.getWorkExecutor().execute();
 
       // Reports source bytes processed to workitemcommitrequest if available.
-      long sourceBytesProcessed = 0;
-      List<ElementCounter> counters =
-          ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
-              .getReadOperation()
-              .receivers[0]
-              .getOutputCounters();
-      for (ElementCounter counter : counters) {
-        try {
-          Counter<Long, Long> baseCounter = ((OutputObjectAndByteCounter) counter).getByteCount();
-          if (!baseCounter.getName().name().equals(counterName)) continue;
-          sourceBytesProcessed = (long) baseCounter.getAndReset();
-        } catch (Exception e) {
-          // Ignoring because most counter will crash, spamming the logs.
-          // Also safe to ignore because if counter not reset, autoscaling
-          // will be able to fetch the info directly from counter instead
-          // of through source_bytes_processed in WorkItemCommitRequest.
+      try {
+        long sourceBytesProcessed = 0;
+        List<ElementCounter> counters =
+            ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
+                .getReadOperation()
+                .receivers[0]
+                .getOutputCounters();
+        for (ElementCounter counter : counters) {
+          try {
+            Counter<Long, Long> baseCounter = ((OutputObjectAndByteCounter) counter).getByteCount();
+            if (!baseCounter.getName().name().equals(counterName)) continue;
+            sourceBytesProcessed = (long) baseCounter.getAndReset();
+          } catch (Exception e) {
+            // Ignoring because most counter will crash, spamming the logs.
+            // Also safe to ignore because if counter not reset, autoscaling
+            // will be able to fetch the info directly from counter instead
+            // of through source_bytes_processed in WorkItemCommitRequest.
+          }
         }
+        outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
+      } catch (Exception e) {
+        LOG.error(e.toString());
       }
-      outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
 
       Iterables.addAll(
           this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
