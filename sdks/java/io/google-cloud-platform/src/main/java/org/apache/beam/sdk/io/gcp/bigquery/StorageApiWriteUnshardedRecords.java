@@ -516,6 +516,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
         long offset = -1;
         if (!this.useDefaultStream) {
+          getOrCreateStreamName(); // Force creation of the stream.
           offset = this.currentOffset;
           this.currentOffset += inserts.getSerializedRowsCount();
           LOG.error("SCHEDULING APPEND TO STREAM " + this.streamName + " AT OFFSET " + offset + " SETTING NEW OFFSET TO " + this.currentOffset);
