@@ -34,7 +34,7 @@ func main() {
 
 	flag.Parse()
 
-	ctx := context.WithValue(context.Background(), constants.DatastoreNamespaceKey, namespace)
+	ctx := context.WithValue(context.Background(), constants.DatastoreNamespaceKey, *namespace)
 
 	cwd, err := os.Getwd()
 	if err != nil {

@@ -53,6 +53,7 @@ func (d *Datastore) hasSchemaVersion(ctx context.Context, version int) (bool, er
 		logger.Errorf("Datastore: hasSchemaVersion(): error during getting schema version, err: %s\n", err.Error())
 		return false, err
 	}
+	logger.Infof("Datastore: hasSchemaVersion(): found SchemaEntity: %v\n", schemaEntity)
 	return true, nil
 }
 
