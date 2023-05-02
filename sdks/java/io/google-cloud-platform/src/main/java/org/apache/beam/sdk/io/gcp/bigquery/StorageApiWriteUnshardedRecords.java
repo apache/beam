@@ -405,6 +405,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       void invalidateWriteStream() {
         if (appendClientInfo != null) {
+          LOG.error("INVALIDATING WRITE STREAM FOR " + this.streamName);
           synchronized (APPEND_CLIENTS) {
             // Unpin in a different thread, as it may execute a blocking close.
             StreamAppendClient client = appendClientInfo.getStreamAppendClient();
@@ -642,6 +643,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         + "doesn't exist");
               }
 
+              LOG.error("INVALIDATING WRITE STREAM FOR " + streamName + " DUE TO ERROR");
               invalidateWriteStream();
 
               appendFailures.inc();
@@ -694,6 +696,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           TableSchema updatedTableSchema =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
           if (updatedTableSchema != null) {
+            LOG.error("INVALIDATING WRITE STREAM FOR " + streamName + " DUE TO NEW SCHEMA");
             invalidateWriteStream();
             appendClientInfo =
                 Preconditions.checkStateNotNull(getAppendClientInfo(false, updatedTableSchema));
