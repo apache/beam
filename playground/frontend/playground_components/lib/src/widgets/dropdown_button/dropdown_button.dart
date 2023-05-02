@@ -17,14 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
 import '../../constants/sizes.dart';
-import '../../utils/dropdown_utils.dart';
+import '../../theme/theme.dart';
+import '../../util/dropdown_utils.dart';
 
 const int kAnimationDurationInMilliseconds = 80;
-const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
-const Offset kAnimationEndOffset = Offset(0.0, 0.0);
+const Offset kAnimationBeginOffset = Offset(0, -0.02);
+const Offset kAnimationEndOffset = Offset.zero;
 
 /// How to align the button and its dropdown.
 enum DropdownAlignment {
@@ -37,22 +37,24 @@ enum DropdownAlignment {
 
 class AppDropdownButton extends StatefulWidget {
   final Widget buttonText;
-  final Widget Function(void Function()) createDropdown;
+  final EdgeInsets buttonPadding;
+  final Widget Function(void Function() close) createDropdown;
+  final DropdownAlignment dropdownAlign;
   final double? height;
-  final double width;
   final Widget? leading;
   final bool showArrow;
-  final DropdownAlignment dropdownAlign;
+  final double width;
 
   const AppDropdownButton({
     super.key,
     required this.buttonText,
     required this.createDropdown,
     required this.width,
+    this.buttonPadding = const EdgeInsets.all(BeamSpacing.medium),
+    this.dropdownAlign = DropdownAlignment.left,
     this.height,
     this.leading,
     this.showArrow = true,
-    this.dropdownAlign = DropdownAlignment.left,
   });
 
   @override
@@ -91,23 +93,23 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
     final ext = Theme.of(context).extension<BeamThemeExtension>()!;
 
     return Container(
-      height: kContainerHeight,
+      height: BeamSizes.buttonHeight,
       decoration: BoxDecoration(
         color: ext.fieldBackgroundColor,
-        borderRadius: BorderRadius.circular(kSmBorderRadius),
+        borderRadius: BorderRadius.circular(BeamBorderRadius.small),
       ),
       child: TextButton(
         key: selectorKey,
         onPressed: _changeSelectorVisibility,
         child: Padding(
-          padding: const EdgeInsets.all(kMdSpacing),
+          padding: widget.buttonPadding,
           child: Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               if (widget.leading != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: kMdSpacing),
+                  padding: const EdgeInsets.only(right: BeamSpacing.medium),
                   child: widget.leading,
                 ),
               widget.buttonText,
@@ -133,9 +135,7 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
         return Stack(
           children: [
             GestureDetector(
-              onTap: () {
-                _close();
-              },
+              onTap: _close,
               child: Container(
                 color: Colors.transparent,
                 height: double.infinity,
@@ -148,14 +148,16 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
               child: SlideTransition(
                 position: offsetAnimation,
                 child: Material(
-                  elevation: kElevation,
-                  borderRadius: BorderRadius.circular(kMdBorderRadius),
+                  elevation: BeamSizes.elevation,
+                  borderRadius: BorderRadius.circular(BeamBorderRadius.medium),
                   child: Container(
                     height: widget.height,
                     width: widget.width,
                     decoration: BoxDecoration(
                       color: Theme.of(context).backgroundColor,
-                      borderRadius: BorderRadius.circular(kMdBorderRadius),
+                      borderRadius: BorderRadius.circular(
+                        BeamBorderRadius.medium,
+                      ),
                     ),
                     child: child,
                   ),

@@ -35,7 +35,7 @@ void main() {
     await _runAndCancelExample(wt, const Duration(milliseconds: 300));
 
     final source = wt.findPlaygroundController().source ?? '';
-    await wt.enterText(find.codeField(), '//comment\n' + source);
+    await wt.enterText(find.snippetCodeField(), '//comment\n' + source);
     await wt.pumpAndSettle();
 
     // Cancel changed example.

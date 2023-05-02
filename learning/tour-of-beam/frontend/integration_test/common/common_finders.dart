@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tour_of_beam/components/sdk_dropdown.dart';
 
-class PipelineOptionLabel extends StatelessWidget {
-  final String text;
+extension CommonFindersExtension on CommonFinders {
+  Finder sdkDropdown() {
+    return byType(SdkDropdown);
+  }
 
-  const PipelineOptionLabel({Key? key, required this.text}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(fontWeight: kMediumWeight, fontSize: kLabelFontSize),
+  Finder startTourButton() {
+    return find.ancestor(
+      of: find.text('pages.welcome.startTour'.tr()),
+      matching: find.byType(ElevatedButton),
     );
   }
 }

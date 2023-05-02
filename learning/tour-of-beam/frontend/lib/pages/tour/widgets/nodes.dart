@@ -22,11 +22,11 @@ import '../../../models/node.dart';
 import '../controllers/content_tree.dart';
 import 'node.dart';
 
-class GroupNodesWidget extends StatelessWidget {
+class NodesWidget extends StatelessWidget {
   final List<NodeModel> nodes;
   final ContentTreeController contentTreeController;
 
-  const GroupNodesWidget({
+  const NodesWidget({
     required this.nodes,
     required this.contentTreeController,
   });

@@ -34,20 +34,21 @@ import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Builds a MongoDB FindQuery object. */
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class FindQuery
     implements SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> {
 
+  @Pure
   abstract @Nullable BsonDocument filters();
 
+  @Pure
   abstract int limit();
 
+  @Pure
   abstract List<String> projection();
 
   private static Builder builder() {

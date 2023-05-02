@@ -18,8 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_body.dart';
 import 'package:playground/modules/editor/components/share_dropdown/link_text_field.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_button.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs_headers.dart';
@@ -32,7 +30,6 @@ import 'package:playground/modules/shortcuts/components/shortcuts_dialog.dart';
 import 'package:playground/pages/standalone_playground/widgets/editor_textarea_wrapper.dart';
 import 'package:playground/pages/standalone_playground/widgets/more_actions.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:playground_components/src/widgets/drag_handle.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 extension CommonFindersExtension on CommonFinders {
