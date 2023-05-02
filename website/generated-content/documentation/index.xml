@@ -16512,6 +16512,9 @@ ENTRYPOINT [&amp;quot;/opt/apache/beam/boot&amp;quot;]
 The version specified in the &lt;code>RUN&lt;/code> instruction must match the version used to launch the pipeline.&lt;br>
 &lt;strong>Make sure that the Python or Java runtime version specified in the base image is the same as the version used to run the pipeline.&lt;/strong>&lt;/p>
 &lt;/blockquote>
+&lt;blockquote>
+&lt;p>&lt;strong>NOTE&lt;/strong>: Any additional Python dependenices should be installed in the global Python environment in the custom image.&lt;/p>
+&lt;/blockquote>
 &lt;ol start="2">
 &lt;li>&lt;a href="https://docs.docker.com/engine/reference/commandline/build/">Build&lt;/a> and &lt;a href="https://docs.docker.com/engine/reference/commandline/push/">push&lt;/a> the image using Docker.&lt;/li>
 &lt;/ol>
