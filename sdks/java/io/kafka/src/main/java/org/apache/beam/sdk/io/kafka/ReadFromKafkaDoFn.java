@@ -430,9 +430,10 @@ abstract class ReadFromKafkaDoFn<K, V>
       Consumer<byte[], byte[]> consumer, TopicPartition topicPartition) {
     final Stopwatch sw = Stopwatch.createStarted();
     long previousPosition = -1;
+    java.time.Duration elapsed = java.time.Duration.ZERO;
     while (true) {
       final ConsumerRecords<byte[], byte[]> rawRecords =
-          consumer.poll(KAFKA_POLL_TIMEOUT.minus(sw.elapsed()));
+          consumer.poll(KAFKA_POLL_TIMEOUT.minus(elapsed));
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
@@ -441,7 +442,8 @@ abstract class ReadFromKafkaDoFn<K, V>
         // there was no progress on the offset/position, which indicates end of stream
         return rawRecords;
       }
-      if (sw.elapsed(TimeUnit.MILLISECONDS) >= KAFKA_POLL_TIMEOUT.toMillis()) {
+      elapsed = sw.elapsed();
+      if (elapsed.toMillis() >= KAFKA_POLL_TIMEOUT.toMillis()) {
         // timeout is over
         return rawRecords;
       }
