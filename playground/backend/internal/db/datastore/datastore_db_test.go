@@ -33,7 +33,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
-var datastoreDb *Datastore
+var datastoreDb *EmulatedDatastore
 var ctx context.Context
 
 func TestMain(m *testing.M) {
@@ -44,27 +44,22 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
-	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
-			panic(err)
-		}
-	}
 	ctx = context.Background()
 	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "datastore")
 
 	logger.SetupLogger(ctx, "local", "some_google_project_id")
 
 	var err error
-	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+	datastoreDb, err = NewEmulated(ctx)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func teardown() {
-	if err := datastoreDb.Client.Close(); err != nil {
-		panic(err)
+	clientCloseErr := datastoreDb.Close()
+	if clientCloseErr != nil {
+		panic(clientCloseErr)
 	}
 }
 

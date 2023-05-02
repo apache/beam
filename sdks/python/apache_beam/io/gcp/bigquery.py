@@ -447,7 +447,6 @@ __all__ = [
     'BigQueryQueryPriority',
     'WriteToBigQuery',
     'WriteResult',
-    'StorageWriteToBigQuery',
     'ReadFromBigQuery',
     'ReadFromBigQueryRequest',
     'ReadAllFromBigQuery',
@@ -2467,6 +2466,7 @@ class StorageWriteToBigQuery(PTransform):
     external_storage_write = SchemaAwareExternalTransform(
         identifier=self.schematransform_config.identifier,
         expansion_service=self._expansion_service,
+        rearrange_based_on_discovery=True,
         autoSharding=self._with_auto_sharding,
         createDisposition=self._create_disposition,
         table=self._table,

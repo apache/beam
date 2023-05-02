@@ -18,6 +18,8 @@ name: Mark and close stale pull requests
 on:
   schedule:
   - cron: '33 12 * * *'
+  workflow_dispatch:
+
 permissions: read-all
 jobs:
   stale:
@@ -37,3 +39,4 @@ jobs:
         days-before-issue-close: -1
         days-before-issue-stale: -1
         exempt-pr-labels: "pinned,security"
+        operations-per-run: 100

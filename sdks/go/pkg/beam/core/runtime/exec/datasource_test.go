@@ -306,7 +306,7 @@ func TestDataSource_Split(t *testing.T) {
 					t.Fatalf("error in root[%d].Up: %v", i, err)
 				}
 			}
-			p.status = Active
+			p.setStatus(Active)
 
 			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
@@ -444,7 +444,7 @@ func TestDataSource_Split(t *testing.T) {
 				t.Fatalf("error in root[%d].Up: %v", i, err)
 			}
 		}
-		p.status = Active
+		p.setStatus(Active)
 
 		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
@@ -588,7 +588,7 @@ func TestDataSource_Split(t *testing.T) {
 				t.Fatalf("error in root[%d].Up: %v", i, err)
 			}
 		}
-		p.status = Active
+		p.setStatus(Active)
 		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
 			t.Fatalf("p.Split(active, not started) = %v,%v want unsuccessful split & nil err", sr, err)
 		}

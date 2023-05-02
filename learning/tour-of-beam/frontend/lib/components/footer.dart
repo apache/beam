@@ -16,17 +16,20 @@
  * limitations under the License.
  */
 
-import 'dart:async';
-
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/sizes.dart';
+import '../state.dart';
 
 class Footer extends StatelessWidget {
-  const Footer();
+  const Footer({
+    required this.playgroundController,
+  });
+
+  final PlaygroundController? playgroundController;
 
   @override
   Widget build(BuildContext context) {
@@ -39,18 +42,16 @@ class Footer extends StatelessWidget {
             spacing: BeamSizes.size16,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const _ReportIssueButton(),
-              const _PrivacyPolicyButton(),
-              const Text('ui.copyright').tr(),
+              FeedbackWidget(
+                controller: GetIt.instance.get<FeedbackController>(),
+                title: 'ui.feedbackTitle'.tr(),
+              ),
+              ReportIssueButton(playgroundController: playgroundController),
+              const PrivacyPolicyButton(),
+              const CopyrightWidget(),
             ],
           ),
-          // TODO(nausharipov): get version, https://github.com/apache/beam/issues/23038
-          Text(
-            '${'ui.builtWith'.tr()} (TODO: Version)',
-            style: const TextStyle(
-              color: BeamColors.grey3,
-            ),
-          ),
+          const _BeamVersion(),
         ],
       ),
     );
@@ -59,6 +60,7 @@ class Footer extends StatelessWidget {
 
 class _Body extends StatelessWidget {
   final Widget child;
+
   const _Body({required this.child});
 
   @override
@@ -84,39 +86,40 @@ class _Body extends StatelessWidget {
   }
 }
 
-class _ReportIssueButton extends StatelessWidget {
-  const _ReportIssueButton();
+class _BeamVersion extends StatelessWidget {
+  const _BeamVersion();
+
+  Future<String?> _getBeamSdkVersion() async {
+    final sdk = GetIt.instance.get<AppNotifier>().sdk;
+    if (sdk == null) {
+      return null;
+    }
+    final runnerVersion = await GetIt.instance
+        .get<BuildMetadataController>()
+        .getRunnerVersion(sdk);
+    return runnerVersion.beamSdkVersion;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      style: _linkButtonStyle,
-      onPressed: () {
-        unawaited(launchUrl(Uri.parse(BeamLinks.reportIssue)));
-      },
-      child: const Text('ui.reportIssue').tr(),
+    return AnimatedBuilder(
+      animation: GetIt.instance.get<AppNotifier>(),
+      builder: (context, child) => FutureBuilder<String?>(
+        // ignore: discarded_futures
+        future: _getBeamSdkVersion(),
+        builder: (context, snapshot) => snapshot.hasData
+            ? Text(
+                'ui.builtWith'.tr(
+                  namedArgs: {
+                    'beamSdkVersion': snapshot.data!,
+                  },
+                ),
+                style: const TextStyle(
+                  color: BeamColors.grey3,
+                ),
+              )
+            : Container(),
+      ),
     );
   }
 }
-
-class _PrivacyPolicyButton extends StatelessWidget {
-  const _PrivacyPolicyButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      style: _linkButtonStyle,
-      onPressed: () {
-        unawaited(launchUrl(Uri.parse(BeamLinks.privacyPolicy)));
-      },
-      child: const Text('ui.privacyPolicy').tr(),
-    );
-  }
-}
-
-final _linkButtonStyle = TextButton.styleFrom(
-  textStyle: const TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w400,
-  ),
-);

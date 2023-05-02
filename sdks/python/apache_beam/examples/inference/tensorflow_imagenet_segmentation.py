@@ -37,14 +37,16 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns predicted label.
   """
-  def process(self, element: PredictionResult) -> Iterable[str]:
-    predicted_class = numpy.argmax(element.inference, axis=-1)
+  def setup(self):
     labels_path = tf.keras.utils.get_file(
         'ImageNetLabels.txt',
         'https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt'  # pylint: disable=line-too-long
     )
-    imagenet_labels = numpy.array(open(labels_path).read().splitlines())
-    predicted_class_name = imagenet_labels[predicted_class]
+    self._imagenet_labels = numpy.array(open(labels_path).read().splitlines())
+
+  def process(self, element: PredictionResult) -> Iterable[str]:
+    predicted_class = numpy.argmax(element.inference, axis=-1)
+    predicted_class_name = self._imagenet_labels[predicted_class]
     yield predicted_class_name.title()
 
 
@@ -97,7 +99,9 @@ def run(
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   # In this example we will use the TensorflowHub model URL.
-  model_loader = TFModelHandlerTensor(model_uri=known_args.model_path)
+  model_loader = TFModelHandlerTensor(
+      model_uri=known_args.model_path).with_preprocess_fn(
+          lambda image_name: read_image(image_name, known_args.image_dir))
 
   pipeline = test_pipeline
   if not test_pipeline:
@@ -106,9 +110,7 @@ def run(
   image = (
       pipeline
       | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
-      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
-      | "PreProcessInputs" >>
-      beam.Map(lambda image_name: read_image(image_name, known_args.image_dir)))
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines))
 
   predictions = (
       image

@@ -298,6 +298,7 @@ class DatastoreClient:
                 "path": example.url_vcs,  # keep for backward-compatibity, to be removed
                 "type": api_pb2.PrecompiledObjectType.Name(example.type),
                 "alwaysRun": example.tag.always_run,
+                "neverRun": example.tag.never_run,
                 "origin": origin,
                 "schVer": schema_key,
                 "urlVCS": example.url_vcs,
@@ -351,7 +352,7 @@ class DatastoreClient:
                     example.tag.name, example.sdk
                 ),
                 "content": example.code,
-                "cntxLine": example.tag.context_line,
+                "cntxLine": example.context_line,
                 "isMain": True,
             }
         )

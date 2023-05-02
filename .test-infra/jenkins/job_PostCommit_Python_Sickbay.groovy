@@ -27,7 +27,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
   PostcommitJobBuilder.postCommitJob("beam_PostCommit_Sickbay_Python${versionSuffix}",
       "Run Python ${pythonVersion} PostCommit Sickbay",
       "Python${versionSuffix}_PC_Sickbay(\"Run Python ${pythonVersion} PostCommit Sickbay\")", this) {
-        description('Runs Python postcommit sickbay tests using Python ${pythonVersion}.')
+        description("Runs Python postcommit sickbay tests using Python ${pythonVersion}.")
 
         // Set common parameters.
         commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
@@ -40,7 +40,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
         steps {
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":python${versionSuffix}SickbayPostCommit")
+            tasks(":sdks:python:test-suites:dataflow:py${versionSuffix}:postCommitSickbay")
             commonJobProperties.setGradleSwitches(delegate)
           }
         }

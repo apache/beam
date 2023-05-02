@@ -134,7 +134,8 @@ class ExampleCache extends ChangeNotifier {
     return Example(
       complexity: result.complexity,
       files: result.files,
-      name: result.files.first.name,
+      name: 'User Snippet',
+      isMultiFile: result.files.length > 1,
       path: id,
       sdk: result.sdk,
       pipelineOptions: result.pipelineOptions,

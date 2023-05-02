@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -136,6 +137,22 @@ func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
 	return attrs.Size, nil
 }
 
+// LastModified returns the time at which the file was last modified.
+func (f *fs) LastModified(ctx context.Context, filename string) (time.Time, error) {
+	bucket, object, err := gcsx.ParseObject(filename)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	obj := f.client.Bucket(bucket).Object(object)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return attrs.Updated, nil
+}
+
 // Remove the named file from the filesystem.
 func (f *fs) Remove(ctx context.Context, filename string) error {
 	bucket, object, err := gcsx.ParseObject(filename)
@@ -166,8 +183,32 @@ func (f *fs) Copy(ctx context.Context, srcpath, dstpath string) error {
 	return err
 }
 
+// Rename the old path to the new path.
+func (f *fs) Rename(ctx context.Context, srcpath, dstpath string) error {
+	bucket, src, err := gcsx.ParseObject(srcpath)
+	if err != nil {
+		return err
+	}
+	srcobj := f.client.Bucket(bucket).Object(src)
+
+	bucket, dst, err := gcsx.ParseObject(dstpath)
+	if err != nil {
+		return err
+	}
+	dstobj := f.client.Bucket(bucket).Object(dst)
+
+	cp := dstobj.CopierFrom(srcobj)
+	_, err = cp.Run(ctx)
+	if err != nil {
+		return err
+	}
+	return srcobj.Delete(ctx)
+}
+
 // Compile time check for interface implementations.
 var (
-	_ filesystem.Remover = ((*fs)(nil))
-	_ filesystem.Copier  = ((*fs)(nil))
+	_ filesystem.LastModifiedGetter = ((*fs)(nil))
+	_ filesystem.Remover            = ((*fs)(nil))
+	_ filesystem.Copier             = ((*fs)(nil))
+	_ filesystem.Renamer            = ((*fs)(nil))
 )

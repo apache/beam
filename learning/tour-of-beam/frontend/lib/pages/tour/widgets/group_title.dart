@@ -42,9 +42,11 @@ class GroupTitleWidget extends StatelessWidget {
       child: Row(
         children: [
           _GroupProgressIndicator(group: group),
-          Text(
-            group.title,
-            style: Theme.of(context).textTheme.headlineMedium,
+          Expanded(
+            child: Text(
+              group.title,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
           ),
         ],
       ),

@@ -35,6 +35,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValues;
@@ -52,6 +53,8 @@ public class PubSubWritePayloadTranslationTest {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private final PubSubPayloadTranslation.PubSubWritePayloadTranslator sinkTranslator =
       new PubSubWritePayloadTranslator();
+  private final PubSubPayloadTranslation.PubSubDynamicWritePayloadTranslator dynamicSinkTranslator =
+      new PubSubPayloadTranslation.PubSubDynamicWritePayloadTranslator();
 
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
@@ -87,6 +90,44 @@ public class PubSubWritePayloadTranslationTest {
     assertEquals(PTransformTranslation.PUBSUB_WRITE, spec.getUrn());
     PubSubWritePayload payload = PubSubWritePayload.parseFrom(spec.getPayload());
     assertEquals(TOPIC.getFullPath(), payload.getTopic());
+    assertTrue(payload.getTopicRuntimeOverridden().isEmpty());
+    assertEquals(TIMESTAMP_ATTRIBUTE, payload.getTimestampAttribute());
+    assertEquals(ID_ATTRIBUTE, payload.getIdAttribute());
+  }
+
+  @Test
+  public void testTranslateDynamicSink() throws Exception {
+    PubsubUnboundedSink pubsubUnboundedSink =
+        new PubsubUnboundedSink(
+            null,
+            StaticValueProvider.of(TOPIC),
+            TIMESTAMP_ATTRIBUTE,
+            ID_ATTRIBUTE,
+            0,
+            0,
+            0,
+            Duration.ZERO,
+            null,
+            null);
+    PubsubUnboundedSink.PubsubDynamicSink pubsubSink =
+        new PubsubUnboundedSink.PubsubDynamicSink(pubsubUnboundedSink);
+    PCollection<KV<String, byte[]>> input = pipeline.apply(Create.of(KV.of("foo", new byte[0])));
+    PDone output = input.apply(pubsubSink);
+    AppliedPTransform<?, ?, PubsubUnboundedSink.PubsubDynamicSink> appliedPTransform =
+        AppliedPTransform.of(
+            "sink",
+            PValues.expandInput(input),
+            PValues.expandOutput(output),
+            pubsubSink,
+            ResourceHints.create(),
+            pipeline);
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    RunnerApi.FunctionSpec spec = dynamicSinkTranslator.translate(appliedPTransform, components);
+
+    assertEquals(PTransformTranslation.PUBSUB_WRITE_DYNAMIC, spec.getUrn());
+    PubSubWritePayload payload = PubSubWritePayload.parseFrom(spec.getPayload());
+    assertEquals("", payload.getTopic());
     assertTrue(payload.getTopicRuntimeOverridden().isEmpty());
     assertEquals(TIMESTAMP_ATTRIBUTE, payload.getTimestampAttribute());
     assertEquals(ID_ATTRIBUTE, payload.getIdAttribute());

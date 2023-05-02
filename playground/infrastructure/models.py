@@ -75,15 +75,16 @@ class Tag(BaseModel):
     filepath: str = Field(..., min_length=1)
     line_start: int
     line_finish: int
-    context_line: int
+    context_line: int = 1
     name: str = Field(..., min_length=1)
     complexity: ComplexityEnum
     description: str
-    categories: List[str]
+    categories: List[str] = []
     pipeline_options: str = ""
     datasets: Dict[str, Dataset] = {}
     emulators: List[Emulator] = []
     always_run: bool = False
+    never_run: bool = False
     multifile: bool = False
     default_example: bool = False
     tags: List[str] = []
@@ -97,7 +98,8 @@ class Tag(BaseModel):
     @root_validator(skip_on_failure=True)
     def lines_order(cls, values):
         assert (
-            0 < values["line_start"] < values["line_finish"] <= values["context_line"]
+            (0 <= values["line_start"] < values["line_finish"]) and
+              (values["context_line"] <= values["line_start"] or values["context_line"] > values["line_finish"])
         ), f"line ordering error: {values}"
         return values
 
