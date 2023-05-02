@@ -19,6 +19,7 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 
 import '../exceptions/catalog_loading_exception.dart';
@@ -134,7 +135,7 @@ class ExampleCache extends ChangeNotifier {
     return Example(
       complexity: result.complexity,
       files: result.files,
-      name: 'User Snippet',
+      name: 'examples.userSharedName'.tr(),
       isMultiFile: result.files.length > 1,
       path: id,
       sdk: result.sdk,
