@@ -314,6 +314,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                       .createWriteStream(tableUrn, Type.PENDING)
                       .getName();
               this.currentOffset = 0;
+              LOG.error("CREATED NEW STREAM " + this.streamName + " SETTING OFFSET TO 0");
             } else {
               this.streamName = getDefaultStreamName();
             }
@@ -517,6 +518,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         if (!this.useDefaultStream) {
           offset = this.currentOffset;
           this.currentOffset += inserts.getSerializedRowsCount();
+          LOG.error("SCHEDULING APPEND TO STREAM " + this.streamName + " AT OFFSET " + offset + " SETTING NEW OFFSET TO " + this.currentOffset);
         }
         AppendRowsContext appendRowsContext =
             new AppendRowsContext(offset, inserts, insertTimestamps);
@@ -532,6 +534,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 StreamAppendClient writeStream =
                     Preconditions.checkStateNotNull(
                         getAppendClientInfo(true, null).getStreamAppendClient());
+                LOG.error("APPENDING TO STREAM " + this.streamName + " AT OFFSET " + c.offset + " NUM ROWS " + c.protoRows.getSerializedRowsCount());
                 ApiFuture<AppendRowsResponse> response =
                     writeStream.appendRows(c.offset, c.protoRows);
                 inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
