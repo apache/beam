@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-// TODO(nausharipov): replace with flutter_markdown everywhere when this issue is resolved: https://github.com/flutter/flutter/issues/99819
+// TODO(nausharipov): return flutter_markdown: https://github.com/apache/beam/issues/26498
 import 'package:flutter_markdown_selectionarea/flutter_markdown_selectionarea.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:playground_components/playground_components.dart';

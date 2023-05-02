@@ -496,14 +496,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_markdown:
-    dependency: transitive
-    description:
-      name: flutter_markdown
-      sha256: "7b25c10de1fea883f3c4f9b8389506b54053cd00807beab69fd65c8653a2711f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.14"
   flutter_markdown_selectionarea:
     dependency: "direct main"
     description:
