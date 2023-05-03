@@ -18,18 +18,15 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import com.google.cloud.pubsublite.proto.PubSubMessage;
-import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.ByteString;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteReadSchemaTransformProvider;
-import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteReadSchemaTransformProvider.ErrorFn;
+import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteWriteSchemaTransformProvider;
+import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteWriteSchemaTransformProvider.ErrorCounterFn;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -46,12 +43,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PubsubLiteWriteDlqTest {
 
-  private static final TupleTag<Row> OUTPUTTAG = PubsubLiteReadSchemaTransformProvider.OUTPUT_TAG;
-  private static final TupleTag<Row> ERRORTAG = PubsubLiteReadSchemaTransformProvider.ERROR_TAG;
+  private static final TupleTag<PubSubMessage> OUTPUT_TAG =
+      PubsubLiteWriteSchemaTransformProvider.OUTPUT_TAG;
+  private static final TupleTag<Row> ERROR_TAG = PubsubLiteWriteSchemaTransformProvider.ERROR_TAG;
 
   private static final Schema BEAMSCHEMA =
       Schema.of(Schema.Field.of("name", Schema.FieldType.STRING));
-  private static final Schema ERRORSCHEMA = PubsubLiteReadSchemaTransformProvider.ERROR_SCHEMA;
+  private static final Schema ERRORSCHEMA = PubsubLiteWriteSchemaTransformProvider.ERROR_SCHEMA;
 
   private static final List<Row> ROWS =
       Arrays.asList(
@@ -59,83 +57,28 @@ public class PubsubLiteWriteDlqTest {
           Row.withSchema(BEAMSCHEMA).withFieldValue("name", "b").build(),
           Row.withSchema(BEAMSCHEMA).withFieldValue("name", "c").build());
 
-  private static final List<SequencedMessage> MESSAGES =
+  private static final List<PubSubMessage> MESSAGES =
       Arrays.asList(
-          SequencedMessage.newBuilder()
-              .setMessage(
-                  PubSubMessage.newBuilder()
-                      .setData(ByteString.copyFromUtf8("{\"name\":\"a\"}"))
-                      .build())
-              .build(),
-          SequencedMessage.newBuilder()
-              .setMessage(
-                  PubSubMessage.newBuilder()
-                      .setData(ByteString.copyFromUtf8("{\"name\":\"b\"}"))
-                      .build())
-              .build(),
-          SequencedMessage.newBuilder()
-              .setMessage(
-                  PubSubMessage.newBuilder()
-                      .setData(ByteString.copyFromUtf8("{\"name\":\"c\"}"))
-                      .build())
-              .build());
+          PubSubMessage.newBuilder().setData(ByteString.copyFromUtf8("{\"name\":\"a\"}")).build(),
+          PubSubMessage.newBuilder().setData(ByteString.copyFromUtf8("{\"name\":\"b\"}")).build(),
+          PubSubMessage.newBuilder().setData(ByteString.copyFromUtf8("{\"name\":\"c\"}")).build());
 
-  private static final List<SequencedMessage> MESSAGESWITHERROR =
-      Arrays.asList(
-          SequencedMessage.newBuilder()
-              .setMessage(
-                  PubSubMessage.newBuilder()
-                      .setData(ByteString.copyFromUtf8("{\"error\":\"a\"}"))
-                      .build())
-              .build(),
-          SequencedMessage.newBuilder()
-              .setMessage(
-                  PubSubMessage.newBuilder()
-                      .setData(ByteString.copyFromUtf8("{\"error\":\"b\"}"))
-                      .build())
-              .build(),
-          SequencedMessage.newBuilder()
-              .setMessage(
-                  PubSubMessage.newBuilder()
-                      .setData(ByteString.copyFromUtf8("{\"error\":\"c\"}"))
-                      .build())
-              .build());
-
-  final SerializableFunction<byte[], Row> valueMapper =
-      JsonUtils.getJsonBytesToRowFunction(BEAMSCHEMA);
+  final SerializableFunction<Row, byte[]> valueMapper =
+      JsonUtils.getRowToJsonBytesFunction(BEAMSCHEMA);
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
   public void testPubsubLiteErrorFnSuccess() throws Exception {
-    PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGES));
+    PCollection<Row> input = p.apply(Create.of(ROWS));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper))
-                .withOutputTags(OUTPUTTAG, TupleTagList.of(ERRORTAG)));
+            ParDo.of(new ErrorCounterFn("ErrorCounter", valueMapper))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(OUTPUTTAG).setRowSchema(BEAMSCHEMA);
-    output.get(ERRORTAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
 
-    PAssert.that(output.get(OUTPUTTAG)).containsInAnyOrder(ROWS);
-    p.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testPubsubLiteErrorFnFailure() throws Exception {
-    PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGESWITHERROR));
-    PCollectionTuple output =
-        input.apply(
-            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper))
-                .withOutputTags(OUTPUTTAG, TupleTagList.of(ERRORTAG)));
-
-    output.get(OUTPUTTAG).setRowSchema(BEAMSCHEMA);
-    output.get(ERRORTAG).setRowSchema(ERRORSCHEMA);
-
-    PCollection<Long> count = output.get(ERRORTAG).apply("error_count", Count.globally());
-
-    PAssert.that(count).containsInAnyOrder(Collections.singletonList(3L));
-
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(MESSAGES);
     p.run().waitUntilFinish();
   }
 }
