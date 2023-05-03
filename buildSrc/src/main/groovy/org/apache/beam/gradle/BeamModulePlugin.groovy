@@ -2501,6 +2501,9 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
+      if (config.pythonPipelineOptions.contains("--runner=TestDataflowRunner")) {
+        pythonTask.configure {dependsOn ':sdks:python:test-suites:dataflow:initializeForDataflowJob'}
+      }
 
       // 3. Shuts down the expansion service
       def cleanupTask = project.tasks.register(config.name+'Cleanup', Exec) {
