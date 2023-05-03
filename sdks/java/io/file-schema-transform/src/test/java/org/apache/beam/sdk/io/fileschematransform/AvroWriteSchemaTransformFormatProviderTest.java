@@ -17,13 +17,15 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.AVRO;
 
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.io.xml.XmlIO;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroIO;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
@@ -31,75 +33,57 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link XmlWriteSchemaTransformFormatProvider}. */
+/** Tests for {@link AvroWriteSchemaTransformFormatProvider}. */
 @RunWith(JUnit4.class)
-public class XmlFileWriteSchemaTransformFormatProviderTest
+public class AvroWriteSchemaTransformFormatProviderTest
     extends FileWriteSchemaTransformFormatProviderTest {
-
-  private static final String ROOT_ELEMENT = "rootElement";
-  private static final String RECORD_ELEMENT = "row";
-
   @Override
   protected String getFormat() {
-    return XML;
+    return AVRO;
   }
 
   @Override
   protected String getFilenamePrefix() {
-    return "";
+    return "/";
   }
 
   @Override
   protected void assertFolderContainsInAnyOrder(String folder, List<Row> rows, Schema beamSchema) {
-    List<XmlRowAdapter> expected =
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    AvroGenericCoder coder = AvroGenericCoder.of(avroSchema);
+    List<GenericRecord> expected =
         rows.stream()
-            .map(
-                (Row row) -> {
-                  XmlRowAdapter result = new XmlRowAdapter();
-                  result.wrapRow(row);
-                  return result;
-                })
+            .map(AvroUtils.getRowToGenericRecordFunction(avroSchema)::apply)
             .collect(Collectors.toList());
 
-    PCollection<XmlRowAdapter> actual =
-        readPipeline.apply(
-            XmlIO.<XmlRowAdapter>read()
-                .from(folder + "/*")
-                .withRecordClass(XmlRowAdapter.class)
-                .withRootElement(ROOT_ELEMENT)
-                .withRecordElement(RECORD_ELEMENT)
-                .withCharset(Charset.defaultCharset()));
+    PCollection<GenericRecord> actual =
+        readPipeline
+            .apply(AvroIO.readGenericRecords(avroSchema).from(folder + getFilenamePrefix() + "*"))
+            .setCoder(coder);
 
     PAssert.that(actual).containsInAnyOrder(expected);
   }
 
   @Override
   protected FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
-    return FileWriteSchemaTransformConfiguration.builder()
-        .setFormat(XML)
-        .setXmlConfiguration(
-            FileWriteSchemaTransformConfiguration.xmlConfigurationBuilder()
-                .setRootElement(ROOT_ELEMENT)
-                .build())
-        .setFilenamePrefix(folder)
-        .setNumShards(1)
-        .build();
+    return defaultConfiguration(folder);
   }
 
   @Override
   protected Optional<String> expectedErrorWhenCompressionSet() {
-    return Optional.empty();
+    return Optional.of("configuration with compression is not compatible with AvroIO");
   }
 
   @Override
   protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
     return Optional.of(
-        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a xml format");
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a avro format");
   }
 
   @Override
   protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
-    return Optional.empty();
+    return Optional.of(
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a avro format");
   }
 
   @Override
@@ -115,6 +99,6 @@ public class XmlFileWriteSchemaTransformFormatProviderTest
   @Override
   protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
     return Optional.of(
-        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a xml format");
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a avro format");
   }
 }

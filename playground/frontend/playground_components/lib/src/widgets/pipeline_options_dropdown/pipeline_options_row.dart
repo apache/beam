@@ -17,14 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_controller.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_form.dart';
-import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_text_field.dart';
 
-import '../../../../constants/colors.dart';
-import '../../../../constants/sizes.dart';
-
-const kTextFieldHeight = 50.0;
+import '../../constants/colors.dart';
+import '../../constants/sizes.dart';
+import 'pipeline_option_controller.dart';
+import 'pipeline_options_form.dart';
+import 'pipeline_options_text_field.dart';
 
 class PipelineOptionsRow extends StatelessWidget {
   final void Function() onDelete;
@@ -41,7 +39,7 @@ class PipelineOptionsRow extends StatelessWidget {
       children: [
         Expanded(
           child: SizedBox(
-            height: kTextFieldHeight,
+            height: BeamSizes.textFieldHeight,
             child: PipelineOptionsTextField(
               controller: controller.nameController,
             ),
@@ -50,23 +48,23 @@ class PipelineOptionsRow extends StatelessWidget {
         kSpace,
         Expanded(
           child: SizedBox(
-            height: kTextFieldHeight,
+            height: BeamSizes.textFieldHeight,
             child: PipelineOptionsTextField(
               controller: controller.valueController,
             ),
           ),
         ),
         SizedBox(
-          width: kIconSizeLg,
+          width: BeamIconSizes.large,
           child: IconButton(
-            iconSize: kIconSizeMd,
-            splashRadius: kIconButtonSplashRadius,
-            icon: const Icon(
+            iconSize: BeamIconSizes.medium,
+            splashRadius: BeamIconSizes.largeSplashRadius,
+            icon: Icon(
               Icons.delete_outlined,
-              color: kLightPrimary,
+              color: Theme.of(context).primaryColor,
             ),
             color: Theme.of(context).dividerColor,
-            onPressed: () => onDelete(),
+            onPressed: onDelete,
           ),
         ),
       ],

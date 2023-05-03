@@ -17,10 +17,12 @@ name: Playground Frontend Test
 
 on:
   push:
-    paths: ['playground/frontend/**']
+    paths:
+      - 'playground/frontend/**'
     branches: ['**']
   pull_request:
-    paths: ['playground/frontend/**']
+    paths:
+      - 'playground/frontend/**'
     branches: ['**']
   workflow_dispatch:
 

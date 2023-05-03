@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"strings"
 	"time"
 
 	"fmt"
@@ -118,7 +119,18 @@ func hook() {
 	if err := syscallx.SetProcessMemoryCeiling(memLimit, memLimit); err != nil && err != syscallx.ErrUnsupported {
 		fmt.Println("Error Setting Rlimit ", err)
 	}
-	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
+
+	// Extract environment variables. These are optional runner supported capabilities.
+	// Expected env variables:
+	// RUNNER_CAPABILITIES : list of runner supported capability urn.
+	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
+	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
+	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
+	options := harness.Options{
+		StatusEndpoint:     statusEndpoint,
+		RunnerCapabilities: runnerCapabilities,
+	}
+	if err := harness.MainWithOptions(ctx, *loggingEndpoint, *controlEndpoint, options); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)
 		switch ShutdownMode {
 		case Terminate:

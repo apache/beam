@@ -44,7 +44,7 @@ class ContentTreeWidget extends StatelessWidget {
           sdk: controller.sdk,
           builder: (context, contentTree, child) {
             if (contentTree == null) {
-              return Container();
+              return const Center(child: CircularProgressIndicator());
             }
 
             return SingleChildScrollView(

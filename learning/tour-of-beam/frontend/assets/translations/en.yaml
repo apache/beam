@@ -31,6 +31,9 @@ ui:
   signOut: Sign out
   toWebsite: To Apache Beam website
 
+errors:
+  toastTitle: Error
+
 pages:
   welcome:
     ifSaveProgress: Your journey is broken down into learning modules. If you would like to save your progress and track completed modules, please
@@ -51,6 +54,7 @@ pages:
     playground: Playground
     saving: Saving...
     summaryTitle: Table of Contents
+    pipelineOptionsButtonTitle: 'Pipeline Options ({count})'
 
 dialogs:
   signInIf: If you would like to save your progress and track completed modules
