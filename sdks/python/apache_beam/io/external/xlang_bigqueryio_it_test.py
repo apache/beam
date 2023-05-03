@@ -244,7 +244,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id, expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
-  def run_streaming(self, table_name, auto_sharding=False):
+  def run_streaming(
+      self, table_name, auto_sharding=False, use_at_least_once=False):
     elements = self.ELEMENTS.copy()
     schema = self.ALL_TYPES_SCHEMA
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table_name)
@@ -270,12 +271,17 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=schema,
               with_auto_sharding=auto_sharding,
+              use_at_least_once=use_at_least_once,
               expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
   def test_streaming(self):
     table = 'streaming'
     self.run_streaming(table_name=table)
+
+  def test_streaming_with_at_least_once(self):
+    table = 'streaming'
+    self.run_streaming(table_name=table, use_at_least_once=True)
 
   def test_streaming_with_auto_sharding(self):
     table = 'streaming_with_auto_sharding'
