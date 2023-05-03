@@ -66,6 +66,7 @@
 
 ## New Features / Improvements
 
+* Allow passing service name for google-cloud-profiler (Python) ([#26280](https://github.com/apache/beam/issues/26280)).
 * Dead letter queue support added to RunInference in Python ([#24209](https://github.com/apache/beam/issues/24209)).
 * Support added for defining pre/postprocessing operations on the RunInference transform ([#26308](https://github.com/apache/beam/issues/26308))
 
