@@ -2492,7 +2492,7 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${"sanity check project.ext.sdkLocation"}"]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,
