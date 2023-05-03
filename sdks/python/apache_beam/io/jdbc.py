@@ -120,11 +120,13 @@ Config = typing.NamedTuple(
      ('connection_init_sqls', typing.Optional[typing.List[str]]),
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
-     ('fetch_size', typing.Optional[int]),
+     ('fetch_size', typing.Optional[np.int16]),
      ('output_parallelization', typing.Optional[bool]),
      ('autosharding', typing.Optional[bool]),
      ('partition_column', typing.Optional[str]),
-     ('partitions', typing.Optional[np.int16])],
+     ('partitions', typing.Optional[np.int16]),
+     ('max_connections', typing.Optional[np.int16]),
+     ('driver_jars', typing.Optional[str])],
 )
 
 DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
@@ -176,6 +178,8 @@ class WriteToJdbc(ExternalTransform):
       connection_properties=None,
       connection_init_sqls=None,
       autosharding=False,
+      max_connections=None,
+      driver_jars=None,
       expansion_service=None,
       classpath=None,
   ):
@@ -194,6 +198,11 @@ class WriteToJdbc(ExternalTransform):
                                  passed as list of strings
     :param autosharding: enable automatic re-sharding of bundles to scale the
                          number of shards with the number of workers.
+    :param max_connections: sets the maximum total number of connections.
+                            use a negative value for no limit.
+    :param driver_jars: comma separated paths for JDBC drivers. if not
+                        specified, the default classloader is used to load the
+                        driver jars.
     :param expansion_service: The address (host:port) of the ExpansionService.
     :param classpath: A list of JARs or Java packages to include in the
                       classpath for the expansion service. This option is
@@ -225,6 +234,8 @@ class WriteToJdbc(ExternalTransform):
                             fetch_size=None,
                             output_parallelization=None,
                             autosharding=autosharding,
+                            max_connections=max_connections,
+                            driver_jars=driver_jars,
                             partitions=None,
                             partition_column=None))),
         ),
@@ -277,6 +288,8 @@ class ReadFromJdbc(ExternalTransform):
       partitions=None,
       connection_properties=None,
       connection_init_sqls=None,
+      max_connections=None,
+      driver_jars=None,
       expansion_service=None,
       classpath=None,
   ):
@@ -299,6 +312,11 @@ class ReadFromJdbc(ExternalTransform):
                                   [propertyName=property;]*
     :param connection_init_sqls: required only for MySql and MariaDB.
                                  passed as list of strings
+    :param max_connections: sets the maximum total number of connections.
+                            use a negative value for no limit.
+    :param driver_jars: comma separated paths for JDBC drivers. if not
+                        specified, the default classloader is used to load the
+                        driver jars.
     :param expansion_service: The address (host:port) of the ExpansionService.
     :param classpath: A list of JARs or Java packages to include in the
                       classpath for the expansion service. This option is
@@ -330,6 +348,8 @@ class ReadFromJdbc(ExternalTransform):
                             fetch_size=fetch_size,
                             output_parallelization=output_parallelization,
                             autosharding=None,
+                            max_connections=max_connections,
+                            driver_jars=driver_jars,
                             partition_column=partition_column,
                             partitions=partitions))),
         ),

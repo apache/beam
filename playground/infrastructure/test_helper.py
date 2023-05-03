@@ -129,8 +129,7 @@ async def test_get_statuses(mock_update_example_status, create_test_example):
 @mock.patch(
     "builtins.open",
     mock_open(
-        read_data="""
-// license line 1
+        read_data="""// license line 1
 // license line 2
 //
 // beam-playground:
@@ -171,8 +170,7 @@ def test_load_example():
         sdk=SdkEnum.JAVA,
         type=PRECOMPILED_OBJECT_TYPE_EXAMPLE,
         filepath="../../examples/MOCK_EXAMPLE/main.java",
-        code="""
-// license line 1
+        code="""// license line 1
 // license line 2
 //
 
@@ -184,8 +182,8 @@ code line 2
         context_line=5,
         tag=Tag(
             filepath="../../examples/MOCK_EXAMPLE/main.java",
-            line_start=4,
-            line_finish=27,
+            line_start=3,
+            line_finish=26,
             name="KafkaWordCount",
             description="Test example with Apache Kafka",
             multifile=False,
@@ -206,6 +204,181 @@ code line 2
             },
         ),
     )
+
+
+@mock.patch(
+    "builtins.open",
+    mock_open(
+        read_data="""// license line 1
+// license line 2
+//
+// beam-playground:
+//   name: KafkaWordCount
+//   description: Test example with Apache Kafka
+//   multifile: false
+//   context_line: 27
+//   categories:
+//     - Filtering
+//     - Options
+//     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - filter
+//     - strings
+//     - emulator
+//   emulators:
+//    - type: kafka
+//      topic:
+//        id: topic_1
+//        source_dataset: dataset_id_1
+//   datasets:
+//      dataset_id_1:
+//          location: local
+//          format: json
+
+code line 1
+code line 2
+
+"""
+    ),
+)
+def test_load_example_context_at_the_end_of_tag():
+    example = _load_example(
+        "kafka.java", "../../examples/MOCK_EXAMPLE/main.java", SdkEnum.JAVA
+    )
+    assert example == Example(
+        sdk=SdkEnum.JAVA,
+        type=PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+        filepath="../../examples/MOCK_EXAMPLE/main.java",
+        code="""// license line 1
+// license line 2
+//
+
+code line 1
+code line 2
+
+""",
+        url_vcs="https://github.com/apache/beam/blob/master/examples/MOCK_EXAMPLE/main.java",  # type: ignore
+        context_line=4,
+        tag=Tag(
+            filepath="../../examples/MOCK_EXAMPLE/main.java",
+            line_start=3,
+            line_finish=26,
+            name="KafkaWordCount",
+            description="Test example with Apache Kafka",
+            multifile=False,
+            context_line=27,
+            categories=["Filtering", "Options", "Quickstart"],
+            complexity=ComplexityEnum.MEDIUM,
+            tags=["filter", "strings", "emulator"],
+            emulators=[
+                Emulator(
+                    type=EmulatorType.KAFKA,
+                    topic=Topic(id="topic_1", source_dataset="dataset_id_1"),
+                )
+            ],
+            datasets={
+                "dataset_id_1": Dataset(
+                    location=DatasetLocation.LOCAL, format=DatasetFormat.JSON
+                )
+            },
+        ),
+    )
+
+@mock.patch(
+    "builtins.open",
+    mock_open(
+        read_data="""// license line 1
+// license line 2
+//
+// beam-playground:
+//   name: KafkaWordCount
+//   description: Test example with Apache Kafka
+//   multifile: false
+//   context_line: 3
+//   categories:
+//     - Filtering
+//     - Options
+//     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - filter
+//     - strings
+//     - emulator
+//   emulators:
+//    - type: kafka
+//      topic:
+//        id: topic_1
+//        source_dataset: dataset_id_1
+//   datasets:
+//      dataset_id_1:
+//          location: local
+//          format: json
+
+code line 1
+code line 2
+
+"""
+    ),
+)
+def test_load_example_context_before_of_tag():
+    example = _load_example(
+        "kafka.java", "../../examples/MOCK_EXAMPLE/main.java", SdkEnum.JAVA
+    )
+    assert example == Example(
+        sdk=SdkEnum.JAVA,
+        type=PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+        filepath="../../examples/MOCK_EXAMPLE/main.java",
+        code="""// license line 1
+// license line 2
+//
+
+code line 1
+code line 2
+
+""",
+        url_vcs="https://github.com/apache/beam/blob/master/examples/MOCK_EXAMPLE/main.java",  # type: ignore
+        context_line=3,
+        tag=Tag(
+            filepath="../../examples/MOCK_EXAMPLE/main.java",
+            line_start=3,
+            line_finish=26,
+            name="KafkaWordCount",
+            description="Test example with Apache Kafka",
+            multifile=False,
+            context_line=3,
+            categories=["Filtering", "Options", "Quickstart"],
+            complexity=ComplexityEnum.MEDIUM,
+            tags=["filter", "strings", "emulator"],
+            emulators=[
+                Emulator(
+                    type=EmulatorType.KAFKA,
+                    topic=Topic(id="topic_1", source_dataset="dataset_id_1"),
+                )
+            ],
+            datasets={
+                "dataset_id_1": Dataset(
+                    location=DatasetLocation.LOCAL, format=DatasetFormat.JSON
+                )
+            },
+        ),
+    )
+
+
+def test__validate_context_line_at_beggining_of_tag(create_test_tag):
+    with pytest.raises(
+        pydantic.ValidationError,
+        match="line ordering error",
+    ):
+        create_test_tag(context_line=4, line_start=3, line_finish=27)
+
+
+def test__validate_context_line_at_end_of_tag(create_test_tag):
+    with pytest.raises(
+        pydantic.ValidationError,
+        match="line ordering error",
+    ):
+        create_test_tag(context_line=27, line_start=4, line_finish=27)
 
 
 def test__validate_without_name_field(create_test_tag):
@@ -230,14 +403,6 @@ def test__validate_with_incorrect_multifile_field(create_test_tag):
         match="value could not be parsed to a boolean",
     ):
         create_test_tag(multifile="multifile")
-
-
-def test__validate_without_categories_field(create_test_tag):
-    with pytest.raises(
-        pydantic.ValidationError,
-        match="field required",
-    ):
-        create_test_tag(categories=None)
 
 
 def test__validate_with_incorrect_categories_field(create_test_tag):

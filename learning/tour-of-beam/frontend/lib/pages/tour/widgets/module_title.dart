@@ -37,15 +37,16 @@ class ModuleTitleWidget extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: BeamSizes.size6),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              module.title,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
             Padding(
               padding: const EdgeInsets.only(right: BeamSizes.size4),
               child: ComplexityWidget(complexity: module.complexity),
+            ),
+            Expanded(
+              child: Text(
+                module.title,
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
             ),
           ],
         ),

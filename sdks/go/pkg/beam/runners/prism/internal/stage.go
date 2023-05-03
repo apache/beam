@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -63,16 +64,22 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 	slog.Debug("Execute: starting bundle", "bundle", rb, slog.String("tid", tid))
 
 	var b *worker.B
-	var send bool
 	inputData := em.InputForBundle(rb, s.inputInfo)
+	var dataReady <-chan struct{}
 	switch s.envID {
 	case "": // Runner Transforms
 		// Runner transforms are processed immeadiately.
 		b = s.exe.ExecuteTransform(tid, comps.GetTransforms()[tid], comps, rb.Watermark, inputData)
 		b.InstID = rb.BundleID
 		slog.Debug("Execute: runner transform", "bundle", rb, slog.String("tid", tid))
+
+		// Do some accounting for the fake bundle.
+		b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
+		close(b.Resp) // To
+		closed := make(chan struct{})
+		close(closed)
+		dataReady = closed
 	case wk.ID:
-		send = true
 		b = &worker.B{
 			PBDID:  s.ID,
 			InstID: rb.BundleID,
@@ -88,25 +95,78 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 		b.Init()
 
 		s.prepareSides(b, s.transforms[0], rb.Watermark)
+
+		slog.Debug("Execute: processing", "bundle", rb)
+		defer b.Cleanup(wk)
+		dataReady = b.ProcessOn(wk)
 	default:
 		err := fmt.Errorf("unknown environment[%v]", s.envID)
 		slog.Error("Execute", err)
 		panic(err)
 	}
 
-	if send {
-		slog.Debug("Execute: processing", "bundle", rb)
-		b.ProcessOn(wk) // Blocks until finished.
+	// Progress + split loop.
+	previousIndex := int64(-2)
+	var splitsDone bool
+	progTick := time.NewTicker(100 * time.Millisecond)
+progress:
+	for {
+		select {
+		case <-dataReady:
+			progTick.Stop()
+			break progress // exit progress loop on close.
+		case <-progTick.C:
+			resp := b.Progress(wk)
+			index, unknownIDs := j.ContributeTentativeMetrics(resp)
+			if len(unknownIDs) > 0 {
+				md := wk.MonitoringMetadata(unknownIDs)
+				j.AddMetricShortIDs(md)
+			}
+			slog.Debug("progress report", "bundle", rb, "index", index)
+			// Progress for the bundle hasn't advanced. Try splitting.
+			if previousIndex == index && !splitsDone {
+				sr := b.Split(wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
+				if sr.GetChannelSplits() == nil {
+					slog.Warn("split failed", "bundle", rb)
+					splitsDone = true
+					continue progress
+				}
+				// TODO sort out rescheduling primary Roots on bundle failure.
+				var residualData [][]byte
+				for _, rr := range sr.GetResidualRoots() {
+					ba := rr.GetApplication()
+					residualData = append(residualData, ba.GetElement())
+					if len(ba.GetElement()) == 0 {
+						slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
+						panic("sdk returned empty residual application")
+					}
+					// TODO what happens to output watermarks on splits?
+				}
+				if len(sr.GetChannelSplits()) != 1 {
+					slog.Warn("received non-single channel split", "bundle", rb)
+				}
+				cs := sr.GetChannelSplits()[0]
+				fr := cs.GetFirstResidualElement()
+				// The first residual can be after the end of data, so filter out those cases.
+				if len(b.InputData) >= int(fr) {
+					b.InputData = b.InputData[:int(fr)]
+					em.ReturnResiduals(rb, int(fr), s.inputInfo, residualData)
+				}
+			} else {
+				previousIndex = index
+			}
+		}
 	}
 	// Tentative Data is ready, commit it to the main datastore.
 	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
 
-	resp := &fnpb.ProcessBundleResponse{}
-	if send {
-		resp = <-b.Resp
-		// Tally metrics immeadiately so they're available before
-		// pipeline termination.
-		j.ContributeMetrics(resp)
+	resp := <-b.Resp
+	// Tally metrics immeadiately so they're available before
+	// pipeline termination.
+	unknownIDs := j.ContributeFinalMetrics(resp)
+	if len(unknownIDs) > 0 {
+		md := wk.MonitoringMetadata(unknownIDs)
+		j.AddMetricShortIDs(md)
 	}
 	// TODO handle side input data properly.
 	wk.D.Commit(b.OutputData)

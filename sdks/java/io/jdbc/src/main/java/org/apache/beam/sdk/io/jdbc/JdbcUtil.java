@@ -20,6 +20,12 @@ package org.apache.beam.sdk.io.jdbc;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
@@ -38,6 +44,8 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
@@ -45,12 +53,16 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -60,6 +72,42 @@ import org.slf4j.LoggerFactory;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
 class JdbcUtil {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcUtil.class);
+
+  /** Utility method to save jar files locally in the worker. */
+  static URL[] saveFilesLocally(String driverJars) {
+    List<String> listOfJarPaths = Splitter.on(',').trimResults().splitToList(driverJars);
+
+    final String destRoot = Files.createTempDir().getAbsolutePath();
+    List<URL> driverJarUrls = new ArrayList<>();
+    listOfJarPaths.stream()
+        .forEach(
+            jarPath -> {
+              try {
+                ResourceId sourceResourceId = FileSystems.matchNewResource(jarPath, false);
+                @SuppressWarnings("nullness")
+                File destFile = Paths.get(destRoot, sourceResourceId.getFilename()).toFile();
+                ResourceId destResourceId =
+                    FileSystems.matchNewResource(destFile.getAbsolutePath(), false);
+                copy(sourceResourceId, destResourceId);
+                LOG.info("Localized jar: " + sourceResourceId + " to: " + destResourceId);
+                driverJarUrls.add(destFile.toURI().toURL());
+              } catch (IOException e) {
+                LOG.warn("Unable to copy " + jarPath, e);
+              }
+            });
+    return driverJarUrls.stream().toArray(URL[]::new);
+  }
+
+  /** utility method to copy binary (jar file) data from source to dest. */
+  private static void copy(ResourceId source, ResourceId dest) throws IOException {
+    try (ReadableByteChannel rbc = FileSystems.open(source)) {
+      try (WritableByteChannel wbc = FileSystems.create(dest, MimeTypes.BINARY)) {
+        ByteStreams.copy(rbc, wbc);
+      }
+    }
+  }
 
   /** Generates an insert statement based on {@link Schema.Field}. * */
   static String generateStatement(String tableName, List<Schema.Field> fields) {

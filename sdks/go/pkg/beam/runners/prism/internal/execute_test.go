@@ -128,6 +128,9 @@ func TestRunner_Pipelines(t *testing.T) {
 				qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
 					return sr.Name() == "sunk"
 				})
+				if len(qr.Counters()) == 0 {
+					t.Fatal("no metrics, expected one.")
+				}
 				if got, want := qr.Counters()[0].Committed, int64(73); got != want {
 					t.Errorf("pr.Metrics.Query(Name = \"sunk\")).Committed = %v, want %v", got, want)
 				}

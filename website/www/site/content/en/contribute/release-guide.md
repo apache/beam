@@ -274,58 +274,23 @@ The key points to know:
 - The release branch has the SNAPSHOT/dev version to be released.
 - The Dataflow container image should be modified to the version to be released.
 
-This will all be accomplished by the [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
-script.
+This will all be accomplished by the [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
+workflow.
 
-After cutting the branch, you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
-
-#### Use cut_release_branch.sh to cut a release branch
-* **Script:** [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
-
-* **Usage**
-
-`RELEASE_VERSION` and `NEXT_VERSION` should be formatted like `{major}.{minor}.{patch}` (e.g. `2.46.0`)
-
-  ```
-  # Cut a release branch
-  ./beam/release/src/main/scripts/cut_release_branch.sh \
-  --release=${RELEASE_VERSION} \
-  --next_release=${NEXT_VERSION}
-
-  # Show help page
-  ./beam/release/src/main/scripts/cut_release_branch.sh -h
-  ```
-
-### Start a snapshot build
-
-Start a build of [the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
+After updating the master branch, the workflow will also start a build of
+[the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version from the `master` branch.
 Once the release branch is cut, these SNAPSHOT versions are no longer found, so builds will be broken until a new snapshot is available.
+The workflow starts the nightly snapshot by creating an empty PR against apache:master (which will be linked to in the logs).
 
-There are 2 ways to trigger a nightly build, either using automation script(recommended), or perform all operations manually.
+#### Use cut_release_branch.sh to cut a release branch
+* **Action:** [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml) (click `run workflow`)
 
-#### Run start_snapshot_build.sh to trigger build
-* **Script:** [start_snapshot_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh)
-
-* **Usage**
-
-      ./beam/release/src/main/scripts/start_snapshot_build.sh
-
-* **The script will:**
-  1. Ask for the url of your personal clone of Beam (e.g. `https://github.com/<user>/beam`).
-  1. Install [hub](https://github.com/github/hub) with your agreement.
-  1. Touch an empty txt file and commit changes into ```${your remote beam repo}/snapshot_build```
-  1. Use hub to create a PR against apache:master, which triggers a Jenkins job to build snapshot.
 
 * Tasks you need to do manually to __verify the SNAPSHOT build__
   1. Check whether the Jenkins job gets triggered. If not, please comment ```Run Gradle Publish``` into the generated PR.
   1. After verifying build succeeded, you need to close PR manually.
-
-#### (Alternative) Do all operations manually
-
-* Find one PR against apache:master in beam.
-* Comment  ```Run Gradle Publish``` in this pull request to trigger build.
-* Verify that build succeeds.
+  1. Manually update `CHANGES.md` on `master` by adding a new section for the next release ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
 
 
 **********

@@ -60,7 +60,5 @@ abstract class NodeModel {
     }
   }
 
-  NodeModel getFirstUnit();
-
   NodeModel? getNodeByTreeIds(List<String> treeIds);
 }

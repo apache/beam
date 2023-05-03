@@ -39,6 +39,7 @@ import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
+from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
@@ -62,6 +63,19 @@ class Provider:
     """Creates a PTransform instance for the given transform type and arguments.
     """
     raise NotImplementedError(type(self))
+
+
+def as_provider(name, provider_or_constructor):
+  if isinstance(provider_or_constructor, Provider):
+    return provider_or_constructor
+  else:
+    return InlineProvider({name: provider_or_constructor})
+
+
+def as_provider_list(name, lst):
+  if not isinstance(lst, list):
+    return as_provider_list(name, [lst])
+  return [as_provider(name, x) for x in lst]
 
 
 class ExternalProvider(Provider):
@@ -309,6 +323,32 @@ def create_builtin_provider():
         pcolls = ()
       return pcolls | beam.Flatten(**pipeline_arg)
 
+  class WindowInto(beam.PTransform):
+    def __init__(self, windowing):
+      self._window_transform = self._parse_window_spec(windowing)
+
+    def expand(self, pcoll):
+      return pcoll | self._window_transform
+
+    @staticmethod
+    def _parse_window_spec(spec):
+      spec = dict(spec)
+      window_type = spec.pop('type')
+      # TODO: These are in seconds, perhaps parse duration strings meaningfully?
+      if window_type == 'global':
+        window_fn = window.GlobalWindows()
+      elif window_type == 'fixed':
+        window_fn = window.FixedWindows(spec.pop('size'), spec.pop('offset', 0))
+      elif window_type == 'sliding':
+        window_fn = window.SlidingWindows(
+            spec.pop('size'), spec.pop('period'), spec.pop('offset', 0))
+      elif window_type == 'sessions':
+        window_fn = window.FixedWindows(spec.pop('gap'))
+      if spec:
+        raise ValueError(f'Unknown parameters {spec.keys()}')
+      # TODO: Triggering, etc.
+      return beam.WindowInto(window_fn)
+
   ios = {
       key: getattr(apache_beam.io, key)
       for key in dir(apache_beam.io)
@@ -337,6 +377,7 @@ def create_builtin_provider():
               }),
           'WithSchema': with_schema,
           'Flatten': Flatten,
+          'WindowInto': WindowInto,
           'GroupByKey': beam.GroupByKey,
       },
            **ios))

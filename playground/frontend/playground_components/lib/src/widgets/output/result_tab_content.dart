@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_code_editor/flutter_code_editor.dart';
 
 import '../../constants/sizes.dart';
 import '../../controllers/playground_controller.dart';
@@ -38,36 +39,30 @@ class ResultTabContent extends StatefulWidget {
 
 class _ResultTabContentState extends State<ResultTabContent> {
   final ScrollController _scrollController = ScrollController();
+  final CodeController _codeController = CodeController();
 
   @override
-  Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
-
-    return UnreadClearer(
-      controller: widget.playgroundController.codeRunner.unreadController,
-      unreadKey: UnreadEntryEnum.result,
-      child: AnimatedBuilder(
-        animation: widget.playgroundController.codeRunner,
-        builder: (context, child) => SingleChildScrollView(
-          controller: _scrollController,
-          child: Scrollbar(
-            thumbVisibility: true,
-            trackVisibility: true,
-            controller: _scrollController,
-            child: Padding(
-              padding: const EdgeInsets.all(BeamSizes.size16),
-              child: AnimatedBuilder(
-                animation: widget.playgroundController.resultFilterController,
-                builder: (context, child) => SelectableText(
-                  _getText(),
-                  style: ext.codeRootStyle,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+  void initState() {
+    super.initState();
+    widget.playgroundController.codeRunner.addListener(_updateText);
+    widget.playgroundController.resultFilterController.addListener(
+      _updateText,
     );
+    _updateText();
+  }
+
+  void _updateText() {
+    _codeController.fullText = _getText();
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    widget.playgroundController.resultFilterController.removeListener(
+      _updateText,
+    );
+    widget.playgroundController.codeRunner.removeListener(_updateText);
+    super.dispose();
   }
 
   String _getText() {
@@ -81,5 +76,47 @@ class _ResultTabContentState extends State<ResultTabContent> {
       case ResultFilterEnum.all:
         return widget.playgroundController.codeRunner.resultLogOutput;
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
+
+    return UnreadClearer(
+      controller: widget.playgroundController.codeRunner.unreadController,
+      unreadKey: UnreadEntryEnum.result,
+      child: ColoredBox(
+        // TODO(alexeyinkin): Migrate to Material 3: https://github.com/apache/beam/issues/24610
+        color: Theme.of(context).backgroundColor,
+        child: AnimatedBuilder(
+          animation: widget.playgroundController.codeRunner,
+          builder: (context, child) => SingleChildScrollView(
+            controller: _scrollController,
+            child: Scrollbar(
+              thumbVisibility: true,
+              trackVisibility: true,
+              controller: _scrollController,
+              child: Padding(
+                padding: const EdgeInsets.all(BeamSizes.size16),
+                child: AnimatedBuilder(
+                  animation: widget.playgroundController.resultFilterController,
+                  builder: (context, child) {
+                    return CodeTheme(
+                      data: ext.codeTheme,
+                      child: CodeField(
+                        readOnly: true,
+                        controller: _codeController,
+                        gutterStyle: GutterStyle.none,
+                        textStyle: ext.codeRootStyle,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

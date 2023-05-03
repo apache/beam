@@ -32,7 +32,7 @@ import 'expect.dart';
 extension WidgetTesterExtension on WidgetTester {
   //workaround for https://github.com/flutter/flutter/issues/120060
   Future<void> enterCodeFieldText(String text) async {
-    final codeField = widget(find.codeField());
+    final codeField = widget(find.snippetCodeField());
     (codeField as CodeField).controller.fullText = text;
     codeField.focusNode?.requestFocus();
   }
@@ -48,7 +48,7 @@ extension WidgetTesterExtension on WidgetTester {
   }
 
   CodeController findOneCodeController() {
-    final codeField = find.codeField();
+    final codeField = find.snippetCodeField();
     expect(codeField, findsOneWidget);
 
     return widget<CodeField>(codeField).controller;
@@ -66,14 +66,12 @@ extension WidgetTesterExtension on WidgetTester {
   }
 
   String? findOutputText() {
-    final selectableText = find.outputSelectableText();
-    expect(selectableText, findsOneWidget);
-
-    return widget<SelectableText>(selectableText).data;
+    final codeField = widget(find.outputCodeField());
+    return (codeField as CodeField).controller.text;
   }
 
   PlaygroundController findPlaygroundController() {
-    final context = element(find.codeField());
+    final context = element(find.snippetCodeField());
     return context.read<PlaygroundController>();
   }
 

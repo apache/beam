@@ -35,45 +35,39 @@ The guide will walk through all steps.
 
 # Table of Contents
 
-- [How to Add an Example/Snippet/Learning Content into Apache Beam Playground](#how-to-add-an-examplesnippetlearning-content-into-apache-beam-playground)
-- [Table of Contents](#table-of-contents)
-  - [Step 1. Prepare a code snippet](#step-1-prepare-a-code-snippet)
-    - [Data access limitations](#data-access-limitations)
-    - [Emphasizing parts of code](#emphasizing-parts-of-code)
-    - [Named Sections](#named-sections)
-  - [Step 2. Add the code snippet to the Apache Beam repo and/or Playground](#step-2-add-the-code-snippet-to-the-apache-beam-repo-andor-playground)
-    - [Source 1. How to add an example to Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog)
-      - [1. Add the file with example to a directory](#1-add-the-file-with-example-to-a-directory)
-      - [2. Add metadata to describe the example](#2-add-metadata-to-describe-the-example)
-        - [Categories](#categories)
-        - [Default examples](#default-examples)
-        - [Kafka emulator](#kafka-emulator)
-      - [3. Make a PR](#3-make-a-pr)
-      - [4. Save the snippet ID](#4-save-the-snippet-id)
-    - [Source 2. How to add an unlisted example to Playground](#source-2-how-to-add-an-unlisted-example-to-playground)
-    - [Source 3. How to add a Tour of Beam unit](#source-3-how-to-add-a-tour-of-beam-unit)
-      - [Adding a snippet](#adding-a-snippet)
-    - [Source 4. How to add a snippet with the app alone](#source-4-how-to-add-a-snippet-with-the-app-alone)
-    - [Source 5. How to load code from GitHub or other HTTPS URL](#source-5-how-to-load-code-from-github-or-other-https-url)
-      - [Cross-Origin Resource Sharing](#cross-origin-resource-sharing)
-  - [Step 3. Create a link or embed the snippet](#step-3-create-a-link-or-embed-the-snippet)
-    - [Link to a snippet](#link-to-a-snippet)
-      - [Link to an example from the Playground Examples Catalog](#link-to-an-example-from-the-playground-examples-catalog)
-      - [Link to an unlisted example](#link-to-an-unlisted-example)
-      - [Link to a snippet from a Tour of Beam unit](#link-to-a-snippet-from-a-tour-of-beam-unit)
-      - [Link to a user-shared snippet](#link-to-a-user-shared-snippet)
-      - [Link to a GitHub or other HTTPS URL snippet](#link-to-a-github-or-other-https-url-snippet)
-      - [Link to an empty editor](#link-to-an-empty-editor)
-    - [Link to multiple snippets](#link-to-multiple-snippets)
-    - [Embedding a snippet into HTML](#embedding-a-snippet-into-html)
-      - [Embedding a snippet from Playground Examples Catalog](#embedding-a-snippet-from-playground-examples-catalog)
-      - [Embedding a user-shared snippet](#embedding-a-user-shared-snippet)
-      - [Embedding a snippet from other sources](#embedding-a-snippet-from-other-sources)
-    - [Embedding a snippet into the Apache Beam website](#embedding-a-snippet-into-the-apache-beam-website)
-  - [Snippet view options](#snippet-view-options)
-    - [Read-only sections](#read-only-sections)
-    - [Folding everything except named sections](#folding-everything-except-named-sections)
-    - [Hiding everything except a named section](#hiding-everything-except-a-named-section)
+- [Step 1. Prepare a code snippet](#step-1-prepare-a-code-snippet)
+  * [Code snippet data sources and dependencies](#code-snippet-data-sources-and-dependencies)
+  * [Emphasizing parts of code](#emphasizing-parts-of-code)
+  * [Named Sections](#named-sections)
+- [Step 2. Add the code snippet to the Apache Beam repo and/or Playground](#step-2-add-the-code-snippet-to-the-apache-beam-repo-andor-playground)
+  * [Source 1. How to add an example to Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog)
+    + [1. Add the file with example to a directory](#1-add-the-file-with-example-to-a-directory)
+    + [2. Add metadata to describe example](#2-add-metadata-to-describe-the-example)
+      - [Kafka emulator](#kafka-emulator)
+    + [3. Submit a PR](#3-submit-a-pr)
+    + [4. Save the snippet ID](#4-save-the-snippet-id)
+  * [Source 2. How to add an unlisted example to Playground](#source-2-how-to-add-an-unlisted-example-to-playground)
+  * [Source 3. How to add a Tour of Beam unit](#source-3-how-to-add-a-tour-of-beam-unit)
+  * [Source 4. How to add a snippet with the app alone](#source-4-how-to-add-a-snippet-with-the-app-alone)
+  * [Source 5. How to load code from GitHub or other HTTPS URL](#source-5-how-to-load-code-from-github-or-other-https-url)
+- [Step 3. Create a link or embed the snippet](#step-3-create-a-link-or-embed-the-snippet)
+  * [Link to a snippet](#link-to-a-snippet)
+    + [Link to an example from the Playground Examples Catalog](#link-to-an-example-from-the-playground-examples-catalog)
+    + [Link to an unlisted example](#link-to-an-unlisted-example)
+    + [Link to a snippet from a Tour of Beam unit](#link-to-a-snippet-from-a-tour-of-beam-unit)
+    + [Link to a user-shared snippet](#link-to-a-user-shared-snippet)
+    + [Link to a GitHub or HTTPS URL snippet](#link-to-a-github-or-other-https-url-snippet)
+    + [Link to an empty editor](#link-to-an-empty-editor)
+  * [Link to multiple snippets](#link-to-multiple-snippets)
+  * [Embedding a snippet into HTML](#embedding-a-snippet-into-html)
+    + [Embedding a snippet from Playground Examples Catalog](#embedding-a-snippet-from-playground-examples-catalog)
+    + [Embedding a user-shared snippet](#embedding-a-user-shared-snippet)
+    + [Embedding a snippet from other sources](#embedding-a-snippet-from-other-sources)
+  * [Embedding a snippet into the Apache Beam website](#embedding-a-snippet-into-the-apache-beam-website)
+- [Snippet view options](#snippet-view-options)
+  * [Read-only sections](#read-only-sections)
+  * [Folding everything except named sections](#folding-everything-except-named-sections)
+  * [Hiding everything except a named section](#hiding-everything-except-a-named-section)
 
 
 ## Step 1. Prepare a code snippet
@@ -81,17 +75,17 @@ The guide will walk through all steps.
 Playground runs example code snippets using Apache Beam Direct Runner
 and requires that a code snippet is a complete runnable code.
 
-### Data access limitations
+### Code snippet data sources and dependencies
 
-For security reasons, the snippets in Playground cannot access arbitrary internet resources.
-Depending on your data source you should do the following to access data:
+Code snippets can use data sources to demonstrate transforms and concepts. Playground restricts code access to Internet for security reasons. Following are recommend ways for code snippet's data sources and dependecies:
 
-| Source   | Notes                                                     |
+| Source/Dependency   | Notes                                                     |
 |----------|-----------------------------------------------------------|
-| File     | Put to a GCS bucket in `apache-beam-testing` project.     |
-| Python package | Add required packages to either [Python SDK container](https://github.com/apache/beam/tree/master/sdks/python/container) or [Playground container](https://github.com/apache/beam/tree/master/playground/backend/containers/python). Send a change request for live Playground environment to dev@beam.apache.org   |
-| BigQuery | Create a dataset/table in `apache-beam-testing` project. |
-| GitHub repos | Copy and access files from a GCS bucket in `apache-beam-testing` project. |
+| File     | Store code snippet's data file in a GCS bucket in `apache-beam-testing` project.     |
+| BigQuery | Create a BigQuery dataset/table in `apache-beam-testing` project. |
+| Python package | Python packages accessible by Playground are located in a [Beam Python SDK container](https://github.com/apache/beam/tree/master/sdks/python/container) and in [Playground Python container](https://github.com/apache/beam/tree/master/playground/backend/containers/python). Add required packages to [Playground Python container](https://github.com/apache/beam/tree/master/playground/backend/containers/python). Please submit pull request with changes to the container or contact [dev@beam.apache.org](mailto:dev@beam.apache.org)   |
+| GitHub repo | If your example clones or dependes on files in a GitHub repo, copy required files to a GCS bucket in `apache-beam-testing` project and use the GCS files. |
+
 
 ### Emphasizing parts of code
 
@@ -135,9 +129,9 @@ the [README of the editor](https://pub.dev/packages/flutter_code_editor) that Pl
 
 There are several types of code snippets in the Playground:
 
-1. Public Example — a code snippet displayed in the Playground Examples Catalog.
-   See [how to add a new public example here](#source-1-how-to-add-an-example-to-playground-examples-catalog).
-2. Unlisted Example — the same as a public example, but it does not show in the example dropdown
+1. Example — a code snippet displayed in the Playground Examples Catalog.
+   See [how to add a new example here](#source-1-how-to-add-an-example-to-playground-examples-catalog).
+2. Unlisted Example — the same as an example, but is not listed in the example dropdown
    and can only be accessed by direct linking. These are typically embedded on a website.
    See [how to add a new unlisted example here](#source-2-how-to-add-an-unlisted-example-to-playground).
 3. [Tour of Beam](https://github.com/apache/beam/tree/master/learning/tour-of-beam) learning unit.
@@ -235,8 +229,7 @@ For metadata reference see fields in "Tag" class [here](infrastructure/models.py
 
 The list of supported categories for an example is
 [here](https://github.com/apache/beam/blob/master/playground/categories.yaml).
-Any other category will break the example CI.
-To add a new category, submit a PR that adds it to that file.
+To add a new category, submit a PR that adds a categry to the [`categories.yaml`](https://github.com/apache/beam/blob/master/playground/categories.yaml).
 When it is merged, the new category can be used in an example.
 
 ##### Default examples
@@ -276,9 +269,9 @@ and provide `dataset` in the example's tag. You can refer to an example
 > - exact string `"kafka_server:9092"` should be present in the code snippet;
     any other variation like `"kafa_server" + ":9092"` will not work
 
-#### 3. Make a PR
+#### 3. Submit a PR
 
-Make a PR with code snippet into [the Apache Beam repository](https://github.com/apache/beam)
+Create and submit a PR with the code snippet into [the Apache Beam repository](https://github.com/apache/beam)
 following the [Contribution guide](https://beam.apache.org/contribute/).
 Verify that all pre-commit tests are passing.
 
@@ -304,7 +297,7 @@ You will need the snippet ID to embed the Playground with snippet into a website
 Not all examples must be visible in the example dropdown.
 Some examples are best in the context of Apache Beam documentation.
 To embed them into the documentation use unlisted examples.
-They work and are checked and cached the same way as public examples.
+They work and are checked and cached the same way as examples displayed in the Playground catalog.
 
 Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog) except:
 1. Use the directory `/learning/beamdoc`

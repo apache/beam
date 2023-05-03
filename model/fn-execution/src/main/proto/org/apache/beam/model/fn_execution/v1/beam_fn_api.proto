@@ -42,6 +42,7 @@ import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 import "org/apache/beam/model/pipeline/v1/endpoints.proto";
 import "org/apache/beam/model/pipeline/v1/metrics.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
@@ -1064,6 +1065,11 @@ message LogEntry {
 
   // (Optional) The name of the thread this log statement is associated with.
   string thread = 8;
+
+  // (Optional) Additional structured data to log.
+  // Keys are limited to these characters: [a-zA-Z_-]
+  // Experimental.
+  google.protobuf.Struct custom_data = 9;
 }
 
 message LogControl {}
