@@ -15,14 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-resource "google_service_account" "cloudbuild_service_account_id" {
-  account_id   = var.cloudbuild_service_account_id
-  display_name = var.cloudbuild_service_account_id
-  description  = "The service account cloud build will use to deploy Playground"
+resource "google_service_account" "pg_cloudbuild_deploy_sa" {
+  account_id   = var.pg_cloudbuild_deployer_sa_name == "" ? "playground-deploy" : var.pg_cloudbuild_deployer_sa_name
+  description  = "The service account to be used by cloud build to deploy Playground"
+}
+
+resource "google_service_account" "pg_cloudbuild_update_sa" {
+  account_id   = var.pg_cloudbuild_update_sa_name == "" ? "playground-update" : var.pg_cloudbuild_update_sa_name
+  description  = "The service account to be used by cloud build to update Playground"
+}
+
+resource "google_service_account" "pg_cloudbuild_ci_runner_sa" {
+  account_id   = var.pg_cloudbuild_ci_sa_name == "" ? "playground-ci" : var.pg_cloudbuild_ci_sa_name
+  description  = "The service account to be used by cloud build to run CI scripts and checks"
+}
+
+resource "google_service_account" "pg_cloudbuild_cd_runner_sa" {
+  account_id   = var.pg_cloudbuild_cd_sa_name == "" ? "playground-cd" : var.pg_cloudbuild_cd_sa_name
+  description  = "The service account to be used by cloud build to run CD scripts and checks"
 }
 
 // Provision IAM roles to the IaC service account required to build and provision resources
-resource "google_project_iam_member" "cloud_build_roles" {
+resource "google_project_iam_member" "playground_deployer_roles" {
   for_each = toset([
     "roles/appengine.appAdmin",
     "roles/appengine.appCreator",
@@ -32,13 +46,67 @@ resource "google_project_iam_member" "cloud_build_roles" {
     "roles/iam.serviceAccountCreator",
     "roles/container.admin",
     "roles/servicemanagement.quotaAdmin",
+    "roles/iam.roleAdmin",
     "roles/iam.securityAdmin",
     "roles/iam.serviceAccountUser",
     "roles/datastore.indexAdmin",
     "roles/storage.admin",
+    "roles/dns.admin",
     "roles/logging.logWriter"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.cloudbuild_service_account_id.email}"
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_deploy_sa.email}"
+  project = var.project_id
+}
+
+resource "google_project_iam_member" "playground_helm_updater_roles" {
+  for_each = toset([
+    "roles/artifactregistry.admin",
+    "roles/compute.admin",
+    "roles/container.admin",
+    "roles/storage.admin",
+    "roles/iam.serviceAccountUser",
+    "roles/iam.roleAdmin",
+    "roles/appengine.appAdmin",
+    "roles/datastore.indexAdmin",
+    "roles/redis.admin",
+    "roles/dns.admin",
+    "roles/logging.logWriter"
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_update_sa.email}"
+  project = var.project_id
+}
+
+resource "google_project_iam_member" "playground_ci_sa_roles" {
+  for_each = toset([
+    "roles/storage.admin",
+    "roles/secretmanager.secretAccessor"
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_ci_runner_sa.email}"
+  project = var.project_id
+}
+
+resource "google_project_iam_member" "playground_cd_sa_roles" {
+  for_each = toset([
+    "roles/storage.admin",
+    "roles/secretmanager.secretAccessor",
+    "roles/datastore.indexAdmin",
+    "roles/appengine.appAdmin"
+
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.pg_cloudbuild_cd_runner_sa.email}"
+  project = var.project_id
+}
+
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+resource "google_project_iam_member" "cloudbuild_sa_role" {
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
   project = var.project_id
 }

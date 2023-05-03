@@ -15,67 +15,239 @@
 # specific language governing permissions and limitations
 # under the License.
 
-data "google_service_account" "cloudbuild_sa" {
-  account_id = var.cloudbuild_service_account_id
-}
-
 resource "google_cloudbuild_trigger" "playground_infrastructure" {
-  name     = var.infra_trigger_name
+  name     = var.pg_infra_trigger_name
   project  = var.project_id
 
-  description = "Builds the base image and then runs cloud build config file to deploy Playground infrastructure"
+  description = "Deploy IAM accounds and roles for Playground Triggers"
 
-  github {
-    owner = var.github_repository_owner
-    name  = var.github_repository_name
-    push {
-      branch = var.github_repository_branch
+  source_to_build {
+    uri       = var.trigger_source_repo
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
+  build {
+    timeout = "7200s"
+    options {
+      machine_type = var.cloudbuild_machine_type
+      logging = "GCS_ONLY"
     }
+    logs_bucket = google_storage_bucket.playground_cloudbuild_private.url
+
+    step {
+      id = "run_gradle"
+      script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_infra.sh")
+      name = "ubuntu"
+      env = local.cloudbuild_init_environment
+        }
   }
 
   substitutions = {
+    _REPO_NAME : var.terraform_source_repo
+    _BRANCH_NAME: var.terraform_source_branch
+    _SKIP_APPENGINE_DEPLOY : var.skip_appengine_deploy
+    _GKE_MACHINE_TYPE : var.gke_machine_type
+    _ENVIRONMENT_NAME : var.playground_environment_name
+    _GKE_NAME : var.playground_gke_name
+    _IPADDRESS_NAME : var.ipaddress_name
+    _MAX_COUNT : var.max_count
+    _MIN_COUNT : var.min_count
+    _NETWORK_NAME : var.playground_network_name
     _PLAYGROUND_REGION : var.playground_region
     _PLAYGROUND_ZONE : var.playground_zone
-    _ENVIRONMENT_NAME : var.playground_environment_name
-    _DNS_NAME : var.playground_dns_name
-    _NETWORK_NAME : var.playground_network_name
-    _GKE_NAME : var.playground_gke_name
-    _STATE_BUCKET : var.state_bucket
+    _REDIS_NAME: var.redis_name
+    _REDIS_TIER: var.redis_tier
+    _DOCKER_REPO_NAME: var.docker_repository_name
+    _SERVICEACCOUNT_ID: var.playground_service_account
+    _STATE_BUCKET: var.state_bucket
+    _SUBNETWORK_NAME: var.playground_subnetwork_name
   }
 
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
-
-  service_account = data.google_service_account.cloudbuild_sa.id
+  service_account = data.google_service_account.playground_infra_deploy_sa.id
 }
 
 resource "google_cloudbuild_trigger" "playground_to_gke" {
-  name     = var.gke_trigger_name
+  name     = var.pg_gke_trigger_name
   project  = var.project_id
 
-  description = "Builds the base image and then runs cloud build config file to deploy Playground to GKE"
+  description = "Creates cloud build manual trigger to deploy and update Playground"
 
-  github {
-    owner = var.github_repository_owner
-    name  = var.github_repository_name
-    push {
-      branch = var.github_repository_branch
+  source_to_build {
+    uri       = var.trigger_source_repo
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+  build {
+    timeout = "7200s"
+    options {
+      machine_type = var.cloudbuild_machine_type
+      logging = "GCS_ONLY"
+    }
+    logs_bucket = google_storage_bucket.playground_cloudbuild_private.url
+    step {
+      id = "run_gradle"
+      script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_deploy.sh")
+      name = "ubuntu"
+      env = local.cloudbuild_deploy_environment
+        }
+  }
+  substitutions = {
+    _REPO_NAME : var.terraform_source_repo
+    _BRANCH_NAME: var.terraform_source_branch
+    _SKIP_APPENGINE_DEPLOY : var.skip_appengine_deploy
+    _DATASTORE_NAMESPACE: var.datastore_namespace
+    _DNS_NAME: var.playground_dns_name
+    _GKE_MACHINE_TYPE : var.gke_machine_type
+    _ENVIRONMENT_NAME : var.playground_environment_name
+    _GKE_NAME : var.playground_gke_name
+    _IPADDRESS_NAME : var.ipaddress_name
+    _MAX_COUNT : var.max_count
+    _MIN_COUNT : var.min_count
+    _NETWORK_NAME : var.playground_network_name
+    _PLAYGROUND_REGION : var.playground_region
+    _PLAYGROUND_ZONE : var.playground_zone
+    _REDIS_NAME: var.redis_name
+    _REDIS_TIER: var.redis_tier
+    _SDK_TAG: var.sdk_tag
+    _SERVICEACCOUNT_ID: var.playground_service_account
+    _DOCKER_REPO_NAME: var.docker_repository_name
+    _STATE_BUCKET: var.state_bucket
+    _SUBNETWORK_NAME: var.playground_subnetwork_name
+    _CONTAINER_TAG: var.image_tag
+  }
+
+  service_account = data.google_service_account.playground_infra_deploy_sa.id
+}
+
+resource "google_cloudbuild_trigger" "playground_ci" {
+  name     = var.pg_ci_trigger_name
+  project  = var.project_id
+
+  description = "Creates cloud build manual trigger for Playground CI checks"
+
+  service_account = data.google_service_account.playground_ci_sa.id
+
+  webhook_config {
+    secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
+  }
+
+  build {
+    timeout = "7200s"
+    options {
+      machine_type = var.cloudbuild_machine_type
+      logging = "GCS_ONLY"
+    }
+    logs_bucket = google_storage_bucket.playground_cloudbuild_private.url
+    step {
+      id = "Run CI"
+      script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_ci_examples.sh")
+      name = "ubuntu"
+      env = local.cloudbuild_ci_environment
+        }
+    substitutions = {
+    _PR_BRANCH="$(body.pull_request.head.ref)"
+    _PR_URL="$(body.pull_request._links.html.href)"
+    _PR_TYPE="$(body.action)"
+    _PR_COMMIT="$(body.pull_request.head.sha)"
+    _PR_NUMBER="$(body.number)"
+    _PUBLIC_LOG="CI_PR$(_PR_NUMBER)_$(_PR_COMMIT)_$${BUILD_ID}.txt"
+    _FORK_REPO="$(body.pull_request.head.repo.full_name)"
+    _BASE_REF="$(body.pull_request.base.ref)"
     }
   }
 
   substitutions = {
-    _PLAYGROUND_REGION : var.playground_region
-    _PLAYGROUND_ZONE : var.playground_zone
-    _ENVIRONMENT_NAME : var.playground_environment_name
-    _DNS_NAME : var.playground_dns_name
-    _NETWORK_NAME : var.playground_network_name
-    _GKE_NAME : var.playground_gke_name
-    _STATE_BUCKET : var.state_bucket
-    _TAG : var.image_tag
-    _DOCKER_REPOSITORY_ROOT : var.docker_repository_root
-    _SDK_TAG : var.sdk_tag
+     _DNS_NAME = var.playground_dns_name
+     _DATASTORE_NAMESPACE = var.datastore_namespace
   }
 
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
-
-  service_account = data.google_service_account.cloudbuild_sa.id
 }
+
+resource "google_cloudbuild_trigger" "playground_cd" {
+  name     = var.pg_cd_trigger_name
+  project  = var.project_id
+
+  description = "Creates cloud build webhook trigger for Playground CD checks"
+
+  service_account = data.google_service_account.playground_cd_sa.id
+
+  webhook_config {
+    secret = google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
+  }
+
+  build {
+    timeout = "7200s"
+    options {
+      machine_type = var.cloudbuild_machine_type
+      logging = "GCS_ONLY"
+    }
+    logs_bucket = google_storage_bucket.playground_cloudbuild_private.url
+    step {
+      id = "Run CD"
+      script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
+      name = "ubuntu"
+      env = local.cloudbuild_cd_environment
+        }
+    substitutions = {
+      _PR_URL = "$(body.pull_request._links.html.href)"
+      _TARGET_PR_REPO_BRANCH = "$(body.pull_request.base.label)"
+      _PR_TYPE = "$(body.action)"
+      _MERGE_STATUS="$(body.pull_request.merged)"
+      _MERGE_COMMIT="$(body.pull_request.merge_commit_sha)"
+
+    }
+  }
+
+  substitutions = {
+     _DNS_NAME = var.playground_dns_name
+     _DATASTORE_NAMESPACE = var.datastore_namespace
+     _ORIGIN = "PG_EXAMPLES"
+     _SDKS = "java python go"
+     _SUBDIRS = "./learning/katas ./examples ./sdks"
+     _BEAM_CONCURRENCY: "4"
+  }
+
+}
+
+resource "google_cloudbuild_trigger" "playground_cd_manual" {
+  name     = "${var.pg_cd_trigger_name}-manual"
+  project  = var.project_id
+
+  description = "Creates cloud build manual trigger for Playground CD checks"
+
+  service_account = data.google_service_account.playground_cd_sa.id
+
+ source_to_build {
+    uri       = var.trigger_source_repo
+    ref       = "refs/heads/master"
+    repo_type = "GITHUB"
+  }
+
+  build {
+    timeout = "7200s"
+    options {
+      machine_type = var.cloudbuild_machine_type
+      logging = "GCS_ONLY"
+    }
+    logs_bucket = google_storage_bucket.playground_cloudbuild_private.url
+    step {
+      id = "Run CI"
+      script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
+      name = "ubuntu"
+      env = local.cloudbuild_cd_environment_manual
+        }
+  }
+
+  substitutions = {
+     _DNS_NAME = var.playground_dns_name
+     _DATASTORE_NAMESPACE = var.datastore_namespace
+     _MERGE_COMMIT = "MANUAL"
+     _ORIGIN = "PG_EXAMPLES"
+     _SDKS = "java python go"
+     _SUBDIRS = "./learning/katas ./examples ./sdks"
+     _BEAM_CONCURRENCY: "4"
+  }
+
+}
+

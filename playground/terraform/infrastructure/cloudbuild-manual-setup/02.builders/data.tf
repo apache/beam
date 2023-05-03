@@ -15,14 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-terraform {
-  backend "gcs" {
-    prefix = "01.setup"
-  }
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 4.4.0"
-    }
-  }
+data "google_service_account" "playground_infra_deploy_sa" {
+  account_id = var.playground_deploy_sa
+}
+
+data "google_service_account" "playground_update_sa" {
+  account_id = var.playground_update_sa
+}
+
+data "google_service_account" "playground_ci_sa" {
+  account_id = var.playground_ci_sa
+}
+
+data "google_service_account" "playground_cd_sa" {
+  account_id = var.playground_cd_sa
 }
