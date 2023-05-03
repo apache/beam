@@ -143,6 +143,14 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 else:
   pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
 
+# Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
+# Exclude 1.5.0 and 1.5.1 because of
+# https://github.com/pandas-dev/pandas/issues/45725
+dataframe_dependency = [
+    'pandas<1.6.0;python_version=="3.7"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
+]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -248,7 +256,7 @@ if __name__ == '__main__':
         # does not exceed the minor version at runtime.
         # To avoid depending on an old dependency, update the minor version on
         # every Beam release, see: https://github.com/apache/beam/issues/25590
-        'protobuf>=4.21.1,<4.23.0',
+        'protobuf>=3.20.3,<4.23.0',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
@@ -276,7 +284,7 @@ if __name__ == '__main__':
             'mock>=1.0.1,<6.0.0',
             'pandas<2.0.0',
             'parameterized>=0.7.1,<0.10.0',
-            'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
+            'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
             'tenacity>=8.0.0,<9',
@@ -324,16 +332,16 @@ if __name__ == '__main__':
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,!=6.1.13,<8.1.1',
+            'jupyter-client>=6.1.11,!=6.1.13,<8.2.1',
             'timeloop>=1.0.2,<2',
-          ],
+          ] + dataframe_dependency,
           'interactive_test': [
             # notebok utils
             'nbformat>=5.0.5,<6',
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<113',
+            'chromedriver-binary>=100,<114',
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<10',
           ],
@@ -343,13 +351,7 @@ if __name__ == '__main__':
             'azure-core>=1.7.0,<2',
             'azure-identity>=1.12.0,<2',
           ],
-        # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
-        # Exclude 1.5.0 and 1.5.1 because of
-        # https://github.com/pandas-dev/pandas/issues/45725
-          'dataframe': [
-            'pandas<1.6.0;python_version=="3.7"',
-            'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
-          ],
+          'dataframe': dataframe_dependency,
           'dask': [
             'dask >= 2022.6',
             'distributed >= 2022.6',

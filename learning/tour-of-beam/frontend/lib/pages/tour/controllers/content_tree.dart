@@ -21,14 +21,15 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../cache/content_tree.dart';
-import '../../../models/group.dart';
+
 import '../../../models/node.dart';
+import '../../../models/parent_node.dart';
 import '../../../models/unit.dart';
+import '../../../state.dart';
 
 class ContentTreeController extends ChangeNotifier {
-  String _sdkId;
+  final Sdk initialSdk;
   List<String> _treeIds;
-  // TODO(nausharipov): non-nullable currentNode?
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
   final _expandedIds = <String>{};
@@ -36,53 +37,58 @@ class ContentTreeController extends ChangeNotifier {
   Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
-    required String initialSdkId,
+    required this.initialSdk,
     List<String> initialTreeIds = const [],
-  })  : _sdkId = initialSdkId,
-        _treeIds = initialTreeIds {
+  }) : _treeIds = initialTreeIds {
     _expandedIds.addAll(initialTreeIds);
 
     _contentTreeCache.addListener(_onContentTreeCacheChange);
     _onContentTreeCacheChange();
   }
 
-  Sdk get sdk => Sdk.parseOrCreate(_sdkId);
-  String get sdkId => _sdkId;
-  set sdkId(String newValue) {
-    _sdkId = newValue;
-    notifyListeners();
-  }
-
+  Sdk get sdk => GetIt.instance.get<AppNotifier>().sdk ?? initialSdk;
   List<String> get treeIds => _treeIds;
   NodeModel? get currentNode => _currentNode;
 
-  void openNode(NodeModel node) {
-    if (!_expandedIds.contains(node.id)) {
-      _expandedIds.add(node.id);
-    }
+  void onNodePressed(NodeModel node) {
+    _toggleNode(node);
+    notifyListeners();
+  }
 
-    if (node == _currentNode) {
-      return;
-    }
-
-    if (node is GroupModel) {
-      openNode(node.nodes.first);
+  void _toggleNode(NodeModel node) {
+    if (node is ParentNodeModel) {
+      _onParentNodePressed(node);
     } else if (node is UnitModel) {
-      _currentNode = node;
+      if (node != _currentNode) {
+        _currentNode = node;
+      }
     }
 
     if (_currentNode != null) {
       _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
     }
-    notifyListeners();
   }
 
-  void expandGroup(GroupModel group) {
+  void _onParentNodePressed(ParentNodeModel node) {
+    if (_expandedIds.contains(node.id)) {
+      _expandedIds.remove(node.id);
+      notifyListeners();
+    } else {
+      _expandedIds.add(node.id);
+
+      final firstChildNode = node.nodes.first;
+      if (firstChildNode != _currentNode) {
+        _toggleNode(firstChildNode);
+      }
+    }
+  }
+
+  void expandParentNode(ParentNodeModel group) {
     _expandedIds.add(group.id);
     notifyListeners();
   }
 
-  void collapseGroup(GroupModel group) {
+  void collapseParentNode(ParentNodeModel group) {
     _expandedIds.remove(group.id);
     notifyListeners();
   }
@@ -98,13 +104,13 @@ class ContentTreeController extends ChangeNotifier {
   }
 
   void _onContentTreeCacheChange() {
-    final contentTree = _contentTreeCache.getContentTree(_sdkId);
+    final contentTree = _contentTreeCache.getContentTree(sdk);
     if (contentTree == null) {
       return;
     }
 
-    openNode(
-      contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit(),
+    _toggleNode(
+      contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.modules.first,
     );
 
     notifyListeners();

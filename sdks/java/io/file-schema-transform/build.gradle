@@ -46,6 +46,10 @@ dependencies {
     implementation project(path: ":sdks:java:io:parquet")
     implementation "org.apache.parquet:parquet-common:$parquet_version"
     implementation project(path: ":sdks:java:io:xml")
+    implementation library.java.slf4j_api
+    // everit_json_schema is needed for JsonReadSchemaTransform that relies on JSON-schema translation.
+    permitUnusedDeclared library.java.everit_json_schema
+    provided library.java.everit_json_schema
 
     testImplementation library.java.junit
     testImplementation project(path: ":sdks:java:core", configuration: "shadow")

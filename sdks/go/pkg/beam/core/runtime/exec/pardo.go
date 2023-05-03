@@ -48,8 +48,11 @@ type ParDo struct {
 	bf       *bundleFinalizer
 	we       sdf.WatermarkEstimator
 
-	reader StateReader
-	cache  *cacheElm
+	onTimerInvoker *invoker
+	Timer          UserTimerAdapter
+	timerManager   DataManager
+	reader         StateReader
+	cache          *cacheElm
 
 	status Status
 	err    errorx.GuardedError
@@ -74,6 +77,11 @@ func (n *ParDo) ID() UnitID {
 	return n.UID
 }
 
+// HasOnTimer returns if this ParDo wraps a DoFn that has an OnTimer method.
+func (n *ParDo) HasOnTimer() bool {
+	return n.Timer != nil
+}
+
 // Up initializes this ParDo and does one-time DoFn setup.
 func (n *ParDo) Up(ctx context.Context) error {
 	if n.status != Initializing {
@@ -81,6 +89,9 @@ func (n *ParDo) Up(ctx context.Context) error {
 	}
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
+	if fn, ok := n.Fn.OnTimerFn(); ok {
+		n.onTimerInvoker = newInvoker(fn)
+	}
 
 	n.states = metrics.NewPTransformState(n.PID)
 
@@ -88,7 +99,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
-	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil, nil, nil, nil); err != nil {
+	if _, err := InvokeWithOptsWithoutEventTime(setupCtx, n.Fn.SetupFn(), InvokeOpts{}); err != nil {
 		return n.fail(err)
 	}
 
@@ -111,6 +122,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	}
 	n.status = Active
 	n.reader = data.State
+	n.timerManager = data.Data
 	// Allocating contexts all the time is expensive, but we seldom re-write them,
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.
@@ -228,6 +240,9 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	}
 	n.status = Up
 	n.inv.Reset()
+	if n.onTimerInvoker != nil {
+		n.onTimerInvoker.Reset()
+	}
 
 	n.states.Set(n.ctx, metrics.FinishBundle)
 
@@ -236,6 +251,7 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	}
 	n.reader = nil
 	n.cache = nil
+	n.timerManager = nil
 
 	if err := MultiFinishBundle(n.ctx, n.Out...); err != nil {
 		return n.fail(err)
@@ -251,8 +267,9 @@ func (n *ParDo) Down(ctx context.Context) error {
 	n.status = Down
 	n.reader = nil
 	n.cache = nil
+	n.timerManager = nil
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil, nil, nil); err != nil {
+	if _, err := InvokeWithOptsWithoutEventTime(ctx, n.Fn.TeardownFn(), InvokeOpts{}); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -345,6 +362,49 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	return val, nil
 }
 
+func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, bcr *byteCountReader) (*FullValue, error) {
+	timerAdapter, ok := n.Timer.(*userTimerAdapter)
+	if !ok {
+		return nil, fmt.Errorf("userTimerAdapter empty for ParDo: %v", n.GetPID())
+	}
+	tmap, err := decodeTimer(timerAdapter.dc, timerAdapter.wc, bcr)
+	if err != nil {
+		return nil, errors.WithContext(err, "error decoding received timer callback")
+	}
+
+	// Defer side input clean-up in case of panic
+	defer func() {
+		if postErr := n.postInvoke(); postErr != nil {
+			err = postErr
+		}
+	}()
+	if err := n.preInvoke(ctx, tmap.Windows, tmap.HoldTimestamp); err != nil {
+		return nil, err
+	}
+
+	var extra []any
+	extra = append(extra, timerFamilyID)
+
+	if tmap.Tag != "" {
+		extra = append(extra, tmap.Tag)
+	}
+	extra = append(extra, n.cache.extra...)
+	val, err := n.onTimerInvoker.invokeWithOpts(ctx, tmap.Pane, tmap.Windows, tmap.HoldTimestamp, InvokeOpts{
+		opt:   &MainInput{Key: *tmap.Key},
+		bf:    n.bf,
+		we:    n.we,
+		sa:    n.UState,
+		sr:    n.reader,
+		ta:    n.Timer,
+		tm:    n.timerManager,
+		extra: extra,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return val, err
+}
+
 // invokeProcessFn handles the per element invocations
 func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput) (val *FullValue, err error) {
 	// Defer side input clean-up in case of panic
@@ -356,7 +416,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.we, n.UState, n.reader, n.cache.extra...)
+	val, err = n.inv.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: n.bf, we: n.we, sa: n.UState, sr: n.reader, ta: n.Timer, tm: n.timerManager, extra: n.cache.extra})
 	if err != nil {
 		return nil, err
 	}

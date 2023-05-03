@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -167,6 +168,8 @@ const (
 	initialWatermarkEstimatorStateName = "InitialWatermarkEstimatorState"
 	watermarkEstimatorStateName        = "WatermarkEstimatorState"
 
+	onTimerName = "OnTimer"
+
 	createAccumulatorName = "CreateAccumulator"
 	addInputName          = "AddInput"
 	mergeAccumulatorsName = "MergeAccumulators"
@@ -182,6 +185,7 @@ var doFnNames = []string{
 	processElementName,
 	finishBundleName,
 	teardownName,
+	onTimerName,
 	createInitialRestrictionName,
 	splitRestrictionName,
 	restrictionSizeName,
@@ -302,6 +306,35 @@ func (f *DoFn) PipelineState() []state.PipelineState {
 	}
 
 	return s
+}
+
+// OnTimerFn return the "OnTimer" function and a bool indicating whether the
+// function is defined or not for the DoFn.
+func (f *DoFn) OnTimerFn() (*funcx.Fn, bool) {
+	m, ok := f.methods[onTimerName]
+	return m, ok
+}
+
+// PipelineTimers returns the list of PipelineTimer objects defined for the DoFn.
+func (f *DoFn) PipelineTimers() ([]timers.PipelineTimer, []string) {
+	var t []timers.PipelineTimer
+	var fieldNames []string
+
+	if f.Recv == nil {
+		return t, fieldNames
+	}
+
+	v := reflect.Indirect(reflect.ValueOf(f.Recv))
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if f.CanInterface() {
+			if pt, ok := f.Interface().(timers.PipelineTimer); ok {
+				t = append(t, pt)
+				fieldNames = append(fieldNames, v.Type().Field(i).Name)
+			}
+		}
+	}
+	return t, fieldNames
 }
 
 // SplittableDoFn represents a DoFn implementing SDF methods.
@@ -603,6 +636,11 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 	doFn := (*DoFn)(fn)
 
 	err = validateState(doFn, numMainIn)
+	if err != nil {
+		return nil, addContext(err, fn)
+	}
+
+	err = validateTimer(doFn, numMainIn)
 	if err != nil {
 		return nil, addContext(err, fn)
 	}
@@ -1344,6 +1382,78 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 			return errors.SetTopLevelMsgf(err, "ProcessElement doesn't use a StateProvider, but State structs are "+
 				"attached to the DoFn: %v\nEnsure that you are using the StateProvider to perform any reads or writes"+
 				"of pipeline state.", ps)
+		}
+	}
+
+	return nil
+}
+
+func validateOnTimerFn(fn *DoFn) error {
+	if _, ok := fn.methods[onTimerName]; !ok {
+		err := errors.Errorf("OnTimer function not defined for DoFn: %v", fn.Name())
+		return errors.SetTopLevelMsgf(err, "OnTimer function not defined for DoFn: %v. Ensure that OnTimer function is implemented for the DoFn.", fn.Name())
+	}
+
+	pipelineTimers, _ := fn.PipelineTimers()
+
+	if _, ok := fn.methods[onTimerName].TimerProvider(); !ok {
+		err := errors.Errorf("OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v", fn.Name(), pipelineTimers)
+		return errors.SetTopLevelMsgf(err, "OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v"+
+			", Ensure that you are using the TimerProvider to set and clear the timers.", fn.Name(), pipelineTimers)
+	}
+
+	_, otNum, otExists := fn.methods[onTimerName].Emits()
+	_, peNum, peExists := fn.methods[processElementName].Emits()
+
+	if otExists == peExists {
+		if otNum != peNum {
+			return fmt.Errorf("OnTimer and ProcessElement functions for DoFn should have exactly same emitters, no. of emitters used in OnTimer: %v, no. of emitters used in ProcessElement: %v", otNum, peNum)
+		}
+	} else {
+		return fmt.Errorf("OnTimer and ProcessElement functions for DoFn should have exactly same emitters, emitters used in OnTimer: %v, emitters used in ProcessElement: %v", otExists, peExists)
+	}
+
+	return nil
+}
+
+func validateTimer(fn *DoFn, numIn mainInputs) error {
+	pt, fieldNames := fn.PipelineTimers()
+
+	if _, ok := fn.methods[processElementName].TimerProvider(); ok {
+		if numIn == MainSingle {
+			err := errors.Errorf("ProcessElement uses a TimerProvider, but is not keyed")
+			return errors.SetTopLevelMsgf(err, "ProcessElement uses a TimerProvider, but is not keyed. "+
+				"All stateful DoFns must take a key/value pair as an input.")
+		}
+		if len(pt) == 0 {
+			err := errors.New("ProcessElement uses a TimerProvider, but no Timer fields are defined in the DoFn")
+			return errors.SetTopLevelMsgf(err, "ProcessElement uses a TimerProvider, but no timer fields are defined in the DoFn"+
+				", Ensure that your DoFn exports the Timer fields used to set and clear timers.")
+		}
+		timerKeys := make(map[string]string)
+		for i, t := range pt {
+			for timerFamilyID := range t.Timers() {
+				if timer, ok := timerKeys[timerFamilyID]; ok {
+					err := errors.Errorf("Duplicate timer key %v", timerFamilyID)
+					return errors.SetTopLevelMsgf(err, "Duplicate timer family ID %v used by struct fields %v and %v. Ensure that timer family IDs are unique per DoFn", timerFamilyID, timer, fieldNames[i])
+				} else {
+					timerKeys[timerFamilyID] = fieldNames[i]
+				}
+			}
+		}
+		if err := validateOnTimerFn(fn); err != nil {
+			return err
+		}
+	} else {
+		if len(pt) > 0 {
+			err := errors.Errorf("ProcessElement doesn't use a TimerProvider, but Timer field is attached to the DoFn: %v", pt)
+			return errors.SetTopLevelMsgf(err, "ProcessElement doesn't use a TimerProvider, but Timer field is attached to the DoFn: %v"+
+				", Ensure that you are using the TimerProvider to set and clear the timers.", pt)
+		}
+		if err := validateOnTimerFn(fn); err == nil {
+			actualErr := errors.New("OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement.")
+			return errors.SetTopLevelMsgf(actualErr, "OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement."+
+				"Ensure that timers.Provider is defined in the ProcessElement and OnTimer methods of DoFn.")
 		}
 	}
 

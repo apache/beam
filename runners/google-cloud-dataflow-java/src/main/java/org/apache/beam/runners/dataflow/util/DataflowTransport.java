@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.extensions.gcp.util.Transport.getJsonFactory;
 import static org.apache.beam.sdk.extensions.gcp.util.Transport.getTransport;
 
 import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.services.clouddebugger.v2.CloudDebugger;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
@@ -81,16 +80,6 @@ public class DataflowTransport {
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)
         .setServicePath(components.servicePath)
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  public static CloudDebugger.Builder newClouddebuggerClient(DataflowPipelineOptions options) {
-    return new CloudDebugger.Builder(
-            getTransport(),
-            getJsonFactory(),
-            chainHttpRequestInitializer(
-                options.getGcpCredential(), new RetryHttpRequestInitializer()))
-        .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 

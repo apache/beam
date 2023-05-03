@@ -239,7 +239,7 @@ Future<void> _testUserSharedExampleLoader(WidgetTester wt) async {
   final snippetId = await exampleCache.saveSnippet(
     files: [SnippetFile(content: content, isMain: false, name: 'name')],
     sdk: Sdk.go,
-    pipelineOptions: 'a=b',
+    pipelineOptions: '--name=value',
   );
 
   print('Created user-shared example ID: $snippetId');

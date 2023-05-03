@@ -60,7 +60,7 @@ public class MyClass {
 }
 ''';
 
-    await wt.enterText(find.codeField(), code);
+    await wt.enterText(find.snippetCodeField(), code);
     await wt.pumpAndSettle();
 
     await wt.tapAndSettle(find.runOrCancelButton());
@@ -103,7 +103,7 @@ public class MyClass {
     const text = 'OK';
     const code = 'print("$text", end="")';
 
-    await wt.enterText(find.codeField(), code);
+    await wt.enterText(find.snippetCodeField(), code);
     await wt.pumpAndSettle();
 
     await wt.tapAndSettle(find.runOrCancelButton());

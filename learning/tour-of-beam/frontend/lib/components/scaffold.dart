@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../pages/tour/widgets/pipeline_options.dart';
 import '../state.dart';
 import 'footer.dart';
 import 'login/button.dart';
@@ -33,7 +34,6 @@ class TobScaffold extends StatelessWidget {
   final PlaygroundController? playgroundController;
 
   const TobScaffold({
-    super.key,
     required this.child,
     this.playgroundController,
   });
@@ -44,13 +44,18 @@ class TobScaffold extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Logo(),
-        actions: const [
-          _ActionVerticalPadding(child: _SdkSelector()),
-          SizedBox(width: BeamSizes.size12),
-          _ActionVerticalPadding(child: ToggleThemeButton()),
-          SizedBox(width: BeamSizes.size6),
-          _ActionVerticalPadding(child: _Profile()),
-          SizedBox(width: BeamSizes.size16),
+        actions: [
+          if (playgroundController != null)
+            _PlaygroundControllerActions(
+              playgroundController: playgroundController!,
+            ),
+          const SizedBox(width: BeamSizes.size12),
+          const _ActionVerticalPadding(child: _SdkSelector()),
+          const SizedBox(width: BeamSizes.size12),
+          const _ActionVerticalPadding(child: ToggleThemeButton()),
+          const SizedBox(width: BeamSizes.size6),
+          const _ActionVerticalPadding(child: _Profile()),
+          const SizedBox(width: BeamSizes.size16),
         ],
       ),
       body: Column(
@@ -103,15 +108,50 @@ class _SdkSelector extends StatelessWidget {
     return AnimatedBuilder(
       animation: appNotifier,
       builder: (context, child) {
-        final sdkId = appNotifier.sdkId;
-        return sdkId == null
+        final sdk = appNotifier.sdk;
+        return sdk == null
             ? Container()
             : SdkDropdown(
-                sdkId: sdkId,
+                value: sdk,
                 onChanged: (value) {
-                  appNotifier.sdkId = value;
+                  appNotifier.sdk = value;
                 },
               );
+      },
+    );
+  }
+}
+
+class _PlaygroundControllerActions extends StatelessWidget {
+  final PlaygroundController playgroundController;
+
+  const _PlaygroundControllerActions({
+    required this.playgroundController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: playgroundController,
+      builder: (context, child) {
+        final widgets = <Widget>[];
+        widgets.add(
+          _ActionVerticalPadding(
+            child: TobPipelineOptionsDropdown(
+              playgroundController: playgroundController,
+            ),
+          ),
+        );
+        return Row(
+          children: widgets
+              .map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(left: BeamSizes.size12),
+                  child: e,
+                ),
+              )
+              .toList(growable: false),
+        );
       },
     );
   }

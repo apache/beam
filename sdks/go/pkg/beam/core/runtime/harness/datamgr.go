@@ -690,8 +690,6 @@ func (w *timerWriter) writeTimers(p []byte) error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 
-	log.Infof(context.TODO(), "DEBUGLOG: timer write for %+v: %v", w.id, p)
-
 	msg := &fnpb.Elements{
 		Timers: []*fnpb.Elements_Timers{
 			{
