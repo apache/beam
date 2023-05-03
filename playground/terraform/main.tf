@@ -39,7 +39,7 @@ module "infrastructure" {
   redis_memory_size_gb          = var.redis_memory_size_gb
   #NETWORK
   network_name                  = var.network_name
-  ip-address-name               = var.ip-address-name
+  ip_address_name               = var.ip_address_name
   subnetwork_name               = var.subnetwork_name
   #GKE
   gke_machine_type              = var.gke_machine_type
