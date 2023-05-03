@@ -2491,10 +2491,12 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn config.startJobServer
         doLast {
           def beamPythonTestPipelineOptions = [
-                  "pipeline_opts": config.pythonPipelineOptions + usesDataflowRunner ? ["--sdk_location=${project.ext.sdkLocation}"] : [],
-                  "test_opts": config.pytestOptions,
-                  "suite": config.name,
-                  "collect": config.collectMarker,
+            "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
+              "--sdk_location=${project.ext.sdkLocation}"]
+            : []),
+            "test_opts": config.pytestOptions,
+            "suite": config.name,
+            "collect": config.collectMarker,
           ]
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
