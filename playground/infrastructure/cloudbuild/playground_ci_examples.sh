@@ -101,7 +101,7 @@ python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
 apt install python3.8-venv > /dev/null
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
-pip install -r playground/infrastructure/requirements.txt
+pip install -r $BEAM_ROOT_DIR/playground/infrastructure/requirements.txt
 
 LogOutput "Installing JDK and Gradle"
 apt-get install openjdk-8-jdk -y > /dev/null
