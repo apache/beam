@@ -104,7 +104,7 @@ module "gke" {
 module "ip_address" {
   source          = "./ip_address"
   depends_on      = [module.setup, module.api_enable]
-  ip-address-name = var.ip-address-name
+  ip_address_name = var.ip_address_name
 }
 
 module "appengine" {
