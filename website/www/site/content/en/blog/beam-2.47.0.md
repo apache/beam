@@ -64,7 +64,7 @@ For more information on changes in 2.47.0, check out the [detailed release notes
 
 ## Known Issues
 
-* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.47.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26515
+* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.47.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26521
 
 ## List of Contributors
 
