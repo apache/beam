@@ -101,12 +101,16 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   SnippetType _snippetType = SnippetType.original;
   SnippetType get snippetType => _snippetType;
 
+  bool _isLoadingSnippet = false;
+
   SaveCodeStatus _saveCodeStatus = SaveCodeStatus.saved;
   SaveCodeStatus get saveCodeStatus => _saveCodeStatus;
   set saveCodeStatus(SaveCodeStatus saveCodeStatus) {
     _saveCodeStatus = saveCodeStatus;
     notifyListeners();
   }
+  bool get isUnitContainsSnippet => currentUnitContent?.taskSnippetId != null;
+  bool get isSnippetLoading => _isLoadingSnippet;
 
   Future<void> _onAuthChanged() async {
     await _unitProgressCache.loadUnitProgress(currentSdk);
@@ -133,10 +137,14 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (currentNode is! UnitModel) {
       await _emptyPlayground();
     } else {
+      _setUnitContent(null);
+      notifyListeners();
+
       final content = await _unitContentCache.getUnitContent(
         currentSdk.id,
         currentNode.id,
       );
+
       _setUnitContent(content);
       await _unitProgressCache.loadUnitProgress(currentSdk);
       _trySetSnippetType(SnippetType.saved);
@@ -146,7 +154,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   void _setUnitContent(UnitContentModel? unitContent) {
-    if (unitContent == null || unitContent == _currentUnitContent) {
+    if (unitContent == _currentUnitContent) {
       return;
     }
 
@@ -156,7 +164,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
     _currentUnitContent = unitContent;
 
-    _trackUnitOpened(unitContent.id);
+    if (_currentUnitContent != null) {
+      _trackUnitOpened(_currentUnitContent!.id);
+    }
   }
 
   void _trackUnitClosed() {
@@ -285,13 +295,22 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         );
         break;
     }
-    await playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          descriptor,
-        ],
-      ),
-    );
+
+    try {
+      _isLoadingSnippet = true;
+      notifyListeners();
+
+      await playgroundController.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: [
+            descriptor,
+          ],
+        ),
+      );
+    } finally {
+      _isLoadingSnippet = false;
+      notifyListeners();
+    }
 
     _fillFeedbackController();
   }

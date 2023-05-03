@@ -16,29 +16,26 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:playground_components_dev/playground_components_dev.dart';
 
-Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
-  final oldBrightness = wt.getBrightness();
-  final newBrightness =
-      oldBrightness == Brightness.light ? Brightness.dark : Brightness.light;
+class TobPipelineOptionsDropdown extends StatelessWidget {
+  final PlaygroundController playgroundController;
 
-  await wt.toggleTheme();
-  expect(wt.getBrightness(), newBrightness);
-  expectLastAnalyticsEvent(
-    ThemeSetAnalyticsEvent(
-      brightness: newBrightness,
-    ),
-  );
+  const TobPipelineOptionsDropdown({required this.playgroundController});
 
-  await wt.toggleTheme();
-  expect(wt.getBrightness(), oldBrightness);
-  expectLastAnalyticsEvent(
-    ThemeSetAnalyticsEvent(
-      brightness: oldBrightness,
-    ),
-  );
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: playgroundController,
+      builder: (_, __) {
+        final pipelineOptions =
+            playgroundController.snippetEditingController?.pipelineOptions;
+        return PipelineOptionsDropdown(
+          pipelineOptions: pipelineOptions ?? '',
+          setPipelineOptions: playgroundController.setPipelineOptions,
+        );
+      },
+    );
+  }
 }

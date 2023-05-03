@@ -129,7 +129,7 @@ class _SdkSelection extends StatelessWidget {
                 SdksBuilder(
                   builder: (context, sdks, child) {
                     if (sdks.isEmpty) {
-                      return Container();
+                      return const Center(child: CircularProgressIndicator());
                     }
 
                     return AnimatedBuilder(
@@ -184,7 +184,7 @@ class _TourSummary extends StatelessWidget {
             sdk: sdk,
             builder: (context, contentTree, child) {
               if (contentTree == null) {
-                return Container();
+                return const Center(child: CircularProgressIndicator());
               }
 
               return Column(

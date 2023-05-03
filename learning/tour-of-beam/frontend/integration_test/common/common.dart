@@ -16,28 +16,17 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
-import 'package:playground_components/playground_components.dart';
 import 'package:tour_of_beam/main.dart' as app;
+import 'package:tour_of_beam/pages/tour/controllers/content_tree.dart';
+import 'package:tour_of_beam/pages/tour/widgets/content_tree.dart';
 
-void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+Future<void> init(WidgetTester wt) async {
+  await app.main();
+  await wt.pumpAndSettle();
+}
 
-  group('theme', () {
-    testWidgets('mode toggle', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-      final Finder switchToDarkModeButton =
-          find.widgetWithText(ToggleThemeButton, 'ui.darkMode'.tr());
-      expect(switchToDarkModeButton, findsOneWidget);
-      await tester.tap(switchToDarkModeButton);
-      await tester.pumpAndSettle();
-      expect(
-        find.widgetWithText(ToggleThemeButton, 'ui.lightMode'.tr()),
-        findsOneWidget,
-      );
-    });
-  });
+ContentTreeController getContentTreeController(WidgetTester wt) {
+  return (wt.widget(find.byType(ContentTreeWidget)) as ContentTreeWidget)
+      .controller;
 }
