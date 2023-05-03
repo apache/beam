@@ -125,7 +125,7 @@
 
 ## Known Issues
 
-* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.44.0 - 2.47.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26515
+* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.47.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26515
 
 # [2.46.0] - 2023-03-10
 
@@ -180,10 +180,6 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.44.0 - 2.47.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26515
 
 # [2.45.0] - 2023-02-15
 
@@ -260,9 +256,6 @@
 * Fixed Beam SQL CalciteUtils (Java) and Cross-language JdbcIO (Python) did not support JDBC CHAR/VARCHAR, BINARY/VARBINARY logical types ([#23747](https://github.com/apache/beam/issues/23747), [#23526](https://github.com/apache/beam/issues/23526)).
 * Ensure iterated and emitted types are used with the generic register package are registered with the type and schema registries.(Go) ([#23889](https://github.com/apache/beam/pull/23889))
 
-## Known Issues
-
-* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.44.0 - 2.47.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26515
 
 # [2.43.0] - 2022-11-17
 
