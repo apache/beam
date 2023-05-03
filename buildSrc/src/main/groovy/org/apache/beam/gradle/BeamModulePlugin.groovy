@@ -352,8 +352,6 @@ class BeamModulePlugin implements Plugin<Project> {
     TaskProvider cleanupJobServer
     // Number of parallel test runs.
     Integer numParallelTests = 1
-    // Whether the pipeline needs --sdk_location option
-    boolean needsSdkLocation = false
     // Project path for the expansion service to start up
     String expansionProjectPath
     // Collect Python pipeline tests with this marker
@@ -2482,15 +2480,8 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // 2. Sets up, collects, and runs Python pipeline tests
-      def sdkLocationOpt = []
-      if (config.needsSdkLocation) {
-        setupTask.configure {dependsOn ':sdks:python:sdist'}
-        sdkLocationOpt = [
-          "--sdk_location=${pythonDir}/build/apache-beam.tar.gz"
-        ]
-      }
       def beamPythonTestPipelineOptions = [
-        "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
+        "pipeline_opts": config.pythonPipelineOptions,
         "test_opts": config.pytestOptions,
         "suite": config.name,
         "collect": config.collectMarker,
