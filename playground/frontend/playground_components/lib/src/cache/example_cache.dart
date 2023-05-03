@@ -43,6 +43,8 @@ class ExampleCache extends ChangeNotifier {
   final ExampleRepository _exampleRepository;
   final categoryListsBySdk = <Sdk, List<CategoryWithExamples>>{};
 
+  final _cachedExamplesByPath = <String, Example>{};
+
   @visibleForTesting
   final Map<Sdk, Example> defaultExamplesBySdk = {};
 
@@ -127,11 +129,16 @@ class ExampleCache extends ChangeNotifier {
     String id, {
     required ExampleViewOptions viewOptions,
   }) async {
+    final cachedExample = _cachedExamplesByPath[id];
+    if (cachedExample != null) {
+      return cachedExample;
+    }
+
     final result = await _exampleRepository.getSnippet(
       GetSnippetRequest(id: id),
     );
 
-    return Example(
+    final example = Example(
       complexity: result.complexity,
       files: result.files,
       name: 'User Snippet',
@@ -142,6 +149,10 @@ class ExampleCache extends ChangeNotifier {
       type: ExampleType.example,
       viewOptions: viewOptions,
     );
+
+    _cachedExamplesByPath[id] = example;
+
+    return example;
   }
 
   Future<String> saveSnippet({
@@ -166,6 +177,11 @@ class ExampleCache extends ChangeNotifier {
   Future<Example> loadExampleInfo(ExampleBase example) async {
     if (example is Example) {
       return example;
+    }
+
+    final cachedExample = _cachedExamplesByPath[example.path];
+    if (cachedExample != null) {
+      return cachedExample;
     }
 
     //GRPC GetPrecompiledGraph errors hotfix
@@ -194,13 +210,16 @@ class ExampleCache extends ChangeNotifier {
       _getPrecompiledObjectGraph(example)
     ]);
 
-    return Example.fromBase(
+    final precompiledExample = Example.fromBase(
       example,
       files: exampleData[0]! as List<SnippetFile>,
       outputs: exampleData[1] as String?,
       logs: exampleData[2]! as String,
       graph: exampleData[3]! as String,
     );
+    _cachedExamplesByPath[example.path] = precompiledExample;
+
+    return precompiledExample;
   }
 
   Future<void> _loadAllPrecompiledObjects() async {
