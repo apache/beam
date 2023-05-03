@@ -532,7 +532,7 @@ help with this step. Please email `dev@` and ask a member of the `beammaintainer
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
-     * **NOTE**: Do not merge this PR until after an RC has been approved. 
+     * **NOTE**: Do not merge this PR until after an RC has been approved.
 
 #### Tasks you need to do manually
   1. Verify the script worked.
