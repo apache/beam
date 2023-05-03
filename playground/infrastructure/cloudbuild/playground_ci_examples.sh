@@ -166,7 +166,7 @@ do
     cd $BEAM_ROOT_DIR
     if [ $checker_status -eq 0 ]
     then
-        LogOutput "Checker found changed examples for SDK_${sdk^^}"
+        LogOutput "Checker found changed examples for SDK_${sdk^^} or changes in allowlist: $ALLOWLIST"
         example_has_changed=True
     elif [ $checker_status -eq 11 ]
     then
