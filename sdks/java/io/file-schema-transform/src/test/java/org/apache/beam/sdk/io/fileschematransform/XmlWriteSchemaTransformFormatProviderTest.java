@@ -17,56 +17,73 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.JSON;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
 
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.xml.XmlIO;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
-import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link JsonWriteSchemaTransformFormatProvider}. */
+/** Tests for {@link XmlWriteSchemaTransformFormatProvider}. */
 @RunWith(JUnit4.class)
-public class JsonFileWriteSchemaTransformFormatProviderTest
+public class XmlWriteSchemaTransformFormatProviderTest
     extends FileWriteSchemaTransformFormatProviderTest {
+
+  private static final String ROOT_ELEMENT = "rootElement";
+  private static final String RECORD_ELEMENT = "row";
+
   @Override
   protected String getFormat() {
-    return JSON;
+    return XML;
   }
 
   @Override
   protected String getFilenamePrefix() {
-    return "/out";
+    return "";
   }
 
   @Override
   protected void assertFolderContainsInAnyOrder(String folder, List<Row> rows, Schema beamSchema) {
-    PCollection<String> actual = readPipeline.apply(TextIO.read().from(folder + "*"));
+    List<XmlRowAdapter> expected =
+        rows.stream()
+            .map(
+                (Row row) -> {
+                  XmlRowAdapter result = new XmlRowAdapter();
+                  result.wrapRow(row);
+                  return result;
+                })
+            .collect(Collectors.toList());
 
-    PayloadSerializer payloadSerializer =
-        new JsonPayloadSerializerProvider().getSerializer(beamSchema, ImmutableMap.of());
+    PCollection<XmlRowAdapter> actual =
+        readPipeline.apply(
+            XmlIO.<XmlRowAdapter>read()
+                .from(folder + "/*")
+                .withRecordClass(XmlRowAdapter.class)
+                .withRootElement(ROOT_ELEMENT)
+                .withRecordElement(RECORD_ELEMENT)
+                .withCharset(Charset.defaultCharset()));
 
-    PAssert.that(actual)
-        .containsInAnyOrder(
-            rows.stream()
-                .map(
-                    (Row row) ->
-                        new String(payloadSerializer.serialize(row), StandardCharsets.UTF_8))
-                .collect(Collectors.toList()));
+    PAssert.that(actual).containsInAnyOrder(expected);
   }
 
   @Override
   protected FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
-    return defaultConfiguration(folder);
+    return FileWriteSchemaTransformConfiguration.builder()
+        .setFormat(XML)
+        .setXmlConfiguration(
+            FileWriteSchemaTransformConfiguration.xmlConfigurationBuilder()
+                .setRootElement(ROOT_ELEMENT)
+                .build())
+        .setFilenamePrefix(folder)
+        .setNumShards(1)
+        .build();
   }
 
   @Override
@@ -77,13 +94,12 @@ public class JsonFileWriteSchemaTransformFormatProviderTest
   @Override
   protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
     return Optional.of(
-        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a json format");
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a xml format");
   }
 
   @Override
   protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
-    return Optional.of(
-        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a json format");
+    return Optional.empty();
   }
 
   @Override
@@ -99,6 +115,6 @@ public class JsonFileWriteSchemaTransformFormatProviderTest
   @Override
   protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
     return Optional.of(
-        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a json format");
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a xml format");
   }
 }

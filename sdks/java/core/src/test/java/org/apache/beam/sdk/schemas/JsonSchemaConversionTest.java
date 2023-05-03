@@ -20,19 +20,167 @@ package org.apache.beam.sdk.schemas;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.everit.json.schema.ValidationException;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class JsonSchemaConversionTest {
+  @Test
+  public void testBeamSchemaToJsonSchemaValidatesPrimitives() {
+    Schema schema =
+        Schema.builder()
+            .addBooleanField("booleanProp")
+            .addInt32Field("integerProp")
+            .addFloatField("floatProp")
+            .addStringField("stringProp")
+            .addByteField("byteProp")
+            .build();
+
+    JSONObject obj =
+        new JSONObject()
+            .put("booleanProp", true)
+            .put("integerProp", 1)
+            .put("floatProp", 1.1)
+            .put("stringProp", "a")
+            .put("byteProp", (byte) 1);
+
+    JsonUtils.jsonSchemaFromBeamSchema(schema).validate(obj);
+  }
+
+  @Test
+  public void testBeamSchemaToJsonSchemaValidatesNullablePrimitives() {
+    Schema schema =
+        Schema.builder()
+            .addNullableBooleanField("booleanProp")
+            .addNullableInt32Field("integerProp")
+            .addNullableFloatField("floatProp")
+            .addNullableStringField("stringProp")
+            .addNullableByteField("byteProp")
+            .build();
+
+    JSONObject obj =
+        new JSONObject()
+            .put("booleanProp", JSONObject.NULL)
+            .put("integerProp", JSONObject.NULL)
+            .put("floatProp", JSONObject.NULL)
+            .put("stringProp", JSONObject.NULL)
+            .put("byteProp", JSONObject.NULL);
+
+    JsonUtils.jsonSchemaFromBeamSchema(schema).validate(obj);
+  }
+
+  @Test
+  public void testBeamSchemaToJsonSchemaValidatesArrayPrimitives() {
+    Schema schema =
+        Schema.builder()
+            .addArrayField("booleanArray", FieldType.BOOLEAN)
+            .addArrayField("integerArray", FieldType.INT32)
+            .addArrayField("floatArray", FieldType.FLOAT)
+            .addArrayField("stringArray", FieldType.STRING)
+            .addArrayField("byteArray", FieldType.BYTE)
+            .build();
+
+    JSONObject obj =
+        new JSONObject()
+            .put("booleanArray", new JSONArray().put(true).put(false))
+            .put("integerArray", new JSONArray().put(1).put(2).put(3))
+            .put("floatArray", new JSONArray().put(1.1).put(2.2).put(3.3))
+            .put("stringArray", new JSONArray().put("a").put("b").put("c"))
+            .put("byteArray", new JSONArray().put((byte) 1).put((byte) 2).put((byte) 3));
+
+    JsonUtils.jsonSchemaFromBeamSchema(schema).validate(obj);
+  }
+
+  @Test
+  public void testBeamSchemaToJsonSchemaValidatesNestedPrimitives() {
+    Schema nestedSchema =
+        Schema.builder()
+            .addBooleanField("booleanProp")
+            .addInt32Field("integerProp")
+            .addFloatField("floatProp")
+            .addStringField("stringProp")
+            .addByteField("byteProp")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addRowField("nestedObj", nestedSchema)
+            .addArrayField("nestedRepeated", FieldType.row(nestedSchema))
+            .build();
+
+    JSONObject nestedObj =
+        new JSONObject()
+            .put("booleanProp", true)
+            .put("integerProp", 1)
+            .put("floatProp", 1.1)
+            .put("stringProp", "a")
+            .put("byteProp", (byte) 1);
+    JSONObject obj =
+        new JSONObject()
+            .put("nestedObj", nestedObj)
+            .put("nestedRepeated", new JSONArray().put(nestedObj).put(nestedObj));
+
+    JsonUtils.jsonSchemaFromBeamSchema(schema).validate(obj);
+  }
+
+  @Test
+  public void testBeamSchemaToJsonSchemaValidationFailsWithMissingProperties() {
+    Schema schema =
+        Schema.builder().addInt32Field("integerProp").addStringField("stringProp").build();
+
+    JSONObject obj = new JSONObject().put("integerProp", 1);
+
+    try {
+      JsonUtils.jsonSchemaFromBeamSchema(schema).validate(obj);
+      throw new RuntimeException("Did not throw validation exception for missing properties");
+    } catch (ValidationException e) {
+      assertEquals("#: required key [stringProp] not found", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testBeamSchemaToJsonSchemaValidationFailsWithExtraProperties() {
+    Schema schema =
+        Schema.builder().addInt32Field("integerProp").addStringField("stringProp").build();
+
+    JSONObject obj =
+        new JSONObject().put("integerProp", 1).put("stringProp", "a").put("extraProp", "extra");
+
+    try {
+      JsonUtils.jsonSchemaFromBeamSchema(schema).validate(obj);
+      throw new RuntimeException("Did not throw validation exception for extra properties");
+    } catch (ValidationException e) {
+      assertEquals("#: extraneous key [extraProp] is not permitted", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testBeamSchemaToJsonSchemaValidationFailsWithNonNullProperty() {
+    Schema schema =
+        Schema.builder().addInt32Field("integerProp").addStringField("stringProp").build();
+
+    JSONObject obj = new JSONObject().put("integerProp", JSONObject.NULL).put("stringProp", "a");
+
+    try {
+      JsonUtils.jsonSchemaFromBeamSchema(schema).validate(obj);
+      throw new RuntimeException(
+          "Did not throw validation exception for null value in non-null property");
+    } catch (ValidationException e) {
+      assertEquals("#/integerProp: expected type: Integer, found: Null", e.getMessage());
+    }
+  }
 
   @Test
   public void testBasicJsonSchemaToBeamSchema() throws IOException {
@@ -110,7 +258,6 @@ public class JsonSchemaConversionTest {
           containsInAnyOrder(
               Schema.FieldType.row(
                       Schema.of(
-                          Schema.Field.nullable("teacher", Schema.FieldType.STRING),
                           Schema.Field.nullable(
                               "classroom",
                               Schema.FieldType.row(
@@ -125,8 +272,8 @@ public class JsonSchemaConversionTest {
                                                           Schema.Field.nullable(
                                                               "age", Schema.FieldType.INT64))))
                                               .withNullable(true)),
-                                      Schema.Field.nullable(
-                                          "building", Schema.FieldType.STRING))))))
+                                      Schema.Field.nullable("building", Schema.FieldType.STRING)))),
+                          Schema.Field.nullable("teacher", Schema.FieldType.STRING)))
                   .withNullable(true)));
     }
   }

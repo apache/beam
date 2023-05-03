@@ -61,10 +61,17 @@ func (pom *PrecompiledObjectMapper) ToArrayCategories(catalogDTO *dto.CatalogDTO
 	numberOfExamples := len(catalogDTO.Examples)
 	sdkToCategories := make(dto.SdkToCategories, 0)
 	datasetBySnippetIDMap := catalogDTO.DatasetBySnippetIDMap
+	fileIdx := 0
 	for exampleIndx := 0; exampleIndx < numberOfExamples; exampleIndx++ {
 		example := catalogDTO.Examples[exampleIndx]
 		snippet := catalogDTO.Snippets[exampleIndx]
-		files := []*entity.FileEntity{catalogDTO.Files[exampleIndx]}
+
+		var files []*entity.FileEntity
+		for idx := 0; idx < snippet.NumberOfFiles; idx++ {
+			files = append(files, catalogDTO.Files[fileIdx])
+			fileIdx++
+		}
+
 		var datasetsDTO []*dto.DatasetDTO
 		if len(datasetBySnippetIDMap) != 0 {
 			datasetsDTO = datasetBySnippetIDMap[snippet.Key.Name]

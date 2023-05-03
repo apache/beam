@@ -173,32 +173,42 @@ def create_harness(environment, dry_run=False):
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
+def _start_profiler(gcp_profiler_service_name, gcp_profiler_service_version):
+  try:
+    import googlecloudprofiler
+    if gcp_profiler_service_name and gcp_profiler_service_version:
+      googlecloudprofiler.start(
+          service=gcp_profiler_service_name,
+          service_version=gcp_profiler_service_version,
+          verbose=1)
+      _LOGGER.info('Turning on Google Cloud Profiler.')
+    else:
+      raise RuntimeError('Unable to find the job id or job name from envvar.')
+  except Exception as e:  # pylint: disable=broad-except
+    _LOGGER.warning(
+        'Unable to start google cloud profiler due to error: %s. For how to '
+        'enable Cloud Profiler with Dataflow see '
+        'https://cloud.google.com/dataflow/docs/guides/profiling-a-pipeline.'
+        'For troubleshooting tips with Cloud Profiler see '
+        'https://cloud.google.com/profiler/docs/troubleshooting.' % e)
+
+
+def _get_gcp_profiler_name_if_enabled(sdk_pipeline_options):
+  gcp_profiler_service_name = sdk_pipeline_options.view_as(
+      GoogleCloudOptions).get_cloud_profiler_service_name()
+
+  return gcp_profiler_service_name
+
+
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
-  fn_log_handler, sdk_harness, sdk_pipeline_options = create_harness(os.environ)
-  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
-  dataflow_service_options = (
-      sdk_pipeline_options.view_as(GoogleCloudOptions).dataflow_service_options
-      or [])
-  if (_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or (
-      _ENABLE_GOOGLE_CLOUD_PROFILER in dataflow_service_options):
-    try:
-      import googlecloudprofiler
-      job_id = os.environ["JOB_ID"]
-      job_name = os.environ["JOB_NAME"]
-      if job_id and job_name:
-        googlecloudprofiler.start(
-            service=job_name, service_version=job_id, verbose=1)
-        _LOGGER.info('Turning on Google Cloud Profiler.')
-      else:
-        raise RuntimeError('Unable to find the job id or job name from envvar.')
-    except Exception as e:  # pylint: disable=broad-except
-      _LOGGER.warning(
-          'Unable to start google cloud profiler due to error: %s. For how to '
-          'enable Cloud Profiler with Dataflow see '
-          'https://cloud.google.com/dataflow/docs/guides/profiling-a-pipeline.'
-          'For troubleshooting tips with Cloud Profiler see '
-          'https://cloud.google.com/profiler/docs/troubleshooting.' % e)
+  (fn_log_handler, sdk_harness,
+   sdk_pipeline_options) = create_harness(os.environ)
+
+  gcp_profiler_name = _get_gcp_profiler_name_if_enabled(sdk_pipeline_options)
+  if gcp_profiler_name:
+    _start_profiler(gcp_profiler_name, os.environ["JOB_ID"])
+
   try:
     _LOGGER.info('Python sdk harness starting.')
     sdk_harness.run()
