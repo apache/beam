@@ -2466,6 +2466,9 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':sdks:java:container:' + javaContainerSuffix + ':docker'
         dependsOn project.project(config.expansionProjectPath).shadowJar.getPath()
         dependsOn ":sdks:python:installGcpTest"
+        if (config.pythonPipelineOptions.contains("--runner=TestDataflowRunner")) {
+          dependsOn ":sdks:python:test-suites:dataflow:py" + project.ext.pythonVersion + ":initializeForDataflowJob"
+        }
         doLast {
           project.exec {
             // Prepare a port to use for the expansion service
@@ -2500,9 +2503,6 @@ class BeamModulePlugin implements Plugin<Project> {
             args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
         }
-      }
-      if (config.pythonPipelineOptions.contains("--runner=TestDataflowRunner")) {
-        pythonTask.configure {dependsOn ":sdks:python:test-suites:dataflow:py" + project.ext.pythonVersion + ":initializeForDataflowJob"}
       }
 
       // 3. Shuts down the expansion service
