@@ -31,19 +31,12 @@ func init() {
 
 type generatePartitionsFn struct {
 	spannerFn
-	Query     string            `json:"query"`   // Table is the table identifier.
-	Options   queryBatchOptions `json:"options"` // Options specifies additional query execution options.
-	generator partitionGenerator
+	Query   string            `json:"query"`   // Table is the table identifier.
+	Options queryBatchOptions `json:"options"` // Options specifies additional query execution options.
 }
 
 func (f *generatePartitionsFn) Setup(ctx context.Context) error {
-	err := f.spannerFn.Setup(ctx)
-
-	if f.generator == nil {
-		f.generator = newPartitionGenerator(f.client)
-	}
-
-	return err
+	return f.spannerFn.Setup(ctx)
 }
 
 func (f *generatePartitionsFn) Teardown() {
@@ -97,48 +90,20 @@ func (f *generatePartitionsFn) generatePartitions(s beam.Scope) beam.PCollection
 }
 
 func (f *generatePartitionsFn) ProcessElement(ctx context.Context, _ []byte, emit func(*PartitionedRead)) error {
-	txnId, partitions := f.generator.generate(ctx, f.Options.TimestampBound, f.Query, partitionOptions(f.Options))
-
-	for _, p := range partitions {
-		emit(NewPartitionedRead(txnId, p))
-	}
-
-	return nil
-}
-
-type partitionGenerator interface {
-	generate(
-		ctx context.Context,
-		tb spanner.TimestampBound,
-		query string,
-		opts spanner.PartitionOptions,
-	) (spanner.BatchReadOnlyTransactionID, []*spanner.Partition)
-}
-
-type partitionGeneratorImpl struct {
-	client *spanner.Client
-}
-
-func newPartitionGenerator(client *spanner.Client) partitionGenerator {
-	return &partitionGeneratorImpl{client}
-}
-
-func (g *partitionGeneratorImpl) generate(
-	ctx context.Context,
-	tb spanner.TimestampBound,
-	query string,
-	opts spanner.PartitionOptions,
-) (spanner.BatchReadOnlyTransactionID, []*spanner.Partition) {
-	txn, err := g.client.BatchReadOnlyTransaction(ctx, tb)
+	txn, err := f.client.BatchReadOnlyTransaction(ctx, f.Options.TimestampBound)
 	if err != nil {
 		panic("unable to create batch read only transaction: " + err.Error())
 	}
 	defer txn.Close()
 
-	partitions, err := txn.PartitionQuery(ctx, spanner.Statement{SQL: query}, opts)
+	partitions, err := txn.PartitionQuery(ctx, spanner.Statement{SQL: f.Query}, partitionOptions(f.Options))
 	if err != nil {
 		panic(fmt.Sprintf("unable to partition query: %v", err))
 	}
 
-	return txn.ID, partitions
+	for _, p := range partitions {
+		emit(NewPartitionedRead(txn.ID, p))
+	}
+
+	return nil
 }
