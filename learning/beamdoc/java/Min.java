@@ -43,7 +43,7 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
         // [START main_section]
         PCollection<Double> pc = pipeline.apply(Create.of(1.0, 2.0, 3.0, 4.0, 5.0));
-        PCollection<Double> min = pc.apply(Min.doublesGlobally());
+        PCollection<Double> min = pc.apply(Min.globally());
         // [END main_section]
         // Log values
         min.apply(ParDo.of(new LogOutput("PCollection numbers after Min transform: ")));

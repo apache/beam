@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: MinPerKey
-//   description: Demonstration of Min.integersPerKey transform usage.
+//   description: Demonstration of Min.perKey transform usage.
 //   multifile: false
 //   default_example: false
 //   context_line: 41
@@ -50,7 +50,7 @@ public class Task {
                 KV.of("b", 4),
                 KV.of("b", 5)));
         PCollection<KV<String, Integer>> minPerKey = input
-                    .apply(Min.integersPerKey());
+                    .apply(Min.perKey());
         // [END main_section]
         // Log values
         minPerKey.apply(ParDo.of(new LogOutput("PCollection numbers after Min transform: ")));
