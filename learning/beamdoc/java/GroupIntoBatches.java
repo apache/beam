@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of GroupIntoBatches transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 26
+//   context_line: 42
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
