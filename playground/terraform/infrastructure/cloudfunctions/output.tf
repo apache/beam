@@ -17,11 +17,14 @@
 # under the License.
 #
 
-variable "project_id" {
- description = "project_id"
+output "playground_function_cleanup_url" {
+  value = google_cloudfunctions_function.playground_functions[0].https_trigger_url
 }
 
-variable "services" {
- description = "Enable necessary APIs in GCP"
- default = ["cloudresourcemanager.googleapis.com","iam.googleapis.com","compute.googleapis.com","appengine.googleapis.com","artifactregistry.googleapis.com","redis.googleapis.com","cloudfunctions.googleapis.com","cloudbuild.googleapis.com","dns.googleapis.com","certificatemanager.googleapis.com"]
+output "playground_function_put_url" {
+  value = google_cloudfunctions_function.playground_functions[1].https_trigger_url
+}
+
+output "playground_function_view_url" {
+  value = google_cloudfunctions_function.playground_functions[2].https_trigger_url
 }

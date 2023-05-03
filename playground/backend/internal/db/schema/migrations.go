@@ -13,28 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package migration
+package schema
 
-import (
-	"beam.apache.org/playground/backend/internal/db/entity"
-	"beam.apache.org/playground/backend/internal/db/schema"
-)
+import ds "beam.apache.org/playground/backend/internal/db/datastore"
 
-type AddingComplexityProperty struct {
-}
-
-func (is *AddingComplexityProperty) InitiateData(args *schema.DBArgs) error {
-	schemaEntity := &entity.SchemaEntity{Descr: is.GetDescription()}
-	if err := args.Db.PutSchemaVersion(args.Ctx, is.GetVersion(), schemaEntity); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (is *AddingComplexityProperty) GetVersion() string {
-	return "0.0.2"
-}
-
-func (is AddingComplexityProperty) GetDescription() string {
-	return "Adding a complexity property to the example entity"
+// Migrations List of all migrations
+var Migrations = []ds.Migration{
+	GetMigration_v001(),
 }

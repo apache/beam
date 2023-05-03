@@ -17,11 +17,27 @@
 # under the License.
 #
 
-variable "project_id" {
- description = "project_id"
+variable "env" {
+  description = "CloudFunction Environment"
 }
 
-variable "services" {
- description = "Enable necessary APIs in GCP"
- default = ["cloudresourcemanager.googleapis.com","iam.googleapis.com","compute.googleapis.com","appengine.googleapis.com","artifactregistry.googleapis.com","redis.googleapis.com","cloudfunctions.googleapis.com","cloudbuild.googleapis.com","dns.googleapis.com","certificatemanager.googleapis.com"]
+variable "function_description" {
+  type    = string
+  default = "Playground function"
+}
+
+variable "gkebucket" {
+  description = "Bucket name for CloudFunction"
+}
+
+variable "service_account_email_cf" {
+  description = "Service account email for CloudFunctions"
+}
+
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
+}
+
+variable "region" {
+  description = "The GCP Project region where Cloudfunctions will be created"
 }

@@ -15,6 +15,7 @@
 package main
 
 import (
+	"beam.apache.org/playground/backend/internal/db/schema"
 	"context"
 	"fmt"
 	"io/fs"
@@ -42,8 +43,6 @@ import (
 	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
-	"beam.apache.org/playground/backend/internal/db/schema"
-	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
@@ -116,7 +115,9 @@ func setupServer(sdk pb.Sdk) *grpc.Server {
 	if err = os.Setenv("APP_WORK_DIR", path); err != nil {
 		panic(err)
 	}
-	if err = os.Setenv("SDK_CONFIG", "../../../sdks-emulator.yaml"); err != nil {
+
+	sdkConfigPath := "../../../sdks-emulator.yaml"
+	if err = os.Setenv("SDK_CONFIG", sdkConfigPath); err != nil {
 		panic(err)
 	}
 	if err = os.Setenv("PROPERTY_PATH", "../../."); err != nil {
@@ -145,17 +146,17 @@ func setupServer(sdk pb.Sdk) *grpc.Server {
 		panic(err)
 	}
 
-	// setup initial data
-	versions := []schema.Version{
-		new(migration.InitialStructure),
-		new(migration.AddingComplexityProperty),
-	}
-	dbSchema := schema.New(ctx, dbEmulator, appEnv, props, versions)
-	actualSchemaVersion, err := dbSchema.InitiateData()
+	err = dbEmulator.ApplyMigrations(ctx, schema.Migrations, sdkConfigPath)
 	if err != nil {
 		panic(err)
 	}
-	appEnv.SetSchemaVersion(actualSchemaVersion)
+
+	migrationVersion, err := dbEmulator.GetCurrentDbMigrationVersion(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	appEnv.SetSchemaVersion(migrationVersion)
 
 	// download test data to the Datastore Emulator
 	test_data.DownloadCatalogsWithMockData(ctx)

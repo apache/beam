@@ -17,11 +17,12 @@
 # under the License.
 #
 
-variable "project_id" {
- description = "project_id"
-}
+data "archive_file" "backend_folder" {
+  type        = "zip"
+  source_dir  = "${path.root}/../backend/"
+  output_path = "${path.root}/../cloudfunction.zip"
 
-variable "services" {
- description = "Enable necessary APIs in GCP"
- default = ["cloudresourcemanager.googleapis.com","iam.googleapis.com","compute.googleapis.com","appengine.googleapis.com","artifactregistry.googleapis.com","redis.googleapis.com","cloudfunctions.googleapis.com","cloudbuild.googleapis.com","dns.googleapis.com","certificatemanager.googleapis.com"]
+  excludes = [
+    "containers"
+  ]
 }

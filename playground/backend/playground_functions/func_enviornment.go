@@ -13,9 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package entity
+package playground_functions
 
-type SchemaEntity struct {
-	Version int    `datastore:"version"`
-	Descr   string `datastore:"descr,noindex"`
+import "os"
+
+type Environment interface {
+	GetProjectId() string
+}
+
+type environment struct {
+	projectID string
+}
+
+func GetEnvironment() Environment {
+	projectId := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	return &environment{
+		projectID: projectId,
+	}
+}
+
+func (e *environment) GetProjectId() string {
+	return e.projectID
 }
