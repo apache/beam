@@ -36,10 +36,6 @@ type windowTrigger struct {
 func (t windowTrigger) windowIntoOption() {}
 
 // Trigger applies the given trigger to the window.
-//
-// Trigger support in the Go SDK is currently experimental
-// and may have breaking changes made to it.
-// Use at your own discretion.
 func Trigger(tr trigger.Trigger) WindowIntoOption {
 	return windowTrigger{trigger: tr}
 }

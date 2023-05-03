@@ -73,7 +73,7 @@ class Tag(BaseModel):
 
     # These parameters are parsed from YAML and are required:
 
-    categories: List[str]
+    categories: List[str] = []
     """
     Titles of categories to list this snippet in. Non-existent categories will be created.
     """
@@ -83,7 +83,7 @@ class Tag(BaseModel):
     How hard is the snippet to understand.
     """
 
-    context_line: int
+    context_line: int = 1
     """
     The line number to scroll to when the snippet is loaded.
     This applies after the metadata block is removed from the file, so discount for those lines.
@@ -132,7 +132,13 @@ class Tag(BaseModel):
     """
     The example output will not be cached and playground will always run its code when user clicks 'Run' if this is set to 'True'
     """
-    
+
+    never_run: bool = False
+    """
+    If 'True', it will not be possible to run this example from Playground UI. It will be read-only.
+    """
+
+
     multifile: bool = False
     """
     Whether this is a file of a multi-file example.
@@ -168,7 +174,8 @@ class Tag(BaseModel):
     @root_validator(skip_on_failure=True)
     def lines_order(cls, values):
         assert (
-            0 < values["line_start"] < values["line_finish"] <= values["context_line"]
+            (0 <= values["line_start"] < values["line_finish"]) and
+              (values["context_line"] <= values["line_start"] or values["context_line"] > values["line_finish"])
         ), f"line ordering error: {values}"
         return values
 

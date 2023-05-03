@@ -30,6 +30,7 @@ import pytest
 from hamcrest.core import assert_that as hamcrest_assert
 
 import apache_beam as beam
+from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -229,7 +230,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       _ = (
           p
           | beam.Create(row_elements)
-          | beam.io.StorageWriteToBigQuery(
+          | StorageWriteToBigQuery(
               table=table_id, expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 

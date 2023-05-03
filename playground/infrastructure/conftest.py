@@ -78,7 +78,7 @@ def create_test_example(create_test_tag):
 
 @pytest.fixture
 def create_test_tag():
-    def _create_test_tag(with_kafka=False, is_multifile=False, **tag_meta) -> Tag:
+    def _create_test_tag(with_kafka=False, is_multifile=False, context_line=30, line_start=10, line_finish=20, **tag_meta) -> Tag:
         meta = {
             "name": "MOCK_NAME",
             "description": "MOCK_DESCRIPTION",
@@ -112,9 +112,9 @@ def create_test_tag():
                 meta[k] = v
         return Tag(
             filepath="../../examples/MOCK_EXAMPLE/main.java",
-            line_start=10,
-            line_finish=20,
-            context_line=30,
+            line_start=line_start,
+            line_finish=line_finish,
+            context_line=context_line,
             **meta,
         )
 

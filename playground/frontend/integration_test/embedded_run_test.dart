@@ -21,7 +21,6 @@ import 'package:integration_test/integration_test.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
-import 'miscellaneous_ui/toggle_brightness_mode_test.dart';
 
 final _url = '/embedded?path=${javaMinimalWordCount.dbPath}&sdk=java';
 

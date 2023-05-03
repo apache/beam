@@ -162,6 +162,7 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
 final kLightTheme = ThemeData(
   brightness: Brightness.light,
   appBarTheme: _getAppBarTheme(BeamLightThemeColors.secondaryBackground),
+  // TODO(nausharipov): Migrate to Material 3: https://github.com/apache/beam/issues/24610
   backgroundColor: BeamLightThemeColors.primaryBackground,
   canvasColor: BeamLightThemeColors.primaryBackground,
   dividerColor: BeamLightThemeColors.grey,

@@ -157,8 +157,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -1797,8 +1797,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * Suppress application of {@link PubsubUnboundedSink#expand} in streaming mode so that we can
    * instead defer to Windmill's implementation.
    */
-  private static class StreamingPubsubIOWrite
-      extends PTransform<PCollection<PubsubMessage>, PDone> {
+  static class StreamingPubsubIOWrite extends PTransform<PCollection<PubsubMessage>, PDone> {
 
     private final PubsubUnboundedSink transform;
 
@@ -1850,13 +1849,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         StepTranslationContext stepContext,
         PCollection input) {
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
-      if (overriddenTransform.getTopicProvider().isAccessible()) {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getFullPath());
+      if (overriddenTransform.getTopicProvider() != null) {
+        if (overriddenTransform.getTopicProvider().isAccessible()) {
+          stepContext.addInput(
+              PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getFullPath());
+        } else {
+          stepContext.addInput(
+              PropertyNames.PUBSUB_TOPIC_OVERRIDE,
+              ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
+        }
       } else {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_TOPIC_OVERRIDE,
-            ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
+        DataflowPipelineOptions options =
+            input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
+        if (options.getEnableDynamicPubsubDestinations()) {
+          stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
+        } else {
+          throw new RuntimeException(
+              "Dynamic Pubsub destinations not yet supported. Topic must be set.");
+        }
       }
       if (overriddenTransform.getTimestampAttribute() != null) {
         stepContext.addInput(

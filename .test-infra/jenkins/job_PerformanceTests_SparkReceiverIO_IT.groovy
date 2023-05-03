@@ -67,7 +67,7 @@ job(jobName) {
     rabbitMqBootstrapServerAddress: "amqp://guest:guest@\$${rabbitMqHostName}:5672",
     streamName                    : 'rabbitMqTestStream',
     readTimeout                   : '1800',
-    numWorkers                    : '5',
+    numWorkers                    : '1',
     autoscalingAlgorithm          : 'NONE'
   ]
 
