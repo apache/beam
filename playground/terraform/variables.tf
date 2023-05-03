@@ -27,6 +27,10 @@ variable "environment" {
   description = "prod,dev,beta"
 }
 
+variable "env" {
+  description = "prod,dev,beta"
+}
+
 variable "region" {
   description = "Infrastructure Region"
 }
@@ -35,6 +39,7 @@ variable "zone" {
   description = "Infrastructure Zone"
 }
 
+variable "state_bucket" {}
 # Infrastructure variables
 
 #GKE

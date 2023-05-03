@@ -17,11 +17,19 @@
 # under the License.
 #
 
-variable "project_id" {
- description = "project_id"
+resource "google_storage_bucket" "bucket" {
+  name          = "${var.bucket_name}-cloudbuild"
+  location      = var.region
+  force_destroy = true
 }
 
-variable "services" {
- description = "Enable necessary APIs in GCP"
- default = ["cloudresourcemanager.googleapis.com","iam.googleapis.com","compute.googleapis.com","appengine.googleapis.com","artifactregistry.googleapis.com","redis.googleapis.com","cloudfunctions.googleapis.com","cloudbuild.googleapis.com","dns.googleapis.com","certificatemanager.googleapis.com"]
+resource "google_storage_bucket_object" "cloudfunction_object" {
+  name   = "cloudfunction.zip"
+  bucket = google_storage_bucket.bucket.name
+
+  source = "${path.root}/../cloudfunction.zip"
+
+  content_type = "application/zip"
+  content_encoding = "zip"
+
 }

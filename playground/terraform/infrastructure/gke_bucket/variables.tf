@@ -17,11 +17,10 @@
 # under the License.
 #
 
-variable "project_id" {
- description = "project_id"
+variable "region" {
+  description = "Region of Playground Examples Bucket"
 }
 
-variable "services" {
- description = "Enable necessary APIs in GCP"
- default = ["cloudresourcemanager.googleapis.com","iam.googleapis.com","compute.googleapis.com","appengine.googleapis.com","artifactregistry.googleapis.com","redis.googleapis.com","cloudfunctions.googleapis.com","cloudbuild.googleapis.com","dns.googleapis.com","certificatemanager.googleapis.com"]
+variable "bucket_name" {
+  description = "Bucket name for CloudFunction"
 }

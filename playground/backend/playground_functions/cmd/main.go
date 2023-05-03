@@ -13,9 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package entity
+package main
 
-type SchemaEntity struct {
-	Version int    `datastore:"version"`
-	Descr   string `datastore:"descr,noindex"`
+import (
+	"log"
+	"os"
+
+	_ "beam.apache.org/playground/backend"
+	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
+)
+
+func main() {
+	// Use PORT environment variable, or default to 8080.
+	port := "8080"
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		port = envPort
+	}
+	if err := funcframework.Start(port); err != nil {
+		log.Fatalf("funcframework.Start: %v\n", err)
+	}
 }
