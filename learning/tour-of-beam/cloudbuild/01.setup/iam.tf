@@ -29,7 +29,8 @@ resource "google_project_iam_member" "tourofbeam_backend_deployer" {
     "roles/serviceusage.serviceUsageAdmin",
     "roles/storage.admin",
     "roles/container.clusterViewer",
-    "roles/logging.logWriter"
+    "roles/logging.logWriter",
+    "roles/cloudfunctions.admin"
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.tourofbeam_deployer.email}"
