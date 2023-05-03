@@ -49,6 +49,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Dataflow',
             rootBuildScriptDir(commonJobProperties.checkoutDir)
             tasks(":sdks:python:test-suites:dataflow:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
             commonJobProperties.setGradleSwitches(delegate)
+            switches("-PuseWheelDistribution")
           }
         }
       }
