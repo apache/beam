@@ -2449,6 +2449,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "java_expansion_service_jar": expansionJar,
         "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
       ]
+      def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
       def javaContainerSuffix
       if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
         javaContainerSuffix = 'java8'
@@ -2466,7 +2467,7 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':sdks:java:container:' + javaContainerSuffix + ':docker'
         dependsOn project.project(config.expansionProjectPath).shadowJar.getPath()
         dependsOn ":sdks:python:installGcpTest"
-        if (config.pythonPipelineOptions.contains("--runner=TestDataflowRunner")) {
+        if (usesDataflowRunner) {
           dependsOn ":sdks:python:test-suites:dataflow:py" + project.ext.pythonVersion + ":initializeForDataflowJob"
         }
         doLast {
@@ -2483,19 +2484,20 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // 2. Sets up, collects, and runs Python pipeline tests
-      def beamPythonTestPipelineOptions = [
-        "pipeline_opts": config.pythonPipelineOptions,
-        "test_opts": config.pytestOptions,
-        "suite": config.name,
-        "collect": config.collectMarker,
-      ]
-      def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
       def pythonTask = project.tasks.register(config.name+"PythonUsingJava") {
         group = "Verification"
         description = "Runs Python SDK pipeline tests that use a Java expansion service"
         dependsOn setupTask
         dependsOn config.startJobServer
         doLast {
+          def beamPythonTestPipelineOptions = [
+                  "pipeline_opts": config.pythonPipelineOptions + usesDataflowRunner ? ["--sdk_location=${project.ext.sdkLocation}"] : [],
+                  "test_opts": config.pytestOptions,
+                  "suite": config.name,
+                  "collect": config.collectMarker,
+          ]
+          def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
+
           project.exec {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
