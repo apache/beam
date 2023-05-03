@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.transformservice.controller;
+package org.apache.beam.sdk.transformservice;
 
 import java.util.Iterator;
 import java.util.List;
@@ -130,7 +130,7 @@ public class ArtifactService extends ArtifactRetrievalServiceGrpc.ArtifactRetrie
 
     Iterator<ArtifactApi.GetArtifactResponse> getArtifact(ArtifactApi.GetArtifactRequest request);
 
-    public void shutdown();
+    void shutdown();
   }
 
   static class EndpointBasedArtifactResolver implements ArtifactResolver {

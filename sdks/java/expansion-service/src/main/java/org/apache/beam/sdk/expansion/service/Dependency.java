@@ -21,8 +21,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 
-//// TODO: generalize to support other types of dependencies
-@SuppressWarnings("nullness")
+//// TODO(https://github.com/apache/beam/issues/26527): generalize to support other types of
+// dependencies
 @AutoValue
 public abstract class Dependency {
   abstract String getPath();

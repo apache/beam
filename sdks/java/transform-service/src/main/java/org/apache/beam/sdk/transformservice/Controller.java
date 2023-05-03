@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.transformservice.controller;
+package org.apache.beam.sdk.transformservice;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +25,13 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
 
+/**
+ * A component that controlls the transform service.
+ *
+ * <p>Forwards the operations to underlying transform services as needed. This class is expected to
+ * be used along with the wrapping container which is a part of an overall transform service. For
+ * more details please see https://s.apache.org/beam-transform-service.
+ */
 public class Controller {
 
   List<Endpoints.ApiServiceDescriptor> endpoints;
@@ -34,14 +41,14 @@ public class Controller {
   public Controller(String[] args) {
     // We use PipelineOptions just a library for parsing arguments here.
     this(PipelineOptionsFactory.fromArgs(args).create());
-    for (String expansionService : options.getTransformServiceConfig().getExpansionservices()) {
-      endpoints.add(Endpoints.ApiServiceDescriptor.newBuilder().setUrl(expansionService).build());
-    }
   }
 
   public Controller(PipelineOptions opts) {
     this.options = opts.as(TransformServiceOptions.class);
     endpoints = new ArrayList<>();
+    for (String expansionService : options.getTransformServiceConfig().getExpansionservices()) {
+      endpoints.add(Endpoints.ApiServiceDescriptor.newBuilder().setUrl(expansionService).build());
+    }
   }
 
   private void start() throws Exception {

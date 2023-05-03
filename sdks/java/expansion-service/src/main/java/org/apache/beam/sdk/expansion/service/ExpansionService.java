@@ -697,6 +697,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     @SuppressWarnings("nullness")
     ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
+
     StringBuilder registeredTransformsLog = new StringBuilder();
     boolean registeredTransformsFound = false;
     registeredTransformsLog.append("\n");

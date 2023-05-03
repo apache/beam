@@ -42,7 +42,7 @@ var (
 	config_file = flag.String("config_file", "", "Transform service config YAML file. (required)")
 )
 
-const entrypoint = "org.apache.beam.transformservice.controller.Controller"
+const entrypoint = "org.apache.beam.sdk.transformservice.Controller"
 
 func main() {
 	flag.Parse()

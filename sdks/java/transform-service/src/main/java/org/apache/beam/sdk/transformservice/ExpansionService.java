@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.transformservice.controller;
+package org.apache.beam.sdk.transformservice;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase
     implements AutoCloseable {
 
-  private static final ExpansionServiceClientFactory EXPANSION_SERVICE_CLIENT_FACTORY =
+  private static final ExpansionServiceClientFactory DEFAULT_EXPANSION_SERVICE_CLIENT_FACTORY =
       DefaultExpansionServiceClientFactory.create(
           endPoint -> ManagedChannelBuilder.forTarget(endPoint.getUrl()).usePlaintext().build());
 
@@ -45,7 +45,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       @Nullable ExpansionServiceClientFactory clientFactory) {
     this.endpoints = endpoints;
     this.expansionServiceClientFactory =
-        clientFactory != null ? clientFactory : EXPANSION_SERVICE_CLIENT_FACTORY;
+        clientFactory != null ? clientFactory : DEFAULT_EXPANSION_SERVICE_CLIENT_FACTORY;
   }
 
   @Override

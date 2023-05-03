@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.transformservice.controller;
+package org.apache.beam.sdk.transformservice;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,7 +28,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.transformservice.controller.ArtifactService.ArtifactResolver;
+import org.apache.beam.sdk.transformservice.ArtifactService.ArtifactResolver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;

@@ -16,42 +16,20 @@
  * limitations under the License.
  */
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
-plugins {
-    id 'org.apache.beam.module'
-    id 'com.github.johnrengelman.shadow'
-}
 
 apply plugin: 'org.apache.beam.module'
-applyJavaNature(
-        automaticModuleName: 'org.apache.beam.transformservice.controller',
-)
 
 applyDockerNature()
 applyGoNature()
 
-description = "Apache Beam :: Transform Service :: Controller"
+description = "Apache Beam :: SDKs :: Java :: Transform Service :: Controller Container"
 
 configurations {
     dockerDependency
 }
 
 dependencies {
-    dockerDependency project(path: ":transform-service:controller", configuration: "shadow")
-    implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation project(path: ":model:job-management", configuration: "shadow")
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(path: ":runners:core-construction-java")
-    implementation project(path: ":sdks:java:fn-execution")
-    implementation library.java.vendored_grpc_1_54_0
-    implementation library.java.vendored_guava_26_0_jre
-    implementation library.java.jackson_annotations
-    implementation library.java.jackson_databind
-    implementation library.java.jackson_dataformat_yaml
-    testImplementation library.java.junit
-    testImplementation library.java.mockito_core
-    testImplementation project(path: ":runners:java-fn-execution")
+    dockerDependency project(path: ":sdks:java:transform-service", configuration: "shadow")
 }
 
 goBuild {
@@ -61,13 +39,13 @@ goBuild {
 
 task copyDockerfileDependencies(type: Copy) {
     from configurations.dockerDependency
-    rename 'beam-transform-service-controller-.*.jar', 'beam-transform-service-controller.jar'
+    rename 'beam-sdks-java-transform-service-.*.jar', 'beam-sdks-java-transform-service.jar'
     setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
     into "build/target"
 }
 
 task copyConfigFile(type: Copy) {
-    from "transform_service_config.yml"
+    from "../transform_service_config.yml"
     into "build/target"
 }
 
@@ -105,5 +83,5 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
 }
 
 task pushAll {
-    dependsOn ":sdks:java:expansion-service:container:dockerPush"
+    dependsOn ":sdks:java:transform-service:controller-container:dockerPush"
 }
