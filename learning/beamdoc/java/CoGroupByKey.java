@@ -67,7 +67,7 @@ public class Task {
           KeyedPCollectionTuple.of(t1, pt1).and(t2, pt2)
             .apply(CoGroupByKey.create());
         // [END main_section]
-        result.apply(ParDo.of(new LogOutput("PCollection pairs after GroupIntoBatches transform: ")));
+        result.apply(ParDo.of(new LogOutput("PCollection pairs after CoGroupByKey transform: ")));
         pipeline.run();
     }
 
