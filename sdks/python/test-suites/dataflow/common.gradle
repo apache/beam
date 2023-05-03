@@ -448,7 +448,7 @@ def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-te
 def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
-  createCrossLanguageUsingJavaExpansionTask(
+    createCrossLanguageUsingJavaExpansionTask(
       name: taskMetadata.name,
       expansionProjectPath: taskMetadata.expansionProjectPath,
       collectMarker: taskMetadata.collectMarker,
