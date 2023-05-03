@@ -46,7 +46,6 @@ from typing import TypeVar
 from typing import Union
 
 import apache_beam as beam
-from apache_beam.ml.inference.utils import WatchFilePattern
 from apache_beam.utils import shared
 
 try:
@@ -525,7 +524,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._kwargs = kwargs
 
   def _get_model_metadata_pcoll(self, pipeline):
-
+    # avoid circular imports.
+    # pylint: disable=wrong-import-position
+    from apache_beam.ml.inference.utils import WatchFilePattern
     extra_params = {}
     if 'interval' in self._kwargs:
       extra_params['interval'] = self._kwargs['interval']
