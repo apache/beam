@@ -43,7 +43,8 @@ class ExampleCache extends ChangeNotifier {
   final ExampleRepository _exampleRepository;
   final categoryListsBySdk = <Sdk, List<CategoryWithExamples>>{};
 
-  final _cachedExamplesByPath = <String, Example>{};
+  final _cachedExamplesByPath = <String, Example?>{};
+  final _cachedExamplesBySnippetId = <String, Example?>{};
 
   @visibleForTesting
   final Map<Sdk, Example> defaultExamplesBySdk = {};
@@ -91,10 +92,28 @@ class ExampleCache extends ChangeNotifier {
     return categoryListsBySdk[sdk] ?? [];
   }
 
-  Future<ExampleBase> getPrecompiledObject(String path, Sdk sdk) {
-    return _exampleRepository.getPrecompiledObject(
-      GetPrecompiledObjectRequest(path: path, sdk: sdk),
-    );
+  Future<Example> getPrecompiledObject(String path, Sdk sdk) async {
+    try {
+      if (_cachedExamplesByPath.containsKey(path)) {
+        final result = _cachedExamplesByPath[path];
+        if (result != null) {
+          return result;
+        }
+
+        throw Exception('Example was not found before at $path');
+      }
+
+      final exampleBase = await _exampleRepository.getPrecompiledObject(
+        GetPrecompiledObjectRequest(path: path, sdk: sdk),
+      );
+
+      final result = await loadExampleInfo(exampleBase);
+      _cachedExamplesByPath[path] = result;
+      return result;
+    } on Exception {
+      _cachedExamplesByPath[path] = null;
+      rethrow;
+    }
   }
 
   Future<String?> _getPrecompiledObjectOutput(ExampleBase example) async {
@@ -129,30 +148,38 @@ class ExampleCache extends ChangeNotifier {
     String id, {
     required ExampleViewOptions viewOptions,
   }) async {
-    final cachedExample = _cachedExamplesByPath[id];
-    if (cachedExample != null) {
-      return cachedExample;
+    if (_cachedExamplesBySnippetId.containsKey(id)) {
+      final result = _cachedExamplesBySnippetId[id];
+      if (result != null) {
+        return result;
+      }
+
+      throw Exception('Snippet was not found before at $id');
     }
 
-    final result = await _exampleRepository.getSnippet(
-      GetSnippetRequest(id: id),
-    );
+    try {
+      final response = await _exampleRepository.getSnippet(
+        GetSnippetRequest(id: id),
+      );
 
-    final example = Example(
-      complexity: result.complexity,
-      files: result.files,
-      name: 'User Snippet',
-      isMultiFile: result.files.length > 1,
-      path: id,
-      sdk: result.sdk,
-      pipelineOptions: result.pipelineOptions,
-      type: ExampleType.example,
-      viewOptions: viewOptions,
-    );
+      final example = Example(
+        complexity: response.complexity,
+        files: response.files,
+        name: 'User Snippet',
+        isMultiFile: response.files.length > 1,
+        path: id,
+        sdk: response.sdk,
+        pipelineOptions: response.pipelineOptions,
+        type: ExampleType.example,
+        viewOptions: viewOptions,
+      );
 
-    _cachedExamplesByPath[id] = example;
-
-    return example;
+      _cachedExamplesBySnippetId[id] = example;
+      return example;
+    } on Exception {
+      _cachedExamplesBySnippetId[id] = null;
+      rethrow;
+    }
   }
 
   Future<String> saveSnippet({
