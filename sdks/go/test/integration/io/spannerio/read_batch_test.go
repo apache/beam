@@ -104,7 +104,7 @@ func TestSpannerIO_ExampleQueryBatch(t *testing.T) {
 	}
 
 	// Setup our pipeline
-	rows := spannerio.QueryBatch(s, db, "SELECT * FROM TEST", reflect.TypeOf(spannerio.TestDto{}))
+	rows := spannerio.Query(s, db, "SELECT * FROM TEST", reflect.TypeOf(spannerio.TestDto{}))
 
 	// Setup our assertion
 	passert.Count(s, rows, "Should have 4 rows", 4)

@@ -18,21 +18,29 @@ package spannerio
 import (
 	"context"
 	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"reflect"
 
 	"cloud.google.com/go/spanner"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	register.DoFn3x1[context.Context, []byte, func(read *PartitionedRead), error]((*generatePartitionsFn)(nil))
+	register.DoFn3x1[context.Context, []byte, func(read PartitionedRead), error]((*generatePartitionsFn)(nil))
 	register.Emitter1[*PartitionedRead]()
 }
 
 type generatePartitionsFn struct {
 	spannerFn
-	Query   string            `json:"query"`   // Table is the table identifier.
-	Options queryBatchOptions `json:"options"` // Options specifies additional query execution options.
+	Query   string       `json:"query"`   // Table is the table identifier.
+	Options queryOptions `json:"options"` // Options specifies additional query execution options.
+}
+
+func generatePartitions(s beam.Scope, db string, query string, t reflect.Type, options queryOptions) beam.PCollection {
+	s = s.Scope("spannerio.GeneratePartitions")
+
+	imp := beam.Impulse(s)
+	return beam.ParDo(s, newGeneratePartitionsFn(db, query, options), imp)
 }
 
 func (f *generatePartitionsFn) Setup(ctx context.Context) error {
@@ -43,7 +51,7 @@ func (f *generatePartitionsFn) Teardown() {
 	f.spannerFn.Teardown()
 }
 
-func partitionOptions(options queryBatchOptions) spanner.PartitionOptions {
+func partitionOptions(options queryOptions) spanner.PartitionOptions {
 	partitionOptions := spanner.PartitionOptions{}
 
 	if options.MaxPartitions != 0 {
@@ -53,43 +61,23 @@ func partitionOptions(options queryBatchOptions) spanner.PartitionOptions {
 	return partitionOptions
 }
 
-// GeneratePartitions generates read partitions to support batched reading from Spanner.
-func GeneratePartitions(s beam.Scope, db string, query string, options ...func(*queryBatchOptions) error) beam.PCollection {
-	s.Scope("spanner.GeneratePartitions")
-
-	fn := newGeneratePartitionsFn(db, query, options...)
-	return fn.generatePartitions(s)
-}
-
 func newGeneratePartitionsFn(
 	db string,
 	query string,
-	options ...func(*queryBatchOptions) error,
+	options queryOptions,
 ) *generatePartitionsFn {
 	if db == "" {
 		panic("no database provided")
 	}
 
-	opts := queryBatchOptions{}
-	for _, opt := range options {
-		if err := opt(&opts); err != nil {
-			panic(err)
-		}
-	}
-
 	return &generatePartitionsFn{
 		spannerFn: newSpannerFn(db),
 		Query:     query,
-		Options:   opts,
+		Options:   options,
 	}
 }
 
-func (f *generatePartitionsFn) generatePartitions(s beam.Scope) beam.PCollection {
-	imp := beam.Impulse(s)
-	return beam.ParDo(s, f, imp)
-}
-
-func (f *generatePartitionsFn) ProcessElement(ctx context.Context, _ []byte, emit func(*PartitionedRead)) error {
+func (f *generatePartitionsFn) ProcessElement(ctx context.Context, _ []byte, emit func(PartitionedRead)) error {
 	txn, err := f.client.BatchReadOnlyTransaction(ctx, f.Options.TimestampBound)
 	if err != nil {
 		panic("unable to create batch read only transaction: " + err.Error())

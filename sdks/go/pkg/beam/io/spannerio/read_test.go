@@ -101,7 +101,7 @@ func TestRead(t *testing.T) {
 			}
 
 			p, s := beam.NewPipelineWithRoot()
-			fn := newQueryFn(testCase.database, "SELECT * from "+testCase.table, reflect.TypeOf(TestDto{}))
+			fn := newQueryFn(testCase.database, "SELECT * from "+testCase.table, reflect.TypeOf(TestDto{}), queryOptions{})
 			fn.endpoint = srv.Addr
 
 			imp := beam.Impulse(s)

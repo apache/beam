@@ -30,49 +30,56 @@ import (
 )
 
 // spannerTag is the struct tag key used to identify Spanner field names.
-const spannerTag = "spanner"
+const (
+	spannerTag = "spanner"
+)
 
 func init() {
 	register.DoFn3x1[context.Context, []byte, func(beam.X), error]((*queryFn)(nil))
 	register.Emitter1[beam.X]()
 }
 
-// Read reads all rows from the given table. The table must have a schema
-// compatible with the given type, t, and Read returns a PCollection<t>. If the
+// Read reads all rows from the given spanner table. It returns a PCollection<t> for a given type T.
+// T must be a struct with exported fields that have the "spanner" tag. If the
 // table has more rows than t, then Read is implicitly a projection.
 func Read(s beam.Scope, db string, table string, t reflect.Type) beam.PCollection {
 	if db == "" {
 		panic("no database provided!")
 	}
 
-	s = s.Scope("spanner.Read")
-
 	cols := strings.Join(structx.InferFieldNames(t, spannerTag), ",")
 
-	return query(s, db, fmt.Sprintf("SELECT %v from %v", cols, table), t)
+	return query(s, db, fmt.Sprintf("SELECT %v from %v", cols, table), t, newQueryOptions())
 }
 
-// queryOptions represents additional options for executing a query.
-type queryOptions struct {
-}
-
-// Query executes a query. The output must have a schema compatible with the given
-// type, t. It returns a PCollection<t>.
-// Note: Query will be executed on a single worker. Consider performance of query
-// and if downstream splitting is required add beam.Reshuffle.
+// Query executes a spanner query. It returns a PCollection<t> for a given type T. T must be a struct with exported
+// fields that have the "spanner" tag. By default, the transform uses spanners partitioned read ability to split
+// the results into bundles.
+// If the underlying query is not root-partitionable you can disable batching via UseBatching.
 func Query(s beam.Scope, db string, q string, t reflect.Type, options ...func(*queryOptions) error) beam.PCollection {
+	queryOptions := newQueryOptions(options...)
+
 	if db == "" {
 		panic("no database provided!")
 	}
 
-	s = s.Scope("spanner.Query")
-	return query(s, db, q, t, options...)
+	if queryOptions.Batching {
+		return readBatch(s, db, q, t, queryOptions)
+	} else {
+		return query(s, db, q, t, queryOptions)
+	}
 }
 
-// Entrypoint for testing with spanner client injectable.
-func query(s beam.Scope, db string, query string, t reflect.Type, options ...func(*queryOptions) error) beam.PCollection {
+func query(s beam.Scope, db string, query string, t reflect.Type, options queryOptions) beam.PCollection {
+	s = s.Scope("spanner.Query")
+
+	if options.TimestampBound != (spanner.TimestampBound{}) {
+		panic(fmt.Sprintf("spannerio.Query: specifying timestamp bound for non-batched reads not currently supported."))
+	}
+
 	imp := beam.Impulse(s)
-	return beam.ParDo(s, newQueryFn(db, query, t, options...), imp, beam.TypeDefinition{Var: beam.XType, T: t})
+
+	return beam.ParDo(s, newQueryFn(db, query, t, options), imp, beam.TypeDefinition{Var: beam.XType, T: t})
 }
 
 type queryFn struct {
@@ -86,16 +93,9 @@ func newQueryFn(
 	db string,
 	query string,
 	t reflect.Type,
-	options ...func(*queryOptions) error,
+	options queryOptions,
 ) *queryFn {
-	queryOptions := queryOptions{}
-	for _, opt := range options {
-		if err := opt(&queryOptions); err != nil {
-			panic(err)
-		}
-	}
-
-	return &queryFn{spannerFn: newSpannerFn(db), Query: query, Type: beam.EncodedType{T: t}, Options: queryOptions}
+	return &queryFn{spannerFn: newSpannerFn(db), Query: query, Type: beam.EncodedType{T: t}, Options: options}
 }
 
 func (f *queryFn) Setup(ctx context.Context) error {

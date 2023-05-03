@@ -17,6 +17,8 @@ package spannerio
 
 import (
 	"context"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"reflect"
 
 	"cloud.google.com/go/spanner"
@@ -26,86 +28,112 @@ import (
 )
 
 func init() {
-	register.DoFn3x1[context.Context, *PartitionedRead, func(beam.X), error]((*queryBatchFn)(nil))
+	register.DoFn4x1[context.Context, *sdf.LockRTracker, PartitionedRead, func(beam.X), error]((*readBatchFn)(nil))
 	register.Emitter1[beam.X]()
 }
 
-// Options when Batch Querying
-type queryBatchOptions struct {
-	MaxPartitions  int64                  `json:"maxPartitions"`  // Maximum partitions
-	TimestampBound spanner.TimestampBound `json:"timestampBound"` // The TimestampBound to use for batched reading
-}
-
-// UseMaxPartitions sets the maximum number of Partitions to split the query into
-func UseMaxPartitions(maxPartitions int64) func(opts *queryBatchOptions) error {
-	return func(opts *queryBatchOptions) error {
-		opts.MaxPartitions = maxPartitions
-		return nil
-	}
-}
-
-// UseTimestampBound sets the TimestampBound to use when doing batched reads.
-func UseTimestampBound(timestampBound spanner.TimestampBound) func(opts *queryBatchOptions) error {
-	return func(opts *queryBatchOptions) error {
-		opts.TimestampBound = timestampBound
-		return nil
-	}
-}
-
-type queryBatchFn struct {
+type readBatchFn struct {
 	spannerFn
-	Type    beam.EncodedType  `json:"type"`    // Type is the encoded schema type.
-	Options queryBatchOptions `json:"options"` // Options specifies additional query execution options.
+	Type    beam.EncodedType
+	Options queryOptions
 }
 
-func newQueryBatchFn(db string, t reflect.Type, options ...func(*queryBatchOptions) error) *queryBatchFn {
-	opts := queryBatchOptions{}
-	for _, opt := range options {
-		if err := opt(&opts); err != nil {
-			panic(err)
-		}
-	}
-
-	return &queryBatchFn{
+func newReadBatchFn(db string, t reflect.Type, options queryOptions) *readBatchFn {
+	return &readBatchFn{
 		spannerFn: newSpannerFn(db),
 		Type:      beam.EncodedType{T: t},
-		Options:   opts,
+		Options:   options,
 	}
 }
 
-// QueryBatch executes a query using Spanners ability to do batched queries.
-// The output must have a schema compatible with the given type, t. It returns a PCollection<t>.
-func QueryBatch(s beam.Scope, db string, query string, t reflect.Type, options ...func(*queryBatchOptions) error) beam.PCollection {
-	if db == "" {
-		panic("no database provided!")
-	}
+func readBatch(s beam.Scope, db string, query string, t reflect.Type, options queryOptions) beam.PCollection {
+	partitions := generatePartitions(s, db, query, t, options)
 
-	s = s.Scope("spanner.QueryBatch")
-
-	partitions := GeneratePartitions(s, db, query, options...)
+	s = s.Scope("spannerio.ReadBatch")
 
 	return beam.ParDo(
 		s,
-		newQueryBatchFn(db, t, options...),
+		newReadBatchFn(db, t, options),
 		partitions,
 		beam.TypeDefinition{Var: beam.XType, T: t},
 	)
 }
 
-func (f *queryBatchFn) Setup(ctx context.Context) error {
+func (f *readBatchFn) Setup(ctx context.Context) error {
 	return f.spannerFn.Setup(ctx)
 }
 
-func (f *queryBatchFn) Teardown() {
+// CreateInitialRestriction creates an offset range restriction representing
+// the partition's size in bytes.
+func (f *readBatchFn) CreateInitialRestriction(read PartitionedRead) offsetrange.Restriction {
+	txn := f.client.BatchReadOnlyTransactionFromID(read.BatchTransactionId)
+	iter := txn.Execute(context.Background(), read.Partition)
+	defer iter.Stop()
+
+	return offsetrange.Restriction{
+		Start: 0,
+		End:   iter.RowCount,
+	}
+}
+
+const (
+	blockSize = 10000
+	tooSmall  = 100
+)
+
+// SplitRestriction splits each file restriction into blocks of a predetermined
+// size, with some checks to avoid having small remainders.
+func (f *readBatchFn) SplitRestriction(_ PartitionedRead, rest offsetrange.Restriction) []offsetrange.Restriction {
+	splits := rest.SizedSplits(blockSize)
+	numSplits := len(splits)
+	if numSplits > 1 {
+		last := splits[numSplits-1]
+		if last.End-last.Start <= tooSmall {
+			// Last restriction is too small, so merge it with previous one.
+			splits[numSplits-2].End = last.End
+			splits = splits[:numSplits-1]
+		}
+	}
+	return splits
+}
+
+// RestrictionSize returns the size of each restriction as its range.
+func (f *readBatchFn) RestrictionSize(_ PartitionedRead, rest offsetrange.Restriction) float64 {
+	return rest.Size()
+}
+
+// CreateTracker creates sdf.LockRTrackers wrapping offsetRange.Trackers for
+// each restriction.
+func (f *readBatchFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+}
+
+func (f *readBatchFn) Teardown() {
 	f.spannerFn.Teardown()
 }
 
-func (f *queryBatchFn) ProcessElement(ctx context.Context, read *PartitionedRead, emit func(beam.X)) error {
+func (f *readBatchFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, read PartitionedRead, emit func(beam.X)) error {
+	rest := rt.GetRestriction().(offsetrange.Restriction)
+
 	txn := f.client.BatchReadOnlyTransactionFromID(read.BatchTransactionId)
 	iter := txn.Execute(ctx, read.Partition)
 	defer iter.Stop()
 
+	index := int64(0)
 	for {
+		if index == rest.Start {
+			break
+		}
+
+		_, err := iter.Next()
+		if err == iterator.Done {
+			break
+		} else if err != nil {
+			return err
+		}
+	}
+
+	for rt.TryClaim(index) {
 		row, err := iter.Next()
 		if err == iterator.Done {
 			break
@@ -121,6 +149,7 @@ func (f *queryBatchFn) ProcessElement(ctx context.Context, read *PartitionedRead
 
 		emit(reflect.ValueOf(val).Elem().Interface()) // emit(*val)
 	}
+
 	return nil
 }
 
@@ -131,8 +160,8 @@ type PartitionedRead struct {
 }
 
 // NewPartitionedRead constructs a new PartitionedRead.
-func NewPartitionedRead(batchTransactionId spanner.BatchReadOnlyTransactionID, partition *spanner.Partition) *PartitionedRead {
-	return &PartitionedRead{
+func NewPartitionedRead(batchTransactionId spanner.BatchReadOnlyTransactionID, partition *spanner.Partition) PartitionedRead {
+	return PartitionedRead{
 		BatchTransactionId: batchTransactionId,
 		Partition:          partition,
 	}
