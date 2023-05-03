@@ -145,8 +145,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 		}
 
 	case coder.Timer:
+		tc := coder.SkipW(c).Components[0]
 		return &timerEncoder{
-			elm: MakeElementEncoder(c.Components[0]),
+			elm: MakeElementEncoder(tc),
 			win: MakeWindowEncoder(c.Window),
 		}
 
@@ -266,8 +267,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 		}
 
 	case coder.Timer:
+		tc := coder.SkipW(c).Components[0]
 		return &timerDecoder{
-			elm: MakeElementDecoder(c.Components[0]),
+			elm: MakeElementDecoder(tc),
 			win: MakeWindowDecoder(c.Window),
 		}
 
@@ -902,7 +904,7 @@ type timerEncoder struct {
 }
 
 func (e *timerEncoder) Encode(val *FullValue, w io.Writer) error {
-	return encodeTimer(e.elm, e.win, val.Elm.(typex.TimerMap), w)
+	return encodeTimer(e.elm, e.win, val.Elm.(TimerRecv), w)
 }
 
 type timerDecoder struct {
@@ -1254,11 +1256,13 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 	return ws, t, pn, nil
 }
 
-// encodeTimer encodes a typex.TimerMap into a byte stream.
-func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.Writer) error {
+// encodeTimer encodes a TimerRecv into a byte stream.
+func encodeTimer(elm ElementEncoder, win WindowEncoder, tm TimerRecv, w io.Writer) error {
 	var b bytes.Buffer
-
-	elm.Encode(&FullValue{Elm: tm.Key}, &b)
+	err := elm.Encode(tm.Key, &b)
+	if err != nil {
+		return errors.WithContext(err, "error encoding key")
+	}
 
 	if err := coder.EncodeStringUTF8(tm.Tag, &b); err != nil {
 		return errors.WithContext(err, "error encoding tag")
@@ -1267,6 +1271,7 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 	if err := win.Encode(tm.Windows, &b); err != nil {
 		return errors.WithContext(err, "error encoding window")
 	}
+
 	if err := coder.EncodeBool(tm.Clear, &b); err != nil {
 		return errors.WithContext(err, "error encoding clear bit")
 	}
@@ -1282,20 +1287,19 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.
 			return errors.WithContext(err, "error encoding paneinfo")
 		}
 	}
-
 	w.Write(b.Bytes())
+
 	return nil
 }
 
 // decodeTimer decodes timer byte encoded with standard timer coder spec.
-func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (typex.TimerMap, error) {
-	tm := typex.TimerMap{}
-
-	fv, err := dec.Decode(r)
+func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv, error) {
+	tm := TimerRecv{}
+	key, err := dec.Decode(r)
 	if err != nil {
-		return tm, errors.WithContext(err, "error decoding timer key")
+		return tm, errors.WithContext(err, "error decoding key")
 	}
-	tm.Key = fv.Elm.(string)
+	tm.Key = key
 
 	s, err := coder.DecodeStringUTF8(r)
 	if err != nil && err != io.EOF {

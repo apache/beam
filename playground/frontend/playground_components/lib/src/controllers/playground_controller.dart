@@ -42,6 +42,7 @@ import '../services/symbols/symbols_notifier.dart';
 import '../util/logical_keyboard_key.dart';
 import 'code_runner.dart';
 import 'example_loaders/examples_loader.dart';
+import 'feedback_controller.dart';
 import 'result_filter_controller.dart';
 import 'snippet_editing_controller.dart';
 
@@ -207,19 +208,17 @@ class PlaygroundController with ChangeNotifier {
   }) {
     if (setCurrentSdk) {
       _sdk = example.sdk;
-      final controller = _getOrCreateSnippetEditingController(
-        example.sdk,
-        loadDefaultIfNot: false,
-      );
-
-      controller.setExample(example, descriptor: descriptor);
       _ensureSymbolsInitialized();
-    } else {
-      final controller = _getOrCreateSnippetEditingController(
-        example.sdk,
-        loadDefaultIfNot: false,
-      );
-      controller.setExample(example, descriptor: descriptor);
+    }
+
+    final controller = _getOrCreateSnippetEditingController(
+      example.sdk,
+      loadDefaultIfNot: false,
+    );
+    controller.setExample(example, descriptor: descriptor);
+    if (example.sdk == _sdk) {
+      GetIt.instance.get<FeedbackController>().eventSnippetContext =
+          controller.eventSnippetContext;
     }
 
     codeRunner.reset();
@@ -231,10 +230,12 @@ class PlaygroundController with ChangeNotifier {
     bool notify = true,
   }) {
     _sdk = sdk;
-    _getOrCreateSnippetEditingController(
+    final controller = _getOrCreateSnippetEditingController(
       sdk,
       loadDefaultIfNot: true,
     );
+    GetIt.instance.get<FeedbackController>().eventSnippetContext =
+        controller.eventSnippetContext;
     _ensureSymbolsInitialized();
 
     if (notify) {

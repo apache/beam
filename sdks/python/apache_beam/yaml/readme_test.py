@@ -31,7 +31,7 @@ from yaml.loader import SafeLoader
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.yaml import yaml_provider
+from apache_beam.typehints import trivial_inference
 from apache_beam.yaml import yaml_transform
 
 
@@ -85,13 +85,46 @@ class FakeSql(beam.PTransform):
     output_schema = [
         guess_name_and_type(expr) for expr in m.group(1).split(',')
     ]
-    return next(iter(inputs.values())).pipeline | beam.Create(
-        [beam.Row(**{name: typ()
-                     for name, typ in output_schema})])
+    output_element = beam.Row(**{name: typ() for name, typ in output_schema})
+    return next(iter(inputs.values())) | beam.Map(
+        lambda _: output_element).with_output_types(
+            trivial_inference.instance_to_type(output_element))
+
+
+class FakeReadFromPubSub(beam.PTransform):
+  def __init__(self, topic):
+    pass
+
+  def expand(self, p):
+    data = p | beam.Create([beam.Row(col1='a', col2=1, col3=0.5)])
+    result = data | beam.Map(
+        lambda row: beam.transforms.window.TimestampedValue(row, 0))
+    # TODO(robertwb): Allow this to be inferred.
+    result.element_type = data.element_type
+    return result
+
+
+class FakeWriteToPubSub(beam.PTransform):
+  def __init__(self, topic):
+    pass
+
+  def expand(self, pcoll):
+    return pcoll
+
+
+class SomeAggregation(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | beam.GroupBy(lambda _: 'key').aggregate_field(
+        lambda _: 1, sum, 'count')
 
 
 RENDER_DIR = None
-TEST_PROVIDERS = {'Sql': [yaml_provider.InlineProvider({'Sql': FakeSql})]}
+TEST_PROVIDERS = {
+    'Sql': FakeSql,
+    'ReadFromPubSub': FakeReadFromPubSub,
+    'WriteToPubSub': FakeWriteToPubSub,
+    'SomeAggregation': SomeAggregation,
+}
 
 
 class TestEnvironment:

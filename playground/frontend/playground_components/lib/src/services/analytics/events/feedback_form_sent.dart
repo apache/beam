@@ -28,6 +28,7 @@ class FeedbackFormSentAnalyticsEvent extends AnalyticsEventWithSnippetContext {
     required this.rating,
     required this.text,
     required super.snippetContext,
+    super.additionalParams,
   }) : super(
           name: BeamAnalyticsEvents.feedbackFormSent,
         );

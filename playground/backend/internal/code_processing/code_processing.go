@@ -440,11 +440,13 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelFunc context.C
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			cancel, err := cacheService.GetValue(ctx, pipelineId, cache.Canceled)
+			// Use background context for the cache operation to avoid failure when the main context is timed out.
+			// Timeouts are handled by the Redis client internally.
+			cancel, err := cacheService.GetValue(context.Background(), pipelineId, cache.Canceled)
+			// Only cancel if got the boolean value from the cache. Do not cancel if the value is nil or error happened.
 			if err != nil {
 				logger.Errorf("%s: Error during getting value from the cache: %s", pipelineId, err.Error())
-			}
-			if cancel.(bool) {
+			} else if cancel != nil && cancel.(bool) {
 				cancelFunc()
 				return
 			}
