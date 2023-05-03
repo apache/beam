@@ -54,6 +54,9 @@ class Repositories {
         url "https://packages.confluent.io/maven/"
         content { includeGroup "io.confluent" }
       }
+      maven {
+        url 'https://linkedin.jfrog.io/artifactory/flink-li-custom/'
+      }
     }
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
