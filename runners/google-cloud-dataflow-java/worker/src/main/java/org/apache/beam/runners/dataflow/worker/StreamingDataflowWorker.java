@@ -1332,6 +1332,7 @@ public class StreamingDataflowWorker {
                   readNode.getParallelInstruction().getSystemName(),
                   readNode.getParallelInstruction().getName());
           readOperation.receivers[0].addOutputCounter(
+              counterName,
               new OutputObjectAndByteCounter(
                       new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
                           readCoder),
@@ -1405,23 +1406,13 @@ public class StreamingDataflowWorker {
       // Reports source bytes processed to workitemcommitrequest if available.
       try {
         long sourceBytesProcessed = 0;
-        List<ElementCounter> counters =
+        HashMap<String, ElementCounter> counters =
             ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
                 .getReadOperation()
                 .receivers[0]
                 .getOutputCounters();
-        for (ElementCounter counter : counters) {
-          try {
-            Counter<Long, Long> baseCounter = ((OutputObjectAndByteCounter) counter).getByteCount();
-            if (!baseCounter.getName().name().equals(counterName)) continue;
-            sourceBytesProcessed = (long) baseCounter.getAndReset();
-          } catch (Exception e) {
-            // Ignoring because most counter will crash, spamming the logs.
-            // Also safe to ignore because if counter not reset, autoscaling
-            // will be able to fetch the info directly from counter instead
-            // of through source_bytes_processed in WorkItemCommitRequest.
-          }
-        }
+        sourceBytesProcessed =
+            ((OutputObjectAndByteCounter) counters.get(counterName)).getByteCount().getAndReset();
         outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
       } catch (Exception e) {
         LOG.error(e.toString());

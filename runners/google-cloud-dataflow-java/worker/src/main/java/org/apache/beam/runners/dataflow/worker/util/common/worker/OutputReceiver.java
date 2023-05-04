@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -26,20 +27,20 @@ import java.util.List;
  */
 public class OutputReceiver implements Receiver {
   private final List<Receiver> outputs = new ArrayList<>();
-  private final List<ElementCounter> outputCounters = new ArrayList<>();
+  private final HashMap<String, ElementCounter> outputCounters = new HashMap<>();
 
   /** Adds a new receiver that this OutputReceiver forwards to. */
   public void addOutput(Receiver receiver) {
     outputs.add(receiver);
   }
 
-  public void addOutputCounter(ElementCounter outputCounter) {
-    outputCounters.add(outputCounter);
+  public void addOutputCounter(String counterName, ElementCounter outputCounter) {
+    outputCounters.put(counterName, outputCounter);
   }
 
   @Override
   public void process(Object elem) throws Exception {
-    for (ElementCounter counter : outputCounters) {
+    for (ElementCounter counter : outputCounters.values()) {
       counter.update(elem);
     }
 
@@ -50,12 +51,12 @@ public class OutputReceiver implements Receiver {
       }
     }
 
-    for (ElementCounter counter : outputCounters) {
+    for (ElementCounter counter : outputCounters.values()) {
       counter.finishLazyUpdate(elem);
     }
   }
 
-  public List<ElementCounter> getOutputCounters() {
+  public HashMap<String, ElementCounter> getOutputCounters() {
     return this.outputCounters;
   }
 
