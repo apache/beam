@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# GCP API Services to be enabled
+# Enable required GCP APIs
 resource "google_project_service" "required_services" {
   for_each  = toset([
     "cloudresourcemanager",

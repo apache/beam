@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Create cloud build service account
 resource "google_service_account" "tourofbeam_deployer" {
   account_id   = var.tourofbeam_deployer_sa_name
   description  = "The service account to be used by cloud build to deploy Tour of Beam backend"
 }
 
+# Assign IAM roles to cloud build service account
 resource "google_project_iam_member" "tourofbeam_backend_deployer" {
   for_each = toset([
     "roles/datastore.indexAdmin",

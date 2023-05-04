@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This creates cloud build trigger for deploying Tour of Beam backend
 resource "google_cloudbuild_trigger" "tourofbeam_backend_infrastructure" {
   name     = "Tourofbeam-backend-infra-trigger"
 
@@ -32,7 +33,6 @@ resource "google_cloudbuild_trigger" "tourofbeam_backend_infrastructure" {
     step {
       name = "ubuntu"
       entrypoint = "bash"
-      env = local.cloudbuild_init_environment
       args = [
         "-c",
         "../inline.yaml to be pasted here"

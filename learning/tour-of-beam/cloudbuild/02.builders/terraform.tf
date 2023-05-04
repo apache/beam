@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Using 4.62.0 provider to run script block in build
 terraform {
   backend "gcs" {
     prefix = "01.setup"

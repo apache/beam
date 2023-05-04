@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 variable "tourofbeam_deployer_sa_name" {
-  type        = string
+  default = "tob-cloudbuild-sa"
+  description = "Service account name to be created and used by cloud build"
 }
 
 variable "project_id" {
-  type        = string
+  description = "GCP project id where resources will be created"
 }
-
