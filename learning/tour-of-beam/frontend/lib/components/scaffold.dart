@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+import 'package:app_state/app_state.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../pages/tour/widgets/pipeline_options.dart';
+import '../pages/welcome/page.dart';
 import '../state.dart';
 import 'footer.dart';
 import 'login/button.dart';
@@ -43,7 +45,7 @@ class TobScaffold extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Logo(),
+        title: const _HomepageLinkLogo(),
         actions: [
           if (playgroundController != null)
             _PlaygroundControllerActions(
@@ -65,6 +67,23 @@ class TobScaffold extends StatelessWidget {
             playgroundController: playgroundController,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomepageLinkLogo extends StatelessWidget {
+  const _HomepageLinkLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () {
+          GetIt.instance.get<PageStack>().popUntilBottom();
+        },
+        child: const Logo(),
       ),
     );
   }
