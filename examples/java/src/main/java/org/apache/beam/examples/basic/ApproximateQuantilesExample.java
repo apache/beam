@@ -26,15 +26,13 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: ApproximateQuantiles
 //   description: Demonstration of ApproximateQuantiles transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 46
+//   context_line: 44
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -56,12 +54,12 @@ public class ApproximateQuantilesExample {
     // [END main_section]
     result.apply(
         ParDo.of(
-            new LogOutput("PCollection numbers after ApproximateQuantiles.globally transform: ")));
+            new LogOutput<>(
+                "PCollection numbers after ApproximateQuantiles.globally transform: ")));
     pipeline.run();
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
-    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {

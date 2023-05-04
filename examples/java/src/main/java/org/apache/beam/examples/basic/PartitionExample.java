@@ -21,27 +21,28 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: Partition
 //   description: Demonstration of Partition transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 55
+//   context_line: 56
 //   categories:
 //     - Core Transforms
 //     - Coders
@@ -101,6 +102,7 @@ public class PartitionExample {
             Partition.of(
                 10,
                 new Partition.PartitionFn<Student>() {
+                  @Override
                   public int partitionFor(Student student, int numPartitions) {
                     return student.getPercentile() // 0..99
                         * numPartitions
@@ -112,12 +114,14 @@ public class PartitionExample {
     // as follows:
     PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
     // [END main_section]
-    fortiethPercentile.apply(ParDo.of(new LogOutput("Fortieth percentile: ")));
+    fortiethPercentile.apply(ParDo.of(new LogOutput<>("Fortieth percentile: ")));
     pipeline.run();
   }
 
   static class Student {
-    private String name;
+    private Student() {}
+
+    private String name = "";
     private int percentile;
 
     public String getName() {
@@ -135,6 +139,7 @@ public class PartitionExample {
       return student;
     }
 
+    @Override
     public String toString() {
       return name + " (" + percentile + ")";
     }
@@ -148,11 +153,11 @@ public class PartitionExample {
     @Override
     public void encode(Student student, OutputStream outStream) throws IOException {
       String serializableStudent = student.getName() + "," + student.getPercentile();
-      outStream.write(serializableStudent.getBytes());
+      outStream.write(serializableStudent.getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
-    public Student decode(InputStream inStream) throws CoderException, IOException {
+    public Student decode(InputStream inStream) throws IOException {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
       int nRead;
@@ -162,8 +167,8 @@ public class PartitionExample {
         buffer.write(data, 0, nRead);
       }
 
-      String serializableStudent = buffer.toString();
-      String[] fields = serializableStudent.split(",");
+      String serializableStudent = buffer.toString(StandardCharsets.UTF_8.name());
+      String[] fields = serializableStudent.split(",", -1);
       return Student.of(fields[0], Integer.parseInt(fields[1]));
     }
 
@@ -173,11 +178,10 @@ public class PartitionExample {
     }
 
     @Override
-    public void verifyDeterministic() throws NonDeterministicException {}
+    public void verifyDeterministic() {}
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
-    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {

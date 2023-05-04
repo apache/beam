@@ -20,18 +20,19 @@ package org.apache.beam.examples.basic;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: SumPerKey
 //   description: Demonstration of Sum.integersPerKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 44
+//   context_line: 45
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -51,12 +52,11 @@ public class SumPerKeyExample {
     PCollection<KV<String, Integer>> sumPerKey = input.apply(Sum.integersPerKey());
     // [END main_section]
     // Log values
-    sumPerKey.apply(ParDo.of(new LogOutput("PCollection numbers after Sum transform: ")));
+    sumPerKey.apply(ParDo.of(new LogOutput<>("PCollection numbers after Sum transform: ")));
     pipeline.run();
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
-    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {

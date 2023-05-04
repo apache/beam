@@ -26,15 +26,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: Sample
 //   description: Demonstration of Sample transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 47
+//   context_line: 45
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -63,12 +61,11 @@ public class SampleExample {
     PCollection<KV<String, Iterable<String>>> result = pairs.apply(Sample.fixedSizePerKey(2));
     // [END main_section]
     result.apply(
-        ParDo.of(new LogOutput("PCollection pairs after Sample.fixedSizePerKey transform: ")));
+        ParDo.of(new LogOutput<>("PCollection pairs after Sample.fixedSizePerKey transform: ")));
     pipeline.run();
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
-    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {

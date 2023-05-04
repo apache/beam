@@ -20,17 +20,19 @@ package org.apache.beam.examples.basic;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: Combine
 //   description: Demonstration of Combine transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 42
+//   context_line: 44
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -50,12 +52,11 @@ public class CombineExample {
     PCollection<Integer> sum = pc.apply(Combine.globally(Sum.ofIntegers()));
     // [END main_section]
     // Log values
-    sum.apply(ParDo.of(new LogOutput("PCollection numbers after Combine transform: ")));
+    sum.apply(ParDo.of(new LogOutput<>("PCollection numbers after Combine transform: ")));
     pipeline.run();
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
-    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {

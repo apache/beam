@@ -20,20 +20,22 @@ package org.apache.beam.examples.basic;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.transforms.join.*;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.join.CoGbkResult;
+import org.apache.beam.sdk.transforms.join.CoGroupByKey;
+import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: CoGroupByKey
 //   description: Demonstration of CoGroupByKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 50
+//   context_line: 52
 //   categories:
 //     - Core Transforms
 //     - Joins
@@ -67,12 +69,11 @@ public class CoGroupByKeyExample {
     PCollection<KV<String, CoGbkResult>> result =
         KeyedPCollectionTuple.of(t1, pt1).and(t2, pt2).apply(CoGroupByKey.create());
     // [END main_section]
-    result.apply(ParDo.of(new LogOutput("PCollection pairs after CoGroupByKey transform: ")));
+    result.apply(ParDo.of(new LogOutput<>("PCollection pairs after CoGroupByKey transform: ")));
     pipeline.run();
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
-    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {
