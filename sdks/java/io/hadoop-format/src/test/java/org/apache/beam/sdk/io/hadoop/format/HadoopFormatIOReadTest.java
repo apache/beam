@@ -568,9 +568,12 @@ public class HadoopFormatIOReadTest {
    */
   @Test
   public void testReadDisplayData() {
+    SerializableConfiguration conf =
+        loadTestConfigurationWithInputPath(
+            EmployeeInputFormat.class, Text.class, Employee.class, "some-path");
     HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
         new HadoopInputFormatBoundedSource<>(
-            serConf,
+            conf,
             WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class),
             null, // No key translation required.
@@ -578,14 +581,16 @@ public class HadoopFormatIOReadTest {
             new SerializableSplit(),
             false,
             false);
+
     DisplayData displayData = DisplayData.from(boundedSource);
     assertThat(
         displayData,
         hasDisplayItem(
-            "mapreduce.job.inputformat.class",
-            serConf.get().get("mapreduce.job.inputformat.class")));
-    assertThat(displayData, hasDisplayItem("key.class", serConf.get().get("key.class")));
-    assertThat(displayData, hasDisplayItem("value.class", serConf.get().get("value.class")));
+            "mapreduce.job.inputformat.class", conf.get().get("mapreduce.job.inputformat.class")));
+    assertThat(displayData, hasDisplayItem("key.class", conf.get().get("key.class")));
+    assertThat(displayData, hasDisplayItem("value.class", conf.get().get("value.class")));
+    assertThat(
+        displayData, hasDisplayItem("mapreduce.input.fileinputformat.inputdir", "some-path"));
   }
 
   /**
@@ -1071,6 +1076,16 @@ public class HadoopFormatIOReadTest {
       Class<?> inputFormatClassName, Class<?> keyClass, Class<?> valueClass) {
     Configuration conf = new Configuration();
     conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName, InputFormat.class);
+    conf.setClass("key.class", keyClass, Object.class);
+    conf.setClass("value.class", valueClass, Object.class);
+    return new SerializableConfiguration(conf);
+  }
+
+  private static SerializableConfiguration loadTestConfigurationWithInputPath(
+      Class<?> inputFormatClassName, Class<?> keyClass, Class<?> valueClass, String inputPath) {
+    Configuration conf = new Configuration();
+    conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName, InputFormat.class);
+    conf.set("mapreduce.input.fileinputformat.inputdir", inputPath);
     conf.setClass("key.class", keyClass, Object.class);
     conf.setClass("value.class", valueClass, Object.class);
     return new SerializableConfiguration(conf);
