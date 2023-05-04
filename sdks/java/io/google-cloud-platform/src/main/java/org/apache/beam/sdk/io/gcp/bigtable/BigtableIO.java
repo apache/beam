@@ -1003,6 +1003,19 @@ public class BigtableIO {
           .build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.Write} with flow control based on the current load on the
+     * Bigtable cluster if enableFlowControl is true.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withFlowControl(boolean enableFlowControl) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setFlowControl(enableFlowControl).build())
+          .build();
+    }
+
     @VisibleForTesting
     Write withServiceFactory(BigtableServiceFactory factory) {
       return toBuilder().setServiceFactory(factory).build();
