@@ -118,12 +118,12 @@ def _to_microseconds(time_ns: int) -> int:
 
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
-  """Environment variables are set using a dict named 'env_vars' before loading the model.
-  Child classes can accept this dict as a kwarg."""
+  """Has the ability to load and apply an ML model."""
   def __init__(self):
+    """Environment variables are set using a dict named 'env_vars' before
+    loading the model. Child classes can accept this dict as a kwarg."""
     self._env_vars = {}
 
-  """Has the ability to load and apply an ML model."""
   def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
@@ -204,7 +204,6 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     Keys are the env variable name, and values are the env variable value."""
     for env_variable, env_value in self._env_vars.items():
       os.environ[env_variable] = env_value
-
 
   def with_preprocess_fn(
       self, fn: Callable[[PreProcessT], ExampleT]
