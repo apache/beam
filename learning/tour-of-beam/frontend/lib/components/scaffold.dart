@@ -80,8 +80,8 @@ class _HomepageLinkLogo extends StatelessWidget {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () async {
-          await GetIt.instance.get<PageStack>().push(WelcomePage());
+        onTap: () {
+          GetIt.instance.get<PageStack>().popUntilBottom();
         },
         child: const Logo(),
       ),
