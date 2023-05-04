@@ -29,8 +29,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.bigtable.BigTableReadSchemaTransformProvider.BigTableReadSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -53,7 +51,6 @@ import org.apache.beam.sdk.values.Row;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigTableReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigTableReadSchemaTransformConfiguration> {
