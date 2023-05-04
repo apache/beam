@@ -2468,7 +2468,7 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn project.project(config.expansionProjectPath).shadowJar.getPath()
         dependsOn ":sdks:python:installGcpTest"
         if (usesDataflowRunner) {
-          dependsOn ":sdks:python:test-suites:dataflow:py" + project.ext.pythonVersion + ":initializeForDataflowJob"
+          dependsOn ":sdks:python:test-suites:dataflow:py" + project.ext.pythonVersion.replace('.', '') + ":initializeForDataflowJob"
         }
         doLast {
           project.exec {
