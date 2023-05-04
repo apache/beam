@@ -1405,13 +1405,12 @@ public class StreamingDataflowWorker {
 
       // Reports source bytes processed to workitemcommitrequest if available.
       try {
-        long sourceBytesProcessed = 0;
         HashMap<String, ElementCounter> counters =
             ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
                 .getReadOperation()
                 .receivers[0]
                 .getOutputCounters();
-        sourceBytesProcessed =
+        long sourceBytesProcessed =
             ((OutputObjectAndByteCounter) counters.get(counterName)).getByteCount().getAndReset();
         outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
       } catch (Exception e) {
