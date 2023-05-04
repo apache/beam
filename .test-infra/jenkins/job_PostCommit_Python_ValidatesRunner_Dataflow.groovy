@@ -21,9 +21,9 @@ import PostcommitJobBuilder
 
 // This job runs the suite of Python ValidatesRunner tests against the
 // Dataflow runner V2.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow_V2', 'Run Python Dataflow V2 ValidatesRunner',
-    'Google Cloud Dataflow Runner V2 Python ValidatesRunner Tests', this) {
-      description('Runs Python ValidatesRunner suite on the Dataflow runner v2.')
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python Dataflow ValidatesRunner',
+    'Google Cloud Dataflow Runner Python ValidatesRunner Tests', this) {
+      description('Runs Python ValidatesRunner suite on the Dataflow runner.')
 
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 200)
@@ -38,7 +38,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow_V2', 'Run Pyt
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:python:test-suites:dataflow:validatesRunnerBatchTestsV2')
           tasks(':sdks:python:test-suites:dataflow:validatesRunnerStreamingTestsV2')
-          switches('-PuseRunnerV2')
           switches('-PuseWheelDistribution')
           commonJobProperties.setGradleSwitches(delegate)
         }
