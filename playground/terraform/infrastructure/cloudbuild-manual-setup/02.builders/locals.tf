@@ -22,6 +22,7 @@ locals {
     "REPO_NAME=$_REPO_NAME" ,
     "BRANCH_NAME=$_BRANCH_NAME",
     "ENVIRONMENT_NAME=$_ENVIRONMENT_NAME",
+    "TF_VAR_env=$_ENVIRONMENT_NAME",  
     "TF_VAR_project_id=$PROJECT_ID",
     "TF_VAR_network_name=$_NETWORK_NAME",
     "TF_VAR_subnetwork_name=$_SUBNETWORK_NAME",
@@ -48,6 +49,7 @@ locals {
     "DNS_NAME=$_DNS_NAME",
     "SDK_TAG=$_SDK_TAG",
     "CONTAINER_TAG=$_CONTAINER_TAG",
+    "TF_VAR_env=$_ENVIRONMENT_NAME",  
     "TF_VAR_project_id=$PROJECT_ID",
     "TF_VAR_network_name=$_NETWORK_NAME",
     "TF_VAR_subnetwork_name=$_SUBNETWORK_NAME",
@@ -61,7 +63,7 @@ locals {
     "TF_VAR_max_count=$_MAX_COUNT",
     "TF_VAR_skip_appengine_deploy=$_SKIP_APPENGINE_DEPLOY",
     "TF_VAR_ip_address_name=$_IPADDRESS_NAME",
-    "TF_VAR_repository_id=$_REPOSITORY_NAME",
+    "TF_VAR_repository_id=$_DOCKER_REPO_NAME",
     "TF_VAR_service_account_id=$_SERVICEACCOUNT_ID",
     "TF_VAR_gke_machine_type=$_GKE_MACHINE_TYPE"] 
 

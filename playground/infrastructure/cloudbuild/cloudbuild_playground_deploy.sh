@@ -32,7 +32,7 @@ curl -fsSLo get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts
 chmod +x get_helm.sh && ./get_helm.sh
 
 apt-get -qq update
-apt-get -qq install -y google-cloud-sdk-gke-gcloud-auth-plugin google-cloud-sdk openjdk-11-jdk kubectl docker-ce 
+apt-get -qq install -y google-cloud-sdk-gke-gcloud-auth-plugin google-cloud-sdk openjdk-11-jdk kubectl docker-ce golang
 
 git clone --branch $BRANCH_NAME $REPO_NAME --single-branch
 cd beam

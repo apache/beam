@@ -48,11 +48,13 @@ resource "google_project_iam_member" "playground_deployer_roles" {
     "roles/servicemanagement.quotaAdmin",
     "roles/iam.roleAdmin",
     "roles/iam.securityAdmin",
+    "roles/iam.serviceAccountAdmin",
     "roles/iam.serviceAccountUser",
     "roles/datastore.indexAdmin",
     "roles/storage.admin",
     "roles/dns.admin",
-    "roles/logging.logWriter"
+    "roles/logging.logWriter",
+    "roles/cloudfunctions.developer"
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.pg_cloudbuild_deploy_sa.email}"
@@ -69,9 +71,11 @@ resource "google_project_iam_member" "playground_helm_updater_roles" {
     "roles/iam.roleAdmin",
     "roles/appengine.appAdmin",
     "roles/datastore.indexAdmin",
+    "roles/datastore.user",
     "roles/redis.admin",
     "roles/dns.admin",
-    "roles/logging.logWriter"
+    "roles/logging.logWriter",
+    "roles/cloudfunctions.admin"
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.pg_cloudbuild_update_sa.email}"
@@ -109,4 +113,5 @@ resource "google_project_iam_member" "cloudbuild_sa_role" {
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
   project = var.project_id
+  depends_on = [ google_project_service.required_services ]
 }

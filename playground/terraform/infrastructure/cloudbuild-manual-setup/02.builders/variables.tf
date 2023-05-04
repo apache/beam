@@ -62,18 +62,6 @@ variable "playground_dns_name" {
   description = "The DNS A-record name for Playground website"
 }
 
-variable "playground_network_name" {
-  description = "The Google Cloud Platform VPC Name for Playground deployment"
-}
-
-variable "playground_subnetwork_name" {
-  description = "The Google Cloud Platform VPC Subnetwork Name for Playground deployment"
-}
-
-variable "playground_gke_name" {
-  description = "The Google Cloud Platform GKE Cluster name for Playground deployment"
-}
-
 variable "state_bucket" {
   description = "The Google Cloud Platform GCS bucket name for Playground Terraform state file"
 }
@@ -96,10 +84,6 @@ variable "cloudbuild_bucket_public_location" {
 }
 variable "image_tag" {
   description = "The docker images tag for Playground images"
-}
-
-variable "docker_repository_name" {
-  description = "The name of Google Cloud Platform (GCP) Artifact Registry Repository where Playground images will be saved to"
 }
 
 variable "playground_region" {
@@ -127,10 +111,6 @@ variable "gke_machine_type" {
   default = "e2-standard-8"
 }
 
-variable "ipaddress_name" {
-  description = "The GCP Static IP Address name for Playground deployment"
-}
-
 variable "max_count" {
   description = "Max node count for GKE cluster. Default: 4"
   default = 4
@@ -139,10 +119,6 @@ variable "max_count" {
 variable "min_count" {
   description = "Min node count for GKE cluster. Default: 2"
   default = 2
-}
-
-variable "redis_name" {
-  description = "The Google Cloud Platform redis instance name for Playground"
 }
 
 variable "redis_tier" {
@@ -154,20 +130,12 @@ variable "playground_service_account" {
   description = "GCP service account name for Playground GKE"
 }
 
-variable "datastore_namespace" {
-  description = "The name of Playground Datastore namespace"
-}
-
 variable "webhook_trigger_secret_id" {
   description = "The name of the secret for webhook config cloud build trigger (CI/CD)"
 }
 
 variable "gh_pat_secret" {
   description = "The name of the secret for GitHub Personal Access Token. Required for cloud build trigger (CI/CD)"
-}
-
-variable "data_for_cicd_webhook_secret" {
-  description = "Data for cloud build CI/CD secret. Required for secret functionality. Any value can be set"
 }
 
 variable "data_for_github_pat_secret" {

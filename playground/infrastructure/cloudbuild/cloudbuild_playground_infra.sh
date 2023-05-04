@@ -40,6 +40,8 @@ git clone --branch $BRANCH_NAME $REPO_NAME --single-branch
 cd beam
 mkdir playground/terraform/environment/$ENVIRONMENT_NAME
  
+gcloud create bucket gs://$TF_VAR_state_bucket --location $TF_VAR_region --project $TF_VAR_project_id --pap
+
 echo "---- ENV OUTPUT---"
 env | grep TF_VAR
 echo "bucket = \"${TF_VAR_state_bucket}\"" > playground/terraform/environment/$ENVIRONMENT_NAME/state.tfbackend
