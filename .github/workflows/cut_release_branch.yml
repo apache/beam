@@ -37,6 +37,12 @@ on:
         description: Next release version
         required: true
         default: '2.XX.0'
+      JENKINS_USERNAME:
+        description: Username of the current Jenkins user. Used to update mass_comment.py with all Jenkins jobs.
+        required: true
+      JENKINS_TOKEN:
+        description: API Token for the current Jenkins user. Can be generated at https://ci-beam.apache.org/user/<user>/configure
+        required: true
 
 jobs:
   update_master:
@@ -46,6 +52,11 @@ jobs:
       NEXT_RELEASE: ${{ github.event.inputs.NEXT_VERSION }}
       SCRIPT_DIR: ./release/src/main/scripts
     steps:
+      - name: Mask Jenkins token
+        run: |
+          echo "::add-mask::$JENKINS_TOKEN"
+        env:
+          JENKINS_TOKEN: ${{ github.event.inputs.JENKINS_TOKEN }}
       - name: Validate Next Version
         run: |
           if [[ $NEXT_RELEASE =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
@@ -60,6 +71,36 @@ jobs:
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
+      - name: Install xmllint
+        run: sudo apt-get install -y libxml2-utils
+      - name: Update mass_comment.py with new Jenkins jobs
+        run: |
+          rm release/src/main/scripts/jenkins_jobs.txt
+          for obj in $(curl https://ci-beam.apache.org/api/json | jq '.jobs[]' -c); do
+            echo $obj
+            url=$(echo $obj | jq '.url' -r || echo "")
+            name=$(echo $obj | jq '.name' -r || echo "")
+            if [ "$url" != "" ] && [ "$name" != "" ]; then
+            curl --user $JENKINS_USERNAME:$JENKINS_TOKEN $url/config.xml > /tmp/config.xml
+
+              if [ "$(xmllint --xpath 'string(//disabled)' /tmp/config.xml)" = "true" ]; then
+                echo "SKIPPING $url - disabled"
+              else
+                phrase=$(xmllint --xpath 'string(//triggers/org.jenkinsci.plugins.ghprb.GhprbTrigger/triggerPhrase)' /tmp/config.xml)
+                if [ "$phrase" != "" ]; then
+                  echo "Appending ${phrase},${name}"
+                  echo "${phrase},${name}" >> /tmp/result
+                fi
+              fi
+
+              rm /tmp/config.xml
+            fi
+          done
+
+          cat /tmp/result | sort | uniq | grep -i -E 'precommit|postcommit|validates|vr|example|test|gradle build' | grep -v -i -E 'load|perf|website' >> release/src/main/scripts/jenkins_jobs.txt
+        env:
+          JENKINS_USERNAME: ${{ github.event.inputs.JENKINS_USERNAME }}
+          JENKINS_TOKEN: ${{ github.event.inputs.JENKINS_TOKEN }}
       - name: Update master branch
         run: |
           bash "${SCRIPT_DIR}/set_version.sh" "${NEXT_VERSION_IN_BASE_BRANCH}"

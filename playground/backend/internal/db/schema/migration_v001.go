@@ -13,29 +13,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package migration
+package schema
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	ds "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
-	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/utils"
+	"cloud.google.com/go/datastore"
+	"context"
 )
 
-type InitialStructure struct {
+type migrationV001 struct {
+	ds.MigrationBase
 }
 
-func (is *InitialStructure) InitiateData(args *schema.DBArgs) error {
-	//init schema versions
-	schemaEntity := &entity.SchemaEntity{Descr: is.GetDescription()}
-	if err := args.Db.PutSchemaVersion(args.Ctx, is.GetVersion(), schemaEntity); err != nil {
-		return err
+func GetMigration_v001() ds.Migration {
+	return &migrationV001{
+		MigrationBase: ds.MigrationBase{
+			Version:     1,
+			Description: "Data initialization: a schema version, SDKs",
+		},
 	}
+}
 
-	//init sdks
+func (m migrationV001) Apply(ctx context.Context, tx *datastore.Transaction, sdkConfigPath string) error {
+	// Init sdks
 	var sdkEntities []*entity.SDKEntity
 	sdkConfig := new(SdkConfig)
-	if err := utils.ReadYamlFile(args.AppEnv.SdkConfigPath(), sdkConfig); err != nil {
+	if err := utils.ReadYamlFile(sdkConfigPath, sdkConfig); err != nil {
 		return err
 	}
 	for _, sdk := range pb.Sdk_name {
@@ -48,7 +54,7 @@ func (is *InitialStructure) InitiateData(args *schema.DBArgs) error {
 			DefaultExample: defaultExample,
 		})
 	}
-	if err := args.Db.PutSDKs(args.Ctx, sdkEntities); err != nil {
+	if err := ds.TxPutSDKs(ctx, tx, sdkEntities); err != nil {
 		return err
 	}
 
@@ -81,12 +87,4 @@ func getDefaultExample(config *SdkConfig, sdk string) string {
 	default:
 		return ""
 	}
-}
-
-func (is *InitialStructure) GetVersion() string {
-	return "0.0.1"
-}
-
-func (is InitialStructure) GetDescription() string {
-	return "Data initialization: a schema version, SDKs"
 }

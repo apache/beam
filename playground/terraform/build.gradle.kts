@@ -267,6 +267,51 @@ tasks.register<TerraformTask>("setPlaygroundStaticIpAddressName") {
     }
 }
 
+tasks.register<TerraformTask>("setPlaygroundFunctionCleanupUrl") {
+    group = "deploy"
+
+    dependsOn("terraformInit")
+    dependsOn("terraformRef")
+
+    args("output", "playground_function_cleanup_url")
+    standardOutput = ByteArrayOutputStream()
+
+    doLast {
+        project.rootProject.extra["playground_function_cleanup_url"] =
+            standardOutput.toString().trim().replace("\"", "")
+    }
+}
+
+tasks.register<TerraformTask>("setPlaygroundFunctionPutUrl") {
+    group = "deploy"
+
+    dependsOn("terraformInit")
+    dependsOn("terraformRef")
+
+    args("output", "playground_function_put_url")
+    standardOutput = ByteArrayOutputStream()
+
+    doLast {
+        project.rootProject.extra["playground_function_put_url"] =
+            standardOutput.toString().trim().replace("\"", "")
+    }
+}
+
+tasks.register<TerraformTask>("setPlaygroundFunctionViewUrl") {
+    group = "deploy"
+
+    dependsOn("terraformInit")
+    dependsOn("terraformRef")
+
+    args("output", "playground_function_view_url")
+    standardOutput = ByteArrayOutputStream()
+
+    doLast {
+        project.rootProject.extra["playground_function_view_url"] =
+            standardOutput.toString().trim().replace("\"", "")
+    }
+}
+
 tasks.register("takeConfig") {
     group = "deploy"
 
@@ -274,6 +319,9 @@ tasks.register("takeConfig") {
     dependsOn("setPlaygroundRedisIp")
     dependsOn("setPlaygroundGkeProject")
     dependsOn("setPlaygroundStaticIpAddressName")
+    dependsOn("setPlaygroundFunctionCleanupUrl")
+    dependsOn("setPlaygroundFunctionPutUrl")
+    dependsOn("setPlaygroundFunctionViewUrl")
 
     doLast {
         var d_tag = ""
@@ -314,6 +362,9 @@ tasks.register("takeConfig") {
         val registry = project.rootProject.extra["docker-repository-root"]
         val ipaddrname = project.rootProject.extra["playground_static_ip_address_name"]
         val datastore_name = if (project.hasProperty("datastore-namespace")) (project.property("datastore-namespace") as String) else ""
+        val pgfuncclean = project.rootProject.extra["playground_function_cleanup_url"]
+        val pgfuncput = project.rootProject.extra["playground_function_put_url"]
+        val pgfuncview = project.rootProject.extra["playground_function_view_url"]
 
         file.appendText(
             """
@@ -325,8 +376,29 @@ static_ip_name: ${ipaddrname}
 tag: $d_tag
 datastore_name: ${datastore_name}
 dns_name: ${dns_name}
+func_clean: ${pgfuncclean}
+func_put: ${pgfuncput}
+func_view: ${pgfuncview}
     """
         )
+    }
+}
+
+
+task("applyMigrations") {
+    doLast {
+        val namespace = if (project.hasProperty("datastore-namespace")) (project.property("datastore-namespace") as String) else ""
+        val projectId = project.rootProject.extra["playground_gke_project"]
+        val modulePath = project(":playground").projectDir.absolutePath
+        val sdkConfig = "$modulePath/sdks.yaml"
+        exec {
+            workingDir("$modulePath/backend")
+            executable("go")
+            args("run", "cmd/migration_tool/migration_tool.go",
+            "-project-id", projectId,
+            "-sdk-config", sdkConfig,
+            "-namespace", namespace)
+        }
     }
 }
 
@@ -339,7 +411,7 @@ tasks.register("helmRelease") {
         executable("helm")
     args("upgrade", "--install", "playground", "$helmdir")
     }
-    }
+  }
 }
 
 tasks.register("gkebackend") {
@@ -350,15 +422,18 @@ tasks.register("gkebackend") {
     val pushFrontTask = tasks.getByName("pushFront")
     val indexcreateTask = tasks.getByName("indexcreate")
     val helmTask = tasks.getByName("helmRelease")
+    var applyMigrations = tasks.getByName("applyMigrations")
     dependsOn(initTask)
     dependsOn(takeConfigTask)
     dependsOn(pushBackTask)
     dependsOn(pushFrontTask)
     dependsOn(indexcreateTask)
+    dependsOn(applyMigrations)
     dependsOn(helmTask)
     takeConfigTask.mustRunAfter(initTask)
     pushBackTask.mustRunAfter(takeConfigTask)
     pushFrontTask.mustRunAfter(pushBackTask)
     indexcreateTask.mustRunAfter(pushFrontTask)
-    helmTask.mustRunAfter(indexcreateTask)
+    applyMigrations.mustRunAfter(indexcreateTask)
+    helmTask.mustRunAfter(applyMigrations)
 }

@@ -39,7 +39,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void defaultFormat() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         defaultFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -60,7 +60,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void excel() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         excel(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -79,7 +79,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void informixUnload() {
     assertEquals(
-        "false|1|10|1.0|1.0|1|1|a|1",
+        "false|10|1.0|1.0|1|a|1",
         informixUnload(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -100,7 +100,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void informixUnloadCsv() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         informixUnloadCSV(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -121,7 +121,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void mySql() {
     assertEquals(
-        "false\t1\t10\t1.0\t1.0\t1\t1\ta\t1",
+        "false\t10\t1.0\t1.0\t1\ta\t1",
         mySql(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -140,7 +140,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void rfc4180() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         rfc4180(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -159,7 +159,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void oracle() {
     assertEquals(
-        "false,1,10,1.0,1.0,1,1,a,1",
+        "false,10,1.0,1.0,1,a,1",
         oracle(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -178,7 +178,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void postgresqlCSV() {
     assertEquals(
-        "\"false\",\"1\",\"10\",\"1.0\",\"1.0\",\"1\",\"1\",\"a\",\"1\"",
+        "\"false\",\"10\",\"1.0\",\"1.0\",\"1\",\"a\",\"1\"",
         postgresqlCSV(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -199,7 +199,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void postgresqlText() {
     assertEquals(
-        "\"false\"\t\"1\"\t\"10\"\t\"1.0\"\t\"1.0\"\t\"1\"\t\"1\"\t\"a\"\t\"1\"",
+        "\"false\"\t\"10\"\t\"1.0\"\t\"1.0\"\t\"1\"\t\"a\"\t\"1\"",
         postgresqlText(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
@@ -220,7 +220,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
   @Test
   public void tdf() {
     assertEquals(
-        "false\t1\t10\t1.0\t1.0\t1\t1\ta\t1",
+        "false\t10\t1.0\t1.0\t1\ta\t1",
         tdf(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(

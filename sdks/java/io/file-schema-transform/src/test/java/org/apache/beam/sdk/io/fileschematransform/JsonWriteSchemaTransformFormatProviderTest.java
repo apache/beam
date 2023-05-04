@@ -17,51 +17,51 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.AVRO;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.JSON;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
-import org.apache.beam.sdk.extensions.avro.io.AvroIO;
-import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link AvroWriteSchemaTransformFormatProvider}. */
+/** Tests for {@link JsonWriteSchemaTransformFormatProvider}. */
 @RunWith(JUnit4.class)
-public class AvroFileWriteSchemaTransformFormatProviderTest
+public class JsonWriteSchemaTransformFormatProviderTest
     extends FileWriteSchemaTransformFormatProviderTest {
   @Override
   protected String getFormat() {
-    return AVRO;
+    return JSON;
   }
 
   @Override
   protected String getFilenamePrefix() {
-    return "/";
+    return "/out";
   }
 
   @Override
   protected void assertFolderContainsInAnyOrder(String folder, List<Row> rows, Schema beamSchema) {
-    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
-    AvroGenericCoder coder = AvroGenericCoder.of(avroSchema);
-    List<GenericRecord> expected =
-        rows.stream()
-            .map(AvroUtils.getRowToGenericRecordFunction(avroSchema)::apply)
-            .collect(Collectors.toList());
+    PCollection<String> actual = readPipeline.apply(TextIO.read().from(folder + "*"));
 
-    PCollection<GenericRecord> actual =
-        readPipeline
-            .apply(AvroIO.readGenericRecords(avroSchema).from(folder + getFilenamePrefix() + "*"))
-            .setCoder(coder);
+    PayloadSerializer payloadSerializer =
+        new JsonPayloadSerializerProvider().getSerializer(beamSchema, ImmutableMap.of());
 
-    PAssert.that(actual).containsInAnyOrder(expected);
+    PAssert.that(actual)
+        .containsInAnyOrder(
+            rows.stream()
+                .map(
+                    (Row row) ->
+                        new String(payloadSerializer.serialize(row), StandardCharsets.UTF_8))
+                .collect(Collectors.toList()));
   }
 
   @Override
@@ -71,19 +71,19 @@ public class AvroFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected Optional<String> expectedErrorWhenCompressionSet() {
-    return Optional.of("configuration with compression is not compatible with AvroIO");
+    return Optional.empty();
   }
 
   @Override
   protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
     return Optional.of(
-        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a avro format");
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a json format");
   }
 
   @Override
   protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
     return Optional.of(
-        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a avro format");
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a json format");
   }
 
   @Override
@@ -99,6 +99,6 @@ public class AvroFileWriteSchemaTransformFormatProviderTest
   @Override
   protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
     return Optional.of(
-        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a avro format");
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a json format");
   }
 }
