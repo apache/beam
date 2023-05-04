@@ -30,14 +30,15 @@ terraformPlugin {
 
 /* init Infrastructure for migrate */
 tasks.register<TerraformTask>("terraformInit") {
-    // exec args can be passed by commandline, for example
+    dependsOn("indexcreate")
+
     args(
         "init", "-migrate-state",
         "-backend-config=./state.tfbackend"
     )
 }
 
-/* refresh Infrastucture for remote state */
+/* refresh Infrastructure for remote state */
 tasks.register<TerraformTask>("terraformRef") {
     args(
         "refresh",
@@ -48,29 +49,30 @@ tasks.register<TerraformTask>("terraformRef") {
 
 tasks.register<TerraformTask>("terraformApplyBackend") {
     group = "backend-deploy"
-    var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
+    dependsOn("terraformInit")
+
+    val pgRouterHost = project.extensions.extraProperties["pg_router_host"] as String
     args(
         "apply",
         "-auto-approve",
         "-lock=false",
         "-parallelism=3",
-        "-var=pg_router_host=$pg_router_host",
+        "-var=pg_router_host=$pgRouterHost",
         "-var=gcloud_init_account=$(gcloud config get-value core/account)",
         "-var=project_id=$(gcloud config get-value project)",
         "-var-file=./common.tfvars"
     )
-
-    tasks.getByName("uploadLearningMaterials").mustRunAfter(this)
-
 }
 
 tasks.register<TerraformTask>("terraformDestroy") {
-    var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
+    dependsOn("getRouterHost")
+
+    val pgRouterHost = project.extensions.extraProperties["pg_router_host"] as String
     args(
         "destroy",
         "-auto-approve",
         "-lock=false",
-        "-var=pg_router_host=$pg_router_host",
+        "-var=pg_router_host=$pgRouterHost",
         "-var=gcloud_init_account=$(gcloud config get-value core/account)",
         "-var=project_id=$(gcloud config get-value project)",
         "-var-file=./common.tfvars"
@@ -78,8 +80,8 @@ tasks.register<TerraformTask>("terraformDestroy") {
 }
 
 tasks.register("getRouterHost") {
+    group = "backend-deploy"
     doLast {
-        group = "backend-deploy"
         val result = ByteArrayOutputStream()
         exec {
             commandLine(
@@ -93,14 +95,17 @@ tasks.register("getRouterHost") {
             )
             standardOutput = result
         }
-        val pg_router_host = result.toString().trim().replace("'", "")
-        project.extensions.extraProperties["pg_router_host"] = pg_router_host
+        val pgRouterHost = result.toString().trim().replace("'", "")
+        project.extensions.extraProperties["pg_router_host"] = pgRouterHost
     }
 }
 
 tasks.register("indexcreate") {
+    group = "backend-deploy"
+    dependsOn("getRouterHost")
+
     doLast {
-        group = "backend-deploy"
+
         val indexpath = "../backend/internal/storage/index.yaml"
         exec {
             executable("gcloud")
@@ -110,51 +115,55 @@ tasks.register("indexcreate") {
 }
 
 tasks.register("firebaseProjectCreate") {
+    group = "frontend-deploy"
+    dependsOn("prepareFirebasercConfig")
+
     doLast {
-        group = "frontend-deploy"
         val result = ByteArrayOutputStream()
-        var project_id = project.property("project_id") as String
+        val projectId = project.property("project_id") as String
         exec {
             executable("firebase")
             args("projects:list")
             standardOutput = result
         }
         val output = result.toString().trim()
-        if (output.contains(project_id)) {
-            println("Firebase is already added to project $project_id.")
+        if (output.contains(projectId)) {
+            println("Firebase is already added to project $projectId.")
         } else {
             exec {
                 executable("firebase")
-                args("projects:addfirebase", project_id)
+                args("projects:addfirebase", projectId)
             }.assertNormalExitValue()
-            println("Firebase has been added to project $project_id.")
+            println("Firebase has been added to project $projectId.")
         }
     }
 }
 
 tasks.register("firebaseWebAppCreate") {
+    group = "frontend-deploy"
+    dependsOn("firebaseProjectCreate")
+
     doLast {
-        group = "frontend-deploy"
         val result = ByteArrayOutputStream()
-        var project_id = project.property("project_id") as String
-        var webapp_id = project.property("webapp_id") as String
+        val projectId = project.property("project_id") as String
+        val webappId = project.property("webapp_id") as String
         exec {
             executable("firebase")
-            args("apps:list", "--project", project_id)
+            args("apps:list", "--project", projectId)
             standardOutput = result
         }
         println(result)
         val output = result.toString()
-        if (output.contains(webapp_id)) {
-            println("Webapp id $webapp_id is already created on the project: $project_id.")
-            val regex = Regex("$webapp_id[│ ]+([\\w:]+)[│ ]+WEB[│ ]+")
+        if (output.contains(webappId)) {
+            println("Webapp id $webappId is already created on the project: $projectId.")
+            val regex = Regex("$webappId[│ ]+([\\w:]+)[│ ]+WEB[│ ]+")
             val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
         } else {
             val result2 = ByteArrayOutputStream()
             exec {
                 executable("firebase")
-                args("apps:create", "WEB", webapp_id, "--project", project_id)
+                args("apps:create", "WEB", webappId, "--project", projectId)
                 standardOutput = result2
             }.assertNormalExitValue()
             val firebaseAppId =
@@ -167,8 +176,10 @@ tasks.register("firebaseWebAppCreate") {
 
 // firebase apps:sdkconfig WEB AppId
 tasks.register("getSdkConfigWebApp") {
+    group = "frontend-deploy"
+    dependsOn("firebaseWebAppCreate")
+
     doLast {
-        group = "frontend-deploy"
         val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
         val result = ByteArrayOutputStream()
         exec {
@@ -192,8 +203,10 @@ tasks.register("getSdkConfigWebApp") {
 }
 
 tasks.register("prepareFirebaseOptionsDart") {
+    group = "frontend-deploy"
+    dependsOn("getSdkConfigWebApp")
+
     doLast {
-        group = "frontend-deploy"
         val firebaseConfigData = project.extensions.extraProperties["firebaseConfigData"] as String
         val file = project.file("../frontend/lib/firebase_options.dart")
         val content = file.readText()
@@ -216,6 +229,8 @@ tasks.register("flutterPubGetPG") {
 }
 
 tasks.register("flutterPubRunPG") {
+    dependsOn("flutterPubGetPG")
+
     doLast {
         exec {
             executable("flutter")
@@ -226,6 +241,9 @@ tasks.register("flutterPubRunPG") {
 }
 
 tasks.register("flutterPubGetTob") {
+    dependsOn("flutterPubRunPG")
+    dependsOn("getSdkConfigWebApp")
+
     doLast {
         exec {
             executable("flutter")
@@ -236,6 +254,8 @@ tasks.register("flutterPubGetTob") {
 }
 
 tasks.register("flutterPubRunTob") {
+    dependsOn("flutterPubGetTob")
+
     doLast {
         exec {
             executable("flutter")
@@ -246,6 +266,8 @@ tasks.register("flutterPubRunTob") {
 }
 
 tasks.register("flutterBuildWeb") {
+    dependsOn("flutterPubRunTob")
+
     doLast {
         exec {
             executable("flutter")
@@ -256,22 +278,25 @@ tasks.register("flutterBuildWeb") {
 }
 
 tasks.register("firebaseDeploy") {
+    dependsOn("flutterBuildWeb")
+
     doLast {
-        var project_id = project.property("project_id") as String
+        val projectId = project.property("project_id") as String
         exec {
-            commandLine("firebase", "deploy", "--project", project_id)
+            commandLine("firebase", "deploy", "--project", projectId)
             workingDir("../frontend")
         }
     }
 }
 
 tasks.register("prepareConfig") {
+    group = "frontend-deploy"
+
     doLast {
-        group = "frontend-deploy"
-        var region = project.property("region") as String
-        var project_id = project.property("project_id") as String
-        var environment = project.property("project_environment") as String
-        var dns_name = project.property("dns-name") as String
+        val region = project.property("region") as String
+        val projectId = project.property("project_id") as String
+        val environment = project.property("project_environment") as String
+        val dnsName = project.property("dns-name") as String
         val configFileName = "config.dart"
         val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
         val file = File("$modulePath/lib/$configFileName")
@@ -279,32 +304,34 @@ tasks.register("prepareConfig") {
         file.writeText(
             """
 const _cloudFunctionsProjectRegion = '$region';
-const _cloudFunctionsProjectId = '$project_id';
+const _cloudFunctionsProjectId = '$projectId';
 const cloudFunctionsBaseUrl = 'https://'
-    '$region-$project_id'
+    '$region-$projectId'
     '.cloudfunctions.net/${environment}_';
 
 
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-'https://router.${dns_name}';
+'https://router.${dnsName}';
 const String kApiJavaClientURL =
-'https://java.${dns_name}';
+'https://java.${dnsName}';
 const String kApiGoClientURL =
-'https://go.${dns_name}';
+'https://go.${dnsName}';
 const String kApiPythonClientURL =
-'https://python.${dns_name}';
+'https://python.${dnsName}';
 const String kApiScioClientURL =
-'https://scio.${dns_name}';
+'https://scio.${dnsName}';
 """
         )
     }
 }
 
 tasks.register("prepareFirebasercConfig") {
+    group = "frontend-deploy"
+    dependsOn("prepareConfig")
+
     doLast {
-        group = "frontend-deploy"
-        var project_id = project.property("project_id") as String
+        val projectId = project.property("project_id") as String
         val configFileName = ".firebaserc"
         val modulePath = project(":learning:tour-of-beam:frontend").projectDir.absolutePath
         val file = File("$modulePath/$configFileName")
@@ -313,7 +340,7 @@ tasks.register("prepareFirebasercConfig") {
             """
 {
   "projects": {
-    "default": "$project_id"
+    "default": "$projectId"
   }
 }
 """
@@ -322,84 +349,52 @@ tasks.register("prepareFirebasercConfig") {
 }
 
 tasks.register("uploadLearningMaterials") {
+    group = "backend-deploy"
+    dependsOn("terraformApplyBackend")
+
     doLast {
-        var project_id = project.property("project_id") as String
-        group = "backend-deploy"
+        val projectId = project.property("project_id") as String
         exec {
             commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
-            environment("DATASTORE_PROJECT_ID", project_id)
-            environment("GOOGLE_PROJECT_ID", project_id)
+            environment("DATASTORE_PROJECT_ID", projectId)
+            environment("GOOGLE_PROJECT_ID", projectId)
             environment("TOB_LEARNING_ROOT", "../learning-content/")
             workingDir("../backend")
         }
     }
-    dependsOn("terraformApplyBackend")
-    mustRunAfter("terraformApplyBackend")
 }
 
 /* Tour of Beam backend init */
 tasks.register("InitBackend") {
     group = "backend-deploy"
-    val getRouterHost = tasks.getByName("getRouterHost")
-    val indexCreate = tasks.getByName("indexcreate")
-    val tfInit = tasks.getByName("terraformInit")
-    val tfApplyBackend = tasks.getByName("terraformApplyBackend")
-    val uploadLearningMaterials = tasks.getByName("uploadLearningMaterials")
-    dependsOn(getRouterHost)
-    dependsOn(indexCreate)
-    dependsOn(tfInit)
-    dependsOn(tfApplyBackend)
-    dependsOn(uploadLearningMaterials)
-    indexCreate.mustRunAfter(getRouterHost)
-    tfInit.mustRunAfter(indexCreate)
-    tfApplyBackend.mustRunAfter(tfInit)
-    uploadLearningMaterials.mustRunAfter(tfApplyBackend)
+
+    dependsOn("getRouterHost")
+    dependsOn("indexcreate")
+    dependsOn("terraformInit")
+    dependsOn("terraformApplyBackend")
+    dependsOn("uploadLearningMaterials")
 }
 
 tasks.register("DestroyBackend") {
     group = "backend-destroy"
-    val getRouterHost = tasks.getByName("getRouterHost")
-    val terraformDestroy = tasks.getByName("terraformDestroy")
-    dependsOn(getRouterHost)
-    dependsOn(terraformDestroy)
-    terraformDestroy.mustRunAfter(getRouterHost)
+
+    dependsOn("getRouterHost")
+    dependsOn("terraformDestroy")
 }
 
 tasks.register("InitFrontend") {
     group = "frontend-deploy"
-    val prepareConfig = tasks.getByName("prepareConfig")
-    val prepareFirebasercConfig = tasks.getByName("prepareFirebasercConfig")
-    val firebaseProjectCreate = tasks.getByName("firebaseProjectCreate")
-    val firebaseWebAppCreate = tasks.getByName("firebaseWebAppCreate")
-    val getSdkConfigWebApp = tasks.getByName("getSdkConfigWebApp")
-    val prepareFirebaseOptionsDart = tasks.getByName("prepareFirebaseOptionsDart")
-    val flutterPubGetPG = tasks.getByName("flutterPubGetPG")
-    val flutterPubRunPG = tasks.getByName("flutterPubRunPG")
-    val flutterPubGetTob = tasks.getByName("flutterPubGetTob")
-    val flutterPubRunTob = tasks.getByName("flutterPubRunTob")
-    val flutterBuildWeb = tasks.getByName("flutterBuildWeb")
-    val firebaseDeploy = tasks.getByName("firebaseDeploy")
-    dependsOn(prepareConfig)
-    dependsOn(prepareFirebasercConfig)
-    dependsOn(firebaseProjectCreate)
-    dependsOn(firebaseWebAppCreate)
-    dependsOn(getSdkConfigWebApp)
-    dependsOn(prepareFirebaseOptionsDart)
-    dependsOn(flutterPubGetPG)
-    dependsOn(flutterPubRunPG)
-    dependsOn(flutterPubGetTob)
-    dependsOn(flutterPubRunTob)
-    dependsOn(flutterBuildWeb)
-    dependsOn(firebaseDeploy)
-    prepareFirebasercConfig.mustRunAfter(prepareConfig)
-    firebaseProjectCreate.mustRunAfter(prepareFirebasercConfig)
-    firebaseWebAppCreate.mustRunAfter(firebaseProjectCreate)
-    getSdkConfigWebApp.mustRunAfter(firebaseWebAppCreate)
-    prepareFirebaseOptionsDart.mustRunAfter(getSdkConfigWebApp)
-    flutterPubGetPG.mustRunAfter(prepareFirebaseOptionsDart)
-    flutterPubRunPG.mustRunAfter(flutterPubGetPG)
-    flutterPubGetTob.mustRunAfter(flutterPubRunPG)
-    flutterPubRunTob.mustRunAfter(flutterPubGetTob)
-    flutterBuildWeb.mustRunAfter(flutterPubRunTob)
-    firebaseDeploy.mustRunAfter(flutterBuildWeb)
+
+    dependsOn("prepareConfig")
+    dependsOn("prepareFirebasercConfig")
+    dependsOn("firebaseProjectCreate")
+    dependsOn("firebaseWebAppCreate")
+    dependsOn("getSdkConfigWebApp")
+    dependsOn("prepareFirebaseOptionsDart")
+    dependsOn("flutterPubGetPG")
+    dependsOn("flutterPubRunPG")
+    dependsOn("flutterPubGetTob")
+    dependsOn("flutterPubRunTob")
+    dependsOn("flutterBuildWeb")
+    dependsOn("firebaseDeploy")
 }
