@@ -52,6 +52,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     self._fake_clock = clock
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
+    self._env_vars = {}
 
   def load_model(self):
     if self._fake_clock:
@@ -83,6 +84,7 @@ class FakeModelHandlerReturnsPredictionResult(
   def __init__(self, clock=None, model_id='fake_model_id_default'):
     self.model_id = model_id
     self._fake_clock = clock
+    self._env_vars = {}
 
   def load_model(self):
     return FakeModel()

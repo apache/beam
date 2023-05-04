@@ -27,6 +27,7 @@ The transform handles standard inference functionality, like metric
 collection, sharing model between threads, and batching elements.
 """
 
+import os
 import logging
 import pickle
 import sys
@@ -117,6 +118,11 @@ def _to_microseconds(time_ns: int) -> int:
 
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
+  """Environment variables are set using a dict named 'env_vars' before loading the model.
+  Child classes can accept this dict as a kwarg."""
+  def __init__(self):
+    self._env_vars = {}
+
   """Has the ability to load and apply an ML model."""
   def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
@@ -193,6 +199,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     Functions are in order that they should be applied."""
     return []
 
+  def set_environment_vars(self):
+    """Sets environment variables using a dictionary provided via kwargs.
+    Keys are the env variable name, and values are the env variable value."""
+    for env_variable, env_value in self._env_vars.items():
+      os.environ[env_variable] = env_value
+
+
   def with_preprocess_fn(
       self, fn: Callable[[PreProcessT], ExampleT]
   ) -> 'ModelHandler[PreProcessT, PredictionT, ModelT, PreProcessT]':
@@ -238,6 +251,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'pre/postprocessing functions must be defined on the outer model'
           'handler.')
     self._unkeyed = unkeyed
+    self._env_vars = unkeyed._env_vars
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
@@ -308,6 +322,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'pre/postprocessing functions must be defined on the outer model'
           'handler.')
     self._unkeyed = unkeyed
+    self._env_vars = unkeyed._env_vars
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
@@ -383,6 +398,7 @@ class _PreProcessingModelHandler(Generic[ExampleT,
       preprocess_fn: the preprocessing function to use.
     """
     self._base = base
+    self._env_vars = base._env_vars
     self._preprocess_fn = preprocess_fn
 
   def load_model(self) -> ModelT:
@@ -438,6 +454,7 @@ class _PostProcessingModelHandler(Generic[ExampleT,
       postprocess_fn: the preprocessing function to use.
     """
     self._base = base
+    self._env_vars = base._env_vars
     self._postprocess_fn = postprocess_fn
 
   def load_model(self) -> ModelT:
@@ -820,6 +837,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def setup(self):
     self._metrics_collector = self.get_metrics_collector()
+    self._model_handler.set_environment_vars()
     if not self._enable_side_input_loading:
       self._model = self._load_model()
 

@@ -97,7 +97,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_type: ModelType = ModelType.SAVED_MODEL,
       create_model_fn: Optional[Callable] = None,
       *,
-      inference_fn: TensorInferenceFn = default_numpy_inference_fn):
+      inference_fn: TensorInferenceFn = default_numpy_inference_fn,
+      **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
     Example Usage::
@@ -114,6 +115,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
           It should be used with ModelType.SAVED_WEIGHTS.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        kwargs: 'env_vars' can be used to set environment variables
+          before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.9, 2.10, 2.11.
@@ -122,6 +125,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._model_type = model_type
     self._inference_fn = inference_fn
     self._create_model_fn = create_model_fn
+    self._env_vars = kwargs.get('env_vars', {})
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
@@ -189,7 +193,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       model_type: ModelType = ModelType.SAVED_MODEL,
       create_model_fn: Optional[Callable] = None,
       *,
-      inference_fn: TensorInferenceFn = default_tensor_inference_fn):
+      inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
     Example Usage::
@@ -207,6 +212,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
           It should be used with ModelType.SAVED_WEIGHTS.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        kwargs: 'env_vars' can be used to set environment variables
+          before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.11.
@@ -215,6 +222,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     self._model_type = model_type
     self._inference_fn = inference_fn
     self._create_model_fn = create_model_fn
+    self._env_vars = kwargs.get('env_vars', {})
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
