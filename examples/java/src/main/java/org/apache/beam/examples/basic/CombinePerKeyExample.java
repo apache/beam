@@ -15,6 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.examples.basic;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -29,7 +31,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of Combine.perKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 42
+//   context_line: 44
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -38,39 +40,43 @@ import org.slf4j.LoggerFactory;
 //     - numbers
 //     - distinct
 
-public class Task {
-    public static void main(String[] args) {
-        PipelineOptions options = PipelineOptionsFactory.create();
-        Pipeline pipeline = Pipeline.create(options);
+public class CombinePerKeyExample {
+  public static void main(String[] args) {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline pipeline = Pipeline.create(options);
 
-        // [START main_section]
-        // PCollection is grouped by key and the Double values associated with each key are combined into a Double.
-        PCollection<KV<String, Double>> salesRecords = pipeline.apply(Create.of(
-            KV.of("Apples", 2.0),
-            KV.of("Apples", 3.0),
-            KV.of("Apples", 5.0),
-            KV.of("Oranges", 4.0),
-            KV.of("Oranges", 8.0)));
-        PCollection<KV<String, Double>> totalSalesPerPerson =
-            salesRecords.apply(Combine.perKey(Sum.ofDoubles()));
-        // [END main_section]
-        // Log values
-        totalSalesPerPerson.apply(ParDo.of(new LogOutput("PCollection numbers after Combine.perKey transform: ")));
-        pipeline.run();
+    // [START main_section]
+    // PCollection is grouped by key and the Double values associated with each key
+    // are combined into a Double.
+    PCollection<KV<String, Double>> salesRecords =
+        pipeline.apply(
+            Create.of(
+                KV.of("Apples", 2.0),
+                KV.of("Apples", 3.0),
+                KV.of("Apples", 5.0),
+                KV.of("Oranges", 4.0),
+                KV.of("Oranges", 8.0)));
+    PCollection<KV<String, Double>> totalSalesPerPerson =
+        salesRecords.apply(Combine.perKey(Sum.ofDoubles()));
+    // [END main_section]
+    // Log values
+    totalSalesPerPerson.apply(
+        ParDo.of(new LogOutput("PCollection numbers after Combine.perKey transform: ")));
+    pipeline.run();
+  }
+
+  static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
+    private final String prefix;
+
+    public LogOutput(String prefix) {
+      this.prefix = prefix;
     }
 
-    static class LogOutput<T> extends DoFn<T, T> {
-        private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
-        private final String prefix;
-
-        public LogOutput(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            System.out.println(prefix + c.element());
-            c.output(c.element());
-        }
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      System.out.println(prefix + c.element());
+      c.output(c.element());
     }
+  }
 }

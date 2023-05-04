@@ -15,19 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.examples.basic;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: GroupByKey
-//   description: Demonstration of GroupByKey transform usage.
+//   name: WithKeys
+//   description: Demonstration of WithKeys transform usage.
 //   multifile: false
 //   default_example: false
 //   context_line: 44
@@ -38,37 +39,39 @@ import org.slf4j.LoggerFactory;
 //     - transforms
 //     - strings
 //     - pairs
-//     - group
 
-public class Task {
-    public static void main(String[] args) {
-        PipelineOptions options = PipelineOptionsFactory.create();
-        Pipeline pipeline = Pipeline.create(options);
-        // [START main_section]
-        PCollection<KV<String, String>> pt = pipeline.apply(Create.of(
-            KV.of("a", "apple"),
-            KV.of("a", "avocado"),
-            KV.of("b", "banana"),
-            KV.of("c", "cherry")));
-        PCollection<KV<String, Iterable<String>>> result =
-            pt.apply(GroupByKey.create());
-        // [END main_section]
-        result.apply(ParDo.of(new LogOutput("PCollection pairs after GroupByKey transform: ")));
-        pipeline.run();
+public class WithKeysExample {
+  public static void main(String[] args) {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline pipeline = Pipeline.create(options);
+    // [START main_section]
+    PCollection<String> words = pipeline.apply(Create.of("Hello", "World", "Beam", "is", "fun"));
+    PCollection<KV<Integer, String>> lengthAndWord =
+        words.apply(
+            WithKeys.of(
+                new SerializableFunction<String, Integer>() {
+                  @Override
+                  public Integer apply(String s) {
+                    return s.length();
+                  }
+                }));
+    // [END main_section]
+    lengthAndWord.apply(ParDo.of(new LogOutput("PCollection elements after WithKeys transform: ")));
+    pipeline.run();
+  }
+
+  static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
+    private final String prefix;
+
+    public LogOutput(String prefix) {
+      this.prefix = prefix;
     }
 
-    static class LogOutput<T> extends DoFn<T, T> {
-        private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
-        private final String prefix;
-
-        public LogOutput(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            System.out.println(prefix + c.element());
-            c.output(c.element());
-        }
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      System.out.println(prefix + c.element());
+      c.output(c.element());
     }
+  }
 }

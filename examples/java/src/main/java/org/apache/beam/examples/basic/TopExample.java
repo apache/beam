@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.examples.basic;
+
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +31,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of Top transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 42
+//   context_line: 43
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -38,31 +39,31 @@ import org.slf4j.LoggerFactory;
 //     - transforms
 //     - numbers
 
-public class Task {
-    public static void main(String[] args) {
-        PipelineOptions options = PipelineOptionsFactory.create();
-        Pipeline pipeline = Pipeline.create(options);
-        // [START main_section]
-        // Create numbers
-        PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6));
-        PCollection<List<Integer>> result = input.apply(Top.largest(3));
-        // [END main_section]
-        result.apply(ParDo.of(new LogOutput("Three largest numbers: ")));
-        pipeline.run();
+public class TopExample {
+  public static void main(String[] args) {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline pipeline = Pipeline.create(options);
+    // [START main_section]
+    // Create numbers
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6));
+    PCollection<List<Integer>> result = input.apply(Top.largest(3));
+    // [END main_section]
+    result.apply(ParDo.of(new LogOutput("Three largest numbers: ")));
+    pipeline.run();
+  }
+
+  static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
+    private final String prefix;
+
+    public LogOutput(String prefix) {
+      this.prefix = prefix;
     }
 
-    static class LogOutput<T> extends DoFn<T, T> {
-        private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
-        private final String prefix;
-
-        public LogOutput(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            System.out.println(prefix + c.element());
-            c.output(c.element());
-        }
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      System.out.println(prefix + c.element());
+      c.output(c.element());
     }
+  }
 }

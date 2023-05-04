@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.examples.basic;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: Min
-//   description: Demonstration of Min transform usage.
+//   name: Combine
+//   description: Demonstration of Combine transform usage.
 //   multifile: false
 //   default_example: false
 //   context_line: 42
@@ -37,31 +38,34 @@ import org.slf4j.LoggerFactory;
 //     - transforms
 //     - numbers
 
-public class Task {
-    public static void main(String[] args) {
-        PipelineOptions options = PipelineOptionsFactory.create();
-        Pipeline pipeline = Pipeline.create(options);
-        // [START main_section]
-        PCollection<Double> pc = pipeline.apply(Create.of(1.0, 2.0, 3.0, 4.0, 5.0));
-        PCollection<Double> min = pc.apply(Min.globally());
-        // [END main_section]
-        // Log values
-        min.apply(ParDo.of(new LogOutput("PCollection numbers after Min transform: ")));
-        pipeline.run();
+public class CombineExample {
+  public static void main(String[] args) {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline pipeline = Pipeline.create(options);
+    // [START main_section]
+    // Sum.ofIntegers() combines the elements in the input PCollection. The
+    // resulting PCollection, called sum,
+    // contains one value: the sum of all the elements in the input PCollection.
+    PCollection<Integer> pc = pipeline.apply(Create.of(1, 2, 3, 4, 5));
+    PCollection<Integer> sum = pc.apply(Combine.globally(Sum.ofIntegers()));
+    // [END main_section]
+    // Log values
+    sum.apply(ParDo.of(new LogOutput("PCollection numbers after Combine transform: ")));
+    pipeline.run();
+  }
+
+  static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
+    private final String prefix;
+
+    public LogOutput(String prefix) {
+      this.prefix = prefix;
     }
 
-    static class LogOutput<T> extends DoFn<T, T> {
-        private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
-        private final String prefix;
-
-        public LogOutput(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            System.out.println(prefix + c.element());
-            c.output(c.element());
-        }
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      System.out.println(prefix + c.element());
+      c.output(c.element());
     }
+  }
 }

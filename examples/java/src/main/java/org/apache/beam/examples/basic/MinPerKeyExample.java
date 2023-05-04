@@ -15,6 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.examples.basic;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -29,7 +31,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of Min.perKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 41
+//   context_line: 44
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -38,37 +40,33 @@ import org.slf4j.LoggerFactory;
 //     - numbers
 //     - pairs
 
-public class Task {
-    public static void main(String[] args) {
-        PipelineOptions options = PipelineOptionsFactory.create();
-        Pipeline pipeline = Pipeline.create(options);
-        // [START main_section]
-        PCollection<KV<String, Integer>> input = pipeline.apply(Create.of(
-                KV.of("a", 1),
-                KV.of("a", 2),
-                KV.of("b", 3),
-                KV.of("b", 4),
-                KV.of("b", 5)));
-        PCollection<KV<String, Integer>> minPerKey = input
-                    .apply(Min.perKey());
-        // [END main_section]
-        // Log values
-        minPerKey.apply(ParDo.of(new LogOutput("PCollection numbers after Min transform: ")));
-        pipeline.run();
+public class MinPerKeyExample {
+  public static void main(String[] args) {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline pipeline = Pipeline.create(options);
+    // [START main_section]
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3), KV.of("b", 4), KV.of("b", 5)));
+    PCollection<KV<String, Integer>> minPerKey = input.apply(Min.perKey());
+    // [END main_section]
+    // Log values
+    minPerKey.apply(ParDo.of(new LogOutput("PCollection numbers after Min transform: ")));
+    pipeline.run();
+  }
+
+  static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
+    private final String prefix;
+
+    public LogOutput(String prefix) {
+      this.prefix = prefix;
     }
 
-    static class LogOutput<T> extends DoFn<T, T> {
-        private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
-        private final String prefix;
-
-        public LogOutput(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            System.out.println(prefix + c.element());
-            c.output(c.element());
-        }
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      System.out.println(prefix + c.element());
+      c.output(c.element());
     }
+  }
 }
