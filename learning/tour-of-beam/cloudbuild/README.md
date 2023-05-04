@@ -33,7 +33,7 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
    - Kubernetes Engine Cluster Viewer
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 - An existing GCP Bucket to save Terraform state - `state-bucket`
-- Existing Beam Playground environment/infrastructure in similar GCP Project
+- Existing Beam Playground environment/infrastructure in same GCP Project
 - [Terraform](https://www.terraform.io/)
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
@@ -66,7 +66,7 @@ terraform apply -var="project_id=$(gcloud config get-value project)"
 
 ## 2. Connect default (https://github.com/beamplayground/deploy-workaround) GitHub repository with GCP Cloud Build
 
-Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect GitHub repository and GCP Cloud Build.
+Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect GitHub repository with GCP Cloud Build.
 
 ## 3. Set up the Google Cloud Build triggers
 
@@ -84,7 +84,7 @@ terraform init -backend-config="bucket=$STATE_BUCKET"
 terraform apply -var="project_id=$(gcloud config get-value project)"
 ```
 
-## 4. Run Cloud Build `Playground-infrastructure-trigger` to deploy Tour of Beam backend infrastructure
+## 4. Run Cloud Build trigger to deploy Tour of Beam backend infrastructure
 
 1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the global region.
 2. Open Trigger: `Tourofbeam-backend-infra-trigger`.
