@@ -79,11 +79,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '--input',
         dest='input',
+        default='input.txt',
         required=True,
         help='Input file')
     parser.add_argument(
         '--output',
         dest='output',
+        default='output.txt',
         required=True,
         help='Output file')
     known_args, pipeline_args = parser.parse_known_args()
