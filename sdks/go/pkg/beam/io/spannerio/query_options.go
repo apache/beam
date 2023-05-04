@@ -34,7 +34,7 @@ type queryOptions struct {
 
 func newQueryOptions(options ...func(*queryOptions) error) queryOptions {
 	opts := queryOptions{
-		Batching: true,
+		Batching: defaultBatching,
 	}
 
 	for _, opt := range options {

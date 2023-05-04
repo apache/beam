@@ -74,7 +74,7 @@ func query(s beam.Scope, db string, query string, t reflect.Type, options queryO
 	s = s.Scope("spanner.Query")
 
 	if options.TimestampBound != (spanner.TimestampBound{}) {
-		panic(fmt.Sprintf("spannerio.Query: specifying timestamp bound for non-batched reads not currently supported."))
+		panic("spannerio.Query: specifying timestamp bound for non-batched reads not currently supported.")
 	}
 
 	imp := beam.Impulse(s)
