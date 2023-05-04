@@ -180,7 +180,6 @@ public class BigQueryIOWriteTest implements Serializable {
         new Object[] {false, false, false},
         new Object[] {false, false, true},
         new Object[] {true, false, false},
-        new Object[] {true, false, false},
         new Object[] {true, false, true},
         new Object[] {true, true, true});
   }
@@ -2698,7 +2697,7 @@ public class BigQueryIOWriteTest implements Serializable {
     TableSchema schema =
         new TableSchema()
             .setFields(
-                Arrays.asList(
+                ImmutableList.of(
                     new TableFieldSchema().setName("num").setType("INTEGER"),
                     new TableFieldSchema().setName("name").setType("STRING")));
     Table fakeTable = new Table();
