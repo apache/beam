@@ -169,9 +169,7 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
 
 #### Submit your GPG public key into MIT PGP Public Key Server
 In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
-please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mit.edu:11371/).
-
-If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Nexus might error out not being able to find the keys), use a keyserver at `ubuntu.com` instead: https://keyserver.ubuntu.com/.
+please submit your GPG public key into the [Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
 
 You will need to use an ascii-armored version of your key.
 This can be obtained by running `gpg --export --armor` and copying the whole block
