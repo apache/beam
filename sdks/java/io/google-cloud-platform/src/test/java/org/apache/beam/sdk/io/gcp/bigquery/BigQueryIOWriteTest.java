@@ -55,7 +55,14 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
@@ -172,6 +179,7 @@ public class BigQueryIOWriteTest implements Serializable {
     return ImmutableList.of(
         new Object[] {false, false, false},
         new Object[] {false, false, true},
+        new Object[] {true, false, false},
         new Object[] {true, false, false},
         new Object[] {true, false, true},
         new Object[] {true, true, true});
