@@ -37,7 +37,12 @@ dependencies:
   equatable: ^2.0.5
   flutter: { sdk: flutter }
   flutter_code_editor: ^0.2.20
-  flutter_markdown: ^0.6.12
+
+  # TODO(nausharipov): return flutter_markdown when it is fixed, https://github.com/apache/beam/issues/26498
+  # The exact version is used because this non-official package can be poorly maintained.
+  # Same in Tour of Beam's file.
+  flutter_markdown_selectionarea: 0.6.14+3
+
   flutter_svg: ^2.0.1
   fluttertoast: ^8.1.1
   get_it: ^7.2.0

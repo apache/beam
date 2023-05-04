@@ -11,6 +11,7 @@ ExampleBase _$ExampleBaseFromJson(Map<String, dynamic> json) => ExampleBase(
       path: json['path'] as String,
       sdk: Sdk.fromJson(json['sdk'] as Map<String, dynamic>),
       type: $enumDecode(_$ExampleTypeEnumMap, json['type']),
+      alwaysRun: json['alwaysRun'] as bool? ?? false,
       complexity: $enumDecodeNullable(_$ComplexityEnumMap, json['complexity']),
       contextLine: json['contextLine'] as int? ?? 1,
       datasets: (json['datasets'] as List<dynamic>?)
@@ -33,6 +34,7 @@ ExampleBase _$ExampleBaseFromJson(Map<String, dynamic> json) => ExampleBase(
 
 Map<String, dynamic> _$ExampleBaseToJson(ExampleBase instance) =>
     <String, dynamic>{
+      'alwaysRun': instance.alwaysRun,
       'complexity': _$ComplexityEnumMap[instance.complexity],
       'contextLine': instance.contextLine,
       'datasets': instance.datasets,
