@@ -55,14 +55,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
@@ -2682,6 +2675,52 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(schema)
                 .withoutValidation());
     p.run();
+  }
+
+  @Test
+  public void testBatchStorageWriteWithMultipleAppendsPerStream() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(!useStreaming);
+
+    // reduce threshold to trigger multiple stream appends
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdRecordCount(0);
+    // limit parallelism to limit the number of write streams we have open
+    p.getOptions().as(DirectOptions.class).setTargetParallelism(1);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                Arrays.asList(
+                    new TableFieldSchema().setName("num").setType("INTEGER"),
+                    new TableFieldSchema().setName("name").setType("STRING")));
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(schema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+
+    List<TableRow> rows = new ArrayList<TableRow>(100);
+    for (int i = 0; i < 100; i++) {
+      rows.add(new TableRow().set("num", String.valueOf(i)).set("name", String.valueOf(i)));
+    }
+    p.apply(Create.of(rows))
+        .apply(
+            "Save Events To BigQuery",
+            BigQueryIO.writeTableRows()
+                .to(ref)
+                .withMethod(Write.Method.STORAGE_WRITE_API)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices));
+
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(rows, TableRow.class)));
   }
 
   @Test
