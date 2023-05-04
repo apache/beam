@@ -377,6 +377,8 @@ class _Module extends StatelessWidget {
 class _ModuleHeader extends StatelessWidget {
   final ModuleModel module;
 
+  // a comment to relaunch CI
+
   const _ModuleHeader({required this.module});
 
   @override
