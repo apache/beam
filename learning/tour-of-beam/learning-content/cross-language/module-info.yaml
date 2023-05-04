@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
 id: cross-language
-name: cross-language
+name: Cross-Language Transforms
 complexity: ADVANCED
 content:
 - sql-transform
