@@ -581,7 +581,6 @@ public class HadoopFormatIOReadTest {
             new SerializableSplit(),
             false,
             false);
-
     DisplayData displayData = DisplayData.from(boundedSource);
     assertThat(
         displayData,
