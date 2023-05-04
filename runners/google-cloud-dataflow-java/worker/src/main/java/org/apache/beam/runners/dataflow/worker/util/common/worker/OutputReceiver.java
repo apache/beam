@@ -34,6 +34,10 @@ public class OutputReceiver implements Receiver {
     outputs.add(receiver);
   }
 
+  public void addOutputCounter(ElementCounter outputCounter) {
+    outputCounters.put(Integer.toString(outputCounters.size()), outputCounter);
+  }
+
   public void addOutputCounter(String counterName, ElementCounter outputCounter) {
     outputCounters.put(counterName, outputCounter);
   }
