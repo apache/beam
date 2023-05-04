@@ -180,6 +180,7 @@ public class BigQueryIOWriteTest implements Serializable {
         new Object[] {false, false, false},
         new Object[] {false, false, true},
         new Object[] {true, false, false},
+        new Object[] {true, true, false},
         new Object[] {true, false, true},
         new Object[] {true, true, true});
   }
