@@ -89,6 +89,9 @@ tasks.rat {
     "website/www/site/static/js/keen-slider.min.js",
     "website/www/site/assets/scss/_keen-slider.scss",
 
+    // Release automation files
+    "release/src/main/scripts/*.txt",
+
     // Ignore ownership files
     "ownership/**/*",
     "**/OWNERS",

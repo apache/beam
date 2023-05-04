@@ -39,7 +39,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-var capabilities = map[string]struct{}{
+var supportedRequirements = map[string]struct{}{
 	urns.RequirementSplittableDoFn: {},
 }
 
@@ -48,13 +48,13 @@ var capabilities = map[string]struct{}{
 func isSupported(requirements []string) error {
 	var unsupported []string
 	for _, req := range requirements {
-		if _, ok := capabilities[req]; !ok {
+		if _, ok := supportedRequirements[req]; !ok {
 			unsupported = append(unsupported, req)
 		}
 	}
 	if len(unsupported) > 0 {
 		sort.Strings(unsupported)
-		return fmt.Errorf("local runner doesn't support the following required features: %v", strings.Join(unsupported, ","))
+		return fmt.Errorf("prism runner doesn't support the following required features: %v", strings.Join(unsupported, ","))
 	}
 	return nil
 }
@@ -81,8 +81,19 @@ type Job struct {
 	metrics metricsStore
 }
 
-func (j *Job) ContributeMetrics(payloads *fnpb.ProcessBundleResponse) {
-	j.metrics.ContributeMetrics(payloads)
+// ContributeTentativeMetrics returns the datachannel read index, and any unknown monitoring short ids.
+func (j *Job) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (int64, []string) {
+	return j.metrics.ContributeTentativeMetrics(payloads)
+}
+
+// ContributeFinalMetrics returns any unknown monitoring short ids.
+func (j *Job) ContributeFinalMetrics(payloads *fnpb.ProcessBundleResponse) []string {
+	return j.metrics.ContributeFinalMetrics(payloads)
+}
+
+// AddMetricShortIDs populates metric short IDs with their metadata.
+func (j *Job) AddMetricShortIDs(ids *fnpb.MonitoringInfosMetadataResponse) {
+	j.metrics.AddShortIDs(ids)
 }
 
 func (j *Job) String() string {

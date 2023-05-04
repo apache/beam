@@ -1563,3 +1563,70 @@ func Test_readGraphFile(t *testing.T) {
 		})
 	}
 }
+
+func Test_cancelCheck(t *testing.T) {
+	type args struct {
+		timeout        time.Duration
+		cancelWaitTime time.Duration
+		setCancel      bool
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Successfully canceling the pipeline immediately",
+			args: args{
+				timeout:        5 * time.Minute,
+				cancelWaitTime: 0,
+				setCancel:      true,
+			},
+		},
+		{
+			name: "Successfully canceling the pipeline after timeout",
+			args: args{
+				timeout:        2 * pauseDuration,
+				cancelWaitTime: 3 * pauseDuration,
+				setCancel:      true,
+			},
+		},
+		{
+			name: "Successfully canceling the pipeline after timeout (immediate timeout)",
+			args: args{
+				timeout:        0,
+				cancelWaitTime: 3 * pauseDuration,
+				setCancel:      true,
+			},
+		},
+		{
+			name: "Successfully timing out the pipeline without cancel",
+			args: args{
+				timeout:        3 * pauseDuration,
+				cancelWaitTime: 0,
+				setCancel:      false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), tt.args.timeout)
+			defer cancel()
+
+			id := uuid.New()
+			localCache := local.New(ctx)
+
+			go cancelCheck(ctx, id, cancel, localCache)
+
+			if tt.args.setCancel {
+				_ = localCache.SetValue(ctx, id, cache.Canceled, true)
+			}
+
+			// Wait some time for the cancelCheck to be executed
+			time.Sleep(5 * pauseDuration)
+
+			if err := ctx.Err(); err == nil {
+				t.Errorf("cancelCheck() error expected, err = %v", err)
+			}
+		})
+	}
+}
