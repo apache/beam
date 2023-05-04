@@ -114,6 +114,10 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
         create_model_fn: a function that creates and returns a new
           tensorflow model to load the saved weights.
           It should be used with ModelType.SAVED_WEIGHTS.
+        load_model_args: a dictionary of parameters to pass to the load_model
+          function of TensorFlow to specify custom config.
+        custom_weights (str): path to the custom weights to be applied
+          once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
 
@@ -212,6 +216,10 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
         create_model_fn: a function that creates and returns a new
           tensorflow model to load the saved weights.
           It should be used with ModelType.SAVED_WEIGHTS.
+        load_model_args: a dictionary of parameters to pass to the load_model
+          function of TensorFlow to specify custom config.
+        custom_weights (str): path to the custom weights to be applied
+          once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
 
