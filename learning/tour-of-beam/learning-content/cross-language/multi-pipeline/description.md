@@ -16,35 +16,35 @@ limitations under the License.
 
 Apache Beam is a popular open-source platform for building batch and streaming data processing pipelines. One of the key features of Apache Beam is its ability to support multi-language pipelines. With Apache Beam, you can write different parts of your pipeline in different programming languages, and they can all work together seamlessly.
 
-Apache Beam supports multiple programming languages, including Java, Python, and Go. This makes it possible to use the language that best suits your needs for each part of your pipeline.
+Apache Beam supports multiple programming languages, including Java, Python, and Go. With multi-language support, you can use a combination of supported languages in a single pipeline. This makes it possible to use the language that best suits your needs for each part of the pipeline.
 
 To build a multi-language pipeline with Apache Beam, you can use the following approach:
 
-Define your pipeline using Apache Beam's SDK in your preferred programming language. This defines the data processing steps that need to be executed.
+* Define your pipeline using Apache Beam's SDK in your preferred programming language. This defines the data processing steps that need to be executed.
 
-Use Apache Beam's language-specific SDKs to implement the data processing steps in the appropriate programming languages. For example, you could use Java to process some data, Python to process some other data, and Go to perform a specific computation.
+* Use Apache Beam's language-specific SDKs to implement the data processing steps in the appropriate programming languages. For example, you could use Java to process some data, Python to process some other data, and Go to perform a specific computation.
 
-Use Apache Beam's cross-language support to connect the different parts of your pipeline together. Apache Beam provides a common data model and serialization format, so data can be passed seamlessly between different languages.
+* Use Apache Beam's cross-language support to connect the different parts of your pipeline. Apache Beam provides a standard data model and serialization format so that data can be passed seamlessly between different languages.
 
-By using Apache Beam's multi-language support, you can take advantage of the strengths of different programming languages, while still building a unified data processing pipeline. This can be especially useful when working with large datasets, as different languages may have different performance characteristics for different tasks.
+Using Apache Beam's multi-language support, you can take advantage of the strengths of different programming languages while building a unified data processing pipeline. This can be especially useful when working with large datasets and re-using existing components.
 
 To create a multi-language pipeline in Apache Beam, follow these steps:
 
-Choose your SDKs: First, decide which programming languages and corresponding SDKs you'd like to use. Apache Beam currently supports Python, Java, and Go SDKs.
+* Choose your SDKs: First, decide which programming languages and corresponding SDKs you'd like to use. Apache Beam currently supports Python, Java, and Go SDKs.
 
-Set up the dependencies: Make sure you have installed the necessary dependencies for each language. For instance, you'll need the Beam Python SDK for Python or the Beam Java SDK for Java.
+* Set up the dependencies: Make sure you have installed the necessary dependencies for each language. For instance, you'll need the Beam Python SDK for Python or the Beam Java SDK for Java.
 
-Create a pipeline: Using the primary language of your choice, create a pipeline object using the respective SDK. This pipeline will serve as the main entry point for your multi-language pipeline.
+* Create a pipeline: Using the primary language of your choice, create a pipeline object using the respective SDK. This pipeline will serve as the main entry point for your multi-language pipeline.
 
-Use cross-language transforms: To execute transforms written in other languages, use the ExternalTransform class (in Python) or the External class (in Java). This allows you to use a transform written in another language as if it were a native transform in your main pipeline. You'll need to provide the appropriate expansion service address for the language of the transform.
+* Use cross-language transforms: To execute transforms written in other languages, use the ExternalTransform class (in Python) or the External class (in Java). This allows you to use a transform written in another language as if it were a native transform in your main pipeline. You'll need to provide the appropriate expansion service address for the language of the transform.
 
 {{if (eq .Sdk "java")}}
 
 #### Start an expansion service
 
-When building a job for a multi-language pipeline, Beam uses an expansion service to expand composite transforms. You must have at least one expansion service per remote SDK.
+When building a job for a multi-language pipeline, Beam uses an expansion service to expand composite transforms. Therefore, you must have at least one expansion service per remote SDK.
 
-In the general case, if you have a supported version of Python installed on your system, you can let `PythonExternalTransform` handle the details of creating and starting up the expansion service. But if you want to customize the environment or use transforms not available in the default Beam SDK, you might need to run your own expansion service.
+In most cases, if you have a supported version of Python installed on your system, you can let `PythonExternalTransform` handle the details of creating and starting up the expansion service. But if you want to customize the environment or use transforms not available in the default Beam SDK, you might need to run your own expansion service.
 
 For example, to start the standard expansion service for a Python transform, ExpansionServiceServicer, follow these steps:
 
@@ -275,6 +275,141 @@ if __name__ == '__main__':
 
 Run program
 ```
-python javacount.py --runner DirectRunner --environment_type=DOCKER --input input1 --output output --sdk_harness_container_image_overrides ".*java.*,chamikaramj/beam_java11_sdk:latest"
+python javacount.py --runner DirectRunner --environment_type=DOCKER --input input.txt --output output.txt --sdk_harness_container_image_overrides ".*java.*,chamikaramj/beam_java11_sdk:latest"
+```
+{{end}}
+
+### Playground exercise
+
+{{if (eq .Sdk "java")}}
+
+You can use `RunInterface` which is used in Python for machine learning.
+
+Defining arguments:
+```
+public interface SklearnMnistClassificationOptions extends PipelineOptions {
+    @Description("Path to an input file that contains labels and pixels to feed into the model")
+    @Default.String("gs://apache-beam-samples/multi-language/mnist/example_input.csv")
+    String getInput();
+
+    void setInput(String value);
+
+    @Description("Path for storing the output")
+    @Required
+    String getOutput();
+
+    void setOutput(String value);
+
+    @Description(
+        "Path to a model file that contains the pickled file of a scikit-learn model trained on MNIST data")
+    @Default.String("gs://apache-beam-samples/multi-language/mnist/example_model")
+    String getModelPath();
+
+    void setModelPath(String value);
+    /** Set this option to specify Python expansion service URL. */
+    @Description("URL of Python expansion service")
+    @Default.String("")
+    String getExpansionService();
+
+    void setExpansionService(String value);
+}
+```
+
+Run function:
+```
+void runExample(SklearnMnistClassificationOptions options, String expansionService) {
+    // Schema of the output PCollection Row type to be provided to the RunInference transform.
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("example", Schema.FieldType.array(Schema.FieldType.INT64)),
+            Schema.Field.of("inference", FieldType.STRING));
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<KV<Long, Iterable<Long>>> col =
+        pipeline
+            .apply(TextIO.read().from(options.getInput()))
+            .apply(Filter.by(new FilterNonRecordsFn()))
+            .apply(MapElements.via(new RecordsToLabeledPixelsFn()));
+
+    col.apply(
+            RunInference.ofKVs(getModelLoaderScript(), schema, VarLongCoder.of())
+                .withKwarg("model_uri", options.getModelPath())
+                .withExpansionService(expansionService))
+        .apply(MapElements.via(new FormatOutput()))
+        .apply(TextIO.write().to(options.getOutput()));
+
+    pipeline.run().waitUntilFinish();
+}
+```
+{{end}}
+
+{{if (eq .Sdk "python")}}
+You can write your own transform to be executed in python.
+
+Prefix **Logic**:
+```
+public class JavaPrefix extends PTransform<PCollection<String>, PCollection<String>> {
+
+  final String prefix;
+
+  public JavaPrefix(String prefix) {
+    this.prefix = prefix;
+  }
+
+  class AddPrefixDoFn extends DoFn<String, String> {
+
+    @ProcessElement
+    public void process(@Element String input, OutputReceiver<String> o) {
+      o.output(prefix + input);
+    }
+  }
+
+  @Override
+  public PCollection<String> expand(PCollection<String> input) {
+    return input
+        .apply(
+            "AddPrefix",
+            ParDo.of(new AddPrefixDoFn()));
+  }
+}
+```
+
+Prefix **Builder**:
+```
+public class JavaPrefixBuilder implements
+    ExternalTransformBuilder<JavaPrefixConfiguration, PCollection<String>, PCollection<String>> {
+
+  @Override
+  public PTransform<PCollection<String>, PCollection<String>> buildExternal(
+      JavaPrefixConfiguration configuration) {
+    return new JavaPrefix(configuration.prefix);
+  }
+}
+```
+
+Prefix **Configuration**:
+```
+public class JavaPrefixConfiguration {
+
+  String prefix;
+
+  public void setPrefix(String prefix) {
+    this.prefix = prefix;
+  }
+}
+```
+
+Prefix **Register**:
+```
+@AutoService(ExternalTransformRegistrar.class)
+public class JavaPrefixRegistrar implements ExternalTransformRegistrar {
+
+final String URN = "my.beam.transform.javaprefix";
+
+@Override
+public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {
+return ImmutableMap.of(URN,new JavaPrefixBuilder());
+    }
+}
 ```
 {{end}}

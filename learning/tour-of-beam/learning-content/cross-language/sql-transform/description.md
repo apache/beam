@@ -20,9 +20,9 @@ Apache Beam **SQL** is built on top of Calcite, an open-source SQL parser, and o
 
 To use **SQL** transforms in Apache Beam, you'll need to perform the following steps:
 
-Create a `PCollection` of rows. In Apache Beam, **SQL** operations are performed on `PCollection<Row>` objects. You'll need to convert your data into a `PCollection` of rows, which requires defining a schema that describes the structure of your data.
+* Create a `PCollection` of rows. Apache Beam performs SQL operations on `PCollection<Row>` objects. You'll need to convert your data into a `PCollection` of rows, which requires defining a schema that describes the structure of your data.
 
-Apply the SQL transform. Once you have your `PCollection<Row>`, you can apply a SQL transform using the `SqlTransform.query()` method. You'll need to provide the SQL query you want to execute on your data.
+* Apply the SQL transform. Once you have your `PCollection<Row>`, you can apply a SQL transform using the `SqlTransform.query()` method. You'll need to provide the SQL query you want to execute on your data.
 
 {{if (eq .Sdk "java")}}
 Add the necessary dependencies to your project. For Java, you'll need to include the `beam-sdks-java-extensions-sql` dependency in your build configuration.
@@ -74,5 +74,51 @@ with beam.Pipeline() as p:
 
     # Print the results
     filtered_rows | 'Print results' >> beam.Map(print)
+```
+{{end}}
+
+### Playground exercise
+
+{{if (eq .Sdk "java")}}
+You can use your own classes instead of `Schema`. Here we have created several customer. And we make a query using `SqlTransform` transformation:
+```
+@DefaultSchema(JavaBeanSchema.class)
+public class Customer implements Serializable {
+  private int id;
+  private String name;
+  private String countryOfResidence;
+
+  public Customer(int id, String name, String countryOfResidence) {
+    this.id = id;
+    this.name = name;
+    this.countryOfResidence = countryOfResidence;
+  }
+}
+
+PCollection<Customer> customers = pipeline.apply(Create.of(
+            new Customer(1, "Foo", "Wonderland"),
+            new Customer(2, "Bar", "Super Kingdom"),
+            new Customer(3, "Baz", "Wonderland"),
+            new Customer(4, "Grault", "Wonderland"),
+            new Customer(5, "Qux", "Super Kingdom")));
+
+PCollection<Row> customersFromWonderland =
+        customers.apply(
+            SqlTransform.query(
+                "SELECT id, name "
+                    + " FROM PCOLLECTION "
+                    + " WHERE countryOfResidence = 'Wonderland'"));
+```
+{{end}}
+
+{{if (eq .Sdk "python")}}
+You can use your `typing.NamedTuple` instead of `beam.Row`:
+```
+Purchase = typing.NamedTuple('Purchase',
+                                   [('item_name', unicode), ('price', float)])
+coders.registry.register_coder(Purchase, coders.RowCoder)
+with Pipeline() as p:
+  purchases = (p | beam.io...
+                 | beam.Map(..).with_output_types(Purchase))
 ```
 {{end}}
