@@ -27,7 +27,7 @@ const (
 
 // queryOptions represents additional options for executing a query.
 type queryOptions struct {
-	Batching       bool                   `json:"batching""`      // Batched reading, default is true.
+	Batching       bool                   `json:"batching"`       // Batched reading, default is true.
 	MaxPartitions  int64                  `json:"maxPartitions"`  // Maximum partitions
 	TimestampBound spanner.TimestampBound `json:"timestampBound"` // The TimestampBound to use for batched reading
 }

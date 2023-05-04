@@ -18,6 +18,7 @@ package spannerio
 import (
 	"context"
 	"flag"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 	"os"
 	"reflect"
