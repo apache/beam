@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,16 +27,17 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.metrics.SamzaInputMetricOp;
-import org.apache.beam.runners.samza.metrics.SamzaOutputMetricOp;
+import org.apache.beam.runners.samza.metrics.SamzaMetricOpFactory;
 import org.apache.beam.runners.samza.metrics.SamzaTransformMetricRegistry;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.HashIdGenerator;
 import org.apache.beam.runners.samza.util.StoreIdGenerator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -43,6 +45,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
 import org.apache.samza.config.Config;
@@ -66,6 +69,7 @@ import org.apache.samza.system.descriptors.OutputDescriptor;
 import org.apache.samza.system.inmemory.InMemorySystemFactory;
 import org.apache.samza.table.Table;
 import org.apache.samza.table.descriptors.TableDescriptor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -150,30 +154,9 @@ public class TranslationContext {
   }
 
   public <OutT> void registerMessageStream(PValue pvalue, MessageStream<OpMessage<OutT>> stream) {
-    registerMessageStream(pvalue, stream, true);
-  }
-
-  public <OutT> void registerMessageStreamWithoutMetricOp(
-      PValue pvalue, MessageStream<OpMessage<OutT>> stream) {
-    registerMessageStream(pvalue, stream, false);
-  }
-
-  private <OutT> void registerMessageStream(
-      PValue pvalue, MessageStream<OpMessage<OutT>> stream, boolean attachTransformMetricOp) {
     if (messsageStreams.containsKey(pvalue)) {
       throw new IllegalArgumentException("Stream already registered for pvalue: " + pvalue);
     }
-    // add a step to attach OutputMetricOp if registered for Op Stream
-    final Boolean userOverride = getPipelineOptions().getEnableTransformMetrics();
-    if (userOverride && attachTransformMetricOp) {
-      // add another step if registered for Op Stream
-      stream.flatMapAsync(
-          OpAdapter.adapt(
-              new SamzaOutputMetricOp<>(
-                  pvalue.getName(), getTransformFullName(), samzaTransformMetricRegistry),
-              this));
-    }
-
     messsageStreams.put(pvalue, stream);
   }
 
@@ -185,34 +168,92 @@ public class TranslationContext {
   }
 
   public <OutT> MessageStream<OpMessage<OutT>> getMessageStream(PValue pvalue) {
-    return getMessageStream(pvalue, true);
-  }
-
-  public <OutT> MessageStream<OpMessage<OutT>> getMessageStreamWithoutMetricOp(PValue pvalue) {
-    return getMessageStream(pvalue, false);
-  }
-
-  private <OutT> MessageStream<OpMessage<OutT>> getMessageStream(
-      PValue pvalue, boolean attachTransformMetricOp) {
     @SuppressWarnings("unchecked")
     final MessageStream<OpMessage<OutT>> stream =
         (MessageStream<OpMessage<OutT>>) messsageStreams.get(pvalue);
     if (stream == null) {
       throw new IllegalArgumentException("No stream registered for pvalue: " + pvalue);
     }
+    return stream;
+  }
 
-    // add a step to attach InputMetricOp if registered for Op Stream
-    final Boolean userOverride = getPipelineOptions().getEnableTransformMetrics();
-    if (userOverride && attachTransformMetricOp) {
-      // add another step if registered for Op Stream
-      stream.flatMapAsync(
-          OpAdapter.adapt(
-              new SamzaInputMetricOp<>(
-                  pvalue.getName(), getTransformFullName(), samzaTransformMetricRegistry),
-              this));
+  public <InT extends PValue, OutT extends PValue> void attachTransformMetricOp(
+      PTransform<InT, OutT> transform,
+      TransformHierarchy.Node node,
+      SamzaMetricOpFactory.OpType opType) {
+    final Boolean enableTransformMetrics = getPipelineOptions().getEnableTransformMetrics();
+    final String urn = PTransformTranslation.urnForTransformOrNull(transform);
+
+    // skip attach transform if user override is false or transform is GBK
+    if (!enableTransformMetrics
+        || urn == null
+        || urn.equals(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN)
+        || urn.equals(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN)) {
+      return;
     }
 
-    return stream;
+    // skip attach transform if transform is reading from external sources
+    if (isIOTransform(node, opType)) {
+      return;
+    }
+
+    for (PValue pValue : getPValueForTransform(opType, transform, node)) {
+      // add another step for default metric computation
+      getMessageStream(pValue)
+          .flatMapAsync(
+              OpAdapter.adapt(
+                  SamzaMetricOpFactory.createMetricOp(
+                      pValue.getName(),
+                      getTransformFullName(),
+                      opType,
+                      samzaTransformMetricRegistry),
+                  this));
+    }
+  }
+
+  // Get the input or output PValue for a transform
+  private <InT extends PValue, OutT extends PValue> List<PValue> getPValueForTransform(
+      SamzaMetricOpFactory.OpType opType,
+      @NonNull PTransform<InT, OutT> transform,
+      @NonNull TransformHierarchy.Node node) {
+    switch (opType) {
+      case INPUT:
+        {
+          if (node.getInputs().size() > 1) {
+            final List<PValue> inputPValues = new ArrayList();
+            for (Map.Entry<TupleTag<?>, PCollection<?>> taggedPValue :
+                node.getInputs().entrySet()) {
+              inputPValues.add(taggedPValue.getValue());
+            }
+            return inputPValues;
+          } else {
+            return ImmutableList.of(getInput(transform));
+          }
+        }
+      case OUTPUT:
+        if (node.getOutputs().size() > 1) {
+          final List<PValue> outputPValues = new ArrayList();
+          for (Map.Entry<TupleTag<?>, PCollection<?>> taggedPValue : node.getOutputs().entrySet()) {
+            outputPValues.add(taggedPValue.getValue());
+          }
+          return outputPValues;
+        }
+        return ImmutableList.of(getOutput(transform));
+      default:
+        throw new IllegalArgumentException("Unknown opType: " + opType);
+    }
+  }
+
+  // Transforms that read or write to/from external sources are not supported
+  private boolean isIOTransform(
+      @NonNull TransformHierarchy.Node node, SamzaMetricOpFactory.OpType opType) {
+    if (opType == SamzaMetricOpFactory.OpType.INPUT) {
+      return node.getInputs().size() == 0;
+    }
+    if (opType == SamzaMetricOpFactory.OpType.OUTPUT) {
+      return node.getOutputs().size() == 0;
+    }
+    return false;
   }
 
   public <ElemT, ViewT> void registerViewStream(

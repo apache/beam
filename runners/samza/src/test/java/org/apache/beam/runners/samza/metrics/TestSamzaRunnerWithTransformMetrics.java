@@ -47,6 +47,7 @@ public class TestSamzaRunnerWithTransformMetrics {
     InMemoryMetricsReporter inMemoryMetricsReporter = new InMemoryMetricsReporter();
     options.setMetricsReporters(ImmutableList.of(inMemoryMetricsReporter));
     options.setRunner(TestSamzaRunner.class);
+    options.setEnableTransformMetrics(true);
     TestSamzaRunner testSamzaRunner = TestSamzaRunner.fromOptions(options);
     Pipeline pipeline = Pipeline.create(options);
     // Create a pipeline

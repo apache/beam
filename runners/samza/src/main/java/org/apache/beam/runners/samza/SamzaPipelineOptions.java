@@ -112,7 +112,7 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   void setEnableMetrics(Boolean enableMetrics);
 
   @Description("Enable/disable Beam Transform throughput, latency metrics in Samza Runner")
-  @Default.Boolean(true)
+  @Default.Boolean(false)
   Boolean getEnableTransformMetrics();
 
   void setEnableTransformMetrics(Boolean enableMetrics);

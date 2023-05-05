@@ -84,8 +84,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     final WindowingStrategy<?, BoundedWindow> windowingStrategy =
         (WindowingStrategy<?, BoundedWindow>) input.getWindowingStrategy();
 
-    final MessageStream<OpMessage<KV<K, InputT>>> inputStream =
-        ctx.getMessageStreamWithoutMetricOp(input);
+    final MessageStream<OpMessage<KV<K, InputT>>> inputStream = ctx.getMessageStream(input);
 
     final KvCoder<K, InputT> kvInputCoder = (KvCoder<K, InputT>) input.getCoder();
     final Coder<WindowedValue<KV<K, InputT>>> elementCoder = SamzaCoders.of(input);
@@ -105,7 +104,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
             outputTag,
             input.isBounded());
 
-    ctx.registerMessageStreamWithoutMetricOp(output, outputStream);
+    ctx.registerMessageStream(output, outputStream);
   }
 
   @Override

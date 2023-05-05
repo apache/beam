@@ -31,10 +31,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.metrics.SamzaMetricOpFactory;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
@@ -58,7 +62,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(OpAdapter.class)
+@PrepareForTest({OpAdapter.class, PTransformTranslation.class})
 @SuppressWarnings({"rawtypes"})
 public class TranslationContextTest {
   TranslationContext translationContext;
@@ -67,6 +71,7 @@ public class TranslationContextTest {
   List inputDescriptors;
   StreamApplicationDescriptor streamApplicationDescriptor;
   SamzaPipelineOptions pipelineOptions;
+  TransformHierarchy.Node node;
 
   @Before
   public void before() {
@@ -78,7 +83,7 @@ public class TranslationContextTest {
     final String streamName = "testStream";
     KVSerde<Object, Object> serde = KVSerde.of(new NoOpSerde<>(), new NoOpSerde<>());
     pipelineOptions = mock(SamzaPipelineOptions.class);
-    when(pipelineOptions.getEnableTransformMetrics()).thenReturn(true);
+    when(pipelineOptions.getEnableTransformMetrics()).thenReturn(false);
     // Create a stream application descriptor with a partitionBy
     streamApplicationDescriptor =
         new StreamApplicationDescriptorImpl(
@@ -96,6 +101,7 @@ public class TranslationContextTest {
     // Register the input message stream
     output = mock(PCollection.class);
     pTransform = mock(AppliedPTransform.class);
+    node = mock(TransformHierarchy.Node.class);
     when(pTransform.getFullName()).thenReturn("mock-ptransform");
     List<String> topics = Arrays.asList("stream1", "stream2");
     inputDescriptors =
@@ -112,34 +118,36 @@ public class TranslationContextTest {
   }
 
   @Test
-  public void testMetricOpAttached() {
+  public void testMetricOpNotAttachedForIOTransform() {
     PowerMockito.mockStatic(OpAdapter.class);
+    PowerMockito.mockStatic(PTransformTranslation.class);
+    PTransform transform = mock(PTransform.class);
+    when(pipelineOptions.getEnableTransformMetrics()).thenReturn(true);
+    when(PTransformTranslation.urnForTransformOrNull(transform))
+        .thenReturn(PTransformTranslation.IMPULSE_TRANSFORM_URN);
     translationContext.setCurrentTransform(pTransform);
-    translationContext.registerInputMessageStreams(output, inputDescriptors);
-    PowerMockito.verifyStatic(OpAdapter.class, Mockito.times(1));
+    translationContext.attachTransformMetricOp(transform, node, SamzaMetricOpFactory.OpType.INPUT);
+    PowerMockito.verifyStatic(OpAdapter.class, Mockito.never());
     // Verify that the metric op is attached
     OpAdapter.adapt(any(), Mockito.eq(translationContext));
     PowerMockito.verifyNoMoreInteractions(OpAdapter.class);
     assertTrue(pipelineOptions.getEnableTransformMetrics());
-    assertNotNull(translationContext.getMessageStream(output));
   }
 
   @Test
-  public void testMetricOpNotAttachedWhenConfigOverriden() {
+  public void testMetricOpNotAttachedForConfigOveride() {
     PowerMockito.mockStatic(OpAdapter.class);
-    pipelineOptions = mock(SamzaPipelineOptions.class);
-    // need to override the config to disable metrics
+    PowerMockito.mockStatic(PTransformTranslation.class);
+    PTransform transform = mock(PTransform.class);
     when(pipelineOptions.getEnableTransformMetrics()).thenReturn(false);
-    translationContext =
-        new TranslationContext(
-            streamApplicationDescriptor, new HashMap<>(), new HashSet<>(), pipelineOptions);
+    when(PTransformTranslation.urnForTransformOrNull(transform)).thenReturn("mock-urn");
     translationContext.setCurrentTransform(pTransform);
-    translationContext.registerInputMessageStreams(output, inputDescriptors);
-    // Verify that the metric op is not attached
+    translationContext.attachTransformMetricOp(transform, node, SamzaMetricOpFactory.OpType.INPUT);
     PowerMockito.verifyStatic(OpAdapter.class, Mockito.never());
-    OpAdapter.adapt(any(), any());
+    // Verify that the metric op is attached
+    OpAdapter.adapt(any(), Mockito.eq(translationContext));
+    PowerMockito.verifyNoMoreInteractions(OpAdapter.class);
     assertFalse(pipelineOptions.getEnableTransformMetrics());
-    assertNotNull(translationContext.getMessageStream(output));
   }
 
   private GenericInputDescriptor<KV<String, OpMessage<?>>> createSamzaInputDescriptor(

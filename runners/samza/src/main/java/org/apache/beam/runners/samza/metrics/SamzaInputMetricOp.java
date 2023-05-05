@@ -18,18 +18,27 @@
 package org.apache.beam.runners.samza.metrics;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.runners.samza.runtime.KeyedTimerData;
+import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
+import org.apache.beam.runners.samza.util.PipelineJsonRenderer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.samza.config.Config;
+import org.apache.samza.context.Context;
+import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * SamzaInputMetricOp is a {@link SamzaMetricOp} that emits & maintains default transform metrics
- * for input PCollection to the transform. It emits the input throughput and maintains avg arrival
- * time for input PCollection per watermark.
+ * SamzaInputMetricOp emits & maintains default transform metrics for input PCollection to the
+ * transform. It emits the input throughput and maintains avg arrival time for input PCollection per
+ * watermark.
  *
  * <p>Assumes that {@code SamzaInputMetricOp#processWatermark(Instant, OpEmitter)} is exclusive of
  * {@code SamzaInputMetricOp#processElement(Instant, OpEmitter)}. Specifically, the processWatermark
@@ -37,19 +46,54 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> The type of the elements in the input PCollection.
  */
-public class SamzaInputMetricOp<T> extends SamzaMetricOp<T> {
+class SamzaInputMetricOp<T> implements Op<T, T, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaInputMetricOp.class);
+
+  // Unique name of the PTransform this MetricOp is associated with
+  protected final String transformFullName;
+  protected final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
+  // Name or identifier of the PCollection which PTransform is processing
+  protected final String pValue;
+  // List of input PValue(s) for all PCollections processing the PTransform
+  protected transient List<String> transformInputs;
+  // List of output PValue(s) for all PCollections processing the PTransform
+  protected transient List<String> transformOutputs;
+  // Name of the task, for logging purpose
+  protected transient String task;
   // Counters to maintain avg arrival time per watermark for input PCollection.
   private final AtomicLong count;
   private AtomicReference<BigInteger> sumOfTimestamps;
 
+  // Some fields are initialized in open() method, which is called after the constructor.
+  @SuppressWarnings("initialization.fields.uninitialized")
   public SamzaInputMetricOp(
       String pValue,
       String transformFullName,
       SamzaTransformMetricRegistry samzaTransformMetricRegistry) {
-    super(pValue, transformFullName, samzaTransformMetricRegistry);
+    this.transformFullName = transformFullName;
+    this.samzaTransformMetricRegistry = samzaTransformMetricRegistry;
+    this.pValue = pValue;
     this.count = new AtomicLong(0L);
     this.sumOfTimestamps = new AtomicReference<>(BigInteger.ZERO);
+  }
+
+  @Override
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public void open(
+      Config config,
+      Context context,
+      Scheduler<KeyedTimerData<Void>> timerRegistry,
+      OpEmitter<T> emitter) {
+    final Map.Entry<List<String>, List<String>> transformInputOutput =
+        PipelineJsonRenderer.getTransformIOMap(config).get(transformFullName);
+    this.transformInputs =
+        transformInputOutput != null ? transformInputOutput.getKey() : new ArrayList();
+    this.transformOutputs =
+        transformInputOutput != null ? transformInputOutput.getValue() : new ArrayList();
+    // for logging / debugging purposes
+    this.task = context.getTaskContext().getTaskModel().getTaskName().getTaskName();
+    // Register the transform with SamzaTransformMetricRegistry
+    samzaTransformMetricRegistry.register(transformFullName, pValue, context);
   }
 
   @Override
@@ -84,6 +128,6 @@ public class SamzaInputMetricOp<T> extends SamzaMetricOp<T> {
     // reset all counters
     count.set(0L);
     this.sumOfTimestamps = new AtomicReference<>(BigInteger.ZERO);
-    super.processWatermark(watermark, emitter);
+    emitter.emitWatermark(watermark);
   }
 }
