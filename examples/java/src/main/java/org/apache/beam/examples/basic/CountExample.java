@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: Count
+//   name: CountDemo
 //   description: Demonstration of Count transform usage.
 //   multifile: false
 //   default_example: false

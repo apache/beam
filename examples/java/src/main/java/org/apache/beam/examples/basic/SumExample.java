@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: Sum
+//   name: SumDemo
 //   description: Demonstration of Sum transform usage.
 //   multifile: false
 //   default_example: false

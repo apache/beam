@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: Combine
+//   name: CombineDemo
 //   description: Demonstration of Combine transform usage.
 //   multifile: false
 //   default_example: false

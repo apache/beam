@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MeanPerKey
+//   name: MeanPerKeyDemo
 //   description: Demonstration of Mean.perKey transform usage.
 //   multifile: false
 //   default_example: false

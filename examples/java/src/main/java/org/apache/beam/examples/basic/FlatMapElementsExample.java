@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: FlatMapElements
+//   name: FlatMapElementsDemo
 //   description: Demonstration of FlatMapElements transform usage.
 //   multifile: false
 //   default_example: false

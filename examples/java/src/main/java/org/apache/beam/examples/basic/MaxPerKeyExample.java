@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MaxPerKey
+//   name: MaxPerKeyDemo
 //   description: Demonstration of Max.perKey transform usage.
 //   multifile: false
 //   default_example: false

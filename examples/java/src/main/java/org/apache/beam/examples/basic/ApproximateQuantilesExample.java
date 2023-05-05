@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: ApproximateQuantiles
+//   name: ApproximateQuantilesDemo
 //   description: Demonstration of ApproximateQuantiles transform usage.
 //   multifile: false
 //   default_example: false

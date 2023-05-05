@@ -31,7 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: CombinePerKey
+//   name: CombinePerKeyDemo
 //   description: Demonstration of Combine.perKey transform usage.
 //   multifile: false
 //   default_example: false
