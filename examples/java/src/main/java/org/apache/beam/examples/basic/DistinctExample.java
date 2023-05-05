@@ -60,7 +60,7 @@ public class DistinctExample {
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
-    private static final Logger LOG = LoggerFactory.getLogger(CreateExample.LogOutput.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {
