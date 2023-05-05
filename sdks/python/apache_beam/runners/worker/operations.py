@@ -127,9 +127,10 @@ class ConsumerSet(Receiver):
              producer_type_hints,
              producer_batch_converter, # type: Optional[BatchConverter]
              exception_sampler,  # type: ElementSampler
-             element_sampler,  # type: ElementSampler
+             element_sampler=None,  # type: ElementSampler
              ):
     # type: (...) -> ConsumerSet
+    element_sampler = element_sampler or ElementSampler()
     if len(consumers) == 1:
       consumer = consumers[0]
 
@@ -253,8 +254,9 @@ class SingletonElementConsumerSet(ConsumerSet):
 
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
+    print('AAAAAAAAAAAAAAAAHHHHHHH')
     self.update_counters_start(windowed_value)
-    self.exception_sampler.el = windowed_value
+    # self.exception_sampler.el = windowed_value
     self.element_sampler.el = windowed_value
     self.consumer.process(windowed_value)
     self.update_counters_finish()
@@ -342,7 +344,7 @@ class GeneralPurposeConsumerSet(ConsumerSet):
     # type: (WindowedValue) -> None
 
     self.update_counters_start(windowed_value)
-    self.exception_sampler.el = windowed_value
+    # self.exception_sampler.el = windowed_value
     self.element_sampler.el = windowed_value
 
     for consumer in self.element_consumers:
@@ -361,7 +363,7 @@ class GeneralPurposeConsumerSet(ConsumerSet):
   def receive_batch(self, windowed_batch):
     for wv in windowed_batch.as_windowed_values(
         self.producer_batch_converter.explode_batch):
-      self.exception_sampler.el = wv
+      # self.exception_sampler.el = wv
       self.element_sampler.el = wv
       break
 
@@ -477,11 +479,13 @@ class Operation(object):
       self.debug_logging_enabled = logging.getLogger().isEnabledFor(
           logging.DEBUG)
       transform_id = self.name_context.transform_id
+      print('AAAAAAAAAA')
 
       # Everything except WorkerSideInputSource, which is not a
       # top-level operation, should have output_coders
       #TODO(pabloem): Define better what step name is used here.
       if getattr(self.spec, 'output_coders', None):
+        print(self.spec.output_coders)
         self.receivers = [
             ConsumerSet.create(
                 self.counter_factory,
@@ -492,7 +496,7 @@ class Operation(object):
                 self._get_runtime_performance_hints(),
                 self.get_output_batch_converter(),
                 exception_sampler,
-                data_sampler.sampler_for_output(transform_id, i) if data_sampler else ElementSampler()
+                data_sampler.sampler_for_output(transform_id, i) #if data_sampler else ElementSampler()
             ) for i,
             coder in enumerate(self.spec.output_coders)
         ]

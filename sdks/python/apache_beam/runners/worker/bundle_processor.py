@@ -1317,15 +1317,19 @@ class BeamTransformFactory(object):
 
   def get_output_coders(self, transform_proto):
     # type: (beam_runner_api_pb2.PTransform) -> Dict[str, coders.Coder]
-    return {
+    ret = {
         tag: self.get_windowed_coder(pcoll_id)
         for tag,
         pcoll_id in transform_proto.outputs.items()
     }
+    print(ret)
+    return ret
 
   def get_only_output_coder(self, transform_proto):
     # type: (beam_runner_api_pb2.PTransform) -> coders.Coder
-    return only_element(self.get_output_coders(transform_proto).values())
+    ret = only_element(self.get_output_coders(transform_proto).values())
+    print(ret)
+    return ret
 
   def get_input_coders(self, transform_proto):
     # type: (beam_runner_api_pb2.PTransform) -> Dict[str, coders.WindowedValueCoder]

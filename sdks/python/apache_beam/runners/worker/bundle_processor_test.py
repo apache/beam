@@ -190,19 +190,22 @@ def element_split(frac, index):
 class TestOperation(operations.Operation):
   """Test operation that forwards its payload to consumers."""
   class Spec:
-    def __init__(self):
-      self.output_coders = [FastPrimitivesCoder()]
+    def __init__(self, transform_proto):
+      self.output_coders = [FastPrimitivesCoder() for _ in transform_proto.outputs]
 
   def __init__(
       self,
+      transform_proto,
       name_context,
       counter_factory,
       state_sampler,
       consumers,
       payload,
+      data_sampler,
   ):
-    super().__init__(name_context, self.Spec(), counter_factory, state_sampler)
+    super().__init__(name_context, self.Spec(transform_proto), counter_factory, state_sampler, data_sampler)
     self.payload = payload
+    print(transform_proto.unique_name, transform_proto.outputs, self.Spec(transform_proto).output_coders)
 
     for _, consumer_ops in consumers.items():
       for consumer in consumer_ops:
@@ -212,8 +215,9 @@ class TestOperation(operations.Operation):
     super().start()
 
     # Not using windowing logic, so just using simple defaults here.
-    self.process(
-        WindowedValue(self.payload, timestamp=0, windows=[GlobalWindow()]))
+    if self.payload:
+      self.process(
+          WindowedValue(self.payload, timestamp=0, windows=[GlobalWindow()]))
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -222,11 +226,13 @@ class TestOperation(operations.Operation):
 @BeamTransformFactory.register_urn('beam:internal:testop:v1', bytes)
 def create_test_op(factory, transform_id, transform_proto, payload, consumers):
   return TestOperation(
+      transform_proto,
       common.NameContext(transform_proto.unique_name, transform_id),
       factory.counter_factory,
       factory.state_sampler,
       consumers,
-      payload)
+      payload,
+      factory.data_sampler)
 
 
 class DataSamplingTest(unittest.TestCase):
@@ -300,6 +306,12 @@ class DataSamplingTest(unittest.TestCase):
     test_transform.outputs['None'] = PCOLLECTION_ID
     test_transform.spec.urn = 'beam:internal:testop:v1'
     test_transform.spec.payload = b'hello, world!'
+
+    TRANSFORM_FINAL_ID = 'test_transform_final'
+    test_transform = descriptor.transforms[TRANSFORM_FINAL_ID]
+    test_transform.inputs['None'] = PCOLLECTION_ID
+    test_transform.spec.urn = 'beam:internal:testop:v1'
+    test_transform.spec.payload = b''
 
     # Create and process a fake bundle. The instruction id doesn't matter here.
     processor = BundleProcessor(

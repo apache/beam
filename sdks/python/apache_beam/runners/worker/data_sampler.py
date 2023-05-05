@@ -168,6 +168,7 @@ class DataSampler:
 
   def sampler_for_output(self, transform_id, output_index):
     try:
+      print(transform_id, output_index)
       return self._element_samplers[transform_id][output_index]
     except:
       _LOGGER.warn('Out-of-bounds access for transform "%s" and output "%s" ' +
@@ -177,6 +178,7 @@ class DataSampler:
       return ElementSampler()
 
   def initialize_transform(self, transform_id, descriptor, transform_proto, transform_factory):
+    print('trying to initialize', transform_id)
     with self._samplers_lock:
       for pcoll_id in transform_proto.outputs.values():
         if pcoll_id in self._samplers:
@@ -205,6 +207,7 @@ class DataSampler:
       outputs = transform_proto.outputs
       indexed_samplers = [tagged_samplers[tag] for tag in outputs]
       self._element_samplers[transform_id] = indexed_samplers
+      print('created element samplers:', self._element_samplers[transform_id])
 
   def sample_output(self, pcoll_id: str, coder: Coder) -> OutputSampler:
     """Create or get an OutputSampler for a pcoll_id."""
