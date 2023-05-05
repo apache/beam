@@ -27,8 +27,8 @@ The transform handles standard inference functionality, like metric
 collection, sharing model between threads, and batching elements.
 """
 
-import os
 import logging
+import os
 import pickle
 import sys
 import threading
