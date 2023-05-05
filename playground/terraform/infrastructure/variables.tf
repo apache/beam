@@ -31,6 +31,10 @@ variable "region" {
   description = "Infrastructure Region"
 }
 
+variable "env" {}
+
+variable "state_bucket" {}
+
 #IAM
 
 variable "service_account_id" {
@@ -94,12 +98,12 @@ variable "redis_name" {
 
 variable "redis_tier" {
   description = "Tier of Redis"
-  default     = "STANDARD_HA"
+  default     = "BASIC"
 }
 
 variable "redis_replica_count" {
   description = "Redis's replica count"
-  default     = 1
+  default     = 0
 }
 
 variable "redis_memory_size_gb" {
@@ -109,7 +113,7 @@ variable "redis_memory_size_gb" {
 
 variable "read_replicas_mode" {
   description = "Read replica mode. Can only be specified when trying to create the instance."
-  default     = "READ_REPLICAS_ENABLED"
+  default     = "READ_REPLICAS_DISABLED"
 }
 
 #NETWORK
@@ -129,11 +133,23 @@ variable "network_region" {
   default     = "us-central1"
 }
 
+variable "ip_address_name" {
+  description = "Static IP address name"
+  default     = "pg-static-ip"
+}
+
+# APPENGINE
+variable "skip_appengine_deploy" {
+  description = "AppEngine enabled"
+  type        = bool
+  default     = false
+}
+
 # GKE
 
 variable "gke_machine_type" {
   description = "Node pool machine types"
-  default     = "e2-standard-4"
+  default     = "e2-standard-8"
 }
 
 variable "gke_name" {

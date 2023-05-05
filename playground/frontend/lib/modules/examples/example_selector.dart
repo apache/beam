@@ -24,7 +24,6 @@ import 'package:provider/provider.dart';
 
 import '../../constants/sizes.dart';
 import '../../pages/standalone_playground/notifiers/example_selector_state.dart';
-import '../../utils/dropdown_utils.dart';
 import 'components/outside_click_handler.dart';
 import 'examples_dropdown_content.dart';
 import 'models/popover_state.dart';
@@ -68,7 +67,7 @@ class _ExampleSelectorState extends State<ExampleSelector> {
             } else {
               unawaited(_loadCatalogIfNot(widget.playgroundController));
               _overlayEntry = _createExamplesDropdown();
-              Overlay.of(context)?.insert(_overlayEntry!);
+              Overlay.of(context).insert(_overlayEntry!);
               widget.playgroundController.exampleCache.setSelectorOpened(true);
             }
           },

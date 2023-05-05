@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import java.util.stream.Collectors;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.CodecFactory;
@@ -64,10 +65,12 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -91,6 +94,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -112,6 +116,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -185,6 +190,8 @@ public class AvroIOTest implements Serializable {
     @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
     @Rule public transient ExpectedException expectedException = ExpectedException.none();
+
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
     @Parameterized.Parameters(name = "{index}: {0}")
     public static Collection<Object[]> params() {
@@ -313,6 +320,45 @@ public class AvroIOTest implements Serializable {
                       .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
           .containsInAnyOrder(values);
 
+      readPipeline.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testReadWithFilename() throws Throwable {
+      List<GenericClass> values =
+          ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
+      File outputFile = tmpFolder.newFile("output.avro");
+
+      writePipeline
+          .apply(Create.of(values))
+          .apply(
+              AvroIO.write(GenericClass.class)
+                  .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                  .withoutSharding());
+      writePipeline.run();
+
+      SerializableFunction<String, ? extends FileBasedSource<GenericClass>> createSource =
+          input ->
+              AvroSource.from(ValueProvider.StaticValueProvider.of(input))
+                  .withSchema(GenericClass.class);
+
+      final PCollection<KV<String, GenericClass>> lines =
+          readPipeline
+              .apply(Create.of(Collections.singletonList(outputFile.getAbsolutePath())))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches().withCompression(AUTO))
+              .apply(
+                  new ReadAllViaFileBasedSourceWithFilename<>(
+                      10,
+                      createSource,
+                      KvCoder.of(StringUtf8Coder.of(), AvroCoder.of(GenericClass.class))));
+
+      PAssert.that(lines)
+          .containsInAnyOrder(
+              values.stream()
+                  .map(v -> KV.of(outputFile.getAbsolutePath(), v))
+                  .collect(Collectors.toList()));
       readPipeline.run();
     }
 

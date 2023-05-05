@@ -18,16 +18,17 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
 import '../../cache/content_tree.dart';
 import '../../models/content_tree.dart';
 
 class ContentTreeBuilder extends StatelessWidget {
-  final String sdkId;
+  final Sdk sdk;
   final ValueWidgetBuilder<ContentTreeModel?> builder;
 
   const ContentTreeBuilder({
-    required this.sdkId,
+    required this.sdk,
     required this.builder,
   });
 
@@ -39,7 +40,7 @@ class ContentTreeBuilder extends StatelessWidget {
       animation: contentTreeCache,
       builder: (context, child) => builder(
         context,
-        contentTreeCache.getContentTree(sdkId),
+        contentTreeCache.getContentTree(sdk),
         child,
       ),
     );

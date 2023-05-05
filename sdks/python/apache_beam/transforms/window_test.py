@@ -63,9 +63,6 @@ class ReifyWindowsFn(core.DoFn):
     yield "%s @ %s" % (key, window), values
 
 
-reify_windows = core.ParDo(ReifyWindowsFn())
-
-
 class TestCustomWindows(NonMergingWindowFn):
   """A custom non merging window fn which assigns elements into interval windows
   [0, 3), [3, 5) and [5, element timestamp) based on the element timestamps.
@@ -190,7 +187,7 @@ class WindowTest(unittest.TestCase):
           | 'w' >> WindowInto(SlidingWindows(period=2, size=4))
           | GroupByKey()
           | beam.MapTuple(lambda k, vs: (k, sorted(vs)))
-          | reify_windows)
+          | beam.ParDo(ReifyWindowsFn()))
       expected = [('key @ [-2.0, 2.0)', [1]), ('key @ [0.0, 4.0)', [1, 2, 3]),
                   ('key @ [2.0, 6.0)', [2, 3])]
       assert_that(result, equal_to(expected))
@@ -204,7 +201,7 @@ class WindowTest(unittest.TestCase):
           | 'w' >> WindowInto(Sessions(10))
           | GroupByKey()
           | sort_values
-          | reify_windows)
+          | beam.ParDo(ReifyWindowsFn()))
       expected = [('key @ [1.0, 13.0)', [1, 2, 3]),
                   ('key @ [20.0, 45.0)', [20, 27, 35])]
       assert_that(result, equal_to(expected))

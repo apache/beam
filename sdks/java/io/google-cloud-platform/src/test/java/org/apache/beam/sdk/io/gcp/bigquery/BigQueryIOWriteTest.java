@@ -2814,6 +2814,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                     .withSchema(tableSchema)
                     .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                    .withPropagateSuccessfulStorageApiWrites(true)
                     .withTestServices(fakeBqServices)
                     .withoutValidation());
 
@@ -2823,10 +2824,15 @@ public class BigQueryIOWriteTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
+    PCollection<TableRow> successfulRows = result.getSuccessfulStorageApiInserts();
 
     PAssert.that(deadRows)
         .containsInAnyOrder(
             Iterables.concat(badRows, Iterables.filter(goodRows, shouldFailRow::apply)));
+    PAssert.that(successfulRows)
+        .containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(goodRows, r -> !shouldFailRow.apply(r)), TableRow.class));
     p.run();
 
     assertThat(

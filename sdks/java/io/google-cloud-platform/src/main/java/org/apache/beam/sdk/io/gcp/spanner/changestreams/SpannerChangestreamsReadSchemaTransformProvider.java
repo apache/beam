@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -54,7 +55,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.gson.Gson;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.Gson;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -142,18 +143,26 @@ public class SpannerChangestreamsReadSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class SpannerChangestreamsReadConfiguration implements Serializable {
+
+    @SchemaFieldDescription("Specifies the Cloud Spanner database.")
     public abstract String getDatabaseId();
 
+    @SchemaFieldDescription("Specifies the Cloud Spanner project.")
     public abstract String getProjectId();
 
+    @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
     public abstract String getInstanceId();
 
+    @SchemaFieldDescription("Specifies the Cloud Spanner table.")
     public abstract String getTable();
 
+    @SchemaFieldDescription("Specifies the time that the change stream should be read from.")
     public abstract String getStartAtTimestamp();
 
+    @SchemaFieldDescription("Specifies the end time of the change stream.")
     public abstract @Nullable String getEndAtTimestamp();
 
+    @SchemaFieldDescription("Specifies the change stream name.")
     public abstract String getChangeStreamName();
 
     public static Builder builder() {

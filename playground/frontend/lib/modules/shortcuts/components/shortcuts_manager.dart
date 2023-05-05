@@ -35,9 +35,26 @@ class PlaygroundShortcutsManager extends StatelessWidget {
     return ShortcutsManager(
       shortcuts: [
         ...playgroundController.shortcuts,
+        BeamMainRunShortcut(onInvoke: _onRun),
+        BeamNumpadRunShortcut(onInvoke: _onRun),
         ...globalShortcuts,
       ],
       child: child,
     );
+  }
+
+  void _onRun() {
+    final codeRunner = playgroundController.codeRunner;
+
+    if (codeRunner.canRun) {
+      codeRunner.runCode();
+
+      PlaygroundComponents.analyticsService.sendUnawaited(
+        RunStartedAnalyticsEvent(
+          snippetContext: codeRunner.eventSnippetContext!,
+          trigger: EventTrigger.shortcut,
+        ),
+      );
+    }
   }
 }

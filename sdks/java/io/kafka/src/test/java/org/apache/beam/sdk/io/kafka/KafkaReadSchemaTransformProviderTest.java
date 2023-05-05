@@ -49,7 +49,7 @@ public class KafkaReadSchemaTransformProviderTest {
         AssertionError.class,
         () -> {
           KafkaReadSchemaTransformConfiguration.builder()
-              .setDataFormat("UNUSUAL_FORMAT")
+              .setFormat("UNUSUAL_FORMAT")
               .setTopic("a_valid_topic")
               .setBootstrapServers("a_valid_server")
               .build()
@@ -60,7 +60,7 @@ public class KafkaReadSchemaTransformProviderTest {
         IllegalStateException.class,
         () -> {
           KafkaReadSchemaTransformConfiguration.builder()
-              .setDataFormat("UNUSUAL_FORMAT")
+              .setFormat("UNUSUAL_FORMAT")
               // .setTopic("a_valid_topic")  // Topic is mandatory
               .setBootstrapServers("a_valid_server")
               .build()
@@ -71,7 +71,7 @@ public class KafkaReadSchemaTransformProviderTest {
         IllegalStateException.class,
         () -> {
           KafkaReadSchemaTransformConfiguration.builder()
-              .setDataFormat("UNUSUAL_FORMAT")
+              .setFormat("UNUSUAL_FORMAT")
               .setTopic("a_valid_topic")
               // .setBootstrapServers("a_valid_server")  // Bootstrap server is mandatory
               .build()
@@ -98,7 +98,7 @@ public class KafkaReadSchemaTransformProviderTest {
             "schema",
             "autoOffsetResetConfig",
             "consumerConfigUpdates",
-            "dataFormat",
+            "format",
             "confluentSchemaRegistrySubject",
             "confluentSchemaRegistryUrl"),
         kafkaProvider.configurationSchema().getFields().stream()
@@ -141,7 +141,7 @@ public class KafkaReadSchemaTransformProviderTest {
             KafkaReadSchemaTransformConfiguration.builder()
                 .setTopic("anytopic")
                 .setBootstrapServers("anybootstrap")
-                .setDataFormat("JSON")
+                .setFormat("JSON")
                 .setSchema(
                     new String(
                         ByteStreams.toByteArray(

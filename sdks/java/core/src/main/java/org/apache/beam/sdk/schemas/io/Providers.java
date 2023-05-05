@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +30,7 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 @Experimental(Kind.SCHEMAS)
 public final class Providers {
+
   public interface Identifyable {
     /**
      * Returns an id that uniquely represents this among others implementing its derived interface.
@@ -42,12 +43,27 @@ public final class Providers {
   public static <T extends Identifyable> Map<String, T> loadProviders(Class<T> klass) {
     Map<String, T> providers = new HashMap<>();
     for (T provider : ServiceLoader.load(klass)) {
-      checkArgument(
-          !providers.containsKey(provider.identifier()),
-          "Duplicate providers exist with identifier `%s` for class %s.",
-          provider.identifier(),
-          klass);
-      providers.put(provider.identifier(), provider);
+      // Avro provider is treated as a special case since two Avro providers may want to be loaded -
+      // from "core" (deprecated) and from "extensions/avro" (actual) - but only one must succeed.
+      // TODO: we won't need this check once all Avro providers from "core" will be
+      // removed
+      if (provider.identifier().equals("avro")) {
+        // Avro provider from "extensions/avro" must have a priority.
+        if (provider.getClass().getName().startsWith("org.apache.beam.sdk.extensions.avro")) {
+          // Load Avro provider from "extensions/avro" by any case.
+          providers.put(provider.identifier(), provider);
+        } else {
+          // Load Avro provider from "core" if it was not loaded from Avro extension before.
+          providers.putIfAbsent(provider.identifier(), provider);
+        }
+      } else {
+        checkState(
+            !providers.containsKey(provider.identifier()),
+            "Duplicate providers exist with identifier `%s` for class %s.",
+            provider.identifier(),
+            klass);
+        providers.put(provider.identifier(), provider);
+      }
     }
     return providers;
   }

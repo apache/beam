@@ -118,7 +118,7 @@ public class BeamRowToStorageApiProto {
           .put(
               SqlTypes.DATETIME.getIdentifier(),
               (logicalType, value) ->
-                  CivilTimeEncoder.encodePacked64DatetimeSeconds((LocalDateTime) value))
+                  CivilTimeEncoder.encodePacked64DatetimeMicros((LocalDateTime) value))
           .put(
               SqlTypes.TIMESTAMP.getIdentifier(),
               (logicalType, value) -> (ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value)))

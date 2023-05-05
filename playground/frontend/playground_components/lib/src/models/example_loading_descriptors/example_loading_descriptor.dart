@@ -19,6 +19,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../example_view_options.dart';
+import '../sdk.dart';
 
 /// Describes a single example to be loaded.
 abstract class ExampleLoadingDescriptor with EquatableMixin {
@@ -27,6 +28,14 @@ abstract class ExampleLoadingDescriptor with EquatableMixin {
   });
 
   final ExampleViewOptions viewOptions;
+
+  Sdk? get sdk => null;
+
+  /// Anything to hint at the snippet: catalog path, user-shared ID, URL, etc.
+  ///
+  /// This can be used for analytics or other applications to distinguish
+  /// snippets in most cases but not as a strictly unique identifier.
+  String? get token => null;
 
   ExampleLoadingDescriptor copyWithoutViewOptions();
 

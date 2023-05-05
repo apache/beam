@@ -17,18 +17,22 @@
 
 ui:
   about: About Tour of Beam
-  builtWith: Built with Apache Beam
+  builtWith: Built with Apache Beam {beamSdkVersion}
+  cancel: Cancel
   continueGitHub: Continue with GitHub
   continueGoogle: Continue with Google
   copyright: © The Apache Software Foundation
-  hint: Hint
-  deleteAccount: Delete my account
+  deleteMyAccount: Delete my account
+  deleteTobAccount: Delete my Tour of Beam account
+  feedbackTitle: Enjoying Tour of Beam?
   privacyPolicy: Privacy Policy
   reportIssue: Report Issue in GitHub
   signIn: Sign in
   signOut: Sign out
-  solution: Solution
   toWebsite: To Apache Beam website
+
+errors:
+  toastTitle: Error
 
 pages:
   welcome:
@@ -38,11 +42,23 @@ pages:
     startTour: Start your tour
     title: Welcome to the Tour of Beam!
   tour:
+    assignment: Assignment
     completeUnit: Complete Unit
+    content: Content
+    hint: Hint
+    showSolution: Show the solution
+    solution: Solution
+    solveYourself: Before revealing the solution, try solving the challenge on your own. Remember, the more you practice, the better you will become. Give it a shot and see how far you can get.
+    example: Example
+    myCode: My code
+    playground: Playground
+    saving: Saving...
     summaryTitle: Table of Contents
+    pipelineOptionsButtonTitle: 'Pipeline Options ({count})'
 
 dialogs:
   signInIf: If you would like to save your progress and track completed modules
+  deleteAccountWarning: Are you sure you want to delete your Tour of Beam account? This will permanently erase your learning progress.
 
 complexity:
   basic: Basic level

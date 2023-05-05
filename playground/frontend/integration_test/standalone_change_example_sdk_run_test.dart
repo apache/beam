@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground/services/analytics/events/snippet_selected.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
@@ -25,17 +26,14 @@ import 'common/common.dart';
 import 'common/common_finders.dart';
 import 'common/widget_tester.dart';
 
-const _outputPrefix = 'The processing has started\n';
+const _outputPrefix = 'The processing has been started\n';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   Future<void> changeToJavaAggregationMax(WidgetTester wt) async {
-    await wt.tap(find.exampleSelector());
-    await wt.pumpAndSettle();
-
-    await wt.tap(find.exampleItemInDropdown(javaAggregationMax.name));
-    await wt.pumpAndSettle();
+    await wt.tapAndSettle(find.exampleSelector());
+    await wt.tapAndSettle(find.exampleItemInDropdown(javaAggregationMax.name));
 
     expect(
       wt.findOneCodeController().lastTextSpan!.toPlainText().isAsIfCutFrom(
@@ -43,11 +41,13 @@ void main() {
           ),
       true,
     );
-  }
 
-  Future<void> runExpectJavaAggregationMax(WidgetTester wt) async {
-    await wt.runExpectCached();
-    expectOutputEndsWith(javaAggregationMax.outputTail, wt);
+    expectLastAnalyticsEvent(
+      SnippetSelectedAnalyticsEvent(
+        sdk: Sdk.java,
+        snippet: javaAggregationMax.dbPath,
+      ),
+    );
   }
 
   Future<void> runCustomJava(WidgetTester wt) async {
@@ -60,13 +60,12 @@ public class MyClass {
 }
 ''';
 
-    await wt.enterText(find.codeField(), code);
+    await wt.enterText(find.snippetCodeField(), code);
     await wt.pumpAndSettle();
 
-    await wt.tap(find.runOrCancelButton());
-    await wt.pumpAndSettle();
+    await wt.tapAndSettle(find.runOrCancelButton());
 
-    expectOutput('$_outputPrefix$text', wt);
+    expectOutputEquals('$_outputPrefix$text', wt);
   }
 
   Future<void> switchToPython(WidgetTester wt) async {
@@ -78,14 +77,14 @@ public class MyClass {
           ),
       true,
     );
+
+    expectLastAnalyticsEvent(const SdkSelectedAnalyticsEvent(sdk: Sdk.python));
   }
 
   Future<void> changeToPythonAggregationMean(WidgetTester wt) async {
-    await wt.tap(find.exampleSelector());
-    await wt.pumpAndSettle();
-
-    await wt.tap(find.exampleItemInDropdown(pythonAggregationMean.name));
-    await wt.pumpAndSettle();
+    await wt.tapAndSettle(find.exampleSelector());
+    await wt
+        .tapAndSettle(find.exampleItemInDropdown(pythonAggregationMean.name));
 
     // Cannot test this because the DB examples differ from GitHub now.
     // TODO(alexeyinkin): Uncomment when DB is up-to-date.
@@ -100,37 +99,28 @@ public class MyClass {
     // );
   }
 
-  Future<void> runExpectPythonAggregationMean(WidgetTester wt) async {
-    await wt.runExpectCached();
-
-    for (final str in pythonAggregationMean.outputContains!) {
-      expectOutputContains(str, wt);
-    }
-  }
-
   Future<void> runCustomPython(WidgetTester wt) async {
     const text = 'OK';
     const code = 'print("$text", end="")';
 
-    await wt.enterText(find.codeField(), code);
+    await wt.enterText(find.snippetCodeField(), code);
     await wt.pumpAndSettle();
 
-    await wt.tap(find.runOrCancelButton());
-    await wt.pumpAndSettle();
+    await wt.tapAndSettle(find.runOrCancelButton());
 
-    expectOutput('$_outputPrefix$text', wt);
+    expectOutputEquals('$_outputPrefix$text', wt);
   }
 
   testWidgets('Change example, change SDK, run', (WidgetTester wt) async {
     await init(wt);
 
     await changeToJavaAggregationMax(wt);
-    await runExpectJavaAggregationMax(wt);
+    await wt.runExpectCached(javaAggregationMax);
     await runCustomJava(wt);
 
     await switchToPython(wt);
     await changeToPythonAggregationMean(wt);
-    await runExpectPythonAggregationMean(wt);
+    await wt.runExpectCached(pythonAggregationMean);
     await runCustomPython(wt);
   });
 }
