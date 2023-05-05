@@ -140,6 +140,7 @@ if [[ $confirmation == "y" ]]; then
   for i in "${artifacts[@]}"
   do
       curl "${REPO_URL}/org/apache/beam/${i}/${RELEASE_VER}" -f || FAILED+=($i)
+      sleep 0.5
   done
   if [ ${#FAILED[@]} != 0 ];
   then
