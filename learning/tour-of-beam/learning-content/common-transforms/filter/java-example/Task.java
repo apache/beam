@@ -20,7 +20,7 @@
 //   name: Filter
 //   description: Filter example.
 //   multifile: false
-//   context_line: 37
+//   context_line: 42
 //   categories:
 //     - Quickstart
 //   complexity: BASIC

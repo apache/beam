@@ -17,7 +17,7 @@
 //   name: Count
 //   description: Count example.
 //   multifile: false
-//   context_line: 39
+//   context_line: 38
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
@@ -27,34 +27,35 @@
 package main
 
 import (
-    "context"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"context"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 func main() {
-    ctx := context.Background()
+	ctx := context.Background()
 
-    p, s := beam.NewPipelineWithRoot()
+	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
-    input := beam.Create(s, 1, 2, 31, 4, -5, 16, 2, 7, 8, 9, -5, 10, 11)
+	// List of elements
+	input := beam.Create(s, 1, 2, 31, 4, -5, 16, 2, 7, 8, 9, -5, 10, 11)
 
-    // The applyTransform() converts [input] to [output]
-    output := applyTransform(s, input)
+	// The applyTransform() converts [input] to [output]
+	output := applyTransform(s, input)
 
 	debug.Printf(s, "Input has %v elements", output)
 
-    err := beamx.Run(ctx, p)
+	err := beamx.Run(ctx, p)
 
-    if err != nil {
-        log.Exitf(context.Background(), "Failed to execute job: %v", err)
-    }
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }
+
 // Return the count of numbers from `PCollection`.
 func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return stats.CountElms(s, input)
+	return stats.CountElms(s, input)
 }

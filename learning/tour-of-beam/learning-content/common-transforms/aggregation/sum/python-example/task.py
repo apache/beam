@@ -18,7 +18,7 @@
 #   name: Sum
 #   description: Sum example.
 #   multifile: false
-#   context_line: 42
+#   context_line: 48
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

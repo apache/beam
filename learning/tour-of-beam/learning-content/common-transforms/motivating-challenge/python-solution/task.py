@@ -18,7 +18,7 @@
 #   name: CommonTransformsSolution
 #   description: Common Transforms motivating challenge solution.
 #   multifile: false
-#   context_line: 32
+#   context_line: 65
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

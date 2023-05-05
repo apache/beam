@@ -17,7 +17,7 @@
 //   name: CommonTransformsChallenge
 //   description: Common Transforms motivating challenge.
 //   multifile: false
-//   context_line: 39
+//   context_line: 43
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
@@ -27,78 +27,77 @@
 package main
 
 import (
-    "context"
-    "strings"
-    "strconv"
-    "strings"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-    _ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-    _ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"context"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"strconv"
+	"strings"
 )
 
 func main() {
-    ctx := context.Background()
+	ctx := context.Background()
 
-    p, s := beam.NewPipelineWithRoot()
+	p, s := beam.NewPipelineWithRoot()
 
-    input := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
+	input := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
-    // Extract cost from PCollection
-    cost := ExtractCostFromFile(s, input)
+	// Extract cost from PCollection
+	cost := ExtractCostFromFile(s, input)
 
-    // Filtering with fixed cost
-    aboveCosts := getAboveCosts(s, cost)
+	// Filtering with fixed cost
+	aboveCosts := getAboveCosts(s, cost)
 
-    // Filtering with fixed cost
-    belowCosts := getBelowCosts(s, cost)
+	// Filtering with fixed cost
+	belowCosts := getBelowCosts(s, cost)
 
-    // Summing up the price above the fixed price
-    aboveCostsSum := getSum(s, aboveCosts)
+	// Summing up the price above the fixed price
+	aboveCostsSum := getSum(s, aboveCosts)
 
-    // Summing up the price above the fixed price
-    belowCostsSum := getSum(s, belowCosts)
+	// Summing up the price above the fixed price
+	belowCostsSum := getSum(s, belowCosts)
 
-    aboveKV := getMap(s, aboveCostsSum, "above")
+	aboveKV := getMap(s, aboveCostsSum, "above")
 
-    belowKV := getMap(s, belowCostsSum, "below")
+	belowKV := getMap(s, belowCostsSum, "below")
 
-    debug.Printf(s, "Above pCollection output", aboveKV)
-    debug.Printf(s, "Below pCollection output", belowKV)
+	debug.Printf(s, "Above pCollection output", aboveKV)
+	debug.Printf(s, "Below pCollection output", belowKV)
 
-    err := beamx.Run(ctx, p)
+	err := beamx.Run(ctx, p)
 
-    if err != nil {
-        log.Exitf(context.Background(), "Failed to execute job: %v", err)
-    }
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }
 
 func ExtractCostFromFile(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line string) float64 {
-        taxi := strings.Split(strings.TrimSpace(line), ",")
-        if len(taxi) > 16 {
-            cost, _ := strconv.ParseFloat(taxi[16],64)
-            return cost
-        }
-        return 0.0
-    }, input)
+	return beam.ParDo(s, func(line string) float64 {
+		taxi := strings.Split(strings.TrimSpace(line), ",")
+		if len(taxi) > 16 {
+			cost, _ := strconv.ParseFloat(taxi[16], 64)
+			return cost
+		}
+		return 0.0
+	}, input)
 }
 
 func getSum(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return input
+	return input
 }
 
-func getAboveCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
-    return input
+func getAboveCosts(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return input
 }
 
-func getBelowCosts(s beam.Scope, input beam.PCollection) beam.PCollection{
-    return input
+func getBelowCosts(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return input
 }
 
-func getMap(s beam.Scope, input beam.PCollection,key string) beam.PCollection{
-    return input
+func getMap(s beam.Scope, input beam.PCollection, key string) beam.PCollection {
+	return input
 }
