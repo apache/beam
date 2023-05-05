@@ -17,7 +17,7 @@
 //   name: WindowingChallenge
 //   description: Windowing motivating challenge.
 //   multifile: false
-//   context_line: 39
+//   context_line: 43
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -27,45 +27,45 @@
 package main
 
 import (
-    "context"
-    "strconv"
-    "strings"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-    _ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-    _ "time"
-    _ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"context"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"strconv"
+	"strings"
+	_ "time"
 )
 
 func main() {
-    ctx := context.Background()
+	ctx := context.Background()
 
-    p, s := beam.NewPipelineWithRoot()
+	p, s := beam.NewPipelineWithRoot()
 
-    input := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
+	input := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
-    // Extract cost from PCollection
-    cost := ExtractCostFromFile(s, input)
+	// Extract cost from PCollection
+	cost := ExtractCostFromFile(s, input)
 
-    debug.Printf(s, "Above pCollection output", cost)
+	debug.Printf(s, "Above pCollection output", cost)
 
-    err := beamx.Run(ctx, p)
+	err := beamx.Run(ctx, p)
 
-    if err != nil {
-        log.Exitf(context.Background(), "Failed to execute job: %v", err)
-    }
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }
 
 func ExtractCostFromFile(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line string) float64 {
-        taxi := strings.Split(strings.TrimSpace(line), ",")
-        if len(taxi) > 16 {
-            cost, _ := strconv.ParseFloat(taxi[16],64)
-            return cost
-        }
-        return 0.0
-    }, input)
+	return beam.ParDo(s, func(line string) float64 {
+		taxi := strings.Split(strings.TrimSpace(line), ",")
+		if len(taxi) > 16 {
+			cost, _ := strconv.ParseFloat(taxi[16], 64)
+			return cost
+		}
+		return 0.0
+	}, input)
 }

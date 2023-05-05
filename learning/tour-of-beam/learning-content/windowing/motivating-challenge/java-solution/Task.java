@@ -20,7 +20,7 @@
 //   name: WindowingSolution
 //   description: Windowing motivating challenge solution.
 //   multifile: false
-//   context_line: 44
+//   context_line: 48
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

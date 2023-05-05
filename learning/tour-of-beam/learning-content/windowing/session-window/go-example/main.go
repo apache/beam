@@ -17,7 +17,7 @@
 //   name: session-window
 //   description: Session window example.
 //   multifile: false
-//   context_line: 32
+//   context_line: 39
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -27,32 +27,32 @@
 package main
 
 import (
-  "context"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-  "fmt"
-  "time"
+	"context"
+	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"time"
 )
 
 func main() {
-  p, s := beam.NewPipelineWithRoot()
+	p, s := beam.NewPipelineWithRoot()
 
-  input := beam.Create(s, "Hello", "world", "it`s", "Windowing")
+	input := beam.Create(s, "Hello", "world", "it`s", "Windowing")
 
-  sessionWindowedItems := beam.WindowInto(s, window.NewSessions(600*time.Second), input)
+	sessionWindowedItems := beam.WindowInto(s, window.NewSessions(600*time.Second), input)
 
-  output(s, sessionWindowedItems)
+	output(s, sessionWindowedItems)
 
-  err := beamx.Run(context.Background(), p)
-  if err != nil {
-    log.Exitf(context.Background(), "Failed to execute job: %v", err)
-  }
+	err := beamx.Run(context.Background(), p)
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }
 
 func output(s beam.Scope, input beam.PCollection) {
-  beam.ParDo0(s, func(element interface{}) {
-    fmt.Println(element)
-    }, input)
+	beam.ParDo0(s, func(element interface{}) {
+		fmt.Println(element)
+	}, input)
 }

@@ -20,7 +20,7 @@
 //   name: session-window
 //   description: Session window example.
 //   multifile: false
-//   context_line: 36
+//   context_line: 50
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

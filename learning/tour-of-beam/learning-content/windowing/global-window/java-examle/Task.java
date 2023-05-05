@@ -20,7 +20,7 @@
 //   name: global-window
 //   description: Global window example.
 //   multifile: false
-//   context_line: 36
+//   context_line: 49
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

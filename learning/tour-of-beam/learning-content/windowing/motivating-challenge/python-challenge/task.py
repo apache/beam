@@ -18,7 +18,7 @@
 #   name: WindowingChallenge
 #   description: Windowing motivating challenge.
 #   multifile: false
-#   context_line: 32
+#   context_line: 66
 #   categories:
 #     - Quickstart
 #   complexity: ADVANCED

@@ -18,7 +18,7 @@
 #   name: adding-timestamp
 #   description: Adding-timestamp example.
 #   multifile: false
-#   context_line: 48
+#   context_line: 68
 #   categories:
 #     - Quickstart
 #   complexity: ADVANCED

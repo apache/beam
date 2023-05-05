@@ -20,7 +20,7 @@
 //   name: WindowingChallenge
 //   description: Windowing motivating challenge example.
 //   multifile: false
-//   context_line: 36
+//   context_line: 47
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

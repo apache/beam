@@ -20,7 +20,7 @@
 //   name: sliding-time-window
 //   description: Sliding time window example.
 //   multifile: false
-//   context_line: 36
+//   context_line: 47
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

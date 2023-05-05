@@ -14,33 +14,34 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+*/
 
 // beam-playground:
-//   name: adding-timestamp
-//   description: Adding timestamp example.
-//   multifile: false
-//   context_line: 36
-//   categories:
-//     - Quickstart
-//   complexity: ADVANCED
-//   tags:
-//     - hellobeam
+//
+//	name: adding-timestamp
+//	description: Adding timestamp example.
+//	multifile: false
+//	context_line: 82
+//	categories:
+//	  - Quickstart
+//	complexity: ADVANCED
+//	tags:
+//	  - hellobeam
 package main
 
 import (
-    "context"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"time"
 )
 
 // Commit represents data about a git commit message.
 type Commit struct {
 	Datetime time.Time
-	Message string
+	Message  string
 }
 
 var (
@@ -88,8 +89,8 @@ func main() {
 
 	result := ApplyTransform(s, input)
 
-	beam.ParDo0(s, func(et beam.EventTime, commit Commit){
-		t := time.Unix(0, int64(et.Milliseconds()) * 1e6)
+	beam.ParDo0(s, func(et beam.EventTime, commit Commit) {
+		t := time.Unix(0, int64(et.Milliseconds())*1e6)
 		log.Infof(ctx, "time: %s, message: %s", t.Format("03:04"), commit)
 	}, result)
 
