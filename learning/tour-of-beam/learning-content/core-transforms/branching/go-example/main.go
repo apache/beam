@@ -14,16 +14,15 @@
 // limitations under the License.
 
 // beam-playground:
-//
-//	name: branching
-//	description: Branching example.
-//	multifile: false
-//	context_line: 37
-//	categories:
-//	  - Quickstart
-//	complexity: MEDIUM
-//	tags:
-//	  - hellobeam
+//   name: branching
+//	 description: Branching example.
+//	 multifile: false
+//	 context_line: 37
+//	 categories:
+//	   - Quickstart
+//	 complexity: MEDIUM
+//	 tags:
+//	   - hellobeam
 package main
 
 import (
