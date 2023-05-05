@@ -20,7 +20,7 @@
 //   name: splittable-dofn
 //   description: Splittable DoFn example.
 //   multifile: false
-//   context_line: 45
+//   context_line: 48
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
