@@ -20,7 +20,7 @@
 //   name: composite-trigger
 //   description: Composite trigger example.
 //   multifile: false
-//   context_line: 36
+//   context_line: 44
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -42,29 +42,27 @@ import (
 )
 
 func main() {
-  p, s := beam.NewPipelineWithRoot()
+	p, s := beam.NewPipelineWithRoot()
 
-  input := beam.Create(s, "Hello", "world", "it`s", "triggering")
+	input := beam.Create(s, "Hello", "world", "it`s", "triggering")
 
-  trigger := trigger.AfterAll([]trigger.Trigger{trigger.AfterEndOfWindow().
-	EarlyFiring(trigger.AfterProcessingTime().
-		PlusDelay(60 * time.Second)).
-	LateFiring(trigger.Repeat(trigger.AfterCount(1))),trigger.AfterCount(2)})
+	trigger := trigger.AfterAll([]trigger.Trigger{trigger.AfterEndOfWindow().
+		EarlyFiring(trigger.AfterProcessingTime().
+			PlusDelay(60 * time.Second)).
+		LateFiring(trigger.Repeat(trigger.AfterCount(1))), trigger.AfterCount(2)})
 
+	fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second), input, beam.Trigger(trigger), beam.PanesDiscard())
 
+	output(s, fixedWindowedItems)
 
-  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),input,beam.Trigger(trigger), beam.PanesDiscard())
-
-  output(s, fixedWindowedItems)
-
-  err := beamx.Run(context.Background(), p)
-  if err != nil {
-    log.Exitf(context.Background(), "Failed to execute job: %v", err)
-  }
+	err := beamx.Run(context.Background(), p)
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }
 
 func output(s beam.Scope, input beam.PCollection) {
-  beam.ParDo0(s, func(element interface{}) {
-    fmt.Println(element)
-    }, input)
+	beam.ParDo0(s, func(element interface{}) {
+		fmt.Println(element)
+	}, input)
 }

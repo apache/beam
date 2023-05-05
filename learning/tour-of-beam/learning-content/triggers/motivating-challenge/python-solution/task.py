@@ -18,7 +18,7 @@
 #   name: TriggersSolution
 #   description: TriggersSolution example.
 #   multifile: false
-#   context_line: 48
+#   context_line: 69
 #   categories:
 #     - Quickstart
 #   complexity: ADVANCED

@@ -18,7 +18,7 @@
 #   name: data-driven-trigger
 #   description: Data driven trigger example.
 #   multifile: false
-#   context_line: 48
+#   context_line: 52
 #   categories:
 #     - Quickstart
 #   complexity: ADVANCED

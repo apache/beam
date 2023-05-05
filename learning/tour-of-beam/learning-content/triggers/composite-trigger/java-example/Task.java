@@ -20,7 +20,7 @@
 //   name: composite-trigger
 //   description: Composite trigger example.
 //   multifile: false
-//   context_line: 47
+//   context_line: 50
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

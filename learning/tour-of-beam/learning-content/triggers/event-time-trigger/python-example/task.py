@@ -18,7 +18,7 @@
 #   name: event-time-trigger
 #   description: Event time trigger example.
 #   multifile: false
-#   context_line: 48
+#   context_line: 52
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

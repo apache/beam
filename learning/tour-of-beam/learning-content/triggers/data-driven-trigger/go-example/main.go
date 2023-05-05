@@ -20,7 +20,7 @@
 //   name: data-driven-trigger
 //   description: Data driven trigger example.
 //   multifile: false
-//   context_line: 36
+//   context_line: 44
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -42,26 +42,26 @@ import (
 )
 
 func main() {
-  p, s := beam.NewPipelineWithRoot()
+	p, s := beam.NewPipelineWithRoot()
 
-  input := beam.Create(s, "Hello", "world", "it`s", "triggering")
+	input := beam.Create(s, "Hello", "world", "it`s", "triggering")
 
-  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(2*time.Second), input,
-  		beam.Trigger(trigger.AfterCount(2)),
-  		beam.AllowedLateness(30*time.Minute),
-      beam.PanesDiscard(),
-    )
+	fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(2*time.Second), input,
+		beam.Trigger(trigger.AfterCount(2)),
+		beam.AllowedLateness(30*time.Minute),
+		beam.PanesDiscard(),
+	)
 
-  output(s, fixedWindowedItems)
+	output(s, fixedWindowedItems)
 
-  err := beamx.Run(context.Background(), p)
-  if err != nil {
-    log.Exitf(context.Background(), "Failed to execute job: %v", err)
-  }
+	err := beamx.Run(context.Background(), p)
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }
 
 func output(s beam.Scope, input beam.PCollection) {
-  beam.ParDo0(s, func(element interface{}) {
-    fmt.Println(element)
-    }, input)
+	beam.ParDo0(s, func(element interface{}) {
+		fmt.Println(element)
+	}, input)
 }

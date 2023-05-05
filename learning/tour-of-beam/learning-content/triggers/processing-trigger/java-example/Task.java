@@ -20,7 +20,7 @@
 //   name: processing-trigger
 //   description: Processing trigger example.
 //   multifile: false
-//   context_line: 36
+//   context_line: 48
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

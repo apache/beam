@@ -20,7 +20,7 @@
 //   name: TriggersChallenge
 //   description: Triggers motivating challenge solution.
 //   multifile: false
-//   context_line: 44
+//   context_line: 51
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
