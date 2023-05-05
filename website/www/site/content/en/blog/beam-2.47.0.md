@@ -62,9 +62,9 @@ For more information on changes in 2.47.0, check out the [detailed release notes
   in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations).
   (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
 
-## Known Issues
+## Bugfixes
 
-* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.47.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26521
+* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.46.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26521
 
 ## List of Contributors
 
