@@ -682,6 +682,25 @@ class VarIntCoder(FastCoder):
 Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
 
 
+class BigEndianShortCoder(FastCoder):
+  """A coder used for big-endian int16 values."""
+  def _create_impl(self):
+    return coder_impl.BigEndianShortCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
 class SinglePrecisionFloatCoder(FastCoder):
   """A coder used for single-precision floating-point values."""
   def _create_impl(self):

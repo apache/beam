@@ -5,7 +5,7 @@
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
-// ignore_for_file: directives_ordering,unnecessary_import
+// ignore_for_file: directives_ordering,unnecessary_import,implicit_dynamic_list_literal,deprecated_member_use
 
 import 'package:flutter/widgets.dart';
 
@@ -23,6 +23,9 @@ class $AssetsPngGen {
   /// File path: assets/png/profile-website.png
   AssetGenImage get profileWebsite =>
       const AssetGenImage('assets/png/profile-website.png');
+
+  /// List of all assets
+  List<AssetGenImage> get values => [laptopDark, laptopLight, profileWebsite];
 }
 
 class $AssetsSvgGen {
@@ -57,6 +60,20 @@ class $AssetsSvgGen {
 
   /// File path: assets/svg/welcome-progress-0.svg
   String get welcomeProgress0 => 'assets/svg/welcome-progress-0.svg';
+
+  /// List of all assets
+  List<String> get values => [
+        githubLogo,
+        googleLogo,
+        hint,
+        profileAbout,
+        profileDelete,
+        profileLogout,
+        solution,
+        unitProgress0,
+        unitProgress100,
+        welcomeProgress0
+      ];
 }
 
 class $AssetsTranslationsGen {
@@ -64,6 +81,9 @@ class $AssetsTranslationsGen {
 
   /// File path: assets/translations/en.yaml
   String get en => 'assets/translations/en.yaml';
+
+  /// List of all assets
+  List<String> get values => [en];
 }
 
 class Assets {
@@ -131,6 +151,8 @@ class AssetGenImage {
       cacheHeight: cacheHeight,
     );
   }
+
+  ImageProvider provider() => AssetImage(_assetName);
 
   String get path => _assetName;
 

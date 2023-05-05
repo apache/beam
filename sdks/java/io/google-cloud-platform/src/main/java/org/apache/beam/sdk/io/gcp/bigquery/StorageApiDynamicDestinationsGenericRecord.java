@@ -23,8 +23,8 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -68,11 +68,11 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
     @Override
     @SuppressWarnings("nullness")
-    public StorageApiWritePayload toMessage(T element) {
+    public StorageApiWritePayload toMessage(T element) throws Exception {
       Message msg =
           AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
               descriptor, toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)));
-      return new AutoValue_StorageApiWritePayload(msg.toByteArray(), null);
+      return StorageApiWritePayload.of(msg.toByteArray(), null);
     }
 
     @Override

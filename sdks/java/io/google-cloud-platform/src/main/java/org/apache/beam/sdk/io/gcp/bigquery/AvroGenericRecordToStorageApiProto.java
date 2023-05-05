@@ -39,7 +39,7 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;

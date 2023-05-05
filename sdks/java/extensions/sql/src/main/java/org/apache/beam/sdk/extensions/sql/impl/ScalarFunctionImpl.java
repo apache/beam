@@ -27,8 +27,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMultimap;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.CallImplementor;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.NullPolicy;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.ReflectiveCallNotNullImplementor;
@@ -46,6 +44,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ImplementableFunction;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ScalarFunction;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
 
 /**
  * Beam-customized version from {@link

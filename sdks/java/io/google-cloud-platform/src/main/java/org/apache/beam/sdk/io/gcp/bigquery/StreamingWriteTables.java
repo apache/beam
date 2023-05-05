@@ -337,6 +337,8 @@ public class StreamingWriteTables<ElementT>
           null,
           null,
           null,
+          null,
+          null,
           null);
     }
   }

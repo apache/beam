@@ -46,10 +46,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -3609,7 +3606,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testSubstrWithLargeValueExpectErrorsAreOutput() {
+  public void testSubstrWithLargeValueExpectException() {
     String sql = "SELECT substr(@p0, @p1, @p2)";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
@@ -3619,15 +3616,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
-    beamRelNode.withErrorsTransformer(
-        new PTransform<PCollection<Row>, POutput>() {
-          @Override
-          public POutput expand(PCollection<Row> input) {
-            PAssert.that(input.apply(Count.globally())).containsInAnyOrder(1L);
-            return null;
-          }
-        });
     BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    thrown.expect(RuntimeException.class);
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 

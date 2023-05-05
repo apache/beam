@@ -16,9 +16,9 @@
 // Package sql contains SQL transform APIs, allowing SQL queries to be used
 // in Beam Go pipelines.
 //
-// NOTE: This is an experimental feature. It currently only works when an
-// expansion service/handler is registered for SQL transform. The APIs are
-// subject to change without backward compatibility guarantees.
+// NOTE: This feature only works when an expansion service/handler is
+// registered for SQL transform. The APIs are subject to change without
+// backward compatibility guarantees.
 package sql
 
 import (

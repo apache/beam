@@ -22,6 +22,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -89,8 +90,26 @@ func (s *Loopback) StartWorker(ctx context.Context, req *fnpb.StartWorkerRequest
 	ctx = grpcx.WriteWorkerID(s.root, req.GetWorkerId())
 	ctx, s.workers[req.GetWorkerId()] = context.WithCancel(ctx)
 
-	go harness.Main(ctx, req.GetLoggingEndpoint().GetUrl(), req.GetControlEndpoint().GetUrl())
+	opts := harnessOptions(ctx, req.GetProvisionEndpoint().GetUrl())
+
+	go harness.MainWithOptions(ctx, req.GetLoggingEndpoint().GetUrl(), req.GetControlEndpoint().GetUrl(), opts)
 	return &fnpb.StartWorkerResponse{}, nil
+}
+
+func harnessOptions(ctx context.Context, endpoint string) harness.Options {
+	var opts harness.Options
+	if endpoint == "" {
+		return opts
+	}
+	info, err := tools.ProvisionInfo(ctx, endpoint)
+	if err != nil {
+		log.Infof(ctx, "error talking to provision service worker, using defaults:%v", err)
+		return opts
+	}
+
+	opts.StatusEndpoint = info.GetStatusEndpoint().GetUrl()
+	opts.RunnerCapabilities = info.GetRunnerCapabilities()
+	return opts
 }
 
 // StopWorker terminates a worker harness, implementing BeamFnExternalWorkerPoolServer.StopWorker.

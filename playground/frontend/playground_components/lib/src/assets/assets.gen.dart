@@ -60,8 +60,27 @@ class $AssetsSvgGen {
   /// File path: assets/svg/drag-vertical.svg
   String get dragVertical => 'assets/svg/drag-vertical.svg';
 
+  /// File path: assets/svg/thumb_down.svg
+  String get thumbDown => 'assets/svg/thumb_down.svg';
+
+  /// File path: assets/svg/thumb_down_filled.svg
+  String get thumbDownFilled => 'assets/svg/thumb_down_filled.svg';
+
+  /// File path: assets/svg/thumb_up.svg
+  String get thumbUp => 'assets/svg/thumb_up.svg';
+
+  /// File path: assets/svg/thumb_up_filled.svg
+  String get thumbUpFilled => 'assets/svg/thumb_up_filled.svg';
+
   /// List of all assets
-  List<String> get values => [dragHorizontal, dragVertical];
+  List<String> get values => [
+        dragHorizontal,
+        dragVertical,
+        thumbDown,
+        thumbDownFilled,
+        thumbUp,
+        thumbUpFilled
+      ];
 }
 
 class $AssetsSymbolsGen {

@@ -104,7 +104,7 @@ pip install -e .
 Run the following command:
 
 {{< highlight >}}
-python main.py --input-text="--inputText=Greetings"
+python main.py --input-text="Greetings"
 {{< /highlight >}}
 
 The output is similar to the following:
