@@ -17,9 +17,12 @@ package utils
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
-	"github.com/google/uuid"
+	"fmt"
 	"gopkg.in/yaml.v3"
+	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"regexp"
 )
 
@@ -28,17 +31,7 @@ func ReduceWhiteSpacesToSinge(s string) string {
 	return re.ReplaceAllString(s, " ")
 }
 
-//ReadFile reads from file and returns string.
-func ReadFile(pipelineId uuid.UUID, path string) (string, error) {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		logger.Errorf("%s: ReadFile(): error during reading from a file: %s", pipelineId, err.Error())
-		return "", err
-	}
-	return string(content), nil
-}
-
-//ReadYamlFile reads from a yaml file.
+// ReadYamlFile reads from a yaml file.
 func ReadYamlFile(filename string, out interface{}) error {
 	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -47,6 +40,42 @@ func ReadYamlFile(filename string, out interface{}) error {
 	}
 	if err = yaml.Unmarshal(buf, out); err != nil {
 		logger.Errorf("ReadYamlFile(): error during parsing from a yaml file: %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+// CopyFilePreservingName copies a file with fileName from sourceDir to destinationDir.
+func CopyFilePreservingName(fileName, sourceDir, destinationDir string) error {
+	absSourcePath := filepath.Join(sourceDir, fileName)
+	absDestinationPath := filepath.Join(destinationDir, fileName)
+	return CopyFile(absSourcePath, absDestinationPath)
+}
+
+// CopyFile copies a file from sourcePath to destinationPath
+func CopyFile(sourcePath, destinationPath string) error {
+	sourceFileStat, err := os.Stat(sourcePath)
+	if err != nil {
+		return err
+	}
+
+	if !sourceFileStat.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", sourcePath)
+	}
+
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(destinationPath)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
 		return err
 	}
 	return nil

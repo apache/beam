@@ -15,6 +15,7 @@
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import List
 
 from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA
@@ -38,6 +39,11 @@ class VerifyException(Exception):
 
 class Verifier:
     """Run examples and verify the results, enrich examples with produced artifacts"""
+
+    LOGS_FILENAME = "logs.log"
+    OUTPUT_FILENAME = "output.log"
+    GRAPH_FILENAME = "graph.log"
+    COMPILE_OUTPUT_FILENAME = "compile_output.log"
 
     _sdk: SdkEnum
     _origin: Origin
@@ -66,7 +72,46 @@ class Verifier:
             examples: beam examples that should be run
         """
 
+
         async def _populate_fields(example: Example):
+            """
+            Populate fields of the example reading them from the backend or from the repository.
+            Args:
+                example: beam example that should be verified
+            """
+            if example.tag.never_run:
+                logging.info("populating example fields from provided files %s", example.filepath)
+                _populate_from_repo(example)
+            else:
+                await _populate_from_runner(example)
+
+        def _populate_from_repo(example: Example):
+            """
+            Populate fields of the example reading them from the repository.
+            Args:
+                example: beam example that should be verified
+            """
+            path = Path(example.filepath)
+            example_folder = path.parent
+
+            log_file_path = example_folder / self.LOGS_FILENAME
+            # Check if the file exists and read its content
+            if log_file_path.exists():
+                example.logs = log_file_path.read_text()
+            graph_file_path = example_folder / self.GRAPH_FILENAME
+            # Check if the file exists and read its content
+            if graph_file_path.exists():
+                example.graph = graph_file_path.read_text()
+            output_file_path = example_folder / self.OUTPUT_FILENAME
+            # Check if the file exists and read its content
+            if output_file_path.exists():
+                example.output = output_file_path.read_text()
+            compile_output_file_path = example_folder / self.COMPILE_OUTPUT_FILENAME
+            # Check if the file exists and read its content
+            if compile_output_file_path.exists():
+                example.compile_output = compile_output_file_path.read_text()
+
+        async def _populate_from_runner(example: Example):
             try:
                 example.compile_output = await client.get_compile_output(
                     example.pipeline_id

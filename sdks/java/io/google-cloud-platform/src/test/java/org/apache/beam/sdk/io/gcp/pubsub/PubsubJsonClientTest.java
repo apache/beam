@@ -219,7 +219,8 @@ public class PubsubJsonClientTest {
                 .setOrderingKey(ORDERING_KEY)
                 .build(),
             MESSAGE_TIME,
-            RECORD_ID);
+            RECORD_ID,
+            null);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
@@ -247,7 +248,8 @@ public class PubsubJsonClientTest {
                 .setData(ByteString.copyFromUtf8(DATA))
                 .build(),
             MESSAGE_TIME,
-            RECORD_ID);
+            RECORD_ID,
+            null);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
@@ -278,7 +280,8 @@ public class PubsubJsonClientTest {
                 .putAllAttributes(attrs)
                 .build(),
             MESSAGE_TIME,
-            RECORD_ID);
+            RECORD_ID,
+            null);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }

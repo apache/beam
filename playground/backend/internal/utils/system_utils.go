@@ -56,7 +56,9 @@ func GetReadinessFunction(envs *environment.Environment) func(writer http.Respon
 }
 
 // checkNumOfTheParallelJobs checks the number of currently working code executions.
-//  It counts by the number of the /path/to/workingDir/executableFiles/{pipelineId} folders.
+//
+//	It counts by the number of the /path/to/workingDir/executableFiles/{pipelineId} folders.
+//
 // If it is equals or more than numOfParallelJobs, then returns false.
 // If it is less than numOfParallelJobs, then returns true.
 func checkNumOfTheParallelJobs(workingDir string, numOfParallelJobs int) bool {

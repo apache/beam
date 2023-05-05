@@ -328,10 +328,16 @@ import org.joda.time.Duration;
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
  *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.io.AvroIO</code> instead of this one.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AvroIO {
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
@@ -807,8 +813,11 @@ public class AvroIO {
       abstract ReadFiles<T> build();
     }
 
-    @VisibleForTesting
-    ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -921,8 +930,11 @@ public class AvroIO {
           getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
-    @VisibleForTesting
-    ReadAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ReadAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -1163,8 +1175,11 @@ public class AvroIO {
       return toBuilder().setFileExceptionHandler(exceptionHandler).build();
     }
 
-    @VisibleForTesting
-    ParseFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ParseFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -1272,8 +1287,11 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
-    @VisibleForTesting
-    ParseAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ParseAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 

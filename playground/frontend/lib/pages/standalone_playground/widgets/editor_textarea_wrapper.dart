@@ -82,6 +82,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
   }
 
   void _handleError(BuildContext context, PlaygroundController controller) {
+    //TODO(alexeyinkin): A better trigger instead of resetErrorMessageText, https://github.com/apache/beam/issues/26319
     PlaygroundComponents.toastNotifier.add(
       Toast(
         description: controller.codeRunner.result?.errorMessage ?? '',

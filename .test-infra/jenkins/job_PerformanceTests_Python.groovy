@@ -70,7 +70,7 @@ private void createPythonPerformanceTestJob(Map testConfig) {
     InfluxDBCredentialsHelper.useCredentials(delegate)
 
     // Run job in postcommit, don't trigger every push.
-    commonJobProperties.setAutoJob(delegate, 'H H/6 * * *')
+    commonJobProperties.setAutoJob(delegate, 'H H * * *')
 
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(

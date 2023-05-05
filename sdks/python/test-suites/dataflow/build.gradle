@@ -74,7 +74,7 @@ task validatesRunnerStreamingTestsV2 {
 }
 
 task validatesContainerTests {
-  getVersionsAsList('dataflow_validates_container_tests').each {
+  getVersionsAsList('python_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesContainer")
   }
 }

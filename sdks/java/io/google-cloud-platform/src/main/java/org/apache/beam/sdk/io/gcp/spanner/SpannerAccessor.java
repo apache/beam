@@ -21,6 +21,7 @@ import com.google.api.gax.grpc.testing.LocalChannelProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.ServerStreamingCallSettings;
+import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
@@ -35,6 +36,8 @@ import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
 import com.google.spanner.v1.ExecuteSqlRequest;
 import com.google.spanner.v1.PartialResultSet;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -109,20 +112,25 @@ public class SpannerAccessor implements AutoCloseable {
   private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
-    // Set retryable codes for all API methods
+    Set<Code> retryableCodes = new HashSet<>();
     if (spannerConfig.getRetryableCodes() != null) {
-      builder
-          .getSpannerStubSettingsBuilder()
-          .applyToAllUnaryMethods(
-              input -> {
-                input.setRetryableCodes(spannerConfig.getRetryableCodes());
-                return null;
-              });
-      builder
-          .getSpannerStubSettingsBuilder()
-          .executeStreamingSqlSettings()
-          .setRetryableCodes(spannerConfig.getRetryableCodes());
+      retryableCodes.addAll(spannerConfig.getRetryableCodes());
     }
+    if (spannerConfig.getDataBoostEnabled() != null && spannerConfig.getDataBoostEnabled().get()) {
+      retryableCodes.add(Code.RESOURCE_EXHAUSTED);
+    }
+    // Set retryable codes for all API methods
+    builder
+        .getSpannerStubSettingsBuilder()
+        .applyToAllUnaryMethods(
+            input -> {
+              input.setRetryableCodes(retryableCodes);
+              return null;
+            });
+    builder
+        .getSpannerStubSettingsBuilder()
+        .executeStreamingSqlSettings()
+        .setRetryableCodes(retryableCodes);
 
     // Set commit retry settings
     UnaryCallSettings.Builder<CommitRequest, CommitResponse> commitSettings =

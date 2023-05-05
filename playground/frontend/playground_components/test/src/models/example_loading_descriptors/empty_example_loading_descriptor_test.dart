@@ -30,6 +30,10 @@ void main() {
       expect(parsed, descriptor);
     });
 
+    test('token == null', () {
+      expect(descriptor.token, null);
+    });
+
     test('copyWithoutViewOptions', () {
       expect(descriptor.copyWithoutViewOptions(), descriptor);
     });

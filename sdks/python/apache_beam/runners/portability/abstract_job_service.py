@@ -194,7 +194,7 @@ class AbstractBeamJob(object):
 
   def __init__(self,
                job_id,  # type: str
-               job_name,  # type: Optional[str]
+               job_name,  # type: str
                pipeline,  # type: beam_runner_api_pb2.Pipeline
                options  # type: struct_pb2.Struct
               ):

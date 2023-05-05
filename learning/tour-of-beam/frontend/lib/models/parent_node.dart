@@ -31,9 +31,6 @@ abstract class ParentNodeModel extends NodeModel {
   });
 
   @override
-  NodeModel getFirstUnit() => nodes[0].getFirstUnit();
-
-  @override
   NodeModel? getNodeByTreeIds(List<String> treeIds) {
     final firstId = treeIds.firstOrNull;
     final child = nodes.firstWhereOrNull((node) => node.id == firstId);

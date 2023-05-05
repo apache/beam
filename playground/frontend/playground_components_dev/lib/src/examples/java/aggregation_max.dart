@@ -23,7 +23,7 @@ import '../example_descriptor.dart';
 const javaAggregationMax = ExampleDescriptor(
   //
   'AggregationMax',
-  dbPath: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax',
+  dbPath: 'SDK_JAVA_AggregationMax',
   path:
       '/learning/katas/java/Common Transforms/Aggregation/Max/src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java',
   sdk: Sdk.java,

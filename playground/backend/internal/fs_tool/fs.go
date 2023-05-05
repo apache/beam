@@ -16,17 +16,16 @@
 package fs_tool
 
 import (
+	"context"
 	"fmt"
-	"io"
+	"github.com/google/uuid"
 	"io/fs"
 	"os"
-	"path/filepath"
-
-	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/emulators"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 const (
@@ -46,7 +45,8 @@ type LifeCyclePaths struct {
 	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
 	AbsoluteGraphFilePath            string // /path/to/workingDir/pipelinesFolder/{pipelineId}/graph.dot
 	ProjectDir                       string // /path/to/workingDir/
-	ExecutableName                   func(string) (string, error)
+	FindExecutableName               func(context.Context, string) (string, error)
+	FindTestExecutableName           func(context.Context, string) (string, error)
 }
 
 // LifeCycle is used for preparing folders and files to process code for one code processing request.
@@ -113,33 +113,25 @@ func (lc *LifeCycle) CreateSourceCodeFiles(sources []entity.FileEntity) error {
 	return nil
 }
 
-// CopyFile copies a file with fileName from sourceDir to destinationDir.
-func (lc *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
-	absSourcePath := filepath.Join(sourceDir, fileName)
-	absDestinationPath := filepath.Join(destinationDir, fileName)
-	sourceFileStat, err := os.Stat(absSourcePath)
-	if err != nil {
-		return err
+func (lc *LifeCycle) GetPreparerParameters() map[string]string {
+	if lc.emulatorMockCluster == nil {
+		return map[string]string{}
 	}
+	return lc.emulatorMockCluster.GetPreparerParameters()
+}
 
-	if !sourceFileStat.Mode().IsRegular() {
-		return fmt.Errorf("%s is not a regular file", fileName)
-	}
-
-	sourceFile, err := os.Open(absSourcePath)
+func (lc *LifeCycle) StartEmulators(configuration emulators.EmulatorConfiguration) error {
+	kafkaMockClusters, err := emulators.PrepareMockClusters(configuration)
 	if err != nil {
+		logger.Errorf("Failed to start mock emulator: %v", err)
 		return err
 	}
-	defer sourceFile.Close()
-
-	destinationFile, err := os.Create(absDestinationPath)
-	if err != nil {
-		return err
-	}
-	defer destinationFile.Close()
-	_, err = io.Copy(destinationFile, sourceFile)
-	if err != nil {
-		return err
-	}
+	lc.emulatorMockCluster = kafkaMockClusters[0]
 	return nil
+}
+
+func (lc *LifeCycle) StopEmulators() {
+	if lc.emulatorMockCluster != nil {
+		lc.emulatorMockCluster.Stop()
+	}
 }
