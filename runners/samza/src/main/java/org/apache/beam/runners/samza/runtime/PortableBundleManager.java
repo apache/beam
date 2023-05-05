@@ -52,17 +52,17 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
   private final String bundleCheckTimerId;
 
   // Number elements belonging to the current active bundle
-  private transient long currentBundleElementCount;
+  private long currentBundleElementCount;
   // Number of bundles that are in progress but not yet finished
-  private transient long pendingBundleCount;
+  private long pendingBundleCount;
   // Denotes the start time of the current active bundle
-  private transient long bundleStartTime;
+  private long bundleStartTime;
   // Denotes if there is an active in progress bundle. Note at a given time, we can have multiple
   // bundle in progress.
   // This flag denotes if there is a bundle that is current and hasn't been closed.
-  private transient boolean isBundleStarted;
+  private boolean isBundleStarted;
   // Holder for watermark which gets propagated when the bundle is finished.
-  private transient Instant bundleWatermarkHold;
+  private Instant bundleWatermarkHold;
 
   public PortableBundleManager(
       BundleProgressListener<OutT> bundleProgressListener,

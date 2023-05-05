@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.runtime;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -131,7 +132,7 @@ public class PortableBundleManagerTest {
   }
 
   @Test
-  public void testQueueWatermarkWhenBundleNotStarted() {
+  public void testQueueWatermarkWhenBundleStarted() {
     Instant watermark = new Instant();
     portableBundleManager =
         new PortableBundleManager<>(bundleProgressListener, 1, 1, bundleTimerScheduler, TIMER_ID);
@@ -157,6 +158,7 @@ public class PortableBundleManagerTest {
 
     portableBundleManager.processTimer(keyedTimerData, emitter);
     verify(bundleProgressListener, times(1)).onBundleFinished(any());
+    verify(bundleTimerScheduler).schedule(any(KeyedTimerData.class), anyLong());
   }
 
   @Test
