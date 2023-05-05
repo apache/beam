@@ -18,6 +18,7 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
+import 'package:playground_components/playground_components.dart';
 
 import 'screen.dart';
 import 'state.dart';
@@ -27,12 +28,12 @@ class TourPage extends StatefulMaterialPage<void, TourNotifier> {
 
   /// Called when navigating to the page programmatically.
   TourPage({
-    required String sdkId,
+    required Sdk sdk,
     List<String> treeIds = const [],
   }) : super(
           key: const ValueKey(classFactoryKey),
           state: TourNotifier(
-            initialSdkId: sdkId,
+            initialSdk: sdk,
             initialTreeIds: treeIds,
           ),
           createScreen: TourScreen.new,
@@ -43,7 +44,7 @@ class TourPage extends StatefulMaterialPage<void, TourNotifier> {
     final treeIds = state['treeIds'];
 
     return TourPage(
-      sdkId: state['sdkId'],
+      sdk: Sdk.parseOrCreate(state['sdkId']),
       treeIds: treeIds is List ? treeIds.cast<String>() : const [],
     );
   }

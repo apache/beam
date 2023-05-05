@@ -17,12 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
-import com.google.protobuf.Descriptors.FileDescriptor.Syntax;
-import com.google.protobuf.Descriptors.GenericDescriptor;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistry.ExtensionInfo;
 import com.google.protobuf.Message;
@@ -65,22 +61,6 @@ class ProtobufUtil {
     Set<Descriptor> descriptors = new HashSet<>();
     recursivelyAddDescriptors(root, descriptors, registry);
     return descriptors;
-  }
-
-  /**
-   * Recursively walks the given {@link Message} class and verifies that every field or message
-   * linked in uses the Protocol Buffers proto2 syntax.
-   */
-  static void checkProto2Syntax(Class<? extends Message> clazz, ExtensionRegistry registry) {
-    for (GenericDescriptor d : getRecursiveDescriptorsForClass(clazz, registry)) {
-      Syntax s = d.getFile().getSyntax();
-      checkArgument(
-          s == Syntax.PROTO2,
-          "Message %s or one of its dependencies does not use proto2 syntax: %s in file %s",
-          clazz.getName(),
-          d.getFullName(),
-          d.getFile().getName());
-    }
   }
 
   /**

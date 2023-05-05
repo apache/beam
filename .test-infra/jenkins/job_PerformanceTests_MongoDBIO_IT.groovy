@@ -24,7 +24,7 @@ String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate,'H H/6 * * *')
+  common.setAutoJob(delegate,'H H/12 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java MongoDBIO Performance Test',
@@ -51,6 +51,8 @@ job(jobName) {
     mongoDBDatabaseName : 'beam',
     mongoDBHostName     : "\$${mongoHostName}",
     mongoDBPort         : 27017,
+    mongoDBUsername     : 'root',
+    mongoDBPassword     : 'uuinkkS',
     runner              : 'DataflowRunner',
     autoscalingAlgorithm: 'NONE',
     numWorkers          : '5'

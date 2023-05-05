@@ -80,7 +80,6 @@ _VT = TypeVar('_VT')
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
-
 # The number of ProcessBundleRequest instruction ids the BundleProcessorCache
 # will remember for not running instructions.
 MAX_KNOWN_NOT_RUNNING_INSTRUCTIONS = 1000
@@ -172,12 +171,16 @@ class SdkHarness(object):
       # Heap dump through status api is disabled by default
       enable_heap_dump=False,  # type: bool
       data_sampler=None,  # type: Optional[data_sampler.DataSampler]
+      # Unrecoverable SDK harness initialization error (if any)
+      # that should be reported to the runner when proocessing the first bundle.
+      deferred_exception=None, # type: Optional[Exception]
   ):
     # type: (...) -> None
     self._alive = True
     self._worker_index = 0
     self._worker_id = worker_id
     self._state_cache = StateCache(state_cache_size)
+    self._deferred_exception = deferred_exception
     options = [('grpc.max_receive_message_length', -1),
                ('grpc.max_send_message_length', -1)]
     if credentials is None:
@@ -308,6 +311,8 @@ class SdkHarness(object):
 
   def _request_process_bundle(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    if self._deferred_exception:
+      raise self._deferred_exception
     self._bundle_processor_cache.activate(request.instruction_id)
     self._request_execute(request)
 

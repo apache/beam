@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.joda.time.Instant;
 
 /** Class used to wrap elements being sent to the Storage API sinks. */
 @AutoValue
@@ -36,6 +37,21 @@ public abstract class StorageApiWritePayload {
   @SuppressWarnings("mutable")
   public abstract @Nullable byte[] getUnknownFieldsPayload();
 
+  public abstract @Nullable Instant getTimestamp();
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setPayload(byte[] value);
+
+    public abstract Builder setUnknownFieldsPayload(@Nullable byte[] value);
+
+    public abstract Builder setTimestamp(@Nullable Instant value);
+
+    public abstract StorageApiWritePayload build();
+  }
+
+  public abstract Builder toBuilder();
+
   @SuppressWarnings("nullness")
   static StorageApiWritePayload of(byte[] payload, @Nullable TableRow unknownFields)
       throws IOException {
@@ -43,7 +59,15 @@ public abstract class StorageApiWritePayload {
     if (unknownFields != null) {
       unknownFieldsPayload = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), unknownFields);
     }
-    return new AutoValue_StorageApiWritePayload(payload, unknownFieldsPayload);
+    return new AutoValue_StorageApiWritePayload.Builder()
+        .setPayload(payload)
+        .setUnknownFieldsPayload(unknownFieldsPayload)
+        .setTimestamp(null)
+        .build();
+  }
+
+  public StorageApiWritePayload withTimestamp(Instant instant) {
+    return toBuilder().setTimestamp(instant).build();
   }
 
   public @Memoized @Nullable TableRow getUnknownFields() throws IOException {
