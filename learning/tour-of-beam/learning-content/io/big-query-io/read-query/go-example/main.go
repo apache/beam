@@ -17,16 +17,15 @@
 */
 
 // beam-playground:
-//
-//	name: read-query
-//	description: BigQuery read query example.
-//	multifile: false
-//	context_line: 40
-//	categories:
-//	  - Quickstart
-//	complexity: ADVANCED
-//	tags:
-//	  - hellobeam
+//   name: read-query
+//	 description: BigQuery read query example.
+//	 multifile: false
+//	 context_line: 40
+//	 categories:
+//	   - Quickstart
+//	 complexity: ADVANCED
+//	 tags:
+//	   - hellobeam
 package main
 
 import (
