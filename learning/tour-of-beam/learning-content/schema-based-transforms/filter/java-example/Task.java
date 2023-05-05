@@ -1,4 +1,4 @@
-/*
+package com.example.demo.x;/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,9 @@
 //   tags:
 //     - hellobeam
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,11 +39,18 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.io.Serializable;
 
@@ -175,6 +184,39 @@ public class Task {
             String[] items = c.element().split(",");
             c.output(new User(items[0], items[1], new Game(items[0], Integer.valueOf(items[2]), items[3], items[4])
             ));
+        }
+    }
+
+    static class CustomCoder extends Coder<User> {
+        final ObjectMapper objectMapper = new ObjectMapper();
+        private static final CustomCoder INSTANCE = new CustomCoder();
+
+        public static CustomCoder of() {
+            return INSTANCE;
+        }
+
+        @Override
+        public void encode(User user, OutputStream outStream) throws IOException {
+            String line = user.userId + "," + user.userName + ";" + user.game.score + "," + user.game.gameId + "," + user.game.date;
+            outStream.write(line.getBytes());
+        }
+
+        @Override
+        public User decode(InputStream inStream) throws IOException {
+            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
+            String[] params = serializedDTOs.split(";");
+            String[] user = params[0].split(",");
+            String[] game = params[1].split(",");
+            return new User(user[0], user[1], new Game(user[0], Integer.valueOf(game[0]), game[1], game[2]));
+        }
+
+        @Override
+        public List<? extends Coder<?>> getCoderArguments() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void verifyDeterministic() {
         }
     }
 
