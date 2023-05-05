@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: partition
+name: Partition example
+complexity: MEDIUM
+taskName: partition

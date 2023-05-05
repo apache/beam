@@ -21,7 +21,21 @@ sdk:
   - Java
   - Python
   - Go
+id: core-transforms
+name: Core Transforms
+complexity: MEDIUM
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
+  - map
+  - additional-outputs
+  - branching
+  - combine
+  - composite
+  - flatten
+  - partition
+  - side-inputs
+  - motivating-challenge-1
+  - motivating-challenge-2
+  - motivating-challenge-3
+  - motivating-challenge-4
+
+

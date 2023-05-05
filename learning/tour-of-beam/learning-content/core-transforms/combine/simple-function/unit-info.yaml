@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: simple-function
+name: Simple function example
+complexity: ADVANCED
+taskName: simple-function
