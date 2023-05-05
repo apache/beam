@@ -65,7 +65,7 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/fastavro/fastavro/master/LICENSE"
     notice: "https://raw.githubusercontent.com/fastavro/fastavro/master/NOTICE.txt"
   flatbuffers:
-    license: "https://raw.githubusercontent.com/google/flatbuffers/master/LICENSE.txt"
+    license: "https://raw.githubusercontent.com/google/flatbuffers/master/LICENSE"
   funcsigs:
     license: "https://raw.githubusercontent.com/aliles/funcsigs/master/LICENSE"
   futures:
@@ -81,6 +81,9 @@ pip_dependencies:
     notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
   grpcio-gcp:
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/grpc-gcp-python/master/LICENSE"
+  grpcio-status:
+    license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
   guppy:
     license: "https://raw.githubusercontent.com/joshwcomeau/guppy/master/LICENSE.md"
   guppy3:

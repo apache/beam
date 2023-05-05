@@ -31,6 +31,10 @@ import org.apache.spark.sql.Dataset;
 
 class ImpulseTranslatorBatch extends TransformTranslator<PBegin, PCollection<byte[]>, Impulse> {
 
+  ImpulseTranslatorBatch() {
+    super(0);
+  }
+
   @Override
   public void translate(Impulse transform, Context cxt) {
     Dataset<WindowedValue<byte[]>> dataset =

@@ -21,7 +21,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.fn.harness.Caches.ClearableCache;
 import org.apache.beam.fn.harness.PrecombineGroupingTable;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,15 +38,20 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.infra.Blackhole;
 
 public class PrecombineGroupingTableBenchmark {
   private static final int TOTAL_VALUES = 1_000_000;
+  private static final int KEY_SPACE = 1_000;
 
   @State(Scope.Benchmark)
   public static class SumIntegerBinaryCombine {
     final Combine.BinaryCombineIntegerFn sumInts = Sum.ofIntegers();
     final PipelineOptions options = PipelineOptionsFactory.create();
+
+    final Cache<Object, Object> cache = Caches.fromOptions(options);
+
     List<WindowedValue<KV<String, Integer>>> elements;
 
     @Param({"true", "false"})
@@ -55,51 +62,60 @@ public class PrecombineGroupingTableBenchmark {
 
     @Setup(Level.Trial)
     public void setUp() {
-      // Use a stable seed to ensure consistency across benchmark runs
-      Random random = new Random(-2134890234);
-      elements = new ArrayList<>();
-      switch (distribution) {
-        case "uniform":
-          for (int i = 0; i < TOTAL_VALUES; ++i) {
-            int key = random.nextInt(1000);
-            elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
-          }
-          break;
-        case "normal":
-          for (int i = 0; i < TOTAL_VALUES; ++i) {
-            int key = (int) (random.nextGaussian() * 1000);
-            elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
-          }
-          break;
-        case "hotKey":
-          for (int i = 0; i < TOTAL_VALUES; ++i) {
-            int key;
-            if (random.nextBoolean()) {
-              key = 0;
-            } else {
-              key = random.nextInt(1000);
-            }
-            elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
-          }
-          break;
-        case "uniqueKeys":
-          for (int i = 0; i < TOTAL_VALUES; ++i) {
-            elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(i), i)));
-          }
-          Collections.shuffle(elements, random);
-          break;
-        default:
-      }
+      this.elements = generateTestData(distribution);
     }
   }
 
+  private static List<WindowedValue<KV<String, Integer>>> generateTestData(String distribution) {
+    // Use a stable seed to ensure consistency across benchmark runs
+    Random random = new Random(-2134890234);
+    List<WindowedValue<KV<String, Integer>>> elements = new ArrayList<>();
+    switch (distribution) {
+      case "uniform":
+        for (int i = 0; i < TOTAL_VALUES; ++i) {
+          int key = random.nextInt(KEY_SPACE);
+          elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
+        }
+        break;
+      case "normal":
+        for (int i = 0; i < TOTAL_VALUES; ++i) {
+          int key = (int) (random.nextGaussian() * KEY_SPACE);
+          elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
+        }
+        break;
+      case "hotKey":
+        for (int i = 0; i < TOTAL_VALUES; ++i) {
+          int key;
+          if (random.nextBoolean()) {
+            key = -123814201;
+          } else {
+            key = random.nextInt(KEY_SPACE);
+          }
+          elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
+        }
+        break;
+      case "uniqueKeys":
+        for (int i = 0; i < TOTAL_VALUES; ++i) {
+          elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(i), i)));
+        }
+        Collections.shuffle(elements, random);
+        break;
+      default:
+        throw new IllegalArgumentException("Unknown distribution: " + distribution);
+    }
+    return elements;
+  }
+
   @Benchmark
+  @Threads(16)
   public void sumIntegerBinaryCombine(SumIntegerBinaryCombine table, Blackhole blackhole)
       throws Exception {
+    ClearableCache<Object, Object> cache =
+        new ClearableCache<>(Caches.subCache(table.cache, Thread.currentThread().getName()));
     PrecombineGroupingTable<String, Integer, int[]> groupingTable =
         PrecombineGroupingTable.combiningAndSampling(
             table.options,
-            Caches.eternal(),
+            cache,
             table.sumInts,
             StringUtf8Coder.of(),
             .001,
@@ -108,5 +124,6 @@ public class PrecombineGroupingTableBenchmark {
       groupingTable.put(table.elements.get(i), blackhole::consume);
     }
     groupingTable.flush(blackhole::consume);
+    cache.clear();
   }
 }

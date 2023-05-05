@@ -47,11 +47,11 @@ Example:
 - Original
 
 ```bash
-python_versions_arr=("3.6.13" "3.7.10" "3.8.9" "3.9.4")
+python_versions_arr=("3.8.16" "3.7.16" "3.9.16" "3.10.10")
 ```
 
 - Change
 
 ```bash
-python_versions_arr=("3.6.13" "3.7.10" "3.9.0" "3.10.2")
+python_versions_arr=("3.8.10" "3.9.0" "3.10.2")
 ```

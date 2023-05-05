@@ -113,6 +113,54 @@ class ExamplesLoadingDescriptor with EquatableMixin {
     );
   }
 
+  ExamplesLoadingDescriptor copyWithoutViewOptions() {
+    return ExamplesLoadingDescriptor(
+      //
+      descriptors: descriptors
+          .map((d) => d.copyWithoutViewOptions())
+          .toList(growable: false),
+
+      initialSdk: initialSdk,
+
+      lazyLoadDescriptors: lazyLoadDescriptors.map(
+        (sdk, descriptors) => MapEntry(
+          sdk,
+          descriptors
+              .map((d) => d.copyWithoutViewOptions())
+              .toList(growable: false),
+        ),
+      ),
+    );
+  }
+
+  Sdk? get initialSnippetSdk {
+    if (descriptors.length == 1) {
+      return descriptors.first.sdk;
+    }
+
+    for (final descriptor in descriptors) {
+      if (descriptor.sdk == initialSdk) {
+        return descriptor.sdk;
+      }
+    }
+
+    return null;
+  }
+
+  String? get initialSnippetToken {
+    if (descriptors.length == 1) {
+      return descriptors.first.token;
+    }
+
+    for (final descriptor in descriptors) {
+      if (descriptor.sdk == initialSdk) {
+        return descriptor.token;
+      }
+    }
+
+    return null;
+  }
+
   /// Tries to parse a [map] into an [ExamplesLoadingDescriptor].
   ///
   /// [singleDescriptorFactory] is tried on nested collections of the [map].

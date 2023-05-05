@@ -462,6 +462,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		var data string
 		var sides map[string]*pipepb.SideInput
 		var userState map[string]*pipepb.StateSpec
+		var userTimers map[string]*pipepb.TimerFamilySpec
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
@@ -475,6 +476,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			data = string(pardo.GetDoFn().GetPayload())
 			sides = pardo.GetSideInputs()
 			userState = pardo.GetStateSpecs()
+			userTimers = pardo.GetTimerFamilySpecs()
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
@@ -586,6 +588,16 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							}
 							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToKeyCoder, stateIDToCombineFn)
 						}
+					}
+
+					if len(userTimers) > 0 {
+						sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
+						ec, wc, err := b.makeCoderForPCollection(input[0])
+						if err != nil {
+							return nil, err
+						}
+						timerCoder := coder.NewT(ec.Components[0], wc)
+						n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerCoder)
 					}
 
 					for i := 1; i < len(input); i++ {

@@ -128,8 +128,12 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
   private final AtomicLong maxWeight;
   private long weight;
   private final boolean isGloballyWindowed;
-  private long checkFlushCounter;
-  private long checkFlushLimit = -5;
+  private long lastWeightForFlush;
+
+  // Prevent hashmap growing too large. Improves performance for too many Unique Keys cases.
+  // Keep it less than (2^14)*loadFactor=(2^14)*0.75=12288
+  // Note: (2^13)*0.75=6144 looks too small to consider as limit
+  private static final int DEFAULT_MAX_GROUPING_TABLE_SIZE = 12_000;
 
   private static final class Key implements Weighted {
     private static final Key INSTANCE = new Key();
@@ -407,12 +411,12 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
           return tableEntry;
         });
 
-    if (checkFlushCounter++ < checkFlushLimit) {
-      return;
-    } else {
-      checkFlushLimit = Math.min(checkFlushLimit + 1, 25);
-      checkFlushCounter = 0;
+    if (lruMap.size() >= DEFAULT_MAX_GROUPING_TABLE_SIZE) {
+      flush(receiver);
+      lastWeightForFlush = weight;
+    } else if (Caches.shouldUpdateOnSizeChange(lastWeightForFlush, weight)) {
       flushIfNeeded(receiver);
+      lastWeightForFlush = weight;
     }
   }
 

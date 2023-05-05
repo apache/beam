@@ -35,7 +35,35 @@ The following requirements are needed for development, testing, and deploying.
 - [Docker Compose](https://docs.docker.com/compose/install/)
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install)
 - [gcloud Beta Commands](https://cloud.google.com/sdk/gcloud/reference/components/install)
-- [Cloud Datastore Emulator](https://cloud.google.com/sdk/gcloud/reference/components/install)
+- [Cloud Datastore Emulator](https://cloud.google.com/datastore/docs/tools/datastore-emulator)
+- [sbt](https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html)
+
+### Google Cloud Shell Prerequisites Installation
+Google Cloud Shell already has most of the prerequisites installed. Only few tools need to be installed separately
+
+#### Flutter
+```shell
+git config --global --add safe.directory /google/flutter
+flutter doctor
+```
+
+#### Protobuf
+```shell
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+dart pub global activate protoc_plugin
+npm install -g @bufbuild/buf
+```
+
+#### sbt
+```shell
+echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | sudo tee /etc/apt/sources.list.d/sbt_old.list
+curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo -H gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
+sudo chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
+sudo apt-get update
+sudo apt-get install sbt
+```
 
 # Available Gradle Tasks
 
@@ -80,8 +108,8 @@ cd beam
 
 ### Router, runners, and frontend
 
-1. Edit `/playground/frontend/lib/config.g.dart` to set your local backend host and ports
-found in `/playground/docker-compose.local.yaml`.
+1. Edit `/playground/frontend/playground_components/lib/src/constants/backend_urls.dart`
+to override backend URLs with yours found in `/playground/docker-compose.local.yaml`.
 2. To start, run:
 
 ```bash
@@ -96,9 +124,17 @@ cd beam
 ./gradlew playground:dockerComposeLocalDown
 ```
 
+This way of running may not work in all environments because it is not maintained.
+It is used occasionally by the Frontend team to test complex tasks against
+a not-yet-deployed backend.
+The full start may take ~30 minutes and is demanding, so you should likely enable
+only one backend runner for the SDK you need.
+
 If you do not need particular runners, comment out:
 1. Dependencies on them in `/playground/build.gradle.kts` in `dockerComposeLocalUp` task.
 2. Their Docker image configurations in `/playground/docker-compose.local.yaml`.
+
+See also [Backend Lookup](frontend/README.md#backend-lookup) in the Frontend.
 
 ## Removing old snippets
 
@@ -106,7 +142,16 @@ Run the method to remove unused code snippets from the Cloud Datastore. Unused s
 
 ```
 cd beam
-./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string}
+./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string} -Dnamespace={datastore namespace}
+```
+
+## Removing a specific snippet
+
+Run the method to remove a specific code snippet from the Cloud Datastore.
+
+```
+cd beam
+./gradlew playground:backend:removeSnippet -DsnippetId={string} -DprojectId={string} -Dnamespace={datastore namespace}
 ```
 
 ## Run playground tests without cache

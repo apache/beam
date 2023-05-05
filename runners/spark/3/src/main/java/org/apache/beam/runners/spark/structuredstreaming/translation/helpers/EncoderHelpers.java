@@ -29,6 +29,7 @@ import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.LongType;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -95,6 +96,7 @@ public class EncoderHelpers {
   private static final DataType WINDOWED_VALUE = new ObjectType(WindowedValue.class);
   private static final DataType KV_TYPE = new ObjectType(KV.class);
   private static final DataType MUTABLE_PAIR_TYPE = new ObjectType(MutablePair.class);
+  private static final DataType LIST_TYPE = new ObjectType(List.class);
 
   // Collections / maps of these types can be (de)serialized without (de)serializing each member
   private static final Set<Class<?>> PRIMITIV_TYPES =
@@ -464,13 +466,16 @@ public class EncoderHelpers {
   }
 
   private static <T> Expression deserializeSeq(
-      Expression in, Encoder<T> enc, boolean nullable, boolean asJava) {
+      Expression in, Encoder<T> enc, boolean nullable, boolean exposeAsJava) {
     DataType type = serializedType(enc); // input type is the serializer result type
     if (isPrimitiveEnc(enc)) {
-      ObjectType listType = new ObjectType(List.class);
-      return asJava ? invoke(Utils.class, "toList", listType, in, lit(type, DataType.class)) : in;
+      // Spark may reuse unsafe array data, if directly exposed it must be copied before
+      return exposeAsJava
+          ? invoke(Utils.class, "copyToList", LIST_TYPE, in, lit(type, DataType.class))
+          : in;
     }
-    Option<Class<?>> optCls = asJava ? Option.apply(List.class) : Option.empty();
+    Option<Class<?>> optCls = exposeAsJava ? Option.apply(List.class) : Option.empty();
+    // MapObjects will always copy
     return MapObjects$.MODULE$.apply(exp -> deserialize(exp, enc), in, type, nullable, optCls);
   }
 
@@ -547,8 +552,10 @@ public class EncoderHelpers {
       return Iterables.getOnlyElement(windows).maxTimestamp();
     }
 
-    public static List<Object> toList(ArrayData arrayData, DataType type) {
-      return JavaConverters.seqAsJavaList(arrayData.toSeq(type));
+    public static List<Object> copyToList(ArrayData arrayData, DataType type) {
+      // Note, this could be optimized for primitive arrays (if elements are not nullable) using
+      // Ints.asList(arrayData.toIntArray()) and similar
+      return Arrays.asList(arrayData.toObjectArray(type));
     }
 
     public static Seq<Object> toSeq(ArrayData arrayData) {

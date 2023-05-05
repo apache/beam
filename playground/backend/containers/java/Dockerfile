@@ -15,10 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BEAM_VERSION=2.43.0
-ARG BASE_IMAGE=apache/beam_java8_sdk:${BEAM_VERSION}
+ARG BEAM_VERSION=2.44.0
 FROM golang:1.18-bullseye AS build
-
+ARG BEAM_VERSION
+ARG GIT_COMMIT="<unknown>"
+ARG GIT_TIMESTAMP="0"
 # Setup Go Environment
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
@@ -30,22 +31,33 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
 COPY src /go/src/playground/backend
 #COPY playground /go/src/playground/playground
 WORKDIR /go/src/playground/backend
-RUN ls
+
 # Build Application
 RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
-    go build -o /go/bin/server_java_backend
+    go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_java_backend
 
-FROM $BASE_IMAGE
-# docker linter we use doesn't allow to have ARG declaration without value although it's a valid syntax
-ARG BEAM_VERSION=2.42.0
-ARG HAMCREST_VERSION=1.3
-ARG JUNIT_VERSION=4.13.2
-ARG GRPC_VERSION=1_48_1
-ARG BEAM_VENDOR_GRPC_VERSION=0.1
+FROM maven:3.8.6-openjdk-11 as dep
+ARG BEAM_VERSION
+RUN mvn archetype:generate \
+    -DinteractiveMode=false \
+    -DarchetypeGroupId=org.apache.beam \
+    -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-gcp-bom-examples \
+    -DarchetypeVersion=$BEAM_VERSION \
+    -DtargetPlatform=11 \
+    -DartifactId=pipeline-dependencies \
+    -DgroupId=org.apache.beam.samples
+WORKDIR /pipeline-dependencies/
+RUN mvn dependency:resolve && mvn -o dependency:list
+RUN mvn dependency:copy-dependencies
+
+FROM apache/beam_java11_sdk:$BEAM_VERSION
+
+ARG BEAM_VERSION
+ARG SPRING_VERSION=5.3.25
 ARG KAFKA_CLIENTS_VERSION=2.3.1
-ARG SPRING_VERSION=5.3.18
+ENV BEAM_VERSION=$BEAM_VERSION
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
@@ -57,39 +69,16 @@ COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/datasets/
+COPY --from=dep /pipeline-dependencies/target/dependency/ /opt/apache/beam/jars/
 
-# Install Beam DirectRunner
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
-    mv beam-runners-direct-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-direct.jar
-# Install Beam SDK Core
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION.jar &&\
-    mv beam-sdks-java-core-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-core.jar
 # Install Beam Examples
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
     mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
 # Install jars for Playground graphs
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-construction-java/$BEAM_VERSION/beam-runners-core-construction-java-$BEAM_VERSION.jar &&\
     mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-model-pipeline/$BEAM_VERSION/beam-model-pipeline-$BEAM_VERSION.jar &&\
-    mv beam-model-pipeline-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-model-pipeline-$BEAM_VERSION.jar
-# Install Beam SDK Core tests
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
-# Install Hamcrest
-RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERSION/hamcrest-all-$HAMCREST_VERSION.jar &&\
-    mv hamcrest-all-$HAMCREST_VERSION.jar /opt/apache/beam/jars/hamcrest-all.jar
-# Install JUnit
-RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
-    mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
-# Install Beam Vendor gRPC
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-$GRPC_VERSION/$BEAM_VENDOR_GRPC_VERSION/beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar &&\
-    mv beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
-# Install Kafka IO
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-io-kafka/$BEAM_VERSION/beam-sdks-java-io-kafka-$BEAM_VERSION.jar &&\
-    mv beam-sdks-java-io-kafka-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-io-kafka.jar
-# Install Apache Kafka Clients
-RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/$KAFKA_CLIENTS_VERSION/kafka-clients-$KAFKA_CLIENTS_VERSION.jar &&\
-    mv kafka-clients-$KAFKA_CLIENTS_VERSION.jar /opt/apache/beam/jars/kafka-clients.jar
 # Install Spring Expression
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-expression/$SPRING_VERSION/spring-expression-$SPRING_VERSION.jar &&\
     mv spring-expression-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-expression.jar
@@ -105,19 +94,12 @@ RUN cd /go/src/katas &&\
     ./gradlew jar &&\
     mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
 
-# Install mitmpoxy
-RUN mkdir /opt/mitmproxy &&\
-    cd /opt/mitmproxy &&\
-    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
-    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
-    mkdir /usr/local/share/ca-certificates/extra
-COPY allow_list_proxy.py /opt/mitmproxy/
-COPY allow_list.py /opt/mitmproxy/
-ENV HTTP_PROXY="http://127.0.0.1:8081"
-ENV HTTPS_PROXY="http://127.0.0.1:8081"
-
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
+COPY kafka-emulator/kafka-emulator.tar /opt/playground/backend/kafka-emulator/
+RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar && rm kafka-emulator.tar &&\
+    mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
+    mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \
@@ -126,9 +108,9 @@ RUN groupadd --gid 20000 appgroup \
 RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
-RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod -R 775 /opt/apache/beam/jars/ \
-  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-8/jre/lib/security/ \
-  && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
+
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod o+r /opt/apache/beam/jars/* \
+  && chmod +x /entrypoint.sh
 
 # Switch to appuser
 USER appuser

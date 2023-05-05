@@ -22,6 +22,12 @@ import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { GeneralObjectCoder } from "../coders/js_coders";
 
+/**
+ * Returns a PTransform that flattens, or takes the union, of multiple
+ * PCollections.
+ *
+ * See also https://beam.apache.org/documentation/programming-guide/#flatten
+ */
 export function flatten<T>(): PTransform<PCollection<T>[], PCollection<T>> {
   function expandInternal(
     inputs: PCollection<T>[],
@@ -44,4 +50,5 @@ export function flatten<T>(): PTransform<PCollection<T>[], PCollection<T>> {
   return withName("flatten", expandInternal);
 }
 
+/** @internal */
 flatten.urn = "beam:transform:flatten:v1";

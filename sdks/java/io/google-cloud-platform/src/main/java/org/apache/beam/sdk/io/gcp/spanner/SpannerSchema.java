@@ -34,7 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-abstract class SpannerSchema implements Serializable {
+public abstract class SpannerSchema implements Serializable {
   abstract ImmutableList<String> tables();
 
   abstract Dialect dialect();
@@ -135,18 +135,18 @@ abstract class SpannerSchema implements Serializable {
   }
 
   @AutoValue
-  abstract static class KeyPart implements Serializable {
+  public abstract static class KeyPart implements Serializable {
     static KeyPart create(String field, boolean desc) {
       return new AutoValue_SpannerSchema_KeyPart(field, desc);
     }
 
-    abstract String getField();
+    public abstract String getField();
 
     abstract boolean isDesc();
   }
 
   @AutoValue
-  abstract static class Column implements Serializable {
+  public abstract static class Column implements Serializable {
 
     static Column create(String name, Type type) {
       return new AutoValue_SpannerSchema_Column(name, type);
@@ -229,6 +229,9 @@ abstract class SpannerSchema implements Serializable {
           }
           if (spannerType.startsWith("NUMERIC")) {
             return Type.pgNumeric();
+          }
+          if ("SPANNER.COMMIT_TIMESTAMP".equals(spannerType)) {
+            return Type.timestamp();
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         default:

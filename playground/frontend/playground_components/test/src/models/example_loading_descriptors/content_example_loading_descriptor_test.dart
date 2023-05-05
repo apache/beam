@@ -39,7 +39,9 @@ void main() {
       complexity: Complexity.advanced,
       files: [SnippetFile(content: 'abc', isMain: true)],
       name: 'name',
+      pipelineOptions: '--name=value',
       sdk: Sdk.go,
+      viewOptions: viewOptions,
     );
 
     test('toJson -> tryParse', () {
@@ -49,11 +51,21 @@ void main() {
       expect(parsed, descriptor);
     });
 
-    test('parses viewOptions', () {
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = ContentExampleLoadingDescriptor.tryParse(map);
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        ContentExampleLoadingDescriptor(
+          complexity: descriptor.complexity,
+          files: descriptor.files,
+          name: descriptor.name,
+          pipelineOptions: '--name=value',
+          sdk: descriptor.sdk,
+        ),
+      );
+    });
 
-      expect(parsed?.viewOptions, viewOptions);
+    test('token == null', () {
+      expect(descriptor.token, null);
     });
   });
 }

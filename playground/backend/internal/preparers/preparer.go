@@ -37,19 +37,19 @@ func (preparers *Preparers) GetPreparers() *[]Preparer {
 	return preparers.functions
 }
 
-//PreparersBuilder struct
+// PreparersBuilder struct
 type PreparersBuilder struct {
 	preparers *Preparers
 	filePath  string
 	params    map[string]string
 }
 
-//NewPreparersBuilder constructor for PreparersBuilder
+// NewPreparersBuilder constructor for PreparersBuilder
 func NewPreparersBuilder(filePath string, params map[string]string) *PreparersBuilder {
 	return &PreparersBuilder{preparers: &Preparers{functions: &[]Preparer{}}, filePath: filePath, params: params}
 }
 
-//Build builds preparers from PreparersBuilder
+// Build builds preparers from PreparersBuilder
 func (builder *PreparersBuilder) Build() *Preparers {
 	return builder.preparers
 }

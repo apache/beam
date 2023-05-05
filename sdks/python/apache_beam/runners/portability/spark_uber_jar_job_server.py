@@ -74,9 +74,7 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
       url = self._executable_jar
     else:
       if self._spark_version == '2':
-        url = job_server.JavaJarJobServer.path_to_beam_jar(
-            ':runners:spark:2:job-server:shadowJar',
-            artifact_id='beam-runners-spark-job-server')
+        raise ValueError('Support for Spark 2 was dropped.')
       else:
         url = job_server.JavaJarJobServer.path_to_beam_jar(
             ':runners:spark:3:job-server:shadowJar')

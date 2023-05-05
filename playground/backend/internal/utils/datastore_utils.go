@@ -16,8 +16,8 @@
 package utils
 
 import (
+	"beam.apache.org/playground/backend/internal/logger"
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -25,7 +25,6 @@ import (
 	"cloud.google.com/go/datastore"
 
 	"beam.apache.org/playground/backend/internal/constants"
-	"beam.apache.org/playground/backend/internal/logger"
 )
 
 func GetExampleKey(ctx context.Context, values ...interface{}) *datastore.Key {
@@ -63,15 +62,6 @@ func GetPCObjectKey(ctx context.Context, values ...interface{}) *datastore.Key {
 	return getNameKey(ctx, constants.PCObjectKind, id, nil)
 }
 
-func GetExampleID(cloudPath string) (string, error) {
-	cloudPathParams := strings.Split(cloudPath, constants.CloudPathDelimiter)
-	if len(cloudPathParams) < 3 {
-		logger.Error("the wrong cloud path from a client")
-		return "", fmt.Errorf("cloud path doesn't have all options. The minimum size must be 3")
-	}
-	return GetIDWithDelimiter(cloudPathParams[0], cloudPathParams[2]), nil
-}
-
 func GetIDWithDelimiter(values ...interface{}) string {
 	valuesAsStr := make([]string, 0)
 	for _, value := range values {
@@ -104,7 +94,11 @@ func getNameKey(ctx context.Context, kind, id string, parentId *datastore.Key) *
 }
 
 func GetNamespace(ctx context.Context) string {
-	namespace, ok := ctx.Value(constants.DatastoreNamespaceKey).(string)
+	namespaceValue := ctx.Value(constants.DatastoreNamespaceKey)
+	namespace, ok := namespaceValue.(string)
+	if namespaceValue != nil && !ok {
+		logger.Warnf("GetNamespace(): %s value is set in context, but is not a string", constants.DatastoreNamespaceKey)
+	}
 	if !ok {
 		namespace, ok = os.LookupEnv(constants.DatastoreNamespaceKey)
 		if !ok {

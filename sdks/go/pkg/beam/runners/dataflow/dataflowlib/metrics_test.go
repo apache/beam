@@ -117,7 +117,7 @@ func newPipeline(stepName string) (*pipepb.Pipeline, error) {
 	p := &pipepb.Pipeline{
 		Components: &pipepb.Components{
 			Transforms: map[string]*pipepb.PTransform{
-				"e5": &pipepb.PTransform{
+				"e5": {
 					UniqueName: stepName,
 				},
 			},

@@ -147,6 +147,7 @@ function writeByteCallback(
   buf[pos] = val & 0xff;
 }
 
+/** @internal */
 export interface HackedWriter extends Writer {
   _push?(...args: unknown[]);
 }

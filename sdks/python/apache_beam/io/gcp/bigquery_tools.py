@@ -36,11 +36,14 @@ import sys
 import time
 import uuid
 from json.decoder import JSONDecodeError
+from typing import Optional
+from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
 import fastavro
+import numpy as np
 import regex
 
 import apache_beam
@@ -58,6 +61,7 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
@@ -102,6 +106,21 @@ BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
 _PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
 _DATASET_PATTERN = r'\w{1,1024}'
 _TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
+
+# TODO(https://github.com/apache/beam/issues/25946): Add support for
+# more Beam portable schema types as Python types
+BIGQUERY_TYPE_TO_PYTHON_TYPE = {
+    "STRING": str,
+    "BOOL": bool,
+    "BOOLEAN": bool,
+    "BYTES": bytes,
+    "INT64": np.int64,
+    "INTEGER": np.int64,
+    "FLOAT64": np.float64,
+    "FLOAT": np.float64,
+    "NUMERIC": decimal.Decimal,
+    "TIMESTAMP": apache_beam.utils.timestamp.Timestamp,
+}
 
 
 class FileFormat(object):
@@ -1514,6 +1533,42 @@ class AppendDestinationsFn(DoFn):
     yield (self.destination(element, *side_inputs), element)
 
 
+def beam_row_from_dict(row: dict, schema):
+  """Converts a dictionary row to a Beam Row.
+  Nested records and lists are supported.
+
+  Args:
+    row (dict):
+      The row to convert.
+    schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema):
+      The table schema. Will be used to help convert the row.
+
+  Returns:
+    ~apache_beam.pvalue.Row: The converted row.
+  """
+  if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+    schema = get_bq_tableschema(schema)
+  schema_fields = {field.name: field for field in schema.fields}
+  beam_row = {}
+  for col_name, value in row.items():
+    # get this column's schema field and handle struct types
+    field = schema_fields[col_name]
+    if field.type.upper() in ["RECORD", "STRUCT"]:
+      # if this is a list of records, we create a list of Beam Rows
+      if field.mode.upper() == "REPEATED":
+        list_of_beam_rows = []
+        for record in value:
+          list_of_beam_rows.append(beam_row_from_dict(record, field))
+        beam_row[col_name] = list_of_beam_rows
+      # otherwise, create a Beam Row from this record
+      else:
+        beam_row[col_name] = beam_row_from_dict(value, field)
+    else:
+      beam_row[col_name] = value
+  return apache_beam.pvalue.Row(**beam_row)
+
+
 def get_table_schema_from_string(schema):
   """Transform the string table schema into a
   :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
@@ -1591,6 +1646,32 @@ bigquery_v2_messages.TableSchema):
     raise TypeError('Unexpected schema argument: %s.' % schema)
 
 
+def get_bq_tableschema(schema):
+  """Convert the table schema to a TableSchema object.
+
+  Args:
+    schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema):
+      The schema to be used if the BigQuery table to write has to be created.
+      This can either be a dict or string or in the TableSchema format.
+
+  Returns:
+    ~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema: The schema as a TableSchema object.
+  """
+  if (isinstance(schema,
+                 (bigquery.TableSchema, value_provider.ValueProvider)) or
+      callable(schema) or schema is None):
+    return schema
+  elif isinstance(schema, str):
+    return get_table_schema_from_string(schema)
+  elif isinstance(schema, dict):
+    schema_string = json.dumps(schema)
+    return parse_table_schema_from_json(schema_string)
+  else:
+    raise TypeError('Unexpected schema argument: %s.' % schema)
+
+
 def get_avro_schema_from_table_schema(schema):
   """Transform the table schema into an Avro schema.
 
@@ -1606,6 +1687,44 @@ bigquery_v2_messages.TableSchema):
   dict_table_schema = get_dict_table_schema(schema)
   return bigquery_avro_tools.get_record_schema_from_dict_table_schema(
       "root", dict_table_schema)
+
+
+def get_beam_typehints_from_tableschema(schema):
+  """Extracts Beam Python type hints from the schema.
+
+  Args:
+    schema (~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema):
+      The TableSchema to extract type hints from.
+
+  Returns:
+    List[Tuple[str, Any]]: A list of type hints that describe the input schema.
+    Nested and repeated fields are supported.
+  """
+  if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+    schema = get_bq_tableschema(schema)
+  typehints = []
+  for field in schema.fields:
+    name, field_type, mode = field.name, field.type.upper(), field.mode.upper()
+
+    if field_type in ["STRUCT", "RECORD"]:
+      # Structs can be represented as Beam Rows.
+      typehint = RowTypeConstraint.from_fields(
+          get_beam_typehints_from_tableschema(field))
+    elif field_type in BIGQUERY_TYPE_TO_PYTHON_TYPE:
+      typehint = BIGQUERY_TYPE_TO_PYTHON_TYPE[field_type]
+    else:
+      raise ValueError(
+          f"Converting BigQuery type [{field_type}] to "
+          "Python Beam type is not supported.")
+
+    if mode == "REPEATED":
+      typehint = Sequence[typehint]
+    elif mode != "REQUIRED":
+      typehint = Optional[typehint]
+
+    typehints.append((name, typehint))
+  return typehints
 
 
 class BigQueryJobTypes:

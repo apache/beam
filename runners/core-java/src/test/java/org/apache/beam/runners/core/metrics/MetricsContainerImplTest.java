@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -227,6 +228,40 @@ public class MetricsContainerImplTest {
         .setInt64DistributionValue(DistributionData.create(4, 1, 4, 4));
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actualMonitoringInfos.add(mi);
+    }
+
+    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
+  }
+
+  @Test
+  public void testMonitoringInfosArePopulatedForUserGauges() {
+    MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
+    GaugeCell gaugeCell1 = testObject.getGauge(MetricName.named("ns", "name1"));
+    GaugeCell gaugeCell2 = testObject.getGauge(MetricName.named("ns", "name2"));
+    GaugeData gaugeData1 = GaugeData.create(3L);
+    GaugeData gaugeData2 = GaugeData.create(4L);
+    gaugeCell1.update(gaugeData1);
+    gaugeCell2.update(gaugeData2);
+
+    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.USER_LATEST_INT64)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
+        .setInt64LatestValue(gaugeData1)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+
+    SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
+    builder2
+        .setUrn(MonitoringInfoConstants.Urns.USER_LATEST_INT64)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
+        .setInt64LatestValue(gaugeData2)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+
+    List<MonitoringInfo> actualMonitoringInfos = new ArrayList<>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
       actualMonitoringInfos.add(mi);
     }

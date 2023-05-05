@@ -26,8 +26,7 @@ from apache_beam.metrics import Metrics
 
 try:
   from google.cloud import language
-  from google.cloud.language import enums  # pylint: disable=unused-import
-  from google.cloud.language import types
+  from google.cloud import language_v1
 except ImportError:
   raise ImportError(
       'Google Cloud Natural Language API not supported for this execution '
@@ -42,7 +41,7 @@ class Document(object):
   Args:
     content (str): The content of the input or the Google Cloud Storage URI
       where the file is stored.
-    type (`Union[str, google.cloud.language.enums.Document.Type]`): Text type.
+    type (`Union[str, google.cloud.language_v1.Document.Type]`): Text type.
       Possible values are `HTML`, `PLAIN_TEXT`. The default value is
       `PLAIN_TEXT`.
     language_hint (`Optional[str]`): The language of the text. If not specified,
@@ -57,7 +56,7 @@ class Document(object):
   def __init__(
       self,
       content,  # type: str
-      type='PLAIN_TEXT',  # type: Union[str, enums.Document.Type]
+      type='PLAIN_TEXT',  # type: Union[str, language_v1.Document.Type]
       language_hint=None,  # type: Optional[str]
       encoding='UTF8',  # type: Optional[str]
       from_gcs=False  # type: bool
@@ -84,7 +83,7 @@ class Document(object):
 @beam.ptransform_fn
 def AnnotateText(
     pcoll,  # type: beam.pvalue.PCollection
-    features,  # type: Union[Mapping[str, bool], types.AnnotateTextRequest.Features]
+    features, # type: Union[Mapping[str, bool], language_v1.AnnotateTextRequest.Features]
     timeout=None,  # type: Optional[float]
     metadata=None  # type: Optional[Sequence[Tuple[str, str]]]
 ):
@@ -98,7 +97,6 @@ def AnnotateText(
     features (`Union[Mapping[str, bool], types.AnnotateTextRequest.Features]`):
       A dictionary of natural language operations to be performed on given
       text in the following format::
-
       {'extact_syntax'=True, 'extract_entities'=True}
 
     timeout (`Optional[float]`): The amount of time, in seconds, to wait
@@ -111,11 +109,11 @@ def AnnotateText(
 
 
 @beam.typehints.with_input_types(Document)
-@beam.typehints.with_output_types(types.AnnotateTextResponse)
+@beam.typehints.with_output_types(language_v1.AnnotateTextResponse)
 class _AnnotateTextFn(beam.DoFn):
   def __init__(
       self,
-      features,  # type: Union[Mapping[str, bool], types.AnnotateTextRequest.Features]
+      features,  # type: Union[Mapping[str, bool], language_v1.AnnotateTextRequest.Features]
       timeout,  # type: Optional[float]
       metadata=None  # type: Optional[Sequence[Tuple[str, str]]]
   ):

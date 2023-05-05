@@ -43,6 +43,10 @@ class CombineGroupedValuesTranslatorBatch<K, InT, AccT, OutT>
         PCollection<KV<K, OutT>>,
         Combine.GroupedValues<K, InT, OutT>> {
 
+  CombineGroupedValuesTranslatorBatch() {
+    super(0.2f);
+  }
+
   @Override
   protected void translate(Combine.GroupedValues<K, InT, OutT> transform, Context cxt)
       throws IOException {

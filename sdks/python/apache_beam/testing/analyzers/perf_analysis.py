@@ -82,6 +82,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
   change_point_index = find_latest_change_point_index(
       metric_values=metric_values)
   if not change_point_index:
+    logging.info("Change point is not detected for the test %s" % test_name)
     return False
   # since timestamps are ordered in ascending order and
   # num_runs_in_change_point_window refers to the latest runs,
@@ -92,18 +93,21 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
                                          latest_change_point_run):
     logging.info(
         'Performance regression/improvement found for the test: %s. '
-        'Since the change point run %s '
+        'on metric %s. Since the change point run %s '
         'lies outside the num_runs_in_change_point_window distance: %s, '
         'alert is not raised.' % (
             params['test_name'],
-            latest_change_point_run,
+            metric_name,
+            latest_change_point_run + 1,
             num_runs_in_change_point_window))
     return False
 
   is_alert = True
   last_reported_issue_number = None
+  issue_metadata_table_name = f'{params.get("metrics_table")}_{metric_name}'
   existing_issue_data = get_existing_issues_data(
-      test_name=test_name, big_query_metrics_fetcher=big_query_metrics_fetcher)
+      table_name=issue_metadata_table_name,
+      big_query_metrics_fetcher=big_query_metrics_fetcher)
 
   if existing_issue_data is not None:
     existing_issue_timestamps = existing_issue_data[
@@ -116,7 +120,6 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
         change_point_index=change_point_index,
         timestamps=timestamps,
         min_runs_between_change_points=min_runs_between_change_points)
-
   logging.debug(
       "Performance alert is %s for test %s" % (is_alert, params['test_name']))
   if is_alert:
@@ -124,7 +127,9 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
     metric_name, params['test_name'], timestamps,
     metric_values, change_point_index,
     params.get('labels', None),
-    last_reported_issue_number)
+    last_reported_issue_number,
+    test_target=params['test_target'] if 'test_target' in params else None
+    )
 
     issue_metadata = GitHubIssueMetaData(
         issue_timestamp=pd.Timestamp(
@@ -138,7 +143,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
         change_point_timestamp=timestamps[change_point_index])
 
     publish_issue_metadata_to_big_query(
-        issue_metadata=issue_metadata, test_name=test_name)
+        issue_metadata=issue_metadata, table_name=issue_metadata_table_name)
 
   return is_alert
 

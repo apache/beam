@@ -17,6 +17,17 @@
  */
 
 class BeamLinks {
-  static const reportIssue = 'https://github.com/apache/beam/issues';
+  // Website
+  static const website = 'https://beam.apache.org/';
+  static const about = 'https://beam.apache.org/get-started/beam-overview';
   static const privacyPolicy = 'https://beam.apache.org/privacy_policy/';
+
+  // GitHub
+  static const github = 'https://github.com/apache/beam';
+  static const reportIssue = 'https://github.com/apache/beam/issues';
+
+  // Projects
+  static const playgroundGitHub =
+      'https://github.com/apache/beam/tree/master/playground';
+  static const scioGitHub = 'https://github.com/spotify/scio';
 }

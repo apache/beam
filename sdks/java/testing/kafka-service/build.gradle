@@ -18,7 +18,9 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.testing.kafka')
+applyJavaNature(
+  publish: false,
+  automaticModuleName: 'org.apache.beam.sdk.testing.kafka')
 
 description = "Apache Beam :: SDKs :: Java :: Test Kafka Service"
 ext.summary = """Self-contained Kafka service for testing IO transforms."""

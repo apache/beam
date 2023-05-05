@@ -49,7 +49,7 @@ To add SparkReceiverIO support for a new Spark `Receiver`, perform the following
    ```
 
 
-To learn more, please check out CDAP Streaming plugins [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap) where Spark Receivers are used.
+To learn more, please check out CDAP Streaming plugins [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap) where Spark Receivers are used.
 
 ## Dependencies
 

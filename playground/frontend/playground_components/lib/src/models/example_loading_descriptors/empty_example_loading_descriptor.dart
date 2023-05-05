@@ -23,6 +23,7 @@ const _key = 'empty';
 
 /// Indicates that an empty content should be loaded for the [sdk].
 class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
 
   const EmptyExampleLoadingDescriptor({
@@ -33,6 +34,9 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   List<Object> get props => [sdk.id];
 
   @override
+  EmptyExampleLoadingDescriptor copyWithoutViewOptions() => this;
+
+  @override
   Map<String, dynamic> toJson() => {
         _key: true,
         'sdk': sdk.id,
@@ -41,7 +45,7 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   static EmptyExampleLoadingDescriptor? tryParse(
     Map<String, dynamic> map,
   ) {
-    if (map[_key] != true) {
+    if (!map.containsKey(_key)) {
       return null;
     }
 

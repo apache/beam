@@ -51,6 +51,10 @@ import scala.collection.Iterator;
 class CombineGloballyTranslatorBatch<InT, AccT, OutT>
     extends TransformTranslator<PCollection<InT>, PCollection<OutT>, Combine.Globally<InT, OutT>> {
 
+  CombineGloballyTranslatorBatch() {
+    super(0.2f);
+  }
+
   @Override
   protected void translate(Combine.Globally<InT, OutT> transform, Context cxt) {
     WindowingStrategy<?, ?> windowing = cxt.getInput().getWindowingStrategy();

@@ -23,16 +23,13 @@ import com.google.auto.service.AutoService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.Set;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** This class knows all the translators from a primitive BEAM transform to a Samza operator. */
@@ -76,12 +73,7 @@ public class SamzaPipelineTranslator {
   }
 
   public static void createConfig(
-      Pipeline pipeline,
-      SamzaPipelineOptions options,
-      Map<PValue, String> idMap,
-      Set<String> nonUniqueStateIds,
-      ConfigBuilder configBuilder) {
-    final ConfigContext ctx = new ConfigContext(idMap, nonUniqueStateIds, options);
+      Pipeline pipeline, ConfigContext ctx, ConfigBuilder configBuilder) {
 
     final TransformVisitorFn configFn =
         new TransformVisitorFn() {
@@ -107,7 +99,7 @@ public class SamzaPipelineTranslator {
     pipeline.traverseTopologically(visitor);
   }
 
-  private interface TransformVisitorFn {
+  public interface TransformVisitorFn {
     <T extends PTransform<?, ?>> void apply(
         T transform,
         TransformHierarchy.Node node,
@@ -115,10 +107,10 @@ public class SamzaPipelineTranslator {
         TransformTranslator<T> translator);
   }
 
-  private static class SamzaPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
+  public static class SamzaPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
     private final TransformVisitorFn visitorFn;
 
-    private SamzaPipelineVisitor(TransformVisitorFn visitorFn) {
+    public SamzaPipelineVisitor(TransformVisitorFn visitorFn) {
       this.visitorFn = visitorFn;
     }
 

@@ -31,14 +31,45 @@ import {
 } from "./transform";
 import { PaneInfo, Instant, Window, WindowedValue } from "../values";
 
+/**
+ * The interface used to apply an elementwise MappingFn to a PCollection.
+ *
+ * For simple transformations, `PCollection.map` or `PCollection.flatMap`
+ * may be simpler to use.
+ *
+ * See also https://beam.apache.org/documentation/programming-guide/#pardo
+ */
 export interface DoFn<InputT, OutputT, ContextT = undefined> {
+  /**
+   * If provided, the default name to use for this operation.
+   */
   beamName?: string;
 
+  /**
+   * Process a single element from the PCollection, returning an iterable
+   * of zero or more result elements.
+   *
+   * Also takes as input an optional context element which has the same
+   * type as was passed into the parDo at construction time (but which is
+   * now "activated" in the sense that side inputs, metrics, etc. are
+   * available with runtime values/effects).
+   */
   process: (element: InputT, context: ContextT) => Iterable<OutputT> | void;
 
+  /**
+   * Called once at the start of every bundle, before any `process()` calls.
+   *
+   * This can be used to amortize any expensive initialization.
+   */
   startBundle?: (context: ContextT) => void;
 
   // TODO: (API) Re-consider this API.
+  /**
+   * Called once at the end of every bundle, after any `process()` calls.
+   *
+   * This can be used to clean up expensive initialization and/or flush any
+   * elements that were buffered.
+   */
   finishBundle?: (context: ContextT) => Iterable<WindowedValue<OutputT>> | void;
 }
 
@@ -51,6 +82,9 @@ export interface DoFn<InputT, OutputT, ContextT = undefined> {
 // which is typically a very performance critical spot to optimize.)
 
 // TODO: (Typescript) Can the context arg be optional iff ContextT is undefined?
+/**
+ * Creates a PTransform that applies a `DoFn` to a PCollection.
+ */
 export function parDo<
   InputT,
   OutputT,
@@ -143,6 +177,7 @@ export function parDo<
 }
 
 // TODO: (Cleanup) use runnerApi.StandardPTransformClasss_Primitives.PAR_DO.urn.
+/** @internal */
 parDo.urn = "beam:transform:pardo:v1";
 
 export type SplitOptions = {
@@ -157,16 +192,16 @@ export type SplitOptions = {
  * PCollections, with the same keys k, where each PCollection consists of the
  * values associated with that key. That is,
  *
- * PCollection<{a: T, b: U, ...}> maps to {a: PCollection<T>, b: PCollection<U>, ...}
+ * `PCollection<{a: T, b: U, ...}>` maps to `{a: PCollection<T>, b: PCollection<U>, ...}`
  */
 // TODO: (API) Consider as top-level method.
 // TODO: Naming.
-export function split<T extends { [key: string]: unknown }>(
+export function split<X extends { [key: string]: unknown }>(
   tags: string[],
   options: SplitOptions = {}
-): PTransform<PCollection<T>, { [P in keyof T]: PCollection<T[P]> }> {
+): PTransform<PCollection<X>, { [P in keyof X]: PCollection<X[P]> }> {
   function expandInternal(
-    input: PCollection<T>,
+    input: PCollection<X>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ) {
@@ -201,11 +236,11 @@ export function split<T extends { [key: string]: unknown }>(
     return Object.fromEntries(
       tags.map((tag) => [
         tag,
-        pipeline.createPCollectionInternal<T[typeof tag]>(
+        pipeline.createPCollectionInternal<X[typeof tag]>(
           pipeline.context.getPCollectionCoderId(input)
         ),
       ])
-    ) as { [P in keyof T]: PCollection<T[P]> };
+    ) as { [P in keyof X]: PCollection<X[P]> };
   }
 
   return withName(`Split(${tags})`, expandInternal);
@@ -250,6 +285,7 @@ export function withContext<
   return fn;
 }
 
+/** @internal */
 export function extractContext(fn) {
   return fn.beamPardoContextSpec;
 }
@@ -260,8 +296,10 @@ export function extractContext(fn) {
  */
 export class ParDoParam {
   // Provided externally.
+  /** @internal */
   protected provider: ParamProvider | undefined;
 
+  /** @internal */
   constructor(readonly parDoParamName: string) {}
 }
 
@@ -297,6 +335,8 @@ export class ParDoUpdateParam<T> extends ParDoParam {
 /**
  * This is the magic class that wires up the ParDoParams to their values
  * at runtime.
+ *
+ * @internal
  */
 export interface ParamProvider {
   lookup<T>(param: ParDoLookupParam<T>): T;
@@ -311,7 +351,6 @@ export function timestampParam(): ParDoLookupParam<Instant> {
   return new ParDoLookupParam<Instant>("timestamp");
 }
 
-// TODO: Naming. Should this be PaneParam?
 export function paneInfoParam(): ParDoLookupParam<PaneInfo> {
   return new ParDoLookupParam<PaneInfo>("paneinfo");
 }
@@ -327,6 +366,12 @@ interface SideInputAccessor<PCollT, AccessorT, ValueT> {
 
 // TODO: (Extension) Support side inputs that are composites of multiple more
 // primitive side inputs.
+/**
+ * Used to access side inputs corresponding to a given element from within a
+ * `process()` method.
+ *
+ * See also https://beam.apache.org/documentation/programming-guide/#side-inputs
+ */
 export class SideInputParam<
   PCollT,
   AccessorT,
@@ -395,6 +440,9 @@ export function singletonSideInput<T>(
 
 // TODO: (Extension) Map side inputs.
 
+/**
+ * The superclass of all metric accessors, such as counters and distributions.
+ */
 export class Metric<T> extends ParDoUpdateParam<T> {
   constructor(readonly metricType: string, readonly name: string) {
     super("metric");

@@ -97,7 +97,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Batch',
-    'H 14 * * *', this) {
+    'H H * * *', this) {
       additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -116,7 +116,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Streaming',
-    'H 14 * * *', this) {
+    'H H * * *', this) {
       additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

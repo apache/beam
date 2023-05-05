@@ -555,6 +555,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final PipelineOptions options;
     private final long maxRowsPerBatch;
     private final long maxRowBatchSize;
+    private final long storageWriteMaxInflightRequests;
+    private final long storageWriteMaxInflightBytes;
     // aggregate the total time spent in exponential backoff
     private final Counter throttlingMsecs =
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
@@ -572,6 +574,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -589,6 +593,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -600,6 +606,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -1330,10 +1338,15 @@ class BigQueryServicesImpl implements BigQueryServices {
               .build();
 
       StreamWriter streamWriter =
-          StreamWriter.newBuilder(streamName)
+          StreamWriter.newBuilder(streamName, newWriteClient)
+              .setExecutorProvider(
+                  FixedExecutorProvider.create(
+                      options.as(ExecutorOptions.class).getScheduledExecutorService()))
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
               .setEnableConnectionPool(useConnectionPool)
+              .setMaxInflightRequests(storageWriteMaxInflightRequests)
+              .setMaxInflightBytes(storageWriteMaxInflightBytes)
               .setTraceId(
                   "Dataflow:"
                       + (bqIOMetadata.getBeamJobId() != null
@@ -1348,7 +1361,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         public void close() throws Exception {
           boolean closeWriter;
           synchronized (this) {
-            Preconditions.checkState(!closed);
+            Preconditions.checkState(!closed, "Called close on already closed client");
             closed = true;
             closeWriter = (pins == 0);
           }
@@ -1369,7 +1382,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         public void unpin() throws Exception {
           boolean closeWriter;
           synchronized (this) {
-            Preconditions.checkState(pins > 0);
+            Preconditions.checkState(pins > 0, "Tried to unpin when pins==0");
             --pins;
             closeWriter = (pins == 0) && closed;
           }
@@ -1501,9 +1514,18 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   private static BigQueryWriteClient newBigQueryWriteClient(BigQueryOptions options) {
     try {
+      TransportChannelProvider transportChannelProvider =
+          BigQueryWriteSettings.defaultGrpcTransportProviderBuilder()
+              .setKeepAliveTime(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveTimeout(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveWithoutCalls(true)
+              .setChannelsPerCpu(2)
+              .build();
+
       return BigQueryWriteClient.create(
           BigQueryWriteSettings.newBuilder()
               .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
+              .setTransportChannelProvider(transportChannelProvider)
               .setBackgroundExecutorProvider(
                   FixedExecutorProvider.create(
                       options.as(ExecutorOptions.class).getScheduledExecutorService()))

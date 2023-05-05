@@ -23,6 +23,7 @@ import copy
 import platform
 import unittest
 
+import mock
 import pytest
 
 import apache_beam as beam
@@ -679,6 +680,21 @@ class PipelineTest(unittest.TestCase):
     self.assertIs(pcoll1_unbounded.is_bounded, False)
     self.assertIs(pcoll2_unbounded.is_bounded, False)
     self.assertIs(merged.is_bounded, False)
+
+  def test_incompatible_submission_and_runtime_envs_fail_pipeline(self):
+    with mock.patch(
+        'apache_beam.transforms.environments.sdk_base_version_capability'
+    ) as base_version:
+      base_version.side_effect = [
+          f"beam:version:sdk_base:apache/beam_python3.5_sdk:2.{i}.0"
+          for i in range(100)
+      ]
+      with self.assertRaisesRegex(
+          RuntimeError,
+          'Pipeline construction environment and pipeline runtime '
+          'environment are not compatible.'):
+        with TestPipeline() as p:
+          _ = p | Create([None])
 
 
 class DoFnTest(unittest.TestCase):

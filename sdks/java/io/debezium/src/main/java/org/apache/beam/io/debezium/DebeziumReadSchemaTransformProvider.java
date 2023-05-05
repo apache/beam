@@ -63,7 +63,7 @@ public class DebeziumReadSchemaTransformProvider
   private final Integer testLimitRecords;
   private final Long testLimitMilliseconds;
 
-  DebeziumReadSchemaTransformProvider() {
+  public DebeziumReadSchemaTransformProvider() {
     this(false, -1, Long.MAX_VALUE);
   }
 

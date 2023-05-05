@@ -133,12 +133,18 @@ import org.joda.time.ReadableInstant;
  * </pre>
  *
  * is used.
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils</code> instead of this one.
  */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
+@Deprecated
 public class AvroUtils {
   static {
     // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
@@ -147,10 +153,14 @@ public class AvroUtils {
     GenericData.get().addLogicalTypeConversion(new JodaTimestampConversion());
   }
 
-  // Unwrap an AVRO schema into the base type an whether it is nullable.
-  static class TypeWithNullability {
-    public final org.apache.avro.Schema type;
-    public final boolean nullable;
+  /** Unwrap an AVRO schema into the base type an whether it is nullable. */
+  public static class TypeWithNullability {
+    final org.apache.avro.Schema type;
+    final boolean nullable;
+
+    public static TypeWithNullability create(org.apache.avro.Schema avroSchema) {
+      return new TypeWithNullability(avroSchema);
+    }
 
     TypeWithNullability(org.apache.avro.Schema avroSchema) {
       if (avroSchema.getType() == org.apache.avro.Schema.Type.UNION) {
@@ -181,6 +191,14 @@ public class AvroUtils {
         type = avroSchema;
         nullable = false;
       }
+    }
+
+    public Boolean isNullable() {
+      return nullable;
+    }
+
+    public org.apache.avro.Schema getType() {
+      return type;
     }
   }
 

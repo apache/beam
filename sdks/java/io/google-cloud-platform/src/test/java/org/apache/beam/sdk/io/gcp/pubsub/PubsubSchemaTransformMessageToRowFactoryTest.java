@@ -28,9 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.io.payloads.AvroPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
@@ -45,17 +45,17 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
 
   List<TestCase> cases =
       Arrays.asList(
-          testCase(PubsubSchemaTransformReadConfiguration.builder().setDataSchema(SCHEMA))
+          testCase(PubsubReadSchemaTransformConfiguration.builder().setDataSchema(SCHEMA))
               .expectPayloadSerializerProvider(JSON_PAYLOAD_SERIALIZER_PROVIDER)
               .withSerializerInput(),
-          testCase(PubsubSchemaTransformReadConfiguration.builder().setDataSchema(SCHEMA))
+          testCase(PubsubReadSchemaTransformConfiguration.builder().setDataSchema(SCHEMA))
               .expectPubsubToRow(
                   PubsubMessageToRow.builder()
                       .messageSchema(SCHEMA)
                       .useFlatSchema(true)
                       .useDlq(false)),
           testCase(
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setDataSchema(SCHEMA)
                       .setDeadLetterQueue("projects/project/topics/topic"))
               .expectPubsubToRow(
@@ -64,40 +64,40 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
                       .useFlatSchema(true)
                       .useDlq(true)),
           testCase(
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setDataSchema(SCHEMA)
                       .setFormat("avro"))
               .expectPayloadSerializerProvider(AVRO_PAYLOAD_SERIALIZER_PROVIDER)
               .withSerializerInput(),
           testCase(
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setDataSchema(Schema.of(ATTRIBUTES_FIELD_ARRAY)))
               .schemaShouldHaveValidAttributesField()
               .fieldShouldBePresent(
                   ATTRIBUTES_FIELD_ARRAY.getName(), ATTRIBUTES_FIELD_ARRAY.getType()),
           testCase(
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setDataSchema(Schema.of(ATTRIBUTES_FIELD_MAP)))
               .schemaShouldHaveValidAttributesField()
               .fieldShouldBePresent(ATTRIBUTES_FIELD_MAP.getName(), ATTRIBUTES_FIELD_MAP.getType()),
           testCase(
-              PubsubSchemaTransformReadConfiguration.builder()
+              PubsubReadSchemaTransformConfiguration.builder()
                   .setDataSchema(Schema.of(ATTRIBUTES_FIELD_SHOULD_NOT_MATCH))),
           testCase(
-              PubsubSchemaTransformReadConfiguration.builder()
+              PubsubReadSchemaTransformConfiguration.builder()
                   .setDataSchema(Schema.of(PAYLOAD_FIELD_SHOULD_NOT_MATCH))),
           testCase(
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setDataSchema(Schema.of(PAYLOAD_FIELD_BYTES)))
               .schemaShouldHaveValidPayloadField()
               .fieldShouldBePresent(PAYLOAD_FIELD_BYTES.getName(), PAYLOAD_FIELD_BYTES.getType()),
           testCase(
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setDataSchema(Schema.of(PAYLOAD_FIELD_ROW)))
               .schemaShouldHaveValidPayloadField()
               .fieldShouldBePresent(PAYLOAD_FIELD_ROW.getName(), PAYLOAD_FIELD_ROW.getType()),
           testCase(
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setDataSchema(Schema.of(ATTRIBUTES_FIELD_ARRAY, PAYLOAD_FIELD_BYTES)))
               .schemaShouldHaveValidAttributesField()
               .schemaShouldHaveValidPayloadField()
@@ -255,12 +255,12 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
     }
   }
 
-  static TestCase testCase(PubsubSchemaTransformReadConfiguration.Builder configurationBuilder) {
+  static TestCase testCase(PubsubReadSchemaTransformConfiguration.Builder configurationBuilder) {
     return new TestCase(configurationBuilder);
   }
 
   private static class TestCase {
-    private final PubsubSchemaTransformReadConfiguration configuration;
+    private final PubsubReadSchemaTransformConfiguration configuration;
 
     private PubsubMessageToRow expectPubsubToRow;
 
@@ -274,7 +274,7 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
 
     private Row serializerInput;
 
-    TestCase(PubsubSchemaTransformReadConfiguration.Builder configurationBuilder) {
+    TestCase(PubsubReadSchemaTransformConfiguration.Builder configurationBuilder) {
       this.configuration = configurationBuilder.build();
     }
 

@@ -49,17 +49,17 @@ public final class EvaluationContext {
     Dataset<WindowedValue<T>> dataset();
   }
 
-  private final Collection<? extends NamedDataset<?>> leaveDatasets;
+  private final Collection<? extends NamedDataset<?>> leaves;
   private final SparkSession session;
 
-  EvaluationContext(Collection<? extends NamedDataset<?>> leaveDatasets, SparkSession session) {
-    this.leaveDatasets = leaveDatasets;
+  EvaluationContext(Collection<? extends NamedDataset<?>> leaves, SparkSession session) {
+    this.leaves = leaves;
     this.session = session;
   }
 
-  /** Trigger evaluation of all leave datasets. */
+  /** Trigger evaluation of all leaf datasets. */
   public void evaluate() {
-    for (NamedDataset<?> ds : leaveDatasets) {
+    for (NamedDataset<?> ds : leaves) {
       final Dataset<?> dataset = ds.dataset();
       if (dataset == null) {
         continue;

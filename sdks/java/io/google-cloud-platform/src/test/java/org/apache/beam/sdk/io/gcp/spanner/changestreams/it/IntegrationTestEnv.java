@@ -24,6 +24,7 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -48,18 +49,21 @@ public class IntegrationTestEnv extends ExternalResource {
   private static final String METADATA_TABLE_NAME_PREFIX = "TestMetadata";
   private static final String SINGERS_TABLE_NAME_PREFIX = "Singers";
   private static final String CHANGE_STREAM_NAME_PREFIX = "SingersStream";
+  private static final String DATABASE_ROLE = "test_role";
   private List<String> changeStreams;
   private List<String> tables;
 
   private String projectId;
   private String instanceId;
   private String databaseId;
+  private String metadataDatabaseId;
   private String metadataTableName;
   private Spanner spanner;
   private final String host = "https://spanner.googleapis.com";
   private DatabaseAdminClient databaseAdminClient;
   private DatabaseClient databaseClient;
   private boolean isPostgres;
+  public boolean useSeparateMetadataDb;
 
   @Override
   protected void before() throws Throwable {
@@ -70,14 +74,13 @@ public class IntegrationTestEnv extends ExternalResource {
         Optional.ofNullable(options.getProjectId())
             .orElseGet(() -> options.as(GcpOptions.class).getProject());
     instanceId = options.getInstanceId();
-    databaseId = generateDatabaseName(options.getDatabaseId());
+    generateDatabaseIds(options);
     spanner =
         SpannerOptions.newBuilder().setProjectId(projectId).setHost(host).build().getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
     metadataTableName = generateTableName(METADATA_TABLE_NAME_PREFIX);
 
     recreateDatabase(databaseAdminClient, instanceId, databaseId, isPostgres);
-
     databaseClient = spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
 
     changeStreams = new ArrayList<>();
@@ -144,8 +147,15 @@ public class IntegrationTestEnv extends ExternalResource {
     } catch (Exception e) {
       LOG.error("Failed to drop database " + databaseId + ". Skipping...", e);
     }
-
+    if (useSeparateMetadataDb) {
+      databaseAdminClient.dropDatabase(instanceId, metadataDatabaseId);
+    }
     spanner.close();
+  }
+
+  void createMetadataDatabase() throws ExecutionException, InterruptedException, TimeoutException {
+    recreateDatabase(databaseAdminClient, instanceId, metadataDatabaseId, isPostgres);
+    useSeparateMetadataDb = true;
   }
 
   String createSingersTable() throws InterruptedException, ExecutionException, TimeoutException {
@@ -168,7 +178,6 @@ public class IntegrationTestEnv extends ExternalResource {
                       + ")"),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
-      tables.add(tableName);
     } else {
       databaseAdminClient
           .updateDatabaseDdl(
@@ -185,8 +194,8 @@ public class IntegrationTestEnv extends ExternalResource {
                       + " ) PRIMARY KEY (SingerId)"),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
-      tables.add(tableName);
     }
+    tables.add(tableName);
     return tableName;
   }
 
@@ -214,8 +223,30 @@ public class IntegrationTestEnv extends ExternalResource {
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     }
     changeStreams.add(changeStreamName);
-
     return changeStreamName;
+  }
+
+  void createRoleAndGrantPrivileges(String table, String changeStream)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    if (this.isPostgres) {
+      LOG.error("Database roles not supported with Postgres dialect.");
+      return;
+    }
+    databaseAdminClient
+        .updateDatabaseDdl(
+            instanceId,
+            databaseId,
+            Arrays.asList(
+                "CREATE ROLE " + DATABASE_ROLE,
+                "GRANT INSERT, UPDATE, DELETE ON TABLE " + table + " TO ROLE " + DATABASE_ROLE,
+                "GRANT SELECT ON CHANGE STREAM " + changeStream + " TO ROLE " + DATABASE_ROLE,
+                "GRANT EXECUTE ON TABLE FUNCTION READ_"
+                    + changeStream
+                    + " TO ROLE "
+                    + DATABASE_ROLE),
+            null)
+        .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+    return;
   }
 
   String getProjectId() {
@@ -228,6 +259,14 @@ public class IntegrationTestEnv extends ExternalResource {
 
   String getDatabaseId() {
     return databaseId;
+  }
+
+  String getMetadataDatabaseId() {
+    return metadataDatabaseId;
+  }
+
+  String getDatabaseRole() {
+    return DATABASE_ROLE;
   }
 
   String getMetadataTableName() {
@@ -282,10 +321,13 @@ public class IntegrationTestEnv extends ExternalResource {
             MAX_CHANGE_STREAM_NAME_LENGTH - 1 - CHANGE_STREAM_NAME_PREFIX.length());
   }
 
-  private String generateDatabaseName(String prefix) {
-    return prefix
-        + "_"
-        + RandomStringUtils.randomAlphanumeric(MAX_DATABASE_NAME_LENGTH - 1 - prefix.length())
+  private void generateDatabaseIds(ChangeStreamTestPipelineOptions options) {
+    int prefixLength =
+        Math.max(options.getDatabaseId().length(), options.getMetadataDatabaseId().length());
+    String suffix =
+        RandomStringUtils.randomAlphanumeric(MAX_DATABASE_NAME_LENGTH - 1 - prefixLength)
             .toLowerCase(Locale.ROOT);
+    databaseId = options.getDatabaseId() + "_" + suffix;
+    metadataDatabaseId = options.getMetadataDatabaseId() + "_" + suffix;
   }
 }

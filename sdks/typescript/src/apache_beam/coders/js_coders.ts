@@ -28,6 +28,9 @@ import {
 import { IterableCoder } from "./required_coders";
 import * as runnerApi from "../proto/beam_runner_api";
 
+/**
+ * A Coder<T> that encodes a javascript object with BSON.
+ */
 export class BsonObjectCoder<T> implements Coder<T> {
   static URN = "beam:coder:bsonjs:v1";
 
@@ -88,6 +91,10 @@ class NumberOrFloatCoder implements Coder<number> {
   }
 }
 
+/**
+ * A Coder<T> that encodes common javascript types such as strings, numbers,
+ * nulls, or objects.
+ */
 export class GeneralObjectCoder<T> implements Coder<T> {
   static URN = "beam:coder:genericobjectjs:v1";
   codersByType = {

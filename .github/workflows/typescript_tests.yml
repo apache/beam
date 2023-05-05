@@ -69,7 +69,7 @@ jobs:
   typescript_xlang_tests:
     name: 'TypeScript xlang Tests'
     runs-on: [self-hosted, ubuntu-20.04]
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
     steps:

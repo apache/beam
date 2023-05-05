@@ -52,9 +52,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelRoot;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.JoinCommuteRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -72,14 +70,11 @@ import org.slf4j.LoggerFactory;
 
 /** ZetaSQLQueryPlanner. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ZetaSQLQueryPlanner implements QueryPlanner {
   public static final Collection<RelOptRule> DEFAULT_CALC =
-      ImmutableList.<RelOptRule>builder()
-          .add(BeamZetaSqlCalcSplittingRule.INSTANCE, BeamZetaSqlCalcMergeRule.INSTANCE)
-          .build();
+      ImmutableList.<RelOptRule>builder().add(BeamZetaSqlCalcSplittingRule.INSTANCE).build();
 
   private static final Logger LOG = LoggerFactory.getLogger(ZetaSQLQueryPlanner.class);
 
@@ -104,14 +99,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             .getZetaSqlDefaultTimezone());
   }
 
-  public static final Factory FACTORY =
-      new Factory() {
-        @Override
-        public QueryPlanner createPlanner(
-            JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
-          return new ZetaSQLQueryPlanner(jdbcConnection, ruleSets);
-        }
-      };
+  public static final Factory FACTORY = ZetaSQLQueryPlanner::new;
 
   public static Collection<RuleSet> getZetaSqlRuleSets() {
     return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets(), DEFAULT_CALC);
@@ -132,14 +120,6 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
           continue;
-        } else if (rule instanceof FilterCalcMergeRule || rule instanceof ProjectCalcMergeRule) {
-          // In order to support Java UDF, we need both BeamZetaSqlCalcRel and BeamCalcRel. It is
-          // because BeamZetaSqlCalcRel can execute ZetaSQL built-in functions while BeamCalcRel
-          // can execute UDFs. So during planning, we expect both Filter and Project are converted
-          // to Calc nodes before merging with other Project/Filter/Calc nodes. Thus we should not
-          // add FilterCalcMergeRule and ProjectCalcMergeRule. CalcMergeRule will achieve equivalent
-          // planning result eventually.
-          continue;
         } else if (rule instanceof BeamCalcRule) {
           bd.addAll(calc);
         } else if (rule instanceof BeamUnnestRule) {
@@ -150,6 +130,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
           bd.add(rule);
         }
       }
+      bd.add(BeamZetaSqlCalcMergeRule.INSTANCE);
       ret.add(RuleSets.ofList(bd.build()));
     }
     return ret.build();
@@ -208,7 +189,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         .getCluster()
         .setMetadataProvider(
             ChainedRelMetadataProvider.of(
-                org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList.of(
+                ImmutableList.of(
                     NonCumulativeCostImpl.SOURCE,
                     RelMdNodeStats.SOURCE,
                     root.rel.getCluster().getMetadataProvider())));
@@ -227,6 +208,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     }
   }
 
+  @SuppressWarnings({
+    "rawtypes", // Frameworks.ConfigBuilder.traitDefs has method signature of raw type
+  })
   private static FrameworkConfig defaultConfig(
       JdbcConnection connection, Collection<RuleSet> ruleSets) {
     final CalciteConnectionConfig config = connection.config();

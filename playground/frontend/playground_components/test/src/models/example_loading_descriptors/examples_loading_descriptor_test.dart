@@ -21,6 +21,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
+import 'common.dart';
+
 void main() {
   group('ExamplesLoadingDescriptor', () {
     test('Empty map -> null', () {
@@ -121,6 +123,94 @@ void main() {
           },
         ),
       );
+    });
+
+    test('copyWithoutViewOptions', () {
+      final descriptorWithOptions = ExamplesLoadingDescriptor(
+        descriptors: const [
+          CatalogDefaultExampleLoadingDescriptor(
+            sdk: Sdk.go,
+            viewOptions: viewOptions,
+          ),
+        ],
+        initialSdk: Sdk.python,
+        lazyLoadDescriptors: {
+          Sdk.scio: const [
+            StandardExampleLoadingDescriptor(
+              sdk: Sdk.scio,
+              path: 'path',
+              viewOptions: viewOptions,
+            ),
+          ],
+        },
+      );
+
+      final expected = ExamplesLoadingDescriptor(
+        descriptors: const [_d1],
+        initialSdk: Sdk.python,
+        lazyLoadDescriptors: {
+          Sdk.scio: const [_d2],
+        },
+      );
+
+      expect(
+        descriptorWithOptions.copyWithoutViewOptions(),
+        expected,
+      );
+    });
+
+    group('initialSnippetSdk, initialSnippetToken.', () {
+      test('No descriptors -> null', () {
+        final descriptor = ExamplesLoadingDescriptor(
+          descriptors: const [],
+          initialSdk: Sdk.go,
+          lazyLoadDescriptors: {
+            Sdk.scio: const [_d1],
+          },
+        );
+
+        expect(descriptor.initialSnippetSdk, null);
+        expect(descriptor.initialSnippetToken, null);
+      });
+
+      test('No initialSdk, multiple descriptors -> null', () {
+        final descriptor = ExamplesLoadingDescriptor(
+          descriptors: const [_d1, _d2],
+          initialSdk: null,
+          lazyLoadDescriptors: {
+            Sdk.scio: const [_d1],
+          },
+        );
+
+        expect(descriptor.initialSnippetSdk, null);
+        expect(descriptor.initialSnippetToken, null);
+      });
+
+      test('No initialSdk, single descriptor -> from it', () {
+        final descriptor = ExamplesLoadingDescriptor(
+          descriptors: const [_d2],
+          initialSdk: null,
+          lazyLoadDescriptors: {
+            Sdk.scio: const [_d1],
+          },
+        );
+
+        expect(descriptor.initialSnippetSdk, _d2.sdk);
+        expect(descriptor.initialSnippetToken, _d2.token);
+      });
+
+      test('initialSdk, multiple descriptors -> initialSdk', () {
+        final descriptor = ExamplesLoadingDescriptor(
+          descriptors: const [_d1, _d2],
+          initialSdk: _d2.sdk,
+          lazyLoadDescriptors: {
+            Sdk.scio: const [_d1],
+          },
+        );
+
+        expect(descriptor.initialSnippetSdk, _d2.sdk);
+        expect(descriptor.initialSnippetToken, _d2.token);
+      });
     });
   });
 }

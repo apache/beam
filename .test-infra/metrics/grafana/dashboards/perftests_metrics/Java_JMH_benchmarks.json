@@ -171,7 +171,7 @@
                 ],
                 "operation": "aggregate"
               },
-              "CombinerTableBenchmark": {
+              "PrecombineGroupingTableBenchmark": {
                 "aggregations": [
                   "sum"
                 ],
@@ -655,7 +655,7 @@
       "pluginVersion": "8.1.8",
       "targets": [
         {
-          "alias": "$tag_benchmark [globallyWindowed=$tag_globallyWindowed]",
+          "alias": "$tag_benchmark [distribution=$tag_distribution][globallyWindowed=$tag_globallyWindowed]",
           "groupBy": [
             {
               "params": [
@@ -685,7 +685,7 @@
           "measurement": "java_jmh_thrpt",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /CombinerTableBenchmark/) AND $timeFilter GROUP BY time(1d), \"benchmark\", globallyWindowed fill(none)",
+          "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /PrecombineGroupingTableBenchmark/) AND $timeFilter GROUP BY time(1d), \"benchmark\", distribution, globallyWindowed fill(none)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -714,13 +714,13 @@
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "CombinerTableBenchmark (thrpt)",
+      "title": "PrecombineGroupingTableBenchmark (thrpt)",
       "transformations": [
         {
           "id": "renameByRegex",
           "options": {
-            "regex": ".*\\.(.+) (?:\\[globallyWindowed=false\\]|(\\[globallyWindowed)=true(\\]))",
-            "renamePattern": "$1 $2$3"
+            "regex": ".*\\.(.+)",
+            "renamePattern": "$1"
           }
         }
       ],

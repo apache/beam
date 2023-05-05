@@ -32,14 +32,18 @@ import org.apache.beam.sdk.io.hadoop.format.HDFSSynchronization;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
 import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -464,12 +468,42 @@ public class CdapIO {
         throw new NotImplementedException("Support for unbounded plugins is not implemented!");
       } else {
         Configuration hConf = cdapPlugin.getHadoopConfiguration();
-        HadoopFormatIO.Write<K, V> writeHadoop =
-            HadoopFormatIO.<K, V>write()
-                .withConfiguration(hConf)
-                .withPartitioning()
-                .withExternalSynchronization(new HDFSSynchronization(locksDirPath));
+        HadoopFormatIO.Write<K, V> writeHadoop;
+        if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
+            || !input.getWindowingStrategy().equals(WindowingStrategy.globalDefault())) {
+          ConfigTransform<K, V> configTransform = new ConfigTransform<>(hConf);
+          writeHadoop =
+              HadoopFormatIO.<K, V>write()
+                  .withConfigurationTransform(configTransform)
+                  .withExternalSynchronization(new HDFSSynchronization(locksDirPath));
+        } else {
+          writeHadoop =
+              HadoopFormatIO.<K, V>write()
+                  .withConfiguration(hConf)
+                  .withPartitioning()
+                  .withExternalSynchronization(new HDFSSynchronization(locksDirPath));
+        }
         return input.apply(writeHadoop);
+      }
+    }
+
+    /** Simple transform for providing Hadoop {@link Configuration} into {@link HadoopFormatIO}. */
+    private static class ConfigTransform<KeyT, ValueT>
+        extends PTransform<
+            PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>> {
+
+      private final transient Configuration hConf;
+
+      private ConfigTransform(Configuration hConf) {
+        this.hConf = hConf;
+      }
+
+      @Override
+      public PCollectionView<Configuration> expand(PCollection<? extends KV<KeyT, ValueT>> input) {
+        return input
+            .getPipeline()
+            .apply(Create.<Configuration>of(hConf))
+            .apply(View.<Configuration>asSingleton().withDefaultValue(hConf));
       }
     }
   }

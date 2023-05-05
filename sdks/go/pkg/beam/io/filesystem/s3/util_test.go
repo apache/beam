@@ -87,30 +87,3 @@ func Test_makeURI(t *testing.T) {
 		t.Errorf("makeURI() = %v, want %v", got, want)
 	}
 }
-
-func Test_getPrefix(t *testing.T) {
-	tests := []struct {
-		name       string
-		keyPattern string
-		want       string
-	}{
-		{
-			name:       "Key pattern with wildcards",
-			keyPattern: "path/**/*.json",
-			want:       "path/",
-		},
-		{
-			name:       "Key pattern without wildcards",
-			keyPattern: "path/file.json",
-			want:       "path/file.json",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := getPrefix(tt.keyPattern); got != tt.want {
-				t.Errorf("getPrefix() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}

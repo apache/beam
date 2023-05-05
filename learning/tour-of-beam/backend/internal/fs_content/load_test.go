@@ -29,7 +29,7 @@ func getTaskNode(id string, sdk tob.Sdk) tob.Node {
 		Id: id, Title: "Challenge Name",
 		Description: "## Challenge description\n\nawesome description\n",
 		Hints: []string{
-			"## Hint 1\n\nhint 1",
+			fmt.Sprintf("## Hint 1\n\nhint 1 %s", sdk),
 			"## Hint 2\n\nhint 2",
 		},
 		TaskSnippetId:     fmt.Sprintf("TB_EXAMPLES_%s_ChallengeTask", sdk.StorageID()),
@@ -49,7 +49,7 @@ func TestSample(t *testing.T) {
 	trees, err := CollectLearningTree(filepath.Join("..", "..", "samples", "learning-content"))
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(trees))
-	assert.Equal(t, tob.ContentTree{
+	assert.Contains(t, trees, tob.ContentTree{
 		Sdk: tob.SDK_JAVA,
 		Modules: []tob.Module{
 			{
@@ -67,8 +67,8 @@ func TestSample(t *testing.T) {
 				},
 			},
 		},
-	}, trees[0])
-	assert.Equal(t, tob.ContentTree{
+	})
+	assert.Contains(t, trees, tob.ContentTree{
 		Sdk: tob.SDK_PYTHON,
 		Modules: []tob.Module{
 			{
@@ -88,7 +88,7 @@ func TestSample(t *testing.T) {
 				},
 			},
 		},
-	}, trees[1])
+	})
 }
 
 // TestTemplates test that templating engine is used correctly.

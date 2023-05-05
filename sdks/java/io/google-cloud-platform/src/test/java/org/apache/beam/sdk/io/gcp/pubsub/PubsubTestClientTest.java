@@ -116,7 +116,8 @@ public class PubsubTestClientTest {
         OutgoingMessage.of(
             PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).build(),
             MESSAGE_TIME,
-            MESSAGE_ID);
+            MESSAGE_ID,
+            null);
     try (PubsubTestClientFactory factory =
         PubsubTestClient.createFactoryForPublish(
             TOPIC, Sets.newHashSet(expectedOutgoingMessage), ImmutableList.of())) {
@@ -134,7 +135,8 @@ public class PubsubTestClientTest {
         PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).build();
     IncomingMessage expectedIncomingMessage =
         IncomingMessage.of(message, MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
-    OutgoingMessage expectedOutgoingMessage = OutgoingMessage.of(message, MESSAGE_TIME, MESSAGE_ID);
+    OutgoingMessage expectedOutgoingMessage =
+        OutgoingMessage.of(message, MESSAGE_TIME, MESSAGE_ID, null);
 
     try (PubsubTestClientFactory factory =
         PubsubTestClient.createFactoryForPullAndPublish(
@@ -164,7 +166,8 @@ public class PubsubTestClientTest {
             OutgoingMessage.of(
                 incomingMessage.message(),
                 incomingMessage.timestampMsSinceEpoch(),
-                incomingMessage.recordId());
+                incomingMessage.recordId(),
+                null);
         client.publish(TOPIC, ImmutableList.of(actualOutgoingMessage));
       }
     }

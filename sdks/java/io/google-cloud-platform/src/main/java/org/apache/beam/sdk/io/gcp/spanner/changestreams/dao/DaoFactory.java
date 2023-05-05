@@ -77,7 +77,7 @@ public class DaoFactory implements Serializable {
     }
     this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
-    this.metadataSpannerConfig = metadataSpannerConfig.withDatabaseRole(null);
+    this.metadataSpannerConfig = metadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;

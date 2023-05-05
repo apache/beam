@@ -31,7 +31,7 @@ permissions: read-all
 
 jobs:
   set-properties:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -41,7 +41,7 @@ jobs:
         uses: ./.github/actions/setup-default-test-properties
 
   publish_github_release_notes:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
     needs: set-properties
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
