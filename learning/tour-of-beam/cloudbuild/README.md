@@ -76,7 +76,7 @@ The `beam/learning/tour-of-beam/cloudbuild/02.builders` provisions:
 #### To execute the module
 
 ```
-# Navigate to playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders directory
+# Navigate to beam/learning/tour-of-beam/cloudbuild/02.builders directory
 cd ../02.builders
 
 # Run terraform commands and provide required values
