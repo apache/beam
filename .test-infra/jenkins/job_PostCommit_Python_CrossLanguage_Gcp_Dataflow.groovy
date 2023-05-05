@@ -32,7 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Dataflow',
 
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 150)
 
 
       // Publish all test results to Jenkins
@@ -49,6 +49,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Dataflow',
             rootBuildScriptDir(commonJobProperties.checkoutDir)
             tasks(":sdks:python:test-suites:dataflow:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
             commonJobProperties.setGradleSwitches(delegate)
+            switches("-PuseWheelDistribution")
           }
         }
       }
