@@ -25,13 +25,15 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: Count
 //   description: Demonstration of Count transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 43
+//   context_line: 45
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -53,6 +55,7 @@ public class CountExample {
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(CreateExample.LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {
@@ -61,7 +64,7 @@ public class CountExample {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      System.out.println(prefix + c.element());
+      LOG.info(prefix + c.element());
       c.output(c.element());
     }
   }

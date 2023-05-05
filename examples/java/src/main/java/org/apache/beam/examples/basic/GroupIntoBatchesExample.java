@@ -26,13 +26,15 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: GroupIntoBatches
 //   description: Demonstration of GroupIntoBatches transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 45
+//   context_line: 47
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -64,6 +66,7 @@ public class GroupIntoBatchesExample {
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(CreateExample.LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {
@@ -72,7 +75,7 @@ public class GroupIntoBatchesExample {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      System.out.println(prefix + c.element());
+      LOG.info(prefix + c.element());
       c.output(c.element());
     }
   }

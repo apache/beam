@@ -26,13 +26,15 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: MapElements
 //   description: Demonstration of MapElements transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 45
+//   context_line: 47
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -66,6 +68,7 @@ public class MapElementsExample {
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(CreateExample.LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {
@@ -74,7 +77,7 @@ public class MapElementsExample {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      System.out.println(prefix + c.element());
+      LOG.info(prefix + c.element());
       c.output(c.element());
     }
   }

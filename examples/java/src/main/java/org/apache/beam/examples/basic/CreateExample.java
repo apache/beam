@@ -30,13 +30,15 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: Create
 //   description: Demonstration of Create transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 49
+//   context_line: 51
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -69,6 +71,7 @@ public class CreateExample {
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {
@@ -77,7 +80,7 @@ public class CreateExample {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      System.out.println(prefix + c.element());
+      LOG.info(prefix + c.element());
       c.output(c.element());
     }
   }

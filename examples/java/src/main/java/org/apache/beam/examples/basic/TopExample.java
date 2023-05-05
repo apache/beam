@@ -26,13 +26,15 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.PCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: Top
 //   description: Demonstration of Top transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 44
+//   context_line: 46
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -54,6 +56,7 @@ public class TopExample {
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(CreateExample.LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {
@@ -62,7 +65,7 @@ public class TopExample {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      System.out.println(prefix + c.element());
+      LOG.info(prefix + c.element());
       c.output(c.element());
     }
   }

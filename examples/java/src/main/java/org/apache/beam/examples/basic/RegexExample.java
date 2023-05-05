@@ -25,13 +25,15 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Regex;
 import org.apache.beam.sdk.values.PCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // beam-playground:
 //   name: Regex
 //   description: Demonstration of Regex transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 44
+//   context_line: 46
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -65,6 +67,7 @@ public class RegexExample {
   }
 
   static class LogOutput<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(CreateExample.LogOutput.class);
     private final String prefix;
 
     public LogOutput(String prefix) {
@@ -73,7 +76,7 @@ public class RegexExample {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      System.out.println(prefix + c.element());
+      LOG.info(prefix + c.element());
       c.output(c.element());
     }
   }
