@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,6 +26,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
@@ -220,23 +220,18 @@ public class TranslationContext {
       case INPUT:
         {
           if (node.getInputs().size() > 1) {
-            final List<PValue> inputPValues = new ArrayList();
-            for (Map.Entry<TupleTag<?>, PCollection<?>> taggedPValue :
-                node.getInputs().entrySet()) {
-              inputPValues.add(taggedPValue.getValue());
-            }
-            return inputPValues;
+            return node.getInputs().entrySet().stream()
+                .map(Map.Entry::getValue)
+                .collect(Collectors.toList());
           } else {
             return ImmutableList.of(getInput(transform));
           }
         }
       case OUTPUT:
         if (node.getOutputs().size() > 1) {
-          final List<PValue> outputPValues = new ArrayList();
-          for (Map.Entry<TupleTag<?>, PCollection<?>> taggedPValue : node.getOutputs().entrySet()) {
-            outputPValues.add(taggedPValue.getValue());
-          }
-          return outputPValues;
+          return node.getOutputs().entrySet().stream()
+              .map(Map.Entry::getValue)
+              .collect(Collectors.toList());
         }
         return ImmutableList.of(getOutput(transform));
       default:
@@ -247,13 +242,14 @@ public class TranslationContext {
   // Transforms that read or write to/from external sources are not supported
   private boolean isIOTransform(
       @NonNull TransformHierarchy.Node node, SamzaMetricOpFactory.OpType opType) {
-    if (opType == SamzaMetricOpFactory.OpType.INPUT) {
-      return node.getInputs().size() == 0;
+    switch (opType) {
+      case INPUT:
+        return node.getInputs().size() == 0;
+      case OUTPUT:
+        return node.getOutputs().size() == 0;
+      default:
+        throw new IllegalArgumentException("Unknown opType: " + opType);
     }
-    if (opType == SamzaMetricOpFactory.OpType.OUTPUT) {
-      return node.getOutputs().size() == 0;
-    }
-    return false;
   }
 
   public <ElemT, ViewT> void registerViewStream(
