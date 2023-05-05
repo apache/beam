@@ -44,7 +44,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
 
-  private final CheckpointGenerator checkpointGenerator;
+  private final KinesisReaderCheckpoint initCheckpoint;
   private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private long lastBacklogBytes;
@@ -54,20 +54,20 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   KinesisReader(
       Read spec,
       SimplifiedKinesisClient kinesis,
-      CheckpointGenerator initialCheckpointGenerator,
+      KinesisReaderCheckpoint initCheckpoint,
       KinesisSource source) {
-    this(spec, kinesis, initialCheckpointGenerator, source, Duration.standardSeconds(30));
+    this(spec, kinesis, initCheckpoint, source, Duration.standardSeconds(30));
   }
 
   KinesisReader(
       Read spec,
       SimplifiedKinesisClient kinesis,
-      CheckpointGenerator checkpointGenerator,
+      KinesisReaderCheckpoint initCheckpoint,
       KinesisSource source,
       Duration backlogBytesCheckThreshold) {
     this.spec = checkNotNull(spec, "spec");
     this.kinesis = checkNotNull(kinesis, "kinesis");
-    this.checkpointGenerator = checkNotNull(checkpointGenerator, "checkpointGenerator");
+    this.initCheckpoint = checkNotNull(initCheckpoint);
     this.source = source;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
   }
@@ -75,7 +75,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   /** Generates initial checkpoint and instantiates iterators for shards. */
   @Override
   public boolean start() throws IOException {
-    LOG.info("Starting reader using {}", checkpointGenerator);
+    LOG.info("Starting reader using {}", initCheckpoint);
 
     try {
       shardReadersPool = createShardReadersPool();
@@ -202,6 +202,6 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   ShardReadersPool createShardReadersPool() throws TransientKinesisException {
-    return new ShardReadersPool(spec, kinesis, checkpointGenerator.generate(kinesis));
+    return new ShardReadersPool(spec, kinesis, initCheckpoint);
   }
 }

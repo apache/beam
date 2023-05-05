@@ -29,14 +29,15 @@ ext.summary = "IO to read and write on JDBC datasource."
 dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation "org.apache.commons:commons-dbcp2:2.8.0"
+  implementation library.java.dbcp2
   implementation library.java.joda_time
-  implementation "org.apache.commons:commons-pool2:2.8.1"
+  implementation "org.apache.commons:commons-pool2:2.11.1"
   implementation library.java.slf4j_api
   testImplementation "org.apache.derby:derby:10.14.2.0"
   testImplementation "org.apache.derby:derbyclient:10.14.2.0"
   testImplementation "org.apache.derby:derbynet:10.14.2.0"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation library.java.junit

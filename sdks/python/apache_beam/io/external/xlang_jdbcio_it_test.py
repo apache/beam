@@ -201,6 +201,24 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
 
       assert_that(result, equal_to(expected_row))
 
+    # Try the same read using the partitioned reader code path.
+    # Outputs should be the same.
+    with TestPipeline() as p:
+      p.not_use_test_runner_api = True
+      result = (
+          p
+          | 'Partitioned read from jdbc' >> ReadFromJdbc(
+              table_name=table_name,
+              partition_column='f_id',
+              partitions=3,
+              driver_class_name=self.driver_class_name,
+              jdbc_url=self.jdbc_url,
+              username=self.username,
+              password=self.password,
+              classpath=classpath))
+
+      assert_that(result, equal_to(expected_row))
+
   # Creating a container with testcontainers sometimes raises ReadTimeout
   # error. In java there are 2 retries set by default.
   def start_db_container(self, retries, container_init):

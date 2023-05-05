@@ -43,13 +43,13 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamWindowRule;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CoreRules;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.PruneEmptyRules;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * {@link RuleSet} used in {@code BeamQueryPlanner}. It translates a standard Calcite {@link

@@ -24,8 +24,8 @@ import java.util.HashSet;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.avro.reflect.AvroEncode;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 

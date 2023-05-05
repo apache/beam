@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItems;
 
 import org.apache.beam.model.expansion.v1.ExpansionApi;
@@ -43,10 +43,12 @@ public class ExternalTranslationTest {
     p.apply(External.of("", new byte[] {}, "", clientFactory));
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     assertThat(
-        pipelineProto.getRequirementsList(), equalTo(clientFactory.response.getRequirementsList()));
+        pipelineProto.getRequirementsList(),
+        containsInAnyOrder(clientFactory.response.getRequirementsList().toArray()));
     assertThat(
         pipelineProto.getComponents().getPcollectionsMap().keySet(),
-        equalTo(clientFactory.response.getComponents().getPcollectionsMap().keySet()));
+        containsInAnyOrder(
+            clientFactory.response.getComponents().getPcollectionsMap().keySet().toArray()));
     assertThat(
         pipelineProto.getComponents().getTransformsMap().keySet(),
         hasItems(

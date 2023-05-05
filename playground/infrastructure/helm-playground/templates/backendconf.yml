@@ -22,3 +22,4 @@ spec:
   healthCheck:
     type: HTTP
     requestPath: /liveness
+  timeoutSec: 300

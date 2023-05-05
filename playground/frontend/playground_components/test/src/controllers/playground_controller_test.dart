@@ -33,7 +33,7 @@ Future<void> main() async {
   late PlaygroundController controller;
   final mockExamplesLoader = MockExamplesLoader();
 
-  when(mockExamplesLoader.load(any)).thenAnswer((_) async => 1);
+  when(mockExamplesLoader.loadIfNew(any)).thenAnswer((_) async => 1);
 
   setUp(() {
     controller = PlaygroundController(
@@ -49,8 +49,8 @@ Future<void> main() async {
       expect(controller.sdk, Sdk.go);
     });
 
-    test('Initial value of examplesTitle should be equal to kTitle', () {
-      expect(controller.examplesTitle, kTitle);
+    test('Initial value of examplesTitle', () {
+      expect(controller.examplesTitle, 'examples.defaultTitle');
     });
 
     test('Initial value of isCodeRunning should be false', () {

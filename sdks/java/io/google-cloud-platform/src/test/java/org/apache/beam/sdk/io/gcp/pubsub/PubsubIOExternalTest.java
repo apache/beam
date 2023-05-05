@@ -38,7 +38,7 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.hamcrest.text.MatchesPattern;
@@ -150,7 +150,7 @@ public class PubsubIOExternalTest {
     RunnerApi.PTransform transform = result.getTransform();
     assertThat(
         transform.getSubtransformsList(),
-        Matchers.hasItem(MatchesPattern.matchesPattern(".*MapElements.*")));
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*PreparePubsubWrite.*")));
     assertThat(
         transform.getSubtransformsList(),
         Matchers.hasItem(MatchesPattern.matchesPattern(".*PubsubUnboundedSink.*")));
@@ -167,7 +167,7 @@ public class PubsubIOExternalTest {
 
     // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer
     RunnerApi.PTransform writeComposite3 =
-        result.getComponents().getTransformsOrThrow(writeComposite2.getSubtransforms(3));
+        result.getComponents().getTransformsOrThrow(writeComposite2.getSubtransforms(4));
 
     // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer/ParMultiDo(Writer)
     RunnerApi.PTransform writeParDo =
