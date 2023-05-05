@@ -124,7 +124,7 @@ fi
 
 echo "[Confirmation Required] Would you like to check published Java artifacts (if you've completed this step for this RC previously, you can safely skip this)? [y|N]"
 read confirmation
-if [[ $confirmation != "y" ]]; then
+if [[ $confirmation == "y" ]]; then
   echo "----------------- Checking published Java artifacts (should take ~1 minute) -----------------"
 
   java_bom=$(curl "${REPO_URL}/org/apache/beam/beam-sdks-java-bom/${RELEASE_VER}/beam-sdks-java-bom-${RELEASE_VER}.pom")
