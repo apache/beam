@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go typescript >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.7, 3.8, 3.9, and 3.10.
+The Python SDK supports Python 3.7, 3.8, 3.9, 3.10, and 3.11.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
@@ -955,9 +955,10 @@ the actual processing logic. You don't need to manually extract the elements
 from the input collection; the Beam SDKs handle that for you. Your `process` method
 should accept an argument `element`, which is the input element, and return an
 iterable with its output values. You can accomplish this by emitting individual
-elements with `yield` statements. You can also use a `return` statement
-with an iterable, like a list or a generator. Don't mix `yield` and
-`return` statements in the same `process` method - this leads to [undefined behavior](https://github.com/apache/beam/issues/22969).
+elements with `yield` statements, and use `yield from` to emit all elements from
+an iterable, such as a list or a generator. Using `return` statement
+with an iterable is also acceptable as long as you don't mix `yield` and
+`return` statements in the same `process` method, since that leads to [incorrect behavior](https://github.com/apache/beam/issues/22969).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
@@ -1194,7 +1195,10 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  the execution of the ParDo transform. The comments give useful
  information to pipeline developers such as the constraints that
  apply to the objects or particular cases such as failover or
- instance reuse. They also give instantiation use cases.
+ instance reuse. They also give instantiation use cases. Two key points
+ to note are that (1) teardown is done on a best effort basis and thus
+ isn't guaranteed and (2) the number of DoFn instances is runner
+ dependent.
 
 <!-- The source for the sequence diagram can be found in the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)

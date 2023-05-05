@@ -33,14 +33,10 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /** DateTimeUtils. */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class DateTimeUtils {
   public static final Long MILLIS_PER_DAY = 86400000L;
   private static final Long MICROS_PER_MILLI = 1000L;
 
-  @SuppressWarnings("unchecked")
   private enum TimestampPatterns {
     TIMESTAMP_PATTERN,
     TIMESTAMP_PATTERN_SUBSECOND,
@@ -48,26 +44,28 @@ public class DateTimeUtils {
     TIMESTAMP_PATTERN_SUBSECOND_T,
   }
 
-  @SuppressWarnings("unchecked")
-  private static final ImmutableMap<Enum, DateTimeFormatter> TIMESTAMP_PATTERN_WITHOUT_TZ =
-      ImmutableMap.of(
-          TimestampPatterns.TIMESTAMP_PATTERN, DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss"),
-          TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND,
-              DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS"),
-          TimestampPatterns.TIMESTAMP_PATTERN_T, DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss"),
-          TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND_T,
-              DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
+  private static final ImmutableMap<TimestampPatterns, DateTimeFormatter>
+      TIMESTAMP_PATTERN_WITHOUT_TZ =
+          ImmutableMap.of(
+              TimestampPatterns.TIMESTAMP_PATTERN, DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss"),
+              TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND,
+                  DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS"),
+              TimestampPatterns.TIMESTAMP_PATTERN_T,
+                  DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss"),
+              TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND_T,
+                  DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
 
-  @SuppressWarnings("unchecked")
-  private static final ImmutableMap<Enum, DateTimeFormatter> TIMESTAMP_PATTERN_WITH_TZ =
-      ImmutableMap.of(
-          TimestampPatterns.TIMESTAMP_PATTERN, DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ssZZ"),
-          TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND,
-              DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSZZ"),
-          TimestampPatterns.TIMESTAMP_PATTERN_T,
-              DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZZ"),
-          TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND_T,
-              DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ"));
+  private static final ImmutableMap<TimestampPatterns, DateTimeFormatter>
+      TIMESTAMP_PATTERN_WITH_TZ =
+          ImmutableMap.of(
+              TimestampPatterns.TIMESTAMP_PATTERN,
+                  DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ssZZ"),
+              TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND,
+                  DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSZZ"),
+              TimestampPatterns.TIMESTAMP_PATTERN_T,
+                  DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZZ"),
+              TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND_T,
+                  DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ"));
 
   public static DateTimeFormatter findDateTimePattern(String str) {
     if (str.indexOf('+') == -1) {
@@ -77,9 +75,8 @@ public class DateTimeUtils {
     }
   }
 
-  @SuppressWarnings("unchecked")
   public static DateTimeFormatter findDateTimePattern(
-      String str, ImmutableMap<Enum, DateTimeFormatter> patternMap) {
+      String str, ImmutableMap<TimestampPatterns, DateTimeFormatter> patternMap) {
     if (str.indexOf('.') == -1) {
       if (str.indexOf('T') == -1) {
         return patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN);

@@ -19,6 +19,7 @@
 
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'base'
+apply from: "$project.rootDir/playground/backend/containers/git-functions.gradle"
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
@@ -26,14 +27,22 @@ def playgroundJobServerProject = "${project.path.replace('-container', '')}"
 description = project(playgroundJobServerProject).description + " :: Container"
 
 configurations {
-  dockerDependency
+   dockerDependency
 }
 
 dependencies {
-  dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
+   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
+}
+
+task copyKafkaEmulator(type: Copy) {
+   dependsOn(":playground:kafka-emulator:distTar")
+   from project(":playground:kafka-emulator").buildDir.path + "/distributions/kafka-emulator.tar"
+   into 'build/kafka-emulator/'
 }
 
 task copyDockerfileDependencies(type: Copy) {
+   dependsOn("copyKafkaEmulator")
+
    copy {
       from '../../../backend/'
       into 'build/src'
@@ -44,30 +53,25 @@ task copyDockerfileDependencies(type: Copy) {
       into 'build/'
    }
    copy {
-      from '../../../infrastructure/proxy/allow_list.py'
-      into 'build/'
-   }
-   copy {
-      from '../../../infrastructure/proxy/allow_list_proxy.py'
-      into 'build/'
-   }
-   copy {
       from '../../../playground'
       into 'build/playground'
    }
 }
 
 docker {
-  name containerImageName(
-          name: project.docker_image_default_repo_prefix + "playground-backend-scio",
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root)
-  files "./build/"
-  tags containerImageTags()
-  buildArgs(['BASE_IMAGE': project.rootProject.hasProperty(["base-image"]) ?
-                           project.rootProject["base-image"] :
-                           "openjdk:8" ])
+   name containerImageName(
+         name: project.docker_image_default_repo_prefix + "playground-backend-scio",
+         root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+               project.rootProject["docker-repository-root"] :
+               project.docker_image_default_repo_root)
+   files "./build/"
+   tags containerImageTags()
+   buildArgs(
+         ['BASE_IMAGE'   : project.rootProject.hasProperty(["base-image"]) ?
+               project.rootProject["base-image"] :
+               "openjdk:8",
+          'GIT_COMMIT'   : getGitCommitHash(),
+          'GIT_TIMESTAMP': getGitCommitTimestamp()])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

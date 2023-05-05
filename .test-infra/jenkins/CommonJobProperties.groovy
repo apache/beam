@@ -38,7 +38,8 @@ class CommonJobProperties {
       int defaultTimeout = 100,
       boolean allowRemotePoll = true,
       String jenkinsExecutorLabel = 'beam',
-      boolean cleanWorkspace = true) {
+      boolean cleanWorkspace = true,
+      int numBuildsToRetain = -1) {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
@@ -53,6 +54,7 @@ class CommonJobProperties {
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
       daysToKeep(30)
+      numToKeep(numBuildsToRetain)
     }
 
     // Source code management.
@@ -69,6 +71,10 @@ class CommonJobProperties {
         extensions {
           wipeOutWorkspace()
           relativeTargetDirectory(checkoutDir)
+          cloneOptions {
+            shallow()
+            noTags()
+          }
           if (!allowRemotePoll) {
             disableRemotePoll()
           }

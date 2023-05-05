@@ -39,6 +39,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow_V2', 'Run Pyt
           tasks(':sdks:python:test-suites:dataflow:validatesRunnerBatchTestsV2')
           tasks(':sdks:python:test-suites:dataflow:validatesRunnerStreamingTestsV2')
           switches('-PuseRunnerV2')
+          switches('-PuseWheelDistribution')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

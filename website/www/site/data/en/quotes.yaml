@@ -11,6 +11,11 @@
 # limitations under the License.
 
 #Cards with quotes will be displayed by the order listed, e.g., first card will display the first quote
+- text: Apache Beam powers the Booking.com global ad bidding for performance marketing and scans 2PB+ of data daily, accelerating processing by an eye-opening 36x and expediting time-to-market by as much as 4x.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/booking.png
+  linkUrl: case-studies/booking/index.html
+  linkText: Learn more
 - text: Apache Beam has future-proofed Credit Karma’s data and ML platform for scalability and efficiency, enabling MLOps with unified pipelines, processing 5-10 TB daily at 5K events per second, and managing 20K+ ML features.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/credit-karma.png

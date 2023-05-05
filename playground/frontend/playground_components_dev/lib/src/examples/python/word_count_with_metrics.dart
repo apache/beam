@@ -24,7 +24,7 @@ const pythonWordCountWithMetrics = ExampleDescriptor(
   //
   'WordCountWithMetrics',
   contextLine1Based: 48,
-  dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCountWithMetrics',
+  dbPath: 'SDK_PYTHON_WordCountWithMetrics',
   path: '/sdks/python/apache_beam/examples/wordcount_with_metrics.py',
   sdk: Sdk.python,
 

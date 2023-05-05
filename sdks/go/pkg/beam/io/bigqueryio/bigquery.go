@@ -205,25 +205,55 @@ func mustParseTable(table string) QualifiedTableName {
 	return qn
 }
 
-// TODO(herohde) 7/14/2017: allow CreateDispositions and WriteDispositions. The default
+// TODO(herohde) 7/14/2017: allow WriteDispositions. The default
 // is not quite what the Dataflow examples do.
+
+// writeOptions represents additional options for executing a write
+type writeOptions struct {
+	// CreateDisposition specifies the circumstances under which destination table will be created
+	CreateDisposition bigquery.TableCreateDisposition
+}
+
+// newWriteOptions creates a new instance of WriteOptions
+// "CreateIfNeeded" is set as the default write disposition
+func newWriteOptions() writeOptions {
+	return writeOptions{CreateDisposition: bigquery.CreateIfNeeded}
+}
+
+// WriteOption represents a function that sets options for executing a write
+type WriteOption func(*writeOptions) error
+
+// WithCreateDisposition specifies the circumstances under which destination table will be created
+func WithCreateDisposition(cd bigquery.TableCreateDisposition) WriteOption {
+	return func(wo *writeOptions) error {
+		wo.CreateDisposition = cd
+		return nil
+	}
+}
 
 // Write writes the elements of the given PCollection<T> to bigquery. T is required
 // to be the schema type.
-func Write(s beam.Scope, project, table string, col beam.PCollection) {
+func Write(s beam.Scope, project, table string, col beam.PCollection, options ...func(*writeOptions) error) {
 	t := col.Type().Type()
 	mustInferSchema(t)
 	qn := mustParseTable(table)
 
 	s = s.Scope("bigquery.Write")
 
-	// TODO(BEAM-3860) 3/15/2018: use side input instead of GBK.
+	writeOptions := newWriteOptions()
+	for _, opt := range options {
+		if err := opt(&writeOptions); err != nil {
+			panic(err)
+		}
+	}
 
+	// TODO(BEAM-3860) 3/15/2018: use side input instead of GBK.
 	pre := beam.AddFixedKey(s, col)
 	post := beam.GroupByKey(s, pre)
-	beam.ParDo0(s, &writeFn{Project: project, Table: qn, Type: beam.EncodedType{T: t}}, post)
+	beam.ParDo0(s, &writeFn{Project: project, Table: qn, Type: beam.EncodedType{T: t}, Options: writeOptions}, post)
 }
 
+// Add in additional field (CreateDisposition), Bool
 type writeFn struct {
 	// Project is the project
 	Project string `json:"project"`
@@ -231,6 +261,8 @@ type writeFn struct {
 	Table QualifiedTableName `json:"table"`
 	// Type is the encoded schema type.
 	Type beam.EncodedType `json:"type"`
+	// Options specifies additional write options.
+	Options writeOptions `json:"options"`
 }
 
 // Approximate the size of an element as it would appear in a BQ insert request.
@@ -279,6 +311,9 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	if _, err := table.Metadata(ctx); err != nil {
 		if !isNotFound(err) {
 			return err
+		}
+		if f.Options.CreateDisposition == bigquery.CreateNever {
+			return fmt.Errorf("table does not exist and create disposition is 'CreateNever': %v", err)
 		}
 		if err := table.Create(ctx, &bigquery.TableMetadata{Schema: schema}); err != nil {
 			return err

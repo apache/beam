@@ -19,12 +19,8 @@
 // ignore_for_file: avoid_redundant_argument_values
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components/src/controllers/snippet_editing_controller.dart';
-import 'package:playground_components/src/enums/complexity.dart';
-import 'package:playground_components/src/models/example_loading_descriptors/content_example_loading_descriptor.dart';
-import 'package:playground_components/src/models/sdk.dart';
-import 'package:playground_components/src/models/snippet_file.dart';
-import 'package:playground_components/src/playground_components.dart';
 
 import '../common/descriptors.dart';
 import '../common/examples.dart';
@@ -197,6 +193,60 @@ void main() async {
         );
 
         expect(descriptor, expected);
+      });
+    });
+
+    group('EventSnippetContext.', () {
+      test('Uninitialized', () {
+        expect(
+          controller.eventSnippetContext,
+          const EventSnippetContext(
+            originalSnippet: null,
+            sdk: Sdk.python,
+            snippet: null,
+          ),
+        );
+      });
+
+      test('Unchanged, changed', () {
+        final descriptors = <ExampleLoadingDescriptor>[
+          HttpExampleLoadingDescriptor(
+            sdk: Sdk.go,
+            uri: Uri.parse('https://example.com'),
+          ),
+          const StandardExampleLoadingDescriptor(
+            sdk: Sdk.go,
+            path: 'path',
+          ),
+          const UserSharedExampleLoadingDescriptor(
+            sdk: Sdk.python,
+            snippetId: 'id',
+          ),
+        ];
+
+        for (final descriptor in descriptors) {
+          controller.setExample(examplePython1, descriptor: descriptor);
+
+          expect(
+            controller.eventSnippetContext,
+            EventSnippetContext(
+              originalSnippet: descriptor.token,
+              sdk: controller.sdk,
+              snippet: descriptor.token,
+            ),
+          );
+
+          controller.activeFileController!.codeController.text += 'changed';
+
+          expect(
+            controller.eventSnippetContext,
+            EventSnippetContext(
+              originalSnippet: descriptor.token,
+              sdk: controller.sdk,
+              snippet: null,
+            ),
+          );
+        }
       });
     });
   });
