@@ -22,15 +22,19 @@ import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
 public abstract class UpdateField implements Serializable {
 
+  @Pure
   abstract @Nullable String updateOperator();
 
+  @Pure
   abstract @Nullable String sourceField();
 
+  @Pure
   abstract @Nullable String destField();
 
   private static Builder builder() {

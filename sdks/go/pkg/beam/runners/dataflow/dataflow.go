@@ -70,7 +70,8 @@ var (
 	subnetwork             = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	noUsePublicIPs         = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
 	tempLocation           = flag.String("temp_location", "", "Temp location (optional)")
-	machineType            = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	workerMachineType      = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	machineType            = flag.String("machine_type", "", "alias of worker_machine_type (optional)")
 	minCPUPlatform         = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
 	workerRegion           = flag.String("worker_region", "", "Dataflow worker region (optional)")
 	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
@@ -120,6 +121,7 @@ var flagFilter = map[string]bool{
 	"no_use_public_ips":              true,
 	"template_location":              true,
 	"worker_machine_type":            true,
+	"machine_type":                   true,
 	"min_cpu_platform":               true,
 	"dataflow_worker_jar":            true,
 	"worker_region":                  true,
@@ -169,6 +171,16 @@ func init() {
 }
 
 var unique int32
+
+// Helper function finding first non empty string. Used for handling alias options.
+func firstNonEmpty(values ...*string) *string {
+	for _, value := range values {
+		if *value != "" {
+			return value
+		}
+	}
+	return values[0]
+}
 
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
@@ -361,7 +373,7 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 		DiskType:               *diskType,
 		Algorithm:              *autoscalingAlgorithm,
 		FlexRSGoal:             *flexRSGoal,
-		MachineType:            *machineType,
+		MachineType:            *firstNonEmpty(workerMachineType, machineType),
 		Labels:                 jobLabels,
 		ServiceAccountEmail:    *serviceAccountEmail,
 		TempLocation:           *tempLocation,

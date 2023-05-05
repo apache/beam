@@ -22,6 +22,7 @@ import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.RowMutations;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,5 +40,10 @@ public class HBaseCoderProviderRegistrarTest {
     CoderRegistry.createDefault().getCoder(Mutation.class);
     CoderRegistry.createDefault().getCoder(Put.class);
     CoderRegistry.createDefault().getCoder(Delete.class);
+  }
+
+  @Test
+  public void testRowMutationsCoderIsRegistered() throws Exception {
+    CoderRegistry.createDefault().getCoder(RowMutations.class);
   }
 }

@@ -17,8 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_selectionarea/flutter_markdown_selectionarea.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'code_builder.dart';
 
@@ -37,16 +38,22 @@ class TobMarkdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Markdown(
-      data: data.tabsToSpaces(_spaceCount),
-      builders: {
-        'code': MarkdownCodeBuilder(),
-      },
-      padding: padding,
-      selectable: true,
-      shrinkWrap: shrinkWrap,
-      styleSheet:
-          Theme.of(context).extension<BeamThemeExtension>()!.markdownStyle,
+    return SelectionArea(
+      child: Markdown(
+        data: data.tabsToSpaces(_spaceCount),
+        builders: {
+          'code': MarkdownCodeBuilder(),
+        },
+        onTapLink: (text, url, title) async {
+          if (url != null) {
+            await launchUrl(Uri.parse(url));
+          }
+        },
+        padding: padding,
+        shrinkWrap: shrinkWrap,
+        styleSheet:
+            Theme.of(context).extension<BeamThemeExtension>()!.markdownStyle,
+      ),
     );
   }
 }

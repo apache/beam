@@ -53,7 +53,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -985,12 +985,17 @@ class WindmillStateReader {
               throw new RuntimeException("Unable to read value from state", e);
             }
             currentPage = valuesAndContPosition.values.iterator();
-            nextPagePos =
+            StateTag.Builder<ContinuationT> nextPageBuilder =
                 StateTag.of(
-                    nextPagePos.getKind(),
-                    nextPagePos.getTag(),
-                    nextPagePos.getStateFamily(),
-                    valuesAndContPosition.continuationPosition);
+                        nextPagePos.getKind(),
+                        nextPagePos.getTag(),
+                        nextPagePos.getStateFamily(),
+                        valuesAndContPosition.continuationPosition)
+                    .toBuilder();
+            if (secondPagePos.getSortedListRange() != null) {
+              nextPageBuilder.setSortedListRange(secondPagePos.getSortedListRange());
+            }
+            nextPagePos = nextPageBuilder.build();
             pendingNextPage =
                 // NOTE: The results of continuation page reads are never cached.
                 reader.continuationFuture(nextPagePos, coder);

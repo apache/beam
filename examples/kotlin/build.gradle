@@ -55,6 +55,7 @@ dependencies {
   // Add the dependency that sdks:java:core that is marked as provided
   implementation library.java.hamcrest
   permitUnusedDeclared library.java.hamcrest
+  implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation library.java.avro

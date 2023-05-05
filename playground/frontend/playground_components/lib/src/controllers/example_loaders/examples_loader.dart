@@ -17,17 +17,21 @@
  */
 
 import 'package:collection/collection.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../exceptions/example_loading_exception.dart';
+import '../../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/examples_loading_descriptor.dart';
 import '../../models/sdk.dart';
+import '../../services/toast_notifier.dart';
 import '../playground_controller.dart';
 import 'catalog_default_example_loader.dart';
 import 'content_example_loader.dart';
 import 'empty_example_loader.dart';
 import 'example_loader.dart';
 import 'example_loader_factory.dart';
+import 'hive_example_loader.dart';
 import 'http_example_loader.dart';
 import 'standard_example_loader.dart';
 import 'user_shared_example_loader.dart';
@@ -41,6 +45,7 @@ class ExamplesLoader {
     defaultFactory.add(CatalogDefaultExampleLoader.new);
     defaultFactory.add(ContentExampleLoader.new);
     defaultFactory.add(EmptyExampleLoader.new);
+    defaultFactory.add(HiveExampleLoader.new);
     defaultFactory.add(HttpExampleLoader.new);
     defaultFactory.add(StandardExampleLoader.new);
     defaultFactory.add(UserSharedExampleLoader.new);
@@ -53,11 +58,14 @@ class ExamplesLoader {
   /// Loads examples from [descriptor]'s immediate list.
   ///
   /// Sets empty editor for SDKs of failed examples.
-  Future<void> load(ExamplesLoadingDescriptor descriptor) async {
+  Future<void> loadIfNew(ExamplesLoadingDescriptor descriptor) async {
     if (_descriptor == descriptor) {
       return;
     }
+    await load(descriptor);
+  }
 
+  Future<void> load(ExamplesLoadingDescriptor descriptor) async {
     _descriptor = descriptor;
     final loaders = descriptor.descriptors.map(_createLoader).whereNotNull();
 
@@ -108,18 +116,29 @@ class ExamplesLoader {
   }
 
   Future<void> loadDefaultIfAny(Sdk sdk) async {
-    final one = _descriptor?.lazyLoadDescriptors[sdk]?.firstOrNull;
+    try {
+      final one = _descriptor?.lazyLoadDescriptors[sdk]?.firstOrNull;
 
-    if (_descriptor == null || one == null) {
-      return;
+      if (_descriptor == null || one == null) {
+        return;
+      }
+
+      final loader = _createLoader(one);
+      if (loader == null) {
+        return;
+      }
+
+      await _loadOne(loader);
+    } on Exception catch (ex) {
+      GetIt.instance.get<ToastNotifier>().addException(ex);
+      await _loadOne(
+        EmptyExampleLoader(
+          descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
+          exampleCache: _playgroundController!.exampleCache,
+        ),
+      );
+      rethrow;
     }
-
-    final loader = _createLoader(one);
-    if (loader == null) {
-      return;
-    }
-
-    await _loadOne(loader);
   }
 
   Future<void> _loadOne(ExampleLoader loader) async {

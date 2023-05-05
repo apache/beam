@@ -20,17 +20,15 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.byteString;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.byteStringUtf8;
 
+import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.auth.Credentials;
-import com.google.bigtable.admin.v2.ColumnFamily;
-import com.google.bigtable.admin.v2.DeleteTableRequest;
-import com.google.bigtable.admin.v2.Table;
-import com.google.bigtable.v2.MutateRowRequest;
-import com.google.bigtable.v2.Mutation;
-import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.CredentialOptions;
-import com.google.cloud.bigtable.grpc.BigtableDataClient;
-import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.grpc.BigtableTableAdminClient;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
+import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.io.IOException;
 import java.io.Serializable;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -38,8 +36,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 class BigtableClientWrapper implements Serializable {
   private final BigtableTableAdminClient tableAdminClient;
   private final BigtableDataClient dataClient;
-  private final BigtableSession session;
-  private final BigtableOptions bigtableOptions;
 
   BigtableClientWrapper(
       String project,
@@ -47,22 +43,22 @@ class BigtableClientWrapper implements Serializable {
       @Nullable Integer emulatorPort,
       @Nullable Credentials gcpCredentials)
       throws IOException {
-    BigtableOptions.Builder optionsBuilder =
-        BigtableOptions.builder()
+    BigtableDataSettings.Builder settings =
+        BigtableDataSettings.newBuilderForEmulator(emulatorPort)
             .setProjectId(project)
             .setInstanceId(instanceId)
-            .setUserAgent("apache-beam-test");
-    if (emulatorPort != null) {
-      optionsBuilder.enableEmulator("localhost", emulatorPort);
-    }
-    if (gcpCredentials != null) {
-      optionsBuilder.setCredentialOptions(CredentialOptions.credential(gcpCredentials));
-    }
-    bigtableOptions = optionsBuilder.build();
+            .setCredentialsProvider(FixedCredentialsProvider.create(gcpCredentials));
 
-    session = new BigtableSession(bigtableOptions);
-    tableAdminClient = session.getTableAdminClient();
-    dataClient = session.getDataClient();
+    settings
+        .stubSettings()
+        .setHeaderProvider(FixedHeaderProvider.create("user-agent", "apache-beam-test"));
+    dataClient = BigtableDataClient.create(settings.build());
+    BigtableTableAdminSettings tableSettings =
+        BigtableTableAdminSettings.newBuilderForEmulator(emulatorPort)
+            .setProjectId(project)
+            .setInstanceId(instanceId)
+            .build();
+    tableAdminClient = BigtableTableAdminClient.create(tableSettings);
   }
 
   void writeRow(
@@ -72,44 +68,24 @@ class BigtableClientWrapper implements Serializable {
       String columnQualifier,
       byte[] value,
       long timestampMicros) {
-    Mutation.SetCell setCell =
-        Mutation.SetCell.newBuilder()
-            .setFamilyName(familyColumn)
-            .setColumnQualifier(byteStringUtf8(columnQualifier))
-            .setValue(byteString(value))
-            .setTimestampMicros(timestampMicros)
-            .build();
-    Mutation mutation = Mutation.newBuilder().setSetCell(setCell).build();
-    MutateRowRequest mutateRowRequest =
-        MutateRowRequest.newBuilder()
-            .setRowKey(byteStringUtf8(key))
-            .setTableName(bigtableOptions.getInstanceName().toTableNameStr(table))
-            .addMutations(mutation)
-            .build();
-    dataClient.mutateRow(mutateRowRequest);
+    RowMutation rowMutation =
+        RowMutation.create(table, key)
+            .setCell(
+                familyColumn, byteStringUtf8(columnQualifier), timestampMicros, byteString(value));
+    dataClient.mutateRow(rowMutation);
   }
 
   void createTable(String tableName, String familyName) {
-    Table.Builder tableBuilder = Table.newBuilder();
-    tableBuilder.putColumnFamilies(familyName, ColumnFamily.newBuilder().build());
-
-    String instanceName = bigtableOptions.getInstanceName().toString();
-    com.google.bigtable.admin.v2.CreateTableRequest.Builder createTableRequestBuilder =
-        com.google.bigtable.admin.v2.CreateTableRequest.newBuilder()
-            .setParent(instanceName)
-            .setTableId(tableName)
-            .setTable(tableBuilder.build());
-    tableAdminClient.createTable(createTableRequestBuilder.build());
+    CreateTableRequest createTableRequest = CreateTableRequest.of(tableName).addFamily(familyName);
+    tableAdminClient.createTable(createTableRequest);
   }
 
   void deleteTable(String tableId) {
-    final String tableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
-    DeleteTableRequest.Builder deleteTableRequestBuilder =
-        DeleteTableRequest.newBuilder().setName(tableName);
-    tableAdminClient.deleteTable(deleteTableRequestBuilder.build());
+    tableAdminClient.deleteTable(tableId);
   }
 
   void closeSession() throws IOException {
-    session.close();
+    dataClient.close();
+    tableAdminClient.close();
   }
 }

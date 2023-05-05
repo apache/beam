@@ -18,8 +18,10 @@
 """End-to-End test for Tensorflow Inference"""
 
 import logging
+import sys
 import unittest
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -29,6 +31,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
+  import tensorflow_hub as hub
   from apache_beam.examples.inference import tensorflow_imagenet_segmentation
   from apache_beam.examples.inference import tensorflow_mnist_classification
   from apache_beam.examples.inference import tensorflow_mnist_with_weights
@@ -43,6 +46,31 @@ def process_outputs(filepath):
   return lines
 
 
+def rmdir(directory):
+  directory = Path(directory)
+  for item in directory.iterdir():
+    if item.is_dir():
+      rmdir(item)
+    else:
+      item.unlink()
+  directory.rmdir()
+
+
+def clear_tf_hub_temp_dir(model_path):
+  # When loading from tensorflow hub using tfhub.resolve, the model is saved in
+  # a temporary directory. That file can be persisted between test runs, in
+  # which case tfhub.resolve will no-op. If the model is deleted and the file
+  # isn't, tfhub.resolve will still no-op and tf.keras.models.load_model will
+  # throw. To avoid this (and test more robustly) we delete the temporary
+  # directory entirely between runs.
+  local_path = hub.resolve(model_path)
+  rmdir(local_path)
+
+
+@unittest.skipIf(
+    sys.version_info.major == 3 and sys.version_info.minor == 7,
+    "Tensorflow tests on Python 3.7 with Apache Beam 2.47.0 or "
+    "greater are skipped since tensorflow>=2.12 doesn't support Python 3.7")
 @unittest.skipIf(
     tf is None, 'Missing dependencies. '
     'Test depends on tensorflow')
@@ -90,6 +118,7 @@ class TensorflowInference(unittest.TestCase):
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
     model_path = (
         'https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/4')
+    clear_tf_hub_temp_dir(model_path)
     extra_opts = {
         'input': input_file,
         'output': output_file,

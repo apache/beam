@@ -37,6 +37,8 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -103,7 +105,6 @@ public class PubSubPayloadTranslation {
 
   static class PubSubWritePayloadTranslator
       implements TransformPayloadTranslator<PubsubUnboundedSink.PubsubSink> {
-
     @Override
     public String getUrn(PubsubUnboundedSink.PubsubSink transform) {
       return PTransformTranslation.PUBSUB_WRITE;
@@ -114,13 +115,40 @@ public class PubSubPayloadTranslation {
         AppliedPTransform<?, ?, PubsubUnboundedSink.PubsubSink> transform,
         SdkComponents components) {
       PubSubWritePayload.Builder payloadBuilder = PubSubWritePayload.newBuilder();
-      ValueProvider<TopicPath> topicProvider = transform.getTransform().outer.getTopicProvider();
+      ValueProvider<TopicPath> topicProvider =
+          Preconditions.checkStateNotNull(transform.getTransform().outer.getTopicProvider());
       if (topicProvider.isAccessible()) {
         payloadBuilder.setTopic(topicProvider.get().getFullPath());
       } else {
         payloadBuilder.setTopicRuntimeOverridden(
             ((NestedValueProvider) topicProvider).propertyName());
       }
+      if (transform.getTransform().outer.getTimestampAttribute() != null) {
+        payloadBuilder.setTimestampAttribute(
+            transform.getTransform().outer.getTimestampAttribute());
+      }
+      if (transform.getTransform().outer.getIdAttribute() != null) {
+        payloadBuilder.setIdAttribute(transform.getTransform().outer.getIdAttribute());
+      }
+      return FunctionSpec.newBuilder()
+          .setUrn(getUrn(transform.getTransform()))
+          .setPayload(payloadBuilder.build().toByteString())
+          .build();
+    }
+  }
+
+  static class PubSubDynamicWritePayloadTranslator
+      implements TransformPayloadTranslator<PubsubUnboundedSink.PubsubDynamicSink> {
+    @Override
+    public String getUrn(PubsubUnboundedSink.PubsubDynamicSink transform) {
+      return PTransformTranslation.PUBSUB_WRITE_DYNAMIC;
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec translate(
+        AppliedPTransform<?, ?, PubsubUnboundedSink.PubsubDynamicSink> transform,
+        SdkComponents components) {
+      PubSubWritePayload.Builder payloadBuilder = PubSubWritePayload.newBuilder();
       if (transform.getTransform().outer.getTimestampAttribute() != null) {
         payloadBuilder.setTimestampAttribute(
             transform.getTransform().outer.getTimestampAttribute());
@@ -142,8 +170,11 @@ public class PubSubPayloadTranslation {
     @SuppressWarnings("rawtypes")
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
-      return Collections.singletonMap(
-          PubsubUnboundedSink.PubsubSink.class, new PubSubWritePayloadTranslator());
+      return ImmutableMap.of(
+          PubsubUnboundedSink.PubsubSink.class,
+          new PubSubWritePayloadTranslator(),
+          PubsubUnboundedSink.PubsubDynamicSink.class,
+          new PubSubDynamicWritePayloadTranslator());
     }
   }
 

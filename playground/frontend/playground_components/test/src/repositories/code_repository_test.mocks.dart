@@ -3,19 +3,21 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i6;
+import 'dart:async' as _i7;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:playground_components/src/api/v1/api.pb.dart' as _i2;
+import 'package:playground_components/src/models/sdk.dart' as _i8;
 import 'package:playground_components/src/repositories/code_client/code_client.dart'
-    as _i5;
+    as _i6;
 import 'package:playground_components/src/repositories/models/check_status_response.dart'
-    as _i3;
-import 'package:playground_components/src/repositories/models/output_response.dart'
     as _i4;
+import 'package:playground_components/src/repositories/models/output_response.dart'
+    as _i5;
 import 'package:playground_components/src/repositories/models/run_code_request.dart'
-    as _i7;
+    as _i9;
 import 'package:playground_components/src/repositories/models/run_code_response.dart'
-    as _i2;
+    as _i3;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -28,9 +30,9 @@ import 'package:playground_components/src/repositories/models/run_code_response.
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeRunCodeResponse_0 extends _i1.SmartFake
-    implements _i2.RunCodeResponse {
-  _FakeRunCodeResponse_0(
+class _FakeGetMetadataResponse_0 extends _i1.SmartFake
+    implements _i2.GetMetadataResponse {
+  _FakeGetMetadataResponse_0(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -39,9 +41,9 @@ class _FakeRunCodeResponse_0 extends _i1.SmartFake
         );
 }
 
-class _FakeCheckStatusResponse_1 extends _i1.SmartFake
-    implements _i3.CheckStatusResponse {
-  _FakeCheckStatusResponse_1(
+class _FakeRunCodeResponse_1 extends _i1.SmartFake
+    implements _i3.RunCodeResponse {
+  _FakeRunCodeResponse_1(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -50,9 +52,20 @@ class _FakeCheckStatusResponse_1 extends _i1.SmartFake
         );
 }
 
-class _FakeOutputResponse_2 extends _i1.SmartFake
-    implements _i4.OutputResponse {
-  _FakeOutputResponse_2(
+class _FakeCheckStatusResponse_2 extends _i1.SmartFake
+    implements _i4.CheckStatusResponse {
+  _FakeCheckStatusResponse_2(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeOutputResponse_3 extends _i1.SmartFake
+    implements _i5.OutputResponse {
+  _FakeOutputResponse_3(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -64,157 +77,173 @@ class _FakeOutputResponse_2 extends _i1.SmartFake
 /// A class which mocks [CodeClient].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
+class MockCodeClient extends _i1.Mock implements _i6.CodeClient {
   MockCodeClient() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i6.Future<_i2.RunCodeResponse> runCode(_i7.RunCodeRequest? request) =>
+  _i7.Future<_i2.GetMetadataResponse> getMetadata(_i8.Sdk? sdk) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getMetadata,
+          [sdk],
+        ),
+        returnValue: _i7.Future<_i2.GetMetadataResponse>.value(
+            _FakeGetMetadataResponse_0(
+          this,
+          Invocation.method(
+            #getMetadata,
+            [sdk],
+          ),
+        )),
+      ) as _i7.Future<_i2.GetMetadataResponse>);
+  @override
+  _i7.Future<_i3.RunCodeResponse> runCode(_i9.RunCodeRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #runCode,
           [request],
         ),
         returnValue:
-            _i6.Future<_i2.RunCodeResponse>.value(_FakeRunCodeResponse_0(
+            _i7.Future<_i3.RunCodeResponse>.value(_FakeRunCodeResponse_1(
           this,
           Invocation.method(
             #runCode,
             [request],
           ),
         )),
-      ) as _i6.Future<_i2.RunCodeResponse>);
+      ) as _i7.Future<_i3.RunCodeResponse>);
   @override
-  _i6.Future<void> cancelExecution(String? pipelineUuid) => (super.noSuchMethod(
+  _i7.Future<void> cancelExecution(String? pipelineUuid) => (super.noSuchMethod(
         Invocation.method(
           #cancelExecution,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
   @override
-  _i6.Future<_i3.CheckStatusResponse> checkStatus(String? pipelineUuid) =>
+  _i7.Future<_i4.CheckStatusResponse> checkStatus(String? pipelineUuid) =>
       (super.noSuchMethod(
         Invocation.method(
           #checkStatus,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<_i3.CheckStatusResponse>.value(
-            _FakeCheckStatusResponse_1(
+        returnValue: _i7.Future<_i4.CheckStatusResponse>.value(
+            _FakeCheckStatusResponse_2(
           this,
           Invocation.method(
             #checkStatus,
             [pipelineUuid],
           ),
         )),
-      ) as _i6.Future<_i3.CheckStatusResponse>);
+      ) as _i7.Future<_i4.CheckStatusResponse>);
   @override
-  _i6.Future<_i4.OutputResponse> getCompileOutput(String? pipelineUuid) =>
+  _i7.Future<_i5.OutputResponse> getCompileOutput(String? pipelineUuid) =>
       (super.noSuchMethod(
         Invocation.method(
           #getCompileOutput,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<_i4.OutputResponse>.value(_FakeOutputResponse_2(
+        returnValue: _i7.Future<_i5.OutputResponse>.value(_FakeOutputResponse_3(
           this,
           Invocation.method(
             #getCompileOutput,
             [pipelineUuid],
           ),
         )),
-      ) as _i6.Future<_i4.OutputResponse>);
+      ) as _i7.Future<_i5.OutputResponse>);
   @override
-  _i6.Future<_i4.OutputResponse> getRunOutput(String? pipelineUuid) =>
+  _i7.Future<_i5.OutputResponse> getRunOutput(String? pipelineUuid) =>
       (super.noSuchMethod(
         Invocation.method(
           #getRunOutput,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<_i4.OutputResponse>.value(_FakeOutputResponse_2(
+        returnValue: _i7.Future<_i5.OutputResponse>.value(_FakeOutputResponse_3(
           this,
           Invocation.method(
             #getRunOutput,
             [pipelineUuid],
           ),
         )),
-      ) as _i6.Future<_i4.OutputResponse>);
+      ) as _i7.Future<_i5.OutputResponse>);
   @override
-  _i6.Future<_i4.OutputResponse> getLogOutput(String? pipelineUuid) =>
+  _i7.Future<_i5.OutputResponse> getLogOutput(String? pipelineUuid) =>
       (super.noSuchMethod(
         Invocation.method(
           #getLogOutput,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<_i4.OutputResponse>.value(_FakeOutputResponse_2(
+        returnValue: _i7.Future<_i5.OutputResponse>.value(_FakeOutputResponse_3(
           this,
           Invocation.method(
             #getLogOutput,
             [pipelineUuid],
           ),
         )),
-      ) as _i6.Future<_i4.OutputResponse>);
+      ) as _i7.Future<_i5.OutputResponse>);
   @override
-  _i6.Future<_i4.OutputResponse> getRunErrorOutput(String? pipelineUuid) =>
+  _i7.Future<_i5.OutputResponse> getRunErrorOutput(String? pipelineUuid) =>
       (super.noSuchMethod(
         Invocation.method(
           #getRunErrorOutput,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<_i4.OutputResponse>.value(_FakeOutputResponse_2(
+        returnValue: _i7.Future<_i5.OutputResponse>.value(_FakeOutputResponse_3(
           this,
           Invocation.method(
             #getRunErrorOutput,
             [pipelineUuid],
           ),
         )),
-      ) as _i6.Future<_i4.OutputResponse>);
+      ) as _i7.Future<_i5.OutputResponse>);
   @override
-  _i6.Future<_i4.OutputResponse> getValidationErrorOutput(
+  _i7.Future<_i5.OutputResponse> getValidationErrorOutput(
           String? pipelineUuid) =>
       (super.noSuchMethod(
         Invocation.method(
           #getValidationErrorOutput,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<_i4.OutputResponse>.value(_FakeOutputResponse_2(
+        returnValue: _i7.Future<_i5.OutputResponse>.value(_FakeOutputResponse_3(
           this,
           Invocation.method(
             #getValidationErrorOutput,
             [pipelineUuid],
           ),
         )),
-      ) as _i6.Future<_i4.OutputResponse>);
+      ) as _i7.Future<_i5.OutputResponse>);
   @override
-  _i6.Future<_i4.OutputResponse> getPreparationErrorOutput(
+  _i7.Future<_i5.OutputResponse> getPreparationErrorOutput(
           String? pipelineUuid) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPreparationErrorOutput,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<_i4.OutputResponse>.value(_FakeOutputResponse_2(
+        returnValue: _i7.Future<_i5.OutputResponse>.value(_FakeOutputResponse_3(
           this,
           Invocation.method(
             #getPreparationErrorOutput,
             [pipelineUuid],
           ),
         )),
-      ) as _i6.Future<_i4.OutputResponse>);
+      ) as _i7.Future<_i5.OutputResponse>);
   @override
-  _i6.Future<_i4.OutputResponse> getGraphOutput(String? pipelineUuid) =>
+  _i7.Future<_i5.OutputResponse> getGraphOutput(String? pipelineUuid) =>
       (super.noSuchMethod(
         Invocation.method(
           #getGraphOutput,
           [pipelineUuid],
         ),
-        returnValue: _i6.Future<_i4.OutputResponse>.value(_FakeOutputResponse_2(
+        returnValue: _i7.Future<_i5.OutputResponse>.value(_FakeOutputResponse_3(
           this,
           Invocation.method(
             #getGraphOutput,
             [pipelineUuid],
           ),
         )),
-      ) as _i6.Future<_i4.OutputResponse>);
+      ) as _i7.Future<_i5.OutputResponse>);
 }

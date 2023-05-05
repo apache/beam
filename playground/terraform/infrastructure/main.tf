@@ -33,12 +33,43 @@ module "network" {
   subnetwork_name = var.subnetwork_name
 }
 
+module "firewall" {
+  depends_on      = [module.network, module.memorystore, module.gke]
+  source          = "./firewall"
+  network_name    = module.network.playground_network_name
+  gke_controlplane_cidr = module.gke.control_plane_cidr
+  redis_ip = module.memorystore.redis_ip
+}
+
 module "artifact_registry" {
   depends_on = [module.setup, module.api_enable, module.ip_address]
   source     = "./artifact_registry"
   project_id = var.project_id
   id         = var.repository_id
   location   = var.repository_location
+}
+
+module "gke_bucket" {
+  depends_on   = [module.setup, module.network, module.api_enable, module.ip_address, module.archive_file]
+  source       = "./gke_bucket"
+  region       = var.region
+  bucket_name  = var.state_bucket
+
+}
+
+module "archive_file" {
+  depends_on   = [module.setup, module.network, module.api_enable, module.ip_address]
+  source       = "./archive_file"
+}
+
+module "cloudfunctions" {
+  depends_on               = [module.setup, module.network, module.api_enable, module.ip_address, module.gke_bucket]
+  source                   = "./cloudfunctions"
+  gkebucket                = module.gke_bucket.playground_google_storage_bucket
+  project_id               = var.project_id
+  service_account_email_cf = module.setup.service_account_email_cf
+  region                   = var.region
+  env                      = var.env
 }
 
 module "memorystore" {
@@ -73,16 +104,32 @@ module "gke" {
 module "ip_address" {
   source          = "./ip_address"
   depends_on      = [module.setup, module.api_enable]
+  ip_address_name = var.ip_address_name
 }
 
 module "appengine" {
- depends_on         = [module.setup, module.api_enable, module.ip_address]
- source             = "./appengine"
- project_id         = var.project_id
- region             = var.region
+ depends_on            = [module.setup, module.api_enable, module.ip_address]
+ source                = "./appengine"
+ project_id            = var.project_id
+ region                = var.region
+ skip_appengine_deploy = var.skip_appengine_deploy
 }
 
 module "api_enable" {
   source            = "./api_enable"
   project_id         = var.project_id
+}
+
+
+module "private_dns" {
+  source            = "./private_dns"
+  project_id        = var.project_id
+  network_id        = module.network.playground_network_id
+  network_name      = module.network.playground_network_name
+  private_zones     = [
+    "gcr.io",
+    "pkg.dev",
+    "cloud.google.com",
+    "cloudfunctions.net"
+  ]
 }

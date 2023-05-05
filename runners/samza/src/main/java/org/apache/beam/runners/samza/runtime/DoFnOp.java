@@ -26,9 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -46,7 +44,6 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.util.DoFnUtils;
-import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -200,7 +197,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 
     this.bundleManager =
-        new BundleManager<>(
+        new ClassicBundleManager<>(
             createBundleProgressListener(),
             outputFutureCollector,
             samzaPipelineOptions.getMaxBundleSize(),
@@ -482,77 +479,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
                 windowedValue.getTimestamp(),
                 windowedValue.getWindows(),
                 windowedValue.getPane()));
-  }
-
-  static class FutureCollectorImpl<OutT> implements FutureCollector<OutT> {
-    private final AtomicBoolean collectorSealed;
-    private CompletionStage<Collection<WindowedValue<OutT>>> outputFuture;
-
-    FutureCollectorImpl() {
-      outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
-      collectorSealed = new AtomicBoolean(true);
-    }
-
-    @Override
-    public void add(CompletionStage<WindowedValue<OutT>> element) {
-      checkState(
-          !collectorSealed.get(),
-          "Cannot add element to an unprepared collector. Make sure prepare() is invoked before adding elements.");
-
-      // We need synchronize guard against scenarios when watermark/finish bundle trigger outputs.
-      synchronized (this) {
-        outputFuture =
-            outputFuture.thenCombine(
-                element,
-                (collection, event) -> {
-                  collection.add(event);
-                  return collection;
-                });
-      }
-    }
-
-    @Override
-    public void addAll(CompletionStage<Collection<WindowedValue<OutT>>> elements) {
-      checkState(
-          !collectorSealed.get(),
-          "Cannot add elements to an unprepared collector. Make sure prepare() is invoked before adding elements.");
-
-      synchronized (this) {
-        outputFuture = FutureUtils.combineFutures(outputFuture, elements);
-      }
-    }
-
-    @Override
-    public void discard() {
-      collectorSealed.compareAndSet(false, true);
-
-      synchronized (this) {
-        outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
-      }
-    }
-
-    @Override
-    public CompletionStage<Collection<WindowedValue<OutT>>> finish() {
-      /*
-       * We can ignore the results here because its okay to call finish without invoking prepare. It will be a no-op
-       * and an empty collection will be returned.
-       */
-      collectorSealed.compareAndSet(false, true);
-
-      synchronized (this) {
-        final CompletionStage<Collection<WindowedValue<OutT>>> sealedOutputFuture = outputFuture;
-        outputFuture = CompletableFuture.completedFuture(new ArrayList<>());
-        return sealedOutputFuture;
-      }
-    }
-
-    @Override
-    public void prepare() {
-      boolean isCollectorSealed = collectorSealed.compareAndSet(true, false);
-      checkState(
-          isCollectorSealed,
-          "Failed to prepare the collector. Collector needs to be sealed before prepare() is invoked.");
-    }
   }
 
   /**

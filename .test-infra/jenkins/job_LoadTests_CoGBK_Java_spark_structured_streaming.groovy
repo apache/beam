@@ -153,7 +153,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false), "CoGBK", "batch")
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_SparkStructuredStreaming_Batch', 'H 14 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_SparkStructuredStreaming_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,

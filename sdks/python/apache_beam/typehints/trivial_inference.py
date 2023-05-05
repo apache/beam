@@ -126,11 +126,12 @@ class Const(object):
 class FrameState(object):
   """Stores the state of the frame at a particular point of execution.
   """
-  def __init__(self, f, local_vars=None, stack=()):
+  def __init__(self, f, local_vars=None, stack=(), kw_names=None):
     self.f = f
     self.co = f.__code__
     self.vars = list(local_vars)
     self.stack = list(stack)
+    self.kw_names = kw_names
 
   def __eq__(self, other):
     return isinstance(other, FrameState) and self.__dict__ == other.__dict__
@@ -139,7 +140,7 @@ class FrameState(object):
     return hash(tuple(sorted(self.__dict__.items())))
 
   def copy(self):
-    return FrameState(self.f, self.vars, self.stack)
+    return FrameState(self.f, self.vars, self.stack, self.kw_names)
 
   def const_type(self, i):
     return Const(self.co.co_consts[i])
@@ -352,7 +353,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   if debug:
     print()
     print(f, id(f), input_types)
-    dis.dis(f)
+    if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+      dis.dis(f, show_caches=True)
+    else:
+      dis.dis(f)
   from . import opcodes
   simple_ops = dict((k.upper(), v) for k, v in opcodes.__dict__.items())
 
@@ -374,7 +378,12 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   # In Python 3, use dis library functions to disassemble bytecode and handle
   # EXTENDED_ARGs.
   ofs_table = {}  # offset -> instruction
-  for instruction in dis.get_instructions(f):
+  if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+    dis_ints = dis.get_instructions(f, show_caches=True)
+  else:
+    dis_ints = dis.get_instructions(f)
+
+  for instruction in dis_ints:
     ofs_table[instruction.offset] = instruction
 
   # Python 3.6+: 1 byte opcode + 1 byte arg (2 bytes, arg may be ignored).
@@ -384,7 +393,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   # Python 3.10: bpo-27129 changes jump offsets to use instruction offsets,
   # not byte offsets. The offsets were halved (16 bits fro instructions vs 8
   # bits for bytes), so we have to double the value of arg.
-  if (sys.version_info.major, sys.version_info.minor) == (3, 10):
+  if (sys.version_info.major, sys.version_info.minor) >= (3, 10):
     jump_multiplier = 2
   else:
     jump_multiplier = 1
@@ -400,6 +409,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       print(dis.opname[op].ljust(20), end=' ')
 
     pc += inst_size
+    arg = None
     if op >= dis.HAVE_ARGUMENT:
       arg = instruction.arg
       pc += opt_arg_size
@@ -408,9 +418,14 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         if op in dis.hasconst:
           print('(' + repr(co.co_consts[arg]) + ')', end=' ')
         elif op in dis.hasname:
-          print('(' + co.co_names[arg] + ')', end=' ')
+          if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+            # Pre-emptively bit-shift so the print doesn't go out of index
+            print_arg = arg >> 1
+          else:
+            print_arg = arg
+          print('(' + co.co_names[print_arg] + ')', end=' ')
         elif op in dis.hasjrel:
-          print('(to ' + repr(pc + arg) + ')', end=' ')
+          print('(to ' + repr(pc + (arg * jump_multiplier)) + ')', end=' ')
         elif op in dis.haslocal:
           print('(' + co.co_varnames[arg] + ')', end=' ')
         elif op in dis.hascompare:
@@ -418,7 +433,12 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         elif op in dis.hasfree:
           if free is None:
             free = co.co_cellvars + co.co_freevars
-          print('(' + free[arg] + ')', end=' ')
+          # From 3.11 on the arg is no longer offset by len(co_varnames)
+          # so we adjust it back
+          print_arg = arg
+          if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+            print_arg = arg - len(co.co_varnames)
+          print('(' + free[print_arg] + ')', end=' ')
 
     # Actually emulate the op.
     if state is None and states[start] is None:
@@ -498,6 +518,40 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       else:
         return_type = typehints.Any
       state.stack[-pop_count:] = [return_type]
+    elif opname == 'CALL':
+      pop_count = 1 + arg
+      # Keyword Args case
+      if state.kw_names is not None:
+        if isinstance(state.stack[-pop_count], Const):
+          from apache_beam.pvalue import Row
+          if state.stack[-pop_count].value == Row:
+            fields = state.kw_names
+            return_type = row_type.RowTypeConstraint.from_fields(
+                list(
+                    zip(fields,
+                        Const.unwrap_all(state.stack[-pop_count + 1:]))))
+          else:
+            return_type = Any
+        state.kw_names = None
+      else:
+        # Handle lambdas always having an arg of 0 for CALL
+        # See https://github.com/python/cpython/issues/102403 for context.
+        if pop_count == 1:
+          while pop_count <= len(state.stack):
+            if isinstance(state.stack[-pop_count], Const):
+              break
+            pop_count += 1
+        if depth <= 0 or pop_count > len(state.stack):
+          return_type = Any
+        elif isinstance(state.stack[-pop_count], Const):
+          return_type = infer_return_type(
+              state.stack[-pop_count].value,
+              state.stack[1 - pop_count:],
+              debug=debug,
+              depth=depth - 1)
+        else:
+          return_type = Any
+      state.stack[-pop_count:] = [return_type]
     elif opname in simple_ops:
       if debug:
         print("Executing simple op " + opname)
@@ -511,6 +565,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       jmp = pc + arg * jump_multiplier
       jmp_state = state
       state = None
+    elif opname in ('JUMP_BACKWARD', 'JUMP_BACKWARD_NO_INTERRUPT'):
+      jmp = pc - (arg * jump_multiplier)
+      jmp_state = state
+      state = None
     elif opname == 'JUMP_ABSOLUTE':
       jmp = arg * jump_multiplier
       jmp_state = state
@@ -519,8 +577,30 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       state.stack.pop()
       jmp = arg * jump_multiplier
       jmp_state = state.copy()
+    elif opname in ('POP_JUMP_FORWARD_IF_TRUE', 'POP_JUMP_FORWARD_IF_FALSE'):
+      state.stack.pop()
+      jmp = pc + arg * jump_multiplier
+      jmp_state = state.copy()
+    elif opname in ('POP_JUMP_BACKWARD_IF_TRUE', 'POP_JUMP_BACKWARD_IF_FALSE'):
+      state.stack.pop()
+      jmp = pc - (arg * jump_multiplier)
+      jmp_state = state.copy()
+    elif opname in ('POP_JUMP_FORWARD_IF_NONE', 'POP_JUMP_FORWARD_IF_NOT_NONE'):
+      state.stack.pop()
+      jmp = pc + arg * jump_multiplier
+      jmp_state = state.copy()
+    elif opname in ('POP_JUMP_BACKWARD_IF_NONE',
+                    'POP_JUMP_BACKWARD_IF_NOT_NONE'):
+      state.stack.pop()
+      jmp = pc - (arg * jump_multiplier)
+      jmp_state = state.copy()
     elif opname in ('JUMP_IF_TRUE_OR_POP', 'JUMP_IF_FALSE_OR_POP'):
-      jmp = arg * jump_multiplier
+      # The arg was changed to be a relative delta instead of an absolute
+      # in 3.11
+      if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+        jmp = pc + arg * jump_multiplier
+      else:
+        jmp = arg * jump_multiplier
       jmp_state = state.copy()
       state.stack.pop()
     elif opname == 'FOR_ITER':
@@ -528,6 +608,37 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       jmp_state = state.copy()
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))
+    elif opname == 'COPY_FREE_VARS':
+      # Helps with calling closures, but since we aren't executing
+      # them we can treat this as a no-op
+      pass
+    elif opname == 'KW_NAMES':
+      tup = co.co_consts[arg]
+      state.kw_names = tup
+    elif opname == 'RESUME':
+      # RESUME is a no-op
+      pass
+    elif opname == 'PUSH_NULL':
+      # We're treating this as a no-op to avoid having to check
+      # for extra None values on the stack when we extract return
+      # values
+      pass
+    elif opname == 'PRECALL':
+      # PRECALL is a no-op.
+      pass
+    elif opname == 'MAKE_CELL':
+      # TODO: see if we need to implement cells like this
+      pass
+    elif opname == 'RETURN_GENERATOR':
+      # TODO: see what this behavior is supposed to be beyond
+      # putting something on the stack to be popped off
+      state.stack.append(None)
+      pass
+    elif opname == 'CACHE':
+      # No-op introduced in 3.11. Without handling this some
+      # instructions have functionally > 2 byte size.
+      pass
+
     else:
       raise TypeInferenceError('unable to handle %s' % opname)
 
