@@ -125,7 +125,8 @@ To use TensorFlow with the RunInference API, you have two options:
 1. Use the built-in TensorFlow Model Handlers in Apache Beam SDK - `TFModelHandlerNumpy` and `TFModelHandlerTensor`.
     * Depending on the type of input for your model, use `TFModelHandlerNumpy` for `numpy` input and `TFModelHandlerTensor` for `tf.Tensor` input respectively.
     * Use tensorflow 2.7 or later.
-    * Pass the path of the model to the TensorFlow `ModelHandler` by using `model_uri=<path_to_trained_model>`.
+    * Pass the path of the model to the TensorFlow `ModelHandler` by using `model_uri=<path_to_trained_model>`. You can pass additional model loading configuration parameters
+    using a dictionary as `load_model_args=<config_args_dict>`. To load different model weights after loading the model, use `custom_weights=<path_to_weights>`.
     * Alternatively, you can pass the path to saved weights of the trained model, a function to build the model using `create_model_fn=<function>`, and set the `model_type=ModelType.SAVED_WEIGHTS`.
   See [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb) that illustrates running Tensorflow models with Built-in model handlers.
 2. Using `tfx_bsl`.
