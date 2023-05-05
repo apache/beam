@@ -450,10 +450,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_code_editor
-      sha256: "53268d72dbe8daaf2a02f13863efd129cc37f599c1dcf85da33a4b34796ca8bd"
+      sha256: "5cd0337a24155dcac85d4f5b0cc8fa022ab19785a968a86726cdc62e363ee428"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.21"
+    version: "0.2.23"
   flutter_driver:
     dependency: transitive
     description: flutter
