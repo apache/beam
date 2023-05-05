@@ -20,7 +20,7 @@
 //   name: SchemaBasedSolution
 //   description: Schema Based Solution example.
 //   multifile: false
-//   context_line: 46
+//   context_line: 137
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -54,7 +54,7 @@ import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-
+import java.io.Serializable;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);

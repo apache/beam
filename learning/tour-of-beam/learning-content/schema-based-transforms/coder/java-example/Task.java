@@ -20,7 +20,7 @@
 //   name: coder
 //   description: Coder example.
 //   multifile: false
-//   context_line: 46
+//   context_line: 139
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -48,7 +48,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
-
+import java.io.Serializable;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
