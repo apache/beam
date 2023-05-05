@@ -17,7 +17,7 @@
 //   name: partition
 //   description: Partition example.
 //   multifile: false
-//   context_line: 33
+//   context_line: 37
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM
@@ -39,10 +39,10 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
-    input := beam.Create(s, 1, 2, 3, 4, 5, 100, 110, 150, 250)
+	// List of elements
+	input := beam.Create(s, 1, 2, 3, 4, 5, 100, 110, 150, 250)
 
-    // The applyTransform() converts [input] to [output[]]
+	// The applyTransform() converts [input] to [output[]]
 	output := applyTransform(s, input)
 
 	debug.Printf(s, "Number > 100: %v", output[0])

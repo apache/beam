@@ -17,7 +17,7 @@
 //   name: pardo-one-to-many
 //   description: ParDo one-to-many example.
 //   multifile: false
-//   context_line: 33
+//   context_line: 38
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM
@@ -28,17 +28,17 @@ package main
 
 import (
 	"context"
-	"strings"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"strings"
 )
 
 func main() {
 	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
+	// List of elements
 	input := beam.Create(s, "Hello Beam", "It is awesome")
 
 	// The applyTransform() converts [input] to [output]
@@ -65,4 +65,3 @@ func tokenizeFn(input string, emit func(out string)) {
 		emit(k)
 	}
 }
-

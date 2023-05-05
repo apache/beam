@@ -20,7 +20,7 @@
 //   name: CoreTransformsSolution1
 //   description: Core Transforms first motivating challenge.
 //   multifile: false
-//   context_line: 44
+//   context_line: 54
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
@@ -31,24 +31,24 @@ package main
 
 import (
 	"context"
-	"strings"
-	"regexp"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"regexp"
+	"strings"
 )
 
 var (
-    wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 )
 
-func less(a, b string) bool{
-    return true
+func less(a, b string) bool {
+	return true
 }
 
 func main() {
@@ -56,28 +56,28 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    input := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+	input := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-    lines := getLines(s, input)
+	lines := getLines(s, input)
 
-    fixedSizeLines := top.Largest(s,lines,100,less)
+	fixedSizeLines := top.Largest(s, lines, 100, less)
 
-    words := getWords(s,fixedSizeLines)
+	words := getWords(s, fixedSizeLines)
 
-    allCaseWords := partitionPCollectionByCase(s,words)
+	allCaseWords := partitionPCollectionByCase(s, words)
 
-    upperCaseWords := countPerElement(s, allCaseWords[0])
-    capitalCaseWords := countPerElement(s, allCaseWords[1])
-    lowerCaseWords := countPerElement(s, allCaseWords[2])
+	upperCaseWords := countPerElement(s, allCaseWords[0])
+	capitalCaseWords := countPerElement(s, allCaseWords[1])
+	lowerCaseWords := countPerElement(s, allCaseWords[2])
 
-    newFirstPartPCollection:=convertPCollectionToLowerCase(s,upperCaseWords)
-    newSecondPartPCollection:=convertPCollectionToLowerCase(s,capitalCaseWords)
+	newFirstPartPCollection := convertPCollectionToLowerCase(s, upperCaseWords)
+	newSecondPartPCollection := convertPCollectionToLowerCase(s, capitalCaseWords)
 
-    flattenPCollection := mergePCollections(s,newFirstPartPCollection,newSecondPartPCollection,lowerCaseWords)
+	flattenPCollection := mergePCollections(s, newFirstPartPCollection, newSecondPartPCollection, lowerCaseWords)
 
-    groupByKeyPCollection := groupByKey(s,flattenPCollection)
+	groupByKeyPCollection := groupByKey(s, flattenPCollection)
 
-    debug.Print(s, groupByKeyPCollection)
+	debug.Print(s, groupByKeyPCollection)
 
 	err := beamx.Run(ctx, p)
 
@@ -87,50 +87,49 @@ func main() {
 }
 
 func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return filter.Include(s, input, func(element string) bool {
-        return element != ""
-    })
+	return filter.Include(s, input, func(element string) bool {
+		return element != ""
+	})
 }
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line []string, emit func(string)) {
-        for _, word := range line {
-            e := strings.Split(word, " ")
-            for _,element := range e{
-                reg := regexp.MustCompile(`([^\w])`)
-                res := reg.ReplaceAllString(element, "")
-                emit(res)
-            }
-        }
-    }, input)
+	return beam.ParDo(s, func(line []string, emit func(string)) {
+		for _, word := range line {
+			e := strings.Split(word, " ")
+			for _, element := range e {
+				reg := regexp.MustCompile(`([^\w])`)
+				res := reg.ReplaceAllString(element, "")
+				emit(res)
+			}
+		}
+	}, input)
 }
-
 
 func partitionPCollectionByCase(s beam.Scope, input beam.PCollection) []beam.PCollection {
-   return beam.Partition(s, 3, func(word string) int {
-    		if word == strings.ToUpper(word) {
-    			return 0
-    		}
-    		if word==strings.Title(strings.ToLower(word)){
-    		    return 1
-    		}
-    		    return 2
+	return beam.Partition(s, 3, func(word string) int {
+		if word == strings.ToUpper(word) {
+			return 0
+		}
+		if word == strings.Title(strings.ToLower(word)) {
+			return 1
+		}
+		return 2
 
-    	}, input)
+	}, input)
 }
 
-func countPerElement(s beam.Scope, input beam.PCollection) beam.PCollection{
-        return stats.Count(s, input)
+func countPerElement(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return stats.Count(s, input)
 }
 
-func convertPCollectionToLowerCase(s beam.Scope, input beam.PCollection) beam.PCollection{
-        return beam.ParDo(s, func(word string,value int) (string,int){
-            return strings.ToLower(word),value
-        }, input)
+func convertPCollectionToLowerCase(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(word string, value int) (string, int) {
+		return strings.ToLower(word), value
+	}, input)
 }
 
-func mergePCollections(s beam.Scope, aInput beam.PCollection,bInput beam.PCollection,cInput beam.PCollection) beam.PCollection{
-        return beam.Flatten(s, aInput, bInput, cInput)
+func mergePCollections(s beam.Scope, aInput beam.PCollection, bInput beam.PCollection, cInput beam.PCollection) beam.PCollection {
+	return beam.Flatten(s, aInput, bInput, cInput)
 }
 
 func groupByKey(s beam.Scope, input beam.PCollection) beam.PCollection {

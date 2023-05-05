@@ -18,7 +18,7 @@
 #   name: composite
 #   description: Composite example.
 #   multifile: false
-#   context_line: 30
+#   context_line: 56
 #   categories:
 #     - Quickstart
 #   complexity: MEDIUM

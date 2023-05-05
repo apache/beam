@@ -17,7 +17,7 @@
 //   name: side-inputs
 //   description: Side-inputs example.
 //   multifile: false
-//   context_line: 35
+//   context_line: 44
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM

@@ -17,7 +17,7 @@
 //   name: flatten
 //   description: Flatten example.
 //   multifile: false
-//   context_line: 33
+//   context_line: 37
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM
@@ -27,11 +27,11 @@
 package main
 
 import (
+	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-	"context"
 )
 
 func main() {
@@ -39,12 +39,11 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements start with a
-    aWords := beam.Create(s, "apple", "ant", "arrow")
+	// List of elements start with a
+	aWords := beam.Create(s, "apple", "ant", "arrow")
 
-    // List of elements start with b
+	// List of elements start with b
 	bWords := beam.Create(s, "ball", "book", "bow")
-
 
 	// The applyTransform() converts [aWords] and [bWords] to [output]
 	output := applyTransform(s, aWords, bWords)

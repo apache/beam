@@ -17,7 +17,7 @@
 //   name: combine-fn
 //   description: Combine-fn
 //   multifile: false
-//   context_line: 44
+//   context_line: 37
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -52,14 +52,13 @@ func main() {
 	}
 }
 
-
 func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return beam.Combine(s, &averageFn{}, input)
 }
 
 type averageAccum struct {
 	Count int
-	Sum int
+	Sum   int
 }
 
 type averageFn struct{}

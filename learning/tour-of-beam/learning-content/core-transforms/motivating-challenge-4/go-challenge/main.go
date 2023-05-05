@@ -20,7 +20,7 @@
 //     name: CoreTransformsChallenge4
 //     description: Core Transforms fourth motivating challenge.
 //     multifile: false
-//     context_line: 44
+//     context_line: 53
 //     categories:
 //       - Quickstart
 //     complexity: BASIC
@@ -31,23 +31,23 @@ package main
 
 import (
 	"context"
-	"regexp"
-"strings"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"regexp"
+	"strings"
 )
 
-func less(a, b string) bool{
-    return true
+func less(a, b string) bool {
+	return true
 }
 
 var (
-    result = make(map[string][]string)
+	result = make(map[string][]string)
 )
 
 func main() {
@@ -55,18 +55,17 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    input := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+	input := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-    lines := getLines(s, input)
+	lines := getLines(s, input)
 
-    fixedSizeLines := top.Largest(s,lines,100,less)
+	fixedSizeLines := top.Largest(s, lines, 100, less)
 
-    words := getWords(s,fixedSizeLines)
+	words := getWords(s, fixedSizeLines)
 
-    groupedPCollection := groupWordsByFirstLetter(s,words)
+	groupedPCollection := groupWordsByFirstLetter(s, words)
 
-    debug.Print(s, groupedPCollection)
-
+	debug.Print(s, groupedPCollection)
 
 	err := beamx.Run(ctx, p)
 
@@ -76,28 +75,28 @@ func main() {
 }
 
 func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return filter.Include(s, input, func(element string) bool {
-        return element != ""
-    })
+	return filter.Include(s, input, func(element string) bool {
+		return element != ""
+	})
 }
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line []string, emit func(string)) {
-        for _, word := range line {
-            e := strings.Split(word, " ")
-            for _,element := range e{
-                reg := regexp.MustCompile(`([^\w])`)
-                res := reg.ReplaceAllString(element, "")
-                emit(res)
-            }
-        }
-    }, input)
+	return beam.ParDo(s, func(line []string, emit func(string)) {
+		for _, word := range line {
+			e := strings.Split(word, " ")
+			for _, element := range e {
+				reg := regexp.MustCompile(`([^\w])`)
+				res := reg.ReplaceAllString(element, "")
+				emit(res)
+			}
+		}
+	}, input)
 }
 
 type groupWordByFirstLetterFn struct{}
 
 type wordAccum struct {
-	Result map[string][]string
+	Result  map[string][]string
 	Current []map[string]string
 }
 
@@ -114,7 +113,7 @@ func (c *groupWordByFirstLetterFn) AddInput(accum wordAccum, input string) wordA
 }
 
 func (c *groupWordByFirstLetterFn) MergeAccumulators(accumA, accumB wordAccum) wordAccum {
-    return accumA
+	return accumA
 }
 
 func (c *groupWordByFirstLetterFn) ExtractOutput(accum wordAccum) map[string][]string {

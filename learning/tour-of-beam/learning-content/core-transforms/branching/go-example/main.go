@@ -14,24 +14,25 @@
 // limitations under the License.
 
 // beam-playground:
-//   name: branching
-//   description: Branching example.
-//   multifile: false
-//   context_line: 32
-//   categories:
-//     - Quickstart
-//   complexity: MEDIUM
-//   tags:
-//     - hellobeam
+//
+//	name: branching
+//	description: Branching example.
+//	multifile: false
+//	context_line: 37
+//	categories:
+//	  - Quickstart
+//	complexity: MEDIUM
+//	tags:
+//	  - hellobeam
 package main
 
 import (
-	"strings"
 	"context"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"strings"
 )
 
 func main() {
@@ -42,8 +43,8 @@ func main() {
 	// List of elements
 	input := beam.Create(s, "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog")
 
-    // The applyTransform() converts [input] to [reversed] and [toUpper]
-    reversed, toUpper := applyTransform(s, input)
+	// The applyTransform() converts [input] to [reversed] and [toUpper]
+	reversed, toUpper := applyTransform(s, input)
 
 	debug.Printf(s, "Reversed: %s", reversed)
 

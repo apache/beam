@@ -18,7 +18,7 @@
 #     name: CoreTransformsSolution2
 #     description: Core Transforms second motivating solution.
 #     multifile: false
-#     context_line: 31
+#     context_line: 49
 #     categories:
 #       - Quickstart
 #     complexity: BASIC

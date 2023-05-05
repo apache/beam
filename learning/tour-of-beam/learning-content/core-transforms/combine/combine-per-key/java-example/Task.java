@@ -20,7 +20,7 @@
 //   name: combine-per-key
 //   description: Combine per key example.
 //   multifile: false
-//   context_line: 44
+//   context_line: 52
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM

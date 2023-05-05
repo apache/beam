@@ -18,7 +18,7 @@
 #     name: CoreTransformsChallenge2
 #     description: Core Transforms second motivating challenge.
 #     multifile: false
-#     context_line: 31
+#     context_line: 48
 #     categories:
 #       - Quickstart
 #     complexity: BASIC

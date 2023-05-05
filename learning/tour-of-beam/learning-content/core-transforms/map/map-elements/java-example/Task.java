@@ -17,7 +17,7 @@
 //   name: map-elements
 //   description: Map elements example.
 //   multifile: false
-//   context_line: 31
+//   context_line: 41
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM

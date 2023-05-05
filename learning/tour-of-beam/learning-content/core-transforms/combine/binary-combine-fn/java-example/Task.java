@@ -20,7 +20,7 @@
 //   name: binary-combine-fn
 //   description: Core Transforms third motivating challenge.
 //   multifile: false
-//   context_line: 44
+//   context_line: 48
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

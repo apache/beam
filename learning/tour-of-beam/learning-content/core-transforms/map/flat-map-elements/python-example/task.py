@@ -18,7 +18,7 @@
 #   name: flat-map-elements
 #   description: FlatMap elements example.
 #   multifile: false
-#   context_line: 43
+#   context_line: 47
 #   categories:
 #     - Quickstart
 #   complexity: MEDIUM

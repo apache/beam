@@ -17,7 +17,7 @@
 //   name: group-by-key
 //   description: GroupByKey example.
 //   multifile: false
-//   context_line: 33
+//   context_line: 37
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM
@@ -39,10 +39,10 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
+	// List of elements
 	input := beam.Create(s, "apple", "ball", "car", "bear", "cheetah", "ant")
 
-    // The applyTransform() converts [input] to [output]
+	// The applyTransform() converts [input] to [output]
 	output := applyTransform(s, input)
 
 	debug.Print(s, output)

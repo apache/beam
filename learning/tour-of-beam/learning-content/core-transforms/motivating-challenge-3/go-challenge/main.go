@@ -20,7 +20,7 @@
 //   name: CoreTransformsChallenge3
 //   description: Core Transforms third motivating challenge.
 //   multifile: false
-//   context_line: 44
+//   context_line: 54
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
@@ -31,24 +31,24 @@ package main
 
 import (
 	"context"
-    "strings"
-	"regexp"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-    _ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"regexp"
+	"strings"
 )
 
-func less(a, b string) bool{
-    return true
+func less(a, b string) bool {
+	return true
 }
 
 var (
-    wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 )
 
 func main() {
@@ -56,23 +56,21 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    input := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+	input := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-    lines := getLines(s, input)
+	lines := getLines(s, input)
 
-    fixedSizeLines := top.Largest(s,lines,100,less)
+	fixedSizeLines := top.Largest(s, lines, 100, less)
 
-    words := getWords(s,fixedSizeLines)
+	words := getWords(s, fixedSizeLines)
 
-    distinctWordsStartLetterI := getCompositeWordsStartWith(s,words)
+	distinctWordsStartLetterI := getCompositeWordsStartWith(s, words)
 
-    wordWithUpperCase, wordWithLowerCase := getMultiplePCollections(s,distinctWordsStartLetterI)
+	wordWithUpperCase, wordWithLowerCase := getMultiplePCollections(s, distinctWordsStartLetterI)
 
-    result := checkExistUpperWordsInLowerCaseView(s,wordWithUpperCase,wordWithLowerCase)
+	result := checkExistUpperWordsInLowerCaseView(s, wordWithUpperCase, wordWithLowerCase)
 
-
-    debug.Print(s,result)
-
+	debug.Print(s, result)
 
 	err := beamx.Run(ctx, p)
 
@@ -82,34 +80,34 @@ func main() {
 }
 
 func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return filter.Include(s, input, func(element string) bool {
-        return element != ""
-    })
+	return filter.Include(s, input, func(element string) bool {
+		return element != ""
+	})
 }
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line []string, emit func(string)) {
-        for _, word := range line {
-            e := strings.Split(word, " ")
-            for _,element := range e{
-                reg := regexp.MustCompile(`([^\w])`)
-                res := reg.ReplaceAllString(element, "")
-                emit(res)
-            }
-        }
-    }, input)
+	return beam.ParDo(s, func(line []string, emit func(string)) {
+		for _, word := range line {
+			e := strings.Split(word, " ")
+			for _, element := range e {
+				reg := regexp.MustCompile(`([^\w])`)
+				res := reg.ReplaceAllString(element, "")
+				emit(res)
+			}
+		}
+	}, input)
 }
 
-func getCompositeWordsStartWith(s beam.Scope, input beam.PCollection) beam.PCollection{
-   return input
+func getCompositeWordsStartWith(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return input
 }
 
-func getMultiplePCollections(s beam.Scope, input beam.PCollection) (beam.PCollection, beam.PCollection){
-    return input,input
+func getMultiplePCollections(s beam.Scope, input beam.PCollection) (beam.PCollection, beam.PCollection) {
+	return input, input
 }
 
-func checkExistUpperWordsInLowerCaseView(s beam.Scope,wordWithUpperCase beam.PCollection,wordWithLowerCase beam.PCollection) beam.PCollection{
-    return wordWithLowerCase
+func checkExistUpperWordsInLowerCaseView(s beam.Scope, wordWithUpperCase beam.PCollection, wordWithLowerCase beam.PCollection) beam.PCollection {
+	return wordWithLowerCase
 }
 
 func compareFn(wordWithUpperCase string, wordWithLowerCase func(*string) bool, emit func(string)) {

@@ -17,7 +17,7 @@
 //   name: composite
 //   description: Composite example.
 //   multifile: false
-//   context_line: 34
+//   context_line: 38
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM
@@ -30,9 +30,9 @@ import (
 	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 func main() {
@@ -43,8 +43,8 @@ func main() {
 	// Getting a list of items
 	input := createLines(s)
 
-    // The applyTransform() converts [input] to [output]
-    output := applyTransform(s, input)
+	// The applyTransform() converts [input] to [output]
+	output := applyTransform(s, input)
 
 	debug.Print(s, output)
 
@@ -64,7 +64,7 @@ func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 
 // Nested logic that collects characters
 func extractNonSpaceCharacters(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.ParDo(s, func(line string, emit func(string)){
+	return beam.ParDo(s, func(line string, emit func(string)) {
 		for _, k := range line {
 			char := string(k)
 			if char != " " {

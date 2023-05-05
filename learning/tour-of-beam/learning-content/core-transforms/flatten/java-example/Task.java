@@ -17,7 +17,7 @@
 //   name: flatten
 //   description: Flatten example.
 //   multifile: false
-//   context_line: 33
+//   context_line: 40
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM

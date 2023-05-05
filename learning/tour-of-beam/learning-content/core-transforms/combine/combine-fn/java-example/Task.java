@@ -20,7 +20,7 @@
 //   name: combine-fn
 //   description: Combine-fn example.
 //   multifile: false
-//   context_line: 44
+//   context_line: 49
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

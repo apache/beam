@@ -18,7 +18,7 @@
 #   name: additional-outputs
 #   description: Additional outputs example.
 #   multifile: false
-#   context_line: 56
+#   context_line: 59
 #   categories:
 #     - Quickstart
 #   complexity: MEDIUM

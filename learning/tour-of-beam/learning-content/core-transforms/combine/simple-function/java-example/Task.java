@@ -20,7 +20,7 @@
 //   name: simple-function
 //   description: Simple function
 //   multifile: false
-//   context_line: 44
+//   context_line: 48
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

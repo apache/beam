@@ -18,7 +18,7 @@
 #   name: group-by-key
 #   description: GroupByKey example.
 #   multifile: false
-#   context_line: 43
+#   context_line: 48
 #   categories:
 #     - Quickstart
 #   complexity: MEDIUM

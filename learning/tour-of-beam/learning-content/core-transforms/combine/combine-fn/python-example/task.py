@@ -19,7 +19,7 @@ import apache_beam as beam
 #   name: combine-fn
 #   description: Combine-fn example.
 #   multifile: false
-#   context_line: 42
+#   context_line: 64
 #   categories:
 #     - Quickstart
 #   complexity: ADVANCED

@@ -12,21 +12,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 // beam-playground:
-//   name: co-group-by-key
-//   description: CoGroupByKey example.
-//   multifile: false
-//   context_line: 33
-//   categories:
-//     - Quickstart
-//   complexity: ADVANCED
-//   tags:
-//     - hellobeam
+//
+//	name: co-group-by-key
+//	description: CoGroupByKey example.
+//	multifile: false
+//	context_line: 37
+//	categories:
+//	  - Quickstart
+//	complexity: ADVANCED
+//	tags:
+//	  - hellobeam
 package main
 
 import (
 	"context"
-"fmt"
+	"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
@@ -39,7 +41,7 @@ func main() {
 	p, s := beam.NewPipelineWithRoot()
 
 	fruits := beam.Create(s.Scope("Fruits"), "apple", "banana", "cherry", "xaiva")
-	countries := beam.Create(s.Scope("Countries"), "australia", "brazil", "canada","as")
+	countries := beam.Create(s.Scope("Countries"), "australia", "brazil", "canada", "as")
 
 	output := applyTransform(s, fruits, countries)
 
@@ -68,14 +70,14 @@ func applyTransform(s beam.Scope, fruits beam.PCollection, countries beam.PColle
 		}
 		fruitsIter(&wa.Fruit)
 		countriesIter(&wa.Country)
-            emit(wa.String())
+		emit(wa.String())
 	}, grouped)
 }
 
 type WordsAlphabet struct {
 	Alphabet string
-	Fruit string
-	Country string
+	Fruit    string
+	Country  string
 }
 
 func (wa *WordsAlphabet) String() string {

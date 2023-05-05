@@ -18,7 +18,7 @@
 #   name: CoreTransformsSolution3
 #   description: Core Transforms third motivating solution.
 #   multifile: false
-#   context_line: 31
+#   context_line: 82
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

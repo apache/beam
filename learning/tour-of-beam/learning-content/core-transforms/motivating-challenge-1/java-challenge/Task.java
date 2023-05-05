@@ -20,7 +20,7 @@
 //     name: CoreTransformsChallenge1
 //     description: Core Transforms first motivating challenge.
 //     multifile: false
-//     context_line: 44
+//     context_line: 50
 //     categories:
 //       - Quickstart
 //     complexity: BASIC

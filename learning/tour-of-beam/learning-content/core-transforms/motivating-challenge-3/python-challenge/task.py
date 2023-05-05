@@ -18,7 +18,7 @@
 #   name: CoreTransformsChallenge3
 #   description: Core Transforms third motivating challenge.
 #   multifile: false
-#   context_line: 31
+#   context_line: 71
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

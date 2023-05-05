@@ -17,7 +17,7 @@
 //   name: additional-outputs
 //   description: Additional outputs example.
 //   multifile: false
-//   context_line: 33
+//   context_line: 37
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM
@@ -39,10 +39,10 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
+	// List of elements
 	input := beam.Create(s, 10, 50, 120, 20, 200, 0)
 
-    // The applyTransform() converts [input] to [numBelow100] and [numAbove100]
+	// The applyTransform() converts [input] to [numBelow100] and [numAbove100]
 	numBelow100, numAbove100 := applyTransform(s, input)
 
 	debug.Printf(s, "Number <= 100: %v", numBelow100)

@@ -18,7 +18,7 @@
 #   name: branching
 #   description: Branching example.
 #   multifile: false
-#   context_line: 30
+#   context_line: 46
 #   categories:
 #     - Quickstart
 #   complexity: MEDIUM

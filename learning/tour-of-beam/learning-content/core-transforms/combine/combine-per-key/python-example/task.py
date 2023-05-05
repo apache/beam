@@ -14,18 +14,18 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
-
 # beam-playground:
 #   name: combine-per-key
 #   description: Flatten example.
 #   multifile: false
-#   context_line: 42
+#   context_line: 52
 #   categories:
 #     - Quickstart
 #   complexity: MEDIUM
 #   tags:
 #     - hellobeam
+
+import apache_beam as beam
 
 # Output PCollection
 class Output(beam.PTransform):

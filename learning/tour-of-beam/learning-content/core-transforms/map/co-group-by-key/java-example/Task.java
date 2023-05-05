@@ -19,7 +19,7 @@
 //   name: co-group-by-key
 //   description: CoGroupByKey example.
 //   multifile: false
-//   context_line: 33
+//   context_line: 52
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

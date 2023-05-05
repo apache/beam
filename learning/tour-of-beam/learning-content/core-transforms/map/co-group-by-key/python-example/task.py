@@ -18,7 +18,7 @@
 #   name: co-group-by-key
 #   description: CoGroupByKey example.
 #   multifile: false
-#   context_line: 31
+#   context_line: 74
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

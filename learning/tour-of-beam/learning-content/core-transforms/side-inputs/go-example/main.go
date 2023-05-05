@@ -17,7 +17,7 @@
 //   name: side-inputs
 //   description: Side-inputs example.
 //   multifile: false
-//   context_line: 36
+//   context_line: 41
 //   categories:
 //     - Quickstart
 //   complexity: MEDIUM
@@ -43,8 +43,8 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
-	citiesToCountriesKV := beam.ParDo(s, func(_ []byte, emit func(string, string)){
+	// List of elements
+	citiesToCountriesKV := beam.ParDo(s, func(_ []byte, emit func(string, string)) {
 		emit("Beijing", "China")
 		emit("London", "United Kingdom")
 		emit("San Francisco", "United States")
@@ -60,8 +60,8 @@ func main() {
 		Person{Name: "Alfred", City: "London"},
 	)
 
-    // The applyTransform() converts [input] to [output]
-    output := applyTransform(s, persons, citiesToCountriesKV)
+	// The applyTransform() converts [input] to [output]
+	output := applyTransform(s, persons, citiesToCountriesKV)
 
 	debug.Print(s, output)
 
@@ -94,4 +94,3 @@ func joinFn(person Person, citiesToCountriesIter func(*string, *string) bool, em
 		}
 	}
 }
-
