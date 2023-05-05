@@ -283,6 +283,11 @@ public class ByteBuddyUtils {
       }
     }
 
+    protected StackManipulation shortCircuitReturnNull(
+        StackManipulation readValue, StackManipulation onNotNull) {
+      return new ShortCircuitReturnNull(readValue, onNotNull);
+    }
+
     protected abstract T convertArray(TypeDescriptor<?> type);
 
     protected abstract T convertIterable(TypeDescriptor<?> type);
@@ -459,7 +464,7 @@ public class ByteBuddyUtils {
         .make()
         .load(
             ReflectHelpers.findClassLoader(((Class) fromType).getClassLoader()),
-            getClassLoadingStrategy((Class) fromType))
+            getClassLoadingStrategy(Function.class))
         .getLoaded();
   }
 

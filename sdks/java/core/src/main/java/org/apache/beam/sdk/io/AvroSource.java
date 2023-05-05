@@ -120,12 +120,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * details.
  *
  * @param <T> The type of records to be read from the source.
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.io.AvroSource</code> instead of this one.
  */
 // CHECKSTYLE.ON: JavadocStyle
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).

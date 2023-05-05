@@ -33,8 +33,6 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.AvroGenericCoder;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -227,9 +225,11 @@ public class SparkSessionFactory {
       kryo.register(SideInputValues.ByWindow.class);
       kryo.register(SideInputValues.Global.class);
 
+      // avro coders
+      tryToRegister(kryo, "org.apache.beam.sdk.extensions.avro.coders.AvroCoder");
+      tryToRegister(kryo, "org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder");
+
       // standard coders of org.apache.beam.sdk.coders
-      kryo.register(AvroCoder.class);
-      kryo.register(AvroGenericCoder.class);
       kryo.register(BigDecimalCoder.class);
       kryo.register(BigEndianIntegerCoder.class);
       kryo.register(BigEndianLongCoder.class);
@@ -282,6 +282,14 @@ public class SparkSessionFactory {
       kryo.register(CoGbkResultSchema.class);
       kryo.register(TupleTag.class);
       kryo.register(TupleTagList.class);
+    }
+
+    private void tryToRegister(Kryo kryo, String className) {
+      try {
+        kryo.register(Class.forName(className));
+      } catch (ClassNotFoundException e) {
+        LOG.info("Class {}} was not found on classpath", className);
+      }
     }
   }
 }

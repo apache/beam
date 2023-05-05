@@ -16,22 +16,63 @@
 #
 
 test_1:
-  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks_22
+  test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 152
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
   metric_name: mean_load_model_latency_milli_secs
-  labels:
-    - run-inference
-  # Optional parameters.
-  min_runs_between_change_points: 3
-  num_runs_in_change_point_window: 30
 
 test_2:
-  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 152
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet152
+  project: apache-beam-testing
+  metric_name: mean_inference_batch_latency_micro_secs
+
+test_3:
+  test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 101
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet101
   project: apache-beam-testing
   metric_name: mean_load_model_latency_milli_secs
-  labels:
-    - run-inference
+
+test_4:
+  test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 101
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet101
+  project: apache-beam-testing
+  metric_name: mean_inference_batch_latency_micro_secs
+
+test_5:
+  test_name: test_cloudml_benchmark_cirteo_no_shuffle_10GB
+  metrics_dataset: beam_cloudml
+  metrics_table: cloudml_benchmark_cirteo_no_shuffle_10GB
+  project: apache-beam-testing
+  metric_name: runtime_sec
+
+test_6:
+  test_name: test_cloudml_benchmark_criteo_10GB
+  metrics_dataset: beam_cloudml
+  metrics_table: cloudml_benchmark_criteo_10GB
+  project: apache-beam-testing
+  metric_name: runtime_sec
+
+test_7:
+  test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet152_tesla_t4
+  project: apache-beam-testing
+  metric_name: mean_inference_batch_latency_micro_secs
+
+test_8:
+  test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet152_tesla_t4
+  project: apache-beam-testing
+  metric_name: mean_load_model_latency_milli_secs

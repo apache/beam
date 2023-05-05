@@ -194,6 +194,12 @@ public class PeriodicSequence
       return new WatermarkEstimators.Manual(state);
     }
 
+    @TruncateRestriction
+    public RestrictionTracker.TruncateResult<OffsetRange> truncate() {
+      // stop emitting immediately upon drain
+      return null;
+    }
+
     @ProcessElement
     public ProcessContinuation processElement(
         @Element SequenceDefinition srcElement,
@@ -207,7 +213,7 @@ public class PeriodicSequence
 
       boolean claimSuccess = true;
 
-      estimator.setWatermark(Instant.ofEpochMilli(restriction.getFrom()));
+      estimator.setWatermark(Instant.ofEpochMilli(nextOutput));
 
       while (claimSuccess && Instant.ofEpochMilli(nextOutput).isBeforeNow()) {
         claimSuccess = restrictionTracker.tryClaim(nextOutput);

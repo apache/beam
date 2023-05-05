@@ -84,7 +84,7 @@ public class MetadataSpannerConfigFactory {
 
     ValueProvider<Duration> commitDeadline = primaryConfig.getCommitDeadline();
     if (commitDeadline != null) {
-      config = config.withCommitDeadline(StaticValueProvider.of(commitDeadline.get()));
+      config = config.withCommitDeadline(StaticValueProvider.of(Duration.standardSeconds(60)));
     }
 
     ValueProvider<Duration> maxCumulativeBackoff = primaryConfig.getMaxCumulativeBackoff();

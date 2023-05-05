@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+evaluationDependsOn(':sdks:python:test-suites:xlang')
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 def pythonContainerVersion = project.ext.pythonVersion
@@ -308,12 +309,67 @@ task tensorflowInferenceTest {
     }
 }
 
+// XGBoost RunInference IT tests
+task xgboostInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/xgboost_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_xgboost and it_postcommit",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && export FORCE_XGBOOST_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+
+}
+
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'torchInferenceTest',
   'sklearnInferenceTest',
-  'tfxInferenceTest',
-  'tensorflowInferenceTest'
+  'tensorflowInferenceTest',
+  'xgboostInferenceTest'
+  // (TODO) https://github.com/apache/beam/issues/25799
+   // uncomment tfx bsl tests once tfx supports protobuf 4.x
+  // 'tfxInferenceTest',
   ]
+}
+
+// Create cross-language tasks for running tests against Java expansion service(s)
+def gcpProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+
+project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
+    createCrossLanguageUsingJavaExpansionTask(
+      name: taskMetadata.name,
+      expansionProjectPath: taskMetadata.expansionProjectPath,
+      collectMarker: taskMetadata.collectMarker,
+      startJobServer: taskMetadata.startJobServer,
+      cleanupJobServer: taskMetadata.cleanupJobServer,
+      numParallelTests: 1,
+      pythonPipelineOptions: [
+        "--runner=TestDirectRunner",
+        "--project=${gcpProject}",
+      ],
+      pytestOptions: [
+        "--capture=no",  // print stdout instantly
+        "--timeout=4500", // timeout of whole command execution
+        "--color=yes", // console color
+        "--log-cli-level=INFO" //log level info
+      ]
+    )
 }

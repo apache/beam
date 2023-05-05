@@ -85,6 +85,7 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
       if (config.timestampAttribute != null) {
         writeBuilder.setTimestampAttribute(config.timestampAttribute);
       }
+      writeBuilder.setDynamicDestinations(false);
       return writeBuilder.build();
     }
   }

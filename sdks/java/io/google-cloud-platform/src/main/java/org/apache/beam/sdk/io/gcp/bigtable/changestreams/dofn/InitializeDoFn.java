@@ -22,6 +22,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,32 +30,46 @@ import org.slf4j.LoggerFactory;
  * A DoFn responsible to initialize the metadata table and prepare it for managing the state of the
  * pipeline.
  */
-@SuppressWarnings("UnusedVariable")
 @Internal
-public class InitializeDoFn extends DoFn<byte[], com.google.cloud.Timestamp>
-    implements Serializable {
+public class InitializeDoFn extends DoFn<byte[], Instant> implements Serializable {
   private static final long serialVersionUID = 1868189906451252363L;
 
   private static final Logger LOG = LoggerFactory.getLogger(InitializeDoFn.class);
   private final DaoFactory daoFactory;
   private final String metadataTableAppProfileId;
-  private com.google.cloud.Timestamp startTime;
+  private Instant startTime;
 
   public InitializeDoFn(
-      DaoFactory daoFactory,
-      String metadataTableAppProfileId,
-      com.google.cloud.Timestamp startTime) {
+      DaoFactory daoFactory, String metadataTableAppProfileId, Instant startTime) {
     this.daoFactory = daoFactory;
     this.metadataTableAppProfileId = metadataTableAppProfileId;
     this.startTime = startTime;
   }
 
   @ProcessElement
-  public void processElement(OutputReceiver<com.google.cloud.Timestamp> receiver)
-      throws IOException {
+  public void processElement(OutputReceiver<Instant> receiver) throws IOException {
     LOG.info(daoFactory.getStreamTableDebugString());
     LOG.info(daoFactory.getMetadataTableDebugString());
     LOG.info("ChangeStreamName: " + daoFactory.getChangeStreamName());
+    if (!daoFactory
+        .getMetadataTableAdminDao()
+        .isAppProfileSingleClusterAndTransactional(this.metadataTableAppProfileId)) {
+      LOG.error(
+          "App profile id '"
+              + metadataTableAppProfileId
+              + "' provided to access metadata table needs to use single-cluster routing policy"
+              + " and allow single-row transactions.");
+      // Terminate this pipeline now.
+      return;
+    }
+    if (daoFactory.getMetadataTableAdminDao().createMetadataTable()) {
+      LOG.info("Created metadata table: " + daoFactory.getMetadataTableAdminDao().getTableId());
+    } else {
+      LOG.info(
+          "Reusing existing metadata table: " + daoFactory.getMetadataTableAdminDao().getTableId());
+    }
+
+    daoFactory.getMetadataTableDao().writeDetectNewPartitionVersion();
 
     receiver.output(startTime);
   }

@@ -16,5 +16,6 @@
 package entity
 
 type SchemaEntity struct {
-	Descr string `datastore:"descr,noindex"`
+	Version int    `datastore:"version"`
+	Descr   string `datastore:"descr,noindex"`
 }

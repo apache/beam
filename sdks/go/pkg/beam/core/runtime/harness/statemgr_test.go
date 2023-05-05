@@ -322,6 +322,7 @@ func TestStateKeyReader(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
+		test := test // avoid issues on parallel execution.
 		t.Run(test.name, func(t *testing.T) {
 			ctx, cancelFn := context.WithCancel(context.Background())
 			ch := &StateChannel{

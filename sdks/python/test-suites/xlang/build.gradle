@@ -1,0 +1,62 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// This is a base file to set up cross language tests for different runners
+import org.apache.beam.gradle.BeamModulePlugin
+import static org.apache.beam.gradle.BeamModulePlugin.CrossLanguageTaskCommon
+project.evaluationDependsOn(":sdks:python")
+
+// Set up cross language tests
+def envDir = project.project(":sdks:python").envdir
+def jobPort = BeamModulePlugin.getRandomPort()
+def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
+def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
+
+def setupTask = project.tasks.register("fnApiJobServerSetup", Exec) {
+  dependsOn ':sdks:python:installGcpTest'
+
+  executable 'sh'
+  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
+}
+
+def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
+  executable 'sh'
+  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
+}
+
+// List of objects representing task metadata to create cross-language tasks from.
+// Each object contains the minimum relevant metadata.
+def xlangTasks = []
+
+// ******** Java GCP expansion service ********
+// Note: this only runs cross-language tests that use the Java GCP expansion service
+// To run tests that use another expansion service, create a new CrossLanguageTaskCommon with the
+// relevant fields as done here, then add it to `xlangTasks`.
+def gcpExpansionProject = project.project(':sdks:java:io:google-cloud-platform:expansion-service')
+// Properties that are common across runners.
+// Used to launch the expansion service, collect the right tests, and cleanup afterwards
+def gcpXlangCommon = new CrossLanguageTaskCommon().tap {
+    name = "gcpCrossLanguage"
+    expansionProjectPath = gcpExpansionProject.getPath()
+    collectMarker = "uses_gcp_java_expansion_service"
+    startJobServer = setupTask
+    cleanupJobServer = cleanupTask
+}
+xlangTasks.add(gcpXlangCommon)
+
+
+ext.xlangTasks = xlangTasks

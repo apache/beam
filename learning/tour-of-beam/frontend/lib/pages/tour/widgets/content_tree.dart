@@ -17,9 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../components/builders/content_tree.dart';
+import '../../../state.dart';
 import '../controllers/content_tree.dart';
 import 'content_tree_title.dart';
 import 'module.dart';
@@ -34,33 +36,36 @@ class ContentTreeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 250,
-      padding: const EdgeInsets.symmetric(horizontal: BeamSizes.size12),
-      child: ContentTreeBuilder(
-        sdkId: controller.sdkId,
-        builder: (context, contentTree, child) {
-          if (contentTree == null) {
-            return Container();
-          }
+      child: AnimatedBuilder(
+        animation: GetIt.instance.get<AppNotifier>(),
+        builder: (context, child) => ContentTreeBuilder(
+          sdk: controller.sdk,
+          builder: (context, contentTree, child) {
+            if (contentTree == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                const ContentTreeTitleWidget(),
-                ...contentTree.modules
-                    .map(
-                      (module) => ModuleWidget(
-                        module: module,
-                        contentTreeController: controller,
-                      ),
-                    )
-                    .toList(growable: false),
-                const SizedBox(height: BeamSizes.size12),
-              ],
-            ),
-          );
-        },
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: BeamSizes.size12,
+              ),
+              child: Column(
+                children: [
+                  const ContentTreeTitleWidget(),
+                  ...contentTree.modules.map(
+                    (module) => ModuleWidget(
+                      module: module,
+                      contentTreeController: controller,
+                    ),
+                  ),
+                  const SizedBox(height: BeamSizes.size12),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

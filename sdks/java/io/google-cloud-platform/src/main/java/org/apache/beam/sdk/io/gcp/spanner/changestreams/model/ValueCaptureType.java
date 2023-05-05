@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 
 /**
  * Represents the capture type of a change stream. The only supported value at the moment is

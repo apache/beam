@@ -23,33 +23,13 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// TODO(herohde) 10/12/2017: make this file a separate package. Then
-// populate InstructionId and TransformId properly.
-
-// TODO(herohde) 10/13/2017: add top-level harness.Main panic handler that flushes logs.
-// Also make logger flush on Fatal severity messages.
-type contextKey string
-
-const instKey contextKey = "beam:inst"
-
-func setInstID(ctx context.Context, id instructionID) context.Context {
-	return context.WithValue(ctx, instKey, id)
-}
-
-func tryGetInstID(ctx context.Context) (string, bool) {
-	id := ctx.Value(instKey)
-	if id == nil {
-		return "", false
-	}
-	return string(id.(instructionID)), true
-}
 
 type logger struct {
 	out chan<- *fnpb.LogEntry
@@ -66,9 +46,8 @@ func (l *logger) Log(ctx context.Context, sev log.Severity, calldepth int, msg s
 	if _, file, line, ok := runtime.Caller(calldepth + 1); ok {
 		entry.LogLocation = fmt.Sprintf("%v:%v", file, line)
 	}
-	if id, ok := tryGetInstID(ctx); ok {
-		entry.InstructionId = id
-	}
+	entry.InstructionId = metrics.GetBundleID(ctx)
+	entry.TransformId = metrics.GetTransformID(ctx)
 
 	select {
 	case l.out <- entry:
@@ -135,7 +114,7 @@ type remoteWriter struct {
 
 func (w *remoteWriter) Run(ctx context.Context) error {
 	for {
-		err := w.connect(ctx)
+		err := w.connect(ctx, w.dialLogClient)
 		if err == io.EOF {
 			return nil
 		}
@@ -151,49 +130,80 @@ func (w *remoteWriter) Run(ctx context.Context) error {
 	}
 }
 
-func (w *remoteWriter) connect(ctx context.Context) error {
+func (w *remoteWriter) dialLogClient(ctx context.Context) (logSender, func(), error) {
 	conn, err := dial(ctx, w.endpoint, "logging", 30*time.Second)
 	if err != nil {
-		return err
+		return nil, func() {}, err
 	}
-	defer conn.Close()
 
 	client, err := fnpb.NewBeamFnLoggingClient(conn).Logging(ctx)
 	if err != nil {
+		conn.Close()
+		return nil, func() {}, err
+	}
+
+	toDefer := func() {
+		client.CloseSend()
+		conn.Close()
+	}
+	return client, toDefer, nil
+}
+
+type logSender interface {
+	Send(*fnpb.LogEntry_List) error
+}
+
+var errBuffClosed = errors.New("internal: log message buffer closed")
+
+func (w *remoteWriter) connect(ctx context.Context, makeClient func(ctx context.Context) (logSender, func(), error)) error {
+	client, toDefer, err := makeClient(ctx)
+	if err != nil {
 		return err
 	}
-	defer client.CloseSend()
+	defer toDefer()
 
 	for {
-		var msg *fnpb.LogEntry
+		const batchSize = 64
+		msgs := make([]*fnpb.LogEntry, 0, batchSize)
+		var flush bool
 		select {
 		case <-ctx.Done():
 			return nil
 		case newMsg, ok := <-w.buffer:
 			if !ok {
-				return errors.New("internal: buffer closed?")
+				return errBuffClosed
 			}
-			msg = newMsg
+			msgs = append(msgs, newMsg)
+			flush = newMsg.Severity >= fnpb.LogEntry_Severity_CRITICAL
 		}
-		// fmt.Fprintf(os.Stderr, "REMOTE: %v\n", proto.MarshalTextString(msg))
 
-		// TODO: batch up log messages
+		// If there are still messages in the buffer, drain them out to batch them to a cap.
+		// If there's a critical message, flush immeadiately.
+		for len(w.buffer) > 0 && len(msgs) < batchSize && !flush {
+			newMsg, ok := <-w.buffer
+			if !ok {
+				return errBuffClosed
+			}
+			msgs = append(msgs, newMsg)
+			flush = newMsg.Severity >= fnpb.LogEntry_Severity_CRITICAL
+		}
 
 		list := &fnpb.LogEntry_List{
-			LogEntries: []*fnpb.LogEntry{msg},
+			LogEntries: msgs,
 		}
-
-		recordLogEntries(list)
 
 		if err := client.Send(list); err != nil {
 			if err == io.EOF {
-				(&log.Standard{}).Log(ctx, log.SevInfo, 0, msg.GetMessage())
+				for _, msg := range msgs {
+					(&log.Standard{}).Log(ctx, log.SevInfo, 0, msg.GetMessage())
+				}
 				return io.EOF
 			}
-			fmt.Fprintf(os.Stderr, "Failed to send message: %v\n %v", err, msg.GetMessage())
+			fmt.Fprintf(os.Stderr, "Failed to send %v messages. Messages follow error.\n %v", len(msgs), err)
+			for _, msg := range msgs {
+				fmt.Fprintf(os.Stderr, "Failed to send message: %v\n %v", err, msg.GetMessage())
+			}
 			return err
 		}
-
-		// fmt.Fprintf(os.Stderr, "SENT: %v\n", msg)
 	}
 }
