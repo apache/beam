@@ -39,9 +39,10 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of Window transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 53
+//   context_line: 54
 //   categories:
 //     - Core Transforms
+//     - Windowing
 //   complexity: BASIC
 //   tags:
 //     - transforms
@@ -56,7 +57,7 @@ public class WindowExample {
 
     // [START main_section]
     // Create some input data with timestamps
-    List<String> input_data = Arrays.asList("foo", "bar", "foo", "foo");
+    List<String> inputData = Arrays.asList("foo", "bar", "foo", "foo");
     List<Long> timestamps =
         Arrays.asList(
             Duration.standardSeconds(15).getMillis(),
@@ -65,16 +66,15 @@ public class WindowExample {
             Duration.standardSeconds(90).getMillis());
 
     // Create a PCollection from the input data with timestamps
-    PCollection<String> items = pipeline.apply(Create.timestamped(input_data, timestamps));
+    PCollection<String> items = pipeline.apply(Create.timestamped(inputData, timestamps));
 
     // Create a windowed PCollection
-    PCollection<String> windowed_items =
+    PCollection<String> windowedItems =
         items.apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
-    PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(Count.perElement());
+    PCollection<KV<String, Long>> windowedCounts = windowedItems.apply(Count.perElement());
     // [END main_section]
-    windowed_counts.apply(
-        ParDo.of(new LogOutput<>("PCollection elements after Count transform: ")));
+    windowedCounts.apply(ParDo.of(new LogOutput<>("PCollection elements after Count transform: ")));
     pipeline.run();
   }
 
