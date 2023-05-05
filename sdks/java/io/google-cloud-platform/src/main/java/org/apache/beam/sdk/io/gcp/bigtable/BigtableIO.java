@@ -1007,6 +1007,10 @@ public class BigtableIO {
      * Returns a new {@link BigtableIO.Write} with flow control based on the current load on the
      * Bigtable cluster if enableFlowControl is true.
      *
+     * <p>This is different from the flow control set by {@link #withMaxOutstandingElements(long)}
+     * and {@link #withMaxOutstandingBytes(long)}, which is always enabled on batch writes and
+     * limits the number of outstanding requests to the Bigtable server.
+     *
      * <p>Does not modify this object.
      */
     public Write withFlowControl(boolean enableFlowControl) {
