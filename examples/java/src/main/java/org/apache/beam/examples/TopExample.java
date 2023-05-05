@@ -15,25 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: CountDemo
-//   description: Demonstration of Count transform usage.
+//   name: TopDemo
+//   description: Demonstration of Top transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 45
+//   context_line: 46
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -41,16 +42,16 @@ import org.slf4j.LoggerFactory;
 //     - transforms
 //     - numbers
 
-public class CountExample {
+public class TopExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<Double> pc = pipeline.apply(Create.of(1.0, 2.0, 3.0, 4.0, 5.0));
-    PCollection<Long> count = pc.apply(Count.globally());
+    // Create numbers
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6));
+    PCollection<List<Integer>> result = input.apply(Top.largest(3));
     // [END main_section]
-    // Log values
-    count.apply(ParDo.of(new LogOutput<>("PCollection numbers after Count transform: ")));
+    result.apply(ParDo.of(new LogOutput<>("Three largest numbers: ")));
     pipeline.run();
   }
 

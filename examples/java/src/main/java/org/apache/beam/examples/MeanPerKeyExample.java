@@ -15,49 +15,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: ValuesDemo
-//   description: Demonstration of Values transform usage.
+//   name: MeanPerKeyDemo
+//   description: Demonstration of Mean.perKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 46
+//   context_line: 47
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
+//     - numbers
 //     - pairs
 
-public class ValuesExample {
+public class MeanPerKeyExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    // Create key/value pairs
-    PCollection<KV<String, Integer>> pairs =
+    PCollection<KV<String, Integer>> input =
         pipeline.apply(
-            Create.of(KV.of("one", 1), KV.of("two", 2), KV.of("three", 3), KV.of("four", 4)));
-    // Returns only the values of the collection: PCollection<KV<K,V>> ->
-    // PCollection<V>
-    PCollection<Integer> valuesOnly = pairs.apply(Values.create());
+            Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3), KV.of("b", 4), KV.of("b", 5)));
+    PCollection<KV<String, Double>> meanPerKey = input.apply(Mean.perKey());
     // [END main_section]
-    pairs.apply(ParDo.of(new LogOutput<>("PCollection element before Values.create transform: ")));
-    valuesOnly.apply(
-        ParDo.of(new LogOutput<>("PCollection element after Values.create transform: ")));
+    // Log values
+    meanPerKey.apply(ParDo.of(new LogOutput<>("PCollection numbers after Mean transform: ")));
     pipeline.run();
   }
 

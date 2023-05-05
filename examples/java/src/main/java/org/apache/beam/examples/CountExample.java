@@ -15,55 +15,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sample;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: SampleDemo
-//   description: Demonstration of Sample transform usage.
+//   name: CountDemo
+//   description: Demonstration of Count transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 47
+//   context_line: 45
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - pairs
-//     - group
+//     - numbers
 
-public class SampleExample {
+public class CountExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    // Create pairs
-    PCollection<KV<String, String>> pairs =
-        pipeline.apply(
-            Create.of(
-                KV.of("fall", "apple"),
-                KV.of("spring", "strawberry"),
-                KV.of("winter", "orange"),
-                KV.of("summer", "peach"),
-                KV.of("spring", "cherry"),
-                KV.of("fall", "pear")));
-    // We use Sample.fixedSizePerKey() to get fixed-size random samples for each
-    // unique key in a PCollection of key-values.
-    PCollection<KV<String, Iterable<String>>> result = pairs.apply(Sample.fixedSizePerKey(2));
+    PCollection<Double> pc = pipeline.apply(Create.of(1.0, 2.0, 3.0, 4.0, 5.0));
+    PCollection<Long> count = pc.apply(Count.globally());
     // [END main_section]
-    result.apply(
-        ParDo.of(new LogOutput<>("PCollection pairs after Sample.fixedSizePerKey transform: ")));
+    // Log values
+    count.apply(ParDo.of(new LogOutput<>("PCollection numbers after Count transform: ")));
     pipeline.run();
   }
 

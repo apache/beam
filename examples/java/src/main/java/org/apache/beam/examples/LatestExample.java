@@ -15,53 +15,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Latest;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ToString;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: ToStringDemo
-//   description: Demonstration of ToString transform usage.
+//   name: LatestDemo
+//   description: Demonstration of Latest transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 46
+//   context_line: 49
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - pairs
+//     - timestamps
+//     - latest
 
-public class ToStringExample {
+public class LatestExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
+
     // [START main_section]
-    // Create key-value pairs
-    PCollection<KV<String, String>> pairs =
-        pipeline.apply(
-            Create.of(
-                KV.of("fall", "apple"),
-                KV.of("spring", "strawberry"),
-                KV.of("winter", "orange"),
-                KV.of("summer", "peach"),
-                KV.of("spring", "cherry"),
-                KV.of("fall", "pear")));
-    // Use ToString on key-value pairs
-    PCollection<String> result = pairs.apply(ToString.kvs());
+    Instant baseInstant = Instant.now().minus(Duration.standardSeconds(10));
+
+    // Create collection
+    PCollection<Integer> numbers = pipeline.apply(Create.of(5, 4, 3, 2, 1));
+
+    // Add Timestamps for elements based on elements values. Largest element will be
+    // the latest.
+    PCollection<Integer> withTimestamps =
+        numbers.apply(
+            WithTimestamps.of(duration -> baseInstant.plus(Duration.standardSeconds(duration))));
+
+    // Get the latest element from collection without timestamps. It will vary from
+    // run to run
+    PCollection<Integer> latest = numbers.apply(Latest.globally());
+
+    // Get the latest element from collection with timestamps. Should always be 5
+    PCollection<Integer> latestTimestamped = withTimestamps.apply(Latest.globally());
     // [END main_section]
-    result.apply(
-        ParDo.of(new LogOutput<>("PCollection key-value pairs after ToString transform: ")));
+
+    latest.apply(ParDo.of(new LogOutput<>("Latest element (without timestamps): ")));
+    latestTimestamped.apply(ParDo.of(new LogOutput<>("Latest element (with timestamps): ")));
     pipeline.run();
   }
 

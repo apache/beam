@@ -15,57 +15,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
-import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.FlatMapElements;
-import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Regex;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: FlatMapElementsDemo
-//   description: Demonstration of FlatMapElements transform usage.
+//   name: RegexDemo
+//   description: Demonstration of Regex transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 50
+//   context_line: 46
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - pairs
 //     - strings
-//     - map
+//     - regex
 
-public class FlatMapElementsExample {
+public class RegexExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<String> lines =
-        pipeline.apply(Create.of("the quick brown fox", "jumps over the lazy", "dog"));
-    // Use FlatMapElements to split the lines in PCollection<String> into individual
-    // words.
-    PCollection<String> words =
-        lines.apply(
-            FlatMapElements.via(
-                new InferableFunction<String, List<String>>() {
-                  @Override
-                  public List<String> apply(String line) {
-                    return Arrays.asList(line.split(" "));
-                  }
-                }));
+    // Create a collection with strings
+    PCollection<String> emails =
+        pipeline.apply(
+            Create.of(
+                "johndoe@gmail.com",
+                "sarahsmith@yahoo.com",
+                "mikebrown@outlook.com",
+                "amandajohnson",
+                "davidlee",
+                "emilyrodriguez"));
+
+    // Take only strings which match the email regex
+    PCollection<String> result =
+        emails.apply(Regex.matches("([a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6})"));
     // [END main_section]
-    words.apply(ParDo.of(new LogOutput<>("PCollection elements after the transform: ")));
+    result.apply(ParDo.of(new LogOutput<>("PCollection after Regex transform: ")));
     pipeline.run();
   }
 

@@ -15,43 +15,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: TopDemo
-//   description: Demonstration of Top transform usage.
+//   name: WindowDemo
+//   description: Demonstration of Window transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 46
+//   context_line: 54
 //   categories:
 //     - Core Transforms
+//     - Windowing
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - numbers
+//     - strings
+//     - timestamps
+//     - windows
 
-public class TopExample {
+public class WindowExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
+
     // [START main_section]
-    // Create numbers
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6));
-    PCollection<List<Integer>> result = input.apply(Top.largest(3));
+    // Create some input data with timestamps
+    List<String> inputData = Arrays.asList("foo", "bar", "foo", "foo");
+    List<Long> timestamps =
+        Arrays.asList(
+            Duration.standardSeconds(15).getMillis(),
+            Duration.standardSeconds(30).getMillis(),
+            Duration.standardSeconds(45).getMillis(),
+            Duration.standardSeconds(90).getMillis());
+
+    // Create a PCollection from the input data with timestamps
+    PCollection<String> items = pipeline.apply(Create.timestamped(inputData, timestamps));
+
+    // Create a windowed PCollection
+    PCollection<String> windowedItems =
+        items.apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+
+    PCollection<KV<String, Long>> windowedCounts = windowedItems.apply(Count.perElement());
     // [END main_section]
-    result.apply(ParDo.of(new LogOutput<>("Three largest numbers: ")));
+    windowedCounts.apply(ParDo.of(new LogOutput<>("PCollection elements after Count transform: ")));
     pipeline.run();
   }
 

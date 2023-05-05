@@ -15,23 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MeanPerKeyDemo
-//   description: Demonstration of Mean.perKey transform usage.
+//   name: SampleDemo
+//   description: Demonstration of Sample transform usage.
 //   multifile: false
 //   default_example: false
 //   context_line: 47
@@ -40,21 +40,30 @@ import org.slf4j.LoggerFactory;
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - numbers
 //     - pairs
+//     - group
 
-public class MeanPerKeyExample {
+public class SampleExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<KV<String, Integer>> input =
+    // Create pairs
+    PCollection<KV<String, String>> pairs =
         pipeline.apply(
-            Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3), KV.of("b", 4), KV.of("b", 5)));
-    PCollection<KV<String, Double>> meanPerKey = input.apply(Mean.perKey());
+            Create.of(
+                KV.of("fall", "apple"),
+                KV.of("spring", "strawberry"),
+                KV.of("winter", "orange"),
+                KV.of("summer", "peach"),
+                KV.of("spring", "cherry"),
+                KV.of("fall", "pear")));
+    // We use Sample.fixedSizePerKey() to get fixed-size random samples for each
+    // unique key in a PCollection of key-values.
+    PCollection<KV<String, Iterable<String>>> result = pairs.apply(Sample.fixedSizePerKey(2));
     // [END main_section]
-    // Log values
-    meanPerKey.apply(ParDo.of(new LogOutput<>("PCollection numbers after Mean transform: ")));
+    result.apply(
+        ParDo.of(new LogOutput<>("PCollection pairs after Sample.fixedSizePerKey transform: ")));
     pipeline.run();
   }
 

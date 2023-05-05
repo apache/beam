@@ -15,50 +15,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: FlattenDemo
-//   description: Demonstration of Flatten transform usage.
+//   name: CreateDemo
+//   description: Demonstration of Create transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 46
+//   context_line: 51
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
 //     - numbers
+//     - pairs
 
-public class FlattenExample {
+public class CreateExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    // Flatten takes a PCollectionList of PCollection objects of a given type.
-    // Returns a single PCollection that contains all of the elements in the PCollection objects in
-    // that list.
-    PCollection<String> pc1 = pipeline.apply(Create.of("Hello"));
-    PCollection<String> pc2 = pipeline.apply(Create.of("World", "Beam"));
-    PCollection<String> pc3 = pipeline.apply(Create.of("Is", "Fun"));
-    PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
+    PCollection<Integer> pc =
+        pipeline.apply(Create.of(3, 4, 5).withCoder(BigEndianIntegerCoder.of()));
 
-    PCollection<String> merged = collections.apply(Flatten.pCollections());
+    Map<String, Integer> map = new HashMap<>();
+    map.put("a", 1);
+    map.put("b", 2);
+
+    PCollection<KV<String, Integer>> pt =
+        pipeline.apply(
+            Create.of(map).withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
     // [END main_section]
     // Log values
-    merged.apply(ParDo.of(new LogOutput<>("PCollection numbers after Flatten transform: ")));
+    pc.apply(ParDo.of(new LogOutput<>("PCollection<Integer> numbers after Create transform: ")));
+    pt.apply(
+        ParDo.of(new LogOutput<>("PCollection<KV<String, Integer>> map after Create transform: ")));
     pipeline.run();
   }
 

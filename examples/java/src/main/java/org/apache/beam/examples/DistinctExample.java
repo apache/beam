@@ -15,22 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Regex;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: RegexDemo
-//   description: Demonstration of Regex transform usage.
+//   name: DistinctDemo
+//   description: Demonstration of Distinct transform usage.
 //   multifile: false
 //   default_example: false
 //   context_line: 46
@@ -39,30 +39,23 @@ import org.slf4j.LoggerFactory;
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - strings
-//     - regex
+//     - numbers
+//     - distinct
 
-public class RegexExample {
+public class DistinctExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
-    // [START main_section]
-    // Create a collection with strings
-    PCollection<String> emails =
-        pipeline.apply(
-            Create.of(
-                "johndoe@gmail.com",
-                "sarahsmith@yahoo.com",
-                "mikebrown@outlook.com",
-                "amandajohnson",
-                "davidlee",
-                "emilyrodriguez"));
 
-    // Take only strings which match the email regex
-    PCollection<String> result =
-        emails.apply(Regex.matches("([a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6})"));
+    // [START main_section]
+    // Create a collection with repeating numbers
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 1, 2, 2, 3, 4, 4, 5, 5));
+    // Apply Distinct transform
+    PCollection<Integer> distinctNumbers = input.apply(Distinct.create());
     // [END main_section]
-    result.apply(ParDo.of(new LogOutput<>("PCollection after Regex transform: ")));
+    // Log values
+    distinctNumbers.apply(
+        ParDo.of(new LogOutput<>("PCollection numbers after Distinct.create transform: ")));
     pipeline.run();
   }
 

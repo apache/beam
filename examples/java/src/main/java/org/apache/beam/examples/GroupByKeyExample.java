@@ -15,42 +15,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MinDemo
-//   description: Demonstration of Min transform usage.
+//   name: GroupByKeyDemo
+//   description: Demonstration of GroupByKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 45
+//   context_line: 48
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - numbers
+//     - strings
+//     - pairs
+//     - group
 
-public class MinExample {
+public class GroupByKeyExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<Double> pc = pipeline.apply(Create.of(1.0, 2.0, 3.0, 4.0, 5.0));
-    PCollection<Double> min = pc.apply(Min.globally());
+    PCollection<KV<String, String>> pt =
+        pipeline.apply(
+            Create.of(
+                KV.of("a", "apple"),
+                KV.of("a", "avocado"),
+                KV.of("b", "banana"),
+                KV.of("c", "cherry")));
+    PCollection<KV<String, Iterable<String>>> result = pt.apply(GroupByKey.create());
     // [END main_section]
-    // Log values
-    min.apply(ParDo.of(new LogOutput<>("PCollection numbers after Min transform: ")));
+    result.apply(ParDo.of(new LogOutput<>("PCollection pairs after GroupByKey transform: ")));
     pipeline.run();
   }
 

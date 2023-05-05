@@ -15,46 +15,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.FlatMapElements;
+import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: SumPerKeyDemo
-//   description: Demonstration of Sum.integersPerKey transform usage.
+//   name: FlatMapElementsDemo
+//   description: Demonstration of FlatMapElements transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 47
+//   context_line: 50
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - numbers
 //     - pairs
+//     - strings
+//     - map
 
-public class SumPerKeyExample {
+public class FlatMapElementsExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<KV<String, Integer>> input =
-        pipeline.apply(
-            Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3), KV.of("b", 4), KV.of("b", 5)));
-    PCollection<KV<String, Integer>> sumPerKey = input.apply(Sum.integersPerKey());
+    PCollection<String> lines =
+        pipeline.apply(Create.of("the quick brown fox", "jumps over the lazy", "dog"));
+    // Use FlatMapElements to split the lines in PCollection<String> into individual
+    // words.
+    PCollection<String> words =
+        lines.apply(
+            FlatMapElements.via(
+                new InferableFunction<String, List<String>>() {
+                  @Override
+                  public List<String> apply(String line) {
+                    return Arrays.asList(line.split(" "));
+                  }
+                }));
     // [END main_section]
-    // Log values
-    sumPerKey.apply(ParDo.of(new LogOutput<>("PCollection numbers after Sum transform: ")));
+    words.apply(ParDo.of(new LogOutput<>("PCollection elements after the transform: ")));
     pipeline.run();
   }
 

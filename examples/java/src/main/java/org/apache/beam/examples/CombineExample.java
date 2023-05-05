@@ -15,25 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MaxDemo
-//   description: Demonstration of Max transform usage.
+//   name: CombineDemo
+//   description: Demonstration of Combine transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 45
+//   context_line: 46
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -41,16 +42,19 @@ import org.slf4j.LoggerFactory;
 //     - transforms
 //     - numbers
 
-public class MaxExample {
+public class CombineExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<Double> pc = pipeline.apply(Create.of(1.0, 2.0, 3.0, 4.0, 5.0));
-    PCollection<Double> max = pc.apply(Max.globally());
+    // Sum.ofIntegers() combines the elements in the input PCollection. The
+    // resulting PCollection, called sum,
+    // contains one value: the sum of all the elements in the input PCollection.
+    PCollection<Integer> pc = pipeline.apply(Create.of(1, 2, 3, 4, 5));
+    PCollection<Integer> sum = pc.apply(Combine.globally(Sum.ofIntegers()));
     // [END main_section]
     // Log values
-    max.apply(ParDo.of(new LogOutput<>("PCollection numbers after Max transform: ")));
+    sum.apply(ParDo.of(new LogOutput<>("PCollection numbers after Combine transform: ")));
     pipeline.run();
   }
 

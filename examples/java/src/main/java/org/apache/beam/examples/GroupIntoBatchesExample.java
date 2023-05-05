@@ -15,18 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -34,39 +30,38 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: CreateDemo
-//   description: Demonstration of Create transform usage.
+//   name: GroupIntoBatchesDemo
+//   description: Demonstration of GroupIntoBatches transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 51
+//   context_line: 47
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - numbers
-//     - pairs
+//     - strings
+//     - group
 
-public class CreateExample {
+public class GroupIntoBatchesExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<Integer> pc =
-        pipeline.apply(Create.of(3, 4, 5).withCoder(BigEndianIntegerCoder.of()));
-
-    Map<String, Integer> map = new HashMap<>();
-    map.put("a", 1);
-    map.put("b", 2);
-
-    PCollection<KV<String, Integer>> pt =
+    // Create pairs
+    PCollection<KV<String, String>> pairs =
         pipeline.apply(
-            Create.of(map).withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+            Create.of(
+                KV.of("fall", "apple"),
+                KV.of("spring", "strawberry"),
+                KV.of("winter", "orange"),
+                KV.of("summer", "peach"),
+                KV.of("spring", "cherry"),
+                KV.of("fall", "pear")));
+    // Group pairs into batches of size 2
+    PCollection<KV<String, Iterable<String>>> result = pairs.apply(GroupIntoBatches.ofSize(2));
     // [END main_section]
-    // Log values
-    pc.apply(ParDo.of(new LogOutput<>("PCollection<Integer> numbers after Create transform: ")));
-    pt.apply(
-        ParDo.of(new LogOutput<>("PCollection<KV<String, Integer>> map after Create transform: ")));
+    result.apply(ParDo.of(new LogOutput<>("PCollection pairs after GroupIntoBatches transform: ")));
     pipeline.run();
   }
 

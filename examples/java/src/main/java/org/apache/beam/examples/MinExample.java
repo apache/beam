@@ -15,53 +15,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: GroupIntoBatchesDemo
-//   description: Demonstration of GroupIntoBatches transform usage.
+//   name: MinDemo
+//   description: Demonstration of Min transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 47
+//   context_line: 45
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - strings
-//     - group
+//     - numbers
 
-public class GroupIntoBatchesExample {
+public class MinExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    // Create pairs
-    PCollection<KV<String, String>> pairs =
-        pipeline.apply(
-            Create.of(
-                KV.of("fall", "apple"),
-                KV.of("spring", "strawberry"),
-                KV.of("winter", "orange"),
-                KV.of("summer", "peach"),
-                KV.of("spring", "cherry"),
-                KV.of("fall", "pear")));
-    // Group pairs into batches of size 2
-    PCollection<KV<String, Iterable<String>>> result = pairs.apply(GroupIntoBatches.ofSize(2));
+    PCollection<Double> pc = pipeline.apply(Create.of(1.0, 2.0, 3.0, 4.0, 5.0));
+    PCollection<Double> min = pc.apply(Min.globally());
     // [END main_section]
-    result.apply(ParDo.of(new LogOutput<>("PCollection pairs after GroupIntoBatches transform: ")));
+    // Log values
+    min.apply(ParDo.of(new LogOutput<>("PCollection numbers after Min transform: ")));
     pipeline.run();
   }
 

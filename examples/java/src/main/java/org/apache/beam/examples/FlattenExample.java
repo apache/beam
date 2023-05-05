@@ -15,63 +15,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Latest;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: LatestDemo
-//   description: Demonstration of Latest transform usage.
+//   name: FlattenDemo
+//   description: Demonstration of Flatten transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 49
+//   context_line: 46
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - timestamps
-//     - latest
+//     - numbers
 
-public class LatestExample {
+public class FlattenExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
-
     // [START main_section]
-    Instant baseInstant = Instant.now().minus(Duration.standardSeconds(10));
+    // Flatten takes a PCollectionList of PCollection objects of a given type.
+    // Returns a single PCollection that contains all of the elements in the PCollection objects in
+    // that list.
+    PCollection<String> pc1 = pipeline.apply(Create.of("Hello"));
+    PCollection<String> pc2 = pipeline.apply(Create.of("World", "Beam"));
+    PCollection<String> pc3 = pipeline.apply(Create.of("Is", "Fun"));
+    PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 
-    // Create collection
-    PCollection<Integer> numbers = pipeline.apply(Create.of(5, 4, 3, 2, 1));
-
-    // Add Timestamps for elements based on elements values. Largest element will be
-    // the latest.
-    PCollection<Integer> withTimestamps =
-        numbers.apply(
-            WithTimestamps.of(duration -> baseInstant.plus(Duration.standardSeconds(duration))));
-
-    // Get the latest element from collection without timestamps. It will vary from
-    // run to run
-    PCollection<Integer> latest = numbers.apply(Latest.globally());
-
-    // Get the latest element from collection with timestamps. Should always be 5
-    PCollection<Integer> latestTimestamped = withTimestamps.apply(Latest.globally());
+    PCollection<String> merged = collections.apply(Flatten.pCollections());
     // [END main_section]
-
-    latest.apply(ParDo.of(new LogOutput<>("Latest element (without timestamps): ")));
-    latestTimestamped.apply(ParDo.of(new LogOutput<>("Latest element (with timestamps): ")));
+    // Log values
+    merged.apply(ParDo.of(new LogOutput<>("PCollection numbers after Flatten transform: ")));
     pipeline.run();
   }
 

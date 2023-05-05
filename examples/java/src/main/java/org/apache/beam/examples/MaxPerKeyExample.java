@@ -15,53 +15,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: WithKeysDemo
-//   description: Demonstration of WithKeys transform usage.
+//   name: MaxPerKeyDemo
+//   description: Demonstration of Max.perKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 48
+//   context_line: 47
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - strings
+//     - numbers
 //     - pairs
 
-public class WithKeysExample {
+public class MaxPerKeyExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<String> words = pipeline.apply(Create.of("Hello", "World", "Beam", "is", "fun"));
-    PCollection<KV<Integer, String>> lengthAndWord =
-        words.apply(
-            WithKeys.of(
-                new SerializableFunction<String, Integer>() {
-                  @Override
-                  public Integer apply(String s) {
-                    return s.length();
-                  }
-                }));
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3), KV.of("b", 4), KV.of("b", 5)));
+    PCollection<KV<String, Integer>> maxPerKey = input.apply(Max.perKey());
     // [END main_section]
-    lengthAndWord.apply(
-        ParDo.of(new LogOutput<>("PCollection elements after WithKeys transform: ")));
+    // Log values
+    maxPerKey.apply(ParDo.of(new LogOutput<>("PCollection numbers after Max transform: ")));
     pipeline.run();
   }
 

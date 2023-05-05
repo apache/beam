@@ -15,42 +15,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ToString;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MeanDemo
-//   description: Demonstration of Mean transform usage.
+//   name: ToStringDemo
+//   description: Demonstration of ToString transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 45
+//   context_line: 46
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - numbers
+//     - pairs
 
-public class MeanExample {
+public class ToStringExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    PCollection<Double> pc = pipeline.apply(Create.of(1.0, 2.0, 3.0, 4.0, 5.0));
-    PCollection<Double> mean = pc.apply(Mean.globally());
+    // Create key-value pairs
+    PCollection<KV<String, String>> pairs =
+        pipeline.apply(
+            Create.of(
+                KV.of("fall", "apple"),
+                KV.of("spring", "strawberry"),
+                KV.of("winter", "orange"),
+                KV.of("summer", "peach"),
+                KV.of("spring", "cherry"),
+                KV.of("fall", "pear")));
+    // Use ToString on key-value pairs
+    PCollection<String> result = pairs.apply(ToString.kvs());
     // [END main_section]
-    // Log values
-    mean.apply(ParDo.of(new LogOutput<>("PCollection numbers after Mean transform: ")));
+    result.apply(
+        ParDo.of(new LogOutput<>("PCollection key-value pairs after ToString transform: ")));
     pipeline.run();
   }
 

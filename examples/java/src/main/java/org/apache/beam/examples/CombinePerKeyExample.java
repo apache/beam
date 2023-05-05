@@ -15,46 +15,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.basic;
+package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: CountPerKeyDemo
-//   description: Demonstration of Count.perKey transform usage.
+//   name: CombinePerKeyDemo
+//   description: Demonstration of Combine.perKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 47
+//   context_line: 48
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
 //     - numbers
-//     - pairs
+//     - distinct
 
-public class CountPerKeyExample {
+public class CombinePerKeyExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
+
     // [START main_section]
-    PCollection<KV<String, Integer>> input =
+    // PCollection is grouped by key and the Double values associated with each key
+    // are combined into a Double.
+    PCollection<KV<String, Double>> salesRecords =
         pipeline.apply(
-            Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3), KV.of("b", 4), KV.of("b", 5)));
-    PCollection<KV<String, Long>> countPerKey = input.apply(Count.perKey());
+            Create.of(
+                KV.of("Apples", 2.0),
+                KV.of("Apples", 3.0),
+                KV.of("Apples", 5.0),
+                KV.of("Oranges", 4.0),
+                KV.of("Oranges", 8.0)));
+    PCollection<KV<String, Double>> totalSalesPerPerson =
+        salesRecords.apply(Combine.perKey(Sum.ofDoubles()));
     // [END main_section]
     // Log values
-    countPerKey.apply(ParDo.of(new LogOutput<>("PCollection numbers after Count transform: ")));
+    totalSalesPerPerson.apply(
+        ParDo.of(new LogOutput<>("PCollection numbers after Combine.perKey transform: ")));
     pipeline.run();
   }
 
