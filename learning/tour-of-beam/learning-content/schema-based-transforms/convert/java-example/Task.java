@@ -50,7 +50,7 @@ public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     @DefaultSchema(JavaFieldSchema.class)
-    public static class Game {
+    public static class Game implements Serializable{
         public String userId;
         public Integer score;
         public String gameId;
@@ -90,7 +90,7 @@ public class Task {
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
-    public static class User {
+    public static class User implements Serializable{
 
         public String userId;
         public String userName;
