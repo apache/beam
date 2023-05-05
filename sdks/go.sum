@@ -36,8 +36,8 @@ cloud.google.com/go/profiler v0.3.1/go.mod h1:GsG14VnmcMFQ9b+kq71wh3EKMZr3WRMgLz
 cloud.google.com/go/pubsub v1.0.1/go.mod h1:R0Gpsv3s54REJCy4fxDixWD93lHJMoZTyQ2kNxGRt3I=
 cloud.google.com/go/pubsub v1.1.0/go.mod h1:EwwdRX2sKPjnvnqCa270oGRyludottCI76h+R3AArQw=
 cloud.google.com/go/pubsub v1.2.0/go.mod h1:jhfEVHT8odbXTkndysNHCcx0awwzvfOlguIAii9o8iA=
-cloud.google.com/go/pubsub v1.30.0 h1:vCge8m7aUKBJYOgrZp7EsNDf6QMd2CAlXZqWTn3yq6s=
-cloud.google.com/go/pubsub v1.30.0/go.mod h1:qWi1OPS0B+b5L+Sg6Gmc9zD1Y+HaM0MdUr7LsupY1P4=
+cloud.google.com/go/pubsub v1.30.1 h1:RdzTlwhswvROjPIoTfnSJ9tEp0LY2S5ATX90anOw7E8=
+cloud.google.com/go/pubsub v1.30.1/go.mod h1:QRi3+y7wp7mPD6XM/TfHhxBxzfFhfphIdP78sUbT52A=
 cloud.google.com/go/spanner v1.45.1 h1:vHFqBMuPdTCwA8b9+IyQbGppQoqx7xJfcSa81d7gtAk=
 cloud.google.com/go/spanner v1.45.1/go.mod h1:FIws5LowYz8YAE1J8fOS7DJup8ff7xJeetWEo5REA2M=
 cloud.google.com/go/storage v1.0.0/go.mod h1:IhtSnM/ZTZV8YYJWCY8RULGVqBDmpoyjwiyrjsg+URw=
