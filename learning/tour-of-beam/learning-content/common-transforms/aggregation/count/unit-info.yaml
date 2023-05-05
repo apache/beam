@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  
+id: count
+name: Count example
+complexity: BASIC
+taskName: Count

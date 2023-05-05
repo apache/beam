@@ -20,8 +20,7 @@
 sdk:
   - Java
   - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  
+id: with-keys
+name: WithKeys example
+taskName: With-keys
+complexity: BASIC

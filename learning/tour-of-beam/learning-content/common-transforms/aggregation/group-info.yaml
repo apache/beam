@@ -21,7 +21,11 @@ sdk:
   - Java
   - Python
   - Go
+id: aggregation
+name: Aggregations
 content:
-  - introduction
-  - common-transforms
-  
+- count
+- sum
+- mean
+- min
+- max

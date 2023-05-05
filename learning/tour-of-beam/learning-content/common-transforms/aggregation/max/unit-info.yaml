@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  
+id: max
+name: Max example
+complexity: BASIC
+taskName: Max

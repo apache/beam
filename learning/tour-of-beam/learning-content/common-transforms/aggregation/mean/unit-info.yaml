@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  
+id: mean
+name: Mean example
+complexity: BASIC
+taskName: Mean
