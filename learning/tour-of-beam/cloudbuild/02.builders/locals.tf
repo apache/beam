@@ -15,14 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-terraform {
-  backend "gcs" {
-    prefix = "01.setup"
-  }
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 4.62.0"
-    }
-  }
+locals { 
+     cloudbuild_init_environment = [ 
+        "TF_VERSION=$_TF_VERSION",
+        "PG_REGION=$_PG_REGION",
+        "PG_GKE_ZONE=$_PG_GKE_ZONE",
+        "PG_GKE_NAME=$_PG_GKE_NAME",
+        "PROJECT_ID=$PROJECT_ID",
+        "STATE_BUCKET=$_STATE_BUCKET",
+        "ENV_NAME=$_ENV_NAME",
+        "TOB_REGION=$_TOB_REGION",
+        "PG_DATASTORE_NAMESPACE=$_PG_DATASTORE_NAMESPACE"
+     ]
 }

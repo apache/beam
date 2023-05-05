@@ -28,30 +28,31 @@ resource "google_cloudbuild_trigger" "tourofbeam_backend_infrastructure" {
   }
 
   build {
-    timeout = "3600s"
+    options {
+      logging = "GCS_ONLY"
+    }
+
+    logs_bucket = "gs://$_STATE_BUCKET"
 
     step {
+      script = file("../inline.sh")
       name = "ubuntu"
-      entrypoint = "bash"
-      args = [
-        "-c",
-        "../inline.yaml to be pasted here"
-          ]
-        }
-  }
+      env = local.cloudbuild_init_environment
+    }
 
-  substitutions = {
-    _TF_VERSION : var.tf_version
-    _PG_REGION : var.pg_region
-    _PG_GKE_ZONE : var.pg_gke_zone
-    _PG_GKE_NAME : var.pg_gke_name
-    _STATE_BUCKET : var.state_bucket
-    _ENV_NAME : var.env_name
-    _TOB_REGION : var.tob_region
-    _PG_DATASTORE_NAMESPACE: var.pg_datastore_namespace
-    _REPO_NAME : var.trigger_source_repo
-    _TOB_CLOUDBUILD_SA: var.tourofbeam_deployer_sa_name
-    _GCP_USERNAME: var.gcp_username
+    substitutions = {
+      _TF_VERSION : var.tf_version
+      _PG_REGION : var.pg_region
+      _PG_GKE_ZONE : var.pg_gke_zone
+      _PG_GKE_NAME : var.pg_gke_name
+      _STATE_BUCKET : var.state_bucket
+      _ENV_NAME : var.env_name
+      _TOB_REGION : var.tob_region
+      _PG_DATASTORE_NAMESPACE: var.pg_datastore_namespace
+      _REPO_NAME : var.trigger_source_repo
+      _TOB_CLOUDBUILD_SA: var.tourofbeam_deployer_sa_name
+      _GCP_USERNAME: var.gcp_username
+    }
   }
 
   service_account = data.google_service_account.tourofbeam_backend_deployer.id

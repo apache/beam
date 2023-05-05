@@ -53,11 +53,11 @@ variable "trigger_source_repo" {
 }
 
 variable "project_id" {
-    default = "GCP project id where resources will be created"
+    description = "GCP project id where resources will be created"
 }
 
 variable "tourofbeam_deployer_sa_name" {
-    default = "https://github.com/beamplayground/deploy-workaround"
+    default = "tob-cloudbuild-sa"
     description = "Service account name to be created and used by cloud build"
 }
 
