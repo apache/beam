@@ -122,31 +122,35 @@ if [[ $confirmation != "y" ]]; then
   exit
 fi
 
-echo "----------------- Checking published Java artifacts (should take ~1 minute) -----------------"
+echo "[Confirmation Required] Would you like to check published Java artifacts (if you've completed this step for this RC previously, you can safely skip this)? [y|N]"
+read confirmation
+if [[ $confirmation != "y" ]]; then
+  echo "----------------- Checking published Java artifacts (should take ~1 minute) -----------------"
 
-java_bom=$(curl "${REPO_URL}/org/apache/beam/beam-sdks-java-bom/${RELEASE_VER}/beam-sdks-java-bom-${RELEASE_VER}.pom")
-artifacts=( $(echo $java_bom | grep -Eo "<artifactId>\S+?</artifactId>" | grep -Eo "beam-[a-zA-Z0-9.-]+") )
-if [ ${#artifacts[@]} == 0 ];
-then
-    echo "Couldn't find beam-sdks-java-bom in the generated java artifact."
-    echo "Please check ${REPO_URL} and try regenerating the java artifacts in the build_rc step."
-    exit 1
-fi
+  java_bom=$(curl "${REPO_URL}/org/apache/beam/beam-sdks-java-bom/${RELEASE_VER}/beam-sdks-java-bom-${RELEASE_VER}.pom")
+  artifacts=( $(echo $java_bom | grep -Eo "<artifactId>\S+?</artifactId>" | grep -Eo "beam-[a-zA-Z0-9.-]+") )
+  if [ ${#artifacts[@]} == 0 ];
+  then
+      echo "Couldn't find beam-sdks-java-bom in the generated java artifact."
+      echo "Please check ${REPO_URL} and try regenerating the java artifacts in the build_rc step."
+      exit 1
+  fi
 
-FAILED=()
-for i in "${artifacts[@]}"
-do
-    curl "${REPO_URL}/org/apache/beam/${i}/${RELEASE_VER}" -f || FAILED+=($i)
-done
-if [ ${#FAILED[@]} != 0 ];
-then
-    echo "Failed to find the following artifacts in the generated java artifact, but they were present as dependencies in beam-sdks-java-bom:"
-    for i in "${FAILED[@]}"
-    do
-        echo "Artifact: ${i} - url: ${REPO_URL}/org/apache/beam/${i}/${RELEASE_VER}"
-    done
-    echo "Please check ${REPO_URL} and try regenerating the java artifacts in the build_rc step."
-    exit 1
+  FAILED=()
+  for i in "${artifacts[@]}"
+  do
+      curl "${REPO_URL}/org/apache/beam/${i}/${RELEASE_VER}" -f || FAILED+=($i)
+  done
+  if [ ${#FAILED[@]} != 0 ];
+  then
+      echo "Failed to find the following artifacts in the generated java artifact, but they were present as dependencies in beam-sdks-java-bom:"
+      for i in "${FAILED[@]}"
+      do
+          echo "Artifact: ${i} - url: ${REPO_URL}/org/apache/beam/${i}/${RELEASE_VER}"
+      done
+      echo "Please check ${REPO_URL} and try regenerating the java artifacts in the build_rc step."
+      exit 1
+  fi
 fi
 
 echo "----------------- Checking git -----------------"

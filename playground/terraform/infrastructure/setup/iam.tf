@@ -52,11 +52,25 @@ resource "google_service_account" "playground_service_account" {
   display_name = var.service_account_id
 }
 
+resource "google_service_account" "playground_service_account_cf" {
+  account_id   = "${google_service_account.playground_service_account.account_id}-cf"
+  display_name = "${google_service_account.playground_service_account.account_id}-cf"
+}
+
 resource "google_project_iam_member" "terraform_service_account_roles" {
   for_each = toset([
-    "roles/container.admin", "roles/artifactregistry.reader", "roles/datastore.owner", "roles/redis.admin",
+     "roles/container.developer", "roles/artifactregistry.reader", "roles/datastore.viewer", "roles/redis.serviceAgent", "roles/redis.viewer",
   ])
-  role    = each.key
+  role    = each.value
   member  = "serviceAccount:${google_service_account.playground_service_account.email}"
   project = var.project_id
+}
+
+resource "google_project_iam_member" "cloudfunction" {
+   for_each = toset([
+     "roles/storage.objectViewer","roles/cloudfunctions.invoker","roles/datastore.user",
+   ])
+   role    = each.key
+   member  = "serviceAccount:${google_service_account.playground_service_account_cf.email}"
+   project = var.project_id
 }

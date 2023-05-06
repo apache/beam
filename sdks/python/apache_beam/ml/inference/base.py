@@ -486,7 +486,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None):
+      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
+      watch_model_pattern: Optional[str] = None,
+      **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
@@ -508,6 +510,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         model_metadata_pcoll: PCollection that emits Singleton ModelMetadata
           containing model path and model name, that is used as a side input
           to the _RunInferenceDoFn.
+        watch_model_pattern: A glob pattern used to watch a directory
+          for automatic model refresh.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
@@ -516,6 +520,22 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._model_metadata_pcoll = model_metadata_pcoll
     self._enable_side_input_loading = self._model_metadata_pcoll is not None
     self._with_exception_handling = False
+    self._watch_model_pattern = watch_model_pattern
+    self._kwargs = kwargs
+
+  def _get_model_metadata_pcoll(self, pipeline):
+    # avoid circular imports.
+    # pylint: disable=wrong-import-position
+    from apache_beam.ml.inference.utils import WatchFilePattern
+    extra_params = {}
+    if 'interval' in self._kwargs:
+      extra_params['interval'] = self._kwargs['interval']
+    if 'stop_timestamp' in self._kwargs:
+      extra_params['stop_timestamp'] = self._kwargs['stop_timestamp']
+
+    return (
+        pipeline | WatchFilePattern(
+            file_pattern=self._watch_model_pattern, **extra_params))
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -570,6 +590,11 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       pcoll, preprocess_fns, 'BeamML_RunInference_Preprocess')
 
     resource_hints = self._model_handler.get_resource_hints()
+
+    # check for the side input
+    if self._watch_model_pattern:
+      self._model_metadata_pcoll = self._get_model_metadata_pcoll(
+          pcoll.pipeline)
 
     batched_elements_pcoll = (
         pcoll

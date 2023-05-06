@@ -221,6 +221,10 @@ class BigtableConfigTranslator {
       settings.enableBatchMutationLatencyBasedThrottling(writeOptions.getThrottlingTargetMs());
     }
 
+    if (Boolean.TRUE.equals(writeOptions.getFlowControl())) {
+      settings.setBulkMutationFlowControl(true);
+    }
+
     settings
         .stubSettings()
         .bulkMutateRowsSettings()

@@ -43,11 +43,9 @@ public class XmlRowValueTest {
   @Test
   public void allPrimitiveDataTypes() {
     String aBoolean = "aBoolean";
-    String aByte = "aByte";
     String aDecimal = "aDecimal";
     String aDouble = "aDouble";
     String aFloat = "aFloat";
-    String aShort = "aShort";
     String anInteger = "anInteger";
     String aLong = "aLong";
     String aString = "aString";
@@ -56,10 +54,6 @@ public class XmlRowValueTest {
       XmlRowValue aBooleanValue = new XmlRowValue();
       aBooleanValue.setValue(aBoolean, row);
       assertEquals(aBoolean, row.getValue(aBoolean), aBooleanValue.getPrimitiveValue());
-
-      XmlRowValue aByteValue = new XmlRowValue();
-      aByteValue.setValue(aByte, row);
-      assertEquals(aByte, row.getValue(aByte), aByteValue.getPrimitiveValue());
 
       XmlRowValue aDecimalValue = new XmlRowValue();
       aDecimalValue.setValue(aDecimal, row);
@@ -72,10 +66,6 @@ public class XmlRowValueTest {
       XmlRowValue aFloatValue = new XmlRowValue();
       aFloatValue.setValue(aFloat, row);
       assertEquals(aFloat, row.getValue(aFloat), aFloatValue.getPrimitiveValue());
-
-      XmlRowValue aShortValue = new XmlRowValue();
-      aShortValue.setValue(aShort, row);
-      assertEquals(aShort, row.getValue(aShort), aShortValue.getPrimitiveValue());
 
       XmlRowValue anIntegerValue = new XmlRowValue();
       anIntegerValue.setValue(anInteger, row);
@@ -131,7 +121,6 @@ public class XmlRowValueTest {
     String booleans = "booleanList";
     String doubles = "doubleList";
     String floats = "floatList";
-    String shorts = "shortList";
     String integers = "integerList";
     String longs = "longList";
     String strings = "stringList";
@@ -170,18 +159,6 @@ public class XmlRowValueTest {
           floats,
           row.getArray(floats),
           floatsValueList.get().stream()
-              .map(XmlRowValue::getPrimitiveValue)
-              .collect(Collectors.toList()));
-
-      XmlRowValue shortsValue = new XmlRowValue();
-      shortsValue.setValue(shorts, row);
-      Optional<ArrayList<XmlRowValue>> shortsValueList =
-          Optional.ofNullable(shortsValue.getValueList());
-      assertTrue(shorts, shortsValueList.isPresent());
-      assertEquals(
-          shorts,
-          row.getArray(shorts),
-          shortsValueList.get().stream()
               .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));
 
@@ -250,6 +227,26 @@ public class XmlRowValueTest {
           expectedList.get().stream().map(Instant::getMillis).collect(Collectors.toList()),
           dateTimes(actualList.get()).stream()
               .map(DateTime::getMillis)
+              .collect(Collectors.toList()));
+    }
+  }
+
+  @Test
+  public void byteType() {
+    String singleByte = "byte";
+    String byteList = "byteList";
+    for (Row row : DATA.byteTypeRows) {
+      XmlRowValue byteValue = new XmlRowValue();
+      byteValue.setValue(singleByte, row);
+      assertEquals(singleByte, row.getValue(singleByte), byteValue.getPrimitiveValue());
+
+      XmlRowValue byteListValue = new XmlRowValue();
+      byteListValue.setValue(byteList, row);
+      assertEquals(
+          singleByte,
+          row.getArray(byteList),
+          byteListValue.getValueList().stream()
+              .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));
     }
   }

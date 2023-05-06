@@ -16,7 +16,6 @@
 package emulators
 
 import (
-	"beam.apache.org/playground/backend/internal/logger"
 	"bufio"
 	"encoding/json"
 	"errors"
@@ -28,10 +27,10 @@ import (
 	"strings"
 	"time"
 
+	"beam.apache.org/playground/backend/internal/constants"
+	"beam.apache.org/playground/backend/internal/logger"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/linkedin/goavro"
-
-	"beam.apache.org/playground/backend/internal/constants"
 )
 
 const (
@@ -109,7 +108,9 @@ func NewKafkaMockCluster(emulatorExecutablePath string) (*KafkaMockCluster, erro
 	bootstrapServers := fmt.Sprintf("%s%s%s", host, addressSeperator, port)
 
 	workTicker := time.NewTicker(pauseDuration)
+	defer workTicker.Stop()
 	globalTicker := time.NewTicker(globalDuration)
+	defer globalTicker.Stop()
 	for {
 		select {
 		case <-workTicker.C:
