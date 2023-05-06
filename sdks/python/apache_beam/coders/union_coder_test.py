@@ -40,6 +40,20 @@ class AvroTestCoder(coders.AvroGenericCoder):
     super().__init__(self.SCHEMA)
 
 
+class AvroTestCoder1(coders.AvroGenericCoder):
+  SCHEMA = """
+  {
+    "type": "record", "name": "test1",
+    "fields": [
+      {"name": "name", "type": "string"}
+    ]
+  }
+  """
+
+  def __init__(self):
+    super().__init__(self.SCHEMA)
+
+
 class UnionCoderTest(unittest.TestCase):
   def test_basics(self):
     coder_0 = UnionCoder([
@@ -68,17 +82,18 @@ class UnionCoderTest(unittest.TestCase):
 
   def test_custom_coder(self):
 
-    coder = UnionCoder([AvroTestCoder(), coders.BooleanCoder()])
+    coder = UnionCoder([AvroTestCoder(), AvroTestCoder1()])
 
     self.assertEqual(coder.is_deterministic(), False)
 
     assert coder.to_type_hint()
-    assert str(coder) == 'UnionCoder[AvroTestCoder, BooleanCoder]'
+    assert str(coder) == 'UnionCoder[AvroTestCoder, AvroTestCoder1]'
 
     ar = AvroRecord({"name": "Daenerys targaryen", "age": 23})
     self.assertEqual(coder.decode(coder.encode(ar)).record, ar.record)
 
-    self.assertEqual(True, coder.decode(coder.encode(True)))
+    ar1 = AvroRecord({"name": "Daenerys targaryen"})
+    self.assertEqual(coder.decode(coder.encode(ar1)).record, ar1.record)
 
 
 if __name__ == '__main__':
