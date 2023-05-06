@@ -17,7 +17,9 @@
 ###############################################################################
 
 FROM eclipse-temurin:11
-MAINTAINER "Apache Beam <dev@beam.apache.org>"
+LABEL Author "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /opt/apache/beam
 
@@ -29,7 +31,7 @@ COPY target/LICENSE /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
 
 # Copy the boot program
-COPY target/launcher/linux_amd64/boot /opt/apache/beam/
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
 # Copy the config file
 COPY target/transform_service_config.yml ./

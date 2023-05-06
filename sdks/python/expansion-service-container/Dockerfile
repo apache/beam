@@ -19,7 +19,9 @@
 # We just need to support one Python version supported by Beam.
 # Picking the current default Beam Python version which is Python 3.8.
 FROM python:3.8-bullseye as expansion-service
-MAINTAINER "Apache Beam <dev@beam.apache.org>"
+LABEL Author "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /opt/apache/beam
 
@@ -30,7 +32,7 @@ COPY target/apache-beam-sdk.tar.gz /opt/apache/beam/
 COPY target/requirements.txt /opt/apache/beam/
 
 # Copy the boot program
-COPY target/launcher/linux_amd64/boot /opt/apache/beam/
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
 # Creating a virtual environment and installing Beam.
 # We do these steps in the Dockefile instead of the boot.go to minimize the

@@ -60,6 +60,8 @@ docker {
     // tags used by dockerTag task
     tags containerImageTags()
     files "./build"
+    buildx project.containerPlatforms() != [project.nativeArchitecture()]
+    platform(*project.containerPlatforms())
 }
 
 dockerPrepare.dependsOn goBuild
@@ -83,5 +85,5 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
 }
 
 task pushAll {
-    dependsOn ":sdks:java:transform-service:controller-container:dockerPush"
+    dependsOn dockerPush
 }
