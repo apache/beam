@@ -1565,7 +1565,7 @@ class DataflowPipelineResult(PipelineResult):
             (self.state, getattr(self._runner, 'last_error_msg', None)),
             self)
     elif PipelineState.is_terminal(
-        self.state) and self.state != PipelineState.DONE and self._runner:
+        self.state) and self.state == PipelineState.FAILED and self._runner:
       raise DataflowRuntimeException(
           'Dataflow pipeline failed. State: %s, Error:\n%s' %
           (self.state, getattr(self._runner, 'last_error_msg', None)),
