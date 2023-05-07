@@ -15,14 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.expansion.service;
 
-import org.apache.beam.model.expansion.v1.ExpansionApi;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.auto.value.AutoValue;
 
-/** A high-level client for a cross-language expansion service. */
-public interface ExpansionServiceClient extends AutoCloseable {
-  ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request);
+//// TODO(https://github.com/apache/beam/issues/26527): generalize to support other types of
+// dependencies
+@AutoValue
+public abstract class Dependency {
+  abstract String getPath();
 
-  ExpansionApi.DiscoverSchemaTransformResponse discover(
-      ExpansionApi.DiscoverSchemaTransformRequest request);
+  @JsonCreator
+  static Dependency create(@JsonProperty("path") String path) {
+    return new AutoValue_Dependency(path);
+  }
 }
