@@ -15,14 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.transformservice;
 
-import org.apache.beam.model.expansion.v1.ExpansionApi;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
+import java.util.List;
 
-/** A high-level client for a cross-language expansion service. */
-public interface ExpansionServiceClient extends AutoCloseable {
-  ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request);
+@SuppressWarnings("nullness")
+@AutoValue
+public abstract class TransformServiceConfig {
+  public abstract List<String> getExpansionservices();
 
-  ExpansionApi.DiscoverSchemaTransformResponse discover(
-      ExpansionApi.DiscoverSchemaTransformRequest request);
+  public static TransformServiceConfig empty() {
+    return create(new ArrayList<>());
+  }
+
+  @JsonCreator
+  static TransformServiceConfig create(
+      @JsonProperty("expansionservices") List<String> expansionservices) {
+    if (expansionservices == null) {
+      expansionservices = new ArrayList<>();
+    }
+
+    return new AutoValue_TransformServiceConfig(expansionservices);
+  }
 }
