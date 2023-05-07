@@ -63,7 +63,7 @@ public class BigQueryStorageApiExactlyOnceIT {
       BigQueryStorageApiExactlyOnceTransform.BigQueryStorageApiExactlyOnceOptions options,
       boolean isGolden) {
     return String.format("`%s`",
-            isGolden ? options.getDestinationTable() : options.getDestinationTable() + "_golden");
+            isGolden ? options.getDestinationTable() + "_golden" : options.getDestinationTable() );
   }
 
   String getFrom(
@@ -96,7 +96,9 @@ public class BigQueryStorageApiExactlyOnceIT {
   long runQueryAndGetResult(String query) throws Exception {
     TableRow queryResponse =
         Iterables.getOnlyElement(BQ_CLIENT.queryUnflattened(query, PROJECT, true, true));
-    return Long.parseLong((String) queryResponse.get("f0_"));
+    long result = Long.parseLong((String) queryResponse.get("f0_"));
+    System.err.println("Result of query " + query + " is " + result + " full " + queryResponse);
+    return result;
   }
 
   void runTest(boolean streaming,
@@ -154,8 +156,11 @@ public class BigQueryStorageApiExactlyOnceIT {
     options.as(BigQueryOptions.class).setUseStorageApiConnectionPool(true);
 
     runTest(true, BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE, options);
+    long actualNum = runQueryAndGetResult(getCountQuery(options, false, false));
+    long deduppedNum = runQueryAndGetResult(getCountQuery(options, false, true));
+    System.err.println("Duplicate ratio: " + (actualNum - deduppedNum) / deduppedNum);
     assertThat(
-            runQueryAndGetResult(getCountQuery(options, false, true)),
+            deduppedNum,
             Matchers.equalTo(runQueryAndGetResult(getCountQuery(options, true, false))));
     assertThat(
             runQueryAndGetResult(getSumQuery(options, false, true)),

@@ -125,12 +125,12 @@ public class BigQueryStorageApiExactlyOnceTransform extends PTransform<PBegin, W
             .withMethod(writeMethod)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND);
-    if (!isBounded) {
+    if (!isBounded && writeMethod != BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE) {
       write = write.withTriggeringFrequency(Duration.standardSeconds(1));
     }
     if (options.getNumStreams() > 0) {
       write = write.withNumStorageWriteApiStreams(options.getNumStorageWriteApiStreams());
-    } else if (!isBounded) {
+    } else if (!isBounded && writeMethod != BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE) {
       write = write.withAutoSharding();
     }
     values.apply("write Storage API", write);
