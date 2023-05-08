@@ -29,8 +29,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_CTYPE=C.UTF-8 \
     LC_MESSAGES=C.UTF-8
 
-# Recommended by Debian security - https://www.debian.org/security/ - allows us to pull the proper dependencies
-RUN echo "deb http://security.debian.org/debian-security bullseye-security main contrib non-free" > /etc/apt/sources.list
 # Install deps being used by sh files
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -43,6 +41,10 @@ RUN apt-get update \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Recommended by Debian security - https://www.debian.org/security/ - allows us to pull the proper dependencies
+RUN echo "deb http://security.debian.org/debian-security bullseye-security main contrib non-free" > /etc/apt/sources.list
+RUN apt-get update
 
 # Install node environment
 RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
