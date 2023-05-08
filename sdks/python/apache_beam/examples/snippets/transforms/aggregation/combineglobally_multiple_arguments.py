@@ -23,10 +23,9 @@
 #   description: Demonstration of CombineGlobally transform usage with multiple arguments.
 #   multifile: false
 #   default_example: false
-#   context_line: 38
+#   context_line: 37
 #   categories:
 #     - Core Transforms
-#     - Joins
 #   complexity: BASIC
 #   tags:
 #     - transforms
