@@ -18,7 +18,7 @@
 # This image contains Hugo and dependencies required to build and test the Beam
 # website. It is used by tasks in build.gradle.
 
-FROM debian:stretch-slim
+FROM debian:stable-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
@@ -29,12 +29,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_CTYPE=C.UTF-8 \
     LC_MESSAGES=C.UTF-8
 
-# Recommended by Debian security - https://www.debian.org/security/ - allows us to pull the proper dependencies
-RUN echo "deb http://security.debian.org/debian-security bullseye-security main contrib non-free" > /etc/apt/sources.list
-RUN apt-get update && apt-get upgrade
-
 # Install deps being used by sh files
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         git \
