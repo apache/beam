@@ -48,6 +48,7 @@ dependencies {
     implementation library.java.gax
     implementation library.java.protobuf_java
     implementation library.java.slf4j_api
+    implementation library.java.vendored_guava_26_0_jre
     testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
     implementation 'com.google.cloud:google-cloud-vision:1.99.3'
     testImplementation library.java.mockito_core
