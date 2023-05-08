@@ -65,7 +65,19 @@ def check_percentages(actual):
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 # pylint: disable=line-too-long
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.combineglobally.print',
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_function.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_lambda.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_multiple_arguments.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_side_inputs_singleton.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_combinefn.print',
     str)
 # pylint: enable=line-too-long
 class CombineGloballyTest(unittest.TestCase):

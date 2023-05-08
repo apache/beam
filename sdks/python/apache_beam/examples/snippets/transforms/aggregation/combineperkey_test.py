@@ -22,18 +22,17 @@ import unittest
 
 import mock
 
-import apache_beam.examples.snippets.transforms.aggregation.combineperkey_combinefn
-import apache_beam.examples.snippets.transforms.aggregation.combineperkey_function
-import apache_beam.examples.snippets.transforms.aggregation.combineperkey_lambda
-import apache_beam.examples.snippets.transforms.aggregation.combineperkey_multiple_arguments
-import apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_input_iter
-import apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_inputs_dict
-import apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_inputs_singleton
-import apache_beam.examples.snippets.transforms.aggregation.combineperkey_simple
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import combineperkey
+from . import combineperkey_combinefn
+from . import combineperkey_function
+from . import combineperkey_lambda
+from . import combineperkey_multiple_arguments
+from . import combineperkey_side_inputs_iter
+from . import combineperkey_side_inputs_dict
+from . import combineperkey_side_inputs_singleton
+from . import combineperkey_simple
 
 
 def check_total(actual):
@@ -74,32 +73,56 @@ def check_average(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.combineperkey.print',
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_simple.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_function.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_lambda.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_multiple_arguments.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_multiple_arguments.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_inputs_singleton.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_inputs_iter.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_inputs_dict.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineperkey_combinefn.print',
     str)
 class CombinePerKeyTest(unittest.TestCase):
   def test_combineperkey_simple(self):
-    apache_beam.examples.snippets.transforms.aggregation.combineperkey_simple.combineperkey_simple(check_total)
+    combineperkey_simple.combineperkey_simple(check_total)
 
   def test_combineperkey_function(self):
-    apache_beam.examples.snippets.transforms.aggregation.combineperkey_function.combineperkey_function(check_saturated_total)
+    combineperkey_function.combineperkey_function(check_saturated_total)
 
   def test_combineperkey_lambda(self):
-    apache_beam.examples.snippets.transforms.aggregation.combineperkey_lambda.combineperkey_lambda(check_saturated_total)
+    combineperkey_lambda.combineperkey_lambda(check_saturated_total)
 
   def test_combineperkey_multiple_arguments(self):
-    apache_beam.examples.snippets.transforms.aggregation.combineperkey_multiple_arguments.combineperkey_multiple_arguments(check_saturated_total)
+    combineperkey_multiple_arguments.combineperkey_multiple_arguments(check_saturated_total)
 
   def test_combineperkey_side_inputs_singleton(self):
-    apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_inputs_singleton.combineperkey_side_inputs_singleton(check_saturated_total)
+    combineperkey_side_inputs_singleton.combineperkey_side_inputs_singleton(check_saturated_total)
 
   def test_combineperkey_side_inputs_iter(self):
-    apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_input_iter.combineperkey_side_inputs_iter(check_bounded_total)
+    combineperkey_side_inputs_iter.combineperkey_side_inputs_iter(check_bounded_total)
 
   def test_combineperkey_side_inputs_dict(self):
-    apache_beam.examples.snippets.transforms.aggregation.combineperkey_side_inputs_dict.combineperkey_side_inputs_dict(check_bounded_total)
+    combineperkey_side_inputs_dict.combineperkey_side_inputs_dict(check_bounded_total)
 
   def test_combineperkey_combinefn(self):
-    apache_beam.examples.snippets.transforms.aggregation.combineperkey_combinefn.combineperkey_combinefn(check_average)
+    combineperkey_combinefn.combineperkey_combinefn(check_average)
 
 
 if __name__ == '__main__':
