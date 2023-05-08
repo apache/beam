@@ -15,22 +15,7 @@
 # limitations under the License.
 #
 
-import argparse
-
-import numpy as np
-
-import apache_beam as beam
-from apache_beam.dataframe.convert import to_pcollection
-from apache_beam.dataframe.io import read_csv
-
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.runners.runner import PipelineResult
-from apache_beam.examples.online_clustering import OnlineClustering, AssignClusterLabels
-from apache_beam.examples.online_clustering import OnlineKMeans
-
-
-"""A pipeline that uses OnlineClustering transform to group houses 
+"""A pipeline that uses OnlineClustering transform to group houses
 with a similar value together.
 
 This example uses the California Housing Prices dataset from kaggle.
@@ -46,6 +31,20 @@ In order to set this example up, you will need one thing.
 
 california_housing_clustering.py --input /tmp/housing.csv
 """
+
+import argparse
+
+import numpy as np
+
+import apache_beam as beam
+from apache_beam.dataframe.convert import to_pcollection
+from apache_beam.dataframe.io import read_csv
+
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
+from apache_beam.examples.online_clustering import OnlineClustering, AssignClusterLabels
+from apache_beam.examples.online_clustering import OnlineKMeans
 
 
 def parse_known_args(argv):
