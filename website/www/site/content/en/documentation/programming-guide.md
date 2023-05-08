@@ -163,6 +163,7 @@ Pipeline p = Pipeline.create(options);
 For a more in-depth tutorial of applying various transforms
 in the Python SDK, please read and work through
 [this colab notebook](https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/learn_beam_basics_by_doing.ipynb).
+
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
 
 Use the pipeline options to configure different aspects of your pipeline, such
