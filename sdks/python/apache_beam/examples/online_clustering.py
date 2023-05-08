@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import datetime
 from operator import itemgetter
 
 import joblib
@@ -23,13 +23,12 @@ import pandas as pd
 from sklearn.cluster import MiniBatchKMeans
 
 import apache_beam as beam
-
-import datetime
-
-from apache_beam.coders import PickleCoder, VarIntCoder
+from apache_beam.coders import PickleCoder
+from apache_beam.coders import VarIntCoder
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy, ModelFileType
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
+from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec

@@ -39,12 +39,12 @@ import numpy as np
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.io import read_csv
-
+from apache_beam.examples.online_clustering import AssignClusterLabels
+from apache_beam.examples.online_clustering import OnlineClustering
+from apache_beam.examples.online_clustering import OnlineKMeans
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
-from apache_beam.examples.online_clustering import OnlineClustering, AssignClusterLabels
-from apache_beam.examples.online_clustering import OnlineKMeans
 
 
 def parse_known_args(argv):
@@ -94,11 +94,11 @@ def run(
   # 2. Calculate labels for all records in the dataset
   # using the trained clustering model
   _ = (
-          housing_features
-          | beam.Map(lambda sample: np.array(sample))
-          | "RunInference" >>
-          AssignClusterLabels(checkpoints_path='/tmp/checkpoints')
-          | beam.Map(print))
+      housing_features
+      | beam.Map(lambda sample: np.array(sample))
+      | "RunInference" >>
+      AssignClusterLabels(checkpoints_path='/tmp/checkpoints')
+      | beam.Map(print))
 
   result = pipeline.run()
   result.wait_until_finish()
