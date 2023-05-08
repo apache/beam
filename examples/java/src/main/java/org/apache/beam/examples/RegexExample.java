@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: RegexDemo
+//   name: Regex
 //   description: Demonstration of Regex transform usage.
 //   multifile: false
 //   default_example: false

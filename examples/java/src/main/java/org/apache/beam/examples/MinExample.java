@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MinDemo
+//   name: Min
 //   description: Demonstration of Min transform usage.
 //   multifile: false
 //   default_example: false

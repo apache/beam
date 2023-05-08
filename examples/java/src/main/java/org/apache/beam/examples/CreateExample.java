@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: CreateDemo
+//   name: Create
 //   description: Demonstration of Create transform usage.
 //   multifile: false
 //   default_example: false

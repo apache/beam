@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: GroupIntoBatchesDemo
+//   name: GroupIntoBatches
 //   description: Demonstration of GroupIntoBatches transform usage.
 //   multifile: false
 //   default_example: false

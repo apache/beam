@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MaxDemo
+//   name: Max
 //   description: Demonstration of Max transform usage.
 //   multifile: false
 //   default_example: false

@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: ToStringDemo
+//   name: ToString
 //   description: Demonstration of ToString transform usage.
 //   multifile: false
 //   default_example: false

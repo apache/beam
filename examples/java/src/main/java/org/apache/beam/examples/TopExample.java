@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: TopDemo
+//   name: Top
 //   description: Demonstration of Top transform usage.
 //   multifile: false
 //   default_example: false

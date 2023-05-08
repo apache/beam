@@ -15,50 +15,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: FlattenDemo
-//   description: Demonstration of Flatten transform usage.
+//   name: WithKeys
+//   description: Demonstration of WithKeys transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 46
+//   context_line: 48
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
 //     - transforms
-//     - numbers
+//     - strings
+//     - pairs
 
-public class FlattenExample {
+public class WithKeysExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
     // [START main_section]
-    // Flatten takes a PCollectionList of PCollection objects of a given type.
-    // Returns a single PCollection that contains all of the elements in the PCollection objects in
-    // that list.
-    PCollection<String> pc1 = pipeline.apply(Create.of("Hello"));
-    PCollection<String> pc2 = pipeline.apply(Create.of("World", "Beam"));
-    PCollection<String> pc3 = pipeline.apply(Create.of("Is", "Fun"));
-    PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
-
-    PCollection<String> merged = collections.apply(Flatten.pCollections());
+    PCollection<String> words = pipeline.apply(Create.of("Hello", "World", "Beam", "is", "fun"));
+    PCollection<KV<Integer, String>> lengthAndWord =
+        words.apply(
+            WithKeys.of(
+                new SerializableFunction<String, Integer>() {
+                  @Override
+                  public Integer apply(String s) {
+                    return s.length();
+                  }
+                }));
     // [END main_section]
-    // Log values
-    merged.apply(ParDo.of(new LogOutput<>("PCollection numbers after Flatten transform: ")));
+    lengthAndWord.apply(
+        ParDo.of(new LogOutput<>("PCollection elements after WithKeys transform: ")));
     pipeline.run();
   }
 

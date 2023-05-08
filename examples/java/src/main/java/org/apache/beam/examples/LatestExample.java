@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: LatestDemo
+//   name: Latest
 //   description: Demonstration of Latest transform usage.
 //   multifile: false
 //   default_example: false

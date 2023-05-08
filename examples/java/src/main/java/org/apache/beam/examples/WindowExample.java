@@ -35,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: WindowDemo
+//   name: Window
 //   description: Demonstration of Window transform usage.
 //   multifile: false
 //   default_example: false

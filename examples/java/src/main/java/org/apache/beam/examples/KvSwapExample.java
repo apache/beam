@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: KvSwapDemo
+//   name: KvSwap
 //   description: Demonstration of KvSwap transform usage.
 //   multifile: false
 //   default_example: false

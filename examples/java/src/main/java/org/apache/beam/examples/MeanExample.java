@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: MeanDemo
+//   name: Mean
 //   description: Demonstration of Mean transform usage.
 //   multifile: false
 //   default_example: false

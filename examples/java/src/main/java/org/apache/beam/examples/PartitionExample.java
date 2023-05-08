@@ -40,7 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: PartitionDemo
+//   name: PartitionPercentile
 //   description: Demonstration of Partition transform usage.
 //   multifile: false
 //   default_example: false

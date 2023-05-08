@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // beam-playground:
-//   name: SampleDemo
+//   name: Sample
 //   description: Demonstration of Sample transform usage.
 //   multifile: false
 //   default_example: false
