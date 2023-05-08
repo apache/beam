@@ -38,18 +38,25 @@ those generated rows in the table.
 # pytype: skip-file
 
 import logging
+from datetime import datetime, timezone
+from typing import List
 
 import apache_beam as beam
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
 from apache_beam.metrics import monitoring_infos
+from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import SchemaAwareExternalTransform
 
 _LOGGER = logging.getLogger(__name__)
 
 try:
   from google.cloud.bigtable import Client
+  from google.cloud.bigtable.row import Cell, DirectRow, PartialRowData
+  from google.cloud.bigtable.row_filters import TimestampRange
   from google.cloud.bigtable.batcher import MutationsBatcher
 
   FLUSH_COUNT = 1000
@@ -95,7 +102,7 @@ except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
-__all__ = ['WriteToBigTable']
+__all__ = ['WriteToBigTable', 'ReadFromBigTable', 'BigtableRow']
 
 
 class _BigTableWriteFn(beam.DoFn):
@@ -180,7 +187,7 @@ class _BigTableWriteFn(beam.DoFn):
     # direct_row.set_cell('cf1',
     #                     'field1',
     #                     'value1',
-    #                     timestamp=datetime.datetime.now())
+    #                     timestamp=datetime.now())
     self.batcher.mutate(row)
 
   def finish_bundle(self):
@@ -227,3 +234,147 @@ class WriteToBigTable(beam.PTransform):
                 beam_options['project_id'],
                 beam_options['instance_id'],
                 beam_options['table_id'])))
+
+
+class BigtableRow(DirectRow, PartialRowData):
+  """Representation of a BigTable row that can both be read and written to
+   BigTable.
+
+   Row cells are accessible for reads via:
+    * :meth:`find_cells()`
+    * :meth:`cell_value()`
+    * :meth:`cell_values()`
+
+    Mutations can be created with:
+    * :meth:`set_cell`
+    * :meth:`delete`
+    * :meth:`delete_cell`
+    * :meth:`delete_cells`
+    and sent directly to the Google Cloud Bigtable API with :meth:`commit`:.
+
+    These methods can be used directly::
+
+       >>> row = BigtableRow('row-key', 'table')
+       >>> row.set_cell('fam', 'col1', 'cell-val')
+       >>> row.delete_cell(u'fam', b'col2')
+       >>> cells = row.find_cells('fam', 'col1')
+       >>> row.commit()
+
+    :param row_key: The key for the current row.
+
+    :param table: (Optional) The table that owns the row. This is
+                  used for the :meth: `commit` only.
+
+    :param track_mutations: (Defaults to True) When this flag is set, the
+      mutations created for this row will be applied to the BigtableRow object.
+      The mutations are created and committed with :class:`DirectRow`'s
+      methods, and the data is read using :class:`PartialRowData`'s methods.
+      This allows us to read from and mutate the same object.
+    """
+  def __init__(self, row_key, table=None, track_mutations=True):
+    DirectRow.__init__(self, row_key, table)
+    self._track_mutations = track_mutations
+    if track_mutations:
+      PartialRowData.__init__(self, row_key)
+
+  def set_cell(
+      self, column_family_id, column, value, timestamp: datetime = None):
+    """Sets a cell value in this row.
+
+      :param column_family_id: The column family that contains the column.
+        Must be of the form ``[_a-zA-Z0-9][-_.a-zA-Z0-9]*``.
+
+      :param column: The column within the column family where the cell
+        is located.
+
+      :param value: The value to set in the cell.
+
+      :param timestamp: (Optional) A :class:`datetime.datetime` object
+        representing the timestamp of the operation.
+     """
+    DirectRow.set_cell(self, column_family_id, column, value, timestamp)
+
+    if self._track_mutations:
+      if column_family_id not in self._cells:
+        self._cells[column_family_id] = {}
+
+      if column not in self._cells[column_family_id]:
+        self._cells[column_family_id][column] = []
+
+      if timestamp:
+        micros = timestamp.timestamp() * 1e6
+      else:
+        # TODO: is there a better default value to set here?
+        # DirectRow uses timestamp of -1 by default. When committed, the cell
+        # in Bigtable will contain the current server timestamp.
+        # We set the current UTC timestamp by default to try and mimic this,
+        # but it will always be earlier than the true Bigtable cell timestamp.
+        micros = datetime.now(timezone.utc)
+      self._cells[column_family_id][column].append(Cell(value, micros))
+
+  def delete_cell(
+      self, column_family_id, column, time_range: TimestampRange = None):
+    """Deletes cells in a specified column.
+      :param column_family_id: The column family that contains the column.
+        Must be of the form ``[_a-zA-Z0-9][-_.a-zA-Z0-9]*``.
+
+      :param column: The column within the column family where cells will be
+        deleted from.
+
+      :param time_range: (Optional) The :class:`TimestampRange` object
+        representing the range of time within which cells should be deleted.
+    """
+    self.delete_cells(column_family_id, [column], time_range)
+
+  def delete_cells(
+      self, column_family_id, columns, time_range: TimestampRange = None):
+    """Deletes cells across a list of columns.
+      :param column_family_id: The column family that contains the columns.
+        Must be of the form ``[_a-zA-Z0-9][-_.a-zA-Z0-9]*``.
+
+      :param columns: The columns within the column family where cells will be
+        deleted from.
+
+      :param time_range: (Optional) The :class:`TimestampRange` object
+        representing the range of time within which cells should be deleted.
+    """
+    DirectRow.delete_cells(self, column_family_id, columns, time_range)
+
+    if self._track_mutations:
+      if columns == self.ALL_COLUMNS:
+        del self._cells[column_family_id]
+      else:
+        for column in columns:
+          # if no time range is set, the whole column is deleted
+          if not time_range:
+            del self._cells[column_family_id][column]
+          # otherwise, iterate over the cells and delete those that fall within
+          # the time range
+          else:
+            start: datetime = time_range.start or datetime.min
+            end: datetime = time_range.end or datetime.max
+            cells: List[Cell] = self._cells[column_family_id][column]
+
+            # make timerange objects timezone-aware to be able to compare them
+            # with the cell's timestamp. default to UTC timezone.
+            start_end = [start, end]
+            for i, dt in enumerate(start_end):
+              if dt.tzinfo == None or dt.tzinfo.utcoffset(dt) == None:
+                start_end[i] = dt.replace(tzinfo=timezone.utc)
+            start, end = start_end
+
+            for i in reversed(range(len(cells))):
+              if start <= cells[i].timestamp < end:
+                del cells[i]
+
+            if cells == []:
+              del self._cells[column_family_id][column]
+        if self._cells[column_family_id] == {}:
+          del self._cells[column_family_id]
+
+  def delete(self):
+    """Deletes this row from the table."""
+    DirectRow.delete(self)
+
+    if self._track_mutations:
+      self._cells = {}
