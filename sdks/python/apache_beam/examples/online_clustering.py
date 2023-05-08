@@ -1,18 +1,47 @@
 from operator import itemgetter
-from typing import Optional
 
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.cluster import MiniBatchKMeans
 
 import apache_beam as beam
-from apache_beam import pvalue
+
+import datetime
 
 from apache_beam.coders import PickleCoder, VarIntCoder
-from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy, ModelFileType
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
+
+
+class SaveModel(beam.DoFn):
+  """Saves trained clustering model to persistent storage"""
+  def __init__(self, checkpoints_path: str):
+    self.checkpoints_path = checkpoints_path
+
+  def process(self, model):
+    # generate ISO 8601
+    iso_timestamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    checkpoint_name = f'{self.checkpoints_path}/{iso_timestamp}.checkpoint'
+    latest_checkpoint = f'{self.checkpoints_path}/latest.checkpoint'
+    # rename previous checkpoint
+    if FileSystems.exists(latest_checkpoint):
+      FileSystems.rename([latest_checkpoint], [checkpoint_name])
+    file = FileSystems.create(latest_checkpoint, 'wb')
+    if not joblib:
+      raise ImportError(
+          'Could not import joblib in this execution environment. '
+          'For help with managing dependencies on Python workers.'
+          'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
+      )
+
+    joblib.dump(model, file)
+
+    yield checkpoint_name
 
 
 class SelectLatestModelState(beam.CombineFn):
@@ -37,56 +66,70 @@ class SelectLatestModelState(beam.CombineFn):
     return accumulator[0]
 
 
-class AssignClusterLabels(core.DoFn):
-  """Takes a trained model and input data and labels all data instances using the trained model."""
-  def process(self, keyed_batch, model, model_id):
-    # 1. Remove the temporary assigned key
-    _, batch = keyed_batch
-
-    # 2. Calculate cluster predictions
-    cluster_labels = model.predict(batch)
-
-    for e, i in zip(batch, cluster_labels):
-      yield PredictionResult(example=e, inference=i, model_id=model_id)
-
-
 class ClusteringAlgorithm(core.DoFn):
-  """Abstract class with the interface that clustering algorithms need to follow."""
+  """Abstract class with the interface
+   that clustering algorithms need to follow."""
 
   MODEL_SPEC = ReadModifyWriteStateSpec("clustering_model", PickleCoder())
   ITERATION_SPEC = ReadModifyWriteStateSpec(
       'training_iterations', VarIntCoder())
   MODEL_ID = 'ClusteringAlgorithm'
 
-  def __init__(self, n_clusters: int, cluster_args: dict):
+  def __init__(
+      self, n_clusters: int, checkpoints_path: str, cluster_args: dict):
     super().__init__()
     self.n_clusters = n_clusters
+    self.checkpoints_path = checkpoints_path
     self.cluster_args = cluster_args
+    self.clustering_algorithm = None
 
   def process(
       self,
       keyed_batch,
       model_state=core.DoFn.StateParam(MODEL_SPEC),
-      iteration_state=core.DoFn.StateParam(ITERATION_SPEC)):
+      iteration_state=core.DoFn.StateParam(ITERATION_SPEC),
+      *args,
+      **kwargs):
     raise NotImplementedError
+
+  def load_model_checkpoint(self):
+    latest_checkpoint = f'{self.checkpoints_path}/latest.checkpoint'
+    if FileSystems.exists(latest_checkpoint):
+      file = FileSystems.open(latest_checkpoint, 'rb')
+      if not joblib:
+        raise ImportError(
+            'Could not import joblib in this execution environment. '
+            'For help with managing dependencies on Python workers.'
+            'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
+        )
+      return joblib.load(file)
+    return self.clustering_algorithm(
+        n_clusters=self.n_clusters, **self.cluster_args)
 
 
 class OnlineKMeans(ClusteringAlgorithm):
   """Online K-Means function. Used the MiniBatchKMeans from sklearn
-    More information: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html"""
+    More information: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html"""  # pylint: disable=line-too-long
   MODEL_SPEC = ReadModifyWriteStateSpec("clustering_model", PickleCoder())
   ITERATION_SPEC = ReadModifyWriteStateSpec(
       'training_iterations', VarIntCoder())
   MODEL_ID = 'OnlineKmeans'
 
+  def __init__(
+      self, n_clusters: int, checkpoints_path: str, cluster_args: dict):
+    super().__init__(n_clusters, checkpoints_path, cluster_args)
+    self.clustering_algorithm = MiniBatchKMeans
+
   def process(
       self,
       keyed_batch,
       model_state=core.DoFn.StateParam(MODEL_SPEC),
-      iteration_state=core.DoFn.StateParam(ITERATION_SPEC)):
+      iteration_state=core.DoFn.StateParam(ITERATION_SPEC),
+      *args,
+      **kwargs):
     # 1. Initialise or load states
-    clustering = model_state.read() or MiniBatchKMeans(
-        n_clusters=self.n_clusters, **self.cluster_args)
+    clustering = model_state.read() or self.load_model_checkpoint()
+
     iteration = iteration_state.read() or 0
 
     iteration += 1
@@ -101,11 +144,14 @@ class OnlineKMeans(ClusteringAlgorithm):
     model_state.write(clustering)
     iteration_state.write(iteration)
 
+    # checkpoint = joblib.dump(clustering, f'kmeans_checkpoint_{iteration}')
+
     yield clustering, iteration
 
 
 class TypeConversion(core.DoFn):
-  """Helper function to convert incoming data to numpy arrays that are accepted by sklearn"""
+  """Helper function to convert incoming data
+  to numpy arrays that are accepted by sklearn"""
   def process(self, element, *args, **kwargs):
     if isinstance(element, (tuple, list)):
       yield np.array(element)
@@ -137,8 +183,8 @@ class ClusteringPreprocessing(ptransform.PTransform):
           Args:
           n_clusters: number of clusters used by the algorithm
           batch_size: size of the data batches
-          is_batched: boolean value that marks if the collection is already batched
-           and thus doesn't need to be batched by this transform
+          is_batched: boolean value that marks if the collection is already
+            batched and thus doesn't need to be batched by this transform
           """
     super().__init__()
     self.n_clusters = n_clusters
@@ -156,7 +202,7 @@ class ClusteringPreprocessing(ptransform.PTransform):
           | "Create batches of elements" >> beam.BatchElements(
               min_batch_size=self.n_clusters, max_batch_size=self.batch_size))
 
-    return (pcoll | "Add a key" >> beam.Map(lambda record: (1, record)))
+    return pcoll | "Add a key" >> beam.Map(lambda record: (1, record))
 
 
 class OnlineClustering(ptransform.PTransform):
@@ -165,6 +211,7 @@ class OnlineClustering(ptransform.PTransform):
       clustering_algorithm,
       n_clusters: int,
       cluster_args: dict,
+      checkpoints_path: str,
       batch_size: int = 1024,
       is_batched: bool = False):
     """ Clustering transformation itself, it first preprocesses the data,
@@ -182,37 +229,58 @@ class OnlineClustering(ptransform.PTransform):
           Args:
           clustering_algorithm: Clustering algorithm (DoFn)
           n_clusters: Number of clusters
-          cluster_args: Arguments for the sklearn clustering algorithm (check sklearn documentation for more information)
+          cluster_args: Arguments for the sklearn clustering algorithm
+            (check sklearn documentation for more information)
           batch_size: size of the data batches
-          is_batched: boolean value that marks if the collection is already batched
-           and thus doesn't need to be batched by this transform
+          is_batched: boolean value that marks if the collection is already
+            batched and thus doesn't need to be batched by this transform
           """
     super().__init__()
     self.clustering_algorithm = clustering_algorithm
     self.n_clusters = n_clusters
     self.batch_size = batch_size
     self.cluster_args = cluster_args
+    self.checkpoints_path = checkpoints_path
     self.is_batched = is_batched
 
   def expand(self, pcoll):
+    # 1. Preprocess data for more efficient clustering
     data = (
         pcoll
-        | ClusteringPreprocessing(
+        | 'Clustering preprocessing' >> ClusteringPreprocessing(
             n_clusters=self.n_clusters,
             batch_size=self.batch_size,
             is_batched=self.is_batched))
 
+    # 2. Calculate cluster centers
     model = (
         data
         | 'Cluster' >> core.ParDo(
             self.clustering_algorithm(
-                n_clusters=self.n_clusters, cluster_args=self.cluster_args))
+                n_clusters=self.n_clusters,
+                cluster_args=self.cluster_args,
+                checkpoints_path=self.checkpoints_path))
         | 'Select latest model state' >> core.CombineGlobally(
-            SelectLatestModelState()))
+            SelectLatestModelState()).without_defaults())
 
-    return (
-        data
-        | 'Assign cluster labels' >> core.ParDo(
-            AssignClusterLabels(),
-            model=pvalue.AsSingleton(model),
-            model_id=self.clustering_algorithm.MODEL_ID))
+    # 3. Save the trained model checkpoint to persistent storage,
+    # so it can be loaded for further training in the next window
+    # or loaded into an sklearn modelhandler for inference
+    _ = (model | core.ParDo(SaveModel(checkpoints_path=self.checkpoints_path)))
+
+    return model
+
+
+class AssignClusterLabels(ptransform.PTransform):
+  def __init__(self, checkpoints_path):
+    super().__init__()
+    self.clustering_model = SklearnModelHandlerNumpy(
+        model_uri=f'{checkpoints_path}/latest.checkpoint',
+        model_file_type=ModelFileType.JOBLIB)
+
+  def expand(self, pcoll):
+    predictions = (
+        pcoll
+        | "RunInference" >> RunInference(self.clustering_model))
+
+    return predictions
