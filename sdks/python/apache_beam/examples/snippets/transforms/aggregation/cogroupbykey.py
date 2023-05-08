@@ -18,6 +18,23 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: CoGroupByKey
+#   description: Demonstration of CoGroupByKey transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 41
+#   categories:
+#     - Core Transforms
+#     - Joins
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
+#     - integers
+#     - tuples
+#     - pairs
+#     - group
 
 def cogroupbykey(test=None):
   # [START cogroupbykey]
@@ -46,3 +63,7 @@ def cogroupbykey(test=None):
     # [END cogroupbykey]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  cogroupbykey()
