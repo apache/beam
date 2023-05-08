@@ -190,7 +190,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None):
+      max_batch_size: Optional[int] = None,
+      **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage for torch model::
@@ -222,6 +223,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         batch will be fed into the inference_fn as a Sequence of Tensors.
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Tensors.
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -242,6 +245,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._torch_script_model_path = torch_script_model_path
+    self._env_vars = kwargs.get('env_vars', {})
 
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
@@ -401,7 +405,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn,
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None):
+      max_batch_size: Optional[int] = None,
+      **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
      Example Usage for torch model::
@@ -438,7 +443,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
-
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     on torch>=1.9.0,<1.14.0.
@@ -459,6 +465,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._torch_script_model_path = torch_script_model_path
+    self._env_vars = kwargs.get('env_vars', {})
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
         model_class=self._model_class,

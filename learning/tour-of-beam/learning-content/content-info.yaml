@@ -23,5 +23,6 @@ sdk:
   - Go
 content:
   - introduction
+  - common-transforms
+  - core-transforms
   - schema-based-transforms
-  
