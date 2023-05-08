@@ -44,7 +44,8 @@ def spannerio_read_test_2gb = [
     input_options        : '\'{' +
     '"num_records": 2097152,' +
     '"key_size": 1,' +
-    '"value_size": 1024}\'',
+    '"value_size": 1024,' +
+    '"algorithm": "lcg"}\'',
     num_workers          : 5,
     autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
   ]
