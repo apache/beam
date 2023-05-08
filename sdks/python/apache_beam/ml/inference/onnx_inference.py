@@ -61,7 +61,8 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       providers=['CUDAExecutionProvider', 'CPUExecutionProvider'],
       provider_options=None,
       *,
-      inference_fn: NumpyInferenceFn = default_numpy_inference_fn):
+      inference_fn: NumpyInferenceFn = default_numpy_inference_fn,
+      **kwargs):
     """ Implementation of the ModelHandler interface for onnx
     using numpy arrays as input.
     Note that inputs to ONNXModelHandler should be of the same sizes
@@ -74,12 +75,15 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_uri: The URI to where the model is saved.
       inference_fn: The inference function to use on RunInference calls.
         default=default_numpy_inference_fn
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
     """
     self._model_uri = model_uri
     self._session_options = session_options
     self._providers = providers
     self._provider_options = provider_options
     self._model_inference_fn = inference_fn
+    self._env_vars = kwargs.get('env_vars', {})
 
   def load_model(self) -> ort.InferenceSession:
     """Loads and initializes an onnx inference session for processing."""

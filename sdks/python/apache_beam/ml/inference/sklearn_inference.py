@@ -90,7 +90,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       *,
       inference_fn: NumpyInferenceFn = _default_numpy_inference_fn,
       min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None):
+      max_batch_size: Optional[int] = None,
+      **kwargs):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
 
@@ -110,6 +111,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Numpy
         ndarrays.
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
     """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
@@ -119,6 +122,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self._batching_kwargs['min_batch_size'] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
+    self._env_vars = kwargs.get('env_vars', {})
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -200,7 +204,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       *,
       inference_fn: PandasInferenceFn = _default_pandas_inference_fn,
       min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None):
+      max_batch_size: Optional[int] = None,
+      **kwargs):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
 
@@ -223,7 +228,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Pandas
         Dataframes.
-
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
     """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
@@ -233,6 +239,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       self._batching_kwargs['min_batch_size'] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
+    self._env_vars = kwargs.get('env_vars', {})
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
