@@ -15,14 +15,15 @@
 
 // beam-playground:
 //   name: co-group-by-key
-//	 description: CoGroupByKey example.
-//	 multifile: false
-//	 context_line: 37
-//	 categories:
-//	   - Quickstart
-//	 complexity: ADVANCED
-//	 tags:
-//	   - hellobeam
+//   description: CoGroupByKey example.
+//   multifile: false
+//   context_line: 52
+//   categories:
+//     - Quickstart
+//   complexity: ADVANCED
+//   tags:
+//     - hellobeam
+
 package main
 
 import (
