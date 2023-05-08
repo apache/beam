@@ -21,7 +21,12 @@ sdk:
   - Java
   - Python
   - Go
+id: map
+name: Map
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
+  - pardo-one-to-one
+  - pardo-one-to-many
+  - map-elements
+  - flat-map-elements
+  - group-by-key
+  - co-group-by-key

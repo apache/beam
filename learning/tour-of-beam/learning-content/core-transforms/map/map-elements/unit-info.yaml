@@ -16,12 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 sdk:
   - Java
   - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: map-elements
+name: Map elements
+taskName: map-elements
+complexity: MEDIUM

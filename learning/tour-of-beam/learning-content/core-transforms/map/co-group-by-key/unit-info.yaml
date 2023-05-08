@@ -16,12 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: co-group-by-key
+name: CoGroupByKey
+complexity: ADVANCED
+taskName: co-group-by-key

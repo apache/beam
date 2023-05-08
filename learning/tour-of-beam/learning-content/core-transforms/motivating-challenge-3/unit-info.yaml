@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: motivating-challenge-3
+name: Challenge 3
+taskName: CoreTransformsChallenge3
+solutionName: CoreTransformsSolution3

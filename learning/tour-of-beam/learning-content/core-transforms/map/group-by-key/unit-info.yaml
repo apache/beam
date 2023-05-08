@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: group-by-key
+name: GroupByKey
+taskName: group-by-key
+complexity: MEDIUM

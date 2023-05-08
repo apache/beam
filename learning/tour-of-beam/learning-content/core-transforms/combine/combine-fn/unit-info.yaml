@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: combine-fn
+name: Combine-fn example
+complexity: ADVANCED
+taskName: combine-fn

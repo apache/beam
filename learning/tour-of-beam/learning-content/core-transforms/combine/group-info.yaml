@@ -21,7 +21,10 @@ sdk:
   - Java
   - Python
   - Go
+id: combine
+name: Combine
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
+  - simple-function
+  - combine-fn
+  - combine-per-key
+  - binary-combine-fn

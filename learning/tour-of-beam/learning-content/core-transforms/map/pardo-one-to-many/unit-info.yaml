@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: pardo-one-to-many
+name: ParDo one-to-many
+taskName: pardo-one-to-many
+complexity: MEDIUM
