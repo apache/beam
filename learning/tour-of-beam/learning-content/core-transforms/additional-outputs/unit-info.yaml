@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: additional-outputs
+name: Additional outputs example
+complexity: MEDIUM
+taskName: additional-outputs

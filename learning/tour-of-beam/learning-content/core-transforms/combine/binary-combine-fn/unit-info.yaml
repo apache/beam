@@ -19,9 +19,7 @@
 
 sdk:
   - Java
-  - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: binary-combine-fn
+name: BinaryCombineFn
+complexity: ADVANCED
+taskName: binary-combine-fn

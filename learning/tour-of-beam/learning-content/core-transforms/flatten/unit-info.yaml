@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: flatten
+name: Flatten example
+complexity: MEDIUM
+taskName: flatten

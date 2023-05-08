@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: motivating-challenge-4
+name: Challenge 4
+taskName: CoreTransformsChallenge4
+solutionName: CoreTransformsSolution4

@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
+id: combine-per-key
+name: combine-per-key example
+complexity: ADVANCED
+taskName: combine-per-key
