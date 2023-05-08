@@ -19,7 +19,7 @@
 # pytype: skip-file
 
 # beam-playground:
-#   name: CoGroupByKey
+#   name: CoGroupByKeyMerge
 #   description: Demonstration of CoGroupByKey transform usage.
 #   multifile: false
 #   default_example: false
