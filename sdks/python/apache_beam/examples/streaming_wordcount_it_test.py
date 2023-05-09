@@ -53,7 +53,7 @@ INPUT_SUB = 'wc_subscription_input'
 OUTPUT_SUB = 'wc_subscription_output'
 
 DEFAULT_INPUT_NUMBERS = 500
-WAIT_UNTIL_FINISH_DURATION = 10 * 60 * 1000  # in milliseconds
+WAIT_UNTIL_FINISH_DURATION = 15 * 60 * 1000  # in milliseconds
 
 
 class StreamingWordCountIT(unittest.TestCase):

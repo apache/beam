@@ -26,7 +26,6 @@ import com.google.cloud.recommendationengine.v1beta1.UserEventServiceClient;
 import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,7 +45,6 @@ import org.json.JSONObject;
  * event (defaults to "default_event_store").
  */
 @AutoValue
-@SuppressWarnings({"nullness"})
 public abstract class RecommendationAIWriteUserEvent
     extends PTransform<PCollection<GenericJson>, PCollectionTuple> {
 
@@ -60,13 +58,13 @@ public abstract class RecommendationAIWriteUserEvent
   }
 
   /** @return ID of Google Cloud project to be used for creating user events. */
-  public abstract @Nullable String projectId();
+  public abstract String projectId();
 
   /** @return Name of the catalog where the user events will be created. */
-  public abstract @Nullable String catalogName();
+  public abstract String catalogName();
 
   /** @return Name of the event store where the user events will be created. */
-  public abstract @Nullable String eventStore();
+  public abstract String eventStore();
 
   /**
    * The transform converts the contents of input PCollection into {@link UserEvent}s and then calls
@@ -85,13 +83,13 @@ public abstract class RecommendationAIWriteUserEvent
   @AutoValue.Builder
   abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating user events. */
-    public abstract Builder setProjectId(@Nullable String projectId);
+    public abstract Builder setProjectId(String projectId);
 
     /** @param catalogName Name of the catalog where the user events will be created. */
-    public abstract Builder setCatalogName(@Nullable String catalogName);
+    public abstract Builder setCatalogName(String catalogName);
 
     /** @param eventStore Name of the event store where the user events will be created. */
-    public abstract Builder setEventStore(@Nullable String eventStore);
+    public abstract Builder setEventStore(String eventStore);
 
     public abstract RecommendationAIWriteUserEvent build();
   }

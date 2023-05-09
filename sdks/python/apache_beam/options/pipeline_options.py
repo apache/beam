@@ -22,6 +22,7 @@
 import argparse
 import json
 import logging
+import os
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -875,6 +876,21 @@ class GoogleCloudOptions(PipelineOptions):
               self, 'dataflow_service_options'))
 
     return errors
+
+  def get_cloud_profiler_service_name(self):
+    _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
+    if self.dataflow_service_options:
+      if _ENABLE_GOOGLE_CLOUD_PROFILER in self.dataflow_service_options:
+        return os.environ["JOB_NAME"]
+      for option_name in self.dataflow_service_options:
+        if option_name.startswith(_ENABLE_GOOGLE_CLOUD_PROFILER + '='):
+          return option_name.split('=', 1)[1]
+
+    experiments = self.view_as(DebugOptions).experiments or []
+    if _ENABLE_GOOGLE_CLOUD_PROFILER in experiments:
+      return os.environ["JOB_NAME"]
+
+    return None
 
 
 class AzureOptions(PipelineOptions):

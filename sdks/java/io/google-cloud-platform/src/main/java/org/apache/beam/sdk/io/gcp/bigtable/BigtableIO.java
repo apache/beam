@@ -1003,6 +1003,26 @@ public class BigtableIO {
           .build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.Write} with flow control enabled if enableFlowControl is
+     * true.
+     *
+     * <p>When enabled, traffic to Bigtable is automatically rate-limited to prevent overloading
+     * Bigtable clusters while keeping enough load to trigger Bigtable Autoscaling (if enabled) to
+     * provision more nodes as needed. It is different from the flow control set by {@link
+     * #withMaxOutstandingElements(long)} and {@link #withMaxOutstandingBytes(long)}, which is
+     * always enabled on batch writes and limits the number of outstanding requests to the Bigtable
+     * server.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withFlowControl(boolean enableFlowControl) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setFlowControl(enableFlowControl).build())
+          .build();
+    }
+
     @VisibleForTesting
     Write withServiceFactory(BigtableServiceFactory factory) {
       return toBuilder().setServiceFactory(factory).build();

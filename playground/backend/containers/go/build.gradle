@@ -40,38 +40,40 @@ task copyKafkaEmulator(type: Copy) {
    into 'build/kafka-emulator/'
 }
 
-task copyDockerfileDependencies(type: Copy) {
+task copyDockerfileDependencies {
    dependsOn("copyKafkaEmulator")
 
-   copy {
-      from '../../../backend/'
-      into 'build/src'
-      exclude 'containers'
-   }
-   copy {
-      from 'entrypoint.sh'
-      into 'build/'
-   }
-   copy {
-      from 'setup_sdk.sh'
-      into 'build/'
-   }
-   copy {
-      from '../../../playground'
-      into 'build/playground'
-   }
-   copy {
-      from '../../../../sdks/go'
-      into 'build/beam/go'
-      exclude '**/.gogradle/**'
-   }
-   copy {
-      from '../../../../sdks/go.mod'
-      into 'build/beam'
-   }
-   copy {
-      from '../../../../sdks/go.sum'
-      into 'build/beam'
+   doLast {
+      copy {
+         from '../../../backend/'
+         into 'build/src'
+         exclude 'containers'
+      }
+      copy {
+         from 'entrypoint.sh'
+         into 'build/'
+      }
+      copy {
+         from 'setup_sdk.sh'
+         into 'build/'
+      }
+      copy {
+         from '../../../playground'
+         into 'build/playground'
+      }
+      copy {
+         from '../../../../sdks/go'
+         into 'build/beam/go'
+         exclude '**/.gogradle/**'
+      }
+      copy {
+         from '../../../../sdks/go.mod'
+         into 'build/beam'
+      }
+      copy {
+         from '../../../../sdks/go.sum'
+         into 'build/beam'
+      }
    }
 }
 

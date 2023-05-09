@@ -251,7 +251,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       inference_fn: the inference function to use on RunInference calls.
         default: _default_tensorRT_inference_fn
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
-        currently supported.
+        currently supported. 'env_vars' can be used to set environment variables
+        before loading the model.
 
     See https://docs.nvidia.com/deeplearning/tensorrt/api/python_api/
     for details
@@ -263,6 +264,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       self.engine_path = kwargs.get('engine_path')
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
+    self._env_vars = kwargs.get('env_vars', {})
 
   def batch_elements_kwargs(self):
     """Sets min_batch_size and max_batch_size of a TensorRT engine."""

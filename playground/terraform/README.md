@@ -31,7 +31,9 @@ Ensure that the account has at least following privileges:
    - App Engine Creator
    - Artifact Registry Administrator
    - Cloud Datastore Index Admin
+   - Cloud Datastore User
    - Cloud Memorystore Redis Admin
+   - Cloud Functions Developer
    - Compute Admin
    - Create Service Accounts
    - DNS Administrator
@@ -55,6 +57,7 @@ Ensure that the account has at least following privileges:
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 * [Kubectl authentication](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
+* [GO](https://go.dev/doc/install)
 
 6. Apache Beam Git repository cloned locally
 
@@ -76,10 +79,11 @@ redis_tier             = "BASIC"                    # Redis tier type. Options: 
 min_count              = 2                          # Min node count for the GKE cluster
 max_count              = 6                          # Max node count for the GKE cluster
 skip_appengine_deploy  = false                      # AppEngine flag - defined if AppEngine and Datastore need to be installed. Should be "true" if AppEngine and Datastore were installed before
-ip-address-name        = "playground-static-ip"     # GCP Static IP Address name
+ip_address_name        = "playground-static-ip"     # GCP Static IP Address name
 repository_id          = "playground-artifacts"     # GCP Artifact repository name for Playground images
-service_account_id     = "playground-gke-account"   # GCP Service account name
+service_account_id     = "playground-gke-sa"   # GCP Service account name
 gke_machine_type       = "e2-standard-8"            # Machine type for GKE Nodes
+env                    = "prod"                     # Environment. The same value as for <environment_name> parameter
 
 ```
 * `state.tfbackend` environment variables:
