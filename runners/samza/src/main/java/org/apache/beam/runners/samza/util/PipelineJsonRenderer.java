@@ -17,10 +17,13 @@
  */
 package org.apache.beam.runners.samza.util;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.errorprone.annotations.DoNotCall;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -31,6 +34,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.samza.SamzaRunner;
 import org.apache.beam.runners.samza.translation.ConfigContext;
 import org.apache.beam.runners.samza.translation.SamzaPipelineTranslator;
 import org.apache.beam.runners.samza.translation.TransformTranslator;
@@ -41,8 +45,14 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.JsonArray;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.JsonObject;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.JsonParser;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.samza.config.Config;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A JSON renderer for BEAM {@link Pipeline} DAG. This can help us with visualization of the Beam
@@ -50,6 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterator
  */
 @Experimental
 public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
+  private static final Logger LOG = LoggerFactory.getLogger(PipelineJsonRenderer.class);
   private static final String TRANSFORM_IO_MAP_DELIMITER = ",";
 
   /**
@@ -291,5 +302,37 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
 
   private static Supplier<List<String>> getIOPValueList(Map<TupleTag<?>, PCollection<?>> map) {
     return () -> map.values().stream().map(pColl -> pColl.getName()).collect(Collectors.toList());
+  }
+
+  // Reads the config to build transformIOMap, i.e. map of inputs & output PValues for each
+  // PTransform
+  public static Map<String, Map.Entry<List<String>, List<String>>> getTransformIOMap(
+      Config config) {
+    checkNotNull(config, "Config cannot be null");
+    final Map<String, Map.Entry<List<String>, List<String>>> result = new HashMap<>();
+    final String pipelineJsonGraph = config.get(SamzaRunner.BEAM_JSON_GRAPH);
+    if (pipelineJsonGraph == null) {
+      LOG.warn(
+          "Cannot build transformIOMap since Config: {} is found null ",
+          SamzaRunner.BEAM_JSON_GRAPH);
+      return result;
+    }
+    JsonObject jsonObject = JsonParser.parseString(pipelineJsonGraph).getAsJsonObject();
+    JsonArray transformIOInfo = jsonObject.getAsJsonArray("transformIOInfo");
+    transformIOInfo.forEach(
+        transform -> {
+          final String transformName =
+              transform.getAsJsonObject().get("transformName").getAsString();
+          final String inputs = transform.getAsJsonObject().get("inputs").getAsString();
+          final String outputs = transform.getAsJsonObject().get("outputs").getAsString();
+          result.put(transformName, new AbstractMap.SimpleEntry<>(ioFunc(inputs), ioFunc(outputs)));
+        });
+    return result;
+  }
+
+  private static List<String> ioFunc(String ioList) {
+    return Arrays.stream(ioList.split(PipelineJsonRenderer.TRANSFORM_IO_MAP_DELIMITER))
+        .filter(item -> !item.isEmpty())
+        .collect(Collectors.toList());
   }
 }
