@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+import os
 import unittest
 from typing import Any
 from typing import Dict
@@ -26,18 +27,22 @@ from typing import Sequence
 from typing import Union
 
 import numpy
-import os
 import pytest
 
 import apache_beam as beam
+from apache_beam.ml.inference import tensorflow_inference
+from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.sklearn_inference_test import _compare_prediction_result
-from apache_beam.ml.inference.base import KeyedModelHandler, PredictionResult, RunInference
-from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy, TFModelHandlerTensor
-from apache_beam.ml.inference import tensorflow_inference, utils
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
+  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy
+  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
 except ImportError:
   raise unittest.SkipTest('Tensorflow dependencies are not installed')
 
