@@ -97,7 +97,9 @@ with a single `root` object and is passed to a Runner's `run` method.</span><div
 </span><span class=c1></span><span class=nx>pipeline</span><span class=p>,</span> <span class=nx>scope</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>NewPipelineWithRoot</span><span class=p>()</span></code></pre></div></div></div><div class="language-typescript snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-typescript data-lang=typescript><span class=nx>await</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>createRunner</span><span class=p>().</span><span class=nx>run</span><span class=p>(</span><span class=kd>function</span> <span class=nx>pipeline</span><span class=p>(</span><span class=nx>root</span><span class=p>)</span> <span class=p>{</span>
   <span class=c1>// Use root to build a pipeline.
 </span><span class=c1></span><span class=p>});</span>
-</code></pre></div></div></div><h3 id=configuring-pipeline-options>2.1. Configuring pipeline options</h3><p>Use the pipeline options to configure different aspects of your pipeline, such
+</code></pre></div></div></div><p>For a more in-depth tutorial on creating basic pipelines
+in the Python SDK, please read and work through
+<a href=https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/learn_beam_basics_by_doing.ipynb>this colab notebook</a>.</p><h3 id=configuring-pipeline-options>2.1. Configuring pipeline options</h3><p>Use the pipeline options to configure different aspects of your pipeline, such
 as the pipeline runner that will execute your pipeline and any runner-specific
 configuration required by the chosen runner. Your pipeline options will
 potentially include information such as your project ID or a location for
@@ -366,7 +368,9 @@ such as <a href=#pardo>ParDo</a> or <a href=#combine>Combine</a>. There are also
 <a href=#composite-transforms>composite transforms</a> included in the SDKs, which
 combine one or more of the core transforms in a useful processing pattern, such
 as counting or combining elements in a collection. You can also define your own
-more complex composite transforms to fit your pipeline&rsquo;s exact use case.</p><h3 id=applying-transforms>4.1. Applying transforms</h3><p>To invoke a transform, you must <strong>apply</strong> it to the input <code>PCollection</code>. Each
+more complex composite transforms to fit your pipeline&rsquo;s exact use case.</p><p>For a more in-depth tutorial of applying various transforms
+in the Python SDK, please read and work through
+<a href=https://colab.sandbox.google.com/github/liferoad/beam/blob/learn-transforms/examples/notebooks/get-started/learn_beam_transforms_by_doing.ipynb>this colab notebook</a>.</p><h3 id=applying-transforms>4.1. Applying transforms</h3><p>To invoke a transform, you must <strong>apply</strong> it to the input <code>PCollection</code>. Each
 transform in the Beam SDKs has a generic <code>apply</code> method <span class=language-py>(or pipe operator <code>|</code>)</span>.
 Invoking multiple Beam transforms is similar to <em>method chaining</em>, but with one
 slight difference: You apply the transform to the input <code>PCollection</code>, passing

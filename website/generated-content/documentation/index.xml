@@ -5261,6 +5261,9 @@ with a single `root` object and is passed to a Runner's `run` method.
 &lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p>For a more in-depth tutorial on creating basic pipelines
+in the Python SDK, please read and work through
+&lt;a href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/learn_beam_basics_by_doing.ipynb">this colab notebook&lt;/a>.&lt;/p>
 &lt;h3 id="configuring-pipeline-options">2.1. Configuring pipeline options&lt;/h3>
 &lt;p>Use the pipeline options to configure different aspects of your pipeline, such
 as the pipeline runner that will execute your pipeline and any runner-specific
@@ -5753,6 +5756,9 @@ such as &lt;a href="#pardo">ParDo&lt;/a> or &lt;a href="#combine">Combine&lt;/a>
 combine one or more of the core transforms in a useful processing pattern, such
 as counting or combining elements in a collection. You can also define your own
 more complex composite transforms to fit your pipeline&amp;rsquo;s exact use case.&lt;/p>
+&lt;p>For a more in-depth tutorial of applying various transforms
+in the Python SDK, please read and work through
+&lt;a href="https://colab.sandbox.google.com/github/liferoad/beam/blob/learn-transforms/examples/notebooks/get-started/learn_beam_transforms_by_doing.ipynb">this colab notebook&lt;/a>.&lt;/p>
 &lt;h3 id="applying-transforms">4.1. Applying transforms&lt;/h3>
 &lt;p>To invoke a transform, you must &lt;strong>apply&lt;/strong> it to the input &lt;code>PCollection&lt;/code>. Each
 transform in the Beam SDKs has a generic &lt;code>apply&lt;/code> method &lt;span class="language-py">(or pipe operator &lt;code>|&lt;/code>)&lt;/span>.
