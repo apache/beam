@@ -146,7 +146,7 @@ public class TestSamzaRunnerWithTransformMetrics {
   }
 
   @Test
-  public void testSamzaInputMetricOp() {
+  public void testSamzaInputAndOutputMetricOp() {
     final WindowedValue<String> windowedValue =
         WindowedValue.timestampedValueInGlobalWindow("value-1", new Instant());
     final WindowedValue<String> windowedValue2 =
