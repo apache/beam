@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.List;
 import java.util.Objects;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -29,7 +27,6 @@ import org.joda.time.Instant;
  * A {@link Trigger} that fires at some point after a specified number of input elements have
  * arrived.
  */
-@Experimental(Kind.TRIGGER)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

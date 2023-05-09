@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.PubsubTopic;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages.ParsePubsubMessageProtoAsPayload;
@@ -33,7 +32,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Exposes {@link PubsubIO.Write} as an external transform for cross-language usage. */
-@Experimental
 @AutoService(ExternalTransformRegistrar.class)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

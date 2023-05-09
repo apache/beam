@@ -62,8 +62,6 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Decoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -899,7 +897,6 @@ public class BigQueryIO {
 
       abstract Builder<T> setMethod(TypedRead.Method method);
 
-      @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setFormat(DataFormat method);
 
       abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
@@ -917,13 +914,10 @@ public class BigQueryIO {
 
       abstract Builder<T> setKmsKey(String kmsKey);
 
-      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
 
-      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setToBeamRowFn(ToBeamRowFunction<T> toRowFn);
 
-      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
 
       abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
@@ -958,7 +952,6 @@ public class BigQueryIO {
 
     abstract TypedRead.Method getMethod();
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
     abstract DataFormat getFormat();
 
     abstract @Nullable ValueProvider<List<String>> getSelectedFields();
@@ -969,13 +962,10 @@ public class BigQueryIO {
 
     abstract @Nullable String getKmsKey();
 
-    @Experimental(Kind.SCHEMAS)
     abstract @Nullable TypeDescriptor<T> getTypeDescriptor();
 
-    @Experimental(Kind.SCHEMAS)
     abstract @Nullable ToBeamRowFunction<T> getToBeamRowFn();
 
-    @Experimental(Kind.SCHEMAS)
     abstract @Nullable FromBeamRowFunction<T> getFromBeamRowFn();
 
     abstract Boolean getUseAvroLogicalTypes();
@@ -1830,7 +1820,6 @@ public class BigQueryIO {
      *
      * <p>Setting these conversion functions is necessary to enable {@link Schema} support.
      */
-    @Experimental(Kind.SCHEMAS)
     public TypedRead<T> withBeamRowConverters(
         TypeDescriptor<T> typeDescriptor,
         ToBeamRowFunction<T> toRowFn,
@@ -1927,7 +1916,6 @@ public class BigQueryIO {
     }
 
     /** See {@link DataFormat}. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withFormat(DataFormat format) {
       return toBuilder().setFormat(format).build();
     }
@@ -2242,17 +2230,14 @@ public class BigQueryIO {
 
     abstract Boolean getOptimizeWrites();
 
-    @Experimental(Kind.SCHEMAS)
     abstract Boolean getUseBeamSchema();
 
-    @Experimental
     abstract Boolean getAutoSharding();
 
     abstract Boolean getPropagateSuccessful();
 
     abstract Boolean getAutoSchemaUpdate();
 
-    @Experimental
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
     abstract @Nullable String getWriteTempDataset();
@@ -2338,10 +2323,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
-      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
 
-      @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
 
       abstract Builder<T> setMaxRetryJobs(int maxRetryJobs);
@@ -2350,7 +2333,6 @@ public class BigQueryIO {
 
       abstract Builder<T> setAutoSchemaUpdate(Boolean autoSchemaUpdate);
 
-      @Experimental
       abstract Builder<T> setDeterministicRecordIdFn(
           SerializableFunction<T, String> toUniqueIdFunction);
 
@@ -2850,7 +2832,6 @@ public class BigQueryIO {
      * formatFunction is set, then BigQueryIO will automatically turn the input records into
      * TableRows that match the schema.
      */
-    @Experimental(Kind.SCHEMAS)
     public Write<T> useBeamSchema() {
       return toBuilder().setUseBeamSchema(true).build();
     }
@@ -2861,7 +2842,6 @@ public class BigQueryIO {
      * applicable to unbounded data. If using {@link Method#FILE_LOADS}, numFileShards set via
      * {@link #withNumFileShards} will be ignored.
      */
-    @Experimental
     public Write<T> withAutoSharding() {
       return toBuilder().setAutoSharding(true).build();
     }
@@ -2901,7 +2881,7 @@ public class BigQueryIO {
      * the current sharding is already sufficient for writing to BigQuery. This behavior takes
      * precedence over {@link #withAutoSharding}.
      */
-    @Experimental
+
     public Write<T> withDeterministicRecordIdFn(
         SerializableFunction<T, String> toUniqueIdFunction) {
       return toBuilder().setDeterministicRecordIdFn(toUniqueIdFunction).build();

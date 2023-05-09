@@ -23,14 +23,12 @@ import com.google.cloud.videointelligence.v1.VideoContext;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * Implementation of AnnotateVideoFn accepting Strings as contents of input PCollection. Annotates
  * videos found on GCS based on URIs from input PCollection.
  */
-@Experimental
 class AnnotateVideoFromURIFn extends AnnotateVideoFn<String> {
 
   public AnnotateVideoFromURIFn(

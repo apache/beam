@@ -17,13 +17,10 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Interface for interacting with time. */
-@Experimental(Kind.TIMERS)
 public interface Timers {
   /**
    * Sets a timer to fire when the event time watermark, the current processing time, or the

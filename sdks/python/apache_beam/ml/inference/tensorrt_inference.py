@@ -35,7 +35,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
 
 LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
 # This try/catch block allows users to submit jobs from a machine without
@@ -221,7 +220,6 @@ def _default_tensorRT_inference_fn(
     return utils._convert_to_result(batch, predictions)
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):

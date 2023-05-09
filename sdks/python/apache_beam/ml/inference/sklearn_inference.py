@@ -33,7 +33,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
 
 try:
   import joblib
@@ -193,7 +192,6 @@ def _default_pandas_inference_fn(
   return predictions, splits
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
                                              BaseEstimator]):

@@ -26,8 +26,6 @@ import java.io.Serializable;
 import java.net.URI;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
@@ -108,7 +106,6 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  * then opt to retry the current partition in entirety or abort if the max number of retries of the
  * runner is reached.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

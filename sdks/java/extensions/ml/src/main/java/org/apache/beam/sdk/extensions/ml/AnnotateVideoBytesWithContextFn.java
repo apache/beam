@@ -23,14 +23,12 @@ import com.google.cloud.videointelligence.v1.VideoContext;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.KV;
 
 /**
  * Implementation of AnnotateVideoFn accepting KVs as contents of input PCollection. Keys are the
  * ByteString encoded video contents, values - VideoContext objects.
  */
-@Experimental
 class AnnotateVideoBytesWithContextFn extends AnnotateVideoFn<KV<ByteString, VideoContext>> {
 
   public AnnotateVideoBytesWithContextFn(List<Feature> featureList) {

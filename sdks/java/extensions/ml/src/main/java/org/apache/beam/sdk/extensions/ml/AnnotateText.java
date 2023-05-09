@@ -23,7 +23,6 @@ import com.google.cloud.language.v1.AnnotateTextResponse;
 import com.google.cloud.language.v1.Document;
 import com.google.cloud.language.v1.LanguageServiceClient;
 import java.io.IOException;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -38,7 +37,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * com.google.cloud.language.v1.AnnotateTextRequest.Features} object is required to configure
  * analysis types to be done on the data.
  */
-@Experimental
 @AutoValue
 public abstract class AnnotateText
     extends PTransform<PCollection<Document>, PCollection<AnnotateTextResponse>> {

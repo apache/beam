@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
@@ -63,7 +62,6 @@ import org.slf4j.LoggerFactory;
  * {@code BigQueryTable} represent a BigQuery table as a target. This provider does not currently
  * support being a source.
  */
-@Experimental
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

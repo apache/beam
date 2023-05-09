@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.zetasketch;
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.zetasketch.HllCount.Init.Builder;
@@ -74,7 +73,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *       .via(kv -> KV.of(kv.getKey(), (long) kv.getValue().hashCode())));
  * }</pre>
  */
-@Experimental
 public class ApproximateCountDistinct {
 
   private static final List<TypeDescriptor<?>> HLL_IMPLEMENTED_TYPES =
