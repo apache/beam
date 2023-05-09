@@ -47,14 +47,6 @@ class FakeTFNumpyModel:
     return numpy.multiply(input, 10)
 
 
-class FakeTFNumpyModule(tf.Module):
-  def __init__(self):
-    self.super().__init__(name="fake_numpy")
-
-  def __call__(self, input: numpy.ndarray):
-    return numpy.multiply(input, 10)
-
-
 class FakeTFTensorModel:
   def predict(self, input: tf.Tensor, add=False):
     if add:
