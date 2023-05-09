@@ -110,6 +110,12 @@ class BigtableChangeStreamAccessor {
             EnhancedBigtableStubSettings.defaultGrpcTransportProviderBuilder()
                 .setAttemptDirectPath(false) // Disable DirectPath
                 .setChannelPoolSettings( // Autoscale Channel Size
+                    // We use blocking rpc calls so we expect a max of `workerHarnessThreads`
+                    // concurrent rpcs per-worker. This defaults to 500 and we want to accommodate
+                    // higher concurrency for jobs that are overridden to use more threads. There
+                    // is a limit of 100 concurrent streams per channel so this should resize to
+                    // support a large number of requests. Testing has shown that this
+                    // significantly increases throughput compared to the default channel pool.
                     ChannelPoolSettings.builder()
                         // Make sure that there are at least 2 channels regardless of RPCs
                         .setMinChannelCount(2)

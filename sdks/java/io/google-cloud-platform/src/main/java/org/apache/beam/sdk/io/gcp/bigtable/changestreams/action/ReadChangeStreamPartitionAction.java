@@ -167,7 +167,6 @@ public class ReadChangeStreamPartitionAction {
     // Process CloseStream if it exists
     CloseStream closeStream = tracker.currentRestriction().getCloseStream();
     if (closeStream != null) {
-      // tracker.currentRestriction().closeStream.getStatus()
       if (closeStream.getStatus().getCode() == Status.Code.OK) {
         // We need to update watermark here. We're terminating this stream because we have reached
         // endTime. Instant.now is greater or equal to endTime. The goal here is
