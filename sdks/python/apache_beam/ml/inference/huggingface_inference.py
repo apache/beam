@@ -16,56 +16,43 @@
 #
 
 from typing import Any
-from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 from huggingface_hub import hf_hub_download
-import numpy
-from sklearn.base import BaseEstimator
+import torch
+import tensorflow as tf
 
-from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy
+from apache_beam.ml.inference.tensorflow_inference import ModelType, TFModelHandlerTensor
 
 __all__ = [
-    'HuggingFaceModelHandlerNumpy',
+    'HuggingFaceModelHandlerTensor',
 ]
 
-NumpyInferenceFn = Callable[
-    [Any, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]
 
-
-def _default_numpy_inference_fn(
-    model: BaseEstimator,
-    batch: Sequence[numpy.ndarray],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
-  # vectorize data for better performance
-  vectorized_batch = numpy.stack(batch, axis=0)
-  return model.predict(vectorized_batch, **inference_args)
-
-
-class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
-                                                PredictionResult,
-                                                Any]):
+class HuggingFaceModelHandlerTensor(ModelHandler[Union[torch.Tensor, tf.Tensor],
+                                                 PredictionResult,
+                                                 Any]):
   def __init__(
       self,
       repo_id: str,
       filename: str,
-      *,
-      inference_fn: NumpyInferenceFn = _default_numpy_inference_fn,
-      model_download_args: Optional[Dict[str, Any]],
+      model_download_args: Dict[str, Any] = None,
+      kwargs: Dict[str, Any] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None):
     self._model_handler = None
     self._model_path = None
     self._repo_id = repo_id
     self._filename = filename
-    self._model_inference_fn = inference_fn
-    self._model_download_args = model_download_args
+    self._model_download_args = model_download_args if model_download_args else {}  # pylint: disable=line-too-long
+    self._kwargs = kwargs if kwargs else {}
     self._batching_kwargs = {}
     if min_batch_size is not None:
       self._batching_kwargs['min_batch_size'] = min_batch_size
@@ -78,8 +65,12 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
         repo_id=self._repo_id,
         filename=self._filename,
         **self._model_download_args)
-    if self._filename.startswith('tf'):
-      self._model_handler = TFModelHandlerNumpy(self._model_path)
+    if self._filename.startswith('pytorch_'):
+      self._model_handler = PytorchModelHandlerTensor(
+          self._model_path, **self._kwargs)
+    elif self._filename.startswith('tf_'):
+      self._model_handler = TFModelHandlerTensor(
+          self._model_path, ModelType.SAVED_WEIGHTS)
     return self._model_handler.load_model()
 
   def update_model_path(self, model_path: Optional[str] = None):
@@ -87,16 +78,14 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
   def run_inference(
       self,
-      batch: Sequence[numpy.ndarray],
+      batch: Sequence[Union[torch.Tensor, tf.Tensor]],
       model: Any,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
-    predictions = self._model_handler.run_inference(
-        batch, model, inference_args)
-    return utils._convert_to_result(
-        batch, predictions, model_id=self._model_path)
+    return self._model_handler.run_inference(batch, model, inference_args)
 
-  def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
+  def get_num_bytes(
+      self, batch: Sequence[Union[torch.Tensor, tf.Tensor]]) -> int:
     """
     Returns:
       The number of bytes of data for a batch.
@@ -108,7 +97,7 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_HuggingFace_Sklearn'
+    return 'BeamML_HuggingFace_Tensor'
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs

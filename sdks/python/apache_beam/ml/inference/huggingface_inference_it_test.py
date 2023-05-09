@@ -20,6 +20,7 @@
 import unittest
 import uuid
 import logging
+import pytest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -34,35 +35,42 @@ def process_outputs(filepath):
 
 
 class HuggingFaceInference(unittest.TestCase):
+  @pytest.mark.timeout(4200)
   def test_hf_imagenet_image_segmentation(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    input_file = (
-        'gs://apache-beam-ml/testing/inputs/it_imagenet_input_labels.txt')
-    image_dir = (
-        'https://storage.googleapis.com/download.tensorflow.org/example_images/'
-    )
-    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
+    # text files containing absolute path to the coco validation data on GCS
+    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_coco_validation_inputs.txt'  # pylint: disable=line-too-long
+    output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
+    repo_id = 'facebook/detr-resnet-50'
+    model = 'pytorch_model.bin'
+    images_dir = 'gs://apache-beam-ml/datasets/coco/raw-data/val2017'
     extra_opts = {
-        'input': input_file,
+        'input': file_of_image_names,
         'output': output_file,
-        'repo_id': 'alexsu52/mobilenet_v2_imagenette',
-        'filename': 'tf_model.h5',
-        'image_dir': image_dir,
+        'repo_id': repo_id,
+        'model': model,
+        'images_dir': images_dir,
     }
     huggingface_image_segmentation.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
+
     self.assertEqual(FileSystems().exists(output_file), True)
+    predictions = process_outputs(filepath=output_file)
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_coco_maskrcnn_resnet50_fpn_actuals.txt'  # pylint: disable=line-too-long
+    actuals = process_outputs(filepath=actuals_file)
 
-    expected_output_filepath = 'gs://apache-beam-ml/testing/expected_outputs/test_tf_imagenet_image_segmentation.txt'  # pylint: disable=line-too-long
-    expected_outputs = process_outputs(expected_output_filepath)
-    predicted_outputs = process_outputs(output_file)
-    self.assertEqual(len(expected_outputs), len(predicted_outputs))
+    predictions_dict = {}
+    for prediction in predictions:
+      filename, prediction_labels = prediction.split(';')
+      predictions_dict[filename] = prediction_labels
 
-    for true_label, predicted_label in zip(expected_outputs, predicted_outputs):
-      self.assertEqual(true_label, predicted_label)
+    for actual in actuals:
+      filename, actual_labels = actual.split(';')
+      prediction_labels = predictions_dict[filename]
+      self.assertEqual(actual_labels, prediction_labels)
 
 
 if __name__ == '__main__':
