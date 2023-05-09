@@ -28,6 +28,7 @@ import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.util.PipelineJsonRenderer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;
@@ -54,6 +55,9 @@ class SamzaOutputMetricOp<T> implements Op<T, T, Void> {
   protected final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
   // Name or identifier of the PCollection which PTransform is processing
   protected final String pValue;
+  // Counters for output throughput
+  private final AtomicLong count;
+  private final AtomicReference<BigInteger> sumOfTimestamps;
   // List of input PValue(s) for all PCollections processing the PTransform
   protected transient List<String> transformInputs;
   // List of output PValue(s) for all PCollections processing the PTransform
@@ -62,9 +66,6 @@ class SamzaOutputMetricOp<T> implements Op<T, T, Void> {
   protected transient String task;
 
   private static final Logger LOG = LoggerFactory.getLogger(SamzaOutputMetricOp.class);
-  // Counters for output throughput
-  private AtomicLong count;
-  private AtomicReference<BigInteger> sumOfTimestamps;
 
   // Some fields are initialized in open() method, which is called after the constructor.
   @SuppressWarnings("initialization.fields.uninitialized")
@@ -142,8 +143,14 @@ class SamzaOutputMetricOp<T> implements Op<T, T, Void> {
         .set(watermark.getMillis());
 
     // reset all counters
-    this.count = new AtomicLong(0L);
-    this.sumOfTimestamps = new AtomicReference<>(BigInteger.ZERO);
+    count.set(0L);
+    this.sumOfTimestamps.set(BigInteger.ZERO);
     emitter.emitWatermark(watermark);
+  }
+
+  @VisibleForTesting
+  void init(List<String> transformInputs, List<String> transformOutputs) {
+    this.transformInputs = transformInputs;
+    this.transformOutputs = transformOutputs;
   }
 }

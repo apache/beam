@@ -21,10 +21,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import java.util.Map;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.TestSamzaRunner;
+import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.util.InMemoryMetricsReporter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -32,12 +38,18 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.samza.context.Context;
 import org.apache.samza.metrics.Counter;
 import org.apache.samza.metrics.Gauge;
 import org.apache.samza.metrics.Metric;
+import org.apache.samza.metrics.Timer;
+import org.apache.samza.system.WatermarkMessage;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 public class TestSamzaRunnerWithTransformMetrics {
@@ -131,5 +143,68 @@ public class TestSamzaRunnerWithTransformMetrics {
             "Filter_valid_keys_ParDo_Anonymous__ParMultiDo_Anonymous_-output-watermark-ms"));
     assertNotNull(
         pTransformTaskMetrics.get("Values_Values_Map_ParMultiDo_Anonymous_-output-watermark-ms"));
+  }
+
+  @Test
+  public void testSamzaInputMetricOp() {
+    final WindowedValue<String> windowedValue =
+        WindowedValue.timestampedValueInGlobalWindow("value-1", new Instant());
+    final WindowedValue<String> windowedValue2 =
+        WindowedValue.timestampedValueInGlobalWindow("value-2", new Instant());
+    final WatermarkMessage watermarkMessage =
+        new WatermarkMessage(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+
+    OpEmitter<String> opEmitter = mock(OpEmitter.class);
+    doNothing().when(opEmitter).emitElement(any());
+    doNothing().when(opEmitter).emitWatermark(any());
+
+    Counter inputCounter = new Counter("filter-input-counter");
+    Counter outputCounter = new Counter("filter-output-counter");
+    Gauge<Long> watermarkProgress = new Gauge<>("filter-output-watermark", 0L);
+    Timer latency = new Timer("filter-latency");
+
+    SamzaTransformMetrics samzaTransformMetrics = mock(SamzaTransformMetrics.class);
+    doNothing().when(samzaTransformMetrics).register(any(), any());
+    when(samzaTransformMetrics.getTransformInputThroughput("filter")).thenReturn(inputCounter);
+    when(samzaTransformMetrics.getTransformOutputThroughput("filter")).thenReturn(outputCounter);
+    when(samzaTransformMetrics.getTransformWatermarkProgress("filter"))
+        .thenReturn(watermarkProgress);
+    when(samzaTransformMetrics.getTransformLatencyMetric("filter")).thenReturn(latency);
+
+    SamzaTransformMetricRegistry samzaTransformMetricRegistry =
+        spy(new SamzaTransformMetricRegistry(samzaTransformMetrics));
+    samzaTransformMetricRegistry.register("filter", "dummy-pvalue.in", mock(Context.class));
+    samzaTransformMetricRegistry.register("filter", "dummy-pvalue.out", mock(Context.class));
+
+    SamzaInputMetricOp<String> inputMetricOp =
+        new SamzaInputMetricOp<>("dummy-pvalue.in", "filter", samzaTransformMetricRegistry);
+
+    inputMetricOp.processElement(windowedValue, opEmitter);
+    inputMetricOp.processElement(windowedValue2, opEmitter);
+    inputMetricOp.processWatermark(new Instant(watermarkMessage.getTimestamp()), opEmitter);
+
+    // Input throughput must be updated
+    assertEquals(2, inputCounter.getCount());
+    // Avg arrival time for the PValue must be updated
+    assertTrue(
+        samzaTransformMetricRegistry
+            .getAverageArrivalTimeMap("filter")
+            .get("dummy-pvalue.in")
+            .containsKey(watermarkMessage.getTimestamp()));
+
+    SamzaOutputMetricOp<String> outputMetricOp =
+        new SamzaOutputMetricOp<>("dummy-pvalue.out", "filter", samzaTransformMetricRegistry);
+    outputMetricOp.init(ImmutableList.of("dummy-pvalue.in"), ImmutableList.of("dummy-pvalue.out"));
+
+    outputMetricOp.processElement(windowedValue, opEmitter);
+    outputMetricOp.processElement(windowedValue2, opEmitter);
+    outputMetricOp.processWatermark(new Instant(watermarkMessage.getTimestamp()), opEmitter);
+
+    // Output throughput must be updated
+    assertEquals(2, outputCounter.getCount());
+    // Output watermark must be updated
+    assertEquals(watermarkMessage.getTimestamp(), watermarkProgress.getValue().longValue());
+    // Latency must be positive
+    assertTrue(latency.getSnapshot().getAverage() > 0);
   }
 }

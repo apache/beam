@@ -22,7 +22,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.samza.context.Context;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +51,12 @@ public class SamzaTransformMetricRegistry implements Serializable {
     this.transformMetrics = new SamzaTransformMetrics();
   }
 
+  @VisibleForTesting
+  SamzaTransformMetricRegistry(SamzaTransformMetrics samzaTransformMetrics) {
+    this.transformMetrics = samzaTransformMetrics;
+    this.avgArrivalTimeMap = new ConcurrentHashMap<>();
+  }
+
   public void register(String transformFullName, String pValue, Context ctx) {
     transformMetrics.register(transformFullName, ctx);
     // initialize the map for the transform
@@ -68,8 +76,6 @@ public class SamzaTransformMetricRegistry implements Serializable {
       // update the average arrival time for the latest watermark
       avgArrivalTimeMapForPValue.put(watermark, avg);
       // remove any stale entries which are lesser than the watermark
-      // todo: check is this safe to do here input metric op may be ahead in watermark than output?
-      // why not do it at emission time?
       avgArrivalTimeMapForPValue.entrySet().removeIf(entry -> entry.getKey() < watermark);
     }
   }
@@ -117,7 +123,7 @@ public class SamzaTransformMetricRegistry implements Serializable {
     }
 
     final long startTime = Collections.min(inputPValuesAvgArrivalTimes);
-    final long endTime = Collections.max(inputPValuesAvgArrivalTimes);
+    final long endTime = Collections.max(outputPValuesAvgArrivalTimes);
     final long latency = endTime - startTime;
     transformMetrics.getTransformLatencyMetric(transformName).update(latency);
     LOG.debug(
@@ -125,5 +131,12 @@ public class SamzaTransformMetricRegistry implements Serializable {
         transformName,
         watermark,
         taskName);
+  }
+
+  @VisibleForTesting
+  @Nullable
+  ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>> getAverageArrivalTimeMap(
+      String transformName) {
+    return avgArrivalTimeMap.get(transformName);
   }
 }

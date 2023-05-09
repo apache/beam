@@ -240,7 +240,7 @@ public class TranslationContext {
   }
 
   // Transforms that read or write to/from external sources are not supported
-  private boolean isIOTransform(
+  private static boolean isIOTransform(
       @NonNull TransformHierarchy.Node node, SamzaMetricOpFactory.OpType opType) {
     switch (opType) {
       case INPUT:

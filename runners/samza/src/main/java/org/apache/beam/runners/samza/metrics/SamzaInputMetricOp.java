@@ -54,15 +54,15 @@ class SamzaInputMetricOp<T> implements Op<T, T, Void> {
   protected final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
   // Name or identifier of the PCollection which PTransform is processing
   protected final String pValue;
+  // Counters to maintain avg arrival time per watermark for input PCollection.
+  private final AtomicLong count;
+  private final AtomicReference<BigInteger> sumOfTimestamps;
   // List of input PValue(s) for all PCollections processing the PTransform
   protected transient List<String> transformInputs;
   // List of output PValue(s) for all PCollections processing the PTransform
   protected transient List<String> transformOutputs;
   // Name of the task, for logging purpose
   protected transient String task;
-  // Counters to maintain avg arrival time per watermark for input PCollection.
-  private final AtomicLong count;
-  private AtomicReference<BigInteger> sumOfTimestamps;
 
   // Some fields are initialized in open() method, which is called after the constructor.
   @SuppressWarnings("initialization.fields.uninitialized")
@@ -127,7 +127,7 @@ class SamzaInputMetricOp<T> implements Op<T, T, Void> {
     }
     // reset all counters
     count.set(0L);
-    this.sumOfTimestamps = new AtomicReference<>(BigInteger.ZERO);
+    sumOfTimestamps.set(BigInteger.ZERO);
     emitter.emitWatermark(watermark);
   }
 }
