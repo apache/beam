@@ -332,7 +332,8 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
       path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
       model = self.test_data_and_model.get_torch_two_feature_model()
       self.exportModelToOnnx(model, path)
-      model_handler = TestOnnxModelHandler(path, env_vars={'FOO': 'bar'})
+      model_handler = OnnxModelHandlerNumpy(
+          model_uri=path, env_vars={'FOO': 'bar'})
       self.assertFalse('FOO' in os.environ)
       _ = (
           pipeline
