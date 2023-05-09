@@ -26,10 +26,10 @@ You can try the available Apache Beam examples at
 ## Beam Playground WordCount Example
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="java" path="SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCountWithMetrics" >}}
-{{< playground_snippet language="go" path="SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
-{{< playground_snippet language="scio" path="SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MinimalWordCount" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCountWithMetrics" >}}
+{{< playground_snippet language="go" path="SDK_GO_MinimalWordCount" >}}
+{{< playground_snippet language="scio" path="SDK_SCIO_MinimalWordCount" >}}
 {{< /playground >}}
 
 ## How To Add New Examples
