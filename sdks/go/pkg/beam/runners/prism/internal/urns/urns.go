@@ -42,14 +42,15 @@ func quickUrn[Enum protoEnum](v Enum) string {
 }
 
 var (
-	ptUrn   = toUrn[pipepb.StandardPTransforms_Primitives]()
-	ctUrn   = toUrn[pipepb.StandardPTransforms_Composites]()
-	cmbtUrn = toUrn[pipepb.StandardPTransforms_CombineComponents]()
-	sdfUrn  = toUrn[pipepb.StandardPTransforms_SplittableParDoComponents]()
-	siUrn   = toUrn[pipepb.StandardSideInputTypes_Enum]()
-	cdrUrn  = toUrn[pipepb.StandardCoders_Enum]()
-	reqUrn  = toUrn[pipepb.StandardRequirements_Enum]()
-	envUrn  = toUrn[pipepb.StandardEnvironments_Environments]()
+	ptUrn      = toUrn[pipepb.StandardPTransforms_Primitives]()
+	ctUrn      = toUrn[pipepb.StandardPTransforms_Composites]()
+	cmbtUrn    = toUrn[pipepb.StandardPTransforms_CombineComponents]()
+	sdfUrn     = toUrn[pipepb.StandardPTransforms_SplittableParDoComponents]()
+	siUrn      = toUrn[pipepb.StandardSideInputTypes_Enum]()
+	cdrUrn     = toUrn[pipepb.StandardCoders_Enum]()
+	reqUrn     = toUrn[pipepb.StandardRequirements_Enum]()
+	runProcUrn = toUrn[pipepb.StandardRunnerProtocols_Enum]()
+	envUrn     = toUrn[pipepb.StandardEnvironments_Environments]()
 )
 
 var (
@@ -119,6 +120,10 @@ var (
 	RequirementStableInput        = reqUrn(pipepb.StandardRequirements_REQUIRES_STABLE_INPUT)
 	RequirementStatefulProcessing = reqUrn(pipepb.StandardRequirements_REQUIRES_STATEFUL_PROCESSING)
 	RequirementTimeSortedInput    = reqUrn(pipepb.StandardRequirements_REQUIRES_TIME_SORTED_INPUT)
+
+	// Capabilities
+	CapabilityMonitoringInfoShortIDs           = runProcUrn(pipepb.StandardRunnerProtocols_MONITORING_INFO_SHORT_IDS)
+	CapabilityControlResponseElementsEmbedding = runProcUrn(pipepb.StandardRunnerProtocols_CONTROL_RESPONSE_ELEMENTS_EMBEDDING)
 
 	// Environment types
 	EnvDocker   = envUrn(pipepb.StandardEnvironments_DOCKER)

@@ -31,9 +31,6 @@ import org.apache.beam.sdk.values.KV;
  * ByteString encoded video contents, values - VideoContext objects.
  */
 @Experimental
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class AnnotateVideoBytesWithContextFn extends AnnotateVideoFn<KV<ByteString, VideoContext>> {
 
   public AnnotateVideoBytesWithContextFn(List<Feature> featureList) {

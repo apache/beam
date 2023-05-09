@@ -55,11 +55,11 @@ class ModelType(enum.Enum):
   SAVED_WEIGHTS = 2
 
 
-def _load_model(model_uri, model_type):
-  if model_type == ModelType.SAVED_MODEL:
-    return tf.keras.models.load_model(hub.resolve(model_uri))
-  else:
-    raise AssertionError('Unsupported model type for loading.')
+def _load_model(model_uri, custom_weights, load_model_args):
+  model = tf.keras.models.load_model(hub.resolve(model_uri), **load_model_args)
+  if custom_weights:
+    model.load_weights(custom_weights)
+  return model
 
 
 def _load_model_from_weights(create_model_fn, weights_path):
@@ -97,7 +97,10 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_type: ModelType = ModelType.SAVED_MODEL,
       create_model_fn: Optional[Callable] = None,
       *,
-      inference_fn: TensorInferenceFn = default_numpy_inference_fn):
+      load_model_args: Optional[Dict[str, Any]] = None,
+      custom_weights: str = "",
+      inference_fn: TensorInferenceFn = default_numpy_inference_fn,
+      **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
     Example Usage::
@@ -112,8 +115,14 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
         create_model_fn: a function that creates and returns a new
           tensorflow model to load the saved weights.
           It should be used with ModelType.SAVED_WEIGHTS.
+        load_model_args: a dictionary of parameters to pass to the load_model
+          function of TensorFlow to specify custom config.
+        custom_weights (str): path to the custom weights to be applied
+          once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        kwargs: 'env_vars' can be used to set environment variables
+          before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.9, 2.10, 2.11.
@@ -122,6 +131,9 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._model_type = model_type
     self._inference_fn = inference_fn
     self._create_model_fn = create_model_fn
+    self._env_vars = kwargs.get('env_vars', {})
+    self._load_model_args = {} if not load_model_args else load_model_args
+    self._custom_weights = custom_weights
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
@@ -131,7 +143,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
             "Callable create_model_fn must be passed"
             "with ModelType.SAVED_WEIGHTS")
       return _load_model_from_weights(self._create_model_fn, self._model_uri)
-    return _load_model(self._model_uri, self._model_type)
+    return _load_model(
+        self._model_uri, self._custom_weights, self._load_model_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_uri = model_path if model_path else self._model_uri
@@ -189,7 +202,10 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       model_type: ModelType = ModelType.SAVED_MODEL,
       create_model_fn: Optional[Callable] = None,
       *,
-      inference_fn: TensorInferenceFn = default_tensor_inference_fn):
+      load_model_args: Optional[Dict[str, Any]] = None,
+      custom_weights: str = "",
+      inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
     Example Usage::
@@ -205,8 +221,14 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
         create_model_fn: a function that creates and returns a new
           tensorflow model to load the saved weights.
           It should be used with ModelType.SAVED_WEIGHTS.
+        load_model_args: a dictionary of parameters to pass to the load_model
+          function of TensorFlow to specify custom config.
+        custom_weights (str): path to the custom weights to be applied
+          once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        kwargs: 'env_vars' can be used to set environment variables
+          before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.11.
@@ -215,6 +237,9 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     self._model_type = model_type
     self._inference_fn = inference_fn
     self._create_model_fn = create_model_fn
+    self._env_vars = kwargs.get('env_vars', {})
+    self._load_model_args = {} if not load_model_args else load_model_args
+    self._custom_weights = custom_weights
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
@@ -224,7 +249,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
             "Callable create_model_fn must be passed"
             "with ModelType.SAVED_WEIGHTS")
       return _load_model_from_weights(self._create_model_fn, self._model_uri)
-    return _load_model(self._model_uri, self._model_type)
+    return _load_model(
+        self._model_uri, self._custom_weights, self._load_model_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_uri = model_path if model_path else self._model_uri

@@ -16,12 +16,12 @@
 package tasks
 
 import (
+	"beam.apache.org/playground/backend/internal/external_functions"
 	"context"
 	"time"
 
 	"github.com/procyon-projects/chrono"
 
-	"beam.apache.org/playground/backend/internal/db"
 	"beam.apache.org/playground/backend/internal/logger"
 )
 
@@ -34,11 +34,11 @@ func New(ctx context.Context) *ScheduledTask {
 	return &ScheduledTask{ctx: ctx, taskScheduler: chrono.NewDefaultTaskScheduler()}
 }
 
-func (st *ScheduledTask) StartRemovingExtraSnippets(cron string, dayDiff int32, db db.Database) error {
+func (st *ScheduledTask) StartRemovingExtraSnippets(cron string, externalFunction external_functions.ExternalFunctions) error {
 	task, err := st.taskScheduler.ScheduleWithCron(func(ctx context.Context) {
 		logger.Info("ScheduledTask: StartRemovingExtraSnippets() is running...\n")
 		startDate := time.Now()
-		if err := db.DeleteUnusedSnippets(ctx, dayDiff); err != nil {
+		if err := externalFunction.CleanupSnippets(ctx); err != nil {
 			logger.Errorf("ScheduledTask: StartRemovingExtraSnippets() error during deleting unused snippets, err: %s\n", err.Error())
 		}
 		diffTime := time.Now().Sub(startDate).Milliseconds()

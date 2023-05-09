@@ -352,8 +352,6 @@ class BeamModulePlugin implements Plugin<Project> {
     TaskProvider cleanupJobServer
     // Number of parallel test runs.
     Integer numParallelTests = 1
-    // Whether the pipeline needs --sdk_location option
-    boolean needsSdkLocation = false
     // Project path for the expansion service to start up
     String expansionProjectPath
     // Collect Python pipeline tests with this marker
@@ -528,15 +526,15 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.23.3"
+    def gax_version = "2.26.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.38.0"
+    def google_cloud_spanner_version = "6.41.0"
     def google_code_gson_version = "2.9.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.53.0"
+    def grpc_version = "1.54.0"
     def guava_version = "31.1-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -672,9 +670,9 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The release notes shows the versions set by the BOM:
-        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.11.0
+        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.14.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.11.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.14.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -2451,6 +2449,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "java_expansion_service_jar": expansionJar,
         "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
       ]
+      def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
       def javaContainerSuffix
       if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
         javaContainerSuffix = 'java8'
@@ -2468,6 +2467,9 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':sdks:java:container:' + javaContainerSuffix + ':docker'
         dependsOn project.project(config.expansionProjectPath).shadowJar.getPath()
         dependsOn ":sdks:python:installGcpTest"
+        if (usesDataflowRunner) {
+          dependsOn ":sdks:python:test-suites:dataflow:py" + project.ext.pythonVersion.replace('.', '') + ":initializeForDataflowJob"
+        }
         doLast {
           project.exec {
             // Prepare a port to use for the expansion service
@@ -2482,26 +2484,22 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // 2. Sets up, collects, and runs Python pipeline tests
-      def sdkLocationOpt = []
-      if (config.needsSdkLocation) {
-        setupTask.configure {dependsOn ':sdks:python:sdist'}
-        sdkLocationOpt = [
-          "--sdk_location=${pythonDir}/build/apache-beam.tar.gz"
-        ]
-      }
-      def beamPythonTestPipelineOptions = [
-        "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
-        "test_opts": config.pytestOptions,
-        "suite": config.name,
-        "collect": config.collectMarker,
-      ]
-      def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
       def pythonTask = project.tasks.register(config.name+"PythonUsingJava") {
         group = "Verification"
         description = "Runs Python SDK pipeline tests that use a Java expansion service"
         dependsOn setupTask
         dependsOn config.startJobServer
         doLast {
+          def beamPythonTestPipelineOptions = [
+            "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
+              "--sdk_location=${project.ext.sdkLocation}"]
+            : []),
+            "test_opts": config.pytestOptions,
+            "suite": config.name,
+            "collect": config.collectMarker,
+          ]
+          def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
+
           project.exec {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort

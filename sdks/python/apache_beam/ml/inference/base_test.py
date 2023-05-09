@@ -17,6 +17,7 @@
 
 """Tests for apache_beam.ml.base."""
 import math
+import os
 import pickle
 import time
 import unittest
@@ -48,10 +49,12 @@ class FakeModel:
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
-  def __init__(self, clock=None, min_batch_size=1, max_batch_size=9999):
+  def __init__(
+      self, clock=None, min_batch_size=1, max_batch_size=9999, **kwargs):
     self._fake_clock = clock
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
+    self._env_vars = kwargs.get('env_vars', {})
 
   def load_model(self):
     if self._fake_clock:
@@ -83,6 +86,7 @@ class FakeModelHandlerReturnsPredictionResult(
   def __init__(self, clock=None, model_id='fake_model_id_default'):
     self.model_id = model_id
     self._fake_clock = clock
+    self._env_vars = {}
 
   def load_model(self):
     return FakeModel()
@@ -735,6 +739,20 @@ class RunInferenceBaseTest(unittest.TestCase):
     test_pipeline.options.view_as(StandardOptions).streaming = True
     run_inference_side_inputs.run(
         test_pipeline.get_full_options_as_args(), save_main_session=False)
+
+  def test_env_vars_set_correctly(self):
+    handler_with_vars = FakeModelHandler(env_vars={'FOO': 'bar'})
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    with TestPipeline() as pipeline:
+      examples = [1, 2, 3]
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(examples)
+          | base.RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
 
 
 if __name__ == '__main__':

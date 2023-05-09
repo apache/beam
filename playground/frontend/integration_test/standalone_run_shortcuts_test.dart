@@ -35,8 +35,7 @@ void main() {
       final controller = wt.findPlaygroundController();
 
       await _checkResetShortcut(wt, controller);
-      await _checkRunShortcut(wt, controller);
-      await _checkClearOutputShortcut(wt, controller);
+      await _checkRunAndClearShortcuts(wt, controller);
     },
   );
 }
@@ -56,26 +55,28 @@ Future<void> _checkResetShortcut(
   expect(startSource, controller.source);
 }
 
-Future<void> _checkRunShortcut(
+Future<void> _checkRunAndClearShortcuts(
   WidgetTester wt,
   PlaygroundController controller,
 ) async {
-  final output = controller.codeRunner.resultLogOutput;
-  await wt.runShortcut(BeamRunShortcut(onInvoke: () {}));
-  await wt.pumpAndSettle();
+  final oldOutput = controller.codeRunner.resultLogOutput;
+  final runShortcuts = [
+    BeamMainRunShortcut(onInvoke: () {}),
+    BeamNumpadRunShortcut(onInvoke: () {}),
+  ];
 
-  expect(output, isNot(controller.codeRunner.resultLogOutput));
-}
+  for (final shortcut in runShortcuts) {
+    await wt.runShortcut(shortcut);
+    await wt.pumpAndSettle();
 
-Future<void> _checkClearOutputShortcut(
-  WidgetTester wt,
-  PlaygroundController controller,
-) async {
-  expect(controller.codeRunner.resultLogOutput, isNotEmpty);
-  expect(controller.codeRunner.resultLogOutput, isNotNull);
+    expect(controller.codeRunner.resultLogOutput, isNot(oldOutput));
 
-  await wt.runShortcut(kClearOutputShortcut);
-  await wt.pumpAndSettle();
+    expect(controller.codeRunner.resultLogOutput, isNotEmpty);
+    expect(controller.codeRunner.resultLogOutput, isNotNull);
 
-  expect(controller.codeRunner.resultLogOutput, isEmpty);
+    await wt.runShortcut(kClearOutputShortcut);
+    await wt.pumpAndSettle();
+
+    expect(controller.codeRunner.resultLogOutput, isEmpty);
+  }
 }

@@ -30,6 +30,7 @@ class GroupWidget extends StatelessWidget {
   const GroupWidget({
     required this.group,
     required this.contentTreeController,
+    super.key,
   });
 
   @override

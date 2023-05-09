@@ -22,13 +22,13 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelDistribution;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Statistic;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableBitSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** This class stores row count statistics. */
 @Experimental
