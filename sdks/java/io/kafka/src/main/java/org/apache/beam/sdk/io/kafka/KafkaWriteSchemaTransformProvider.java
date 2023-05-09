@@ -147,11 +147,6 @@ public class KafkaWriteSchemaTransformProvider
           PCollectionTuple outputTuple =
               input
                   .get("input")
-                  // .apply(
-                  //     "Map Rows to Kafka Messages",
-                  //     MapElements.via(
-                  //         new SimpleFunction<Row, KV<byte[], byte[]>>(
-                  //             row -> KV.of(new byte[1], toBytesFn.apply(row))) {}))
                   .apply(
                       "Map rows to Kafka messages",
                       ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", toBytesFn))
@@ -169,7 +164,7 @@ public class KafkaWriteSchemaTransformProvider
                               : new HashMap<String, Object>(configOverrides))
                       .withKeySerializer(ByteArraySerializer.class)
                       .withValueSerializer(ByteArraySerializer.class));
-          // return PCollectionRowTuple.empty(input.getPipeline());
+
           return PCollectionRowTuple.of(
               "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
         }
