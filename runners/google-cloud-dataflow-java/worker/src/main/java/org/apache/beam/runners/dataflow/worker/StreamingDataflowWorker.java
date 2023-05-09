@@ -1253,7 +1253,7 @@ public class StreamingDataflowWorker {
             mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName(), this));
 
     ExecutionState executionState = null;
-    String counterName = "dataflow_input_size-" + mapTask.getSystemName();
+    String counterName = "dataflow_source_bytes_processed-" + mapTask.getSystemName();
 
     try {
       executionState = computationState.getExecutionStateQueue().poll();
