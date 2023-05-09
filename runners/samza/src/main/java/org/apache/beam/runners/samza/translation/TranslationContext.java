@@ -26,12 +26,18 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.metrics.SamzaMetricOpFactory;
+import org.apache.beam.runners.samza.metrics.SamzaTransformMetricRegistry;
+import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.HashIdGenerator;
 import org.apache.beam.runners.samza.util.StoreIdGenerator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -39,6 +45,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
 import org.apache.samza.config.Config;
@@ -62,6 +69,7 @@ import org.apache.samza.system.descriptors.OutputDescriptor;
 import org.apache.samza.system.inmemory.InMemorySystemFactory;
 import org.apache.samza.table.Table;
 import org.apache.samza.table.descriptors.TableDescriptor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,10 +80,10 @@ import org.slf4j.LoggerFactory;
  * PTransform}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "keyfor",
   "nullness"
-}) // TODO(https://github.com/apache/beam/issues/20497)
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TranslationContext {
   private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
   private final StreamApplicationDescriptor appDescriptor;
@@ -87,7 +95,7 @@ public class TranslationContext {
   private final SamzaPipelineOptions options;
   private final HashIdGenerator idGenerator = new HashIdGenerator();
   private final StoreIdGenerator storeIdGenerator;
-
+  private final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   public TranslationContext(
@@ -99,6 +107,7 @@ public class TranslationContext {
     this.idMap = idMap;
     this.options = options;
     this.storeIdGenerator = new StoreIdGenerator(nonUniqueStateIds);
+    this.samzaTransformMetricRegistry = new SamzaTransformMetricRegistry();
   }
 
   public <OutT> void registerInputMessageStream(
@@ -166,6 +175,81 @@ public class TranslationContext {
       throw new IllegalArgumentException("No stream registered for pvalue: " + pvalue);
     }
     return stream;
+  }
+
+  public <InT extends PValue, OutT extends PValue> void attachTransformMetricOp(
+      PTransform<InT, OutT> transform,
+      TransformHierarchy.Node node,
+      SamzaMetricOpFactory.OpType opType) {
+    final Boolean enableTransformMetrics = getPipelineOptions().getEnableTransformMetrics();
+    final String urn = PTransformTranslation.urnForTransformOrNull(transform);
+
+    // skip attach transform if user override is false or transform is GBK
+    if (!enableTransformMetrics
+        || urn == null
+        || urn.equals(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN)
+        || urn.equals(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN)) {
+      return;
+    }
+
+    // skip attach transform if transform is reading from external sources
+    if (isIOTransform(node, opType)) {
+      return;
+    }
+
+    for (PValue pValue : getPValueForTransform(opType, transform, node)) {
+      // add another step for default metric computation
+      getMessageStream(pValue)
+          .flatMapAsync(
+              OpAdapter.adapt(
+                  SamzaMetricOpFactory.createMetricOp(
+                      pValue.getName(),
+                      getTransformFullName(),
+                      opType,
+                      samzaTransformMetricRegistry),
+                  this));
+    }
+  }
+
+  // Get the input or output PValue for a transform
+  private <InT extends PValue, OutT extends PValue> List<PValue> getPValueForTransform(
+      SamzaMetricOpFactory.OpType opType,
+      @NonNull PTransform<InT, OutT> transform,
+      @NonNull TransformHierarchy.Node node) {
+    switch (opType) {
+      case INPUT:
+        {
+          if (node.getInputs().size() > 1) {
+            return node.getInputs().entrySet().stream()
+                .map(Map.Entry::getValue)
+                .collect(Collectors.toList());
+          } else {
+            return ImmutableList.of(getInput(transform));
+          }
+        }
+      case OUTPUT:
+        if (node.getOutputs().size() > 1) {
+          return node.getOutputs().entrySet().stream()
+              .map(Map.Entry::getValue)
+              .collect(Collectors.toList());
+        }
+        return ImmutableList.of(getOutput(transform));
+      default:
+        throw new IllegalArgumentException("Unknown opType: " + opType);
+    }
+  }
+
+  // Transforms that read or write to/from external sources are not supported
+  private static boolean isIOTransform(
+      @NonNull TransformHierarchy.Node node, SamzaMetricOpFactory.OpType opType) {
+    switch (opType) {
+      case INPUT:
+        return node.getInputs().size() == 0;
+      case OUTPUT:
+        return node.getOutputs().size() == 0;
+      default:
+        throw new IllegalArgumentException("Unknown opType: " + opType);
+    }
   }
 
   public <ElemT, ViewT> void registerViewStream(
