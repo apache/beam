@@ -37,14 +37,31 @@ class UnionCoder(FastCoder):
           'The number of components for UnionCoder must be between 2 and 255.')
 
     self._coders = components
-    self._coder_typehints = {
-        c.to_type_hint(): (struct.pack("B", i), c)
-        for i,
-        c in enumerate(self._coders)
-    }
+    self._coder_typehints = {}
+    for i, c in enumerate(self._coders):
+      type_hint = c.to_type_hint()
+      if type_hint in self._coder_typehints:
+        raise ValueError(
+            f'One coder {self._coder_typehints.get(type_hint)} already '
+            f'exists for this type {type_hint}.')
+      else:
+        self._coder_typehints[type_hint] = (struct.pack("B", i), c)
 
   def _get_coder(self, value) -> Tuple[bytes, Coder]:
-    typehint_type = type(value)
+    # have to linearly scan the typehints since type could be composite
+    # simple type(value) does not work
+    typehint_type = None
+    for th in self._coder_typehints:
+      try:
+        typehints.check_constraint(th, value)
+        typehint_type = th
+        break
+      except (typehints.CompositeTypeHintError, typehints.SimpleTypeHintError):
+        pass
+      except Exception as e:
+        raise ValueError(
+            f"cannot check the value {value} type and the error is {e}")
+
     if typehint_type in self._coder_typehints:
       return self._coder_typehints.get(typehint_type)
     raise ValueError(

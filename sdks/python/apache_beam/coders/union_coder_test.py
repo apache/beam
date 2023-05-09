@@ -74,26 +74,39 @@ class UnionCoderTest(unittest.TestCase):
 
     assert hash(coder)
 
-    with pytest.raises(ValueError):
-      coder.encode(True)
+    # bool is a sub class of int. So this works.
+    coder.encode(True)
 
     with pytest.raises(ValueError):
       coder.decode(0)
 
+  def test_iterable_types(self):
+    coder = UnionCoder([
+        coders.ListCoder(coders.VarIntCoder()),
+        coders.ListCoder(coders.StrUtf8Coder())
+    ])
+    for v in [[1, 2, 3], ["a", "b"]]:
+      self.assertEqual(v, coder.decode(coder.encode(v)))
+
   def test_custom_coder(self):
 
-    coder = UnionCoder([AvroTestCoder(), AvroTestCoder1()])
+    coder = UnionCoder([AvroTestCoder(), coders.StrUtf8Coder()])
 
     self.assertEqual(coder.is_deterministic(), False)
 
     assert coder.to_type_hint()
-    assert str(coder) == 'UnionCoder[AvroTestCoder, AvroTestCoder1]'
+    assert str(coder) == 'UnionCoder[AvroTestCoder, StrUtf8Coder]'
 
     ar = AvroRecord({"name": "Daenerys targaryen", "age": 23})
     self.assertEqual(coder.decode(coder.encode(ar)).record, ar.record)
 
-    ar1 = AvroRecord({"name": "Daenerys targaryen"})
-    self.assertEqual(coder.decode(coder.encode(ar1)).record, ar1.record)
+    self.assertEqual(coder.decode(coder.encode("test")), "test")
+
+  def test_distinct_coders_wrt_type_hints(self):
+
+    # currently do not support coders with same type hints
+    with pytest.raises(ValueError):
+      UnionCoder([AvroTestCoder(), AvroTestCoder1()])
 
 
 if __name__ == '__main__':
