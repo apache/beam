@@ -33,8 +33,9 @@ Cloud Build triggers created by terraform scripts from this directory automate s
     - Service Account User
     - Secret Manager Admin
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
-- An existing GCS Bucket to save Terraform state - `state-bucket`
-- An existing GCS Bucket to store CI privae logs - `private-logs-bucket`
+- An existing GCS Bucket to save Terraform state for Cloud Build triggers <triggers-state-bucket>
+- An existing GCS Bucket to store private Cloud Build logs <private-logs-bucket>
+- An existing GCS Bucket to store public Cloud Build logs <public-logs-bucket>
 - DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
 - [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
@@ -44,7 +45,7 @@ Cloud Build triggers created by terraform scripts from this directory automate s
 
 First provide the variables by creating a `common.tfvars` file in the environment folder 
 ```
-$BEAM_GIT/playground/terraform/environment/$ENVIRONMENT_NAME/common.tfvars 
+beam/playground/terraform/environment/$ENVIRONMENT_NAME/common.tfvars 
 ```
 And put the following:
 ```
@@ -59,11 +60,10 @@ image_tag = "TAG"
 playground_region = "REGION"
 playground_zone = "ZONE"
 skip_appengine_deploy = false
-playground_service_account = "SA_NAME"
 webhook_trigger_secret_id = "SECRET_ID"
 gh_pat_secret = "PAT_SECRET_ID"
 data_for_github_pat_secret = "PAT"
-trigger_source_repo = "https://github.com/apache/beam"
+trigger_source_repo = "https://github.com/beamplayground/deploy-workaround"
 terraform_source_repo = "https://github.com/apache/beam"
 terraform_source_branch = "master"
 state_bucket = "BUCKET_NAME"
@@ -110,9 +110,9 @@ terraform apply var="project_id=$(gcloud config get-value project)" -var-file="$
 4. Look for `service-XXXXXXXXXXX@gcp-sa-cloudbuild.iam.gserviceaccount.com` service account.
 5. Assign `Secret Manager Secret Accessor` to it.
 
-## 4. Connect beamplayground/deploy-workaround GitHub repository and GCP Cloud Build
+## 4. Connect your GitHub repository and GCP Cloud Build
 
-Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect beamplayground/deploy-workaround GitHub repository and GCP Cloud Build.
+Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect your GitHub repository and GCP Cloud Build.
 
 ## 5. Set up the Google Cloud Build triggers
 
@@ -127,7 +127,7 @@ cd ../02.builders
 
 # Run terraform commands
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var="project_id=$(gcloud config get-value project)" -var="state_bucket=$STATE_BUCKET" -var-file="$BEAM_ROOT/playground/terraform/environment/$ENVIRONMENT_NAME/common.tfvars"
+terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="$BEAM_ROOT/playground/terraform/environment/$ENVIRONMENT_NAME/common.tfvars"
 ```
 
 **Note:**  you will have to provide values for multiple variables required for setup of triggers

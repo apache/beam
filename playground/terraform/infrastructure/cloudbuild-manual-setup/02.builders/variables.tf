@@ -126,10 +126,6 @@ variable "redis_tier" {
   default = "BASIC"
 }
 
-variable "playground_service_account" {
-  description = "GCP service account name for Playground GKE"
-}
-
 variable "webhook_trigger_secret_id" {
   description = "The name of the secret for webhook config cloud build trigger (CI/CD)"
 }

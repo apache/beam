@@ -40,7 +40,13 @@ git clone --branch $BRANCH_NAME $REPO_NAME --single-branch
 cd beam
 mkdir playground/terraform/environment/$ENVIRONMENT_NAME
  
-gcloud create bucket gs://$TF_VAR_state_bucket --location $TF_VAR_region --project $TF_VAR_project_id --pap
+gcloud storage buckets create gs://$TF_VAR_state_bucket --location $TF_VAR_region --project $TF_VAR_project_id --pap
+if [ $? -eq 0 ]
+then 
+        echo "Creation successfull"
+else
+        echo "Cannot create bucket, please check if the name is unique"
+fi
 
 echo "---- ENV OUTPUT---"
 env | grep TF_VAR
