@@ -155,6 +155,12 @@ class BigtableServiceFactory implements Serializable {
 
       BigtableDataSettings settings =
           BigtableConfigTranslator.translateWriteToVeneerSettings(config, opts, pipelineOptions);
+
+      if (ExperimentalOptions.hasExperiment(pipelineOptions, "enable_client_side_metrics")) {
+        LOG.info("Enabling client side metrics");
+        BigtableDataSettings.enableBuiltinMetrics();
+      }
+
       BigtableService service = new BigtableServiceImpl(settings);
       entry = BigtableServiceEntry.create(configId, service);
       entries.put(configId.id(), entry);
