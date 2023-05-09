@@ -169,9 +169,7 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
 
 #### Submit your GPG public key into MIT PGP Public Key Server
 In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
-please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mit.edu:11371/).
-
-If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Nexus might error out not being able to find the keys), use a keyserver at `ubuntu.com` instead: https://keyserver.ubuntu.com/.
+please submit your GPG public key into the [Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
 
 You will need to use an ascii-armored version of your key.
 This can be obtained by running `gpg --export --armor` and copying the whole block
@@ -532,6 +530,7 @@ help with this step. Please email `dev@` and ask a member of the `beammaintainer
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
+     * **NOTE**: Do not merge this PR until after an RC has been approved (see "Finalize the Release").
 
 #### Tasks you need to do manually
   1. Verify the script worked.
@@ -545,12 +544,12 @@ help with this step. Please email `dev@` and ask a member of the `beammaintainer
           Please note that dependencies for the SDKs with different Python versions vary.
           Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
           ```
-          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
           - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
@@ -727,7 +726,7 @@ You can (optionally) also do additional verification by:
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}
-docker pull apache/beam_python3.7_sdk:2.39.0_rc1
+docker pull apache/beam_python3.7_sdk:2.39.0rc1
 ```
 
 
