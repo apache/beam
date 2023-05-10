@@ -129,7 +129,7 @@ task preCommitIT_V2{
 task postCommitIT {
   dependsOn 'initializeForDataflowJob'
   
-  if project.hasProperty('testRCDependencies') {
+  if (project.hasProperty('testRCDependencies')) {
     dependsOn ':runners:google-cloud-dataflow-java:buildAndPushDockerPythonContainer'
   }
 
