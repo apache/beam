@@ -25,7 +25,9 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import tostring
+from . import tostring_element
+from . import tostring_iterables
+from . import tostring_kvs
 
 
 def check_plants(actual):
@@ -63,16 +65,20 @@ def check_plants_csv(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.tostring.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.tostring_kvs.print', str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.tostring_element.print', str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.tostring_iterables.print', str)
 class ToStringTest(unittest.TestCase):
   def test_tostring_kvs(self):
-    tostring.tostring_kvs(check_plants)
+    tostring_kvs.tostring_kvs(check_plants)
 
   def test_tostring_element(self):
-    tostring.tostring_element(check_plant_lists)
+    tostring_element.tostring_element(check_plant_lists)
 
   def test_tostring_iterables(self):
-    tostring.tostring_iterables(check_plants_csv)
+    tostring_iterables.tostring_iterables(check_plants_csv)
 
 
 if __name__ == '__main__':
