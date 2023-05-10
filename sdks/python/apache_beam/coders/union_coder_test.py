@@ -88,6 +88,13 @@ class UnionCoderTest(unittest.TestCase):
     for v in [[1, 2, 3], ["a", "b"]]:
       self.assertEqual(v, coder.decode(coder.encode(v)))
 
+  def test_duplicate_typehints(self):
+    with pytest.raises(ValueError):
+      UnionCoder([
+          coders.ListCoder(coders.StrUtf8Coder()),
+          coders.ListCoder(coders.StrUtf8Coder())
+      ])
+
   def test_custom_coder(self):
 
     coder = UnionCoder([AvroTestCoder(), coders.StrUtf8Coder()])
