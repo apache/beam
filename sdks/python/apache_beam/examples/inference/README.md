@@ -322,9 +322,9 @@ the second item is the word that the model predicts for the mask.
 
 The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing, passes the pixels to the Scikit-learn implementation of RunInference, and then writes the predictions to a text file.
 
-### Dataset and model for digit classification
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for digit classification.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named `INPUT.csv` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
@@ -436,9 +436,9 @@ A comedy-drama of nearly epic proportions rooted in a sincere performance by the
 
 The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file.
 
-### Dataset and model for digit classification
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for digit classification.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
@@ -536,9 +536,9 @@ The pipeline reads rows of pixels corresponding to a digit, performs basic prepr
 The model is loaded from the saved model weights. This can be done by passing a function which creates the model and setting the model type as
 `ModelType.SAVED_WEIGHTS` to the `TFModelHandler`. The path to saved weights saved using `model.save_weights(path)` should be passed to the `model_path` argument.
 
-### Dataset and model for digit classification
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for digit classification.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
