@@ -31,6 +31,7 @@ import (
 
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(files []string, dir, name string) error {
+	var pipExtraOptions string = os.Getenv("PIP_EXTRA_OPTIONS")
 	for _, file := range files {
 		if file == name {
 			// We run the install process in two rounds in order to avoid as much
@@ -38,6 +39,9 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// option will make sure that only things staged in the worker will be
 			// used without following their dependencies.
 			args := []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
+			if pipExtraOptions != "" {
+				args = append(args, pipExtraOptions)
+			}
 			if err := execx.Execute("python", args...); err != nil {
 				fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
 			}
@@ -45,6 +49,9 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// also installs dependencies. The key is that if all the packages have
 			// been installed in the first round then this command will be a no-op.
 			args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--disable-pip-version-check", "--find-links", dir}
+			if pipExtraOptions != "" {
+				args = append(args, pipExtraOptions)
+			}
 			return execx.Execute("python", args...)
 		}
 	}
@@ -53,6 +60,7 @@ func pipInstallRequirements(files []string, dir, name string) error {
 
 // pipInstallPackage installs the given package, if present.
 func pipInstallPackage(files []string, dir, name string, force, optional bool, extras []string) error {
+	var pipExtraOptions string = os.Getenv("PIP_EXTRA_OPTIONS")
 	for _, file := range files {
 		if file == name {
 			var packageSpec = name
@@ -78,16 +86,25 @@ func pipInstallPackage(files []string, dir, name string, force, optional bool, e
 				// installed if necessary.  This achieves our goal outlined above.
 				args := []string{"-m", "pip", "install", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
 					filepath.Join(dir, packageSpec)}
+				if pipExtraOptions != "" {
+					args = append(args, pipExtraOptions)
+				}
 				err := execx.Execute("python", args...)
 				if err != nil {
 					return err
 				}
 				args = []string{"-m", "pip", "install", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+				if pipExtraOptions != "" {
+					args = append(args, pipExtraOptions)
+				}
 				return execx.Execute("python", args...)
 			}
 
 			// Case when we do not perform a forced reinstall.
 			args := []string{"-m", "pip", "install", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+			if pipExtraOptions != "" {
+				args = append(args, pipExtraOptions)
+			}
 			return execx.Execute("python", args...)
 		}
 	}

@@ -152,16 +152,6 @@ task postCommitIT {
 afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
-    if (t.dependsOn.contains()) {
-        t.finalizedBy ':runners:google-cloud-dataflow-java:cleanUpDockerImages'
-    }
-  }
-}
-
-
-afterEvaluate {
-  // Ensure all tasks which use published docker images run before they are cleaned up
-  tasks.each { t ->
     if (t.dependsOn.contains(":runners:google-cloud-dataflow-java:buildAndPushDockerPythonContainer")) {
       t.finalizedBy cleanUpDockerPythonImages
     }
