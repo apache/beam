@@ -16,22 +16,20 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
 
-def min_globally(test=None):
-  # [START min_globally]
-  import apache_beam as beam
-
-  with beam.Pipeline() as pipeline:
-    min_element = (
-        pipeline
-        | 'Create numbers' >> beam.Create([3, 4, 1, 2])
-        | 'Get min value' >>
-        beam.CombineGlobally(lambda elements: min(elements or [-1]))
-        | beam.Map(print))
-    # [END min_globally]
-    if test:
-      test(min_element)
-
+# beam-playground:
+#   name: MaxPerKey
+#   description: Demonstration of Max transform usage per key.
+#   multifile: false
+#   default_example: false
+#   context_line: 36
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - numbers
 
 def min_per_key(test=None):
   # [START min_per_key]
@@ -53,3 +51,7 @@ def min_per_key(test=None):
     # [END min_per_key]
     if test:
       test(elements_with_min_value_per_key)
+
+
+if __name__ == '__main__':
+  min_per_key()
