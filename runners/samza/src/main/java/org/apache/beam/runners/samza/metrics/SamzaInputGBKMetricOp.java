@@ -49,10 +49,10 @@ import org.slf4j.LoggerFactory;
 public class SamzaInputGBKMetricOp<T> implements Op<T, T, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaInputGBKMetricOp.class);
   // Unique name of the PTransform this MetricOp is associated with
-  protected final String transformFullName;
-  protected final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
+  private final String transformFullName;
+  private final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
   // Name or identifier of the PCollection which PTransform is processing
-  protected final String pValue;
+  private final String pValue;
   // Counters for keeping sum of arrival time and count of elements per windowId
   @SuppressFBWarnings("SE_BAD_FIELD")
   private final ConcurrentHashMap<BoundedWindow, BigInteger> sumOfTimestampsPerWindowId;
@@ -60,7 +60,7 @@ public class SamzaInputGBKMetricOp<T> implements Op<T, T, Void> {
   @SuppressFBWarnings("SE_BAD_FIELD")
   private final ConcurrentHashMap<BoundedWindow, Long> sumOfCountPerWindowId;
   // Name of the task, for logging purpose
-  protected transient String task;
+  private transient String task;
 
   @Override
   @SuppressWarnings({"rawtypes", "unchecked"})
