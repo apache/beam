@@ -22,17 +22,12 @@ import com.google.cloud.videointelligence.v1.VideoAnnotationResults;
 import com.google.cloud.videointelligence.v1.VideoContext;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.KV;
 
 /**
  * Implementation of AnnotateVideoFn accepting KVs as contents of input PCollection. Keys are the
  * GCS URIs, values - VideoContext objects.
  */
-@Experimental
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class AnnotateVideoURIWithContextFn extends AnnotateVideoFn<KV<String, VideoContext>> {
 
   public AnnotateVideoURIWithContextFn(List<Feature> featureList) {

@@ -40,8 +40,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -317,7 +315,6 @@ public class BigtableIO {
    *       generated string.
    * </ul>
    */
-  @Experimental
   public static ReadChangeStream readChangeStream() {
     return ReadChangeStream.create();
   }
@@ -552,7 +549,6 @@ public class BigtableIO {
      * <p>When we have a builder, we initialize the value. When they call the method then we
      * override the value
      */
-    @Experimental(Kind.SOURCE_SINK)
     public Read withMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
@@ -1000,6 +996,26 @@ public class BigtableIO {
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
           .setBigtableWriteOptions(options.toBuilder().setMaxOutstandingBytes(bytes).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with flow control enabled if enableFlowControl is
+     * true.
+     *
+     * <p>When enabled, traffic to Bigtable is automatically rate-limited to prevent overloading
+     * Bigtable clusters while keeping enough load to trigger Bigtable Autoscaling (if enabled) to
+     * provision more nodes as needed. It is different from the flow control set by {@link
+     * #withMaxOutstandingElements(long)} and {@link #withMaxOutstandingBytes(long)}, which is
+     * always enabled on batch writes and limits the number of outstanding requests to the Bigtable
+     * server.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withFlowControl(boolean enableFlowControl) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setFlowControl(enableFlowControl).build())
           .build();
     }
 

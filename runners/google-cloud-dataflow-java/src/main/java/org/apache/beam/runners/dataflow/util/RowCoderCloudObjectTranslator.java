@@ -22,15 +22,12 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.util.JsonFormat;
 
 /** Translator for row coders. */
-@Experimental(Kind.SCHEMAS)
 public class RowCoderCloudObjectTranslator implements CloudObjectTranslator<RowCoder> {
   private static final String SCHEMA = "schema";
 
