@@ -28,6 +28,9 @@ import org.apache.beam.sdk.values.KV;
  * Implementation of AnnotateVideoFn accepting KVs as contents of input PCollection. Keys are the
  * GCS URIs, values - VideoContext objects.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class AnnotateVideoURIWithContextFn extends AnnotateVideoFn<KV<String, VideoContext>> {
 
   public AnnotateVideoURIWithContextFn(List<Feature> featureList) {

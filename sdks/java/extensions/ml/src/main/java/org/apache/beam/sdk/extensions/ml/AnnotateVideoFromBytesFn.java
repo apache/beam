@@ -30,6 +30,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * Implementation of AnnotateVideoFn accepting ByteStrings as contents of input PCollection. Videos
  * decoded from the ByteStrings are annotated.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class AnnotateVideoFromBytesFn extends AnnotateVideoFn<ByteString> {
 
   public AnnotateVideoFromBytesFn(

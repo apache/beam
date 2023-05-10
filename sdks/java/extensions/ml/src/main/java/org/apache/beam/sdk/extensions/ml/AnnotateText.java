@@ -38,6 +38,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * analysis types to be done on the data.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class AnnotateText
     extends PTransform<PCollection<Document>, PCollection<AnnotateTextResponse>> {
 
@@ -47,7 +50,7 @@ public abstract class AnnotateText
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setLanguageHint(@Nullable String hint);
+    public abstract Builder setLanguageHint(String hint);
 
     public abstract Builder setFeatures(AnnotateTextRequest.Features features);
 
@@ -64,10 +67,10 @@ public abstract class AnnotateText
   }
 
   private static class CallLanguageApi extends DoFn<Document, AnnotateTextResponse> {
-    private final @Nullable String languageHint;
+    private final String languageHint;
     private final AnnotateTextRequest.Features features;
 
-    private CallLanguageApi(@Nullable String languageHint, AnnotateTextRequest.Features features) {
+    private CallLanguageApi(String languageHint, AnnotateTextRequest.Features features) {
       this.languageHint = languageHint;
       this.features = features;
     }
