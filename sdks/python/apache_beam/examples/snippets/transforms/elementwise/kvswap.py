@@ -18,6 +18,18 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: KvSwap
+#   description: Demonstration of KvSwap transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 36
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - pairs
 
 def kvswap(test=None):
   # [START kvswap]
