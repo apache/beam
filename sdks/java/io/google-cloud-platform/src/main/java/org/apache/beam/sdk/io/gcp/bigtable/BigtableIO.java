@@ -1796,6 +1796,8 @@ public class BigtableIO {
 
     abstract @Nullable Instant getStartTime();
 
+    abstract @Nullable Instant getEndTime();
+
     abstract @Nullable Duration getHeartbeatDuration();
 
     abstract @Nullable String getChangeStreamName();
@@ -1867,6 +1869,12 @@ public class BigtableIO {
      */
     public ReadChangeStream withStartTime(Instant startTime) {
       return toBuilder().setStartTime(startTime).build();
+    }
+
+    /** Used only for integration tests. Unsafe to use in production. */
+    @VisibleForTesting
+    ReadChangeStream withEndTime(Instant endTime) {
+      return toBuilder().setEndTime(endTime).build();
     }
 
     /**
@@ -2002,7 +2010,7 @@ public class BigtableIO {
       InitializeDoFn initializeDoFn =
           new InitializeDoFn(daoFactory, metadataTableConfig.getAppProfileId().get(), startTime);
       DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(actionFactory, daoFactory, metrics);
+          new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
 
@@ -2037,6 +2045,8 @@ public class BigtableIO {
       abstract ReadChangeStream.Builder setMetadataTableId(String tableId);
 
       abstract ReadChangeStream.Builder setStartTime(Instant startTime);
+
+      abstract ReadChangeStream.Builder setEndTime(Instant endTime);
 
       abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
 
