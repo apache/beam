@@ -18,6 +18,18 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: MaxGlobally
+#   description: Demonstration of Max transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 45
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - numbers
 
 def max_globally(test=None):
   # [START max_globally]
@@ -35,23 +47,5 @@ def max_globally(test=None):
       test(max_element)
 
 
-def max_per_key(test=None):
-  # [START max_per_key]
-  import apache_beam as beam
-
-  with beam.Pipeline() as pipeline:
-    elements_with_max_value_per_key = (
-        pipeline
-        | 'Create produce' >> beam.Create([
-            ('🥕', 3),
-            ('🥕', 2),
-            ('🍆', 1),
-            ('🍅', 4),
-            ('🍅', 5),
-            ('🍅', 3),
-        ])
-        | 'Get max value per key' >> beam.CombinePerKey(max)
-        | beam.Map(print))
-    # [END max_per_key]
-    if test:
-      test(elements_with_max_value_per_key)
+if __name__ == '__main__':
+  max_globally()
