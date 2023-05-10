@@ -16,6 +16,18 @@
 # limitations under the License.
 #
 
+# beam-playground:
+#   name: SumGlobally
+#   description: Demonstration of CombineGlobally transform usage with Sum.
+#   multifile: false
+#   default_example: false
+#   context_line: 34
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - numbers
 
 def sum_globally(test=None):
   # [START sum_globally]
@@ -32,23 +44,5 @@ def sum_globally(test=None):
       test(total)
 
 
-def sum_per_key(test=None):
-  # [START sum_per_key]
-  import apache_beam as beam
-
-  with beam.Pipeline() as pipeline:
-    totals_per_key = (
-        pipeline
-        | 'Create produce' >> beam.Create([
-            ('🥕', 3),
-            ('🥕', 2),
-            ('🍆', 1),
-            ('🍅', 4),
-            ('🍅', 5),
-            ('🍅', 3),
-        ])
-        | 'Sum values per key' >> beam.CombinePerKey(sum)
-        | beam.Map(print))
-    # [END sum_per_key]
-    if test:
-      test(totals_per_key)
+if __name__ == '__main__':
+  sum_globally()
