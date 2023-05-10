@@ -22,26 +22,32 @@ import 'package:flutter/services.dart';
 import 'intents.dart';
 
 class BeamShortcut {
-  final LogicalKeySet shortcuts;
+  // Keys in the order to be shown or mocked.
+  //
+  // A list is required because a [LogicalKeySet] discards the original order.
+  final List<LogicalKeyboardKey> keys;
+  
+  LogicalKeySet get keySet => LogicalKeySet.fromSet(keys.toSet());
+  
   final BeamIntent actionIntent;
   final CallbackAction Function(BuildContext) createAction;
 
   BeamShortcut({
-    required this.shortcuts,
+    required this.keys,
     required this.actionIntent,
     required this.createAction,
   });
 
-  static const _metaKeyName = 'CMD/CTRL';
+  static const _metaKeyName = 'Command';
   static const _glue = ' + ';
 
   String get title {
-    return shortcuts.keys
-        .map(getKeyDisplayName)
+    return keys
+        .map(_getKeyDisplayName)
         .join(_glue);
   }
 
-  String getKeyDisplayName(LogicalKeyboardKey e) {
+  String _getKeyDisplayName(LogicalKeyboardKey e) {
     if (e.keyId == LogicalKeyboardKey.meta.keyId) {
       return _metaKeyName;
     }

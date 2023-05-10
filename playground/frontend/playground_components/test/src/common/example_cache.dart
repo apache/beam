@@ -26,6 +26,8 @@ class _C {} // ignore: unused_element
 /// Creates an [ExampleCache] with a broken URL so all requests fail.
 ExampleCache createFailingExampleCache() {
   return ExampleCache(
-    exampleRepository: ExampleRepository(client: GrpcExampleClient(url: '')),
+    exampleRepository: ExampleRepository(
+      client: GrpcExampleClient(url: Uri.parse('')),
+    ),
   );
 }

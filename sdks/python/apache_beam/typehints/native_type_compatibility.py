@@ -187,6 +187,25 @@ def convert_builtin_to_typing(typ):
   return typ
 
 
+def convert_collections_to_typing(typ):
+  """Converts a given collections.abc type to a typing object.
+
+  Args:
+    typ: an object inheriting from a collections.abc object
+
+  Returns:
+    type: The corresponding typing object.
+  """
+  if hasattr(typ, '__iter__'):
+    if hasattr(typ, '__next__'):
+      typ = typing.Iterator[typ.__args__]
+    elif hasattr(typ, 'send') and hasattr(typ, 'throw'):
+      typ = typing.Generator[typ.__args__]
+    elif _match_is_exactly_iterable(typ):
+      typ = typing.Iterable[typ.__args__]
+  return typ
+
+
 def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
@@ -211,6 +230,10 @@ def convert_to_beam_type(typ):
 
   if sys.version_info >= (3, 9) and isinstance(typ, types.GenericAlias):
     typ = convert_builtin_to_typing(typ)
+
+  if sys.version_info >= (3, 9) and getattr(typ, '__module__',
+                                            None) == 'collections.abc':
+    typ = convert_collections_to_typing(typ)
 
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.

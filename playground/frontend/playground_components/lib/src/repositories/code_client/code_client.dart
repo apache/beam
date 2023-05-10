@@ -16,12 +16,16 @@
  * limitations under the License.
  */
 
+import '../../api/v1/api.pb.dart' as grpc;
+import '../../models/sdk.dart';
 import '../models/check_status_response.dart';
 import '../models/output_response.dart';
 import '../models/run_code_request.dart';
 import '../models/run_code_response.dart';
 
 abstract class CodeClient {
+  Future<grpc.GetMetadataResponse> getMetadata(Sdk sdk);
+
   Future<RunCodeResponse> runCode(RunCodeRequest request);
 
   Future<void> cancelExecution(String pipelineUuid);

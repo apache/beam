@@ -37,8 +37,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -328,10 +326,16 @@ import org.joda.time.Duration;
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
  *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.io.AvroIO</code> instead of this one.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AvroIO {
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
@@ -576,7 +580,6 @@ public class AvroIO {
         .setSyncInterval(DataFileConstants.DEFAULT_SYNC_INTERVAL);
   }
 
-  @Experimental(Kind.SCHEMAS)
   private static <T> PCollection<T> setBeamSchema(
       PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
     return pc.setCoder(AvroUtils.schemaCoder(clazz, schema));
@@ -692,7 +695,6 @@ public class AvroIO {
      * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
      * to be used by SQL and by the schema-transform library.
      */
-    @Experimental(Kind.SCHEMAS)
     public Read<T> withBeamSchemas(boolean withBeamSchemas) {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
@@ -807,19 +809,20 @@ public class AvroIO {
       abstract ReadFiles<T> build();
     }
 
-    @VisibleForTesting
-    ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
     /** Specifies if a Reshuffle should run before file reads occur. */
-    @Experimental(Kind.FILESYSTEM)
     public ReadFiles<T> withUsesReshuffle(boolean usesReshuffle) {
       return toBuilder().setUsesReshuffle(usesReshuffle).build();
     }
 
     /** Specifies if exceptions should be logged only for streaming pipelines. */
-    @Experimental(Kind.FILESYSTEM)
     public ReadFiles<T> withFileExceptionHandler(
         ReadFileRangesFnExceptionHandler exceptionHandler) {
       return toBuilder().setFileExceptionHandler(exceptionHandler).build();
@@ -829,7 +832,6 @@ public class AvroIO {
      * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
      * to be used by SQL and by the schema-transform library.
      */
-    @Experimental(Kind.SCHEMAS)
     public ReadFiles<T> withBeamSchemas(boolean withBeamSchemas) {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
@@ -921,8 +923,11 @@ public class AvroIO {
           getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
-    @VisibleForTesting
-    ReadAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ReadAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -930,7 +935,6 @@ public class AvroIO {
      * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
      * to be used by SQL and by the schema-transform library.
      */
-    @Experimental(Kind.SCHEMAS)
     public ReadAll<T> withBeamSchemas(boolean withBeamSchemas) {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
@@ -1151,20 +1155,21 @@ public class AvroIO {
     }
 
     /** Specifies if a Reshuffle should run before file reads occur. */
-    @Experimental(Kind.FILESYSTEM)
     public ParseFiles<T> withUsesReshuffle(boolean usesReshuffle) {
       return toBuilder().setUsesReshuffle(usesReshuffle).build();
     }
 
     /** Specifies if exceptions should be logged only for streaming pipelines. */
-    @Experimental(Kind.FILESYSTEM)
     public ParseFiles<T> withFileExceptionHandler(
         ReadFileRangesFnExceptionHandler exceptionHandler) {
       return toBuilder().setFileExceptionHandler(exceptionHandler).build();
     }
 
-    @VisibleForTesting
-    ParseFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ParseFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -1272,8 +1277,11 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
-    @VisibleForTesting
-    ParseAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    /**
+     * Set a value for the bundle size for parallel reads. Default is 64 MB. You may want to use a
+     * lower value (e.g. 1 MB) for streaming applications.
+     */
+    public ParseAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
@@ -1424,7 +1432,6 @@ public class AvroIO {
      * <p>If {@link #withTempDirectory} has not been called, this filename prefix will be used to
      * infer a directory for temporary files.
      */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT, OutputT> to(ResourceId outputPrefix) {
       return toResource(StaticValueProvider.of(outputPrefix));
     }
@@ -1448,7 +1455,6 @@ public class AvroIO {
     }
 
     /** Like {@link #to(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT, OutputT> toResource(
         ValueProvider<ResourceId> outputPrefix) {
       return toBuilder().setFilenamePrefix(outputPrefix).build();
@@ -1458,7 +1464,6 @@ public class AvroIO {
      * Writes to files named according to the given {@link FileBasedSink.FilenamePolicy}. A
      * directory for temporary files must be specified using {@link #withTempDirectory}.
      */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT, OutputT> to(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
@@ -1470,7 +1475,6 @@ public class AvroIO {
      *
      * @deprecated Use {@link FileIO#write()} or {@link FileIO#writeDynamic()} instead.
      */
-    @Experimental(Kind.FILESYSTEM)
     @Deprecated
     public <NewDestinationT> TypedWrite<UserT, NewDestinationT, OutputT> to(
         DynamicAvroDestinations<UserT, NewDestinationT, OutputT> dynamicDestinations) {
@@ -1506,14 +1510,12 @@ public class AvroIO {
     }
 
     /** Set the base directory used to generate temporary files. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT, OutputT> withTempDirectory(
         ValueProvider<ResourceId> tempDirectory) {
       return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
     /** Set the base directory used to generate temporary files. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT, OutputT> withTempDirectory(ResourceId tempDirectory) {
       return withTempDirectory(StaticValueProvider.of(tempDirectory));
     }
@@ -1725,7 +1727,6 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#to(ResourceId)} . */
-    @Experimental(Kind.FILESYSTEM)
     public Write<T> to(ResourceId outputPrefix) {
       return new Write<>(
           inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
@@ -1738,7 +1739,6 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#to(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write<T> toResource(ValueProvider<ResourceId> outputPrefix) {
       return new Write<>(
           inner.toResource(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
@@ -1771,7 +1771,6 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write<T> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
       return new Write<>(inner.withTempDirectory(tempDirectory));
     }
@@ -1904,7 +1903,6 @@ public class AvroIO {
    * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
    * elements with a given (common) schema, like {@link #writeGenericRecords(Schema)}.
    */
-  @Experimental(Kind.SOURCE_SINK)
   public static <ElementT extends IndexedRecord> Sink<ElementT> sink(Schema schema) {
     return sink(schema.toString());
   }
@@ -1913,7 +1911,6 @@ public class AvroIO {
    * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
    * elements with a given (common) schema, like {@link #writeGenericRecords(String)}.
    */
-  @Experimental(Kind.SOURCE_SINK)
   public static <ElementT extends IndexedRecord> Sink<ElementT> sink(String jsonSchema) {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
         .setJsonSchema(jsonSchema)

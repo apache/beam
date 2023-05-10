@@ -24,7 +24,7 @@ const (
 	configType = "yaml"
 )
 
-//Properties contains all properties that needed to run backend processes.
+// Properties contains all properties that needed to run backend processes.
 type Properties struct {
 	// Salt is the salt to generate the hash to avoid whatever problems a collision may cause.
 	Salt string `mapstructure:"playground_salt"`
@@ -34,8 +34,6 @@ type Properties struct {
 	IdLength int8 `mapstructure:"id_length"`
 	// RemovingUnusedSnptsCron is the cron expression for the scheduled task to remove unused snippets
 	RemovingUnusedSnptsCron string `mapstructure:"removing_unused_snippets_cron"`
-	// RemovingUnusedSnptsDays is the number of days after which a snippet becomes unused
-	RemovingUnusedSnptsDays int32 `mapstructure:"removing_unused_snippets_days"`
 }
 
 func NewProperties(configPath string) (*Properties, error) {

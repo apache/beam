@@ -22,17 +22,20 @@ import 'package:flutter/widgets.dart';
 import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 
 import '../controllers/snippet_editing_controller.dart';
+import '../models/event_snippet_context.dart';
 import 'snippet_file_editor.dart';
 import 'tabs/tab_bar.dart';
 
 class TabbedSnippetEditor extends StatelessWidget {
   const TabbedSnippetEditor({
     required this.controller,
+    required this.eventSnippetContext,
     required this.isEditable,
     this.trailing,
   });
 
   final SnippetEditingController controller;
+  final EventSnippetContext eventSnippetContext;
   final bool isEditable;
   final Widget? trailing;
 
@@ -69,6 +72,7 @@ class TabbedSnippetEditor extends StatelessWidget {
                 for (final key in keys)
                   key: SnippetFileEditor(
                     controller: controller.getFileControllerByName(key)!,
+                    eventSnippetContext: eventSnippetContext,
                     isEditable: isEditable,
                   ),
               },

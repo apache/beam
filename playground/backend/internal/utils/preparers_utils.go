@@ -82,7 +82,7 @@ func ProcessLine(curLine string, pipelineName *string, spaces *string, regs *[]*
 	return done, definitionType, err
 }
 
-//getVarName looking for a declaration of a beam pipeline and it's name
+// getVarName looking for a declaration of a beam pipeline and it's name
 func getVarName(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) PipelineDefinitionType {
 	for i, reg := range *regs {
 		found := (*reg).FindAllStringSubmatch(*line, -1)
@@ -96,7 +96,7 @@ func getVarName(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) Pipe
 	return 0
 }
 
-//addGraphCode adds line for the graph saving to specific place in the code
+// addGraphCode adds line for the graph saving to specific place in the code
 func addGraphCode(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) PipelineDefinitionType {
 	for i, reg := range *regs {
 		found := (*reg).FindAllStringSubmatch(*line, -1)
@@ -148,7 +148,12 @@ func GetPublicClassName(filePath, pattern string) (string, error) {
 		return "", err
 	}
 	re := regexp.MustCompile(pattern)
-	className := re.FindStringSubmatch(string(code))[1]
+	classNameMatch := re.FindStringSubmatch(string(code))
+	if len(classNameMatch) == 0 {
+		return "", errors.New(fmt.Sprintf("unable to find main class name in file %s", filePath))
+	}
+
+	className := classNameMatch[1]
 	return className, err
 }
 

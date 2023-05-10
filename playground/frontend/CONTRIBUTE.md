@@ -66,25 +66,6 @@ contains decoupled playground page state and module providers like `OutputPlacem
 For quick start up, please take a look
 to [this guide](https://docs.flutter.dev/development/data-and-backend/state-mgmt/simple)
 
-## Configuration
-
-The app could be configured using gradle task (e.g. api url)
-
-```
-cd beam
-./gradlew :playground:frontend:createConfig
-```
-
-The command generates [./lib/config.g.dart](./lib/config.g.dart) file with constants from
-gradle.properties which can be used in the app
-
-To add a new constant do the following steps:
-
-- Add a new line with const to the `:playground:frontend:createConfig` task
-  inside [build.gradle](./build.gradle);
-- Update [gradle.properties](./gradle.properties);
-- Run task to test it and commit [./lib/config.g.dart](./lib/config.g.dart) file.
-
 ## Theming
 
 Playground app supports light and dark themes. Component themes are declared

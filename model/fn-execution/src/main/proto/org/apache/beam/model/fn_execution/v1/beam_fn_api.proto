@@ -42,6 +42,7 @@ import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 import "org/apache/beam/model/pipeline/v1/endpoints.proto";
 import "org/apache/beam/model/pipeline/v1/metrics.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
@@ -663,7 +664,7 @@ message Elements {
     // (Optional) Represents a part of a logical byte stream. Elements within
     // the logical byte stream are encoded in the nested context and
     // concatenated together.
-    bytes data = 3;
+    bytes data = 3 [ctype = CORD];
 
     // (Optional) Set this bit to indicate the this is the last data block
     // for the given instruction and transform, ending the stream.
@@ -1064,6 +1065,10 @@ message LogEntry {
 
   // (Optional) The name of the thread this log statement is associated with.
   string thread = 8;
+
+  // (Optional) Additional structured data to log.
+  // Keys are limited to these characters: [a-zA-Z_-]
+  google.protobuf.Struct custom_data = 9;
 }
 
 message LogControl {}

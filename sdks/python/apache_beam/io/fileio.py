@@ -119,7 +119,6 @@ from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -259,7 +258,6 @@ class _ReadMatchesFn(beam.DoFn):
     yield ReadableFile(metadata, self._compression)
 
 
-@experimental()
 class MatchContinuously(beam.PTransform):
   """Checks for new files for a given pattern every interval.
 
@@ -456,7 +454,10 @@ def _format_shard(
   return format.format(**kwargs)
 
 
-def destination_prefix_naming(suffix=None):
+FileNaming = Callable[[Any, Any, int, int, Any, str, str], str]
+
+
+def destination_prefix_naming(suffix=None) -> FileNaming:
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     prefix = str(destination)
     return _format_shard(
@@ -465,7 +466,7 @@ def destination_prefix_naming(suffix=None):
   return _inner
 
 
-def default_file_naming(prefix, suffix=None):
+def default_file_naming(prefix, suffix=None) -> FileNaming:
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     return _format_shard(
         window, pane, shard_index, total_shards, compression, prefix, suffix)
@@ -473,7 +474,7 @@ def default_file_naming(prefix, suffix=None):
   return _inner
 
 
-def single_file_naming(prefix, suffix=None):
+def single_file_naming(prefix, suffix=None) -> FileNaming:
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     assert shard_index in (0, None), shard_index
     assert total_shards in (1, None), total_shards
@@ -499,7 +500,6 @@ class FileResult(_FileResult):
   pass
 
 
-@experimental()
 class WriteToFiles(beam.PTransform):
   r"""Write the incoming PCollection to a set of output files.
 

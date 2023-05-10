@@ -18,20 +18,32 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /**
  * Takes in an iterable and batches the results into multiple ProtoRows objects. The splitSize
  * parameter controls how many rows are batched into a single ProtoRows object before we move on to
  * the next one.
  */
-class SplittingIterable implements Iterable<ProtoRows> {
+class SplittingIterable implements Iterable<SplittingIterable.Value> {
+  @AutoValue
+  abstract static class Value {
+    abstract ProtoRows getProtoRows();
+
+    abstract List<Instant> getTimestamps();
+  }
+
   interface ConvertUnknownFields {
     ByteString convert(TableRow tableRow, boolean ignoreUnknownValues)
         throws TableRowToStorageApiProto.SchemaConversionException;
@@ -42,18 +54,21 @@ class SplittingIterable implements Iterable<ProtoRows> {
 
   private final ConvertUnknownFields unknownFieldsToMessage;
   private final Function<ByteString, TableRow> protoToTableRow;
-  private final BiConsumer<TableRow, String> failedRowsConsumer;
+  private final BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer;
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
+
+  private final Instant elementsTimestamp;
 
   public SplittingIterable(
       Iterable<StorageApiWritePayload> underlying,
       long splitSize,
       ConvertUnknownFields unknownFieldsToMessage,
       Function<ByteString, TableRow> protoToTableRow,
-      BiConsumer<TableRow, String> failedRowsConsumer,
+      BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer,
       boolean autoUpdateSchema,
-      boolean ignoreUnknownValues) {
+      boolean ignoreUnknownValues,
+      Instant elementsTimestamp) {
     this.underlying = underlying;
     this.splitSize = splitSize;
     this.unknownFieldsToMessage = unknownFieldsToMessage;
@@ -61,11 +76,12 @@ class SplittingIterable implements Iterable<ProtoRows> {
     this.failedRowsConsumer = failedRowsConsumer;
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.elementsTimestamp = elementsTimestamp;
   }
 
   @Override
-  public Iterator<ProtoRows> iterator() {
-    return new Iterator<ProtoRows>() {
+  public Iterator<Value> iterator() {
+    return new Iterator<Value>() {
       final Iterator<StorageApiWritePayload> underlyingIterator = underlying.iterator();
 
       @Override
@@ -74,11 +90,12 @@ class SplittingIterable implements Iterable<ProtoRows> {
       }
 
       @Override
-      public ProtoRows next() {
+      public Value next() {
         if (!hasNext()) {
           throw new NoSuchElementException();
         }
 
+        List<Instant> timestamps = Lists.newArrayList();
         ProtoRows.Builder inserts = ProtoRows.newBuilder();
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
@@ -107,7 +124,11 @@ class SplittingIterable implements Iterable<ProtoRows> {
                   // 24926 is fixed, we need to merge the unknownFields back into the main row
                   // before outputting to the
                   // failed-rows consumer.
-                  failedRowsConsumer.accept(tableRow, e.toString());
+                  Instant timestamp = payload.getTimestamp();
+                  if (timestamp == null) {
+                    timestamp = elementsTimestamp;
+                  }
+                  failedRowsConsumer.accept(TimestampedValue.of(tableRow, timestamp), e.toString());
                   continue;
                 }
               }
@@ -116,12 +137,17 @@ class SplittingIterable implements Iterable<ProtoRows> {
             }
           }
           inserts.addSerializedRows(byteString);
+          Instant timestamp = payload.getTimestamp();
+          if (timestamp == null) {
+            timestamp = elementsTimestamp;
+          }
+          timestamps.add(timestamp);
           bytesSize += byteString.size();
           if (bytesSize > splitSize) {
             break;
           }
         }
-        return inserts.build();
+        return new AutoValue_SplittingIterable_Value(inserts.build(), timestamps);
       }
     };
   }
