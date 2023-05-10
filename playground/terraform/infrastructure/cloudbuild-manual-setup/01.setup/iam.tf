@@ -16,22 +16,22 @@
 # under the License.
 
 resource "google_service_account" "pg_cloudbuild_deploy_sa" {
-  account_id   = var.pg_cloudbuild_deployer_sa_name == "" ? "playground-deploy" : var.pg_cloudbuild_deployer_sa_name
+  account_id   = var.playground_deploy_sa == "" ? "pg-deploy" : var.playground_deploy_sa
   description  = "The service account to be used by cloud build to deploy Playground"
 }
 
 resource "google_service_account" "pg_cloudbuild_update_sa" {
-  account_id   = var.pg_cloudbuild_update_sa_name == "" ? "playground-update" : var.pg_cloudbuild_update_sa_name
+  account_id   = var.playground_update_sa == "" ? "pg-update" : var.playground_update_sa
   description  = "The service account to be used by cloud build to update Playground"
 }
 
 resource "google_service_account" "pg_cloudbuild_ci_runner_sa" {
-  account_id   = var.pg_cloudbuild_ci_sa_name == "" ? "playground-ci" : var.pg_cloudbuild_ci_sa_name
+  account_id   = var.playground_ci_sa == "" ? "pg-ci" : var.playground_ci_sa
   description  = "The service account to be used by cloud build to run CI scripts and checks"
 }
 
 resource "google_service_account" "pg_cloudbuild_cd_runner_sa" {
-  account_id   = var.pg_cloudbuild_cd_sa_name == "" ? "playground-cd" : var.pg_cloudbuild_cd_sa_name
+  account_id   = var.playground_cd_sa == "" ? "pg-cd" : var.playground_cd_sa
   description  = "The service account to be used by cloud build to run CD scripts and checks"
 }
 

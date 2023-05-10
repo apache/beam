@@ -130,7 +130,7 @@ variable "webhook_trigger_secret_id" {
   description = "The name of the secret for webhook config cloud build trigger (CI/CD)"
 }
 
-variable "gh_pat_secret" {
+variable "gh_pat_secret_id" {
   description = "The name of the secret for GitHub Personal Access Token. Required for cloud build trigger (CI/CD)"
 }
 
@@ -155,4 +155,7 @@ variable "terraform_source_branch" {
 variable "cloudbuild_machine_type" {
   description = "Machine type used for cloudbuild runtime"
   default = "E2_HIGHCPU_32"
+}
+variable "data_for_cicd_webhook_secret" {
+  description = "secret string that was set when creating the webhook in Github"  
 }

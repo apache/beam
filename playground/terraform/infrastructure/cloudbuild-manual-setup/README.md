@@ -43,30 +43,31 @@ Cloud Build triggers created by terraform scripts from this directory automate s
 
 ## 1. Set up the Google Cloud Build for your GCP project
 
-First provide the variables by creating a `common.tfvars` file in the environment folder 
+First provide the variables by creating a `common.tfvars`
 ```
-beam/playground/terraform/environment/$ENVIRONMENT_NAME/common.tfvars 
+beam/playground/terraform/infrastructure/cloudbuild-manual-setup/common.tfvars 
 ```
 And put the following:
 ```
-playground_deploy_sa = "DEPLOY_SA_NAME"
-playground_update_sa = "UPDATE_SA_NAME"
-playground_ci_sa = "CI_SA_NAME"
-playground_cd_sa = "CD_SA_NAME"
-project_id = "PROJECT_ID"
-playground_environment_name = "ENVIRONMENT_NAME"
-playground_dns_name = "DNS"
-image_tag = "TAG"
-playground_region = "REGION"
-playground_zone = "ZONE"
-skip_appengine_deploy = false
-webhook_trigger_secret_id = "SECRET_ID"
-gh_pat_secret = "PAT_SECRET_ID"
-data_for_github_pat_secret = "PAT"
-trigger_source_repo = "https://github.com/beamplayground/deploy-workaround"
-terraform_source_repo = "https://github.com/apache/beam"
-terraform_source_branch = "master"
-state_bucket = "BUCKET_NAME"
+playground_deploy_sa = "DEPLOY_SA_NAME" # SA name used for Deploy trigger
+playground_update_sa = "UPDATE_SA_NAME" # SA name used for Update trigger
+playground_ci_sa = "CI_SA_NAME" # SA name used for CI trigger
+playground_cd_sa = "CD_SA_NAME" # SA name used for CD trigger
+project_id = "PROJECT_ID" # ID of the project used
+playground_environment_name = "environment" # Name of the environment. Used for prefixing (dev- stag- prod- etc.)
+playground_dns_name = "fqdm.playground.zone" # FQDN used for Playground deployment
+image_tag = "tag" # Container image tag to build
+playground_region = "us-central1" # GCP Region to deploy in
+playground_zone = "us-central1-a" # GCP Zone to deploy in
+skip_appengine_deploy = false # Workaround for Appengine issue. Appengine can only be deployed once so subsequent runs need to set this to true
+webhook_trigger_secret_id = "SECRET_ID" # Secret ID for webhook
+gh_pat_secret_id = "PAT_SECRET_ID" # Secret ID with github PAT
+data_for_github_pat_secret = "PAT" # Actual Github PAT
+trigger_source_repo = "https://github.com/beamplayground/deploy-workaround" # Repo used as a workaround
+terraform_source_repo = "https://github.com/apache/beam" # Repo from which terraform code is fetched 
+terraform_source_branch = "master" # Branch from which terraform code is fetched
+state_bucket = "BUCKET_NAME" # State bucket to preseve environment state
+data_for_cicd_webhook_secret = "secret_sting"  # Secret used when creating the Github webhook 
 ```
 
 Please make sure you change the values. 
@@ -98,23 +99,13 @@ cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 
 # Run terraform commands
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply var="project_id=$(gcloud config get-value project)" -var-file="$BEAM_ROOT/playground/terraform/environment/$ENVIRONMENT_NAME/common.tfvars"
+terraform apply -var="project_id=$(gcloud config get-value project)" -var-file=../common.tfvars"
 ```
-
-
-## 3. Provide IAM role for Google-managed service account
-
-1. Navigate to GCP Console.
-2. Navigate to `IAM & Admin`.
-3. Check the box `Include Google-provided role grants` on the right side of the IAM & Admin page.
-4. Look for `service-XXXXXXXXXXX@gcp-sa-cloudbuild.iam.gserviceaccount.com` service account.
-5. Assign `Secret Manager Secret Accessor` to it.
-
-## 4. Connect your GitHub repository and GCP Cloud Build
+## 3. Connect your GitHub repository and GCP Cloud Build
 
 Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect your GitHub repository and GCP Cloud Build.
 
-## 5. Set up the Google Cloud Build triggers
+## 4. Set up the Google Cloud Build triggers
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
 - Cloud Build triggers to build and deploy Beam Playground, update Beam Playground, and run CI/CD checks.
@@ -132,4 +123,4 @@ terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="
 
 **Note:**  you will have to provide values for multiple variables required for setup of triggers
 
-## 6. Copy inline yaml scripts into cloud build triggers
+## 5. Copy inline yaml scripts into cloud build triggers

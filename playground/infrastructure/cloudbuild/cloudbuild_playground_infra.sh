@@ -46,6 +46,7 @@ then
         echo "Creation successfull"
 else
         echo "Cannot create bucket, please check if the name is unique"
+        exit 1
 fi
 
 echo "---- ENV OUTPUT---"

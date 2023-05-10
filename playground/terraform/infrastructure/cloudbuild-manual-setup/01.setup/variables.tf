@@ -19,22 +19,22 @@ variable "project_id" {
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }
 
-variable "pg_cloudbuild_deployer_sa_name" {
+variable "playground_deploy_sa" {
   description = "The ID of the cloud build service account responsible for deploying the Playground"
   default = ""
 }
 
-variable "pg_cloudbuild_update_sa_name" {
+variable "playground_update_sa" {
   description = "The ID of the cloud build service account responsible for updating the Playground"
   default = ""
 }
 
-variable "pg_cloudbuild_ci_sa_name" {
+variable "playground_ci_sa" {
   description = "The ID of the cloud build service account responsible for running Playground CI checks and scripts"
   default = ""
 }
 
-variable "pg_cloudbuild_cd_sa_name" {
+variable "playground_cd_sa" {
   description = "The ID of the cloud build service account responsible for running Playground CD checks and scripts"
   default = ""
 }
