@@ -33,7 +33,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
-var datastoreDb *Datastore
+var datastoreDb *EmulatedDatastore
 var ctx context.Context
 
 func TestMain(m *testing.M) {
@@ -44,27 +44,22 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
-	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
-			panic(err)
-		}
-	}
 	ctx = context.Background()
 	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "datastore")
 
 	logger.SetupLogger(ctx, "local", "some_google_project_id")
 
 	var err error
-	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+	datastoreDb, err = NewEmulated(ctx)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func teardown() {
-	if err := datastoreDb.Client.Close(); err != nil {
-		panic(err)
+	clientCloseErr := datastoreDb.Close()
+	if clientCloseErr != nil {
+		panic(clientCloseErr)
 	}
 }
 
@@ -250,53 +245,6 @@ func TestDatastore_PutSDKs(t *testing.T) {
 			if err != nil {
 				t.Error("PutSDKs() method failed")
 			}
-		})
-	}
-}
-
-func TestDatastore_PutSchemaVersion(t *testing.T) {
-	type args struct {
-		ctx    context.Context
-		id     string
-		schema *entity.SchemaEntity
-	}
-	tests := []struct {
-		name      string
-		args      args
-		wantErr   bool
-		cleanData func()
-	}{
-		{
-			name: "PutSchemaVersion() in the usual case",
-			args: args{
-				ctx:    ctx,
-				id:     "MOCK_ID",
-				schema: &entity.SchemaEntity{Descr: "MOCK_DESCRIPTION"},
-			},
-			wantErr: false,
-			cleanData: func() {
-				test_cleaner.CleanSchemaVersion(ctx, t, "MOCK_ID")
-			},
-		},
-		{
-			name: "PutSchemaVersion() when input data is nil",
-			args: args{
-				ctx:    ctx,
-				id:     "MOCK_ID",
-				schema: nil,
-			},
-			wantErr:   false,
-			cleanData: func() {},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := datastoreDb.PutSchemaVersion(tt.args.ctx, tt.args.id, tt.args.schema)
-			if err != nil {
-				t.Error("PutSchemaVersion() method failed")
-			}
-			tt.cleanData()
 		})
 	}
 }
@@ -863,7 +811,7 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			err := datastoreDb.DeleteUnusedSnippets(tt.args.ctx, tt.args.dayDiff)
+			err := datastoreDb.DeleteUnusedSnippets(tt.args.ctx, time.Duration(tt.args.dayDiff)*time.Hour*24)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteUnusedSnippets() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -944,7 +892,7 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+			_, err := New(ctx, mapper.NewPrecompiledObjectMapper(), nil, constants.EmulatorProjectId)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 			}

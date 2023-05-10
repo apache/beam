@@ -37,6 +37,9 @@ var _ PlaygroundServiceClient = &PlaygroundServiceClientMock{}
 //			GetLogsFunc: func(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error) {
 //				panic("mock out the GetLogs method")
 //			},
+//			GetMetadataFunc: func(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error) {
+//				panic("mock out the GetMetadata method")
+//			},
 //			GetPrecompiledObjectFunc: func(ctx context.Context, in *GetPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectResponse, error) {
 //				panic("mock out the GetPrecompiledObject method")
 //			},
@@ -100,6 +103,9 @@ type PlaygroundServiceClientMock struct {
 
 	// GetLogsFunc mocks the GetLogs method.
 	GetLogsFunc func(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error)
+
+	// GetMetadataFunc mocks the GetMetadata method.
+	GetMetadataFunc func(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error)
 
 	// GetPrecompiledObjectFunc mocks the GetPrecompiledObject method.
 	GetPrecompiledObjectFunc func(ctx context.Context, in *GetPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectResponse, error)
@@ -193,6 +199,15 @@ type PlaygroundServiceClientMock struct {
 			Ctx context.Context
 			// In is the in argument value.
 			In *GetLogsRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
+		// GetMetadata holds details about calls to the GetMetadata method.
+		GetMetadata []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *GetMetadataRequest
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
@@ -320,6 +335,7 @@ type PlaygroundServiceClientMock struct {
 	lockGetDefaultPrecompiledObject sync.RWMutex
 	lockGetGraph                    sync.RWMutex
 	lockGetLogs                     sync.RWMutex
+	lockGetMetadata                 sync.RWMutex
 	lockGetPrecompiledObject        sync.RWMutex
 	lockGetPrecompiledObjectCode    sync.RWMutex
 	lockGetPrecompiledObjectGraph   sync.RWMutex
@@ -572,6 +588,46 @@ func (mock *PlaygroundServiceClientMock) GetLogsCalls() []struct {
 	mock.lockGetLogs.RLock()
 	calls = mock.calls.GetLogs
 	mock.lockGetLogs.RUnlock()
+	return calls
+}
+
+// GetMetadata calls GetMetadataFunc.
+func (mock *PlaygroundServiceClientMock) GetMetadata(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error) {
+	if mock.GetMetadataFunc == nil {
+		panic("PlaygroundServiceClientMock.GetMetadataFunc: method is nil but PlaygroundServiceClient.GetMetadata was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *GetMetadataRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockGetMetadata.Lock()
+	mock.calls.GetMetadata = append(mock.calls.GetMetadata, callInfo)
+	mock.lockGetMetadata.Unlock()
+	return mock.GetMetadataFunc(ctx, in, opts...)
+}
+
+// GetMetadataCalls gets all the calls that were made to GetMetadata.
+// Check the length with:
+//
+//	len(mockedPlaygroundServiceClient.GetMetadataCalls())
+func (mock *PlaygroundServiceClientMock) GetMetadataCalls() []struct {
+	Ctx  context.Context
+	In   *GetMetadataRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *GetMetadataRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockGetMetadata.RLock()
+	calls = mock.calls.GetMetadata
+	mock.lockGetMetadata.RUnlock()
 	return calls
 }
 

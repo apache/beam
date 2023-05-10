@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.options;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystems;
@@ -51,7 +50,6 @@ public interface DataflowPipelineOptions
         BigQueryOptions,
         GcsOptions,
         StreamingOptions,
-        CloudDebuggerOptions,
         DataflowWorkerLoggingOptions,
         DataflowProfilingOptions,
         PubsubOptions {
@@ -119,7 +117,6 @@ public interface DataflowPipelineOptions
   void setDataflowServiceOptions(List<String> options);
 
   /** Run the job as a specific service account, instead of the default GCE robot. */
-  @Experimental
   @Description("Run the job as a specific service account, instead of the default GCE robot.")
   String getServiceAccount();
 
@@ -154,7 +151,14 @@ public interface DataflowPipelineOptions
   @Description("The customized dataflow worker jar")
   String getDataflowWorkerJar();
 
-  void setDataflowWorkerJar(String dataflowWorkerJar);
+  void setDataflowWorkerJar(String dataflowWorkerJafr);
+
+  // Disable this support for now until the Dataflow backend fully supports this option.
+  @Description("Whether to allow dynamic pubsub destinations. Temporary option: will be removed.")
+  @Default.Boolean(false)
+  Boolean getEnableDynamicPubsubDestinations();
+
+  void setEnableDynamicPubsubDestinations(Boolean enable);
 
   /** Set of available Flexible Resource Scheduling goals. */
   enum FlexResourceSchedulingGoal {

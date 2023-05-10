@@ -17,6 +17,7 @@
 
 """Tests for apache_beam.ml.base."""
 import math
+import os
 import pickle
 import time
 import unittest
@@ -48,8 +49,12 @@ class FakeModel:
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
-  def __init__(self, clock=None):
+  def __init__(
+      self, clock=None, min_batch_size=1, max_batch_size=9999, **kwargs):
     self._fake_clock = clock
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._env_vars = kwargs.get('env_vars', {})
 
   def load_model(self):
     if self._fake_clock:
@@ -69,12 +74,19 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def update_model_path(self, model_path: Optional[str] = None):
     pass
 
+  def batch_elements_kwargs(self):
+    return {
+        'min_batch_size': self._min_batch_size,
+        'max_batch_size': self._max_batch_size
+    }
+
 
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModel]):
   def __init__(self, clock=None, model_id='fake_model_id_default'):
     self.model_id = model_id
     self._fake_clock = clock
+    self._env_vars = {}
 
   def load_model(self):
     return FakeModel()
@@ -170,6 +182,216 @@ class RunInferenceBaseTest(unittest.TestCase):
       keyed_actual = keyed_pcoll | 'RunKeyed' >> base.RunInference(
           model_handler)
       assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
+
+  def test_run_inference_preprocessing(self):
+    def mult_two(example: str) -> int:
+      return int(example) * 2
+
+    with TestPipeline() as pipeline:
+      examples = ["1", "5", "3", "10"]
+      expected = [int(example) * 2 + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler().with_preprocess_fn(mult_two))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_preprocessing_multiple_fns(self):
+    def add_one(example: str) -> int:
+      return int(example) + 1
+
+    def mult_two(example: int) -> int:
+      return example * 2
+
+    with TestPipeline() as pipeline:
+      examples = ["1", "5", "3", "10"]
+      expected = [(int(example) + 1) * 2 + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler().with_preprocess_fn(mult_two).with_preprocess_fn(
+              add_one))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_postprocessing(self):
+    def mult_two(example: int) -> str:
+      return str(example * 2)
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [str((example + 1) * 2) for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler().with_postprocess_fn(mult_two))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_postprocessing_multiple_fns(self):
+    def add_one(example: int) -> str:
+      return str(int(example) + 1)
+
+    def mult_two(example: int) -> int:
+      return example * 2
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [str(((example + 1) * 2) + 1) for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler().with_postprocess_fn(mult_two).with_postprocess_fn(
+              add_one))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_preprocessing_dlq(self):
+    def mult_two(example: str) -> int:
+      if example == "5":
+        raise Exception("TEST")
+      return int(example) * 2
+
+    with TestPipeline() as pipeline:
+      examples = ["1", "5", "3", "10"]
+      expected = [3, 7, 21]
+      expected_bad = ["5"]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeModelHandler().with_preprocess_fn(mult_two)
+          ).with_exception_handling()
+      assert_that(main, equal_to(expected), label='assert:inferences')
+      assert_that(
+          other.failed_inferences, equal_to([]), label='assert:bad_infer')
+
+      # bad will be in form [element, error]. Just pull out bad element.
+      bad_without_error = other.failed_preprocessing[0] | beam.Map(
+          lambda x: x[0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_postprocessing_dlq(self):
+    def mult_two(example: int) -> str:
+      if example == 6:
+        raise Exception("TEST")
+      return str(example * 2)
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = ["4", "8", "22"]
+      expected_bad = [6]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeModelHandler().with_postprocess_fn(mult_two)
+          ).with_exception_handling()
+      assert_that(main, equal_to(expected), label='assert:inferences')
+      assert_that(
+          other.failed_inferences, equal_to([]), label='assert:bad_infer')
+
+      # bad will be in form [element, error]. Just pull out bad element.
+      bad_without_error = other.failed_postprocessing[0] | beam.Map(
+          lambda x: x[0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_pre_and_post_processing_dlq(self):
+    def mult_two_pre(example: str) -> int:
+      if example == "5":
+        raise Exception("TEST")
+      return int(example) * 2
+
+    def mult_two_post(example: int) -> str:
+      if example == 7:
+        raise Exception("TEST")
+      return str(example * 2)
+
+    with TestPipeline() as pipeline:
+      examples = ["1", "5", "3", "10"]
+      expected = ["6", "42"]
+      expected_bad_pre = ["5"]
+      expected_bad_post = [7]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeModelHandler().with_preprocess_fn(
+            mult_two_pre
+            ).with_postprocess_fn(
+              mult_two_post
+              )).with_exception_handling()
+      assert_that(main, equal_to(expected), label='assert:inferences')
+      assert_that(
+          other.failed_inferences, equal_to([]), label='assert:bad_infer')
+
+      # bad will be in form [elements, error]. Just pull out bad element.
+      bad_without_error_pre = other.failed_preprocessing[0] | beam.Map(
+          lambda x: x[0])
+      assert_that(
+          bad_without_error_pre,
+          equal_to(expected_bad_pre),
+          label='assert:failures_pre')
+
+      # bad will be in form [elements, error]. Just pull out bad element.
+      bad_without_error_post = other.failed_postprocessing[0] | beam.Map(
+          lambda x: x[0])
+      assert_that(
+          bad_without_error_post,
+          equal_to(expected_bad_post),
+          label='assert:failures_post')
+
+  def test_run_inference_keyed_pre_and_post_processing(self):
+    def mult_two(element):
+      return (element[0], element[1] * 2)
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [
+          (i, ((example * 2) + 1) * 2) for i, example in enumerate(examples)
+      ]
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(FakeModelHandler()).with_preprocess_fn(
+              mult_two).with_postprocess_fn(mult_two))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_maybe_keyed_pre_and_post_processing(self):
+    def mult_two(element):
+      return element * 2
+
+    def mult_two_keyed(element):
+      return (element[0], element[1] * 2)
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [((2 * example) + 1) * 2 for example in examples]
+      keyed_expected = [
+          (i, ((2 * example) + 1) * 2) for i, example in enumerate(examples)
+      ]
+      model_handler = base.MaybeKeyedModelHandler(FakeModelHandler())
+
+      pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)
+      actual = pcoll | 'RunUnkeyed' >> base.RunInference(
+          model_handler.with_preprocess_fn(mult_two).with_postprocess_fn(
+              mult_two))
+      assert_that(actual, equal_to(expected), label='CheckUnkeyed')
+
+      keyed_pcoll = pipeline | 'Keyed' >> beam.Create(keyed_examples)
+      keyed_actual = keyed_pcoll | 'RunKeyed' >> base.RunInference(
+          model_handler.with_preprocess_fn(mult_two_keyed).with_postprocess_fn(
+              mult_two_keyed))
+      assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
+
+  def test_run_inference_impl_dlq(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 'TEST', 3, 10, 'TEST2']
+      expected_good = [2, 4, 11]
+      expected_bad = ['TEST', 'TEST2']
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeModelHandler(
+            min_batch_size=1,
+            max_batch_size=1
+          )).with_exception_handling()
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
 
   def test_run_inference_impl_inference_args(self):
     with TestPipeline() as pipeline:
@@ -517,6 +739,20 @@ class RunInferenceBaseTest(unittest.TestCase):
     test_pipeline.options.view_as(StandardOptions).streaming = True
     run_inference_side_inputs.run(
         test_pipeline.get_full_options_as_args(), save_main_session=False)
+
+  def test_env_vars_set_correctly(self):
+    handler_with_vars = FakeModelHandler(env_vars={'FOO': 'bar'})
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    with TestPipeline() as pipeline:
+      examples = [1, 2, 3]
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(examples)
+          | base.RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
 
 
 if __name__ == '__main__':

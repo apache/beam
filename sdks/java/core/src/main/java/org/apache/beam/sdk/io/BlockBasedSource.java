@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -60,7 +58,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> The type of records to be read from the source.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -115,7 +112,6 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
   protected abstract BlockBasedReader<T> createSingleFileReader(PipelineOptions options);
 
   /** A {@code Block} represents a block of records that can be read. */
-  @Experimental(Kind.SOURCE_SINK)
   protected abstract static class Block<T> {
     /** Returns the current record. */
     public abstract T getCurrentRecord();
@@ -139,7 +135,6 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * subrange of a file, the blocks that will be read by this reader are those such that the first
    * byte of the block is within the range {@code [start, end)}.
    */
-  @Experimental(Kind.SOURCE_SINK)
   public abstract static class BlockBasedReader<T> extends FileBasedReader<T> {
     private boolean atSplitPoint;
 

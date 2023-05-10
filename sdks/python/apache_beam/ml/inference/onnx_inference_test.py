@@ -171,12 +171,14 @@ class TestOnnxModelHandler(OnnxModelHandlerNumpy):
       providers=['CUDAExecutionProvider', 'CPUExecutionProvider'],
       provider_options=None,
       *,
-      inference_fn=default_numpy_inference_fn):
+      inference_fn=default_numpy_inference_fn,
+      **kwargs):
     self._model_uri = model_uri
     self._session_options = session_options
     self._providers = providers
     self._provider_options = provider_options
     self._model_inference_fn = inference_fn
+    self._env_vars = kwargs.get('env_vars', {})
 
 
 class OnnxTestBase(unittest.TestCase):
@@ -288,7 +290,8 @@ class OnnxSklearnRunInferenceTest(OnnxTestBase):
         path, providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
     )  # this list specifies priority - prioritize gpu if cuda kernel exists
     predictions = inference_runner.run_inference(examples, inference_session)
-    for actual, expected in zip(predictions, expected_predictions):
+    for actual, expected in \
+        zip(predictions, expected_predictions):
       self.assertEqual(actual, expected)
 
 
@@ -323,6 +326,22 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
           equal_to(
               self.test_data_and_model.get_two_feature_predictions(),
               equals_fn=_compare_prediction_result))
+
+  def test_model_handler_sets_env_vars(self):
+    with TestPipeline() as pipeline:
+      path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
+      model = self.test_data_and_model.get_torch_two_feature_model()
+      self.exportModelToOnnx(model, path)
+      model_handler = TestOnnxModelHandler(path, env_vars={'FOO': 'bar'})
+      self.assertFalse('FOO' in os.environ)
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(
+              self.test_data_and_model.get_two_feature_examples())
+          | RunInference(model_handler))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue('bar'.equals(os.environ['FOO']))
 
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):

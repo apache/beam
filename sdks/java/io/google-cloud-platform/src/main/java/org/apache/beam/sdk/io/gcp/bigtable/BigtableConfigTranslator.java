@@ -180,16 +180,19 @@ class BigtableConfigTranslator {
         settings.stubSettings().bulkMutateRowsSettings();
     RetrySettings.Builder retrySettings = callSettings.getRetrySettings().toBuilder();
     BatchingSettings.Builder batchingSettings = callSettings.getBatchingSettings().toBuilder();
+
+    // The default attempt timeout for version <= 2.46.0 is 6 minutes. Reset the timeout to align
+    // with the old behavior.
+    Duration attemptTimeout = Duration.ofMinutes(6);
+
     if (writeOptions.getAttemptTimeout() != null) {
-      // Set the user specified attempt timeout and expand the operation timeout if it's shorter
-      retrySettings.setInitialRpcTimeout(
-          Duration.ofMillis(writeOptions.getAttemptTimeout().getMillis()));
-      retrySettings.setTotalTimeout(
-          Duration.ofMillis(
-              Math.max(
-                  retrySettings.getTotalTimeout().toMillis(),
-                  writeOptions.getAttemptTimeout().getMillis())));
+      attemptTimeout = Duration.ofMillis(writeOptions.getAttemptTimeout().getMillis());
     }
+    retrySettings.setInitialRpcTimeout(attemptTimeout).setMaxRpcTimeout(attemptTimeout);
+    // Expand the operation timeout if it's shorter
+    retrySettings.setTotalTimeout(
+        Duration.ofMillis(
+            Math.max(retrySettings.getTotalTimeout().toMillis(), attemptTimeout.toMillis())));
 
     if (writeOptions.getOperationTimeout() != null) {
       retrySettings.setTotalTimeout(
@@ -213,6 +216,14 @@ class BigtableConfigTranslator {
       flowControlSettings.setMaxOutstandingRequestBytes(writeOptions.getMaxOutstandingBytes());
     }
     batchingSettings = batchingSettings.setFlowControlSettings(flowControlSettings.build());
+
+    if (writeOptions.getThrottlingTargetMs() != null) {
+      settings.enableBatchMutationLatencyBasedThrottling(writeOptions.getThrottlingTargetMs());
+    }
+
+    if (Boolean.TRUE.equals(writeOptions.getFlowControl())) {
+      settings.setBulkMutationFlowControl(true);
+    }
 
     settings
         .stubSettings()
@@ -339,6 +350,8 @@ class BigtableConfigTranslator {
   static BigtableReadOptions translateToBigtableReadOptions(
       BigtableReadOptions readOptions, BigtableOptions options) {
     BigtableReadOptions.Builder builder = readOptions.toBuilder();
+    builder.setWaitTimeout(
+        org.joda.time.Duration.millis(options.getRetryOptions().getReadPartialRowTimeoutMillis()));
     if (options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().isPresent()) {
       builder.setAttemptTimeout(
           org.joda.time.Duration.millis(
@@ -359,6 +372,9 @@ class BigtableConfigTranslator {
       builder.setAttemptTimeout(
           org.joda.time.Duration.millis(
               options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().get()));
+    }
+    if (options.getBulkOptions().isEnableBulkMutationThrottling()) {
+      builder.setThrottlingTargetMs(options.getBulkOptions().getBulkMutationRpcTargetMs());
     }
     builder.setOperationTimeout(
         org.joda.time.Duration.millis(options.getCallOptionsConfig().getMutateRpcTimeoutMs()));

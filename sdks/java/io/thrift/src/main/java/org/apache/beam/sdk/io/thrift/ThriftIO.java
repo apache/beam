@@ -28,8 +28,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -83,11 +81,7 @@ import org.slf4j.LoggerFactory;
  *     .via(ThriftIO.sink(thriftProto))
  *     .to("destination/path");
  * }</pre>
- *
- * <p>This IO API is considered experimental and may break or receive backwards-incompatible changes
- * in future versions of the Apache Beam SDK.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

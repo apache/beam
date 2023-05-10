@@ -449,46 +449,92 @@ func (k apiRequestLatenciesKey) Labels() map[string]string {
 
 type metricsStore struct {
 	mu     sync.Mutex
-	accums map[metricKey]metricAccumulator
+	accums [2]map[metricKey]metricAccumulator
+
+	shortIDsToKeys      map[string]metricKey
+	unprocessedPayloads [2]map[string][]byte
 }
 
-func (m *metricsStore) ContributeMetrics(payloads *fnpb.ProcessBundleResponse) {
+func (m *metricsStore) AddShortIDs(resp *fnpb.MonitoringInfosMetadataResponse) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.accums == nil {
-		m.accums = map[metricKey]metricAccumulator{}
+
+	if m.shortIDsToKeys == nil {
+		m.shortIDsToKeys = map[string]metricKey{}
 	}
-	// Old and busted.
-	mons := payloads.GetMonitoringInfos()
-	for _, mon := range mons {
-		urn := mon.GetUrn()
+
+	mis := resp.GetMonitoringInfo()
+	for short, mi := range mis {
+		urn := mi.GetUrn()
 		ops, ok := mUrn2Ops[urn]
 		if !ok {
 			slog.Debug("unknown metrics urn", slog.String("urn", urn))
 			continue
 		}
-		key := ops.keyFn(urn, mon.GetLabels())
-		a, ok := m.accums[key]
+		key := ops.keyFn(urn, mi.GetLabels())
+		m.shortIDsToKeys[short] = key
+	}
+	for d, payloads := range m.unprocessedPayloads {
+		m.contributeMetrics(durability(d), payloads)
+		m.unprocessedPayloads[d] = nil
+	}
+}
+
+func (m *metricsStore) contributeMetrics(d durability, mdata map[string][]byte) (int64, []string) {
+	readIndex := int64(-1)
+	if m.accums[d] == nil {
+		m.accums[d] = map[metricKey]metricAccumulator{}
+	}
+	if m.unprocessedPayloads[d] == nil {
+		m.unprocessedPayloads[d] = map[string][]byte{}
+	}
+	accums := m.accums[d]
+	var missingShortIDs []string
+	for short, payload := range mdata {
+		key, ok := m.shortIDsToKeys[short]
 		if !ok {
+			missingShortIDs = append(missingShortIDs, short)
+			m.unprocessedPayloads[d][short] = payload
+			continue
+		}
+		a, ok := accums[key]
+		if !ok || d == tentative {
+			ops, ok := mUrn2Ops[key.Urn()]
+			if !ok {
+				slog.Debug("unknown metrics urn", slog.String("urn", key.Urn()))
+				continue
+			}
 			a = ops.newAccum()
 		}
-		if err := a.accumulate(mon.GetPayload()); err != nil {
-			panic(fmt.Sprintf("error decoding metrics %v: %+v\n\t%+v", urn, key, a))
+		if err := a.accumulate(payload); err != nil {
+			panic(fmt.Sprintf("error decoding metrics %v: %+v\n\t%+v", key.Urn(), key, a))
 		}
-		m.accums[key] = a
+		accums[key] = a
+		if key.Urn() == "beam:metric:data_channel:read_index:v1" {
+			readIndex = a.(*sumInt64).sum
+		}
 	}
-	// New hotness.
-	mdata := payloads.GetMonitoringData()
-	_ = mdata
+	return readIndex, missingShortIDs
+}
+
+func (m *metricsStore) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (int64, []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.contributeMetrics(tentative, payloads.GetMonitoringData())
+}
+
+func (m *metricsStore) ContributeFinalMetrics(payloads *fnpb.ProcessBundleResponse) []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	_, unknownIDs := m.contributeMetrics(committed, payloads.GetMonitoringData())
+	return unknownIDs
 }
 
 func (m *metricsStore) Results(d durability) []*pipepb.MonitoringInfo {
-	// We don't gather tentative metrics yet.
-	if d == tentative {
-		return nil
-	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	infos := make([]*pipepb.MonitoringInfo, 0, len(m.accums))
-	for key, accum := range m.accums {
+	for key, accum := range m.accums[d] {
 		infos = append(infos, accum.toProto(key))
 	}
 	return infos

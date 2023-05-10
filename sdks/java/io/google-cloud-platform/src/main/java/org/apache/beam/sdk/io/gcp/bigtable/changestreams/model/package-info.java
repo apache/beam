@@ -16,7 +16,4 @@
  * limitations under the License.
  */
 /** User models for the Google Cloud Bigtable change stream API. */
-@Experimental
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.model;
-
-import org.apache.beam.sdk.annotations.Experimental;

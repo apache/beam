@@ -169,9 +169,7 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
 
 #### Submit your GPG public key into MIT PGP Public Key Server
 In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
-please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mit.edu:11371/).
-
-If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Nexus might error out not being able to find the keys), use a keyserver at `ubuntu.com` instead: https://keyserver.ubuntu.com/.
+please submit your GPG public key into the [Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
 
 You will need to use an ascii-armored version of your key.
 This can be obtained by running `gpg --export --armor` and copying the whole block
@@ -202,7 +200,7 @@ You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi
 Ask on the mailing list for assistance.
 
 #### Login to DockerHub
-Run following command manually.
+If you are a member of the [`beammaintainers` DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers), run following command manually.
 It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.
 
 ```
@@ -216,7 +214,9 @@ For example,
    "auth": "xxxxxx"
 }
 ```
-Release managers should have push permission; request membership in the [`beammaintainers` team](https://hub.docker.com/orgs/apache/teams/beammaintainers) by filing a JIRA with the Apache Infrastructure team, like [INFRA-20900](https://issues.apache.org/jira/browse/INFRA-20900).
+
+If you are not already a member of the `beammaintainers` team, please email `dev@` for help with any DockerHub related tasks. We are not able
+to add more members to the DockerHub team because [the ASF has a limited number of seats available](https://infra.apache.org/docker-hub-policy.html).
 
 ### Create a new milestone in GitHub
 
@@ -272,58 +272,27 @@ The key points to know:
 - The release branch has the SNAPSHOT/dev version to be released.
 - The Dataflow container image should be modified to the version to be released.
 
-This will all be accomplished by the [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
-script.
+This will all be accomplished by the [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
+workflow. This workflow will also update [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
+to contain all of the active Jenkins jobs.
 
-After cutting the branch, you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
-
-#### Use cut_release_branch.sh to cut a release branch
-* **Script:** [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
-
-* **Usage**
-
-`RELEASE_VERSION` and `NEXT_VERSION` should be formatted like `{major}.{minor}.{patch}` (e.g. `2.46.0`)
-
-  ```
-  # Cut a release branch
-  ./beam/release/src/main/scripts/cut_release_branch.sh \
-  --release=${RELEASE_VERSION} \
-  --next_release=${NEXT_VERSION}
-
-  # Show help page
-  ./beam/release/src/main/scripts/cut_release_branch.sh -h
-  ```
-
-### Start a snapshot build
-
-Start a build of [the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
+After updating the master branch, the workflow will also start a build of
+[the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version from the `master` branch.
 Once the release branch is cut, these SNAPSHOT versions are no longer found, so builds will be broken until a new snapshot is available.
+The workflow starts the nightly snapshot by creating an empty PR against apache:master (which will be linked to in the logs).
 
-There are 2 ways to trigger a nightly build, either using automation script(recommended), or perform all operations manually.
+#### Use cut_release_branch.sh to cut a release branch
+* **Action:** [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml) (click `run workflow`)
 
-#### Run start_snapshot_build.sh to trigger build
-* **Script:** [start_snapshot_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh)
-
-* **Usage**
-
-      ./beam/release/src/main/scripts/start_snapshot_build.sh
-
-* **The script will:**
-  1. Ask for the url of your personal clone of Beam (e.g. `https://github.com/<user>/beam`).
-  1. Install [hub](https://github.com/github/hub) with your agreement.
-  1. Touch an empty txt file and commit changes into ```${your remote beam repo}/snapshot_build```
-  1. Use hub to create a PR against apache:master, which triggers a Jenkins job to build snapshot.
+In order to run this workflow, you will need to provide a Jenkins username and API token. Your Jenkins username should be your Apache ID.
+Your Jenkins API token can be generated by visiting https://ci-beam.apache.org/user/<your Jenkins username>/configure and clicking
+`Add new token` in the API token section.
 
 * Tasks you need to do manually to __verify the SNAPSHOT build__
   1. Check whether the Jenkins job gets triggered. If not, please comment ```Run Gradle Publish``` into the generated PR.
   1. After verifying build succeeded, you need to close PR manually.
-
-#### (Alternative) Do all operations manually
-
-* Find one PR against apache:master in beam.
-* Comment  ```Run Gradle Publish``` in this pull request to trigger build.
-* Verify that build succeeds.
+  1. Manually update `CHANGES.md` on `master` by adding a new section for the next release ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
 
 
 **********
@@ -352,12 +321,8 @@ There are 2 ways to perform this verification, either running automation script(
   1. Trigger `beam_Release_Gradle_Build` and all Jenkins PostCommit jobs from the PR created by the previous step.
      You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
      Or manually add one trigger phrase per PR comment.
-     See `COMMENTS_TO_ADD` in [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
-     for full list of phrases. Please note that this list of phrases can get
-     out of date, it's your responsibility to run _all_ PostCommits, not just
-     the ones listed there.
-     [BEAM-13951](https://issues.apache.org/jira/browse/BEAM-13951) has
-     directions for updating this list using the Jenkins API.
+     See [jenkins_jobs.txt](https://github.com/apache/beam/blob/master/release/src/main/scripts/jenkins_jobs.txt)
+     for a full list of phrases.
 
 * **Tasks included in the script**
   1. Installs ```hub``` with your agreement and setup local git repo;
@@ -560,9 +525,12 @@ See the source of the script for more details, or to run commands manually in ca
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
+Note: if you are not a member of the [`beammaintainers` DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers) you will need
+help with this step. Please email `dev@` and ask a member of the `beammaintainers` DockerHub team for help.
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
+     * **NOTE**: Do not merge this PR until after an RC has been approved (see "Finalize the Release").
 
 #### Tasks you need to do manually
   1. Verify the script worked.
@@ -576,12 +544,12 @@ See the source of the script for more details, or to run commands manually in ca
           Please note that dependencies for the SDKs with different Python versions vary.
           Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
           ```
-          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
           - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
@@ -758,7 +726,7 @@ You can (optionally) also do additional verification by:
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}
-docker pull apache/beam_python3.7_sdk:2.39.0_rc1
+docker pull apache/beam_python3.7_sdk:2.39.0rc1
 ```
 
 
@@ -1155,6 +1123,10 @@ All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
 
 ### Deploy docker images to DockerHub
+
+Note: if you are not a member of the [beammaintainers DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers),
+you will need help with this step. Please email dev@ and ask a member of the beammaintainers DockerHub team for help.
+
 * **Script:** [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * **Usage**
 ```

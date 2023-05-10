@@ -29,8 +29,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -86,6 +84,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
@@ -116,7 +115,6 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code p.apply(WriteFiles.to(new MySink(...)).withNumShards(3));}</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 @AutoValue
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
@@ -462,7 +460,24 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         // iterable to finalize if there are no results.
         return input
             .getPipeline()
-            .apply(Reify.viewInGlobalWindow(input.apply(View.asList()), ListCoder.of(resultCoder)));
+            .apply(
+                "AsPossiblyEmptyList",
+                Reify.viewInGlobalWindow(
+                    // Insert a reshuffle before taking the view to consolidate the (typically)
+                    // one-output-per-bundle writes.
+                    // This avoids producing a huge number of tiny files in the case that side
+                    // inputs are materialized to disk bundle-by-bundle.
+                    input.apply("Consolidate", Reshuffle.viaRandomKey()).apply(View.asIterable()),
+                    IterableCoder.of(resultCoder)))
+            // View.asIterable() can be (significantly) cheaper than View.asList(), as it does not
+            // create a backing indexable view, but we must return a list to maintain update
+            // compatibility for consumers that are shared between this path and the streaming one.
+            .apply(
+                "IterableToList",
+                MapElements.via(
+                    new SimpleFunction<Iterable<ResultT>, List<ResultT>>(
+                        x -> ImmutableList.copyOf(x)) {}))
+            .setCoder(ListCoder.of(resultCoder));
       }
     }
   }

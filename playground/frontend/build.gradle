@@ -19,6 +19,7 @@
 
 apply(plugin: "org.apache.beam.module")
 apply(plugin: "base")
+apply(from: "$project.rootDir/playground/backend/containers/git-functions.gradle")
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace("-container", "")}"
@@ -191,6 +192,7 @@ tasks.register("integrationTest") {
   dependsOn("integrationTest_standalone_example_selector")
   dependsOn("integrationTest_standalone_miscellaneous_ui")
   dependsOn("integrationTest_standalone_run_shortcuts")
+  dependsOn("integrationTest_standalone_share_code")
 }
 
 tasks.register("integrationTest_embedded_run") {
@@ -253,6 +255,12 @@ tasks.register("integrationTest_standalone_run_shortcuts") {
   }
 }
 
+tasks.register("integrationTest_standalone_share_code") {
+  doLast {
+    runIntegrationTest("standalone_share_code", "/")
+  }
+}
+
 void runIntegrationTest(String path, String url) {
   // Run with -PdeviceId=web-server for headless tests.
   String deviceId = project.hasProperty("deviceId") ? project.deviceId : "chrome"
@@ -294,6 +302,10 @@ docker {
             : project.docker_image_default_repo_root
   )
   files("./build/")
+  buildArgs([
+    'BUILD_COMMIT_HASH': getGitCommitHash(),
+    'BUILD_COMMIT_SECONDS_SINCE_EPOCH': getGitCommitTimestamp(),
+  ])
   tags(containerImageTags())
 }
 

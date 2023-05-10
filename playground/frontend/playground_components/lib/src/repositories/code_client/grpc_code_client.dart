@@ -38,15 +38,13 @@ const kGeneralError = 'Failed to execute code';
 
 class GrpcCodeClient implements CodeClient {
   final grpc.PlaygroundServiceClient _defaultClient;
-  final Map<String, String> _runnerUrlsById;
+  final Map<String, Uri> _runnerUrlsById;
 
   factory GrpcCodeClient({
-    required String url,
-    required Map<String, String> runnerUrlsById,
+    required Uri url,
+    required Map<String, Uri> runnerUrlsById,
   }) {
-    final channel = IisWorkaroundChannel.xhr(
-      Uri.parse(url),
-    );
+    final channel = IisWorkaroundChannel.xhr(url);
 
     return GrpcCodeClient._(
       client: grpc.PlaygroundServiceClient(channel),
@@ -56,9 +54,19 @@ class GrpcCodeClient implements CodeClient {
 
   GrpcCodeClient._({
     required grpc.PlaygroundServiceClient client,
-    required Map<String, String> runnerUrlsById,
+    required Map<String, Uri> runnerUrlsById,
   })  : _defaultClient = client,
         _runnerUrlsById = runnerUrlsById;
+
+  @override
+  Future<grpc.GetMetadataResponse> getMetadata(Sdk sdk) async {
+    final client = _createRunCodeClient(sdk);
+    return _runSafely(
+      () => client.getMetadata(
+        grpc.GetMetadataRequest(),
+      ),
+    );
+  }
 
   @override
   Future<RunCodeResponse> runCode(RunCodeRequest request) async {
@@ -217,9 +225,7 @@ class GrpcCodeClient implements CodeClient {
       throw Exception('Runner not found for ${sdk.id}');
     }
 
-    final channel = IisWorkaroundChannel.xhr(
-      Uri.parse(apiClientURL),
-    );
+    final channel = IisWorkaroundChannel.xhr(apiClientURL);
     return grpc.PlaygroundServiceClient(channel);
   }
 

@@ -24,15 +24,23 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/xitongsys/parquet-go-source/buffer"
 	"github.com/xitongsys/parquet-go/reader"
 	"github.com/xitongsys/parquet-go/writer"
 )
 
 func init() {
-	beam.RegisterFunction(expandFn)
+	register.Function3x1(expandFn)
+	register.Emitter1[string]()
+
 	beam.RegisterType(reflect.TypeOf((*parquetReadFn)(nil)).Elem())
+	register.DoFn3x1[context.Context, string, func(beam.X), error](&parquetReadFn{})
+	register.Emitter1[beam.X]()
+
 	beam.RegisterType(reflect.TypeOf((*parquetWriteFn)(nil)).Elem())
+	register.DoFn3x1[context.Context, int, func(*beam.X) bool, error](&parquetWriteFn{})
+	register.Iter1[beam.X]()
 }
 
 // Read reads a set of files and returns lines as a PCollection<elem>

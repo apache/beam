@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.BigtableServiceEntry;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.FACTORY_INSTANCE;
 import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -41,8 +40,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -55,6 +52,8 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminD
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.InitializeDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.ReadChangeStreamPartitionDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.BytesThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.SizeEstimator;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
@@ -145,7 +144,7 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table")
  *         .withKeyRange(keyRange)
  *         .withAttemptTimeout(attemptTimeout)
- *         .withOperationTimeout(attemptTimeout);
+ *         .withOperationTimeout(operationTimeout);
  * }</pre>
  *
  * <h3>Writing to Cloud Bigtable</h3>
@@ -316,7 +315,6 @@ public class BigtableIO {
    *       generated string.
    * </ul>
    */
-  @Experimental
   public static ReadChangeStream readChangeStream() {
     return ReadChangeStream.create();
   }
@@ -346,7 +344,8 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      *
-     * @deprecated please use {@link #getBigtableReadOptions()}.
+     * @deprecated read options are configured directly on BigtableIO.read(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -366,7 +365,7 @@ public class BigtableIO {
                   .setKeyRanges(
                       StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS)))
                   .build())
-          .setServiceFactory(FACTORY_INSTANCE)
+          .setServiceFactory(new BigtableServiceFactory())
           .build();
     }
 
@@ -550,7 +549,6 @@ public class BigtableIO {
      * <p>When we have a builder, we initialize the value. When they call the method then we
      * override the value
      */
-    @Experimental(Kind.SOURCE_SINK)
     public Read withMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
@@ -729,7 +727,8 @@ public class BigtableIO {
     /**
      * Returns the Google Cloud Bigtable instance being written to, and other parameters.
      *
-     * @deprecated please configure the write options directly.
+     * @deprecated write options are configured directly on BigtableIO.write(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -747,7 +746,7 @@ public class BigtableIO {
       return new AutoValue_BigtableIO_Write.Builder()
           .setBigtableConfig(config)
           .setBigtableWriteOptions(writeOptions)
-          .setServiceFactory(FACTORY_INSTANCE)
+          .setServiceFactory(new BigtableServiceFactory())
           .build();
     }
 
@@ -1000,6 +999,26 @@ public class BigtableIO {
           .build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.Write} with flow control enabled if enableFlowControl is
+     * true.
+     *
+     * <p>When enabled, traffic to Bigtable is automatically rate-limited to prevent overloading
+     * Bigtable clusters while keeping enough load to trigger Bigtable Autoscaling (if enabled) to
+     * provision more nodes as needed. It is different from the flow control set by {@link
+     * #withMaxOutstandingElements(long)} and {@link #withMaxOutstandingBytes(long)}, which is
+     * always enabled on batch writes and limits the number of outstanding requests to the Bigtable
+     * server.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withFlowControl(boolean enableFlowControl) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setFlowControl(enableFlowControl).build())
+          .build();
+    }
+
     @VisibleForTesting
     Write withServiceFactory(BigtableServiceFactory factory) {
       return toBuilder().setServiceFactory(factory).build();
@@ -1142,12 +1161,13 @@ public class BigtableIO {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       checkForFailures();
+      KV<ByteString, Iterable<Mutation>> record = c.element();
       bigtableWriter
-          .writeRecord(c.element())
+          .writeRecord(record)
           .whenComplete(
               (mutationResult, exception) -> {
                 if (exception != null) {
-                  failures.add(new BigtableWriteException(c.element(), exception));
+                  failures.add(new BigtableWriteException(record, exception));
                 }
               });
       ++recordsWritten;
@@ -1175,7 +1195,7 @@ public class BigtableIO {
         bigtableWriter = null;
       }
       if (serviceEntry != null) {
-        factory.releaseService(serviceEntry);
+        serviceEntry.close();
         serviceEntry = null;
       }
     }
@@ -1545,7 +1565,7 @@ public class BigtableIO {
     @Override
     public BoundedReader<Row> createReader(PipelineOptions options) throws IOException {
       return new BigtableReader(
-          factory, this, factory.getServiceForReading(configId, config, readOptions, options));
+          this, factory.getServiceForReading(configId, config, readOptions, options));
     }
 
     @Override
@@ -1640,18 +1660,14 @@ public class BigtableIO {
     // inside a synchronized block (or constructor, which is the same).
     private BigtableSource source;
 
-    private final BigtableServiceFactory factory;
-
     // Assign serviceEntry at construction time and clear it in close().
     @Nullable private BigtableServiceEntry serviceEntry;
     private BigtableService.Reader reader;
     private final ByteKeyRangeTracker rangeTracker;
     private long recordsReturned;
 
-    public BigtableReader(
-        BigtableServiceFactory factory, BigtableSource source, BigtableServiceEntry service) {
+    public BigtableReader(BigtableSource source, BigtableServiceEntry service) {
       checkArgument(source.getRanges().size() == 1, "source must have exactly one key range");
-      this.factory = factory;
       this.source = source;
       this.serviceEntry = service;
       rangeTracker = ByteKeyRangeTracker.of(source.getRanges().get(0));
@@ -1701,7 +1717,7 @@ public class BigtableIO {
         reader = null;
       }
       if (serviceEntry != null) {
-        factory.releaseService(serviceEntry);
+        serviceEntry.close();
         serviceEntry = null;
       }
     }
@@ -1990,11 +2006,22 @@ public class BigtableIO {
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
 
-      return input
-          .apply(Impulse.create())
-          .apply("Initialize", ParDo.of(initializeDoFn))
-          .apply("DetectNewPartition", ParDo.of(detectNewPartitionsDoFn))
-          .apply("ReadChangeStreamPartition", ParDo.of(readChangeStreamPartitionDoFn));
+      PCollection<KV<ByteString, ChangeStreamMutation>> output =
+          input
+              .apply(Impulse.create())
+              .apply("Initialize", ParDo.of(initializeDoFn))
+              .apply("DetectNewPartition", ParDo.of(detectNewPartitionsDoFn))
+              .apply("ReadChangeStreamPartition", ParDo.of(readChangeStreamPartitionDoFn));
+
+      Coder<KV<ByteString, ChangeStreamMutation>> outputCoder = output.getCoder();
+      SizeEstimator<KV<ByteString, ChangeStreamMutation>> sizeEstimator =
+          new SizeEstimator<>(outputCoder);
+      BytesThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator =
+          new BytesThroughputEstimator<>(
+              ReadChangeStreamPartitionDoFn.THROUGHPUT_ESTIMATION_WINDOW_SECONDS, sizeEstimator);
+      readChangeStreamPartitionDoFn.setThroughputEstimator(throughputEstimator);
+
+      return output;
     }
 
     @AutoValue.Builder

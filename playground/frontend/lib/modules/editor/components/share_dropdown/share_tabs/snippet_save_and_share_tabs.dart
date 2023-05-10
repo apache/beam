@@ -27,6 +27,7 @@ import 'example_share_tabs.dart';
 /// then presents a shareable link.
 // TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
 class SnippetSaveAndShareTabs extends StatefulWidget {
+  final EventSnippetContext eventSnippetContext;
   final VoidCallback onError;
   final PlaygroundController playgroundController;
   final Sdk sdk;
@@ -34,6 +35,7 @@ class SnippetSaveAndShareTabs extends StatefulWidget {
 
   const SnippetSaveAndShareTabs({
     super.key,
+    required this.eventSnippetContext,
     required this.onError,
     required this.playgroundController,
     required this.sdk,
@@ -77,6 +79,7 @@ class _SnippetSaveAndShareTabsState extends State<SnippetSaveAndShareTabs> {
 
         return ExampleShareTabs(
           descriptor: descriptor,
+          eventSnippetContext: widget.eventSnippetContext,
           sdk: widget.sdk,
           tabController: widget.tabController,
         );

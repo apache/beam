@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.kryo;
 
 import com.esotericsoftware.kryo.Kryo;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
 
 /**
  * Interface to be implemented by clients to register their classes with {@link Kryo}.
@@ -27,7 +26,6 @@ import org.apache.beam.sdk.annotations.Experimental;
  * <p>{@link KryoRegistrar KryoRegistrars} implementations have to be stateless and {@link
  * Serializable}.
  */
-@Experimental
 public interface KryoRegistrar extends Serializable {
 
   /**

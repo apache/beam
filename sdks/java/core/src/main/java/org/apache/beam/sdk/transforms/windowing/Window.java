@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -247,7 +245,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * <p>Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation mode
    * using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> triggering(Trigger trigger) {
     return toBuilder().setTrigger(trigger).build();
   }
@@ -259,7 +256,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * <p>Does not modify this transform. The resulting {@code PTransform} is sufficiently specified
    * to be applied, but more properties can still be specified.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> discardingFiredPanes() {
     return toBuilder().setAccumulationMode(AccumulationMode.DISCARDING_FIRED_PANES).build();
   }
@@ -271,7 +267,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * <p>Does not modify this transform. The resulting {@code PTransform} is sufficiently specified
    * to be applied, but more properties can still be specified.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> accumulatingFiredPanes() {
     return toBuilder().setAccumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES).build();
   }
@@ -290,16 +285,14 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * <p>Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
    * {@link ClosingBehavior#FIRE_IF_NON_EMPTY} for more details.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> withAllowedLateness(Duration allowedLateness) {
     return toBuilder().setAllowedLateness(allowedLateness).build();
   }
 
   /**
-   * <b><i>(Experimental)</i></b> Override the default {@link TimestampCombiner}, to control the
-   * output timestamp of values output from a {@link GroupByKey} operation.
+   * Override the default {@link TimestampCombiner}, to control the output timestamp of values
+   * output from a {@link GroupByKey} operation.
    */
-  @Experimental(Kind.OUTPUT_TIME)
   public Window<T> withTimestampCombiner(TimestampCombiner timestampCombiner) {
     return toBuilder().setTimestampCombiner(timestampCombiner).build();
   }
@@ -314,16 +307,14 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * elements will be added to a window (because this duration has passed) any state associated with
    * the window will be cleaned up.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
     return toBuilder().setAllowedLateness(allowedLateness).setClosingBehavior(behavior).build();
   }
 
   /**
-   * <b><i>(Experimental)</i></b> Override the default {@link OnTimeBehavior}, to control whether to
-   * output an empty on-time pane.
+   * Override the default {@link OnTimeBehavior}, to control whether to output an empty on-time
+   * pane.
    */
-  @Experimental(Kind.TRIGGER)
   public Window<T> withOnTimeBehavior(OnTimeBehavior behavior) {
     return toBuilder().setOnTimeBehavior(behavior).build();
   }

@@ -18,5 +18,5 @@
 #
 
 resource "google_compute_global_address" "pg-ip" {
- name        = "pg-static-ip"
+ name        = var.ip_address_name
 }

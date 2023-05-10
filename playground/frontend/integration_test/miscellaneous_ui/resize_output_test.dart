@@ -40,8 +40,7 @@ Future<void> checkResizeOutput(WidgetTester wt) async {
   await _checkExcessivelyDragVertically(wt);
   await resetSplitViewRatio();
 
-  await wt.tap(find.byKey(const ValueKey(OutputPlacement.left)));
-  await wt.pumpAndSettle();
+  await wt.tapAndSettle(find.byKey(const ValueKey(OutputPlacement.left)));
 
   await _checkDragHorizontally(wt);
   await resetSplitViewRatio();

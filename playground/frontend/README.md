@@ -27,16 +27,6 @@ without having to install/initialize a Beam environment.
 
 ## Getting Started
 
-### Copy the configuration file
-
-After checkout, run:
-
-```bash
-cp playground/frontend/lib/config.example.dart playground/frontend/lib/config.g.dart
-```
-
-This is a temporarily required step. See more: https://github.com/apache/beam/issues/24200
-
 ### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.
@@ -56,6 +46,18 @@ flutter build web
 ```
 
 This produces `build/web` directory with static files. Deploy them to your web server.
+
+### Backend Lookup
+
+The file [playground_components/lib/src/constants/backend_urls.dart](playground_components/lib/src/constants/backend_urls.dart)
+is the location for backend-related constants.
+
+If the `backendUrlOverrides` map contains a URL for a server then only it will be attempted
+for the given container. This is useful for running backend locally.
+
+Otherwise following patterns are tried when looking up the backend servers:
+1. Prepending the frontend host with `router.`, `go.`, `java.`, `python.`, `scio.`.
+2. Prepending the the default production frontend URL with the same.
 
 ### Docker
 
@@ -160,9 +162,6 @@ flutter test
 ```
 
 ### Integration Tests
-
-Integration tests currently can be run only on a local development machine.
-Server testing has not been verified yet.
 
 1. Install Google Chrome: https://www.google.com/chrome/
 2. Install Chrome Driver: https://chromedriver.chromium.org/downloads

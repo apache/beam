@@ -20,6 +20,7 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job runs the Java sickbay tests.
+this.buildSchedule = 'H H * * *'
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Sickbay',
     'Run Java Sickbay', 'Java Sickbay Tests', this) {
 

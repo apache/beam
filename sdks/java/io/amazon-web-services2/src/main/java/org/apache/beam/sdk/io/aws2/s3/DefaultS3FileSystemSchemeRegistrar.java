@@ -21,15 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Registers the "s3" uri schema to be handled by {@link S3FileSystem}. */
 @AutoService(S3FileSystemSchemeRegistrar.class)
-@Experimental(Kind.FILESYSTEM)
 public class DefaultS3FileSystemSchemeRegistrar implements S3FileSystemSchemeRegistrar {
 
   @Override

@@ -20,7 +20,7 @@
  * Provides interfaces for defining user-defined functions in Beam SQL.
  *
  * <p>The contents of this package are <strong>experimental</strong>. (They are not marked
- * {@code @Experimental} as usual because that would require a dependency on the {@code
+ * {@code  as usual because that would require a dependency on the {@code
  * :sdks:java:core} module, which we want to avoid.)
  */
 package org.apache.beam.sdk.extensions.sql.udf;

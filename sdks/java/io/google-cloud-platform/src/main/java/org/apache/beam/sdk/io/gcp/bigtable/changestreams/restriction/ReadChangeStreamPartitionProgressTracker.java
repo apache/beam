@@ -81,7 +81,8 @@ public class ReadChangeStreamPartitionProgressTracker
    */
   @Override
   public void checkDone() throws java.lang.IllegalStateException {
-    boolean done = shouldStop || streamProgress.getCloseStream() != null;
+    boolean done =
+        shouldStop || streamProgress.getCloseStream() != null || streamProgress.isFailToLock();
     Preconditions.checkState(done, "There's more work to be done");
   }
 
