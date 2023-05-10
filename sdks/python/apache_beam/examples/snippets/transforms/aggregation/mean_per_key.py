@@ -18,21 +18,19 @@
 
 # pytype: skip-file
 
-
-def mean_globally(test=None):
-  # [START mean_globally]
-  import apache_beam as beam
-
-  with beam.Pipeline() as pipeline:
-    mean_element = (
-        pipeline
-        | 'Create numbers' >> beam.Create([3, 4, 1, 2])
-        | 'Get mean value' >> beam.combiners.Mean.Globally()
-        | beam.Map(print))
-    # [END mean_globally]
-    if test:
-      test(mean_element)
-
+# beam-playground:
+#   name: MeanPerKey
+#   description: Demonstration of Mean transform usage per key.
+#   multifile: false
+#   default_example: false
+#   context_line: 36
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - numbers
+#     - pairs
 
 def mean_per_key(test=None):
   # [START mean_per_key]
@@ -54,3 +52,7 @@ def mean_per_key(test=None):
     # [END mean_per_key]
     if test:
       test(elements_with_mean_value_per_key)
+
+
+if __name__ == '__main__':
+  mean_per_key()
