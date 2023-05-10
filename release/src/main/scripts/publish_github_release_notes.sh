@@ -41,8 +41,7 @@ REQUEST_JSON="$(cat <<-EOF
 {
   "tag_name": "v${RELEASE_VER}",
   "name": "Beam ${RELEASE_VER} release",
-  "body": ${ESCAPED_NOTES},
-  "generate_release_notes": true
+  "body": ${ESCAPED_NOTES}
 }
 EOF
 )"
