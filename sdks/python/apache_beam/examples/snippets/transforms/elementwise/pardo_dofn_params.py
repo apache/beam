@@ -18,32 +18,18 @@
 
 # pytype: skip-file
 
-
-def pardo_dofn(test=None):
-  # [START pardo_dofn]
-  import apache_beam as beam
-
-  class SplitWords(beam.DoFn):
-    def __init__(self, delimiter=','):
-      self.delimiter = delimiter
-
-    def process(self, text):
-      for word in text.split(self.delimiter):
-        yield word
-
-  with beam.Pipeline() as pipeline:
-    plants = (
-        pipeline
-        | 'Gardening plants' >> beam.Create([
-            '🍓Strawberry,🥕Carrot,🍆Eggplant',
-            '🍅Tomato,🥔Potato',
-        ])
-        | 'Split words' >> beam.ParDo(SplitWords(','))
-        | beam.Map(print))
-    # [END pardo_dofn]
-    if test:
-      test(plants)
-
+# beam-playground:
+#   name: ParDoDoFnParams
+#   description: Demonstration of ParDo transform usage with a DoFn with parameters.
+#   multifile: false
+#   default_example: false
+#   context_line: 37
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
 
 def pardo_dofn_params(test=None):
   # pylint: disable=line-too-long
@@ -89,41 +75,5 @@ def pardo_dofn_params(test=None):
       test(dofn_params)
 
 
-def pardo_dofn_methods(test=None):
-  # [START pardo_dofn_methods]
-  import apache_beam as beam
-
-  class DoFnMethods(beam.DoFn):
-    def __init__(self):
-      print('__init__')
-      self.window = beam.transforms.window.GlobalWindow()
-
-    def setup(self):
-      print('setup')
-
-    def start_bundle(self):
-      print('start_bundle')
-
-    def process(self, element, window=beam.DoFn.WindowParam):
-      self.window = window
-      yield '* process: ' + element
-
-    def finish_bundle(self):
-      yield beam.utils.windowed_value.WindowedValue(
-          value='* finish_bundle: 🌱🌳🌍',
-          timestamp=0,
-          windows=[self.window],
-      )
-
-    def teardown(self):
-      print('teardown')
-
-  with beam.Pipeline() as pipeline:
-    results = (
-        pipeline
-        | 'Create inputs' >> beam.Create(['🍓', '🥕', '🍆', '🍅', '🥔'])
-        | 'DoFn methods' >> beam.ParDo(DoFnMethods())
-        | beam.Map(print))
-    # [END pardo_dofn_methods]
-    if test:
-      return test(results)
+if __name__ == '__main__':
+  pardo_dofn_params()
