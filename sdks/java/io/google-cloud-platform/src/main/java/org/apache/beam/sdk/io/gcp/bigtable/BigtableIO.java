@@ -247,6 +247,13 @@ import org.slf4j.LoggerFactory;
  *            .withStartTime(startTime));
  * }</pre>
  *
+ * <h3>Enable client side metrics</h3>
+ *
+ * <p>Client side metrics can be enabled with an experiments flag when you run the pipeline:
+ * --experiments=bigtable_enable_client_side_metrics. These metrics can provide additional insights
+ * to your job. You can read more about client side metrics in this documentation:
+ * https://cloud.google.com/bigtable/docs/client-side-metrics.
+ *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
