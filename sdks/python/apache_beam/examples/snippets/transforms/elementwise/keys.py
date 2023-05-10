@@ -18,6 +18,18 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: Keys
+#   description: Demonstration of Keys transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 36
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - pairs
 
 def keys(test=None):
   # [START keys]
