@@ -22,7 +22,7 @@ LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
 ARG pip_extra_options
-ENV PIP_EXTRA_OPTIONS "${pip}"
+ENV PIP_EXTRA_OPTIONS "${pip_extra_options}"
 
 # Install native bindings required for dependencies.
 RUN apt-get update && \
