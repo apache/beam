@@ -18,4 +18,36 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: MapSimple
+#   description: Demonstration of Map transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 37
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
+#     - map
 
+def map_simple(test=None):
+  # [START map_simple]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    plants = (
+        pipeline
+        | 'Gardening plants' >> beam.Create([
+            '   🍓Strawberry   \n',
+            '   🥕Carrot   \n',
+            '   🍆Eggplant   \n',
+            '   🍅Tomato   \n',
+            '   🥔Potato   \n',
+        ])
+        | 'Strip' >> beam.Map(str.strip)
+        | beam.Map(print))
+    # [END map_simple]
+    if test:
+      test(plants)

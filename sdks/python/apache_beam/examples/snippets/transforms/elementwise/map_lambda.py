@@ -18,4 +18,36 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: MapLambda
+#   description: Demonstration of Map transform usage with a lambda function.
+#   multifile: false
+#   default_example: false
+#   context_line: 37
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
+#     - map
 
+def map_lambda(test=None):
+  # [START map_lambda]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    plants = (
+        pipeline
+        | 'Gardening plants' >> beam.Create([
+            '# 🍓Strawberry\n',
+            '# 🥕Carrot\n',
+            '# 🍆Eggplant\n',
+            '# 🍅Tomato\n',
+            '# 🥔Potato\n',
+        ])
+        | 'Strip header' >> beam.Map(lambda text: text.strip('# \n'))
+        | beam.Map(print))
+    # [END map_lambda]
+    if test:
+      test(plants)
