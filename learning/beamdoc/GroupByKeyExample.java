@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -34,7 +32,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of GroupByKey transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 48
+//   context_line: 46
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
