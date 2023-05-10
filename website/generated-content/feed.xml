@@ -1,4 +1,123 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.46.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.47.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.47.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.47.0, check out the &lt;a href="https://github.com/apache/beam/milestone/10">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Apache Beam adds Python 3.11 support (&lt;a href="https://github.com/apache/beam/issues/23848">#23848&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Support for X source added (Java/Python) (&lt;a href="https://github.com/apache/beam/issues/X">#X&lt;/a>).&lt;/li>
+&lt;li>BigQuery Storage Write API is now available in Python SDK via cross-language (&lt;a href="https://github.com/apache/beam/issues/21961">#21961&lt;/a>).&lt;/li>
+&lt;li>Added HbaseIO support for writing RowMutations (ordered by rowkey) to Hbase (Java) (&lt;a href="https://github.com/apache/beam/issues/25830">#25830&lt;/a>).&lt;/li>
+&lt;li>Added fileio transforms MatchFiles, MatchAll and ReadMatches (Go) (&lt;a href="https://github.com/apache/beam/issues/25779">#25779&lt;/a>).&lt;/li>
+&lt;li>Add integration test for JmsIO + fix issue with multiple connections (Java) (&lt;a href="https://github.com/apache/beam/issues/25887">#25887&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>The Flink runner now supports Flink 1.16.x (&lt;a href="https://github.com/apache/beam/issues/25046">#25046&lt;/a>).&lt;/li>
+&lt;li>Schema&amp;rsquo;d PTransforms can now be directly applied to Beam dataframes just like PCollections.
+(Note that when doing multiple operations, it may be more efficient to explicitly chain the operations
+like &lt;code>df | (Transform1 | Transform2 | ...)&lt;/code> to avoid excessive conversions.)&lt;/li>
+&lt;li>The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
+for slowly updating side input patterns. (&lt;a href="https://github.com/apache/beam/issues/23106">#23106&lt;/a>)&lt;/li>
+&lt;li>Python SDK now requires &lt;code>protobuf&amp;gt;=4.21.1,&amp;lt;4.23.0&lt;/code> and no longer supports protobuf 3.x. (&lt;a href="https://github.com/apache/beam/pull/24599">#24599&lt;/a>)&lt;/li>
+&lt;li>Several Google client libraries in Python SDK dependency chain were updated to latest available major versions. (&lt;a href="https://github.com/apache/beam/pull/24599">#24599&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>If a main session fails to load, the pipeline will now fail at worker startup. (&lt;a href="https://github.com/apache/beam/issues/25401">#25401&lt;/a>).&lt;/li>
+&lt;li>Python pipeline options will now ignore unparsed command line flags prefixed with a single dash. (&lt;a href="https://github.com/apache/beam/issues/25943">#25943&lt;/a>).&lt;/li>
+&lt;li>The SmallestPerKey combiner now requires keyword-only arguments for specifying optional parameters, such as &lt;code>key&lt;/code> and &lt;code>reverse&lt;/code>. (&lt;a href="https://github.com/apache/beam/issues/25888">#25888&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>Cloud Debugger support and its pipeline options are deprecated and will be removed in the next Beam version,
+in response to the Google Cloud Debugger service &lt;a href="https://cloud.google.com/debugger/docs/deprecations">turning down&lt;/a>.
+(Java) (&lt;a href="https://github.com/apache/beam/issues/25959">#25959&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.46.0 (inclusive). For more details see: &lt;a href="https://github.com/apache/beam/issues/26521">https://github.com/apache/beam/issues/26521&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.47.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Amir Fayazi&lt;/p>
+&lt;p>Amrane Ait Zeouay&lt;/p>
+&lt;p>Anand Inguva&lt;/p>
+&lt;p>Andrew Pilloud&lt;/p>
+&lt;p>Andrey Kot&lt;/p>
+&lt;p>Bjorn Pedersen&lt;/p>
+&lt;p>Bruno Volpato&lt;/p>
+&lt;p>Buqian Zheng&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>ChangyuLi28&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Dmitry Repin&lt;/p>
+&lt;p>George Ma&lt;/p>
+&lt;p>Jack Dingilian&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jasper Van den Bossche&lt;/p>
+&lt;p>Jeremy Edwards&lt;/p>
+&lt;p>Jiangjie (Becket) Qin&lt;/p>
+&lt;p>Johanna Öjeling&lt;/p>
+&lt;p>Juta Staes&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Kyle Weaver&lt;/p>
+&lt;p>Mattie Fu&lt;/p>
+&lt;p>Moritz Mack&lt;/p>
+&lt;p>Nick Li&lt;/p>
+&lt;p>Oleh Borysevych&lt;/p>
+&lt;p>Pablo Estrada&lt;/p>
+&lt;p>Rebecca Szper&lt;/p>
+&lt;p>Reuven Lax&lt;/p>
+&lt;p>Reza Rokni&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Saadat Su&lt;/p>
+&lt;p>Saifuddin53&lt;/p>
+&lt;p>Sam Rohde&lt;/p>
+&lt;p>Shubham Krishna&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>Theodore Ni&lt;/p>
+&lt;p>Thomas Gaddy&lt;/p>
+&lt;p>Timur Sultanov&lt;/p>
+&lt;p>Udi Meiri&lt;/p>
+&lt;p>Valentyn Tymofieiev&lt;/p>
+&lt;p>Xinyu Liu&lt;/p>
+&lt;p>Yanan Hao&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>Yuvi Panda&lt;/p>
+&lt;p>andres-vv&lt;/p>
+&lt;p>bochap&lt;/p>
+&lt;p>dannikay&lt;/p>
+&lt;p>darshan-sj&lt;/p>
+&lt;p>dependabot[bot]&lt;/p>
+&lt;p>harrisonlimh&lt;/p>
+&lt;p>hnnsgstfssn&lt;/p>
+&lt;p>jrmccluskey&lt;/p>
+&lt;p>liferoad&lt;/p>
+&lt;p>tvalentyn&lt;/p>
+&lt;p>xianhualiu&lt;/p>
+&lt;p>zhangskz&lt;/p></description><link>/blog/beam-2.47.0/</link><pubDate>Wed, 10 May 2023 12:00:00 -0500</pubDate><guid>/blog/beam-2.47.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.46.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -983,115 +1102,4 @@ nothing, just your favourite web browser.&lt;/p>
 &lt;p>If you followed the instructions in this post, head over to the post &lt;a href="/blog/apache-hop-with-dataflow/">Running
 Apache Hop visual pipelines with Google Cloud
 Dataflow&lt;/a> to run a
-Dataflow pipeline right from your web browser!&lt;/p></description><link>/blog/hop-web-cloud/</link><pubDate>Sat, 15 Oct 2022 00:00:01 -0800</pubDate><guid>/blog/hop-web-cloud/</guid><category>blog</category></item><item><title>Apache Beam 2.41.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.41.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2410-2022-08-23">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.41.0, check out the &lt;a href="https://github.com/apache/beam/milestone/3?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Projection Pushdown optimizer is now on by default for streaming, matching the behavior of batch pipelines since 2.38.0. If you encounter a bug with the optimizer, please file an issue and disable the optimizer using pipeline option &lt;code>--experiments=disable_projection_pushdown&lt;/code>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Previously available in Java sdk, Python sdk now also supports logging level overrides per module. (&lt;a href="https://github.com/apache/beam/issues/18222">#18222&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>Projection Pushdown optimizer may break Dataflow upgrade compatibility for optimized pipelines when it removes unused fields. If you need to upgrade and encounter a compatibility issue, disable the optimizer using pipeline option &lt;code>--experiments=disable_projection_pushdown&lt;/code>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="deprecations">Deprecations&lt;/h2>
-&lt;ul>
-&lt;li>Support for Spark 2.4.x is deprecated and will be dropped with the release of Beam 2.44.0 or soon after (Spark runner) (&lt;a href="https://github.com/apache/beam/issues/22094">#22094&lt;/a>).&lt;/li>
-&lt;li>The modules &lt;a href="https://github.com/apache/beam/tree/master/sdks/java/io/amazon-web-services">amazon-web-services&lt;/a> and
-&lt;a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">kinesis&lt;/a> for AWS Java SDK v1 are deprecated
-in favor of &lt;a href="https://github.com/apache/beam/tree/master/sdks/java/io/amazon-web-services2">amazon-web-services2&lt;/a>
-and will be eventually removed after a few Beam releases (Java) (&lt;a href="https://github.com/apache/beam/issues/21249">#21249&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed a condition where retrying queries would yield an incorrect cursor in the Java SDK Firestore Connector (&lt;a href="https://github.com/apache/beam/issues/22089">#22089&lt;/a>).&lt;/li>
-&lt;li>Fixed plumbing allowed lateness in Go SDK. It was ignoring the user set value earlier and always used to set to 0. (&lt;a href="https://github.com/apache/beam/issues/22474">#22474&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>See a full list of open &lt;a href="https://github.com/apache/beam/milestone/3">issues that affect&lt;/a> this version.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.41.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud
-Ahmet Altay
-akashorabek
-Alexey Inkin
-Alexey Romanenko
-Anand Inguva
-andoni-guzman
-Andrew Pilloud
-Andrey
-Andy Ye
-Balázs Németh
-Benjamin Gonzalez
-BjornPrime
-Brian Hulette
-bulat safiullin
-bullet03
-Byron Ellis
-Chamikara Jayalath
-Damon Douglas
-Daniel Oliveira
-Daniel Thevessen
-Danny McCormick
-David Huntsperger
-Dheeraj Gharde
-Etienne Chauchot
-Evan Galpin
-Fernando Morales
-Heejong Lee
-Jack McCluskey
-johnjcasey
-Kenneth Knowles
-Ke Wu
-Kiley Sok
-Liam Miller-Cushon
-Lucas Nogueira
-Luke Cwik
-MakarkinSAkvelon
-Manu Zhang
-Minbo Bae
-Moritz Mack
-Naireen Hussain
-Ning Kang
-Oleh Borysevych
-Pablo Estrada
-pablo rodriguez defino
-Pranav Bhandari
-Rebecca Szper
-Red Daly
-Reuven Lax
-Ritesh Ghorse
-Robert Bradshaw
-Robert Burke
-Ryan Thompson
-Sam Whittle
-Steven Niemitz
-Valentyn Tymofieiev
-Vincent Marquez
-Vitaly Terentyev
-Vlad
-Vladislav Chunikhin
-Yichi Zhang
-Yi Hu
-yirutang
-Yixiao Shen
-Yu Feng&lt;/p></description><link>/blog/beam-2.41.0/</link><pubDate>Tue, 23 Aug 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.41.0/</guid><category>blog</category><category>release</category></item></channel></rss>
+Dataflow pipeline right from your web browser!&lt;/p></description><link>/blog/hop-web-cloud/</link><pubDate>Sat, 15 Oct 2022 00:00:01 -0800</pubDate><guid>/blog/hop-web-cloud/</guid><category>blog</category></item></channel></rss>
