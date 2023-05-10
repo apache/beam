@@ -30,7 +30,6 @@ import numpy
 import pytest
 
 import apache_beam as beam
-from apache_beam.ml.inference import tensorflow_inference
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
@@ -41,6 +40,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
+  from apache_beam.ml.inference import tensorflow_inference
   from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy
   from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
 except ImportError:
