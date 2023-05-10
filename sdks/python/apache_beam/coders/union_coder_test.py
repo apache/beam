@@ -17,12 +17,13 @@
 # pytype: skip-file
 
 import logging
-import pytest
 import unittest
 
+import pytest
+
 from apache_beam.coders import coders
-from apache_beam.coders.union_coder import UnionCoder
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.coders.union_coder import UnionCoder
 
 
 class AvroTestCoder(coders.AvroGenericCoder):

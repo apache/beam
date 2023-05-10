@@ -19,7 +19,9 @@
 
 import struct
 
-from typing import Iterable, List, Tuple
+from typing import Iterable
+from typing import List
+from typing import Tuple
 
 from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder
