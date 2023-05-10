@@ -36,6 +36,17 @@ _PEOPLE_DN = "ou=people,dc=apache,dc=org"
 _BEAM_DN = "cn=beam,ou=project,ou=groups,dc=apache,dc=org"
 _GITHUB_USERNAME_ATTR = "githubUsername"
 _DEFAULT_LDAP_URIS = "ldaps://ldap-us.apache.org:636 ldaps://ldap-eu.apache.org:636"
+LDAP_CONF = "/etc/ldap.conf"  # P6 LDAP configuration file
+
+
+def ldap_creds_from_sys():
+    config = {}
+    for line in open(LDAP_CONF, "r").readlines():
+        if line and not line.strip().startswith("#"):
+            elements = line.strip().split(maxsplit=1)
+            if len(elements) == 2:
+                config[elements[0]] = elements[1]
+    return config["BINDDN"], config["BINDPW"]
 
 
 def generate_groovy(output_dir, ldap_uris):
@@ -63,6 +74,8 @@ def get_committers_github_usernames(ldap_uris):
         ldap.set_option(ldap.OPT_X_TLS_DEMAND, True)
         ldap.set_option(ldap.OPT_REFERRALS, 0)
         connection = ldap.initialize(ldap_uris)
+        ldap_user, ldap_password = ldap_creds_from_sys()
+        connection.simple_bind_s(ldap_user, ldap_password)
 
         people = connection.search_s(
             _PEOPLE_DN,
