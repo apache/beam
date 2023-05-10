@@ -34,6 +34,9 @@ try:
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
+from . import runinference_sklearn_keyed_model_handler
+from . import runinference_sklearn_unkeyed_model_handler
+
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
@@ -83,15 +86,18 @@ PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dt
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.runinference.print',
+    'apache_beam.examples.snippets.transforms.elementwise.runinference_sklearn_unkeyed_model_handler.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.runinference_sklearn_keyed_model_handler.print',
     str)
 class RunInferenceTest(unittest.TestCase):
   def test_sklearn_unkeyed_model_handler(self):
-    runinference.sklearn_unkeyed_model_handler(
+    runinference_sklearn_unkeyed_model_handler.sklearn_unkeyed_model_handler(
         check_sklearn_unkeyed_model_handler)
 
   def test_sklearn_keyed_model_handler(self):
-    runinference.sklearn_keyed_model_handler(check_sklearn_keyed_model_handler)
+    runinference_sklearn_keyed_model_handler.sklearn_keyed_model_handler(check_sklearn_keyed_model_handler)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
