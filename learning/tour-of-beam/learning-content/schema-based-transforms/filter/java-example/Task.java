@@ -140,7 +140,7 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> input = getProgressPCollection(pipeline);
+        PCollection<User> input = getProgressPCollection(pipeline).setCoder(CustomCoder.of());
 
         Schema type = Schema.builder()
                 .addStringField("userId")
