@@ -18,6 +18,19 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: SampleFixedSizeGlobally
+#   description: Demonstration of Sample transform usage with fixed size.
+#   multifile: false
+#   default_example: false
+#   context_line: 37
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - pairs
+#     - group
 
 def sample_fixed_size_globally(test=None):
   # [START sample_fixed_size_globally]
@@ -40,27 +53,5 @@ def sample_fixed_size_globally(test=None):
       test(sample)
 
 
-def sample_fixed_size_per_key(test=None):
-  # [START sample_fixed_size_per_key]
-  import apache_beam as beam
-
-  with beam.Pipeline() as pipeline:
-    samples_per_key = (
-        pipeline
-        | 'Create produce' >> beam.Create([
-            ('spring', '🍓'),
-            ('spring', '🥕'),
-            ('spring', '🍆'),
-            ('spring', '🍅'),
-            ('summer', '🥕'),
-            ('summer', '🍅'),
-            ('summer', '🌽'),
-            ('fall', '🥕'),
-            ('fall', '🍅'),
-            ('winter', '🍆'),
-        ])
-        | 'Samples per key' >> beam.combiners.Sample.FixedSizePerKey(3)
-        | beam.Map(print))
-    # [END sample_fixed_size_per_key]
-    if test:
-      test(samples_per_key)
+if __name__ == '__main__':
+  sample_fixed_size_globally()
