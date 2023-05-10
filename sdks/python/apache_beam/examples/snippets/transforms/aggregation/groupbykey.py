@@ -18,6 +18,20 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: GroupByKey
+#   description: Demonstration of GroupByKey transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 38
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
+#     - pairs
+#     - group
 
 def groupbykey(test=None):
   # [START groupbykey]
@@ -44,3 +58,7 @@ def groupbykey(test=None):
     # [END groupbykey]
     if test:
       test(produce_counts)
+
+
+if __name__ == '__main__':
+  groupbykey()
