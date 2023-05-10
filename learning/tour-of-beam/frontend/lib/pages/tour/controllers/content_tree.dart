@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
@@ -114,6 +115,43 @@ class ContentTreeController extends ChangeNotifier {
     );
 
     notifyListeners();
+  }
+
+  bool hasPreviousUnit() {
+    return _getCurrentUnitIndex() > 0;
+  }
+
+  bool hasNextUnit() {
+    return _getCurrentUnitIndex() <
+        _contentTreeCache.getContentTree(sdk)!.units.length - 1;
+  }
+
+  void openPreviousUnit() {
+    final contentTree = _contentTreeCache.getContentTree(sdk);
+    final previousUnit = contentTree?.units[_getCurrentUnitIndex() - 1];
+    if (previousUnit != null) {
+      _navigateToUnit(previousUnit);
+    }
+  }
+
+  void openNextUnit() {
+    final contentTree = _contentTreeCache.getContentTree(sdk);
+    final nextUnit = contentTree?.units[_getCurrentUnitIndex() + 1];
+    if (nextUnit != null) {
+      _navigateToUnit(nextUnit);
+    }
+  }
+
+  int _getCurrentUnitIndex() {
+    final contentTree = _contentTreeCache.getContentTree(sdk);
+    return contentTree!.units.indexWhere(
+      (element) => element.id == _currentNode?.id,
+    );
+  }
+
+  void _navigateToUnit(UnitModel unit) {
+    onNodePressed(unit);
+    _expandedIds.addAll(_treeIds);
   }
 
   @override

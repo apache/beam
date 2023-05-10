@@ -289,7 +289,19 @@ class _ContentFooter extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          ElevatedButton(
+            onPressed: tourNotifier.contentTreeController.hasPreviousUnit()
+                ? tourNotifier.contentTreeController.openPreviousUnit
+                : null,
+            child: const Text('Previous'),
+          ),
           CompleteUnitButton(tourNotifier),
+          ElevatedButton(
+            onPressed: tourNotifier.contentTreeController.hasNextUnit()
+                ? tourNotifier.contentTreeController.openNextUnit
+                : null,
+            child: const Text('Next'),
+          ),
         ],
       ),
     );
