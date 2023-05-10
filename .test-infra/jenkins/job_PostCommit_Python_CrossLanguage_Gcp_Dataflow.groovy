@@ -32,7 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Dataflow',
 
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 150)
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
 
       // Publish all test results to Jenkins
@@ -42,15 +42,13 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Dataflow',
 
 
       // Gradle goals for this job.
+
       steps {
-        CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
-          shell("echo \"Running cross language GCP IO tests with Python ${pythonVersion} on DataflowRunner.\"")
-          gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":sdks:python:test-suites:dataflow:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
-            commonJobProperties.setGradleSwitches(delegate)
-            switches("-PuseWheelDistribution")
-          }
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(":sdks:python:test-suites:dataflow:gcpCrossLanguagePostCommit")
+          commonJobProperties.setGradleSwitches(delegate)
+          switches("-PuseWheelDistribution")
         }
       }
     }

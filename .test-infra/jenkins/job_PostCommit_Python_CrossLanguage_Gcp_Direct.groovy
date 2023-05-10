@@ -30,27 +30,21 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Direct',
     'Run Python_Xlang_Gcp_Direct PostCommit', 'Python_Xlang_Gcp_Direct (\"Run Python_Xlang_Gcp_Direct PostCommit\")', this) {
       description('Runs end-to-end cross language GCP IO tests on the Direct runner.')
 
-
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
-
 
       // Publish all test results to Jenkins
       publishers {
         archiveJunit('**/pytest*.xml')
       }
 
-
       // Gradle goals for this job.
       steps {
-        CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
-          shell("echo \"Running cross language GCP IO tests with Python ${pythonVersion} on DirectRunner.\"")
-          gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":sdks:python:test-suites:direct:py${pythonVersion.replace('.', '')}:gcpCrossLanguagePythonUsingJava")
-            commonJobProperties.setGradleSwitches(delegate)
-            switches("-PuseWheelDistribution")
-          }
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(":sdks:python:test-suites:direct:gcpCrossLanguagePostCommit")
+          commonJobProperties.setGradleSwitches(delegate)
+          switches("-PuseWheelDistribution")
         }
       }
     }

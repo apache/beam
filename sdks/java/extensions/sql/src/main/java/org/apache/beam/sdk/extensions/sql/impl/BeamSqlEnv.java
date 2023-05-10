@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
@@ -55,7 +54,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
  * query/validate/optimize/translate SQL statements.
  */
 @Internal
-@Experimental
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

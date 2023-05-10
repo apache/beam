@@ -69,8 +69,6 @@ LOGENTRY_TO_LOG_LEVEL_MAP = {
     beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
 }
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 
 class FnApiLogRecordHandler(logging.Handler):
   """A handler that writes log records to the fn API."""
