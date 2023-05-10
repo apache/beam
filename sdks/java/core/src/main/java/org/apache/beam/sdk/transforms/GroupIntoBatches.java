@@ -410,8 +410,6 @@ public class GroupIntoBatches<K, InputT>
     @StateId(MIN_BUFFERED_TS)
     private final StateSpec<CombiningState<Long, long[], Long>> minBufferedTsSpec;
 
-    private final long prefetchFrequency;
-
     GroupIntoBatchesDoFn(
         long batchSize,
         long batchSizeBytes,
@@ -456,9 +454,6 @@ public class GroupIntoBatches<K, InputT>
       this.batchSizeBytesSpec = StateSpecs.combining(sumCombineFn);
       this.timerTsSpec = StateSpecs.value();
       this.minBufferedTsSpec = StateSpecs.combining(minCombineFn);
-
-      // Prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
-      this.prefetchFrequency = ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
     }
 
     @Override
@@ -559,11 +554,6 @@ public class GroupIntoBatches<K, InputT>
           Instant windowEnd = window.maxTimestamp().plus(allowedLateness);
           holdTimer.withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read())).set(windowEnd);
         }
-      }
-
-      if (num % prefetchFrequency == 0) {
-        // Prefetch data and modify batch state (readLater() modifies this)
-        batch.readLater();
       }
 
       if (num >= batchSize
