@@ -21,6 +21,8 @@ FROM python:"${py_version}"-bullseye as beam
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
+ARG pip_extra_options
+ENV PIP_EXTRA_OPTIONS "${pip}"
 
 # Install native bindings required for dependencies.
 RUN apt-get update && \
@@ -41,7 +43,7 @@ RUN apt-get update && \
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install --no-deps -r /tmp/base_image_requirements.txt && \
+    pip install "${pip_extra_options}" --no-deps -r /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
     # Check that the protobuf upb(also called micro protobuf) is used.
@@ -72,7 +74,7 @@ RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=fa
 # necessary dependencies are specified in base_image_requirements.txt.
 ####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+RUN pip install "${pip_extra_options}" --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
 RUN pip check || (echo "Container does not include required Beam dependencies or has conflicting dependencies. If Beam dependencies have changed, you need to regenerate base_image_requirements.txt files. See: https://s.apache.org/beam-python-requirements-generate" && exit 1)
 # Log complete list of what exact packages and versions are installed.
 RUN pip freeze --all

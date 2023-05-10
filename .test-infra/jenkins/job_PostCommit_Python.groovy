@@ -43,6 +43,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
             tasks(":python${versionSuffix}PostCommit")
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PuseWheelDistribution")
+            switches("-PtestRCDependencies=true")
           }
         }
       }

@@ -128,6 +128,10 @@ task preCommitIT_V2{
 
 task postCommitIT {
   dependsOn 'initializeForDataflowJob'
+  
+  if project.hasProperty('testRCDependencies') {
+    dependsOn ':runners:google-cloud-dataflow-java:buildAndPushDockerPythonContainer'
+  }
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
@@ -141,6 +145,25 @@ task postCommitIT {
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+afterEvaluate {
+  // Ensure all tasks which use published docker images run before they are cleaned up
+  tasks.each { t ->
+    if (t.dependsOn.contains()) {
+        t.finalizedBy ':runners:google-cloud-dataflow-java:cleanUpDockerImages'
+    }
+  }
+}
+
+
+afterEvaluate {
+  // Ensure all tasks which use published docker images run before they are cleaned up
+  tasks.each { t ->
+    if (t.dependsOn.contains(":runners:google-cloud-dataflow-java:buildAndPushDockerPythonContainer")) {
+      t.finalizedBy cleanUpDockerPythonImages
     }
   }
 }

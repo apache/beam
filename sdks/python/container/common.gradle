@@ -76,8 +76,10 @@ docker {
                   project.rootProject["docker-tag"] : project.sdk_version)
   // tags used by dockerTag task
   tags containerImageTags()
+  def pipExtraOptions = project.rootProject.hasProperty(["testRCDependencies"]) ? "--pre" : ""
   files "../Dockerfile", "./build"
   buildArgs(['py_version': "${project.ext.pythonVersion}",
+             'pip_extra_options': "${pipExtraOptions}"
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
   buildx project.containerPlatforms() != [project.nativeArchitecture()]
