@@ -101,6 +101,11 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
                     + "this issue.",
                 totalSecondsWaited,
                 Thread.currentThread().getName());
+          } else if (totalSecondsWaited > 60) {
+            LOG.warn(
+                "Output channel stalled for {}s, outbound thread {}.",
+                totalSecondsWaited,
+                Thread.currentThread().getName());
           } else {
             LOG.debug(
                 "Output channel stalled for {}s, outbound thread {}.",

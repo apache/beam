@@ -32,23 +32,43 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ForwardingClientResponseObserverTest {
   @Test
-  public void testCallsAreForwardedAndOnReadyHandlerBound() {
+  public void testCallsAreForwardedAndOnReadyHandlerBoundSuccess() {
     @SuppressWarnings("unchecked")
     StreamObserver<Object> delegateObserver = mock(StreamObserver.class);
     @SuppressWarnings("unchecked")
     ClientCallStreamObserver<Object> callStreamObserver = mock(ClientCallStreamObserver.class);
     Runnable onReadyHandler = () -> {};
+    Runnable onDoneHandler = mock(Runnable.class);
     ClientResponseObserver<Object, Object> observer =
-        new ForwardingClientResponseObserver<>(delegateObserver, onReadyHandler);
+        new ForwardingClientResponseObserver<>(delegateObserver, onReadyHandler, onDoneHandler);
     observer.onNext("A");
     verify(delegateObserver).onNext("A");
-    Throwable t = new RuntimeException();
-    observer.onError(t);
-    verify(delegateObserver).onError(t);
     observer.onCompleted();
     verify(delegateObserver).onCompleted();
     observer.beforeStart(callStreamObserver);
     verify(callStreamObserver).setOnReadyHandler(onReadyHandler);
     verifyNoMoreInteractions(delegateObserver, callStreamObserver);
+    verify(onDoneHandler).run();
+  }
+
+  @Test
+  public void testCallsAreForwardedAndOnReadyHandlerBoundError() {
+    @SuppressWarnings("unchecked")
+    StreamObserver<Object> delegateObserver = mock(StreamObserver.class);
+    @SuppressWarnings("unchecked")
+    ClientCallStreamObserver<Object> callStreamObserver = mock(ClientCallStreamObserver.class);
+    Runnable onReadyHandler = () -> {};
+    Runnable onDoneHandler = mock(Runnable.class);
+    ClientResponseObserver<Object, Object> observer =
+        new ForwardingClientResponseObserver<>(delegateObserver, onReadyHandler, onDoneHandler);
+    observer.onNext("A");
+    verify(delegateObserver).onNext("A");
+    Throwable t = new RuntimeException();
+    observer.onError(t);
+    verify(delegateObserver).onError(t);
+    observer.beforeStart(callStreamObserver);
+    verify(callStreamObserver).setOnReadyHandler(onReadyHandler);
+    verifyNoMoreInteractions(delegateObserver, callStreamObserver);
+    verify(onDoneHandler).run();
   }
 }
