@@ -25,7 +25,9 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import count
+from . import count_globally
+from . import count_per_element
+from . import count_per_key
 
 
 def check_total_elements(actual):
@@ -58,16 +60,22 @@ def check_total_unique_elements(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.count.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.count_globally.print', str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.count_per_key.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.count_per_element.print',
+    str)
 class CountTest(unittest.TestCase):
   def test_count_globally(self):
-    count.count_globally(check_total_elements)
+    count_globally.count_globally(check_total_elements)
 
   def test_count_per_key(self):
-    count.count_per_key(check_total_elements_per_key)
+    count_per_key.count_per_key(check_total_elements_per_key)
 
   def test_count_per_element(self):
-    count.count_per_element(check_total_unique_elements)
+    count_per_element.count_per_element(check_total_unique_elements)
 
 
 if __name__ == '__main__':

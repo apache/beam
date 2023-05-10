@@ -18,22 +18,18 @@
 
 # pytype: skip-file
 
-
-def count_globally(test=None):
-  # [START count_globally]
-  import apache_beam as beam
-
-  with beam.Pipeline() as pipeline:
-    total_elements = (
-        pipeline
-        | 'Create plants' >> beam.Create(
-            ['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
-        | 'Count all elements' >> beam.combiners.Count.Globally()
-        | beam.Map(print))
-    # [END count_globally]
-    if test:
-      test(total_elements)
-
+# beam-playground:
+#   name: CountPerKey
+#   description: Demonstration of Count transform usage to count elements per key.
+#   multifile: false
+#   default_example: false
+#   context_line: 36
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - pairs
 
 def count_per_key(test=None):
   # [START count_per_key]
@@ -61,17 +57,5 @@ def count_per_key(test=None):
       test(total_elements_per_keys)
 
 
-def count_per_element(test=None):
-  # [START count_per_element]
-  import apache_beam as beam
-
-  with beam.Pipeline() as pipeline:
-    total_unique_elements = (
-        pipeline
-        | 'Create produce' >> beam.Create(
-            ['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
-        | 'Count unique elements' >> beam.combiners.Count.PerElement()
-        | beam.Map(print))
-    # [END count_per_element]
-    if test:
-      test(total_unique_elements)
+if __name__ == '__main__':
+  count_per_key()
