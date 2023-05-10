@@ -24,6 +24,7 @@
  * GitHub pull requests.
  */
 
+// TODO(https://github.com/apache/beam/issues/26602) Auto generating stopped working and temporarily removed
 class Committers {
   final static List GITHUB_USERNAMES = []
 }
