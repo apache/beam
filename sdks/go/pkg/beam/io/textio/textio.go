@@ -42,6 +42,8 @@ func init() {
 	register.Emitter2[string, string]()
 
 	beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
+	register.DoFn3x1[context.Context, int, func(*string) bool, error](&writeFileFn{})
+	register.Iter1[string]()
 }
 
 type readOption struct {

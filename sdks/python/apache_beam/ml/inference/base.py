@@ -28,6 +28,7 @@ collection, sharing model between threads, and batching elements.
 """
 
 import logging
+import os
 import pickle
 import sys
 import threading
@@ -118,6 +119,11 @@ def _to_microseconds(time_ns: int) -> int:
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
+  def __init__(self):
+    """Environment variables are set using a dict named 'env_vars' before
+    loading the model. Child classes can accept this dict as a kwarg."""
+    self._env_vars = {}
+
   def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
@@ -193,6 +199,12 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     Functions are in order that they should be applied."""
     return []
 
+  def set_environment_vars(self):
+    """Sets environment variables using a dictionary provided via kwargs.
+    Keys are the env variable name, and values are the env variable value."""
+    for env_variable, env_value in self._env_vars.items():
+      os.environ[env_variable] = env_value
+
   def with_preprocess_fn(
       self, fn: Callable[[PreProcessT], ExampleT]
   ) -> 'ModelHandler[PreProcessT, PredictionT, ModelT, PreProcessT]':
@@ -238,6 +250,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'pre/postprocessing functions must be defined on the outer model'
           'handler.')
     self._unkeyed = unkeyed
+    self._env_vars = unkeyed._env_vars
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
@@ -308,6 +321,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'pre/postprocessing functions must be defined on the outer model'
           'handler.')
     self._unkeyed = unkeyed
+    self._env_vars = unkeyed._env_vars
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
@@ -383,6 +397,7 @@ class _PreProcessingModelHandler(Generic[ExampleT,
       preprocess_fn: the preprocessing function to use.
     """
     self._base = base
+    self._env_vars = base._env_vars
     self._preprocess_fn = preprocess_fn
 
   def load_model(self) -> ModelT:
@@ -438,6 +453,7 @@ class _PostProcessingModelHandler(Generic[ExampleT,
       postprocess_fn: the preprocessing function to use.
     """
     self._base = base
+    self._env_vars = base._env_vars
     self._postprocess_fn = postprocess_fn
 
   def load_model(self) -> ModelT:
@@ -486,7 +502,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None):
+      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
+      watch_model_pattern: Optional[str] = None,
+      **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
@@ -508,6 +526,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         model_metadata_pcoll: PCollection that emits Singleton ModelMetadata
           containing model path and model name, that is used as a side input
           to the _RunInferenceDoFn.
+        watch_model_pattern: A glob pattern used to watch a directory
+          for automatic model refresh.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
@@ -516,6 +536,22 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._model_metadata_pcoll = model_metadata_pcoll
     self._enable_side_input_loading = self._model_metadata_pcoll is not None
     self._with_exception_handling = False
+    self._watch_model_pattern = watch_model_pattern
+    self._kwargs = kwargs
+
+  def _get_model_metadata_pcoll(self, pipeline):
+    # avoid circular imports.
+    # pylint: disable=wrong-import-position
+    from apache_beam.ml.inference.utils import WatchFilePattern
+    extra_params = {}
+    if 'interval' in self._kwargs:
+      extra_params['interval'] = self._kwargs['interval']
+    if 'stop_timestamp' in self._kwargs:
+      extra_params['stop_timestamp'] = self._kwargs['stop_timestamp']
+
+    return (
+        pipeline | WatchFilePattern(
+            file_pattern=self._watch_model_pattern, **extra_params))
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -570,6 +606,11 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       pcoll, preprocess_fns, 'BeamML_RunInference_Preprocess')
 
     resource_hints = self._model_handler.get_resource_hints()
+
+    # check for the side input
+    if self._watch_model_pattern:
+      self._model_metadata_pcoll = self._get_model_metadata_pcoll(
+          pcoll.pipeline)
 
     batched_elements_pcoll = (
         pcoll
@@ -795,6 +836,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def setup(self):
     self._metrics_collector = self.get_metrics_collector()
+    self._model_handler.set_environment_vars()
     if not self._enable_side_input_loading:
       self._model = self._load_model()
 

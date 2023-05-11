@@ -31,7 +31,7 @@ errors:
 
 examples:
   defaultTitle: 'Catalog'
-  userSharedName: 'User Shared Code'
+  userSharedName: 'User Snippet'
 
 ui:
   copyright: '© The Apache Software Foundation'
@@ -81,6 +81,18 @@ widgets:
     notificationTitles:
       run: 'Run Code'
       cancelExecution: 'Cancel Execution'
+  
+  pipelineOptions:
+    options: 'Options'
+    raw: 'Raw'
+    error: >
+      Please check the format (example: --key1 value1 --key2 value2), only alphanumeric and \",*,/,-,:,;,',. symbols are allowed
+    addParameter: Add parameter
+    saveAndClose: Save & close
+    input: Input
+    pipelineOptions: Pipeline Options
+    name: Name
+    value: Value
 
   versions:
     beam: 'Beam {version}'

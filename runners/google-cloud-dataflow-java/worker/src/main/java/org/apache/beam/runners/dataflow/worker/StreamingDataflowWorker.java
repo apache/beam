@@ -99,6 +99,7 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -1252,6 +1253,7 @@ public class StreamingDataflowWorker {
             mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName(), this));
 
     ExecutionState executionState = null;
+    String counterName = "dataflow_source_bytes_processed-" + mapTask.getSystemName();
 
     try {
       executionState = computationState.getExecutionStateQueue().poll();
@@ -1330,13 +1332,14 @@ public class StreamingDataflowWorker {
                   readNode.getParallelInstruction().getSystemName(),
                   readNode.getParallelInstruction().getName());
           readOperation.receivers[0].addOutputCounter(
+              counterName,
               new OutputObjectAndByteCounter(
                       new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
                           readCoder),
                       mapTaskExecutor.getOutputCounters(),
                       nameContext)
                   .setSamplingPeriod(100)
-                  .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
+                  .countBytes(counterName));
         }
         executionState =
             new ExecutionState(mapTaskExecutor, context, keyCoder, executionStateTracker);
@@ -1399,6 +1402,23 @@ public class StreamingDataflowWorker {
 
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
+
+      // Reports source bytes processed to workitemcommitrequest if available.
+      try {
+        long sourceBytesProcessed = 0;
+        HashMap<String, ElementCounter> counters =
+            ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
+                .getReadOperation()
+                .receivers[0]
+                .getOutputCounters();
+        if (counters.containsKey(counterName)) {
+          sourceBytesProcessed =
+              ((OutputObjectAndByteCounter) counters.get(counterName)).getByteCount().getAndReset();
+        }
+        outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
+      } catch (Exception e) {
+        LOG.error(e.toString());
+      }
 
       Iterables.addAll(
           this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());

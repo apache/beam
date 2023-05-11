@@ -34,7 +34,6 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.slf4j_api
   implementation library.java.vendored_guava_26_0_jre
-  implementation library.java.vendored_calcite_1_28_0
   implementation "com.alibaba:fastjson:1.2.69"
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "org.threeten:threetenbp:1.4.5"

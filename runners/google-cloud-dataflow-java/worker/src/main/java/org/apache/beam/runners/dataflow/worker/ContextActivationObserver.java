@@ -21,7 +21,6 @@ import com.google.auto.service.AutoService;
 import java.io.Closeable;
 import java.util.ServiceLoader;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.sdk.annotations.Experimental;
 
 /**
  * A {@link ContextActivationObserver} provides a contract to register objects with the
@@ -43,7 +42,6 @@ public interface ContextActivationObserver extends Closeable {
    * <p>It is optional but recommended to use one of the many build time tools such as {@link
    * AutoService} to generate the necessary META-INF files automatically.
    */
-  @Experimental
   public interface Registrar {
     /**
      * Returns a boolean indicating whether DataflowExecutionContext should register this observer

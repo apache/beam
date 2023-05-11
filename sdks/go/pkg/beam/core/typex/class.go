@@ -120,6 +120,7 @@ func isConcrete(t reflect.Type, visited map[uintptr]bool) error {
 		t == EventTimeType ||
 		t.Implements(WindowType) ||
 		t == PaneInfoType ||
+		t == TimersType ||
 		t == BundleFinalizationType ||
 		t == reflectx.Error ||
 		t == reflectx.Context ||

@@ -244,7 +244,7 @@ if __name__ == '__main__':
         'fasteners>=0.3,<1.0',
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
-        'httplib2>=0.8,<0.22.0',
+        'httplib2>=0.8,<0.23.0',
         # numpy can have breaking changes in minor versions.
         # Use a strict upper bound.
         'numpy>=1.14.3,<1.25.0',   # Update build-requirements.txt as well.
@@ -299,7 +299,7 @@ if __name__ == '__main__':
             'hypothesis>5.0.0,<=7.0.0',
           ],
           'gcp': [
-            'cachetools>=3.1.0,<5',
+            'cachetools>=3.1.0,<6',
             'google-apitools>=0.5.31,<0.5.32',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
@@ -341,7 +341,7 @@ if __name__ == '__main__':
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<113',
+            'chromedriver-binary>=100,<114',
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<10',
           ],

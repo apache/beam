@@ -394,10 +394,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_code_editor
-      sha256: "85d0d159ce4f33f3aabedea92c0bdc1ad05c6931bba80ac46660f90c7ab6255c"
+      sha256: "5cd0337a24155dcac85d4f5b0cc8fa022ab19785a968a86726cdc62e363ee428"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.14"
+    version: "0.2.23"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -432,14 +432,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_markdown:
+  flutter_markdown_selectionarea:
     dependency: transitive
     description:
-      name: flutter_markdown
-      sha256: "7b25c10de1fea883f3c4f9b8389506b54053cd00807beab69fd65c8653a2711f"
+      name: flutter_markdown_selectionarea
+      sha256: "4ce7f7eb337d75afcb8613f49e484ffc561e695b5369ff588b6549e422078569"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.14"
+    version: "0.6.14+3"
   flutter_svg:
     dependency: "direct main"
     description:

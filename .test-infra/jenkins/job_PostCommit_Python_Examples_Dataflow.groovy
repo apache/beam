@@ -38,6 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Dataflow',
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(":sdks:python:test-suites:dataflow:examplesPostCommit")
           commonJobProperties.setGradleSwitches(delegate)
+          switches("-PuseWheelDistribution")
         }
       }
     }

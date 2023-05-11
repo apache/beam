@@ -133,7 +133,7 @@ six==1.16.0
 sortedcontainers==2.4.0
 soupsieve==2.4
 SQLAlchemy==1.4.47
-sqlparse==0.4.3
+sqlparse==0.4.4
 tenacity==8.2.2
 tensorboard==2.12.1
 tensorboard-data-server==0.7.0

@@ -17,46 +17,30 @@
 # under the License.
 #
 
-#resource "google_service_account" "terraform_service_account" {
-#  account_id   = "terraform"
-#  display_name = "terraform"
-#}
-#
-#resource "google_project_iam_member" "terraform_service_account_roles" {
-#  for_each = toset([
-#    // TODO: add the required roles to provision resources (not OWNER :-)!)
-#  ])
-#  role    = each.key
-#  member  = "serviceAccount:${google_service_account.terraform_service_account.email}"
-#  project = var.project_id
-#}
-#
-#resource "google_service_account_iam_binding" "terraform_service_account_token_permissions" {
-#  service_account_id = google_service_account.terraform_service_account.id
-#  members = [
-#    "user:${var.developer_account_email}" // TODO: add variable
-#  ]
-#  role    = "roles/iam.serviceAccountTokenCreator"
-#}
-
-#resource "google_service_account_iam_binding" "application_service_account_binding" {
-#  members            = [
-#    "serviceAccount:${google_service_account.terraform_service_account.email}"
-#  ]
-#  role               = "roles/iam.serviceAccountUser"
-#  service_account_id = google_service_account.playground_service_account.id
-#}
-
 resource "google_service_account" "playground_service_account" {
   account_id   = var.service_account_id
   display_name = var.service_account_id
 }
 
+resource "google_service_account" "playground_service_account_cf" {
+  account_id   = "${google_service_account.playground_service_account.account_id}-cf"
+  display_name = "${google_service_account.playground_service_account.account_id}-cf"
+}
+
 resource "google_project_iam_member" "terraform_service_account_roles" {
   for_each = toset([
-    "roles/container.admin", "roles/artifactregistry.reader", "roles/datastore.owner", "roles/redis.admin",
+     "roles/container.nodeServiceAccount", "roles/datastore.viewer", "roles/artifactregistry.reader", "roles/logging.logWriter", "roles/monitoring.metricWriter", "roles/stackdriver.resourceMetadata.writer",
   ])
-  role    = each.key
+  role    = each.value
   member  = "serviceAccount:${google_service_account.playground_service_account.email}"
   project = var.project_id
+}
+
+resource "google_project_iam_member" "cloudfunction" {
+   for_each = toset([
+     "roles/storage.objectViewer","roles/cloudfunctions.invoker","roles/datastore.user",
+   ])
+   role    = each.key
+   member  = "serviceAccount:${google_service_account.playground_service_account_cf.email}"
+   project = var.project_id
 }
