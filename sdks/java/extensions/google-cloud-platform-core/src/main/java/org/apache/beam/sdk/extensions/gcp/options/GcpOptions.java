@@ -500,7 +500,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
                   // Do not log 404. It clutters the output and is possibly even required by the
                   // caller.
                   new RetryHttpRequestInitializer(ImmutableList.of(404))))
-          .setApplicationName(options.getAppName())
+          .setApplicationName("GPN:Beam/" + options.getAppName())
           .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     }
 
