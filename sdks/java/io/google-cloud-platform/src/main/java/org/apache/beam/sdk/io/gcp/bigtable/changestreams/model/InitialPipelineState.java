@@ -25,7 +25,7 @@ import org.joda.time.Instant;
 
 /**
  * States to initialize a pipeline outputted by {@link
- * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.InitializeDoFn}
+ * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.InitializeDoFn}.
  */
 @Internal
 public class InitialPipelineState implements Serializable {
