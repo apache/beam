@@ -29,27 +29,28 @@ import '../../../state.dart';
 
 class ContentTreeController extends ChangeNotifier {
   final Sdk initialSdk;
-  List<String> _breadcrumbs;
+  List<String> _breadcrumbIds;
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
   final _expandedIds = <String>{};
 
-  final units = <UnitModel>[];
+  final _units = <UnitModel>[];
+  int _currentUnitIndex = 0;
 
   Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
     required this.initialSdk,
-    List<String> initialBreadcrumbs = const [],
-  }) : _breadcrumbs = initialBreadcrumbs {
-    _expandedIds.addAll(initialBreadcrumbs);
+    List<String> initialBreadcrumbIds = const [],
+  }) : _breadcrumbIds = initialBreadcrumbIds {
+    _expandedIds.addAll(initialBreadcrumbIds);
 
     _contentTreeCache.addListener(_onContentTreeCacheChange);
     _onContentTreeCacheChange();
   }
 
   Sdk get sdk => GetIt.instance.get<AppNotifier>().sdk ?? initialSdk;
-  List<String> get breadcrumbs => _breadcrumbs;
+  List<String> get breadcrumbIds => _breadcrumbIds;
   NodeModel? get currentNode => _currentNode;
 
   void onNodePressed(NodeModel node) {
@@ -62,13 +63,18 @@ class ContentTreeController extends ChangeNotifier {
       _onParentNodePressed(node);
     } else if (node is UnitModel) {
       if (node != _currentNode) {
-        _currentNode = node;
+        _setUnit(node);
       }
     }
 
     if (_currentNode != null) {
-      _breadcrumbs = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
+      _breadcrumbIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
     }
+  }
+
+  void _setUnit(UnitModel unit) {
+    _currentNode = unit;
+    _currentUnitIndex = _getCurrentUnitIndex();
   }
 
   void _onParentNodePressed(ParentNodeModel node) {
@@ -111,43 +117,44 @@ class ContentTreeController extends ChangeNotifier {
       return;
     }
 
-    _toggleNode(
-      contentTree.getNodeByTreeIds(_breadcrumbs) ?? contentTree.modules.first,
-    );
+    _units.clear();
+    _units.addAll(contentTree.getUnits());
 
-    units.clear();
-    units.addAll(contentTree.getUnitsFromModules());
+    _toggleNode(
+      contentTree.getLastNodeFromBreadcrumbIds(_breadcrumbIds) ??
+          contentTree.modules.first,
+    );
 
     notifyListeners();
   }
 
   bool hasPreviousUnit() {
-    return _getCurrentUnitIndex() > 0;
+    return _currentUnitIndex > 0;
   }
 
   bool hasNextUnit() {
-    return _getCurrentUnitIndex() < units.length - 1;
+    return _currentUnitIndex < _units.length - 1;
   }
 
   void openPreviousUnit() {
-    final previousUnit = units[_getCurrentUnitIndex() - 1];
+    final previousUnit = _units[_currentUnitIndex - 1];
     _navigateToUnit(previousUnit);
   }
 
   void openNextUnit() {
-    final nextUnit = units[_getCurrentUnitIndex() + 1];
+    final nextUnit = _units[_currentUnitIndex + 1];
     _navigateToUnit(nextUnit);
   }
 
   int _getCurrentUnitIndex() {
-    return units.indexWhere(
+    return _units.indexWhere(
       (unit) => unit.id == _currentNode?.id,
     );
   }
 
   void _navigateToUnit(UnitModel unit) {
     onNodePressed(unit);
-    _expandedIds.addAll(_breadcrumbs);
+    _expandedIds.addAll(_breadcrumbIds);
   }
 
   @override

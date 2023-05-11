@@ -18,9 +18,7 @@
 
 import '../repositories/models/get_content_tree_response.dart';
 import 'module.dart';
-import 'node.dart';
 import 'parent_node.dart';
-import 'unit.dart';
 
 class ContentTreeModel extends ParentNodeModel {
   final List<ModuleModel> modules;
@@ -35,21 +33,6 @@ class ContentTreeModel extends ParentNodeModel {
           title: '',
           nodes: modules,
         );
-
-  List<UnitModel> getUnitsFromModules() {
-    final units = <UnitModel>[];
-
-    void extractUnitsFromNode(NodeModel node) {
-      if (node is ParentNodeModel) {
-        node.nodes.forEach(extractUnitsFromNode);
-      } else if (node is UnitModel) {
-        units.add(node);
-      }
-    }
-
-    modules.forEach(extractUnitsFromNode);
-    return units;
-  }
 
   ContentTreeModel.fromResponse(GetContentTreeResponse response)
       : this(

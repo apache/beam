@@ -19,6 +19,7 @@
 import 'package:collection/collection.dart';
 
 import 'node.dart';
+import 'unit.dart';
 
 abstract class ParentNodeModel extends NodeModel {
   final List<NodeModel> nodes;
@@ -30,15 +31,30 @@ abstract class ParentNodeModel extends NodeModel {
     required this.nodes,
   });
 
+  List<UnitModel> getUnits() {
+    final units = <UnitModel>[];
+
+    void extractUnitsFromNode(NodeModel node) {
+      if (node is ParentNodeModel) {
+        node.nodes.forEach(extractUnitsFromNode);
+      } else if (node is UnitModel) {
+        units.add(node);
+      }
+    }
+
+    nodes.forEach(extractUnitsFromNode);
+    return units;
+  }
+
   @override
-  NodeModel? getNodeByTreeIds(List<String> treeIds) {
-    final firstId = treeIds.firstOrNull;
+  NodeModel? getLastNodeFromBreadcrumbIds(List<String> breadcrumbIds) {
+    final firstId = breadcrumbIds.firstOrNull;
     final child = nodes.firstWhereOrNull((node) => node.id == firstId);
 
     if (child == null) {
       return null;
     }
 
-    return child.getNodeByTreeIds(treeIds.sublist(1));
+    return child.getLastNodeFromBreadcrumbIds(breadcrumbIds.sublist(1));
   }
 }
