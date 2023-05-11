@@ -117,8 +117,22 @@ public class Task {
 
         PCollection<User> input = getProgressPCollection(pipeline);
 
+        Schema gameSchema = Schema.builder()
+                .addStringField("userId")
+                .addInt32Field("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
+
+        Schema schema = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .addRowField("game",gameSchema)
+                .build();
+
         PCollection<Row> pCollection = input
-                .apply(Convert.toRows());
+                .apply(Convert.toRows())
+                .setRowSchema(schema);
 
         pCollection
                 .apply(Convert.to(User.class))
@@ -132,7 +146,7 @@ public class Task {
     public static PCollection<User> getProgressPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
-        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn())).setCoder(CustomCoder.of());
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
     }
 
     static class ExtractUserProgressFn extends DoFn<String, User> {

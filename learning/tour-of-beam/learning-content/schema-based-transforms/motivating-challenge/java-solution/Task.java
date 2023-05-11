@@ -164,7 +164,6 @@ public class Task {
 
         pCollection
                 .setCoder(CustomCoder.of())
-                .setRowSchema(totalSchema)
                 .apply("User", ParDo.of(new LogOutput<>("Result")));
 
         pipeline.run();

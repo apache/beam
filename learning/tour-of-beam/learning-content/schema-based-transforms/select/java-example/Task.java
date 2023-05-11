@@ -139,18 +139,21 @@ public class Task {
         // Select [userId] and [userName]
         PCollection<Row> shortInfo = input.apply(Select.fieldNames("userId", "userName"));
         shortInfo
+                .setRowSchema(shortInfoSchema)
                 .setCoder(RowCoder.of(shortInfoSchema))
                 .apply("User short info", ParDo.of(new LogOutput<>("Short Info")));
 
         // Select user [game]
         PCollection<Row> game = input.apply(Select.fieldNames("game.*"));
         game
+                .setRowSchema(gameSchema)
                 .setCoder(RowCoder.of(gameSchema))
                 .apply("User game", ParDo.of(new LogOutput<>("Game")));
 
         // Flattened row, select all fields
         PCollection<Row> flattened = input.apply(Select.flattenedSchema());
         flattened
+                .setRowSchema(flattenedSchema)
                 .setCoder(RowCoder.of(flattenedSchema))
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 

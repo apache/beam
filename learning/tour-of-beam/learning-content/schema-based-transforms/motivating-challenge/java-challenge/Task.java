@@ -114,30 +114,11 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<Row> userInfo = getUserPCollection(pipeline).apply(Convert.toRows());
-        PCollection<Row> gameInfo = getGamePCollection(pipeline).apply(Convert.toRows());
-
-        Schema userSchema = Schema.builder()
-                .addStringField("userId")
-                .addStringField("userName")
-                .build();
-
-        Schema totalSchema = Schema.builder()
-                .addStringField("userId")
-                .addStringField("userName")
-                .addInt32Field("score")
-                .addStringField("gameId")
-                .addStringField("date")
-                .build();
-
-        Schema total = Schema.builder()
-                .addStringField("userId")
-                .addInt32Field("total")
-                .build();
-
+        PCollection<User> userInfo = getUserPCollection(pipeline);
+        PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
         userInfo
-                .setCoder(RowCoder.of(userSchema))
+                .setCoder(UserCoder.of())
                 .apply("User", ParDo.of(new LogOutput<>("Result")));
 
         pipeline.run();
@@ -170,6 +151,37 @@ public class Task {
             c.output(new Game(items[0], Integer.valueOf(items[2]), items[3], items[4]));
         }
     }
+
+    static class UserCoder extends Coder<Task.User> {
+        private static final UserCoder INSTANCE = new UserCoder();
+
+        public static UserCoder of() {
+            return INSTANCE;
+        }
+
+        @Override
+        public void encode(Task.User user, OutputStream outStream) throws IOException {
+            String line = user.userId + "," + user.userName;
+            outStream.write(line.getBytes());
+        }
+
+        @Override
+        public Task.User decode(InputStream inStream) throws IOException {
+            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
+            String[] params = serializedDTOs.split(",");
+            return new Task.User(params[0], params[1]);
+        }
+
+        @Override
+        public List<? extends Coder<?>> getCoderArguments() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void verifyDeterministic() {
+        }
+    }
+
 
     static class LogOutput<T> extends DoFn<T, T> {
 

@@ -105,8 +105,8 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<Row> userInfo = getUserPCollection(pipeline).apply(Convert.toRows());
-        PCollection<Row> gameInfo = getGamePCollection(pipeline).apply(Convert.toRows());
+        PCollection<User> userInfo = getUserPCollection(pipeline);
+        PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
         Schema userSchema = Schema.builder()
                 .addStringField("userId")
@@ -140,6 +140,7 @@ public class Task {
                 .apply(Join.innerJoin(gameInfo).using("userId"));
 
         pCollection
+                .setRowSchema(joinSchema)
                 .setCoder(RowCoder.of(joinSchema))
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 

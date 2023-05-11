@@ -28,7 +28,6 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,20 +37,13 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
-import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Collections;
-import java.util.List;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -109,33 +101,57 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        Schema user = Schema.builder()
+        Schema userSchema = Schema.builder()
                 .addStringField("userId")
                 .addStringField("userName")
                 .build();
 
-        Schema game = Schema.builder()
+        Schema gameSchema = Schema.builder()
                 .addStringField("userId")
                 .addInt32Field("score")
                 .addStringField("gameId")
                 .addStringField("date")
                 .build();
 
-        Schema schema = Schema.builder()
-                .addRowField("key",Schema.builder().addStringField("userId").build())
-                .addArrayField("game",Schema.FieldType.row(game))
-                .addArrayField("user", Schema.FieldType.row(user))
+        Schema totalSchema = Schema.builder()
+                .addRowField("key", Schema.builder().addStringField("userId").build())
+                .addArrayField("game", Schema.FieldType.row(gameSchema))
+                .addArrayField("user", Schema.FieldType.row(userSchema))
                 .build();
 
-        PCollection<Row> userInfo = getUserPCollection(pipeline).apply(Convert.toRows());
-        PCollection<Row> gameInfo = getGamePCollection(pipeline).apply(Convert.toRows());
+        PCollection<User> userInfo = getUserPCollection(pipeline);
+
+        PCollection<Object> userRows = userInfo.apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
+                .setSchema(userSchema, TypeDescriptor.of(Object.class), row ->
+                        {
+                            User user = (User) row;
+                            return Row.withSchema(userSchema)
+                                    .addValues(user.userId, user.userName)
+                                    .build();
+                        },
+                        row -> new User(row.getString(0), row.getString(1))
+                );
+
+        PCollection<Game> gameInfo = getGamePCollection(pipeline);
+
+        PCollection<Object> gameRows = gameInfo.apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
+                .setSchema(gameSchema,
+                        TypeDescriptor.of(Object.class), row ->
+                        {
+                            Game game = (Game) row;
+                            return Row.withSchema(gameSchema)
+                                    .addValues(game.userId, game.score, game.gameId, game.date)
+                                    .build();
+                        },
+                        row -> new Game(row.getString(0), row.getInt32(1), row.getString(2), row.getString(3)));
 
         PCollection<Row> coGroupPCollection =
-                PCollectionTuple.of("user", userInfo).and("game", gameInfo)
+                PCollectionTuple.of("user", userRows).and("game", gameRows)
                         .apply(CoGroup.join(CoGroup.By.fieldNames("userId")));
 
         coGroupPCollection
-                .setCoder(RowCoder.of(schema))
+                .setRowSchema(totalSchema)
+                .setCoder(RowCoder.of(totalSchema))
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();
