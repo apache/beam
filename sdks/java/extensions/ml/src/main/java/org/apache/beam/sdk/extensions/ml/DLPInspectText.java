@@ -33,12 +33,10 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * A {@link PTransform} connecting to Cloud DLP (https://cloud.google.com/dlp/docs/libraries) and
@@ -61,6 +59,9 @@ import org.checkerframework.dataflow.qual.Pure;
  * <p>Batch size defines how big are batches sent to DLP at once in bytes.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class DLPInspectText
     extends PTransform<
         PCollection<KV<String, String>>, PCollection<KV<String, InspectContentResponse>>> {
@@ -68,29 +69,23 @@ public abstract class DLPInspectText
   public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
 
   /** @return Template name for data inspection. */
-  @Pure
   public abstract @Nullable String getInspectTemplateName();
 
   /**
    * @return Configuration object for data inspection. If present, supersedes the template settings.
    */
-  @Pure
   public abstract @Nullable InspectConfig getInspectConfig();
 
   /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
-  @Pure
   public abstract Integer getBatchSizeBytes();
 
   /** @return ID of Google Cloud project to be used when deidentifying data. */
-  @Pure
   public abstract String getProjectId();
 
   /** @return Delimiter to be used when splitting values from input strings into columns. */
-  @Pure
   public abstract @Nullable String getColumnDelimiter();
 
   /** @return List of column names if the input KV value is a delimited row. */
-  @Pure
   public abstract @Nullable PCollectionView<List<String>> getHeaderColumns();
 
   @AutoValue.Builder
@@ -160,12 +155,14 @@ public abstract class DLPInspectText
   @Override
   public PCollection<KV<String, InspectContentResponse>> expand(
       PCollection<KV<String, String>> input) {
-    String projectId = Preconditions.checkStateNotNull(getProjectId());
     ParDo.SingleOutput<KV<String, Iterable<Table.Row>>, KV<String, InspectContentResponse>>
         inspectParDo =
             ParDo.of(
                 new InspectData(
-                    projectId, getInspectTemplateName(), getInspectConfig(), getHeaderColumns()));
+                    getProjectId(),
+                    getInspectTemplateName(),
+                    getInspectConfig(),
+                    getHeaderColumns()));
     if (getHeaderColumns() != null) {
       inspectParDo = inspectParDo.withSideInputs(getHeaderColumns());
     }
@@ -179,11 +176,11 @@ public abstract class DLPInspectText
   static class InspectData
       extends DoFn<KV<String, Iterable<Table.Row>>, KV<String, InspectContentResponse>> {
     private final String projectId;
-    private final @Nullable String inspectTemplateName;
-    private final @Nullable InspectConfig inspectConfig;
-    private final @Nullable PCollectionView<List<String>> headerColumns;
-    private transient @Nullable DlpServiceClient dlpServiceClient;
-    private transient InspectContentRequest.@Nullable Builder requestBuilder;
+    private final String inspectTemplateName;
+    private final InspectConfig inspectConfig;
+    private final PCollectionView<List<String>> headerColumns;
+    private transient DlpServiceClient dlpServiceClient;
+    private transient InspectContentRequest.Builder requestBuilder;
 
     /**
      * @param projectId ID of GCP project that should be used for data inspection.
@@ -193,9 +190,9 @@ public abstract class DLPInspectText
      */
     public InspectData(
         String projectId,
-        @Nullable String inspectTemplateName,
-        @Nullable InspectConfig inspectConfig,
-        @Nullable PCollectionView<List<String>> headerColumns) {
+        String inspectTemplateName,
+        InspectConfig inspectConfig,
+        PCollectionView<List<String>> headerColumns) {
       this.projectId = projectId;
       this.inspectTemplateName = inspectTemplateName;
       this.inspectConfig = inspectConfig;
@@ -217,18 +214,11 @@ public abstract class DLPInspectText
 
     @Teardown
     public void teardown() {
-      if (dlpServiceClient != null) {
-        dlpServiceClient.close();
-        dlpServiceClient = null;
-      }
+      dlpServiceClient.close();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
-      InspectContentRequest.Builder requestBuilder =
-          Preconditions.checkStateNotNull(this.requestBuilder);
-      DlpServiceClient dlpServiceClient = Preconditions.checkStateNotNull(this.dlpServiceClient);
-
       List<FieldId> tableHeaders;
       if (headerColumns != null) {
         tableHeaders =
@@ -242,8 +232,9 @@ public abstract class DLPInspectText
       Table table =
           Table.newBuilder().addAllHeaders(tableHeaders).addAllRows(c.element().getValue()).build();
       ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
-      requestBuilder.setItem(contentItem);
-      InspectContentResponse response = dlpServiceClient.inspectContent(requestBuilder.build());
+      this.requestBuilder.setItem(contentItem);
+      InspectContentResponse response =
+          dlpServiceClient.inspectContent(this.requestBuilder.build());
       c.output(KV.of(c.element().getKey(), response));
     }
   }

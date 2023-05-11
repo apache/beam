@@ -31,10 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Base class for DoFns used in VideoIntelligence transforms.
@@ -42,11 +39,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> Class of input data being passed in - either ByteString - video data encoded into.
  *     String or String - a GCS URI of the video to be annotated.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 abstract class AnnotateVideoFn<T> extends DoFn<T, List<VideoAnnotationResults>> {
 
-  protected final @Nullable PCollectionView<Map<T, VideoContext>> contextSideInput;
+  protected final PCollectionView<Map<T, VideoContext>> contextSideInput;
   protected final List<Feature> featureList;
-  @VisibleForTesting @Nullable VideoIntelligenceServiceClient videoIntelligenceServiceClient = null;
+  VideoIntelligenceServiceClient videoIntelligenceServiceClient;
 
   public AnnotateVideoFn(
       PCollectionView<Map<T, VideoContext>> contextSideInput, List<Feature> featureList) {
@@ -66,10 +66,7 @@ abstract class AnnotateVideoFn<T> extends DoFn<T, List<VideoAnnotationResults>> 
 
   @Teardown
   public void teardown() {
-    if (videoIntelligenceServiceClient != null) {
-      videoIntelligenceServiceClient.close();
-      videoIntelligenceServiceClient = null;
-    }
+    videoIntelligenceServiceClient.close();
   }
 
   /**
@@ -82,9 +79,7 @@ abstract class AnnotateVideoFn<T> extends DoFn<T, List<VideoAnnotationResults>> 
    * @return
    */
   List<VideoAnnotationResults> getVideoAnnotationResults(
-      @Nullable String elementURI,
-      @Nullable ByteString elementContents,
-      @Nullable VideoContext videoContext)
+      String elementURI, ByteString elementContents, VideoContext videoContext)
       throws InterruptedException, ExecutionException {
     AnnotateVideoRequest.Builder requestBuilder =
         AnnotateVideoRequest.newBuilder().addAllFeatures(featureList);
@@ -99,8 +94,6 @@ abstract class AnnotateVideoFn<T> extends DoFn<T, List<VideoAnnotationResults>> 
       requestBuilder.setVideoContext(videoContext);
     }
     AnnotateVideoRequest annotateVideoRequest = requestBuilder.build();
-    VideoIntelligenceServiceClient videoIntelligenceServiceClient =
-        Preconditions.checkStateNotNull(this.videoIntelligenceServiceClient);
     OperationFuture<AnnotateVideoResponse, AnnotateVideoProgress> annotateVideoAsync =
         videoIntelligenceServiceClient.annotateVideoAsync(annotateVideoRequest);
     return annotateVideoAsync.get().getAnnotationResultsList();

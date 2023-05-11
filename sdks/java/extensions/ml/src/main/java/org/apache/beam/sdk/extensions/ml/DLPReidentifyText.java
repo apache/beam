@@ -34,12 +34,10 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * A {@link PTransform} connecting to Cloud DLP (https://cloud.google.com/dlp/docs/libraries) and
@@ -66,6 +64,9 @@ import org.checkerframework.dataflow.qual.Pure;
  * <p>Batch size defines how big are batches sent to DLP at once in bytes.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class DLPReidentifyText
     extends PTransform<
         PCollection<KV<String, String>>, PCollection<KV<String, ReidentifyContentResponse>>> {
@@ -73,37 +74,29 @@ public abstract class DLPReidentifyText
   public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
 
   /** @return Template name for data inspection. */
-  @Pure
   public abstract @Nullable String getInspectTemplateName();
 
   /** @return Template name for data reidentification. */
-  @Pure
   public abstract @Nullable String getReidentifyTemplateName();
 
   /**
    * @return Configuration object for data inspection. If present, supersedes the template settings.
    */
-  @Pure
   public abstract @Nullable InspectConfig getInspectConfig();
 
   /** @return Configuration object for reidentification. If present, supersedes the template. */
-  @Pure
   public abstract @Nullable DeidentifyConfig getReidentifyConfig();
 
   /** @return Delimiter to be used when splitting values from input strings into columns. */
-  @Pure
   public abstract @Nullable String getColumnDelimiter();
 
   /** @return List of column names if the input KV value is a delimited row. */
-  @Pure
   public abstract @Nullable PCollectionView<List<String>> getHeaderColumns();
 
   /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
-  @Pure
   public abstract Integer getBatchSizeBytes();
 
   /** @return ID of Google Cloud project to be used when deidentifying data. */
-  @Pure
   public abstract String getProjectId();
 
   @AutoValue.Builder
@@ -141,7 +134,6 @@ public abstract class DLPReidentifyText
     /** @param projectId ID of Google Cloud project to be used when deidentifying data. */
     public abstract Builder setProjectId(String projectId);
 
-    @Pure
     abstract DLPReidentifyText autoBuild();
 
     public DLPReidentifyText build() {
@@ -208,13 +200,13 @@ public abstract class DLPReidentifyText
   static class ReidentifyText
       extends DoFn<KV<String, Iterable<Table.Row>>, KV<String, ReidentifyContentResponse>> {
     private final String projectId;
-    private final @Nullable String inspectTemplateName;
-    private final @Nullable String reidentifyTemplateName;
-    private final @Nullable InspectConfig inspectConfig;
-    private final @Nullable DeidentifyConfig reidentifyConfig;
-    private final @Nullable PCollectionView<List<String>> headerColumns;
-    private transient ReidentifyContentRequest.@Nullable Builder requestBuilder;
-    private transient @Nullable DlpServiceClient dlpServiceClient;
+    private final String inspectTemplateName;
+    private final String reidentifyTemplateName;
+    private final InspectConfig inspectConfig;
+    private final DeidentifyConfig reidentifyConfig;
+    private final PCollectionView<List<String>> headerColumns;
+    private transient ReidentifyContentRequest.Builder requestBuilder;
+    private transient DlpServiceClient dlpServiceClient;
 
     @Setup
     public void setup() throws IOException {
@@ -237,8 +229,6 @@ public abstract class DLPReidentifyText
 
     @Teardown
     public void teardown() {
-
-      Preconditions.checkStateNotNull(dlpServiceClient);
       dlpServiceClient.close();
     }
 
@@ -254,11 +244,11 @@ public abstract class DLPReidentifyText
      */
     public ReidentifyText(
         String projectId,
-        @Nullable String inspectTemplateName,
-        @Nullable String reidentifyTemplateName,
-        @Nullable InspectConfig inspectConfig,
-        @Nullable DeidentifyConfig reidentifyConfig,
-        @Nullable PCollectionView<List<String>> headerColumns) {
+        String inspectTemplateName,
+        String reidentifyTemplateName,
+        InspectConfig inspectConfig,
+        DeidentifyConfig reidentifyConfig,
+        PCollectionView<List<String>> headerColumns) {
       this.projectId = projectId;
       this.inspectTemplateName = inspectTemplateName;
       this.reidentifyTemplateName = reidentifyTemplateName;
@@ -269,9 +259,6 @@ public abstract class DLPReidentifyText
 
     @ProcessElement
     public void processElement(ProcessContext context) throws IOException {
-      ReidentifyContentRequest.Builder requestBuilder =
-          Preconditions.checkStateNotNull(this.requestBuilder);
-      DlpServiceClient dlpServiceClient = Preconditions.checkStateNotNull(this.dlpServiceClient);
       List<FieldId> tableHeaders;
       if (headerColumns != null) {
         tableHeaders =
@@ -289,7 +276,7 @@ public abstract class DLPReidentifyText
               .addAllRows(context.element().getValue())
               .build();
       ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
-      requestBuilder.setItem(contentItem);
+      this.requestBuilder.setItem(contentItem);
       ReidentifyContentResponse response =
           dlpServiceClient.reidentifyContent(requestBuilder.build());
       context.output(KV.of(context.element().getKey(), response));

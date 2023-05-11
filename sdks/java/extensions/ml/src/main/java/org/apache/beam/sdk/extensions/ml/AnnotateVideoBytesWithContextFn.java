@@ -29,6 +29,9 @@ import org.apache.beam.sdk.values.KV;
  * Implementation of AnnotateVideoFn accepting KVs as contents of input PCollection. Keys are the
  * ByteString encoded video contents, values - VideoContext objects.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class AnnotateVideoBytesWithContextFn extends AnnotateVideoFn<KV<ByteString, VideoContext>> {
 
   public AnnotateVideoBytesWithContextFn(List<Feature> featureList) {

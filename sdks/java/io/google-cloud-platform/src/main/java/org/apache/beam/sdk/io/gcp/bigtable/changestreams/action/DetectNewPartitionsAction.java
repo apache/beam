@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
@@ -72,6 +73,7 @@ public class DetectNewPartitionsAction {
 
   private final ChangeStreamMetrics metrics;
   private final MetadataTableDao metadataTableDao;
+  @Nullable private final Instant endTime;
   private final GenerateInitialPartitionsAction generateInitialPartitionsAction;
 
   private transient PartitionReconciler partitionReconciler;
@@ -79,9 +81,11 @@ public class DetectNewPartitionsAction {
   public DetectNewPartitionsAction(
       ChangeStreamMetrics metrics,
       MetadataTableDao metadataTableDao,
+      @Nullable Instant endTime,
       GenerateInitialPartitionsAction generateInitialPartitionsAction) {
     this.metrics = metrics;
     this.metadataTableDao = metadataTableDao;
+    this.endTime = endTime;
     this.generateInitialPartitionsAction = generateInitialPartitionsAction;
   }
 
@@ -254,7 +258,7 @@ public class DetectNewPartitionsAction {
 
     String uid = UniqueIdGenerator.getNextId();
     PartitionRecord partitionRecord =
-        new PartitionRecord(partition, changeStreamContinuationTokens, uid, lowWatermark);
+        new PartitionRecord(partition, changeStreamContinuationTokens, uid, lowWatermark, endTime);
     if (parentPartitions.size() > 1) {
       metrics.incPartitionMergeCount();
     } else {
@@ -300,7 +304,8 @@ public class DetectNewPartitionsAction {
       }
 
       PartitionRecord partitionRecord =
-          new PartitionRecord(partitionToReconcile.getKey(), reconciledTime, uid, reconciledTime);
+          new PartitionRecord(
+              partitionToReconcile.getKey(), reconciledTime, uid, reconciledTime, endTime);
       receiver.outputWithTimestamp(partitionRecord, Instant.EPOCH);
       recordedPartitionRecords.addAll(partitionToReconcile.getValue());
       LOG.warn(
@@ -351,6 +356,7 @@ public class DetectNewPartitionsAction {
    *   <li>Look up the initial list of partitions to stream if it's the very first run.
    *   <li>On rest of the runs, try advancing watermark if needed.
    *   <li>Update the metadata table with info about this DoFn.
+   *   <li>Check if this pipeline has reached the end time. Terminate if it has.
    *   <li>Process new partitions and output them.
    *   <li>Reconcile any Partitions that haven't been streaming for a long time
    *   <li>Register callback to clean up processed partitions after bundle has been finalized.
@@ -384,10 +390,15 @@ public class DetectNewPartitionsAction {
 
     advanceWatermark(tracker, watermarkEstimator);
 
+    // Terminate if endTime <= watermark that means all partitions have read up to or beyond
+    // watermark. We no longer need to manage splits and merges, we can terminate.
+    if (endTime != null && endTime.isBefore(watermarkEstimator.currentWatermark())) {
+      tracker.tryClaim(tracker.currentRestriction().getTo());
+      return ProcessContinuation.stop();
+    }
+
     if (!tracker.tryClaim(tracker.currentRestriction().getFrom())) {
-      LOG.error(
-          "DNP: Couldn't continue because we failed to claim tracker: "
-              + tracker.currentRestriction());
+      LOG.warn("DNP: Checkpointing, stopping this run: " + tracker.currentRestriction());
       return ProcessContinuation.stop();
     }
 
