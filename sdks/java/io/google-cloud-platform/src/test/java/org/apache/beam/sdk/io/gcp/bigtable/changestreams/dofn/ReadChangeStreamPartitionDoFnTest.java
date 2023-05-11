@@ -101,7 +101,12 @@ public class ReadChangeStreamPartitionDoFnTest {
     ChangeStreamContinuationToken testToken =
         ChangeStreamContinuationToken.create(partitionRange, "test");
     PartitionRecord partition =
-        new PartitionRecord(partitionRange, tenSecondsAgo, "uid-a", tenSecondsAgo);
+        new PartitionRecord(
+            partitionRange,
+            tenSecondsAgo,
+            "uid-a",
+            tenSecondsAgo,
+            Instant.now().plus(Duration.standardSeconds(60)));
     long mutationSize = 100L;
     when(sizeEstimator.sizeOf(any())).thenReturn(mutationSize);
     ReadChangeStreamPartitionProgressTracker restrictionTracker =
@@ -126,7 +131,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(mockResponses.next()).thenReturn(mockMutation, mockMutation, mockMutation);
     when(mockStream.iterator()).thenReturn(mockResponses);
     when(changeStreamDao.readChangeStreamPartition(
-            anyObject(), anyObject(), anyObject(), anyBoolean()))
+            anyObject(), anyObject(), anyObject(), anyObject(), anyBoolean()))
         .thenReturn(mockStream);
 
     when(watermarkEstimator.getState()).thenReturn(tenSecondsAgo);

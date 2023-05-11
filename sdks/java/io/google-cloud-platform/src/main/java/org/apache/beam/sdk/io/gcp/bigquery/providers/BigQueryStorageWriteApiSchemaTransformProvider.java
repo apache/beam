@@ -29,8 +29,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -81,7 +79,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {

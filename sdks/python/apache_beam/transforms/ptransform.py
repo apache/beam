@@ -501,9 +501,6 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
 
     """Returns the output coder to use for output of this transform.
 
-    Note: this API is experimental and is subject to change; please do not rely
-    on behavior induced by this method.
-
     The Coder returned here should not be wrapped in a WindowedValueCoder
     wrapper.
 

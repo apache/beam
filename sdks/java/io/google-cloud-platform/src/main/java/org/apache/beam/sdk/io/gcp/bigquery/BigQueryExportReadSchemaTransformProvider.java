@@ -21,8 +21,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -49,7 +47,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryExportReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryExportReadSchemaTransformConfiguration> {

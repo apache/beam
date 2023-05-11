@@ -43,8 +43,6 @@ import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
@@ -331,7 +329,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * then opt to retry the current partition in entirety or abort if the max number of retries of the
  * runner is reached.
  */
-@Experimental(Kind.SOURCE_SINK)
 public final class KinesisIO {
 
   /** Returns a new {@link Read} transform for reading from Kinesis. */

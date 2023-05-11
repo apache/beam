@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -64,6 +65,7 @@ public class GenerateInitialPartitionsActionTest {
 
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
   private Instant startTime;
+  private Instant endTime;
   private static BigtableTableAdminClient adminClient;
 
   @Captor ArgumentCaptor<PartitionRecord> partitionRecordArgumentCaptor;
@@ -86,6 +88,7 @@ public class GenerateInitialPartitionsActionTest {
             adminClient, null, changeStreamId, MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME);
     metadataTableAdminDao.createMetadataTable();
     startTime = Instant.now();
+    endTime = startTime.plus(Duration.standardSeconds(10));
     watermarkEstimator = new WatermarkEstimators.Manual(startTime);
   }
 
@@ -99,7 +102,7 @@ public class GenerateInitialPartitionsActionTest {
     when(changeStreamDao.generateInitialChangeStreamPartitions()).thenReturn(partitionRecordList);
 
     GenerateInitialPartitionsAction generateInitialPartitionsAction =
-        new GenerateInitialPartitionsAction(metrics, changeStreamDao);
+        new GenerateInitialPartitionsAction(metrics, changeStreamDao, endTime);
     assertEquals(
         ProcessContinuation.resume(),
         generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime));

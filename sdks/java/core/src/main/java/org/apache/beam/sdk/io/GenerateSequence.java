@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -95,7 +94,6 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
   abstract Builder toBuilder();
 
   @AutoValue.Builder
-  @Experimental
   abstract static class Builder
       implements ExternalTransformBuilder<
           External.ExternalConfiguration, PBegin, PCollection<Long>> {
@@ -137,7 +135,6 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
   }
 
   /** Exposes GenerateSequence as an external transform for cross-language usage. */
-  @Experimental
   @AutoService(ExternalTransformRegistrar.class)
   public static class External implements ExternalTransformRegistrar {
 
@@ -149,7 +146,6 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     }
 
     /** Parameters class to expose the transform to an external SDK. */
-    @Experimental
     public static class ExternalConfiguration {
       private Long start = 0L;
       private @Nullable Long stop;

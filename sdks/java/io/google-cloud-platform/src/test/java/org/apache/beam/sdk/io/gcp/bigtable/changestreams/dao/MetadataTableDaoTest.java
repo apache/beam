@@ -112,6 +112,24 @@ public class MetadataTableDaoTest {
   }
 
   @Test
+  public void testNewPartitionRowKeyConversion() throws InvalidProtocolBufferException {
+    ByteStringRange rowRange = ByteStringRange.create("a", "b");
+    ByteString rowKey = metadataTableDao.convertPartitionToNewPartitionRowKey(rowRange);
+    assertEquals(rowRange, metadataTableDao.convertNewPartitionRowKeyToPartition(rowKey));
+  }
+
+  @Test
+  public void testNewPartitionConversionWithWithIllegalUtf8()
+      throws InvalidProtocolBufferException {
+    // Test that the conversion is able to handle non-utf8 values.
+    byte[] nonUtf8Bytes = {(byte) 0b10001100};
+    ByteString nonUtf8BytesString = ByteString.copyFrom(nonUtf8Bytes);
+    ByteStringRange rowRange = ByteStringRange.create(nonUtf8BytesString, nonUtf8BytesString);
+    ByteString rowKey = metadataTableDao.convertPartitionToNewPartitionRowKey(rowRange);
+    assertEquals(rowRange, metadataTableDao.convertNewPartitionRowKeyToPartition(rowKey));
+  }
+
+  @Test
   public void testLockPartitionRace() throws InterruptedException {
     ByteStringRange partition = ByteStringRange.create("", "");
     ByteString rowKey = metadataTableDao.convertPartitionToStreamPartitionRowKey(partition);

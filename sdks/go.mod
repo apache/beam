@@ -27,13 +27,13 @@ require (
 	cloud.google.com/go/bigtable v1.18.1
 	cloud.google.com/go/datastore v1.11.0
 	cloud.google.com/go/profiler v0.3.1
-	cloud.google.com/go/pubsub v1.30.0
+	cloud.google.com/go/pubsub v1.30.1
 	cloud.google.com/go/spanner v1.45.1
 	cloud.google.com/go/storage v1.30.1
 	github.com/aws/aws-sdk-go-v2 v1.18.0
-	github.com/aws/aws-sdk-go-v2/config v1.18.22
-	github.com/aws/aws-sdk-go-v2/credentials v1.13.21
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.64
+	github.com/aws/aws-sdk-go-v2/config v1.18.24
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.23
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.66
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.33.1
 	github.com/aws/smithy-go v1.13.5
 	github.com/docker/go-connections v0.4.0
@@ -51,10 +51,10 @@ require (
 	github.com/tetratelabs/wazero v1.1.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
-	go.mongodb.org/mongo-driver v1.11.5
+	go.mongodb.org/mongo-driver v1.11.6
 	golang.org/x/net v0.9.0
 	golang.org/x/oauth2 v0.7.0
-	golang.org/x/sync v0.1.0
+	golang.org/x/sync v0.2.0
 	golang.org/x/sys v0.7.0
 	golang.org/x/text v0.9.0
 	google.golang.org/api v0.121.0
@@ -94,9 +94,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.28 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.27 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.14.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.12.9 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.9 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.18.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.12.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.19.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

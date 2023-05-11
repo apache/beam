@@ -31,7 +31,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'PytorchModelHandlerTensor',
@@ -391,7 +390,6 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
   return attr_fn
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
 class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
                                                   PredictionResult,
                                                   torch.nn.Module]):
