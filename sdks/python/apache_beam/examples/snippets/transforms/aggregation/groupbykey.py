@@ -19,8 +19,8 @@
 # pytype: skip-file
 
 # beam-playground:
-#   name: GroupByKey
-#   description: Demonstration of GroupByKey transform usage.
+#   name: GroupByKeySort
+#   description: Demonstration of GroupByKey transform usage with per-key sorting.
 #   multifile: false
 #   default_example: false
 #   context_line: 38

@@ -19,7 +19,7 @@
 # pytype: skip-file
 
 # beam-playground:
-#   name: Flatten
+#   name: FlattenTransform
 #   description: Demonstration of Flatten transform usage.
 #   multifile: false
 #   default_example: false

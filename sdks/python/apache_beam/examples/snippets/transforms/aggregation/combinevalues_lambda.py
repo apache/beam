@@ -19,7 +19,7 @@
 # pytype: skip-file
 
 # beam-playground:
-#   name: CombineValuesMultipleArguments
+#   name: CombineValuesLambda
 #   description: Demonstration of CombineValue transform usage with a lambda function.
 #   multifile: false
 #   default_example: false

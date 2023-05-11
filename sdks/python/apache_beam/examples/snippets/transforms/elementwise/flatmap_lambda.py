@@ -19,7 +19,7 @@
 # pytype: skip-file
 
 # beam-playground:
-#   name: FlatMapGenerator
+#   name: FlatMapLambda
 #   description: Demonstration of FlatMap transform usage with a lambda function.
 #   multifile: false
 #   default_example: false

@@ -19,7 +19,7 @@
 # pytype: skip-file
 
 # beam-playground:
-#   name: MaxPerKey
+#   name: MinPerKey
 #   description: Demonstration of Max transform usage per key.
 #   multifile: false
 #   default_example: false
