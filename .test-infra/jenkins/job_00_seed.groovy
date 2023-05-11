@@ -73,7 +73,7 @@ job('beam_SeedJob') {
   }
 
   triggers {
-    // Run every six hours, alternate job_seed_standalonw has same freq
+    // Run every six hours, alternate job_seed_standalone has same freq
     cron('H 0,6,12,18 * * *')
 
     githubPullRequest {
