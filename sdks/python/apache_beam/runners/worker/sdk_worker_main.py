@@ -44,8 +44,6 @@ from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 from apache_beam.utils import profiler
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
 

@@ -99,7 +99,10 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       *,
       load_model_args: Optional[Dict[str, Any]] = None,
       custom_weights: str = "",
-      inference_fn: TensorInferenceFn = default_numpy_inference_fn):
+      inference_fn: TensorInferenceFn = default_numpy_inference_fn,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
     Example Usage::
@@ -120,6 +123,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
           once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        kwargs: 'env_vars' can be used to set environment variables
+          before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.9, 2.10, 2.11.
@@ -128,8 +133,14 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._model_type = model_type
     self._inference_fn = inference_fn
     self._create_model_fn = create_model_fn
+    self._env_vars = kwargs.get('env_vars', {})
     self._load_model_args = {} if not load_model_args else load_model_args
     self._custom_weights = custom_weights
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
@@ -189,6 +200,9 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
 
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
+
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
                                         tf.Module]):
@@ -200,7 +214,10 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       *,
       load_model_args: Optional[Dict[str, Any]] = None,
       custom_weights: str = "",
-      inference_fn: TensorInferenceFn = default_tensor_inference_fn):
+      inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
     Example Usage::
@@ -222,6 +239,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
           once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        kwargs: 'env_vars' can be used to set environment variables
+          before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.11.
@@ -230,8 +249,14 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     self._model_type = model_type
     self._inference_fn = inference_fn
     self._create_model_fn = create_model_fn
+    self._env_vars = kwargs.get('env_vars', {})
     self._load_model_args = {} if not load_model_args else load_model_args
     self._custom_weights = custom_weights
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
@@ -291,3 +316,6 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs

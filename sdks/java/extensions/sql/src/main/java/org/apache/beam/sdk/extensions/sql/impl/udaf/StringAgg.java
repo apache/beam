@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.udaf;
 
 import java.nio.charset.StandardCharsets;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
@@ -26,7 +25,6 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  *
  * <p>{@link StringAgg.StringAggString} does not support NULL values.
  */
-@Experimental
 public class StringAgg {
 
   /** A {@link CombineFn} that aggregates strings with a string as delimiter. */

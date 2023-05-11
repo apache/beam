@@ -243,6 +243,30 @@ class XGBoostRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
+  def test_pipeline_numpy_sets_env_vars_correctly(self):
+    model = build_monkeypatched_xgboost_classifier()
+    model_state = self.tmpdir + os.sep + 'model.json'
+    model.save_model(model_state)
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+
+    with TestPipeline() as pipeline:
+      examples = [
+          numpy.array([[1, 1], [2, 2]]),
+          numpy.array([[2, 4], [6, 8]]),
+      ]
+      handler_with_vars = XGBoostModelHandlerNumpy(
+          env_vars={'FOO': 'bar'},
+          model_class=xgboost.XGBClassifier,
+          model_state=model_state)
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(examples)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
+
   def test_pipeline_pandas(self):
     model = build_monkeypatched_xgboost_classifier()
     model_state = self.tmpdir + os.sep + 'model.json'
@@ -265,6 +289,30 @@ class XGBoostRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
+  def test_pipeline_pandas_sets_env_vars_correctly(self):
+    model = build_monkeypatched_xgboost_classifier()
+    model_state = self.tmpdir + os.sep + 'model.json'
+    model.save_model(model_state)
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+
+    with TestPipeline() as pipeline:
+      examples = [
+          pandas.DataFrame([[1, 1], [2, 2]]),
+          pandas.DataFrame([[2, 4], [6, 8]]),
+      ]
+      handler_with_vars = XGBoostModelHandlerPandas(
+          env_vars={'FOO': 'bar'},
+          model_class=xgboost.XGBClassifier,
+          model_state=model_state)
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(examples)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
+
   def test_pipeline_datatable(self):
     model = build_monkeypatched_xgboost_classifier()
     model_state = self.tmpdir + os.sep + 'model.json'
@@ -286,6 +334,30 @@ class XGBoostRunInferenceTest(unittest.TestCase):
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
+
+  def test_pipeline_datatable_sets_env_vars_correctly(self):
+    model = build_monkeypatched_xgboost_classifier()
+    model_state = self.tmpdir + os.sep + 'model.json'
+    model.save_model(model_state)
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+
+    with TestPipeline() as pipeline:
+      examples = [
+          datatable.Frame([[1, 1], [2, 2]]),
+          datatable.Frame([[2, 4], [6, 8]]),
+      ]
+      handler_with_vars = XGBoostModelHandlerDatatable(
+          env_vars={'FOO': 'bar'},
+          model_class=xgboost.XGBClassifier,
+          model_state=model_state)
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(examples)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
 
   def test_pipeline_scipy(self):
     model = build_monkeypatched_xgboost_classifier()
@@ -310,6 +382,30 @@ class XGBoostRunInferenceTest(unittest.TestCase):
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
+
+  def test_pipeline_scipy_sets_env_vars_correctly(self):
+    model = build_monkeypatched_xgboost_classifier()
+    model_state = self.tmpdir + os.sep + 'model.json'
+    model.save_model(model_state)
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+
+    with TestPipeline() as pipeline:
+      examples = [
+          scipy.sparse.csr_matrix(numpy.array([[1, 1], [2, 2]])),
+          scipy.sparse.csr_matrix(numpy.array([[2, 4], [6, 8]])),
+      ]
+      handler_with_vars = XGBoostModelHandlerSciPy(
+          env_vars={'FOO': 'bar'},
+          model_class=xgboost.XGBClassifier,
+          model_state=model_state)
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(examples)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
 
   def test_bad_model_file_raises(self):
     model_state = self.tmpdir + os.sep + 'bad_file_name.json'

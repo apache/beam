@@ -98,7 +98,7 @@ public class ReadChangeStreamPartitionActionTest {
     uuid = "123456";
     Instant startTime = Instant.now();
     Instant parentLowWatermark = Instant.now();
-    partitionRecord = new PartitionRecord(partition, startTime, uuid, parentLowWatermark);
+    partitionRecord = new PartitionRecord(partition, startTime, uuid, parentLowWatermark, null);
     when(tracker.currentRestriction()).thenReturn(restriction);
     when(metadataTableDao.lockPartition(partition, uuid)).thenReturn(true);
     when(restriction.getCurrentToken()).thenReturn(null);
@@ -116,7 +116,7 @@ public class ReadChangeStreamPartitionActionTest {
     Heartbeat mockHeartBeat = Mockito.mock(Heartbeat.class);
     when(responseIterator.next()).thenReturn(mockHeartBeat);
     when(responseIterator.hasNext()).thenReturn(true);
-    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), anyBoolean()))
+    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any(), anyBoolean()))
         .thenReturn(responses);
 
     when(changeStreamAction.run(any(), any(), any(), any(), any(), anyBoolean()))
@@ -160,7 +160,7 @@ public class ReadChangeStreamPartitionActionTest {
     Heartbeat mockHeartBeat = Mockito.mock(Heartbeat.class);
     when(responseIterator.next()).thenReturn(mockHeartBeat);
     when(responseIterator.hasNext()).thenReturn(true);
-    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), anyBoolean()))
+    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any(), anyBoolean()))
         .thenReturn(responses);
 
     when(changeStreamAction.run(any(), any(), any(), any(), any(), anyBoolean()))

@@ -33,8 +33,6 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import okhttp3.OkHttpClient;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -96,7 +94,6 @@ import org.influxdb.dto.QueryResult.Series;
  *
  * <p>The source and sink also accepts optional configuration: {@code withRetentionPolicy()}
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

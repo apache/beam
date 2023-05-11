@@ -116,6 +116,7 @@ public class ChangeStreamActionTest {
     verify(metrics).incClosestreamCount();
     StreamProgress streamProgress = new StreamProgress(mockCloseStream);
     verify(tracker).tryClaim(eq(streamProgress));
+    verify(throughputEstimator, never()).update(any(), any());
   }
 
   @Test

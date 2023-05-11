@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -33,7 +32,6 @@ import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
  * SchemaIOTableProviderWrapper}, for Pubsub specific behavior with payload in json/avro format.
  */
 @Internal
-@Experimental
 @AutoService(TableProvider.class)
 public class PubsubTableProvider extends SchemaIOTableProviderWrapper {
   @Override

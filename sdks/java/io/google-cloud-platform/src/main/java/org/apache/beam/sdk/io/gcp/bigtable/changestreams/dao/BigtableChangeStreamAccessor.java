@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.google.api.gax.grpc.ChannelPoolSettings;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminSettings;
@@ -27,6 +28,7 @@ import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
+import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.annotations.Internal;
@@ -86,7 +88,6 @@ class BigtableChangeStreamAccessor {
       throws IOException {
     String projectId = checkArgumentNotNull(bigtableConfig.getProjectId()).get();
     String instanceId = checkArgumentNotNull(bigtableConfig.getInstanceId()).get();
-    String appProfileId = checkArgumentNotNull(bigtableConfig.getAppProfileId()).get();
     BigtableDataSettings.Builder dataSettingsBuilder = BigtableDataSettings.newBuilder();
     BigtableTableAdminSettings.Builder tableAdminSettingsBuilder =
         BigtableTableAdminSettings.newBuilder();
@@ -100,9 +101,36 @@ class BigtableChangeStreamAccessor {
     dataSettingsBuilder.setInstanceId(instanceId);
     tableAdminSettingsBuilder.setInstanceId(instanceId);
 
-    if (appProfileId != null) {
-      dataSettingsBuilder.setAppProfileId(appProfileId);
-    }
+    String appProfileId = checkArgumentNotNull(bigtableConfig.getAppProfileId()).get();
+    dataSettingsBuilder.setAppProfileId(appProfileId);
+
+    dataSettingsBuilder
+        .stubSettings()
+        .setTransportChannelProvider(
+            EnhancedBigtableStubSettings.defaultGrpcTransportProviderBuilder()
+                .setAttemptDirectPath(false) // Disable DirectPath
+                .setChannelPoolSettings( // Autoscale Channel Size
+                    // We use blocking rpc calls so we expect a max of `workerHarnessThreads`
+                    // concurrent rpcs per-worker. This defaults to 500 and we want to accommodate
+                    // higher concurrency for jobs that are overridden to use more threads. There
+                    // is a limit of 100 concurrent streams per channel so this should resize to
+                    // support a large number of requests. Testing has shown that this
+                    // significantly increases throughput compared to the default channel pool.
+                    ChannelPoolSettings.builder()
+                        // Make sure that there are at least 2 channels regardless of RPCs
+                        .setMinChannelCount(2)
+                        // Limit number of channels to 100 regardless of QPS
+                        .setMaxChannelCount(100)
+                        // Start off with 5
+                        .setInitialChannelCount(5)
+                        // Make sure the channels are primed before use
+                        .setPreemptiveRefreshEnabled(true)
+                        // evict channels when there are less than 10 outstanding RPCs
+                        .setMinRpcsPerChannel(10)
+                        // add more channels when the channel has 50 outstanding RPCs
+                        .setMaxRpcsPerChannel(50)
+                        .build())
+                .build());
 
     RetrySettings.Builder readRowRetrySettings =
         dataSettingsBuilder.stubSettings().readRowSettings().retrySettings();
@@ -169,7 +197,7 @@ class BigtableChangeStreamAccessor {
                 .setInitialRpcTimeout(Duration.ofSeconds(60))
                 .setTotalTimeout(Duration.ofSeconds(60))
                 .setMaxRpcTimeout(Duration.ofSeconds(60))
-                .setMaxAttempts(3)
+                .setMaxAttempts(10)
                 .build());
 
     BigtableDataClient dataClient = BigtableDataClient.create(dataSettingsBuilder.build());
