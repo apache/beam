@@ -21,8 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
+complexity: ADVANCED
+id: adding-timestamp
+name: Windowing with timestamp
+taskName: adding-timestamp

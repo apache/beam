@@ -21,8 +21,6 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
+complexity: ADVANCED
+id: windowing-concept
+name: Windowing concept

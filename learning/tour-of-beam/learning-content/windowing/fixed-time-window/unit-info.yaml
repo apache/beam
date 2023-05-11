@@ -21,8 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
+complexity: ADVANCED
+id: fixed-time-window
+name: Windowing with fixed time
+taskName: fixed-time-window

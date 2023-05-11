@@ -21,8 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
+complexity: ADVANCED
+id: session-window
+name: Windowing with session
+taskName: session-window

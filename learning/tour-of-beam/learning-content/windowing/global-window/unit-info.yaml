@@ -21,8 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
+complexity: ADVANCED
+id: global-window
+name: Global windowing
+taskName: global-window

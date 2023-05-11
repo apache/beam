@@ -21,8 +21,14 @@ sdk:
   - Java
   - Python
   - Go
+id: windowing
+name: Windowing
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
+- windowing-concept
+- adding-timestamp
+- global-window
+- fixed-time-window
+- sliding-time-window
+- session-window
+

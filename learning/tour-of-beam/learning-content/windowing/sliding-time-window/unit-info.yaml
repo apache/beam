@@ -21,8 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
+complexity: ADVANCED
+id: sliding-time-window
+name: Windowing with sliding time
+taskName: sliding-time-window
