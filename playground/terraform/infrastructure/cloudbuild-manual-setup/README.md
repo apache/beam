@@ -49,25 +49,17 @@ beam/playground/terraform/infrastructure/cloudbuild-manual-setup/common.tfvars
 ```
 And put the following:
 ```
-playground_deploy_sa = "DEPLOY_SA_NAME" # SA name used for Deploy trigger
-playground_update_sa = "UPDATE_SA_NAME" # SA name used for Update trigger
-playground_ci_sa = "CI_SA_NAME" # SA name used for CI trigger
-playground_cd_sa = "CD_SA_NAME" # SA name used for CD trigger
-project_id = "PROJECT_ID" # ID of the project used
-playground_environment_name = "environment" # Name of the environment. Used for prefixing (dev- stag- prod- etc.)
-playground_dns_name = "fqdm.playground.zone" # FQDN used for Playground deployment
-image_tag = "tag" # Container image tag to build
-playground_region = "us-central1" # GCP Region to deploy in
-playground_zone = "us-central1-a" # GCP Zone to deploy in
-skip_appengine_deploy = false # Workaround for Appengine issue. Appengine can only be deployed once so subsequent runs need to set this to true
-webhook_trigger_secret_id = "SECRET_ID" # Secret ID for webhook
-gh_pat_secret_id = "PAT_SECRET_ID" # Secret ID with github PAT
-data_for_github_pat_secret = "PAT" # Actual Github PAT
+playground_deploy_sa = "DEPLOY_SA_NAME"                                     # SA name used for Deploy trigger
+playground_update_sa = "UPDATE_SA_NAME"                                     # SA name used for Update trigger
+playground_ci_sa = "CI_SA_NAME"                                             # SA name used for CI trigger
+playground_cd_sa = "CD_SA_NAME"                                             # SA name used for CD trigger
+project_id = "PROJECT_ID"                                                   # ID of the project used
+webhook_trigger_secret_id = "SECRET_ID"                                     # Secret ID for webhook
+gh_pat_secret_id = "PAT_SECRET_ID"                                          # Secret ID with github PAT
+data_for_github_pat_secret = "PAT"                                          # Actual Github PAT
 trigger_source_repo = "https://github.com/beamplayground/deploy-workaround" # Repo used as a workaround
-terraform_source_repo = "https://github.com/apache/beam" # Repo from which terraform code is fetched 
-terraform_source_branch = "master" # Branch from which terraform code is fetched
-state_bucket = "BUCKET_NAME" # State bucket to preseve environment state
-data_for_cicd_webhook_secret = "secret_sting"  # Secret used when creating the Github webhook 
+trigger_source_branch = "main"                                              # Branch used as a workaround
+data_for_cicd_webhook_secret = "secret_sting"                               # Secret used when creating the Github webhook 
 ```
 
 Please make sure you change the values. 
@@ -99,7 +91,7 @@ cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 
 # Run terraform commands
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var="project_id=$(gcloud config get-value project)" -var-file=../common.tfvars"
+terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
 ```
 ## 3. Connect your GitHub repository and GCP Cloud Build
 
@@ -118,7 +110,7 @@ cd ../02.builders
 
 # Run terraform commands
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="$BEAM_ROOT/playground/terraform/environment/$ENVIRONMENT_NAME/common.tfvars"
+terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
 ```
 
 **Note:**  you will have to provide values for multiple variables required for setup of triggers

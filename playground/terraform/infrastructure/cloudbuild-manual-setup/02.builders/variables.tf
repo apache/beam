@@ -56,14 +56,17 @@ variable "playground_cd_sa" {
 
 variable "playground_environment_name" {
   description = "An environment name which will have it is own configuration of Playground"
+  default = "env"
 }
 
 variable "playground_dns_name" {
   description = "The DNS A-record name for Playground website"
+  default = "fqdn.playground.zone"
 }
 
 variable "state_bucket" {
   description = "The Google Cloud Platform GCS bucket name for Playground Terraform state file"
+  default = "playground-tfstate-project-env"
 }
 variable "cloudbuild_bucket_private" {
   description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild Private logs"
@@ -74,24 +77,19 @@ variable "cloudbuild_bucket_public" {
   description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild Private logs"
   default = "playground-cloudbuild-public"
 }
-variable "cloudbuild_bucket_private_location" {
-  description = "The GCS location for Private bucket"
-  default = "US-CENTRAL1"
-}
-variable "cloudbuild_bucket_public_location" {
-  description = "The GCS location for Public bucket"
-  default = "US-CENTRAL1"
-}
 variable "image_tag" {
   description = "The docker images tag for Playground images"
+  default = "env-1.0"
 }
 
 variable "playground_region" {
   description = "The Google Cloud Platform (GCP) region (For example: us-central1) where playground infrastructure will be deployed to"
+  default = "us-central1"
 }
 
 variable "playground_zone" {
   description = "The Google Cloud Platform (GCP) zone (For example: us-central1-b) where playground infrastructure will be deployed to"
+  default = "us-central1-a"
 }
 
 variable "sdk_tag" {
@@ -104,6 +102,7 @@ See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hu
 
 variable "skip_appengine_deploy" {
   description = "Boolean. If AppEngine and Datastore need to be installed. Put 'true' if AppEngine and Datastore already installed"
+  default = "false"
 }
 
 variable "gke_machine_type" {
@@ -141,6 +140,10 @@ variable "data_for_github_pat_secret" {
 variable "trigger_source_repo" {
   description = "Source repo used for github trigger, not used but reqired due to cloudbuild limitation"
   default = "https://github.com/beamplayground/deploy-workaround"
+}
+variable "trigger_source_branch" {
+  description = "Source branch used for github trigger, not used but reqired due to cloudbuild limitation"
+  default = "main"
 }
 
 variable "terraform_source_repo" {
