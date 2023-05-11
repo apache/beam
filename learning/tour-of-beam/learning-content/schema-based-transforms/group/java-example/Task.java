@@ -44,12 +44,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Objects;
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.RowCoder;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     @DefaultSchema(JavaFieldSchema.class)
-    public static class Game implements Serializable{
+    public static class Game {
         public String userId;
         public Integer score;
         public String gameId;
@@ -72,33 +73,18 @@ public class Task {
                     ", date='" + date + '\'' +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Game game = (Game) o;
-            return Objects.equals(userId, game.userId) && Objects.equals(score, game.score) && Objects.equals(gameId, game.gameId) && Objects.equals(date, game.date);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, score, gameId, date);
-        }
     }
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
-    public static class User implements Serializable{
+    public static class User {
 
         public String userId;
         public String userName;
         public Game game;
 
         @SchemaCreate
-        public User(String userId, String userName
-                , Game game
-        ) {
+        public User(String userId, String userName, Game game) {
             this.userId = userId;
             this.userName = userName;
             this.game = game;
@@ -111,19 +97,6 @@ public class Task {
                     ", userName='" + userName + '\'' +
                     ", game=" + game +
                     '}';
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            User user = (User) o;
-            return Objects.equals(userId, user.userId) && Objects.equals(userName, user.userName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, userName);
         }
     }
 
@@ -158,6 +131,7 @@ public class Task {
                 .apply(MapElements.into(TypeDescriptor.of(String.class)).via(row -> row.getRow(0).getValue(0)+" : "+row.getRow(1).getValue(0)));
 
         pCollection
+                .setCoder(RowCoder.of(type))
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();

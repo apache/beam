@@ -28,6 +28,7 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -52,7 +53,7 @@ public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     @DefaultSchema(JavaFieldSchema.class)
-    public static class Game implements Serializable{
+    public static class Game {
         public String userId;
         public Integer score;
         public String gameId;
@@ -75,24 +76,11 @@ public class Task {
                     ", date='" + date + '\'' +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Game game = (Game) o;
-            return Objects.equals(userId, game.userId) && Objects.equals(score, game.score) && Objects.equals(gameId, game.gameId) && Objects.equals(date, game.date);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, score, gameId, date);
-        }
     }
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
-    public static class User implements Serializable{
+    public static class User {
 
         public String userId;
         public String userName;
@@ -110,19 +98,6 @@ public class Task {
                     ", userName='" + userName + '\'' +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            User user = (User) o;
-            return Objects.equals(userId, user.userId) && Objects.equals(userName, user.userName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, userName);
-        }
     }
 
 
@@ -133,18 +108,30 @@ public class Task {
         PCollection<User> userInfo = getUserPCollection(pipeline);
         PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
-        Schema type = Schema.builder()
+        Schema userSchema = Schema.builder()
                 .addStringField("userId")
                 .addStringField("userName")
                 .build();
 
+        Schema gameSchema = Schema.builder()
+                .addStringField("userId")
+                .addInt32Field("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
+
+        Schema joinSchema = Schema.builder()
+                .addRowField("lhs",userSchema)
+                .addRowField("rhs",gameSchema)
+                .build();
+
         PCollection<Row> pCollection = userInfo
                 .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
-                .setSchema(type,
+                .setSchema(userSchema,
                         TypeDescriptor.of(Object.class), input ->
                         {
                             User user = (User) input;
-                            return Row.withSchema(type)
+                            return Row.withSchema(userSchema)
                                     .addValues(user.userId, user.userName)
                                     .build();
                         },
@@ -153,6 +140,7 @@ public class Task {
                 .apply(Join.innerJoin(gameInfo).using("userId"));
 
         pCollection
+                .setCoder(RowCoder.of(joinSchema))
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();

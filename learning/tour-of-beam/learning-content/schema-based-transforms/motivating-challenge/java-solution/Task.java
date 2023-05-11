@@ -60,7 +60,7 @@ public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     @DefaultSchema(JavaFieldSchema.class)
-    public static class Game implements Serializable{
+    public static class Game {
         public String userId;
         public Integer score;
         public String gameId;
@@ -83,24 +83,11 @@ public class Task {
                     ", date='" + date + '\'' +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Game game = (Game) o;
-            return Objects.equals(userId, game.userId) && Objects.equals(score, game.score) && Objects.equals(gameId, game.gameId) && Objects.equals(date, game.date);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, score, gameId, date);
-        }
     }
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
-    public static class User implements Serializable{
+    public static class User {
 
         public String userId;
         public String userName;
@@ -117,19 +104,6 @@ public class Task {
                     "userId='" + userId + '\'' +
                     ", userName='" + userName + '\'' +
                     '}';
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            User user = (User) o;
-            return Objects.equals(userId, user.userId) && Objects.equals(userName, user.userName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, userName);
         }
     }
 
@@ -179,17 +153,17 @@ public class Task {
                             .addValues(userRow.getValue(0), userRow.getValue(1), gameRow.getValue(1), gameRow.getValue(2), gameRow.getValue(3))
                             .build();
                 }))
-                .setCoder(CustomCoder.of())
                 .setRowSchema(allFieldSchema)
                 .apply(Group.byFieldNames("userId").aggregateField("score", Sum.ofIntegers(), "total"))
                 .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> Row.withSchema(totalSchema)
                         .addValues(it.getRow(0).getValue(0), it.getRow(1).getValue(0))
                         .build()))
-                .setCoder(CustomCoder.of())
                 .setRowSchema(totalSchema)
                 .apply(Filter.create().whereFieldName("total", s -> (int) s > 11));
 
         pCollection
+                .setCoder(CustomCoder.of())
+                .setRowSchema(totalSchema)
                 .apply("User", ParDo.of(new LogOutput<>("Result")));
 
         pipeline.run();

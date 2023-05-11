@@ -8,7 +8,7 @@
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
-/*
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,14 +28,17 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
+import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
@@ -51,7 +54,7 @@ public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     @DefaultSchema(JavaFieldSchema.class)
-    public static class Game implements Serializable{
+    public static class Game {
         public String userId;
         public Integer score;
         public String gameId;
@@ -74,24 +77,11 @@ public class Task {
                     ", date='" + date + '\'' +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Game game = (Game) o;
-            return Objects.equals(userId, game.userId) && Objects.equals(score, game.score) && Objects.equals(gameId, game.gameId) && Objects.equals(date, game.date);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, score, gameId, date);
-        }
     }
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
-    public static class User implements Serializable{
+    public static class User {
 
         public String userId;
         public String userName;
@@ -109,25 +99,30 @@ public class Task {
                     ", userName='" + userName + '\'' +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            User user = (User) o;
-            return Objects.equals(userId, user.userId) && Objects.equals(userName, user.userName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, userName);
-        }
     }
 
 
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
+
+        Schema user = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .build();
+
+        Schema game = Schema.builder()
+                .addStringField("userId")
+                .addInt32Field("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
+
+        Schema schema = Schema.builder()
+                .addRowField("key",Schema.builder().addStringField("userId").build())
+                .addArrayField("game",Schema.FieldType.row(game))
+                .addArrayField("user", Schema.FieldType.row(user))
+                .build();
 
         PCollection<User> userInfo = getUserPCollection(pipeline);
         PCollection<Game> gameInfo = getGamePCollection(pipeline);
@@ -137,6 +132,7 @@ public class Task {
                         .apply(CoGroup.join(CoGroup.By.fieldNames("userId")));
 
         coGroupPCollection
+                .setCoder(RowCoder.of(schema))
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();

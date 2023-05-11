@@ -77,19 +77,6 @@ public class Task {
                     ", date='" + date + '\'' +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Game game = (Game) o;
-            return Objects.equals(userId, game.userId) && Objects.equals(score, game.score) && Objects.equals(gameId, game.gameId) && Objects.equals(date, game.date);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, score, gameId, date);
-        }
     }
 
     // User schema
@@ -99,11 +86,6 @@ public class Task {
         public String userName;
 
         public Game game;
-
-        @SchemaCreate
-        public User() {
-        }
-
 
         @SchemaCreate
         public User(String userId, String userName, Game game) {
@@ -120,20 +102,6 @@ public class Task {
                     ", game=" + game +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            User user = (User) o;
-            return Objects.equals(userId, user.userId) && Objects.equals(userName, user.userName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, userName);
-        }
-
     }
 
     public static void main(String[] args) {
@@ -164,7 +132,6 @@ public class Task {
     }
 
     static class CustomCoder extends Coder<User> {
-        final ObjectMapper objectMapper = new ObjectMapper();
         private static final CustomCoder INSTANCE = new CustomCoder();
 
         public static CustomCoder of() {

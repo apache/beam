@@ -28,10 +28,12 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Select;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.Objects;
 import java.io.Serializable;
 
@@ -47,7 +50,7 @@ public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     @DefaultSchema(JavaFieldSchema.class)
-    public static class Game implements Serializable{
+    public static class Game {
         public String userId;
         public String score;
         public String gameId;
@@ -70,24 +73,11 @@ public class Task {
                     ", date='" + date + '\'' +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Game game = (Game) o;
-            return Objects.equals(userId, game.userId) && Objects.equals(score, game.score) && Objects.equals(gameId, game.gameId) && Objects.equals(date, game.date);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, score, gameId, date);
-        }
     }
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
-    public static class User implements Serializable{
+    public static class User {
         public String userId;
         public String userName;
 
@@ -108,19 +98,6 @@ public class Task {
                     ", game=" + game +
                     '}';
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            User user = (User) o;
-            return Objects.equals(userId, user.userId) && Objects.equals(userName, user.userName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, userName);
-        }
     }
 
     public static void main(String[] args) {
@@ -129,17 +106,45 @@ public class Task {
 
         PCollection<User> input = getProgressPCollection(pipeline);
 
+        Schema shortInfoSchema = Schema.builder()
+                .addStringField("userId")
+                .addStringField("gameId")
+                .build();
+
+        Schema gameSchema = Schema.builder()
+                .addStringField("userId")
+                .addStringField("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
+
+
+        Schema flattenedSchema = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .addStringField("game_userId")
+                .addStringField("game_score")
+                .addStringField("game_gameId")
+                .addStringField("game_date")
+                .build();
+
         // Select [userId] and [userName]
         PCollection<Row> shortInfo = input.apply(Select.fieldNames("userId", "userName"));
-        shortInfo.apply("User short info", ParDo.of(new LogOutput<>("Short Info")));
+        shortInfo
+                .setCoder(RowCoder.of(shortInfoSchema))
+                .apply("User short info", ParDo.of(new LogOutput<>("Short Info")));
 
         // Select user [game]
         PCollection<Row> game = input.apply(Select.fieldNames("game.*"));
-        game.apply("User game", ParDo.of(new LogOutput<>("Game")));
+        game
+                .setCoder(RowCoder.of(gameSchema))
+                .apply("User game", ParDo.of(new LogOutput<>("Game")));
 
         // Flattened row, select all fields
         PCollection<Row> flattened = input.apply(Select.flattenedSchema());
-        flattened.apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
+        flattened
+                .setCoder(RowCoder.of(flattenedSchema))
+                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
 
         pipeline.run();
