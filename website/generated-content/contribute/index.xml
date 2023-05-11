@@ -1404,7 +1404,9 @@ Please review and vote on the release candidate #3 for the version 1.2.3, as fol
 [ ] +1, Approve the release
 [ ] -1, Do not approve the release (please provide specific comments)
 Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
-no issues are found.
+no issues are found. Only PMC member votes will count towards the final vote, but votes from all
+community members is encouraged and helpful for finding regressions; you can either test your own
+use cases or use cases from the validation sheet [10].
 The complete staging area is available for your review, which includes:
 * GitHub Release notes [1],
 * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
@@ -1440,8 +1442,11 @@ Proceed to the &lt;code>Fix Issues&lt;/code> step below and address the problem.
 However, some issues don’t require cancellation.
 For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.&lt;/p>
 &lt;h3 id="run-validation-tests">Run validation tests&lt;/h3>
-&lt;p>All tests listed in this &lt;a href="https://s.apache.org/beam-release-validation">spreadsheet&lt;/a>&lt;/p>
-&lt;p>Since there are a bunch of tests, we recommend you running validations using automation script.
+&lt;p>The community is responsible for performing validation, but as release manager you are expected to contribute as well.
+Before accepting an RC, as a community we try to exercise most (if not all) of the tests listed in this
+&lt;a href="https://s.apache.org/beam-release-validation">spreadsheet&lt;/a>, and those are good validations for you to try out as release manager.
+The goal of these tests is to validate that we&amp;rsquo;re able to run basic pipelines from a variety of environments (not just our CI environment).&lt;/p>
+&lt;p>Since there are a bunch of tests, we recommend you running some validations using an automation script.
 In case of script failure, you can still run all of them manually.&lt;/p>
 &lt;p>You may need to have Python interpreters for all supported Python minor
 versions to run all of the tests. See Python installation tips in &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters">Developer Wiki&lt;/a>.&lt;/p>
@@ -1460,6 +1465,10 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;/ol>
 &lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Note:&lt;/strong> running the validations requires the ability to do the following in your GCP account: start pipelines,
+write to BigQuery, and create a cluster of machines for running containers (for x-lang validation).&lt;/p>
+&lt;ul>
 &lt;li>
 &lt;p>&lt;strong>Tasks included&lt;/strong>&lt;/p>
 &lt;ol>
@@ -1494,6 +1503,7 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;li>Check whether validations succeed by following console output instructions.&lt;/li>
 &lt;li>Terminate streaming jobs and java injector.&lt;/li>
 &lt;li>Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
+Other manual validation will follow, but this will at least validate that the staged artifacts can be used.
 &lt;ul>
 &lt;li>Log in to Jenkins.&lt;/li>
 &lt;li>Go to &lt;a href="https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/">https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/&lt;/a>.&lt;/li>
