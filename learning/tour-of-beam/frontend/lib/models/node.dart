@@ -61,4 +61,6 @@ abstract class NodeModel {
   }
 
   NodeModel? getLastNodeFromBreadcrumbIds(List<String> breadcrumbIds);
+
+  List<UnitModel> getUnits();
 }

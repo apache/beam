@@ -31,4 +31,9 @@ class UnitModel extends NodeModel {
 
   @override
   NodeModel? getLastNodeFromBreadcrumbIds(List<String> breadcrumbIds) => this;
+
+  @override
+  List<UnitModel> getUnits() {
+    return [this];
+  }
 }

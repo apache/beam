@@ -21,7 +21,7 @@ import 'package:collection/collection.dart';
 import 'node.dart';
 import 'unit.dart';
 
-abstract class ParentNodeModel extends NodeModel {
+abstract class ParentNodeModel<T extends NodeModel> extends NodeModel {
   final List<NodeModel> nodes;
 
   const ParentNodeModel({
@@ -31,19 +31,12 @@ abstract class ParentNodeModel extends NodeModel {
     required this.nodes,
   });
 
+  @override
   List<UnitModel> getUnits() {
-    final units = <UnitModel>[];
-
-    void extractUnitsFromNode(NodeModel node) {
-      if (node is ParentNodeModel) {
-        node.nodes.forEach(extractUnitsFromNode);
-      } else if (node is UnitModel) {
-        units.add(node);
-      }
-    }
-
-    nodes.forEach(extractUnitsFromNode);
-    return units;
+    return nodes
+        .map((node) => node.getUnits())
+        .expand((e) => e)
+        .toList(growable: false);
   }
 
   @override
