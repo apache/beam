@@ -37,9 +37,10 @@ import argparse
 import numpy as np
 
 import apache_beam as beam
+from apache_beam import pvalue
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.io import read_csv
-from apache_beam.examples.online_clustering import AssignClusterLabels
+from apache_beam.examples.online_clustering import AssignClusterLabelsInMemoryModel
 from apache_beam.examples.online_clustering import OnlineClustering
 from apache_beam.examples.online_clustering import OnlineKMeans
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -81,7 +82,7 @@ def run(
   housing_features = to_pcollection(data[features])
 
   # 1. Calculate clustering centers and save model to persistent storage
-  _ = (
+  model = (
       housing_features
       | beam.Map(lambda record: list(record))
       | "Train clustering model" >> OnlineClustering(
@@ -92,12 +93,15 @@ def run(
           checkpoints_path='/tmp/checkpoints'))
 
   # 2. Calculate labels for all records in the dataset
-  # using the trained clustering model
+  # using the trained clustering model using in memory model
   _ = (
       housing_features
       | beam.Map(lambda sample: np.array(sample))
-      | "RunInference" >>
-      AssignClusterLabels(checkpoints_path='/tmp/checkpoints')
+      | "RunInference" >> AssignClusterLabelsInMemoryModel(
+          model=pvalue.AsSingleton(model),
+          model_id="kmeans",
+          n_clusters=6,
+          batch_size=512)
       | beam.Map(print))
 
   result = pipeline.run()

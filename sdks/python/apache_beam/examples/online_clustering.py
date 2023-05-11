@@ -26,7 +26,7 @@ import apache_beam as beam
 from apache_beam.coders import PickleCoder
 from apache_beam.coders import VarIntCoder
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.base import RunInference, PredictionResult
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.transforms import core
@@ -58,6 +58,15 @@ class SaveModel(beam.DoFn):
     joblib.dump(model, file)
 
     yield checkpoint_name
+
+
+class AssignClusterLabelsFn(beam.DoFn):
+  """Takes a trained model and input data and labels
+   all data instances using the trained model."""
+  def process(self, batch, model, model_id):
+    cluster_labels = model.predict(batch)
+    for e, i in zip(batch, cluster_labels):
+      yield PredictionResult(example=e, inference=i, model_id=model_id)
 
 
 class SelectLatestModelState(beam.CombineFn):
@@ -165,7 +174,7 @@ class OnlineKMeans(ClusteringAlgorithm):
     yield clustering, iteration
 
 
-class TypeConversion(core.DoFn):
+class ConvertToNumpyArray(core.DoFn):
   """Helper function to convert incoming data
   to numpy arrays that are accepted by sklearn"""
   def process(self, element, *args, **kwargs):
@@ -191,10 +200,10 @@ class ClusteringPreprocessing(ptransform.PTransform):
 
           Example Usage::
 
-            pcoll | RunInference(
-                        XGBoostModelHandlerNumpy(
-                            model_class="XGBoost Model Class",
-                            model_state="my_model_state.json")))
+            pcoll | ClusteringPreprocessing(
+              n_clusters=8,
+              batch_size=1024,
+              is_batched=False)
 
           Args:
           n_clusters: number of clusters used by the algorithm
@@ -210,15 +219,18 @@ class ClusteringPreprocessing(ptransform.PTransform):
   def expand(self, pcoll):
     pcoll = (
         pcoll
-        | "Convert element to numpy arrays" >> beam.ParDo(TypeConversion()))
+        |
+        "Convert element to numpy arrays" >> beam.ParDo(ConvertToNumpyArray()))
 
     if not self.is_batched:
       pcoll = (
           pcoll
           | "Create batches of elements" >> beam.BatchElements(
-              min_batch_size=self.n_clusters, max_batch_size=self.batch_size))
+              min_batch_size=self.n_clusters, max_batch_size=self.batch_size)
+          | "Covert to 2d numpy array" >>
+          beam.Map(lambda record: np.array(record)))
 
-    return pcoll | "Add a key" >> beam.Map(lambda record: (1, record))
+    return pcoll
 
 
 class OnlineClustering(ptransform.PTransform):
@@ -263,10 +275,12 @@ class OnlineClustering(ptransform.PTransform):
     # 1. Preprocess data for more efficient clustering
     data = (
         pcoll
-        | 'Clustering preprocessing' >> ClusteringPreprocessing(
+        | 'Batch data for faster processing' >> ClusteringPreprocessing(
             n_clusters=self.n_clusters,
             batch_size=self.batch_size,
-            is_batched=self.is_batched))
+            is_batched=self.is_batched)
+        | "Add a key for stateful processing" >>
+        beam.Map(lambda record: (1, record)))
 
     # 2. Calculate cluster centers
     model = (
@@ -287,7 +301,7 @@ class OnlineClustering(ptransform.PTransform):
     return model
 
 
-class AssignClusterLabels(ptransform.PTransform):
+class AssignClusterLabelsRunInference(ptransform.PTransform):
   def __init__(self, checkpoints_path):
     super().__init__()
     self.clustering_model = SklearnModelHandlerNumpy(
@@ -300,3 +314,23 @@ class AssignClusterLabels(ptransform.PTransform):
         | "RunInference" >> RunInference(self.clustering_model))
 
     return predictions
+
+
+class AssignClusterLabelsInMemoryModel(ptransform.PTransform):
+  def __init__(
+      self, model, n_clusters, batch_size, is_batched=False, model_id=None):
+    self.model = model
+    self.n_clusters = n_clusters
+    self.batch_size = batch_size
+    self.is_batched = is_batched
+    self.model_id = model_id
+
+  def expand(self, pcoll):
+    return (
+        pcoll
+        | "Preprocess data for faster prediction" >> ClusteringPreprocessing(
+            n_clusters=self.n_clusters,
+            batch_size=self.batch_size,
+            is_batched=self.is_batched)
+        | "Assign cluster labels" >> core.ParDo(
+            AssignClusterLabelsFn(), model=self.model, model_id=self.model_id))
