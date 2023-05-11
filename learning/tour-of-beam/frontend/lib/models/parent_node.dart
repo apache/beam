@@ -22,7 +22,7 @@ import 'node.dart';
 import 'unit.dart';
 
 abstract class ParentNodeModel<T extends NodeModel> extends NodeModel {
-  final List<NodeModel> nodes;
+  final List<T> nodes;
 
   const ParentNodeModel({
     required super.id,

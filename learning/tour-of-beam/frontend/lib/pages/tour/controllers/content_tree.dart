@@ -122,7 +122,7 @@ class ContentTreeController extends ChangeNotifier {
 
     _toggleNode(
       contentTree.getLastNodeFromBreadcrumbIds(_breadcrumbIds) ??
-          contentTree.modules.first,
+          contentTree.nodes.first,
     );
 
     notifyListeners();
