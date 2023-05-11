@@ -59,7 +59,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     List<String> initialTreeIds = const [],
   })  : contentTreeController = ContentTreeController(
           initialSdk: initialSdk,
-          initialTreeIds: initialTreeIds,
+          // TODO(nausharipov) review: replace treeIds with breadcrumbs everywhere?
+          initialBreadcrumbs: initialTreeIds,
         ),
         playgroundController = _createPlaygroundController(initialSdk.id) {
     _appNotifier.sdk ??= initialSdk;
@@ -85,7 +86,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   @override
   PagePath get path => TourPath(
         sdkId: contentTreeController.sdk.id,
-        treeIds: contentTreeController.treeIds,
+        treeIds: contentTreeController.breadcrumbs,
       );
 
   bool get isAuthenticated => _authNotifier.isAuthenticated;

@@ -25,21 +25,18 @@ import 'unit.dart';
 class ContentTreeModel extends ParentNodeModel {
   final List<ModuleModel> modules;
 
-  final List<UnitModel> units;
-
   String get sdkId => id;
 
   const ContentTreeModel({
     required super.id,
     required this.modules,
-    required this.units,
   }) : super(
           parent: null,
           title: '',
           nodes: modules,
         );
 
-  static List<UnitModel> _getUnitsFromModules(List<ModuleModel> modules) {
+  List<UnitModel> getUnitsFromModules() {
     final units = <UnitModel>[];
 
     void extractUnitsFromNode(NodeModel node) {
@@ -60,10 +57,5 @@ class ContentTreeModel extends ParentNodeModel {
           modules: response.modules
               .map(ModuleModel.fromResponse)
               .toList(growable: false),
-          units: _getUnitsFromModules(
-            response.modules
-                .map(ModuleModel.fromResponse)
-                .toList(growable: false),
-          ),
         );
 }

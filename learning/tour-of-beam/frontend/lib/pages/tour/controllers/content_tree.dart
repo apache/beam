@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
@@ -30,25 +29,27 @@ import '../../../state.dart';
 
 class ContentTreeController extends ChangeNotifier {
   final Sdk initialSdk;
-  List<String> _treeIds;
+  List<String> _breadcrumbs;
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
   final _expandedIds = <String>{};
+
+  final units = <UnitModel>[];
 
   Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
     required this.initialSdk,
-    List<String> initialTreeIds = const [],
-  }) : _treeIds = initialTreeIds {
-    _expandedIds.addAll(initialTreeIds);
+    List<String> initialBreadcrumbs = const [],
+  }) : _breadcrumbs = initialBreadcrumbs {
+    _expandedIds.addAll(initialBreadcrumbs);
 
     _contentTreeCache.addListener(_onContentTreeCacheChange);
     _onContentTreeCacheChange();
   }
 
   Sdk get sdk => GetIt.instance.get<AppNotifier>().sdk ?? initialSdk;
-  List<String> get treeIds => _treeIds;
+  List<String> get breadcrumbs => _breadcrumbs;
   NodeModel? get currentNode => _currentNode;
 
   void onNodePressed(NodeModel node) {
@@ -66,7 +67,7 @@ class ContentTreeController extends ChangeNotifier {
     }
 
     if (_currentNode != null) {
-      _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
+      _breadcrumbs = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
     }
   }
 
@@ -111,8 +112,11 @@ class ContentTreeController extends ChangeNotifier {
     }
 
     _toggleNode(
-      contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.modules.first,
+      contentTree.getNodeByTreeIds(_breadcrumbs) ?? contentTree.modules.first,
     );
+
+    units.clear();
+    units.addAll(contentTree.getUnitsFromModules());
 
     notifyListeners();
   }
@@ -122,36 +126,28 @@ class ContentTreeController extends ChangeNotifier {
   }
 
   bool hasNextUnit() {
-    return _getCurrentUnitIndex() <
-        _contentTreeCache.getContentTree(sdk)!.units.length - 1;
+    return _getCurrentUnitIndex() < units.length - 1;
   }
 
   void openPreviousUnit() {
-    final contentTree = _contentTreeCache.getContentTree(sdk);
-    final previousUnit = contentTree?.units[_getCurrentUnitIndex() - 1];
-    if (previousUnit != null) {
-      _navigateToUnit(previousUnit);
-    }
+    final previousUnit = units[_getCurrentUnitIndex() - 1];
+    _navigateToUnit(previousUnit);
   }
 
   void openNextUnit() {
-    final contentTree = _contentTreeCache.getContentTree(sdk);
-    final nextUnit = contentTree?.units[_getCurrentUnitIndex() + 1];
-    if (nextUnit != null) {
-      _navigateToUnit(nextUnit);
-    }
+    final nextUnit = units[_getCurrentUnitIndex() + 1];
+    _navigateToUnit(nextUnit);
   }
 
   int _getCurrentUnitIndex() {
-    final contentTree = _contentTreeCache.getContentTree(sdk);
-    return contentTree!.units.indexWhere(
-      (element) => element.id == _currentNode?.id,
+    return units.indexWhere(
+      (unit) => unit.id == _currentNode?.id,
     );
   }
 
   void _navigateToUnit(UnitModel unit) {
     onNodePressed(unit);
-    _expandedIds.addAll(_treeIds);
+    _expandedIds.addAll(_breadcrumbs);
   }
 
   @override
