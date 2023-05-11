@@ -55,12 +55,6 @@ labels:
     reviewers:
       - nielm
     exclusionList: []
-  - name: pubsub
-    reviewers:
-      - johnjcasey
-      - manavgarg
-      - bvolpato
-    exclusionList: []
   - name: Build
     reviewers:
       - damccorm
