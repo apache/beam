@@ -167,6 +167,7 @@ public class Task {
                 .apply(MapElements.into(TypeDescriptor.of(User.class)).via(user -> (User) user));
 
         pCollection
+                .setCoder(CustomCoder.of())
                 .apply("User", ParDo.of(new LogOutput<>("Filtered")));
 
         pipeline.run();
