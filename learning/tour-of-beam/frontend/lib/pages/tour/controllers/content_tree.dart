@@ -66,15 +66,12 @@ class ContentTreeController extends ChangeNotifier {
         _setUnit(node);
       }
     }
-
-    if (_currentNode != null) {
-      _breadcrumbIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
-    }
   }
 
   void _setUnit(UnitModel unit) {
     _currentNode = unit;
     _currentUnitIndex = _getCurrentUnitIndex();
+    _breadcrumbIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
   }
 
   void _onParentNodePressed(ParentNodeModel node) {
