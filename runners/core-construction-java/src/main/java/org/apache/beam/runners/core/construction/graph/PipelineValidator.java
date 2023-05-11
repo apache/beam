@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -214,6 +215,13 @@ public class PipelineValidator {
           urn);
     }
 
+    if (Strings.isNullOrEmpty(urn)) {
+      checkArgument(
+          isComposite(transform),
+          "Transform %s is not a composite transform but does not have a specified URN.",
+          id);
+    }
+
     if (VALIDATORS.containsKey(urn)) {
       try {
         VALIDATORS.get(urn).validate(id, transform, components, requirements);
@@ -314,5 +322,21 @@ public class PipelineValidator {
 
     // TODO: Also validate that side inputs of all transforms within components.getTransforms()
     // are contained within payload.getSideInputsList()
+  }
+
+  private static boolean isComposite(PTransform transform) {
+    if (!transform.getSubtransformsList().isEmpty()) {
+      return true;
+    } else {
+      // Check wether this transform creates new PCollections out of thin air (a primitive)
+      // or simply returns (a subset of) its inputs.
+      Set<String> inputs = ImmutableSet.copyOf(transform.getInputsMap().values());
+      for (String output : transform.getOutputsMap().values()) {
+        if (!inputs.contains(output)) {
+          return false;
+        }
+      }
+      return true;
+    }
   }
 }
