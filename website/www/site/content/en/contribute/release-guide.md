@@ -752,7 +752,9 @@ Here’s an email template; please adjust as you see fit.
 
 
     Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
-    no issues are found.
+    no issues are found. Only PMC member votes will count towards the final vote, but votes from all
+    community members is encouraged and helpful for finding regressions; you can either test your own
+    use cases or use cases from the validation sheet [10].
 
     The complete staging area is available for your review, which includes:
     * GitHub Release notes [1],
@@ -794,9 +796,12 @@ However, some issues don’t require cancellation.
 For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
 
 ### Run validation tests
-All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validation)
+The community is responsible for performing validation, but as release manager you are expected to contribute as well.
+Before accepting an RC, as a community we try to exercise most (if not all) of the tests listed in this
+[spreadsheet](https://s.apache.org/beam-release-validation), and those are good validations for you to try out as release manager.
+The goal of these tests is to validate that we're able to run basic pipelines from a variety of environments (not just our CI environment).
 
-Since there are a bunch of tests, we recommend you running validations using automation script.
+Since there are a bunch of tests, we recommend you running some validations using an automation script.
 In case of script failure, you can still run all of them manually.
 
 You may need to have Python interpreters for all supported Python minor
@@ -812,6 +817,9 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
       ```
       ./beam/release/src/main/scripts/run_rc_validation.sh
       ```
+
+**Note:** running the validations requires the ability to do the following in your GCP account: start pipelines,
+write to BigQuery, and create a cluster of machines for running containers (for x-lang validation).
 
 * **Tasks included**
   1. Create a PR to trigger Python validation job, including
@@ -833,6 +841,7 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
   1. Check whether validations succeed by following console output instructions.
   1. Terminate streaming jobs and java injector.
   1. Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
+Other manual validation will follow, but this will at least validate that the staged artifacts can be used.
      * Log in to Jenkins.
      * Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
      * Click "Build with Parameters".
