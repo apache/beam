@@ -17,16 +17,16 @@
  */
 
 // beam-playground:
-//
-//	  name: adding-timestamp
-//		 description: Adding timestamp example.
-//		 multifile: false
-//		 context_line: 82
-//		 categories:
-//		   - Quickstart
-//		 complexity: ADVANCED
-//		 tags:
-//		   - hellobeam
+//   name: adding-timestamp
+//	 description: Adding timestamp example.
+//	 multifile: false
+//	 context_line: 82
+//	 categories:
+//	   - Quickstart
+//	 complexity: ADVANCED
+//	 tags:
+//	   - hellobeam
+
 package main
 
 import (
