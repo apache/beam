@@ -40,26 +40,43 @@ public class PartitionRecord implements Serializable {
   private ByteStringRange partition;
   @Nullable private Instant startTime;
   @Nullable private List<ChangeStreamContinuationToken> changeStreamContinuationTokens;
+  @Nullable private Instant endTime;
   private String uuid;
   private Instant parentLowWatermark;
 
   public PartitionRecord(
-      ByteStringRange partition, Instant startTime, String uuid, Instant parentLowWatermark) {
+      ByteStringRange partition,
+      Instant startTime,
+      String uuid,
+      Instant parentLowWatermark,
+      @Nullable Instant endTime) {
     this.partition = partition;
     this.startTime = startTime;
     this.uuid = uuid;
     this.parentLowWatermark = parentLowWatermark;
+    this.endTime = endTime;
+  }
+
+  @Nullable
+  public Instant getEndTime() {
+    return endTime;
+  }
+
+  public void setEndTime(@Nullable Instant endTime) {
+    this.endTime = endTime;
   }
 
   public PartitionRecord(
       ByteStringRange partition,
       List<ChangeStreamContinuationToken> changeStreamContinuationTokens,
       String uuid,
-      Instant parentLowWatermark) {
+      Instant parentLowWatermark,
+      @Nullable Instant endTime) {
     this.partition = partition;
     this.changeStreamContinuationTokens = changeStreamContinuationTokens;
     this.uuid = uuid;
     this.parentLowWatermark = parentLowWatermark;
+    this.endTime = endTime;
   }
 
   @Nullable
@@ -118,6 +135,7 @@ public class PartitionRecord implements Serializable {
         && Objects.equals(getStartTime(), that.getStartTime())
         && Objects.equals(
             getChangeStreamContinuationTokens(), that.getChangeStreamContinuationTokens())
+        && Objects.equals(getEndTime(), that.getEndTime())
         && getUuid().equals(that.getUuid())
         && Objects.equals(getParentLowWatermark(), that.getParentLowWatermark());
   }
@@ -128,6 +146,7 @@ public class PartitionRecord implements Serializable {
         getPartition(),
         getStartTime(),
         getChangeStreamContinuationTokens(),
+        getEndTime(),
         getUuid(),
         getParentLowWatermark());
   }

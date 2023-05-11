@@ -247,6 +247,13 @@ import org.slf4j.LoggerFactory;
  *            .withStartTime(startTime));
  * }</pre>
  *
+ * <h3>Enable client side metrics</h3>
+ *
+ * <p>Client side metrics can be enabled with an experiments flag when you run the pipeline:
+ * --experiments=bigtable_enable_client_side_metrics. These metrics can provide additional insights
+ * to your job. You can read more about client side metrics in this documentation:
+ * https://cloud.google.com/bigtable/docs/client-side-metrics.
+ *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
@@ -1796,6 +1803,8 @@ public class BigtableIO {
 
     abstract @Nullable Instant getStartTime();
 
+    abstract @Nullable Instant getEndTime();
+
     abstract @Nullable Duration getHeartbeatDuration();
 
     abstract @Nullable String getChangeStreamName();
@@ -1867,6 +1876,12 @@ public class BigtableIO {
      */
     public ReadChangeStream withStartTime(Instant startTime) {
       return toBuilder().setStartTime(startTime).build();
+    }
+
+    /** Used only for integration tests. Unsafe to use in production. */
+    @VisibleForTesting
+    ReadChangeStream withEndTime(Instant endTime) {
+      return toBuilder().setEndTime(endTime).build();
     }
 
     /**
@@ -2002,7 +2017,7 @@ public class BigtableIO {
       InitializeDoFn initializeDoFn =
           new InitializeDoFn(daoFactory, metadataTableConfig.getAppProfileId().get(), startTime);
       DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(actionFactory, daoFactory, metrics);
+          new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
 
@@ -2037,6 +2052,8 @@ public class BigtableIO {
       abstract ReadChangeStream.Builder setMetadataTableId(String tableId);
 
       abstract ReadChangeStream.Builder setStartTime(Instant startTime);
+
+      abstract ReadChangeStream.Builder setEndTime(Instant endTime);
 
       abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
 

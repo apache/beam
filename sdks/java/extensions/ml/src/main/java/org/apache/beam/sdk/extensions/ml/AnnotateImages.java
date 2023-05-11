@@ -35,27 +35,28 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Parent class for transform utilizing Cloud Vision API. https://cloud.google.com/vision/docs/batch
  * Max batch size limit is imposed by the API for synchronous requests.
  *
- * @param <T> Type of input PCollection. Cannot be nullable since it is used as key to a map.
+ * @param <T> Type of input PCollection.
  */
-abstract class AnnotateImages<T extends @NonNull Object>
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+abstract class AnnotateImages<T>
     extends PTransform<PCollection<T>, PCollection<List<AnnotateImageResponse>>> {
 
   private static final Long MIN_BATCH_SIZE = 1L;
   private static final Long MAX_BATCH_SIZE = 16L;
 
-  protected final @Nullable PCollectionView<Map<T, ImageContext>> contextSideInput;
+  protected final PCollectionView<Map<T, ImageContext>> contextSideInput;
   protected final List<Feature> featureList;
   private final long batchSize;
   protected final int desiredRequestParallelism;
@@ -98,7 +99,7 @@ abstract class AnnotateImages<T extends @NonNull Object>
     this.batchSize = batchSize;
   }
 
-  private static void checkBatchSizeCorrectness(long batchSize) {
+  private void checkBatchSizeCorrectness(long batchSize) {
     if (batchSize > MAX_BATCH_SIZE) {
       throw new IllegalArgumentException(
           String.format(
@@ -152,7 +153,7 @@ abstract class AnnotateImages<T extends @NonNull Object>
   public static class PerformImageAnnotation
       extends DoFn<KV<Integer, Iterable<AnnotateImageRequest>>, List<AnnotateImageResponse>> {
 
-    private transient @Nullable ImageAnnotatorClient imageAnnotatorClient;
+    private transient ImageAnnotatorClient imageAnnotatorClient;
 
     public PerformImageAnnotation() {}
 
@@ -172,10 +173,7 @@ abstract class AnnotateImages<T extends @NonNull Object>
 
     @Teardown
     public void teardown() {
-      if (imageAnnotatorClient != null) {
-        imageAnnotatorClient.close();
-        imageAnnotatorClient = null;
-      }
+      imageAnnotatorClient.close();
     }
 
     @ProcessElement
@@ -190,8 +188,6 @@ abstract class AnnotateImages<T extends @NonNull Object>
      * @return response list.
      */
     List<AnnotateImageResponse> getResponse(Iterable<AnnotateImageRequest> requests) {
-      ImageAnnotatorClient imageAnnotatorClient =
-          Preconditions.checkStateNotNull(this.imageAnnotatorClient);
       List<AnnotateImageRequest> requestList = new ArrayList<>();
       requests.forEach(requestList::add);
       BatchAnnotateImagesResponse batchAnnotateImagesResponse =
@@ -202,9 +198,9 @@ abstract class AnnotateImages<T extends @NonNull Object>
 
   /** Transform using an implementation of the mapToRequest function. */
   private class MapInputToRequest extends DoFn<T, AnnotateImageRequest> {
-    @Nullable PCollectionView<Map<T, ImageContext>> sideInput;
+    PCollectionView<Map<T, ImageContext>> sideInput;
 
-    public MapInputToRequest(@Nullable PCollectionView<Map<T, ImageContext>> sideInput) {
+    public MapInputToRequest(PCollectionView<Map<T, ImageContext>> sideInput) {
       this.sideInput = sideInput;
     }
 

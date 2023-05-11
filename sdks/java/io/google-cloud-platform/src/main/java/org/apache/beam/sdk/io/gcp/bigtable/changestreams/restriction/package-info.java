@@ -16,4 +16,7 @@
  * limitations under the License.
  */
 /** Custom RestrictionTracker for Google Cloud Bigtable Change Streams. */
+@Internal
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
+
+import org.apache.beam.sdk.annotations.Internal;
