@@ -109,14 +109,14 @@ class DeduplicatePerKey(ptransform.PTransform):
 
 
 class Deduplicate(ptransform.PTransform):
-  """Similar to DeduplicatePerKey, the Deduplicate transform takes any arbitray
+  """Similar to DeduplicatePerKey, the Deduplicate transform takes any arbitrary
   value as input and uses value as key to deduplicate among certain amount of
   time duration.
   """
   def __init__(self, processing_time_duration=None, event_time_duration=None):
     if processing_time_duration is None and event_time_duration is None:
       raise ValueError(
-          'Deduplicate requires at lease provide either'
+          'Deduplicate requires at least providing either '
           'processing_time_duration or event_time_duration.')
     self.processing_time_duration = processing_time_duration
     self.event_time_duration = event_time_duration
