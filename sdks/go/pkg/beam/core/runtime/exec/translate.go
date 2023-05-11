@@ -592,6 +592,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					if len(userTimers) > 0 {
 						sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
+						// Instead of extracting timer coder from a userTimer payload, just pull the key coder directly from the input
+						// since we need the window coder anyway.
 						ec, wc, err := b.makeCoderForPCollection(input[0])
 						if err != nil {
 							return nil, err
