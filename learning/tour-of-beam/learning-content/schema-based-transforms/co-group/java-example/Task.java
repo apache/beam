@@ -28,27 +28,30 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
 import org.apache.beam.sdk.schemas.transforms.Convert;
-import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Objects;
-import java.io.Serializable;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -124,8 +127,8 @@ public class Task {
                 .addArrayField("user", Schema.FieldType.row(user))
                 .build();
 
-        PCollection<User> userInfo = getUserPCollection(pipeline);
-        PCollection<Game> gameInfo = getGamePCollection(pipeline);
+        PCollection<Row> userInfo = getUserPCollection(pipeline).apply(Convert.toRows());
+        PCollection<Row> gameInfo = getGamePCollection(pipeline).apply(Convert.toRows());
 
         PCollection<Row> coGroupPCollection =
                 PCollectionTuple.of("user", userInfo).and("game", gameInfo)

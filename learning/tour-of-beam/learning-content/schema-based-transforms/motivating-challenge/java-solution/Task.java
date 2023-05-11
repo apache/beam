@@ -37,6 +37,7 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.transforms.Join;
@@ -112,8 +113,8 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> userInfo = getUserPCollection(pipeline);
-        PCollection<Game> gameInfo = getGamePCollection(pipeline);
+        PCollection<Row> userInfo = getUserPCollection(pipeline).apply(Convert.toRows());
+        PCollection<Row> gameInfo = getGamePCollection(pipeline).apply(Convert.toRows());
 
         Schema userSchema = Schema.builder()
                 .addStringField("userId")

@@ -105,8 +105,8 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> userInfo = getUserPCollection(pipeline);
-        PCollection<Game> gameInfo = getGamePCollection(pipeline);
+        PCollection<Row> userInfo = getUserPCollection(pipeline).apply(Convert.toRows());
+        PCollection<Row> gameInfo = getGamePCollection(pipeline).apply(Convert.toRows());
 
         Schema userSchema = Schema.builder()
                 .addStringField("userId")
