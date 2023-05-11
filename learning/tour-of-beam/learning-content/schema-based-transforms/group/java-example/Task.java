@@ -28,6 +28,7 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -42,9 +43,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Objects;
-import java.io.Serializable;
-import org.apache.beam.sdk.coders.RowCoder;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -128,10 +126,10 @@ public class Task {
                                 new Game(row.getString(0), row.getInt32(2), row.getString(3), row.getString(4)))
                 )
                 .apply(Group.byFieldNames("userId").aggregateField("score", Sum.ofIntegers(), "total"))
-                .apply(MapElements.into(TypeDescriptor.of(String.class)).via(row -> row.getRow(0).getValue(0)+" : "+row.getRow(1).getValue(0)));
+                .apply(MapElements.into(TypeDescriptor.of(String.class)).via(row -> row.getRow(0).getValue(0) + " : " + row.getRow(1).getValue(0)));
 
         pCollection
-                .setCoder(RowCoder.of(type))
+                .setCoder(StringUtf8Coder.of())
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();
