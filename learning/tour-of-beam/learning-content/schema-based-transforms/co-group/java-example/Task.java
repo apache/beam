@@ -28,6 +28,7 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,12 +39,19 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
 import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -121,10 +129,10 @@ public class Task {
 
         PCollection<User> userInfo = getUserPCollection(pipeline);
 
-        PCollection<Object> userRows = userInfo.apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
-                .setSchema(userSchema, TypeDescriptor.of(Object.class), row ->
+        PCollection<User> userRows = userInfo
+                .setSchema(userSchema, TypeDescriptor.of(User.class), row ->
                         {
-                            User user = (User) row;
+                            User user = row;
                             return Row.withSchema(userSchema)
                                     .addValues(user.userId, user.userName)
                                     .build();
@@ -134,11 +142,11 @@ public class Task {
 
         PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
-        PCollection<Object> gameRows = gameInfo.apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
+        PCollection<Game> gameRows = gameInfo
                 .setSchema(gameSchema,
-                        TypeDescriptor.of(Object.class), row ->
+                        TypeDescriptor.of(Game.class), row ->
                         {
-                            Game game = (Game) row;
+                            Game game = row;
                             return Row.withSchema(gameSchema)
                                     .addValues(game.userId, game.score, game.gameId, game.date)
                                     .build();
