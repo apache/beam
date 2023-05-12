@@ -106,6 +106,38 @@ class FakeModelHandlerReturnsPredictionResult(
     self.model_id = model_path if model_path else self.model_id
 
 
+class FakeModelHandlerNoEnvVars(base.ModelHandler[int, int, FakeModel]):
+  def __init__(
+      self, clock=None, min_batch_size=1, max_batch_size=9999, **kwargs):
+    self._fake_clock = clock
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+
+  def load_model(self):
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 500_000_000  # 500ms
+    return FakeModel()
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[int]:
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
+    for example in batch:
+      yield model.predict(example)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    pass
+
+  def batch_elements_kwargs(self):
+    return {
+        'min_batch_size': self._min_batch_size,
+        'max_batch_size': self._max_batch_size
+    }
+
+
 class FakeClock:
   def __init__(self):
     # Start at 10 seconds.
@@ -753,6 +785,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       pipeline.run()
       self.assertTrue('FOO' in os.environ)
       self.assertTrue((os.environ['FOO']) == 'bar')
+
+  def test_child_class_without_env_vars(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeModelHandlerNoEnvVars())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
 
 
 if __name__ == '__main__':

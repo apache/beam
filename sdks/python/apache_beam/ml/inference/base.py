@@ -201,9 +201,11 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def set_environment_vars(self):
     """Sets environment variables using a dictionary provided via kwargs.
-    Keys are the env variable name, and values are the env variable value."""
-    for env_variable, env_value in self._env_vars.items():
-      os.environ[env_variable] = env_value
+    Keys are the env variable name, and values are the env variable value.
+    Child ModelHandler classes should set _env_vars via kwargs in __init__"""
+    if '_env_vars' in self.__dict__:
+      for env_variable, env_value in self._env_vars.items():
+        os.environ[env_variable] = env_value
 
   def with_preprocess_fn(
       self, fn: Callable[[PreProcessT], ExampleT]
@@ -836,7 +838,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def setup(self):
     self._metrics_collector = self.get_metrics_collector()
-    self._model_handler.set_environment_vars()
+    try:
+      self._model_handler.set_environment_vars()
+    except AttributeError:
+      logging.warning(
+          "ModelHander should call super().__init__ or set _env_vars.")
+
     if not self._enable_side_input_loading:
       self._model = self._load_model()
 
