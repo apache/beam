@@ -22,6 +22,9 @@ import os
 import argparse
 import sys
 
+# TODO(https://github.com/apache/beam/issues/26602)
+# This script no longer working. Either find a new truth-of-source for
+# committer github usernames or maintain manually
 
 class CommittersGeneratorException(Exception):
     pass

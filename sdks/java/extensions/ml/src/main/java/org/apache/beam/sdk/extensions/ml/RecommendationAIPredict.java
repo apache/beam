@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -48,6 +47,7 @@ import org.json.JSONObject;
  * to be used.
  */
 @AutoValue
+@SuppressWarnings({"nullness"})
 public abstract class RecommendationAIPredict
     extends PTransform<PCollection<GenericJson>, PCollectionTuple> {
 
@@ -112,11 +112,8 @@ public abstract class RecommendationAIPredict
 
   @Override
   public PCollectionTuple expand(PCollection<GenericJson> input) {
-    String projectId = Preconditions.checkStateNotNull(projectId());
-    String catalogName = Preconditions.checkStateNotNull(catalogName());
-    String eventStore = Preconditions.checkStateNotNull(eventStore());
     return input.apply(
-        ParDo.of(new Predict(projectId, catalogName, eventStore, placementId()))
+        ParDo.of(new Predict(projectId(), catalogName(), eventStore(), placementId()))
             .withOutputTags(SUCCESS_TAG, TupleTagList.of(FAILURE_TAG)));
   }
 
