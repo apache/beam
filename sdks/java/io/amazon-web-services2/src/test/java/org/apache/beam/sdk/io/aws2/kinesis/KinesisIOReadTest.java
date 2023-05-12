@@ -32,12 +32,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static software.amazon.kinesis.common.InitialPositionInStream.TRIM_HORIZON;
 
-import java.net.URI;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
-import org.apache.beam.sdk.io.aws2.StaticSupplier;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
@@ -54,11 +52,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClientBuilder;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
@@ -73,9 +66,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 /** Tests for {@link KinesisIO#read}. */
 @RunWith(MockitoJUnitRunner.class)
 public class KinesisIOReadTest {
-  private static final String KEY = "key";
-  private static final String SECRET = "secret";
-
   private static final int SHARDS = 3;
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
@@ -145,17 +135,6 @@ public class KinesisIOReadTest {
     p.run();
   }
 
-  @Test
-  public void testReadFromShardsWithLegacyProvider() {
-    List<List<Record>> records = createRecords(SHARDS, SHARD_EVENTS);
-    mockShards(client, SHARDS);
-    mockShardIterators(client, records);
-    mockRecords(client, records, 10);
-
-    MockClientBuilderFactory.set(p, KinesisClientBuilder.class, null);
-    readFromShards(read -> read.withAWSClientsProvider(Provider.of(client)), concat(records));
-  }
-
   @Test(expected = PipelineExecutionException.class)
   public void testReadWithLimitExceeded() {
     when(client.listShards(any(ListShardsRequest.class)))
@@ -178,79 +157,11 @@ public class KinesisIOReadTest {
     p.run();
   }
 
-  @Test
-  public void testBuildWithBasicCredentials() {
-    Region region = Region.US_EAST_1;
-    AwsBasicCredentials credentials = AwsBasicCredentials.create(KEY, SECRET);
-    StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
-
-    Read read = KinesisIO.read().withAWSClientsProvider(KEY, SECRET, region);
-
-    assertThat(read.getClientConfiguration())
-        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, null));
-  }
-
-  @Test
-  public void testBuildWithCredentialsProvider() {
-    Region region = Region.US_EAST_1;
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-
-    Read read = KinesisIO.read().withAWSClientsProvider(credentialsProvider, region);
-
-    assertThat(read.getClientConfiguration())
-        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, null));
-  }
-
-  @Test
-  public void testBuildWithBasicCredentialsAndCustomEndpoint() {
-    String customEndpoint = "localhost:9999";
-    Region region = Region.US_WEST_1;
-    AwsBasicCredentials credentials = AwsBasicCredentials.create("key", "secret");
-    StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
-
-    Read read = KinesisIO.read().withAWSClientsProvider(KEY, SECRET, region, customEndpoint);
-
-    assertThat(read.getClientConfiguration())
-        .isEqualTo(
-            ClientConfiguration.create(credentialsProvider, region, URI.create(customEndpoint)));
-  }
-
-  @Test
-  public void testBuildWithCredentialsProviderAndCustomEndpoint() {
-    String customEndpoint = "localhost:9999";
-    Region region = Region.US_WEST_1;
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-
-    Read read =
-        KinesisIO.read().withAWSClientsProvider(credentialsProvider, region, customEndpoint);
-
-    assertThat(read.getClientConfiguration())
-        .isEqualTo(
-            ClientConfiguration.create(credentialsProvider, region, URI.create(customEndpoint)));
-  }
-
   static class ToRecord extends DoFn<KinesisRecord, Record> {
     @ProcessElement
     public void processElement(@Element KinesisRecord rec, OutputReceiver<Record> out) {
       Instant arrival = rec.getApproximateArrivalTimestamp();
       out.output(record(arrival, rec.getDataAsBytes(), rec.getSequenceNumber()));
-    }
-  }
-
-  static class Provider extends StaticSupplier<KinesisClient, Provider>
-      implements AWSClientsProvider {
-    static AWSClientsProvider of(KinesisClient client) {
-      return new Provider().withObject(client);
-    }
-
-    @Override
-    public KinesisClient getKinesisClient() {
-      return get();
-    }
-
-    @Override
-    public CloudWatchClient getCloudWatchClient() {
-      return mock(CloudWatchClient.class);
     }
   }
 }

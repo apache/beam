@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.io.aws2.sqs;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import java.net.URI;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
@@ -34,7 +31,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -122,15 +118,13 @@ public class SqsIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<SqsMessage>> {
 
-    abstract @Nullable ClientConfiguration clientConfiguration();
+    abstract ClientConfiguration clientConfiguration();
 
     abstract @Nullable String queueUrl();
 
     abstract long maxNumRecords();
 
     abstract @Nullable Duration maxReadTime();
-
-    abstract @Nullable SqsClientProvider sqsClientProvider();
 
     abstract Builder builder();
 
@@ -143,8 +137,6 @@ public class SqsIO {
       abstract Builder setMaxNumRecords(long maxNumRecords);
 
       abstract Builder setMaxReadTime(Duration maxReadTime);
-
-      abstract Builder setSqsClientProvider(SqsClientProvider sqsClientProvider);
 
       abstract Read build();
     }
@@ -173,55 +165,16 @@ public class SqsIO {
       return builder().setQueueUrl(queueUrl).build();
     }
 
-    /**
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
-     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
-     */
-    @Deprecated
-    public Read withSqsClientProvider(SqsClientProvider clientProvider) {
-      checkArgument(clientProvider != null, "SqsClientProvider cannot be null");
-      return builder().setClientConfiguration(null).setSqsClientProvider(clientProvider).build();
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withSqsClientProvider(AwsCredentialsProvider credentials, String region) {
-      return updateClientConfig(
-          b -> b.credentialsProvider(credentials).region(Region.of(region)).build());
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withSqsClientProvider(
-        AwsCredentialsProvider credentials, String region, URI endpoint) {
-      return updateClientConfig(
-          b ->
-              b.credentialsProvider(credentials)
-                  .region(Region.of(region))
-                  .endpoint(endpoint)
-                  .build());
-    }
-
     /** Configuration of SQS client. */
     public Read withClientConfiguration(ClientConfiguration config) {
-      return updateClientConfig(ignore -> config);
-    }
-
-    private Read updateClientConfig(Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
-      checkState(
-          sqsClientProvider() == null,
-          "Legacy SqsClientProvider is set, but incompatible with ClientConfiguration.");
-      ClientConfiguration config = fn.apply(clientConfiguration().toBuilder());
       checkArgument(config != null, "ClientConfiguration cannot be null");
       return builder().setClientConfiguration(config).build();
     }
 
     @Override
     public PCollection<SqsMessage> expand(PBegin input) {
-      if (clientConfiguration() != null) {
-        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-        ClientBuilderFactory.validate(awsOptions, clientConfiguration());
-      }
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      ClientBuilderFactory.validate(awsOptions, clientConfiguration());
 
       org.apache.beam.sdk.io.Read.Unbounded<SqsMessage> unbounded =
           org.apache.beam.sdk.io.Read.from(new SqsUnboundedSource(this));
@@ -243,9 +196,7 @@ public class SqsIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SendMessageRequest>, PDone> {
 
-    abstract @Nullable ClientConfiguration getClientConfiguration();
-
-    abstract @Nullable SqsClientProvider getSqsClientProvider();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract Builder builder();
 
@@ -253,62 +204,19 @@ public class SqsIO {
     abstract static class Builder {
       abstract Builder setClientConfiguration(ClientConfiguration config);
 
-      abstract Builder setSqsClientProvider(SqsClientProvider sqsClientProvider);
-
       abstract Write build();
-    }
-
-    /**
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
-     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
-     */
-    @Deprecated
-    public Write withSqsClientProvider(SqsClientProvider clientProvider) {
-      checkArgument(clientProvider != null, "SqsClientProvider cannot be null");
-      return builder().setClientConfiguration(null).setSqsClientProvider(clientProvider).build();
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Write withSqsClientProvider(AwsCredentialsProvider credentials, String region) {
-      return updateClientConfig(
-          b -> b.credentialsProvider(credentials).region(Region.of(region)).build());
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Write withSqsClientProvider(
-        AwsCredentialsProvider credentials, String region, URI endpoint) {
-      return updateClientConfig(
-          b ->
-              b.credentialsProvider(credentials)
-                  .region(Region.of(region))
-                  .endpoint(endpoint)
-                  .build());
     }
 
     /** Configuration of SQS client. */
     public Write withClientConfiguration(ClientConfiguration config) {
-      return updateClientConfig(ignore -> config);
-    }
-
-    private Write updateClientConfig(
-        Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
-      checkState(
-          getSqsClientProvider() == null,
-          "Legacy SqsClientProvider is set, but incompatible with ClientConfiguration.");
-      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
       checkArgument(config != null, "ClientConfiguration cannot be null");
       return builder().setClientConfiguration(config).build();
     }
 
     @Override
     public PDone expand(PCollection<SendMessageRequest> input) {
-      if (getSqsClientProvider() == null) {
-        checkNotNull(getClientConfiguration(), "clientConfiguration cannot be null");
-        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
-      }
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
 
       input.apply(ParDo.of(new SqsWriteFn(this)));
       return PDone.in(input.getPipeline());
@@ -325,15 +233,10 @@ public class SqsIO {
 
     @Setup
     public void setup(PipelineOptions options) throws Exception {
-      if (spec.getSqsClientProvider() != null) {
-        // build client using legacy SnsClientProvider
-        sqs = spec.getSqsClientProvider().getSqsClient();
-      } else {
-        AwsOptions awsOpts = options.as(AwsOptions.class);
-        sqs =
-            ClientBuilderFactory.buildClient(
-                awsOpts, SqsClient.builder(), spec.getClientConfiguration());
-      }
+      AwsOptions awsOpts = options.as(AwsOptions.class);
+      sqs =
+          ClientBuilderFactory.buildClient(
+              awsOpts, SqsClient.builder(), spec.getClientConfiguration());
     }
 
     @ProcessElement

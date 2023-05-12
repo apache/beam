@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import static java.util.function.Function.identity;
 import static org.apache.beam.sdk.io.aws2.sns.PublishResponseCoders.defaultPublishResponse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,16 +27,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
-import java.net.URI;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
 import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
-import org.apache.beam.sdk.io.aws2.StaticSupplier;
-import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
-import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.sns.SnsIO.Write;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -52,9 +46,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.SnsClientBuilder;
 import software.amazon.awssdk.services.sns.model.InvalidParameterException;
@@ -77,16 +68,6 @@ public class SnsIOTest implements Serializable {
 
   @Test
   public void testFailOnTopicValidation() {
-    failOnTopicValidation(identity());
-  }
-
-  @Test
-  public void testFailOnTopicValidationWithLegacyProvider() {
-    MockClientBuilderFactory.set(p, SnsClientBuilder.class, null);
-    failOnTopicValidation(write -> write.withSnsClientProvider(MockProvider.of(sns)));
-  }
-
-  private void failOnTopicValidation(Function<Write<String>, Write<String>> fn) {
     PCollection<String> input = mock(PCollection.class);
     when(input.getPipeline()).thenReturn(p);
     when(sns.getTopicAttributes(any(Consumer.class)))
@@ -97,7 +78,7 @@ public class SnsIOTest implements Serializable {
             .withTopicArn(topicArn)
             .withPublishRequestBuilder(msg -> requestBuilder(msg, "ignore"));
 
-    assertThatThrownBy(() -> fn.apply(snsWrite).expand(input))
+    assertThatThrownBy(() -> snsWrite.expand(input))
         .hasMessage("Topic arn " + topicArn + " does not exist");
   }
 
@@ -116,16 +97,6 @@ public class SnsIOTest implements Serializable {
 
   @Test
   public void testWriteWithTopicArn() {
-    writeWithTopicArn(identity());
-  }
-
-  @Test
-  public void testWriteWithTopicArnWithLegacyProvider() {
-    MockClientBuilderFactory.set(p, SnsClientBuilder.class, null);
-    writeWithTopicArn(write -> write.withSnsClientProvider(MockProvider.of(sns)));
-  }
-
-  private void writeWithTopicArn(Function<Write<String>, Write<String>> fn) {
     List<String> input = ImmutableList.of("message1", "message2");
 
     when(sns.publish(any(PublishRequest.class)))
@@ -136,7 +107,7 @@ public class SnsIOTest implements Serializable {
             .withTopicArn(topicArn)
             .withPublishRequestBuilder(msg -> requestBuilder(msg, "ignore"));
 
-    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(fn.apply(snsWrite));
+    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(snsWrite);
     PAssert.that(results.apply(Count.globally())).containsInAnyOrder(2L);
     p.run();
 
@@ -148,16 +119,6 @@ public class SnsIOTest implements Serializable {
 
   @Test
   public void testWriteWithoutTopicArn() {
-    writeWithoutTopicArn(identity());
-  }
-
-  @Test
-  public void testWriteWithoutTopicArnWithLegacyProvider() {
-    MockClientBuilderFactory.set(p, SnsClientBuilder.class, null);
-    writeWithoutTopicArn(write -> write.withSnsClientProvider(MockProvider.of(sns)));
-  }
-
-  private void writeWithoutTopicArn(Function<Write<String>, Write<String>> fn) {
     List<String> input = ImmutableList.of("message1", "message2");
 
     when(sns.publish(any(PublishRequest.class)))
@@ -166,7 +127,7 @@ public class SnsIOTest implements Serializable {
     Write<String> snsWrite =
         SnsIO.<String>write().withPublishRequestBuilder(msg -> requestBuilder(msg, topicArn));
 
-    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(fn.apply(snsWrite));
+    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(snsWrite);
     PAssert.that(results.apply(Count.globally())).containsInAnyOrder(2L);
     p.run();
 
@@ -178,50 +139,6 @@ public class SnsIOTest implements Serializable {
 
   @Test
   public void testWriteWithCustomCoder() {
-    writeWithCustomCoder(identity());
-  }
-
-  @Test
-  public void testWriteWithCustomCoderWithLegacyProvider() {
-    MockClientBuilderFactory.set(p, SnsClientBuilder.class, null);
-    writeWithCustomCoder(write -> write.withSnsClientProvider(MockProvider.of(sns)));
-  }
-
-  @Test
-  public void testBuildWithCredentialsProviderAndRegion() {
-    Region region = Region.US_EAST_1;
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-
-    Write<Object> write = SnsIO.write().withSnsClientProvider(credentialsProvider, region.id());
-    assertThat(write.getClientConfiguration())
-        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, null));
-  }
-
-  @Test
-  public void testBuildWithRetryConfig() {
-    // sum up user level and sdk level retries
-    Write<Object> write =
-        SnsIO.write().withRetryConfiguration(SnsIO.RetryConfiguration.create(3, null));
-    assertThat(write.getClientConfiguration())
-        .isEqualTo(
-            ClientConfiguration.builder()
-                .retry(RetryConfiguration.builder().numRetries(8).build())
-                .build());
-  }
-
-  @Test
-  public void testBuildWithCredentialsProviderAndRegionAndEndpoint() {
-    Region region = Region.US_EAST_1;
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-    URI endpoint = URI.create("localhost:9999");
-
-    Write<Object> write =
-        SnsIO.write().withSnsClientProvider(credentialsProvider, region.id(), endpoint);
-    assertThat(write.getClientConfiguration())
-        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, endpoint));
-  }
-
-  private void writeWithCustomCoder(Function<Write<String>, Write<String>> fn) {
     List<String> input = ImmutableList.of("message1");
 
     when(sns.publish(any(PublishRequest.class)))
@@ -235,7 +152,7 @@ public class SnsIOTest implements Serializable {
             .withPublishRequestBuilder(msg -> requestBuilder(msg, topicArn))
             .withCoder(DelegateCoder.of(defaultPublishResponse(), countingFn, x -> x));
 
-    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(fn.apply(snsWrite));
+    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(snsWrite);
     PAssert.that(results.apply(Count.globally())).containsInAnyOrder(1L);
     p.run();
 
@@ -257,17 +174,5 @@ public class SnsIOTest implements Serializable {
 
   private static PublishRequest.Builder requestBuilder(String msg, String topic) {
     return PublishRequest.builder().message(msg).topicArn(topic);
-  }
-
-  private static class MockProvider extends StaticSupplier<SnsClient, MockProvider>
-      implements SnsClientProvider {
-    static SnsClientProvider of(SnsClient client) {
-      return new MockProvider().withObject(client);
-    }
-
-    @Override
-    public SnsClient getSnsClient() {
-      return get();
-    }
   }
 }
