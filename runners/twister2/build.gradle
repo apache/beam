@@ -96,6 +96,7 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
         // Feature unsupported by this runner
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
     }
 
     maxHeapSize = '6g'
