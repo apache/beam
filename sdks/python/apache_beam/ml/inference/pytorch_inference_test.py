@@ -30,7 +30,6 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.ml.inference import pytorch_inference
 
 # Protect against environments where pytorch library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -38,6 +37,7 @@ try:
   import torch
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
+  from apache_beam.ml.inference import pytorch_inference
   from apache_beam.ml.inference.pytorch_inference import default_keyed_tensor_inference_fn
   from apache_beam.ml.inference.pytorch_inference import default_tensor_inference_fn
   from apache_beam.ml.inference.pytorch_inference import make_keyed_tensor_model_fn
