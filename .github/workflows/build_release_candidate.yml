@@ -33,7 +33,6 @@ jobs:
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.PASSPHRASE }}
       - name: Auth for nexus
         run: |
           mkdir -p ${HOME}/.m2
@@ -41,13 +40,13 @@ jobs:
            <servers>
              <server>
                <id>apache.releases.https</id>
-               <username>${{ secrets.APACHE_TOKEN_NAME }}</username>
-               <password>${{ secrets.APACHE_TOKEN_PASSWORD }}</password>
+               <username>${{ secrets.NEXUS_USER }}</username>
+               <password>${{ secrets.NEXUS_PW }}</password>
              </server>
              <server>
                <id>apache.snapshots.https</id>
-               <username>${{ secrets.APACHE_TOKEN_NAME }}</username>
-               <password>${{ secrets.APACHE_TOKEN_PASSWORD }}</password>
+               <username>${{ secrets.NEXUS_USER }}</username>
+               <password>${{ secrets.NEXUS_PW }}</password>
              </server>
            </servers>
           </settings>" > ${HOME}/.m2/settings.xml
