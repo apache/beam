@@ -30,6 +30,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.ml.inference import pytorch_inference
 
 # Protect against environments where pytorch library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -891,6 +892,56 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       pipeline.run()
       self.assertTrue('FOO' in os.environ)
       self.assertTrue((os.environ['FOO']) == 'bar')
+
+
+@pytest.mark.uses_pytorch
+class PytorchInferenceTestWithMocks(unittest.TestCase):
+  def setUp(self):
+    self._load_model = pytorch_inference._load_model
+    pytorch_inference._load_model = unittest.mock.MagicMock(
+        return_value=("model", "device"))
+    self.tmpdir = tempfile.mkdtemp()
+    self.state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                                   ('linear.bias', torch.Tensor([0.5]))])
+    self.torch_path = os.path.join(self.tmpdir, 'torch_model.pt')
+    torch.save(self.state_dict, self.torch_path)
+    self.model_params = {'input_dim': 2, 'output_dim': 1}
+
+  def tearDown(self):
+    pytorch_inference._load_model = self._load_model
+    shutil.rmtree(self.tmpdir)
+
+  def test_load_model_args_tensor(self):
+    load_model_args = {'weights_only': True}
+    model_handler = PytorchModelHandlerTensor(
+        state_dict_path=self.torch_path,
+        model_class=PytorchLinearRegression,
+        model_params=self.model_params,
+        load_model_args=load_model_args)
+    model_handler.load_model()
+    pytorch_inference._load_model.assert_called_with(
+        PytorchLinearRegression,
+        self.torch_path,
+        torch.device('cpu'),
+        self.model_params,
+        None,
+        load_model_args)
+
+  def test_load_model_args_keyed_tensor(self):
+    load_model_args = {'weights_only': True}
+    model_handler = PytorchModelHandlerKeyedTensor(
+        state_dict_path=self.torch_path,
+        model_class=PytorchLinearRegression,
+        model_params=self.model_params,
+        load_model_args=load_model_args)
+    model_handler.load_model()
+    pytorch_inference._load_model.assert_called_with(
+        PytorchLinearRegression,
+        self.torch_path,
+        torch.device('cpu'),
+        self.model_params,
+        None,
+        load_model_args)
 
 
 if __name__ == '__main__':
