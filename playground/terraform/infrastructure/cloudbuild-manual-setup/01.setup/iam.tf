@@ -108,3 +108,9 @@ data "google_project" "project" {
   project_id = var.project_id
 }
 
+resource "google_project_iam_member" "cloudbuild_sa_role" {
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+  project = var.project_id
+  depends_on = [ google_project_service.required_services ]
+}
