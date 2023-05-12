@@ -72,11 +72,11 @@ locals {
     "PROJECT_ID=$PROJECT_ID",
     "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
     "DNS_NAME=$_DNS_NAME",
-    "PR_URL=_PR_URL",
-    "TARGET_PR_REPO_BRANCH=_TARGET_PR_REPO_BRANCH",
-    "PR_TYPE=_PR_TYPE",
-    "MERGE_STATUS=_MERGE_STATUS",
-    "MERGE_COMMIT=_MERGE_COMMIT",
+    "PR_URL=$_PR_URL",
+    "TARGET_PR_REPO_BRANCH=$_TARGET_PR_REPO_BRANCH",
+    "PR_TYPE=$_PR_TYPE",
+    "MERGE_STATUS=$_MERGE_STATUS",
+    "MERGE_COMMIT=$_MERGE_COMMIT",
     "ORIGIN=$_ORIGIN",
     "SUBDIRS=$_SUBDIRS",
     "SDKS=$_SDKS",
@@ -105,19 +105,19 @@ locals {
     ]
 
     cloudbuild_ci_environment = [ 
-    "PR_BRANCH=_PR_BRANCH",
-    "PR_URL=_PR_URL",
-    "PR_TYPE=_PR_TYPE",
-    "PR_COMMIT=_PR_COMMIT",
-    "PR_NUMBER=_PR_NUMBER",
+    "PR_BRANCH=$_PR_BRANCH",
+    "PR_URL=$_PR_URL",
+    "PR_TYPE=$_PR_TYPE",
+    "PR_COMMIT=$_PR_COMMIT",
+    "PR_NUMBER=$_PR_NUMBER",
     "CI_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_ci_examples.sh",
     "PRIVATE_BUCKET=gs://${var.cloudbuild_bucket_private}",
     "PUBLIC_BUCKET=gs://${var.cloudbuild_bucket_public}",
-    "PUBLIC_LOG=_PUBLIC_LOG",
-    "FORK_REPO=_FORK_REPO",
-    "BASE_REF=_BASE_REF",
-    "PUBLIC_LOG_URL=_PUBLIC_LOG_URL",
-    "PUBLIC_LOG_LOCAL=_PUBLIC_LOG_LOCAL",
-    "BEAM_VERSION=_BEAM_VERSION"
+    "PUBLIC_LOG=$_PUBLIC_LOG",
+    "FORK_REPO=$_FORK_REPO",
+    "BASE_REF=$_BASE_REF",
+    "PUBLIC_LOG_URL=$_PUBLIC_LOG_URL",
+    "PUBLIC_LOG_LOCAL=$_PUBLIC_LOG_LOCAL",
+    "BEAM_VERSION=$_BEAM_VERSION"
     ]
     }

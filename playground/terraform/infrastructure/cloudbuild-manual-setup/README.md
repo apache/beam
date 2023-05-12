@@ -37,7 +37,7 @@ Cloud Build triggers created by terraform scripts from this directory automate s
 3. [Google Cloud Storage buckets](https://cloud.google.com/storage/docs/creating-buckets)for:
 - Terraform state for Cloud Build triggers: \<triggers-state-bucket\>
 - Cloud Build private logs: \<private-logs-bucket\>
-- Cloud Build public logs: \<public-logs-bucket\>
+- Cloud Build public logs: \<public-logs-bucket\>. Don't enforce public access prevention on this bucket.
 
 4. DNS name for your Playground deployment instance
 

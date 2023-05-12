@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#!/usr/bin/env bash
 echo "Search for CDLOG keyword to find valuable logs entries"
 
 echo "CDLOG $(date --utc '+%D %T') Trigger run inputs:
@@ -59,18 +60,15 @@ apt update > /dev/null 2>&1
 apt install -y git curl > /dev/null 2>&1
 
 
-apt-get install -y apt-transport-https ca-certificates gnupg > /dev/null
-2>&1
+apt-get install -y apt-transport-https ca-certificates gnupg > /dev/null 2>&1
 
 
-echo "deb https://packages.cloud.google.com/apt cloud-sdk main" >
-/dev/null 2>&1 | tee -a
+echo "deb https://packages.cloud.google.com/apt cloud-sdk main" > /dev/null 2>&1 | tee -a
 
 /etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null 2>&1
 
 
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null
-2>&1 | apt-key add - > /dev/null 2>&1 
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null 2>&1 | apt-key add - > /dev/null 2>&1 
 
 
 apt-get update && apt-get install -y google-cloud-sdk > /dev/null 2>&1
@@ -82,12 +80,12 @@ git clone --branch master https://github.com/apache/beam.git
 chmod +x ${CD_SCRIPT_PATH}
 
 
-env -i bash -c "${CD_SCRIPT_PATH}
-DATASTORE_NAMESPACE='"'${DATASTORE_NAMESPACE}'"'
-DNS_NAME='"'${DNS_NAME}'"' PROJECT_ID='"'${PROJECT_ID}'"' 
-MERGE_COMMIT='"'${MERGE_COMMIT}'"' FORCE_CD='"'${FORCE_CD}'"'
-ORIGIN='"'${ORIGIN}'"' SUBDIRS='"'${_SUBDIRS}'"' SDKS='"'${SDKS}'"'
-BEAM_CONCURRENCY='"'${BEAM_CONCURRENCY}'"' "
+env -i bash -c "${CD_SCRIPT_PATH} \
+DATASTORE_NAMESPACE='"'${DATASTORE_NAMESPACE}'"' \
+DNS_NAME='"'${DNS_NAME}'"' PROJECT_ID='"'${PROJECT_ID}'"' \
+MERGE_COMMIT='"'${MERGE_COMMIT}'"' FORCE_CD='"'${FORCE_CD}'"' \
+ORIGIN='"'${ORIGIN}'"' SUBDIRS='"'${_SUBDIRS}'"' SDKS='"'${SDKS}'"' \
+BEAM_CONCURRENCY='"'${BEAM_CONCURRENCY}'"'"
 
 cd_script_status=$?
 

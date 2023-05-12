@@ -23,7 +23,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
 
   source_to_build {
     uri       = var.trigger_source_repo
-    ref       = "refs/heads/master"
+    ref       = "refs/heads/${var.trigger_source_branch}"
     repo_type = "GITHUB"
   }
 
@@ -165,7 +165,7 @@ resource "google_cloudbuild_trigger" "playground_ci" {
       _PR_TYPE              = "$(body.action)"
       _PR_COMMIT            = "$(body.pull_request.head.sha)"
       _PR_NUMBER            = "$(body.number)"
-      _PUBLIC_LOG           = "CI_PR$(_PR_NUMBER)_$(_PR_COMMIT)_$${BUILD_ID}.txt"
+      _PUBLIC_LOG           = "CI_PR$${_PR_NUMBER}_$${_PR_COMMIT}_$${BUILD_ID}.txt"
       _FORK_REPO            = "$(body.pull_request.head.repo.full_name)"
       _BASE_REF             = "$(body.pull_request.base.ref)"
       _DATASTORE_NAMESPACE  = "playground-$${_ENVIRONMENT_NAME}"
@@ -235,7 +235,7 @@ resource "google_cloudbuild_trigger" "playground_cd_manual" {
 
   source_to_build {
     uri       = var.trigger_source_repo
-    ref       = "refs/heads/master"
+    ref       = "refs/heads/${var.trigger_source_branch}"
     repo_type = "GITHUB"
   }
 

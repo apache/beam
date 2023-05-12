@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#!/usr/bin/env bash
 echo "Search for CILOG keyword to find valuable logs entries"
 echo "CILOG $(date --utc '+%D %T') Trigger run inputs:  
     PR URL:$PR_URL
@@ -35,7 +36,7 @@ fi
 
 if [[ ${PR_TYPE} == @(opened|synchronize) ]]; then
     
-    echo "CILOG See also public logs: ${_PUBLIC_LOG_URL}"
+    echo "CILOG See also public logs: ${PUBLIC_LOG_URL}"
 
     echo "CILOG $(date --utc '+%D %T') Examples validation (CI) has started"
     
