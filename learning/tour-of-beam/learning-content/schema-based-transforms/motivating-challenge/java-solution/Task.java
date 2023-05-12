@@ -30,6 +30,8 @@
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -113,8 +115,8 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<Row> userInfo = getUserPCollection(pipeline).apply(Convert.toRows());
-        PCollection<Row> gameInfo = getGamePCollection(pipeline).apply(Convert.toRows());
+        PCollection<User> userInfo = getUserPCollection(pipeline);
+        PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
         Schema userSchema = Schema.builder()
                 .addStringField("userId")
@@ -134,7 +136,7 @@ public class Task {
                 .addInt32Field("total")
                 .build();
 
-        PCollection<Object> pCollection = userInfo
+        PCollection<Row> pCollection = userInfo
                 .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
                 .setSchema(userSchema,
                         TypeDescriptor.of(Object.class), input ->
@@ -160,10 +162,14 @@ public class Task {
                         .addValues(it.getRow(0).getValue(0), it.getRow(1).getValue(0))
                         .build()))
                 .setRowSchema(totalSchema)
-                .apply(Filter.create().whereFieldName("total", s -> (int) s > 11));
+                .apply(Filter.create().whereFieldName("total", s -> (int) s > 11))
+                .apply(MapElements.into(TypeDescriptor.of(Row.class)).via(input -> {
+                    Row row = (Row) input;
+                    return row;
+                }));
 
         pCollection
-                .setCoder(CustomCoder.of())
+                .setCoder(RowCoder.of(totalSchema))
                 .apply("User", ParDo.of(new LogOutput<>("Result")));
 
         pipeline.run();
@@ -201,7 +207,7 @@ public class Task {
 
     public static PCollection<User> getUserPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
-        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
         return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn()));
     }
 
