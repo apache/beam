@@ -113,7 +113,8 @@ def _load_model(
           state_dict_path,
           torch.device('cpu'),
           model_params,
-          torch_script_model_path)
+          torch_script_model_path,
+          load_model_args)
     else:
       raise e
 
