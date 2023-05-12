@@ -29,6 +29,7 @@
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -145,13 +146,13 @@ public class Task {
                         },
                         row -> new Game(row.getString(0), row.getInt32(1), row.getString(2), row.getString(3)));
 
-        PCollection<Row> coGroupPCollection =
+        PCollection<String> coGroupPCollection =
                 PCollectionTuple.of("user", userRows).and("game", gameRows)
-                        .apply(CoGroup.join(CoGroup.By.fieldNames("userId")));
+                        .apply(CoGroup.join(CoGroup.By.fieldNames("userId")))
+                        .apply(MapElements.into(TypeDescriptor.of(String.class)).via(it->it.getRow(0).getString(0)));
 
         coGroupPCollection
-                .setRowSchema(totalSchema)
-                .setCoder(RowCoder.of(totalSchema))
+                .setCoder(StringUtf8Coder.of())
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();
