@@ -114,7 +114,7 @@ public class GroupIntoBatches<K, InputT>
 
   /** Experiment to "avoid possibly unnecessary prefetching". */
   public static final String AVOID_POSSIBLY_UNNECESSARY_PREFETCHING =
-      "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
+      "avoid_possibly_unnecessary_prefetching";
 
   /**
    * Wrapper class for batching parameters supplied by users. Shared by both {@link
