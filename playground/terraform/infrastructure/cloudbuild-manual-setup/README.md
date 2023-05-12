@@ -60,6 +60,8 @@ data_for_github_pat_secret = "PAT"                                          # Ac
 trigger_source_repo = "https://github.com/beamplayground/deploy-workaround" # Repo used as a workaround
 trigger_source_branch = "main"                                              # Branch used as a workaround
 data_for_cicd_webhook_secret = "secret_sting"                               # Secret used when creating the Github webhook 
+playground-cloudbuild-private = "PRIVATE_BUCKET_NAME"                       # Name of bucket that is storing private logs
+playground-cloudbuild-public = "PUBLIC_BUCKET_NAME"                         # Name of bucket that is storing public logs
 ```
 
 Please make sure you change the values. 
