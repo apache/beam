@@ -21,9 +21,6 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
-  - triggers
+complexity: ADVANCED
+id: trigger-concept
+name: Trigger concept

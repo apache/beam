@@ -21,9 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
-  - triggers
+id: triggers-motivating-challenge
+name: Triggers challenge
+taskName: TriggersChallenge
+solutionName: TriggersSolution

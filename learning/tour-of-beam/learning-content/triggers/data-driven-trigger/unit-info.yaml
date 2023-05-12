@@ -21,9 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - windowing
-  - triggers
+complexity: ADVANCED
+id: data-driven-trigger
+name: Data driven trigger
+taskName: data-driven-trigger
