@@ -23,7 +23,6 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../pages/tour/widgets/pipeline_options.dart';
-import '../pages/welcome/page.dart';
 import '../state.dart';
 import 'footer.dart';
 import 'login/button.dart';
