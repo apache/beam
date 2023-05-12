@@ -113,35 +113,20 @@ public class Task {
                 .addStringField("userName")
                 .build();
 
-        Schema gameSchema = Schema.builder()
-                .addStringField("userId")
-                .addInt32Field("score")
-                .addStringField("gameId")
-                .addStringField("date")
-                .build();
-
-        Schema joinSchema = Schema.builder()
-                .addRowField("lhs",userSchema)
-                .addRowField("rhs",gameSchema)
-                .build();
-
         PCollection<Row> pCollection = userInfo
-                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
                 .setSchema(userSchema,
-                        TypeDescriptor.of(Object.class), input ->
+                        TypeDescriptor.of(User.class), input ->
                         {
-                            User user = (User) input;
+                            User user = input;
                             return Row.withSchema(userSchema)
                                     .addValues(user.userId, user.userName)
                                     .build();
                         },
                         input -> new User(input.getString(0), input.getString(1))
                 )
-                .apply(Join.innerJoin(gameInfo).using("userId"));
+                .apply(Join.<User,Game>innerJoin(gameInfo).using("userId"));
 
         pCollection
-                .setRowSchema(joinSchema)
-                .setCoder(RowCoder.of(joinSchema))
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.util.StreamUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -123,53 +124,22 @@ public class Task {
                 .addStringField("userName")
                 .build();
 
-        Schema allFieldSchema = Schema.builder()
-                .addStringField("userId")
-                .addStringField("userName")
-                .addInt32Field("score")
-                .addStringField("gameId")
-                .addStringField("date")
-                .build();
-
-        Schema totalSchema = Schema.builder()
-                .addStringField("userId")
-                .addInt32Field("total")
-                .build();
-
         PCollection<Row> pCollection = userInfo
-                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
                 .setSchema(userSchema,
-                        TypeDescriptor.of(Object.class), input ->
+                        TypeDescriptor.of(User.class), input ->
                         {
-                            User user = (User) input;
+                            User user = input;
                             return Row.withSchema(userSchema)
                                     .addValues(user.userId, user.userName)
                                     .build();
                         },
                         input -> new User(input.getString(0), input.getString(1))
                 )
-                .apply(Join.innerJoin(gameInfo).using("userId"))
-                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> {
-                    Row userRow = it.getRow(0);
-                    Row gameRow = it.getRow(1);
-                    return Row.withSchema(allFieldSchema)
-                            .addValues(userRow.getValue(0), userRow.getValue(1), gameRow.getValue(1), gameRow.getValue(2), gameRow.getValue(3))
-                            .build();
-                }))
-                .setRowSchema(allFieldSchema)
-                .apply(Group.byFieldNames("userId").aggregateField("score", Sum.ofIntegers(), "total"))
-                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> Row.withSchema(totalSchema)
-                        .addValues(it.getRow(0).getValue(0), it.getRow(1).getValue(0))
-                        .build()))
-                .setRowSchema(totalSchema)
-                .apply(Filter.create().whereFieldName("total", s -> (int) s > 11))
-                .apply(MapElements.into(TypeDescriptor.of(Row.class)).via(input -> {
-                    Row row = (Row) input;
-                    return row;
-                }));
+                .apply(Join.<User,Game>innerJoin(gameInfo).using("userId"))
+                .apply(Group.<Row>byFieldNames("lhs.userId").aggregateField("rhs.score", Sum.ofIntegers(), "total"))
+                .apply(Filter.<Row>create().whereFieldName("value.total", s -> (int) s > 11));
 
         pCollection
-                .setCoder(RowCoder.of(totalSchema))
                 .apply("User", ParDo.of(new LogOutput<>("Result")));
 
         pipeline.run();

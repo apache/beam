@@ -28,8 +28,6 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,22 +35,13 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.io.Serializable;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -112,8 +101,6 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<Row> input = getProgressPCollection(pipeline).apply(Convert.toRows());
-
         Schema shortInfoSchema = Schema.builder()
                 .addStringField("userId")
                 .addStringField("gameId")
@@ -126,35 +113,52 @@ public class Task {
                 .addStringField("date")
                 .build();
 
-
-        Schema flattenedSchema = Schema.builder()
+        Schema dataSchema = Schema.builder()
                 .addStringField("userId")
                 .addStringField("userName")
-                .addStringField("game_userId")
-                .addStringField("game_score")
-                .addStringField("game_gameId")
-                .addStringField("game_date")
+                .addRowField("game", gameSchema)
                 .build();
 
+
+        PCollection<User> input = getProgressPCollection(pipeline)
+                .setSchema(dataSchema,
+                        TypeDescriptor.of(User.class), row ->
+                        {
+                            User user = row;
+                            Game game = user.game;
+
+                            Row gameRow = Row.withSchema(gameSchema)
+                                    .addValues(game.userId, game.score, game.gameId, game.date)
+                                    .build();
+
+                            return Row.withSchema(dataSchema)
+                                    .addValues(user.userId, user.userName, gameRow).build();
+                        },
+                        row -> {
+                            String userId = row.getValue("userId");
+                            String userName = row.getValue("userName");
+                            Row game = row.getValue("game");
+
+                            String gameId = game.getValue("gameId");
+                            String gameScore = game.getValue("score");
+                            String gameDate = game.getValue("date");
+                            return new User(userId,userName,
+                                    new Game(userId,gameScore,gameId,gameDate));
+                        });
+
         // Select [userId] and [userName]
-        PCollection<Row> shortInfo = input.apply(Select.fieldNames("userId", "userName"));
-        shortInfo
-                .setRowSchema(shortInfoSchema)
-                .setCoder(RowCoder.of(shortInfoSchema))
+        PCollection<Row> shortInfo = input
+                .apply(Select.<User>fieldNames("userId", "userName").withOutputSchema(shortInfoSchema))
                 .apply("User short info", ParDo.of(new LogOutput<>("Short Info")));
 
         // Select user [game]
-        PCollection<Row> game = input.apply(Select.fieldNames("game.*"));
-        game
-                .setRowSchema(gameSchema)
-                .setCoder(RowCoder.of(gameSchema))
+        PCollection<Row> game = input
+                .apply(Select.fieldNames("game.*"))
                 .apply("User game", ParDo.of(new LogOutput<>("Game")));
 
         // Flattened row, select all fields
-        PCollection<Row> flattened = input.apply(Select.flattenedSchema());
-        flattened
-                .setRowSchema(flattenedSchema)
-                .setCoder(RowCoder.of(flattenedSchema))
+        PCollection<Row> flattened = input
+                .apply(Select.flattenedSchema())
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
 
