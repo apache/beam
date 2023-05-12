@@ -102,7 +102,7 @@ locals {
     "PR_COMMIT=$_PR_COMMIT",
     "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
     "FORCE_CD=true",
-    "PRIVATE_BUCKET=${google_storage_bucket.playground_cloudbuild_private.url}"
+    "PRIVATE_BUCKET=gs://${var.cloudbuild_bucket_private}"
     ]
 
     cloudbuild_ci_environment = [ 
@@ -112,8 +112,8 @@ locals {
     "PR_COMMIT=_PR_COMMIT",
     "PR_NUMBER=_PR_NUMBER",
     "CI_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_ci_examples.sh",
-    "PRIVATE_BUCKET=${google_storage_bucket.playground_cloudbuild_private.url}",
-    "PUBLIC_BUCKET=${google_storage_bucket.playground_cloudbuild_public.url}",
+    "PRIVATE_BUCKET=gs://${var.cloudbuild_bucket_private}",
+    "PUBLIC_BUCKET=gs://${var.cloudbuild_bucket_public}",
     "PUBLIC_LOG=_PUBLIC_LOG",
     "PAT_SECRET=github_pat_playground_deployment",
     "FORK_REPO=_FORK_REPO",
