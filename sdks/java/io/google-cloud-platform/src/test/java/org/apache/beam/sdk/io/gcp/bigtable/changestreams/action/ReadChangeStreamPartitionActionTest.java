@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
-import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import com.google.cloud.bigtable.data.v2.models.Heartbeat;
@@ -45,6 +44,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.CoderSizeEstimator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.NewPartition;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker;
@@ -71,8 +71,9 @@ public class ReadChangeStreamPartitionActionTest {
   //    private PartitionRecord partitionRecord;
   private StreamProgress restriction;
   private RestrictionTracker<StreamProgress, StreamProgress> tracker;
-  private DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver;
+  private DoFn.OutputReceiver<KV<ByteString, ChangeStreamRecord>> receiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
+  private CoderSizeEstimator<KV<ByteString, ChangeStreamRecord>> sizeEstimator;
 
   private ByteStringRange partition;
   private String uuid;
@@ -84,11 +85,17 @@ public class ReadChangeStreamPartitionActionTest {
     changeStreamDao = mock(ChangeStreamDao.class);
     metrics = mock(ChangeStreamMetrics.class);
     changeStreamAction = mock(ChangeStreamAction.class);
+    sizeEstimator = mock(CoderSizeEstimator.class);
     Duration heartbeatDuration = Duration.standardSeconds(1);
 
     action =
         new ReadChangeStreamPartitionAction(
-            metadataTableDao, changeStreamDao, metrics, changeStreamAction, heartbeatDuration);
+            metadataTableDao,
+            changeStreamDao,
+            metrics,
+            changeStreamAction,
+            heartbeatDuration,
+            sizeEstimator);
 
     restriction = mock(StreamProgress.class);
     tracker = mock(ReadChangeStreamPartitionProgressTracker.class);
@@ -124,7 +131,7 @@ public class ReadChangeStreamPartitionActionTest {
     when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any(), anyBoolean()))
         .thenReturn(responses);
 
-    when(changeStreamAction.run(any(), any(), any(), any(), any(), anyBoolean()))
+    when(changeStreamAction.run(any(), any(), any(), any(), any(), any(), anyBoolean()))
         .thenReturn(Optional.of(DoFn.ProcessContinuation.stop()));
 
     final DoFn.ProcessContinuation result =
@@ -133,7 +140,7 @@ public class ReadChangeStreamPartitionActionTest {
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     // Verify that on successful lock, we don't tryClaim on the tracker.
     verify(tracker, never()).tryClaim(any());
-    verify(changeStreamAction).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction).run(any(), any(), any(), any(), any(), any(), anyBoolean());
   }
 
   @Test
@@ -150,7 +157,7 @@ public class ReadChangeStreamPartitionActionTest {
     StreamProgress streamProgress = new StreamProgress();
     streamProgress.setFailToLock(true);
     verify(tracker).tryClaim(streamProgress);
-    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any(), anyBoolean());
   }
 
   @Test
@@ -170,7 +177,7 @@ public class ReadChangeStreamPartitionActionTest {
     when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any(), anyBoolean()))
         .thenReturn(responses);
 
-    when(changeStreamAction.run(any(), any(), any(), any(), any(), anyBoolean()))
+    when(changeStreamAction.run(any(), any(), any(), any(), any(), any(), anyBoolean()))
         .thenReturn(Optional.of(DoFn.ProcessContinuation.stop()));
 
     final DoFn.ProcessContinuation result =
@@ -179,7 +186,7 @@ public class ReadChangeStreamPartitionActionTest {
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     // Verify that on successful lock, we don't tryClaim on the tracker.
     verify(tracker, never()).tryClaim(any());
-    verify(changeStreamAction).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction).run(any(), any(), any(), any(), any(), any(), anyBoolean());
   }
 
   @Test
@@ -198,7 +205,7 @@ public class ReadChangeStreamPartitionActionTest {
     StreamProgress streamProgress = new StreamProgress();
     streamProgress.setFailToLock(true);
     verify(tracker).tryClaim(streamProgress);
-    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any(), anyBoolean());
   }
 
   @Test
@@ -217,13 +224,13 @@ public class ReadChangeStreamPartitionActionTest {
     when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any(), anyBoolean()))
         .thenReturn(responses);
 
-    when(changeStreamAction.run(any(), any(), any(), any(), any(), anyBoolean()))
+    when(changeStreamAction.run(any(), any(), any(), any(), any(), any(), anyBoolean()))
         .thenReturn(Optional.of(DoFn.ProcessContinuation.stop()));
 
     final DoFn.ProcessContinuation result =
         action.run(partitionRecord, tracker, receiver, watermarkEstimator);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
-    verify(changeStreamAction).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction).run(any(), any(), any(), any(), any(), any(), anyBoolean());
   }
 
   @Test
@@ -240,7 +247,7 @@ public class ReadChangeStreamPartitionActionTest {
         action.run(partitionRecord, tracker, receiver, watermarkEstimator);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     // Should terminate before reaching processing stream partition responses.
-    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any(), anyBoolean());
     // Should not try claim any restriction when processing CloseStream
     verify(tracker, (never())).tryClaim(any());
     // Should decrement the metric on termination.
@@ -266,7 +273,7 @@ public class ReadChangeStreamPartitionActionTest {
         action.run(partitionRecord, tracker, receiver, watermarkEstimator);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     // Should terminate before reaching processing stream partition responses.
-    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any(), anyBoolean());
     // Should not try claim any restriction when processing CloseStream
     verify(tracker, (never())).tryClaim(any());
     // Should decrement the metric on termination.
@@ -301,7 +308,7 @@ public class ReadChangeStreamPartitionActionTest {
         action.run(partitionRecord, tracker, receiver, watermarkEstimator);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     // Should terminate before reaching processing stream partition responses.
-    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any(), anyBoolean());
     // Should not try claim any restriction when processing CloseStream
     verify(tracker, (never())).tryClaim(any());
     // Should decrement the metric on termination.
@@ -353,7 +360,7 @@ public class ReadChangeStreamPartitionActionTest {
         action.run(partitionRecord, tracker, receiver, watermarkEstimator);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     // Should terminate before reaching processing stream partition responses.
-    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any(), anyBoolean());
     // Should not try claim any restriction when processing CloseStream
     verify(tracker, (never())).tryClaim(any());
     // Should decrement the metric on termination.
@@ -399,7 +406,7 @@ public class ReadChangeStreamPartitionActionTest {
         action.run(partitionRecord, tracker, receiver, watermarkEstimator);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     // Should terminate before reaching processing stream partition responses.
-    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), anyBoolean());
+    verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any(), anyBoolean());
     // Should not try claim any restriction when processing CloseStream
     verify(tracker, (never())).tryClaim(any());
     // Should decrement the metric on termination.

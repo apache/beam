@@ -17,54 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-
-/**
- * This class is used to estimate the size in bytes of a given element. It uses the given {@link
- * Coder} to calculate the size of the element.
- */
-@Internal
-public class SizeEstimator<T> implements Serializable {
-
-  private static final long serialVersionUID = 5564948506493524158L;
-
-  private static class SizeEstimatorObserver extends ElementByteSizeObserver
-      implements Serializable {
-
-    private static final long serialVersionUID = 4569562919962045617L;
-    private long observedBytes;
-
-    @Override
-    protected void reportElementSize(long elementByteSize) {
-      observedBytes = elementByteSize;
-    }
-  }
-
-  private final Coder<T> coder;
-  private final SizeEstimatorObserver observer;
-
-  public SizeEstimator(Coder<T> coder) {
-    this.coder = coder;
-    this.observer = new SizeEstimatorObserver();
-  }
-
-  /**
-   * Estimates the size in bytes of the given element with the configured {@link Coder} .
-   *
-   * @param element the element instance to be estimated
-   * @return the estimated size in bytes of the given element
-   */
-  public long sizeOf(T element) {
-    try {
-      coder.registerByteSizeObserver(element, observer);
-      observer.advance();
-
-      return observer.observedBytes;
-    } catch (Exception e) {
-      throw new EncodingException(e);
-    }
-  }
+public interface SizeEstimator<T> {
+  long sizeOf(T element);
 }

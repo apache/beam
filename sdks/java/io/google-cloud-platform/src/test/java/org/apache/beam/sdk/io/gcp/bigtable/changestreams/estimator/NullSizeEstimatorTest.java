@@ -17,30 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Internal;
-import org.joda.time.Instant;
+import static org.junit.Assert.assertEquals;
 
-/** An estimator to calculate the throughput of the outputted elements from a DoFn. */
-@Internal
-public interface ThroughputEstimator<T> extends Serializable {
-  /**
-   * Updates the estimator with the size of the records.
-   *
-   * @param timeOfRecords the committed timestamp of the records
-   * @param element the element to estimate the byte size of
-   */
-  void update(Instant timeOfRecords, T element);
+import org.junit.Test;
 
-  /** Returns the estimated throughput for now. */
-  default double get() {
-    return getFrom(Instant.now());
+public class NullSizeEstimatorTest {
+  private static final double DELTA = 1e-10;
+
+  @Test
+  public void alwaysReturns0AsEstimatedThroughput() {
+    final NullSizeEstimator<byte[]> estimator = new NullSizeEstimator<>();
+    assertEquals(estimator.sizeOf(new byte[40]), 0D, DELTA);
+    assertEquals(estimator.sizeOf(new byte[20]), 0D, DELTA);
+    assertEquals(estimator.sizeOf(new byte[10]), 0D, DELTA);
   }
-
-  /**
-   * Returns the estimated throughput for a specified time.
-   *
-   * @param time the specified timestamp to check throughput
-   */
-  double getFrom(Instant time);
 }
