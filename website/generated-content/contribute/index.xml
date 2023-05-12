@@ -167,7 +167,12 @@ commit, so be sure the commit history has been curated appropriately.&lt;/p>
 &lt;p>Instead, pull it all into the subject line:&lt;/p>
 &lt;pre>&lt;code>Merge pull request #1234: [BEAM-7873] Fix the foo bizzle bazzle
 &lt;/code>&lt;/pre>
-&lt;p>If you have comments to add, put them in the body of the commit message.&lt;/p></description></item><item><title>Contribute: Beam Contribution Guide</title><link>/contribute/get-started-contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/get-started-contributing/</guid><description>
+&lt;p>If you have comments to add, put them in the body of the commit message.&lt;/p>
+&lt;h2 id="seed-jobs">Seed jobs&lt;/h2>
+&lt;p>As a committer, you can now run seed jobs! These are used to update our Jenkins configuration
+and can be run to test PRs modifying Groovy files before they are merged.&lt;/p>
+&lt;p>To make sure you have these permissions, put up a PR adding yourself to
+&lt;a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/Committers.groovy">https://github.com/apache/beam/blob/master/.test-infra/jenkins/Committers.groovy&lt;/a>&lt;/p></description></item><item><title>Contribute: Beam Contribution Guide</title><link>/contribute/get-started-contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/get-started-contributing/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -666,9 +671,14 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="#checklist-before-proceeding">Checklist before proceeding&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#tag-a-chosen-commit-for-the-rc">Tag a chosen commit for the RC&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#run-build_release_candidatesh-to-create-a-release-candidate">Run build_release_candidate.sh to create a release candidate&lt;/a>
+&lt;li>&lt;a href="#run-build_release_candidate-github-action-to-create-a-release-candidate">Run build_release_candidate GitHub Action to create a release candidate&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#tasks-you-need-to-do-manually">Tasks you need to do manually&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#run-build_release_candidatesh-to-create-a-release-candidate">Run build_release_candidate.sh to create a release candidate&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#tasks-you-need-to-do-manually-1">Tasks you need to do manually&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#upload-release-candidate-to-pypi">Upload release candidate to PyPi&lt;/a>&lt;/li>
@@ -1176,6 +1186,38 @@ adjust the version, and add the tag locally. If it looks good, run it again with
 If you already have a clone that includes the &lt;code>${COMMIT_REF}&lt;/code> then you can omit &lt;code>--clone&lt;/code>. This
 is perfectly safe since the script does not depend on the current working tree.&lt;/p>
 &lt;p>See the source of the script for more details, or to run commands manually in case of a problem.&lt;/p>
+&lt;h3 id="run-build_release_candidate-github-action-to-create-a-release-candidate">Run build_release_candidate GitHub Action to create a release candidate&lt;/h3>
+&lt;p>Note: This step is partially automated (in progress), so part of the rc creation is done by GitHub Actions and the rest is done by a script.
+You don&amp;rsquo;t need to wait for the action to complete to start running the script.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Action&lt;/strong> &lt;a href="https://github.com/damccorm/beam/actions/workflows/build_release_candidate.yml">build_release_candidate&lt;/a> (click &lt;code>run workflow&lt;/code>)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>The script will:&lt;/strong>&lt;/p>
+&lt;ol>
+&lt;li>Clone the repo at the selected RC tag.&lt;/li>
+&lt;li>Run gradle publish to push java artifacts into Maven staging repo.&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ul>
+&lt;h4 id="tasks-you-need-to-do-manually">Tasks you need to do manually&lt;/h4>
+&lt;ol>
+&lt;li>Publish staging artifacts
+&lt;ol>
+&lt;li>Log in to the &lt;a href="https://repository.apache.org/#stagingRepositories">Apache Nexus&lt;/a> website.&lt;/li>
+&lt;li>Navigate to Build Promotion -&amp;gt; Staging Repositories (in the left sidebar).&lt;/li>
+&lt;li>Select repository &lt;code>orgapachebeam-NNNN&lt;/code>.&lt;/li>
+&lt;li>Click the Close button.&lt;/li>
+&lt;li>When prompted for a description, enter “Apache Beam, version X, release candidate Y”.&lt;/li>
+&lt;li>Review all staged artifacts on &lt;code>https://repository.apache.org/content/repositories/orgapachebeam-NNNN/&lt;/code>.
+They should contain all relevant parts for each module, including &lt;code>pom.xml&lt;/code>, jar, test jar, javadoc, etc.
+Artifact names should follow &lt;a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">the existing format&lt;/a> in which artifact name mirrors directory structure, e.g., &lt;code>beam-sdks-java-io-kafka&lt;/code>.
+Carefully review any new artifacts.
+Some additional validation should be done during the rc validation step.&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ol>
 &lt;h3 id="run-build_release_candidatesh-to-create-a-release-candidate">Run build_release_candidate.sh to create a release candidate&lt;/h3>
 &lt;ul>
 &lt;li>
@@ -1190,7 +1232,6 @@ is perfectly safe since the script does not depend on the current working tree.&
 &lt;p>&lt;strong>The script will:&lt;/strong>&lt;/p>
 &lt;ol>
 &lt;li>Clone the repo at the selected RC tag.&lt;/li>
-&lt;li>Run gradle publish to push java artifacts into Maven staging repo.&lt;/li>
 &lt;li>Stage source release into dist.apache.org dev &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">repo&lt;/a>.&lt;/li>
 &lt;li>Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir&lt;/li>
 &lt;li>Stage SDK docker images to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">docker hub Apache organization&lt;/a>.
@@ -1206,7 +1247,7 @@ help with this step. Please email &lt;code>dev@&lt;/code> and ask a member of th
 &lt;/ol>
 &lt;/li>
 &lt;/ul>
-&lt;h4 id="tasks-you-need-to-do-manually">Tasks you need to do manually&lt;/h4>
+&lt;h4 id="tasks-you-need-to-do-manually-1">Tasks you need to do manually&lt;/h4>
 &lt;ol>
 &lt;li>Verify the script worked.
 &lt;ol>
@@ -1232,19 +1273,6 @@ ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;pre>&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
 ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/code>&lt;/pre>&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;li>Publish staging artifacts
-&lt;ol>
-&lt;li>Log in to the &lt;a href="https://repository.apache.org/#stagingRepositories">Apache Nexus&lt;/a> website.&lt;/li>
-&lt;li>Navigate to Build Promotion -&amp;gt; Staging Repositories (in the left sidebar).&lt;/li>
-&lt;li>Select repository &lt;code>orgapachebeam-NNNN&lt;/code>.&lt;/li>
-&lt;li>Click the Close button.&lt;/li>
-&lt;li>When prompted for a description, enter “Apache Beam, version X, release candidate Y”.&lt;/li>
-&lt;li>Review all staged artifacts on &lt;code>https://repository.apache.org/content/repositories/orgapachebeam-NNNN/&lt;/code>.
-They should contain all relevant parts for each module, including &lt;code>pom.xml&lt;/code>, jar, test jar, javadoc, etc.
-Artifact names should follow &lt;a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">the existing format&lt;/a> in which artifact name mirrors directory structure, e.g., &lt;code>beam-sdks-java-io-kafka&lt;/code>.
-Carefully review any new artifacts.&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;/ol>
