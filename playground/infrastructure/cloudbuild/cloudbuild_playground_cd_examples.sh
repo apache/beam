@@ -17,41 +17,40 @@
 
 #!/usr/bin/env bash
 echo "Search for CDLOG keyword to find valuable logs entries"
+
 echo "CDLOG $(date --utc '+%D %T') Trigger run inputs:
-  PR URL: $PR_URL
-  Merged to: $TARGET_PR_REPO_BRANCH
-  WebHook Action: $PR_TYPE
-  Merge Status: $MERGE_STATUS
-  Merge commit: $MERGE_COMMIT
-  Playground DNS: $DNS_NAME
-  Datastore namespace: $DATASTORE_NAMESPACE
-  Exampes Origin: $ORIGIN
-  Examples Subdirs: $SUBDIRS
-  SDKs: $SDKS
-  CD Script Concurrency: $BEAM_CONCURRENCY"
-  
-if [ -z "$DNS_NAME" ] ||  [ -z "$DATASTORE_NAMESPACE" ]; then
-  echo "DNS_NAME and DATASTORE_NAMESPACE substitutions must be set in the triger"
-  exit 1
+    PR URL: $PR_URL
+    Merged to: $TARGET_PR_REPO_BRANCH
+    WebHook Action: $PR_TYPE
+    Merge Status: $MERGE_STATUS
+    Merge commit: $MERGE_COMMIT
+    Playground DNS: $DNS_NAME
+    Datastore namespace: $DATASTORE_NAMESPACE"
+ 
+if [[ -z "$DNS_NAME" || -z "$DATASTORE_NAMESPACE" ]]; then
+    echo "DNS_NAME and DATASTORE_NAMESPACE substitutions must be set in the triger"
+    exit 1
 fi
 
 
-if [ "${TARGET_PR_REPO_BRANCH}" != "apache:master" ]; then
+if [[ ${TARGET_PR_REPO_BRANCH} != "apache:master" ]]; then
     echo "CDLOG Merging not into the master, but into the branch apache/${TARGET_PR_REPO_BRANCH}. Exiting"
     exit 0
 fi
 
 
-if [ ${PR_TYPE} != "closed" ] || [ ${MERGE_STATUS} != "true" ];
+if [[ ${PR_TYPE} != "closed" ]] || [[ ${MERGE_STATUS} != "true" ]];
 then
-    echo "CDLOG $(date --utc '+%D %T') PR in $PR_URL for the COMMIT $PR_COMMIT is not in closed state or not merged into the Apache/Beam master repo."
+    echo "CDLOG $(date --utc '+%D %T') PR in $PR_URL for the COMMIT $MERGE_COMMIT is not in closed state or not merged into the Apache/Beam master repo."
     exit 0
 fi
 
 
-echo "CDLOG Pull Request $PR_URL has been successfully merged into Apache Beam GitHub repository. Continuing the process."
+echo "CDLOG Pull Request $PR_URL has been successfully merged into
+Apache Beam GitHub repository. Continuing the process."
   
-echo "CDLOG Continous Deployment of Playground Examples (CD) in the progress."
+echo "CDLOG Continous Deployment of Playground Examples (CD) in the
+progress."
 
 
 apt update > /dev/null 2>&1
@@ -60,14 +59,18 @@ apt update > /dev/null 2>&1
 apt install -y git curl > /dev/null 2>&1
 
 
-apt-get install -y apt-transport-https ca-certificates gnupg > /dev/null 2>&1
+apt-get install -y apt-transport-https ca-certificates gnupg > /dev/null
+2>&1
 
 
-echo "deb https://packages.cloud.google.com/apt cloud-sdk main" > /dev/null 2>&1 | tee -a
+echo "deb https://packages.cloud.google.com/apt cloud-sdk main" >
+/dev/null 2>&1 | tee -a
 
-/etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null 2>&1 
+/etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null 2>&1
 
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null 2>&1 | apt-key add - > /dev/null 2>&1 
+
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null
+2>&1 | apt-key add - > /dev/null 2>&1 
 
 
 apt-get update && apt-get install -y google-cloud-sdk > /dev/null 2>&1
@@ -78,12 +81,18 @@ git clone --branch master https://github.com/apache/beam.git
 
 chmod +x ${CD_SCRIPT_PATH}
 
-bash -c "${CD_SCRIPT_PATH}"
+
+env -i bash -c "${CD_SCRIPT_PATH}
+DATASTORE_NAMESPACE='"'${DATASTORE_NAMESPACE}'"'
+DNS_NAME='"'${DNS_NAME}'"' PROJECT_ID='"'${PROJECT_ID}'"' 
+MERGE_COMMIT='"'${MERGE_COMMIT}'"' FORCE_CD='"'${FORCE_CD}'"'
+ORIGIN='"'${ORIGIN}'"' SUBDIRS='"'${_SUBDIRS}'"' SDKS='"'${SDKS}'"'
+BEAM_CONCURRENCY='"'${BEAM_CONCURRENCY}'"' "
 
 cd_script_status=$?
 
 if [ $cd_script_status -eq 0 ]; then
-    echo "CDLOG $(date --utc '+%D %T') Examples deployment has been successfully completed. Please check Playground DNS https://${_DNS_NAME}."
+    echo "CDLOG $(date --utc '+%D %T') Examples deployment has been successfully completed. Please check Playground DNS https://${DNS_NAME}."
 else
     echo "CDLOG $(date --utc '+%D %T') Examples deployment has failed. Please check the Cloud Build logs."
 fi

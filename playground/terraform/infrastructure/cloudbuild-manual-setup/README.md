@@ -20,10 +20,11 @@
 This directory organizes Infrastructure-as-Code to provision dependent resources and set up Cloud Build for Beam Playground.
 Cloud Build triggers created by terraform scripts from this directory automate steps described in [readme](https://github.com/apache/beam/blob/master/playground/terraform/README.md).
 
-## Requirements:
+# Requirements:
 
-- [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-- [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
+1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
+
+2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
   Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles):
     - Service Account Admin
     - Storage Admin
@@ -32,89 +33,84 @@ Cloud Build triggers created by terraform scripts from this directory automate s
     - Security Admin
     - Service Account User
     - Secret Manager Admin
+    
+3. [Google Cloud Storage buckets](https://cloud.google.com/storage/docs/creating-buckets)for:
+- Terraform state for Cloud Build triggers: \<triggers-state-bucket\>
+- Cloud Build private logs: \<private-logs-bucket\>
+- Cloud Build public logs: \<public-logs-bucket\>
+
+4. DNS name for your Playground deployment instance
+
+5. OS with installed software listed below:
+- [Java](https://adoptopenjdk.net/)
+- [Kubernetes Command Line Interface](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+- [HELM](https://helm.sh/docs/intro/install/)
+- [Docker](https://docs.docker.com/engine/install/)
+- [Terraform](https://www.terraform.io/downloads)
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
-- An existing GCS Bucket to save Terraform state for Cloud Build triggers <triggers-state-bucket>
-- An existing GCS Bucket to store private Cloud Build logs <private-logs-bucket>
-- An existing GCS Bucket to store public Cloud Build logs <public-logs-bucket>
-- DNS name for your Playground deployment instance
-- [Terraform](https://www.terraform.io/)
-- [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-- [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
+- [Kubectl authentication](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
+- [GO](https://go.dev/doc/install)
 
-## 1. Set up the Google Cloud Build for your GCP project
+6. [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) for CI trigger
 
-First provide the variables by creating a `common.tfvars`
+# Prepare deployment configuration
+
+1. Provide values for Terraform variables in `beam/playground/terraform/infrastructure/cloudbuild-manual-setup/common.tfvars` file:
 ```
-beam/playground/terraform/infrastructure/cloudbuild-manual-setup/common.tfvars 
-```
-And put the following:
-```
-playground_deploy_sa = "DEPLOY_SA_NAME"                                     # SA name used for Deploy trigger
-playground_update_sa = "UPDATE_SA_NAME"                                     # SA name used for Update trigger
-playground_ci_sa = "CI_SA_NAME"                                             # SA name used for CI trigger
-playground_cd_sa = "CD_SA_NAME"                                             # SA name used for CD trigger
-project_id = "PROJECT_ID"                                                   # ID of the project used
-webhook_trigger_secret_id = "SECRET_ID"                                     # Secret ID for webhook
-gh_pat_secret_id = "PAT_SECRET_ID"                                          # Secret ID with github PAT
+playground_deploy_sa = "pg-cb-deploy"                                       # Service account for Initialize-Playground-environment trigger
+playground_update_sa = "pg-cb-update"                                       # Service account for Deploy-Update-Playground-environment trigger
+playground_ci_sa = "pg-cb-ci"                                               # SA name used for CI trigger
+playground_cd_sa = "pg-cb-cd"                                               # SA name used for CD trigger
+project_id = "PROJECT_ID"                                                   # GCP Project ID
+webhook_trigger_secret_id = "playground-cicd-webhook"                       # Secret ID for webhook
+data_for_cicd_webhook_secret = "secret_sting"                               # Secret used when creating the Github webhook
+gh_pat_secret_id = "playground-github-pat-ci"                               # Secret ID with github PAT
 data_for_github_pat_secret = "PAT"                                          # Actual Github PAT
-trigger_source_repo = "https://github.com/beamplayground/deploy-workaround" # Repo used as a workaround
-trigger_source_branch = "main"                                              # Branch used as a workaround
-data_for_cicd_webhook_secret = "secret_sting"                               # Secret used when creating the Github webhook 
-playground-cloudbuild-private = "PRIVATE_BUCKET_NAME"                       # Name of bucket that is storing private logs
-playground-cloudbuild-public = "PUBLIC_BUCKET_NAME"                         # Name of bucket that is storing public logs
+trigger_source_repo = "https://github.com/beamplayground/deploy-workaround" # Trigger source repository. The repository must be connected to Cloud Build
+trigger_source_branch = "main"                                              # Branch name for the trigger source repository
+playground-cloudbuild-private = "playground-logs-private-env"               # Name of an exisitng bucket for private Cloud Build logs <private-logs-bucket>
+playground-cloudbuild-public = "playground-logs-public-en"                  # Name of an exisitng bucket for public Cloud Build logs <public-logs-bucket>
 ```
 
-Please make sure you change the values. 
+2. Configure authentication for the Google Cloud Platform
+```
+gcloud init
+```
+```
+gcloud auth application-default login
+```
+
+# Connect GitHub repository and GCP Cloud Build
+
+Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect your GitHub repository and GCP Cloud Build.
+
+# Deploy Cloud Build triggers
+
+1. Apply trigger dependencies
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to set up Cloud Build triggers for Playground:
 - Required API services
 - Service accounts for Cloud Build triggers
 - IAM roles for Cloud Build service accounts
-
-#### To execute the module:
-
-**Note:**  Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations) for the list of all supported locations.
-
-1. Run commands:
-
-
-```console
-# Set environment variable for state bucket
-export STATE_BUCKET="state-bucket"
-
-# Create a new authentication configuration for GCP Project with the created user account
-gcloud init
-
-# Command imports new user account credentials into Application Default Credentials
-gcloud auth application-default login
-
-# Navigate to 01.setup directory
+```
 cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
-
-# Run terraform commands
-terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
 ```
-## 3. Connect your GitHub repository and GCP Cloud Build
-
-Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect your GitHub repository and GCP Cloud Build.
-
-## 4. Set up the Google Cloud Build triggers
-
-The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
-- Cloud Build triggers to build and deploy Beam Playground, update Beam Playground, and run CI/CD checks.
-
-#### To execute the module
-
 ```
-# Navigate to playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders directory
-cd ../02.builders
-
-# Run terraform commands
-terraform init -backend-config="bucket=$STATE_BUCKET"
+# Provide an existing bucket to store Terraform state
+terraform init -backend-config="bucket=<triggers-state-bucket>"
+```
+```
 terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
 ```
 
-**Note:**  you will have to provide values for multiple variables required for setup of triggers
-
-## 5. Copy inline yaml scripts into cloud build triggers
+2. Create new triggers
+```
+cd playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders/
+```
+```
+# Provide an existing bucket to store Terraform state
+terraform init -backend-config="bucket=<triggers-state-bucket>"
+```
+```
+terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
+```

@@ -18,26 +18,28 @@
 #!/usr/bin/env bash
 echo "Search for CILOG keyword to find valuable logs entries"
 echo "CILOG $(date --utc '+%D %T') Trigger run inputs:  
-    PR URL:$_PR_URL
-    PR Source Repo: $_FORK_REPO 
-    PR Branch: $_PR_BRANCH
-    PRCommit: $_PR_COMMIT
-    WebHook Action: $_PR_TYPE
-    Merge to: $_BASE_REF"
+    PR URL:$PR_URL
+    PR Source Repo: $FORK_REPO 
+    PR Branch: $PR_BRANCH
+    PR Number: $PR_NUMBER
+    PR Commit: $PR_COMMIT
+    WebHook Action: $PR_TYPE
+    Merge to: $BASE_REF
+    Apache Beam SDK version: $BEAM_VERSION"
 
 
-if [[ "${_BASE_REF}" != "master" ]]; then
-    echo "CILOG Merge to branch apache/${_BASE_REF}. Exiting"
-    exit 0
+if [[ "${BASE_REF}" != "master" ]]; then
+            echo "CILOG Merge to branch apache/${BASE_REF}. Exiting"
+            exit 0
 fi
 
-if [[ ${_PR_TYPE} == @(opened|synchronize) ]]; then
+if [[ ${PR_TYPE} == @(opened|synchronize) ]]; then
     
     echo "CILOG See also public logs: ${_PUBLIC_LOG_URL}"
 
     echo "CILOG $(date --utc '+%D %T') Examples validation (CI) has started"
     
-    echo "$(date --utc '+%D %T') Examples validation (CI) has started" >> ${_PUBLIC_LOG_LOCAL}
+    echo "$(date --utc '+%D %T') Examples validation (CI) has started" >> ${PUBLIC_LOG_LOCAL}
     
     apt update > /dev/null
 
@@ -49,35 +51,39 @@ if [[ ${_PR_TYPE} == @(opened|synchronize) ]]; then
 
     apt-get update && apt-get install -y google-cloud-sdk > /dev/null
     
-    curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${_PR_COMMIT} -d '{"state":"pending","target_url":null,"description":"Examples validation (CI) for current commit is in progress","context":"GCP Cloud Build CI/CD"}'
+    curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"pending","target_url":null,"description":"Examples validation (CI) for current commit is in progress","context":"GCP Cloud Build CI/CD"}'
 
     echo "CILOG $(date --utc '+%D %T') Starting validation script"
     
-    echo "$(date --utc '+%D %T') Starting validation script" >> ${_PUBLIC_LOG_LOCAL}
+    echo "$(date --utc '+%D %T') Starting validation script" >> ${PUBLIC_LOG_LOCAL}
     
     git clone --branch master https://github.com/apache/beam.git
     
-    git remote add forked https://github.com/${_FORK_REPO}.git
+    cd beam
+
+    git remote add forked https://github.com/${FORK_REPO}.git
+
+    cd ..
     
-    chmod +x ${_CI_SCRIPT_PATH}
-        
-    env -i bash -c "${_CI_SCRIPT_PATH} PROJECT_ID='"'${PROJECT_ID}'"' LOG_PATH='"'${_PUBLIC_LOG_LOCAL}'"' BEAM_VERSION='"'${_BEAM_VERSION}'"' COMMIT='"'${_PR_COMMIT}'"' BEAM_CONCURRENCY='"'${_BEAM_CONCURRENCY}'"'"
+    chmod +x ${CI_SCRIPT_PATH}
+      
+    env -i bash -c "${CI_SCRIPT_PATH} PROJECT_ID='"'${PROJECT_ID}'"' LOG_PATH='"'${PUBLIC_LOG_LOCAL}'"' BEAM_VERSION='"'${BEAM_VERSION}'"' COMMIT='"'${PR_COMMIT}'"' "
     
     ci_script_status=$?
 
-    gcloud storage cp ${_PUBLIC_LOG_LOCAL} ${_PUBLIC_BUCKET}
+    gcloud storage cp ${PUBLIC_LOG_LOCAL} ${PUBLIC_BUCKET}
     
     if [ $ci_script_status -eq 0 ]; then
         
-        echo "CILOG Writing SUCCESS status message to PR${_PR_NUMBER}, commit:  ${_PR_COMMIT}, branch: ${_PR_BRANCH}"
+        echo "CILOG Writing SUCCESS status message to PR${_PR_NUMBER}, commit:  ${PR_COMMIT}, branch: ${PR_BRANCH}"
         
-        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${_PR_COMMIT} -d '{"state":"success","target_url":"${_PUBLIC_LOG_URL}","description":"Examples validation (CI) successfully completed","context":"GCP Cloud Build CI/CD"}'
+        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"success","target_url":"${_PUBLIC_LOG_URL}","description":"Examples validation (CI) successfully completed","context":"GCP Cloud Build CI/CD"}'
     else
     
-        echo "CILOG Writing FAIL status message to PR${_PR_NUMBER}, commit:  ${_PR_COMMIT}, branch: ${_PR_BRANCH}"
+        echo "CILOG Writing FAIL status message to PR${_PR_NUMBER}, commit:  ${PR_COMMIT}, branch: ${PR_BRANCH}"
         
-        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${_PR_COMMIT} -d '{"state":"error","target_url":"${_PUBLIC_LOG_URL}","description":"Examples validation has FAILED. For more details please see the logs.","context":"GCP Cloud Build CI/CD"}'
+        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"error","target_url":"${_PUBLIC_LOG_URL}","description":"Examples validation has FAILED. For more details please see the logs.","context":"GCP Cloud Build CI/CD"}'
     fi
 else
-    echo "CILOG $(date --utc '+%D %T') Commit $_PR_COMMIT is not related to any PR"
+    echo "CILOG $(date --utc '+%D %T') Commit $PR_COMMIT is not related to any PR"
 fi

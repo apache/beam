@@ -101,8 +101,7 @@ locals {
     "BEAM_CONCURRENCY=$_BEAM_CONCURRENCY",
     "PR_COMMIT=$_PR_COMMIT",
     "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
-    "FORCE_CD=true",
-    "PRIVATE_BUCKET=gs://${var.cloudbuild_bucket_private}"
+    "FORCE_CD=true"
     ]
 
     cloudbuild_ci_environment = [ 
@@ -115,8 +114,10 @@ locals {
     "PRIVATE_BUCKET=gs://${var.cloudbuild_bucket_private}",
     "PUBLIC_BUCKET=gs://${var.cloudbuild_bucket_public}",
     "PUBLIC_LOG=_PUBLIC_LOG",
-    "PAT_SECRET=github_pat_playground_deployment",
     "FORK_REPO=_FORK_REPO",
-    "BASE_REF=_BASE_REF"
+    "BASE_REF=_BASE_REF",
+    "PUBLIC_LOG_URL=_PUBLIC_LOG_URL",
+    "PUBLIC_LOG_LOCAL=_PUBLIC_LOG_LOCAL",
+    "BEAM_VERSION=_BEAM_VERSION"
     ]
     }

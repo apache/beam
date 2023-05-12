@@ -101,7 +101,7 @@ python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
 apt install python3.8-venv > /dev/null
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
-pip install -r playground/infrastructure/requirements.txt
+pip install -r $BEAM_ROOT_DIR/playground/infrastructure/requirements.txt
 
 LogOutput "Installing JDK and Gradle"
 apt-get install openjdk-8-jdk -y > /dev/null
@@ -132,8 +132,9 @@ else
 fi
 LogOutput "Docker tag for containers: $DOCKERTAG"
 
-LogOutput "git fetch -all"
-git fetch --all > /dev/null
+cd $BEAM_ROOT_DIR
+LogOutput "git fetch --all"
+git fetch --all
 # Docker containers will build from the current PR commit
 LogOutput "git checkout $COMMIT"
 git checkout $COMMIT
@@ -164,7 +165,7 @@ do
     cd $BEAM_ROOT_DIR
     if [ $checker_status -eq 0 ]
     then
-        LogOutput "Checker found changed examples for SDK_${sdk^^}"
+        LogOutput "Checker found changed examples for SDK_${sdk^^} or changes in allowlist: $ALLOWLIST"
         example_has_changed=True
     elif [ $checker_status -eq 11 ]
     then
