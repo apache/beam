@@ -169,8 +169,8 @@ resource "google_cloudbuild_trigger" "playground_ci" {
       _FORK_REPO            = "$(body.pull_request.head.repo.full_name)"
       _BASE_REF             = "$(body.pull_request.base.ref)"
       _DATASTORE_NAMESPACE  = "playground-$${_ENVIRONMENT_NAME}"
-      _PUBLIC_LOG_URL       = "https://storage.googleapis.com/${_PUBLIC_BUCKET}/${_PUBLIC_LOG}"
-      _PUBLIC_LOG_LOCAL     = "/tmp/${_PUBLIC_LOG}"
+      _PUBLIC_LOG_URL       = "https://storage.googleapis.com/$${_PUBLIC_BUCKET}/$${_PUBLIC_LOG}"
+      _PUBLIC_LOG_LOCAL     = "/tmp/$${_PUBLIC_LOG}"
     }
   }
 

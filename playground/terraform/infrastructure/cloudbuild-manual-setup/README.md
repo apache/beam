@@ -33,7 +33,7 @@ Cloud Build triggers created by terraform scripts from this directory automate s
     - Security Admin
     - Service Account User
     - Secret Manager Admin
-    
+
 3. [Google Cloud Storage buckets](https://cloud.google.com/storage/docs/creating-buckets)for:
 - Terraform state for Cloud Build triggers: \<triggers-state-bucket\>
 - Cloud Build private logs: \<private-logs-bucket\>
@@ -63,13 +63,13 @@ playground_ci_sa = "pg-cb-ci"                                               # SA
 playground_cd_sa = "pg-cb-cd"                                               # SA name used for CD trigger
 project_id = "PROJECT_ID"                                                   # GCP Project ID
 webhook_trigger_secret_id = "playground-cicd-webhook"                       # Secret ID for webhook
-data_for_cicd_webhook_secret = "secret_sting"                               # Secret used when creating the Github webhook
+data_for_cicd_webhook_secret = "secret_string"                              # Secret used when creating the Github webhook
 gh_pat_secret_id = "playground-github-pat-ci"                               # Secret ID with github PAT
-data_for_github_pat_secret = "PAT"                                          # Actual Github PAT
+data_for_github_pat_secret = "github_pat_*"                                 # Actual Github PAT
 trigger_source_repo = "https://github.com/beamplayground/deploy-workaround" # Trigger source repository. The repository must be connected to Cloud Build
 trigger_source_branch = "main"                                              # Branch name for the trigger source repository
-playground-cloudbuild-private = "playground-logs-private-env"               # Name of an exisitng bucket for private Cloud Build logs <private-logs-bucket>
-playground-cloudbuild-public = "playground-logs-public-en"                  # Name of an exisitng bucket for public Cloud Build logs <public-logs-bucket>
+cloudbuild_bucket_private = "playground-logs-private-project"               # Name of an exisitng bucket for private Cloud Build logs <private-logs-bucket>
+cloudbuild_bucket_public = "playground-logs-public-project"                 # Name of an exisitng bucket for public Cloud Build logs <public-logs-bucket>
 ```
 
 2. Configure authentication for the Google Cloud Platform
@@ -88,12 +88,12 @@ Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/auto
 
 1. Apply trigger dependencies
 
-The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to set up Cloud Build triggers for Playground:
+The `beam/playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to set up Cloud Build triggers for Playground:
 - Required API services
 - Service accounts for Cloud Build triggers
 - IAM roles for Cloud Build service accounts
 ```
-cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
+cd beam/playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 ```
 ```
 # Provide an existing bucket to store Terraform state
@@ -105,7 +105,7 @@ terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="
 
 2. Create new triggers
 ```
-cd playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders/
+cd beam/playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders/
 ```
 ```
 # Provide an existing bucket to store Terraform state

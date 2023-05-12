@@ -84,8 +84,8 @@ resource "google_project_iam_member" "playground_helm_updater_roles" {
 
 resource "google_project_iam_member" "playground_ci_sa_roles" {
   for_each = toset([
-    "roles/storage.admin",
-    "roles/secretmanager.secretAccessor"
+    "roles/secretmanager.secretAccessor",
+    "roles/storage.insightsCollectorService"
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.pg_cloudbuild_ci_runner_sa.email}"
@@ -94,10 +94,9 @@ resource "google_project_iam_member" "playground_ci_sa_roles" {
 
 resource "google_project_iam_member" "playground_cd_sa_roles" {
   for_each = toset([
-    "roles/storage.admin",
+    "roles/datastore.user",
     "roles/secretmanager.secretAccessor",
-    "roles/datastore.indexAdmin",
-    "roles/appengine.appAdmin"
+    "roles/storage.insightsCollectorService"
 
   ])
   role    = each.key
@@ -109,9 +108,3 @@ data "google_project" "project" {
   project_id = var.project_id
 }
 
-resource "google_project_iam_member" "cloudbuild_sa_role" {
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
-  project = var.project_id
-  depends_on = [ google_project_service.required_services ]
-}

@@ -66,17 +66,16 @@ variable "playground_dns_name" {
 
 variable "state_bucket" {
   description = "The Google Cloud Platform GCS bucket name for Playground Terraform state file"
-  default = "playground-tfstate-project-env"
 }
+
 variable "cloudbuild_bucket_private" {
   description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild Private logs"
-  default = "playground-cloudbuild-private"
 }
 
 variable "cloudbuild_bucket_public" {
   description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild Private logs"
-  default = "playground-cloudbuild-public"
 }
+
 variable "image_tag" {
   description = "The docker images tag for Playground images"
   default = "env-1.0"
