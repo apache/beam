@@ -112,7 +112,6 @@
   like `df | (Transform1 | Transform2 | ...)` to avoid excessive conversions.)
 * The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
   for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
-* Python SDK now requires `protobuf>=4.21.1,<4.23.0` and no longer supports protobuf 3.x. ([#24599](https://github.com/apache/beam/pull/24599))
 * Several Google client libraries in Python SDK dependency chain were updated to latest available major versions. ([#24599](https://github.com/apache/beam/pull/24599))
 
 ## Breaking Changes
@@ -124,8 +123,7 @@
 ## Deprecations
 
 * Cloud Debugger support and its pipeline options are deprecated and will be removed in the next Beam version,
-  in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations).
-  (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
+  in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations). (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
 
 ## Bugfixes
 
