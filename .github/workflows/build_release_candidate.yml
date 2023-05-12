@@ -58,4 +58,4 @@ jobs:
       - name: Configure git
         run: git config credential.helper store
       - name: Stage Java Artifacts into Maven
-        run: ./gradlew publish -Psigning.gnupg.keyName=FC383FCDE7D7E86699954EF2509872C8031C4DFB -PisRelease --no-daemon --no-parallel
+        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease --no-daemon --no-parallel
