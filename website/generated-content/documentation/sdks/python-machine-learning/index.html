@@ -29,7 +29,7 @@ For more information about multi-model pipelines, see
 with pipeline as p:
    predictions = ( p |  'Read' &gt;&gt; beam.ReadFromSource('a_source')
                      | 'RunInference' &gt;&gt; RunInference(&lt;model_handler&gt;)
-</code></pre><p>Where <code>model_handler</code> is the model handler setup code.</p><p>To import models, you need to configure a <code>ModelHandler</code> object that wraps the underlying model. Which <code>ModelHandler</code> you import depends on the framework and type of data structure that contains the inputs. The following examples show some ModelHandlers that you might want to import.</p><pre><code>from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
+</code></pre><p>Where <code>model_handler</code> is the model handler setup code.</p><p>To import models, you need to configure a <code>ModelHandler</code> object that wraps the underlying model. Which <code>ModelHandler</code> you import depends on the framework and type of data structure that contains the inputs. The <code>ModelHandler</code> also allows you to set environment variables needed for inference via the <code>env_vars</code> keyword argument. The following examples show some ModelHandlers that you might want to import.</p><pre><code>from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerPandas
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
