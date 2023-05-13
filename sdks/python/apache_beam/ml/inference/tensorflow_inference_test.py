@@ -31,15 +31,21 @@ from typing import Union
 import numpy
 import pytest
 
+import apache_beam as beam
+from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+# pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
-  import apache_beam as beam
-  from apache_beam.testing.test_pipeline import TestPipeline
   from apache_beam.ml.inference.sklearn_inference_test import _compare_prediction_result
-  from apache_beam.ml.inference.base import KeyedModelHandler, PredictionResult, RunInference
   from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy, TFModelHandlerTensor
-  from apache_beam.ml.inference import tensorflow_inference, utils
-  from apache_beam.testing.util import assert_that, equal_to
+  from apache_beam.ml.inference import tensorflow_inference
 except ImportError:
   raise unittest.SkipTest(
       'Tensorflow dependencies are not installed. ' +
@@ -295,6 +301,45 @@ class TFRunInferenceTestWithMocks(unittest.TestCase):
     model_handler.load_model()
     tensorflow_inference._load_model.assert_called_with(
         "dummy_model", "dummy_weights", load_model_args)
+
+  def test_env_vars_set_correctly_tensor(self):
+    handler_with_vars = TFModelHandlerTensor(
+        env_vars={'FOO': 'bar'},
+        model_uri='unused',
+        inference_fn=fake_inference_fn)
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    batched_examples = [
+        tf.convert_to_tensor(numpy.array([1])),
+        tf.convert_to_tensor(numpy.array([10])),
+        tf.convert_to_tensor(numpy.array([100])),
+    ]
+    with TestPipeline() as pipeline:
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(batched_examples)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
+
+  def test_env_vars_set_correctly_numpy(self):
+    handler_with_vars = TFModelHandlerNumpy(
+        env_vars={'FOO': 'bar'},
+        model_uri="unused",
+        inference_fn=fake_inference_fn)
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    batched_examples = [numpy.array([1]), numpy.array([10]), numpy.array([100])]
+    tensorflow_inference._load_model = unittest.mock.MagicMock()
+    with TestPipeline() as pipeline:
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(batched_examples)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
 
 
 if __name__ == '__main__':
