@@ -840,7 +840,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
     if self._model_handler.share_model_across_processes():
-      # TODO - make this a more robust tag than 'RunInference'
       model = multi_process_shared.MultiProcessShared(
           load, tag=side_input_model_path or self._model_tag).acquire()
     else:
