@@ -19,13 +19,13 @@
 
 # pytype: skip-file
 
-import fastavro
 import logging
-import pytest
 import unittest
 import uuid
-
 from io import BytesIO
+
+import fastavro
+import pytest
 
 from apache_beam.examples import avro_nyc_trips
 from apache_beam.io.filesystems import FileSystems

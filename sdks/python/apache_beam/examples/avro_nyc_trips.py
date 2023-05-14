@@ -53,12 +53,14 @@ be overridden with --input.
 import argparse
 import datetime
 import logging
+
 import pytz
 
 import apache_beam as beam
-
-from apache_beam.io import ReadFromAvro, WriteToAvro
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.io import ReadFromAvro
+from apache_beam.io import WriteToAvro
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 SCHEMA = {
     'fields': [
