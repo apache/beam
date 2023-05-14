@@ -112,7 +112,7 @@ locals {
     "PR_COMMIT=$_PR_COMMIT",
     "PR_NUMBER=$_PR_NUMBER",
     "CI_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_ci_examples.sh",
-    "PUBLIC_BUCKET=$_PUBLIC_BUCKET,
+    "PUBLIC_BUCKET=$_PUBLIC_BUCKET",
     "PUBLIC_LOG=$_PUBLIC_LOG",
     "PUBLIC_LOG_URL=$_PUBLIC_LOG_URL",
     "PUBLIC_LOG_LOCAL=$_PUBLIC_LOG_LOCAL",
