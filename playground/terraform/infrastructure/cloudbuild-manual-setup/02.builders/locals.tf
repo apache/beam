@@ -105,19 +105,19 @@ locals {
     ]
 
     cloudbuild_ci_environment = [ 
+    "PROJECT_ID=$PROJECT_ID",
     "PR_BRANCH=$_PR_BRANCH",
     "PR_URL=$_PR_URL",
     "PR_TYPE=$_PR_TYPE",
     "PR_COMMIT=$_PR_COMMIT",
     "PR_NUMBER=$_PR_NUMBER",
     "CI_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_ci_examples.sh",
-    "PRIVATE_BUCKET=gs://${var.cloudbuild_bucket_private}",
-    "PUBLIC_BUCKET=gs://${var.cloudbuild_bucket_public}",
+    "PUBLIC_BUCKET=$_PUBLIC_BUCKET,
     "PUBLIC_LOG=$_PUBLIC_LOG",
-    "FORK_REPO=$_FORK_REPO",
-    "BASE_REF=$_BASE_REF",
     "PUBLIC_LOG_URL=$_PUBLIC_LOG_URL",
     "PUBLIC_LOG_LOCAL=$_PUBLIC_LOG_LOCAL",
+    "FORK_REPO=$_FORK_REPO",
+    "BASE_REF=$_BASE_REF",
     "BEAM_VERSION=$_BEAM_VERSION"
     ]
     }

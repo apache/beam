@@ -50,6 +50,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
       _REDIS_NAME         = "$${_ENVIRONMENT_NAME}-playground-redis"
       _SERVICEACCOUNT_ID  = "$${_ENVIRONMENT_NAME}-playground-sa"
       _DOCKER_REPO_NAME   = "$${_ENVIRONMENT_NAME}-playground-docker"
+      _REDIS_TIER             = var.redis_tier
     }
 
   }
@@ -64,7 +65,6 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     _MIN_COUNT              = var.min_count
     _PLAYGROUND_REGION      = var.playground_region
     _PLAYGROUND_ZONE        = var.playground_zone
-    _REDIS_TIER             = var.redis_tier
     _STATE_BUCKET           = var.state_bucket
   }
 
@@ -104,6 +104,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
       _SERVICEACCOUNT_ID    = "$${_ENVIRONMENT_NAME}-playground-sa"
       _DOCKER_REPO_NAME     = "$${_ENVIRONMENT_NAME}-playground-docker"
       _DATASTORE_NAMESPACE  = "playground-$${_ENVIRONMENT_NAME}"
+      _REDIS_TIER           = var.redis_tier
     }
 
   }
@@ -118,7 +119,6 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _MIN_COUNT              = var.min_count
     _PLAYGROUND_REGION      = var.playground_region
     _PLAYGROUND_ZONE        = var.playground_zone
-    _REDIS_TIER             = var.redis_tier
     _SDK_TAG                = var.sdk_tag
     _STATE_BUCKET           = var.state_bucket
     _CONTAINER_TAG          = var.image_tag
@@ -165,12 +165,13 @@ resource "google_cloudbuild_trigger" "playground_ci" {
       _PR_TYPE              = "$(body.action)"
       _PR_COMMIT            = "$(body.pull_request.head.sha)"
       _PR_NUMBER            = "$(body.number)"
-      _PUBLIC_LOG           = "CI_PR$${_PR_NUMBER}_$${_PR_COMMIT}_$${BUILD_ID}.txt"
       _FORK_REPO            = "$(body.pull_request.head.repo.full_name)"
       _BASE_REF             = "$(body.pull_request.base.ref)"
       _DATASTORE_NAMESPACE  = "playground-$${_ENVIRONMENT_NAME}"
-      _PUBLIC_LOG_URL       = "https://storage.googleapis.com/$${_PUBLIC_BUCKET}/$${_PUBLIC_LOG}"
-      _PUBLIC_LOG_LOCAL     = "/tmp/$${_PUBLIC_LOG}"
+      _PUBLIC_LOG_LOCAL: '/tmp/${_PUBLIC_LOG}'
+      _PUBLIC_LOG: 'CI_PR${_PR_NUMBER}_${_PR_COMMIT}_${BUILD_ID}.txt'
+      _PUBLIC_BUCKET: '${var.cloudbuild_bucket_private}'
+      _PUBLIC_LOG_URL: 'https://storage.googleapis.com/${_PUBLIC_BUCKET}/${_PUBLIC_LOG}'
     }
   }
 

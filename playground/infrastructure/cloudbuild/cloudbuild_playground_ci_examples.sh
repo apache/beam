@@ -52,7 +52,7 @@ if [[ ${PR_TYPE} == @(opened|synchronize) ]]; then
 
     apt-get update && apt-get install -y google-cloud-sdk > /dev/null
     
-    curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"pending","target_url":null,"description":"Examples validation (CI) for current commit is in progress","context":"GCP Cloud Build CI/CD"}'
+    curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"pending","target_url":null,"description":"Examples validation (CI) for current commit is in progress","context":"GCP Cloud Build CI/CD"}'
 
     echo "CILOG $(date --utc '+%D %T') Starting validation script"
     
@@ -68,7 +68,7 @@ if [[ ${PR_TYPE} == @(opened|synchronize) ]]; then
     
     chmod +x ${CI_SCRIPT_PATH}
       
-    env -i bash -c "${CI_SCRIPT_PATH} PROJECT_ID='"'${PROJECT_ID}'"' LOG_PATH='"'${PUBLIC_LOG_LOCAL}'"' BEAM_VERSION='"'${BEAM_VERSION}'"' COMMIT='"'${PR_COMMIT}'"' "
+    env -i bash -c "${CI_SCRIPT_PATH} PROJECT_ID=\"${PROJECT_ID}\" LOG_PATH=\"${PUBLIC_LOG_LOCAL}\" BEAM_VERSION=\"${BEAM_VERSION}\" COMMIT=\"${PR_COMMIT}\" "
     
     ci_script_status=$?
 
@@ -76,14 +76,14 @@ if [[ ${PR_TYPE} == @(opened|synchronize) ]]; then
     
     if [ $ci_script_status -eq 0 ]; then
         
-        echo "CILOG Writing SUCCESS status message to PR${_PR_NUMBER}, commit:  ${PR_COMMIT}, branch: ${PR_BRANCH}"
+        echo "CILOG Writing SUCCESS status message to PR${PR_NUMBER}, commit:  ${PR_COMMIT}, branch: ${PR_BRANCH}"
         
-        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"success","target_url":"${_PUBLIC_LOG_URL}","description":"Examples validation (CI) successfully completed","context":"GCP Cloud Build CI/CD"}'
+        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"success","target_url":"${PUBLIC_LOG_URL}","description":"Examples validation (CI) successfully completed","context":"GCP Cloud Build CI/CD"}'
     else
     
-        echo "CILOG Writing FAIL status message to PR${_PR_NUMBER}, commit:  ${PR_COMMIT}, branch: ${PR_BRANCH}"
+        echo "CILOG Writing FAIL status message to PR${PR_NUMBER}, commit:  ${PR_COMMIT}, branch: ${PR_BRANCH}"
         
-        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"error","target_url":"${_PUBLIC_LOG_URL}","description":"Examples validation has FAILED. For more details please see the logs.","context":"GCP Cloud Build CI/CD"}'
+        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d '{"state":"error","target_url":"${PUBLIC_LOG_URL}","description":"Examples validation has FAILED. For more details please see the logs.","context":"GCP Cloud Build CI/CD"}'
     fi
 else
     echo "CILOG $(date --utc '+%D %T') Commit $PR_COMMIT is not related to any PR"

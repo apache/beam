@@ -53,7 +53,7 @@ if [[ -z "${MERGE_COMMIT}" ]]; then
   exit 1
 fi
 if [[ "${FORCE_CD}" != "false" &&  "${FORCE_CD}" != "true" ]]; then
-  echo "FORCE_CD paramter must be either 'true' or 'false'. Exiting"
+  echo "FORCE_CD parameter must be either 'true' or 'false'. Exiting"
   exit 1
 fi
 
