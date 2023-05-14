@@ -27,18 +27,16 @@ echo "CDLOG $(date --utc '+%D %T') Trigger run inputs:
     Merge commit: $MERGE_COMMIT
     Playground DNS: $DNS_NAME
     Datastore namespace: $DATASTORE_NAMESPACE"
- 
+
 if [[ -z "$DNS_NAME" || -z "$DATASTORE_NAMESPACE" ]]; then
     echo "DNS_NAME and DATASTORE_NAMESPACE substitutions must be set in the triger"
     exit 1
 fi
 
-
 if [[ ${TARGET_PR_REPO_BRANCH} != "apache:master" ]]; then
     echo "CDLOG Merging not into the master, but into the branch apache/${TARGET_PR_REPO_BRANCH}. Exiting"
     exit 0
 fi
-
 
 if [[ ${PR_TYPE} != "closed" ]] || [[ ${MERGE_STATUS} != "true" ]];
 then
@@ -46,30 +44,23 @@ then
     exit 0
 fi
 
-
 echo "CDLOG Pull Request $PR_URL has been successfully merged into
 Apache Beam GitHub repository. Continuing the process."
   
 echo "CDLOG Continous Deployment of Playground Examples (CD) in the
 progress."
 
-
 apt update > /dev/null 2>&1
-
 
 apt install -y git curl > /dev/null 2>&1
 
-
 apt-get install -y apt-transport-https ca-certificates gnupg > /dev/null 2>&1
-
 
 echo "deb https://packages.cloud.google.com/apt cloud-sdk main" > /dev/null 2>&1 | tee -a
 
 /etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null 2>&1
 
-
 curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null 2>&1 | apt-key add - > /dev/null 2>&1 
-
 
 apt-get update && apt-get install -y google-cloud-sdk > /dev/null 2>&1
 
@@ -78,7 +69,6 @@ echo "CDLOG $(date --utc '+%D %T') Starting deployment script"
 git clone --branch master https://github.com/apache/beam.git
 
 chmod +x ${CD_SCRIPT_PATH}
-
 
 env -i bash -c "${CD_SCRIPT_PATH} \
 DATASTORE_NAMESPACE=\"${DATASTORE_NAMESPACE}\" \
