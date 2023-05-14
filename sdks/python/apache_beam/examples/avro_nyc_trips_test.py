@@ -32,44 +32,44 @@ class AvroNycTripsTest(unittest.TestCase):
   def test_create_key_with_service_and_day(self):
     RECORDS = [
         {
-            "hvfhs_license_num": "HV0002",
-            "request_datetime": 1557705616000,
-            "on_scene_datetime": 1557792016000,
-            "pickup_datetime": 1557878416000,
-            "dropoff_datetime": 1557964816000,
-            "trip_miles": 2.45,
+            'hvfhs_license_num': 'HV0002',
+            'request_datetime': 1557705616000,
+            'on_scene_datetime': 1557792016000,
+            'pickup_datetime': 1557878416000,
+            'dropoff_datetime': 1557964816000,
+            'trip_miles': 2.45,
         },
         {
-            "hvfhs_license_num": "HV0003",
-            "request_datetime": None,
-            "on_scene_datetime": 1557792016000,
-            "pickup_datetime": 1557878416000,
-            "dropoff_datetime": 1557964816000,
-            "trip_miles": 3.45,
+            'hvfhs_license_num': 'HV0003',
+            'request_datetime': None,
+            'on_scene_datetime': 1557792016000,
+            'pickup_datetime': 1557878416000,
+            'dropoff_datetime': 1557964816000,
+            'trip_miles': 3.45,
         },
         {
-            "hvfhs_license_num": "HV0004",
-            "request_datetime": None,
-            "on_scene_datetime": None,
-            "pickup_datetime": 1557878416000,
-            "dropoff_datetime": 1557964816000,
-            "trip_miles": 4.45,
+            'hvfhs_license_num': 'HV0004',
+            'request_datetime': None,
+            'on_scene_datetime': None,
+            'pickup_datetime': 1557878416000,
+            'dropoff_datetime': 1557964816000,
+            'trip_miles': 4.45,
         },
         {
-            "hvfhs_license_num": "HV0005",
-            "request_datetime": None,
-            "on_scene_datetime": None,
-            "pickup_datetime": None,
-            "dropoff_datetime": 1557964816000,
-            "trip_miles": 5.45,
+            'hvfhs_license_num': 'HV0005',
+            'request_datetime': None,
+            'on_scene_datetime': None,
+            'pickup_datetime': None,
+            'dropoff_datetime': 1557964816000,
+            'trip_miles': 5.45,
         },
     ]
 
     EXPECTED = [
-        (("Juno", "Sun"), RECORDS[0]),
-        (("Uber", "Mon"), RECORDS[1]),
-        (("Via", "Tue"), RECORDS[2]),
-        (("Lyft", "Wed"), RECORDS[3]),
+        (('Juno', 'Sun'), RECORDS[0]),
+        (('Uber', 'Mon'), RECORDS[1]),
+        (('Via', 'Tue'), RECORDS[2]),
+        (('Lyft', 'Wed'), RECORDS[3]),
     ]
     with TestPipeline() as p:
       records = p | beam.Create(RECORDS)
@@ -79,40 +79,40 @@ class AvroNycTripsTest(unittest.TestCase):
 
   def test_calculate_price_per_attribute(self):
     RECORDS = [
-        (("Uber", "Fri"),
+        (('Uber', 'Fri'),
          {
-             "hvfhs_license_num": "HV0003",
-             "request_datetime": 1549008086000,
-             "trip_miles": 2.45,
-             "trip_time": 579,
-             "base_passenger_fare": 9.35,
-             "tolls": 0.0,
-             "bcf": 0.23,
-             "sales_tax": 0.83,
-             "congestion_surcharge": 0.0,
-             "airport_fee": None,
-             "tips": 0.0,
-             "driver_pay": 7.48
+             'hvfhs_license_num': 'HV0003',
+             'request_datetime': 1549008086000,
+             'trip_miles': 2.45,
+             'trip_time': 579,
+             'base_passenger_fare': 9.35,
+             'tolls': 0.0,
+             'bcf': 0.23,
+             'sales_tax': 0.83,
+             'congestion_surcharge': 0.0,
+             'airport_fee': None,
+             'tips': 0.0,
+             'driver_pay': 7.48
          }),
-        (("Uber", "Fri"),
+        (('Uber', 'Fri'),
          {
-             "hvfhs_license_num": "HV0003",
-             "request_datetime": 1549009568000,
-             "trip_miles": 1.71,
-             "trip_time": 490,
-             "base_passenger_fare": 7.91,
-             "tolls": 0.0,
-             "bcf": 0.2,
-             "sales_tax": 0.7,
-             "congestion_surcharge": 0.0,
-             "airport_fee": None,
-             "tips": 2.0,
-             "driver_pay": 7.93
+             'hvfhs_license_num': 'HV0003',
+             'request_datetime': 1549009568000,
+             'trip_miles': 1.71,
+             'trip_time': 490,
+             'base_passenger_fare': 7.91,
+             'tolls': 0.0,
+             'bcf': 0.2,
+             'sales_tax': 0.7,
+             'congestion_surcharge': 0.0,
+             'airport_fee': None,
+             'tips': 2.0,
+             'driver_pay': 7.93
          }),
     ]
 
     EXPECTED = [
-        (("Uber", "Fri"),
+        (('Uber', 'Fri'),
          {
              'total_price': 21.22,
              'total_driver_pay': 17.41,
@@ -137,10 +137,10 @@ class AvroNycTripsTest(unittest.TestCase):
       assert_that(result, equal_to(EXPECTED))
 
   def test_flatten_group(self):
-    record = {"total_driver_pay": 123.54}
-    element = (("Uber", "Fri"), record)
+    record = {'total_driver_pay': 123.54}
+    element = (('Uber', 'Fri'), record)
     expected_record = {
-        "service": "Uber", "day": "Fri", "total_driver_pay": 123.54
+        'service': 'Uber', 'day': 'Fri', 'total_driver_pay': 123.54
     }
     output_record = avro_nyc_trips.flatten_group(element)
 

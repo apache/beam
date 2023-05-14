@@ -34,106 +34,106 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 class AvroNycTripsIT(unittest.TestCase):
   SCHEMA = {
-      "fields": [
+      'fields': [
           {
-              "name": "hvfhs_license_num", "type": ["null", "string"]
+              'name': 'hvfhs_license_num', 'type': ['null', 'string']
           },
           {
-              "name": "request_datetime",
-              "logicalType": "timestamp-millis",
-              "type": ["null", "long"]
+              'name': 'request_datetime',
+              'logicalType': 'timestamp-millis',
+              'type': ['null', 'long']
           },
           {
-              "name": "trip_miles", "type": ["null", "double"]
+              'name': 'trip_miles', 'type': ['null', 'double']
           },
           {
-              "name": "trip_time", "type": ["null", "long"]
+              'name': 'trip_time', 'type': ['null', 'long']
           },
           {
-              "name": "base_passenger_fare", "type": ["null", "double"]
+              'name': 'base_passenger_fare', 'type': ['null', 'double']
           },
           {
-              "name": "tolls", "type": ["null", "double"]
+              'name': 'tolls', 'type': ['null', 'double']
           },
           {
-              "name": "bcf", "type": ["null", "double"]
+              'name': 'bcf', 'type': ['null', 'double']
           },
           {
-              "name": "sales_tax", "type": ["null", "double"]
+              'name': 'sales_tax', 'type': ['null', 'double']
           },
           {
-              "name": "congestion_surcharge", "type": ["null", "double"]
+              'name': 'congestion_surcharge', 'type': ['null', 'double']
           },
           {
-              "name": "airport_fee", "type": ["null", "long"]
+              'name': 'airport_fee', 'type': ['null', 'long']
           },
           {
-              "name": "tips", "type": ["null", "double"]
+              'name': 'tips', 'type': ['null', 'double']
           },
           {
-              "name": "driver_pay", "type": ["null", "double"]
+              'name': 'driver_pay', 'type': ['null', 'double']
           },
       ],
-      "name": "nyc_fhv_trips",
-      "type": "record",
+      'name': 'nyc_fhv_trips',
+      'type': 'record',
   }
 
   RECORDS = [
       {
-          "hvfhs_license_num": "HV0003",
-          "request_datetime": 1549008086000,
-          "trip_miles": 2.45,
-          "trip_time": 579,
-          "base_passenger_fare": 9.35,
-          "tolls": 0.0,
-          "bcf": 0.23,
-          "sales_tax": 0.83,
-          "congestion_surcharge": 0.0,
-          "airport_fee": None,
-          "tips": 0.0,
-          "driver_pay": 7.48
+          'hvfhs_license_num': 'HV0003',
+          'request_datetime': 1549008086000,
+          'trip_miles': 2.45,
+          'trip_time': 579,
+          'base_passenger_fare': 9.35,
+          'tolls': 0.0,
+          'bcf': 0.23,
+          'sales_tax': 0.83,
+          'congestion_surcharge': 0.0,
+          'airport_fee': None,
+          'tips': 0.0,
+          'driver_pay': 7.48
       },
       {
-          "hvfhs_license_num": "HV0003",
-          "request_datetime": 1549009568000,
-          "trip_miles": 1.71,
-          "trip_time": 490,
-          "base_passenger_fare": 7.91,
-          "tolls": 0.0,
-          "bcf": 0.2,
-          "sales_tax": 0.7,
-          "congestion_surcharge": 0.0,
-          "airport_fee": None,
-          "tips": 2.0,
-          "driver_pay": 7.93
+          'hvfhs_license_num': 'HV0003',
+          'request_datetime': 1549009568000,
+          'trip_miles': 1.71,
+          'trip_time': 490,
+          'base_passenger_fare': 7.91,
+          'tolls': 0.0,
+          'bcf': 0.2,
+          'sales_tax': 0.7,
+          'congestion_surcharge': 0.0,
+          'airport_fee': None,
+          'tips': 2.0,
+          'driver_pay': 7.93
       },
       {
-          "hvfhs_license_num": "HV0005",
-          "request_datetime": 1549010613000,
-          "trip_miles": 11.24,
-          "trip_time": 1739,
-          "base_passenger_fare": 29.77,
-          "tolls": 0.72,
-          "bcf": 0.76,
-          "sales_tax": 2.71,
-          "congestion_surcharge": 0.0,
-          "airport_fee": None,
-          "tips": 0.0,
-          "driver_pay": 22.09
+          'hvfhs_license_num': 'HV0005',
+          'request_datetime': 1549010613000,
+          'trip_miles': 11.24,
+          'trip_time': 1739,
+          'base_passenger_fare': 29.77,
+          'tolls': 0.72,
+          'bcf': 0.76,
+          'sales_tax': 2.71,
+          'congestion_surcharge': 0.0,
+          'airport_fee': None,
+          'tips': 0.0,
+          'driver_pay': 22.09
       },
       {
-          "hvfhs_license_num": "HV0005",
-          "request_datetime": 1549010420000,
-          "trip_miles": 5.71,
-          "trip_time": 1559,
-          "base_passenger_fare": 21.69,
-          "tolls": 0.24,
-          "bcf": 0.55,
-          "sales_tax": 1.95,
-          "congestion_surcharge": 0.0,
-          "airport_fee": None,
-          "tips": 0.0,
-          "driver_pay": 14.87
+          'hvfhs_license_num': 'HV0005',
+          'request_datetime': 1549010420000,
+          'trip_miles': 5.71,
+          'trip_time': 1559,
+          'base_passenger_fare': 21.69,
+          'tolls': 0.24,
+          'bcf': 0.55,
+          'sales_tax': 1.95,
+          'congestion_surcharge': 0.0,
+          'airport_fee': None,
+          'tips': 0.0,
+          'driver_pay': 14.87
       },
   ]
 
@@ -199,11 +199,11 @@ class AvroNycTripsIT(unittest.TestCase):
     avro_nyc_trips.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
     # load result avro file and compare
-    metadata = FileSystems.match([f"{output}*"])[0].metadata_list[0]
+    metadata = FileSystems.match([f'{output}*'])[0].metadata_list[0]
     with FileSystems.open(metadata.path) as f:
       avro_reader = fastavro.reader(f)
 
-      result = sorted(avro_reader, key=lambda x: x["service"])
+      result = sorted(avro_reader, key=lambda x: x['service'])
 
     self.assertEqual(self.EXPECTED, result)
 
