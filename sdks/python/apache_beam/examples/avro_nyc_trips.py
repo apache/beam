@@ -61,52 +61,52 @@ from apache_beam.io import ReadFromAvro, WriteToAvro
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 
 SCHEMA = {
-    "fields": [
+    'fields': [
         {
-            "name": "service", "type": "string"
+            'name': 'service', 'type': 'string'
         },
         {
-            "name": "day", "type": "string"
+            'name': 'day', 'type': 'string'
         },
         {
-            "name": "total_price", "type": "double"
+            'name': 'total_price', 'type': 'double'
         },
         {
-            "name": "total_driver_pay", "type": "double"
+            'name': 'total_driver_pay', 'type': 'double'
         },
         {
-            "name": "total_trip_miles", "type": "double"
+            'name': 'total_trip_miles', 'type': 'double'
         },
         {
-            "name": "total_trip_minutes", "type": "double"
+            'name': 'total_trip_minutes', 'type': 'double'
         },
         {
-            "name": "total_number_of_trips", "type": "long"
+            'name': 'total_number_of_trips', 'type': 'long'
         },
         {
-            "name": "price_per_trip", "type": "double"
+            'name': 'price_per_trip', 'type': 'double'
         },
         {
-            "name": "price_per_mile", "type": "double"
+            'name': 'price_per_mile', 'type': 'double'
         },
         {
-            "name": "price_per_minute", "type": "double"
+            'name': 'price_per_minute', 'type': 'double'
         },
         {
-            "name": "driver_pay_per_trip", "type": "double"
+            'name': 'driver_pay_per_trip', 'type': 'double'
         },
         {
-            "name": "driver_pay_per_mile", "type": "double"
+            'name': 'driver_pay_per_mile', 'type': 'double'
         },
         {
-            "name": "driver_pay_per_minute", "type": "double"
+            'name': 'driver_pay_per_minute', 'type': 'double'
         },
         {
-            "name": "miles_per_hour", "type": "double"
+            'name': 'miles_per_hour', 'type': 'double'
         },
     ],
-    "name": "nyc_trip_prices",
-    "type": "record",
+    'name': 'nyc_trip_prices',
+    'type': 'record',
 }
 
 
@@ -119,22 +119,22 @@ class CreateKeyWithServiceAndDay(beam.DoFn):
   """
   def process(self, record: dict):
     options = {
-        "HV0002": "Juno", "HV0003": "Uber", "HV0004": "Via", "HV0005": "Lyft"
+        'HV0002': 'Juno', 'HV0003': 'Uber', 'HV0004': 'Via', 'HV0005': 'Lyft'
     }
-    service = options.get(record["hvfhs_license_num"])
+    service = options.get(record['hvfhs_license_num'])
     if service:
       timestamp = None
-      for k in ("request_datetime",
-                "on_scene_datetime",
-                "pickup_datetime",
-                "dropoff_datetime"):
+      for k in ('request_datetime',
+                'on_scene_datetime',
+                'pickup_datetime',
+                'dropoff_datetime'):
         timestamp = timestamp or record[k]
         if timestamp:
           break
 
       day_of_the_week = datetime.datetime.fromtimestamp(
           timestamp / 1000.0,
-          tz=pytz.timezone("America/New_York")).strftime('%a')
+          tz=pytz.timezone('America/New_York')).strftime('%a')
 
       yield (service, day_of_the_week), record
 
@@ -172,16 +172,16 @@ class CalculatePricePerAttribute(beam.CombineFn):
     return (
         total_price + sum(
             record[name] for name in (
-                "base_passenger_fare",
-                "tolls",
-                "bcf",
-                "sales_tax",
-                "congestion_surcharge",
-                "airport_fee",
-                "tips") if record[name] is not None),
-        total_driver_pay + record["driver_pay"] + record["tips"],
-        total_trip_miles + record["trip_miles"],
-        total_trip_time + record["trip_time"],
+                'base_passenger_fare',
+                'tolls',
+                'bcf',
+                'sales_tax',
+                'congestion_surcharge',
+                'airport_fee',
+                'tips') if record[name] is not None),
+        total_driver_pay + record['driver_pay'] + record['tips'],
+        total_trip_miles + record['trip_miles'],
+        total_trip_time + record['trip_time'],
         total_number_of_trips + 1,
     )
 
@@ -199,18 +199,18 @@ class CalculatePricePerAttribute(beam.CombineFn):
     ) = accumulator
     total_trip_minutes = total_trip_time / 60
     return {
-        "total_driver_pay": total_driver_pay,
-        "total_price": total_price,
-        "total_trip_miles": total_trip_miles,
-        "total_trip_minutes": total_trip_minutes,
-        "total_number_of_trips": total_number_of_trips,
-        "price_per_trip": total_price / total_number_of_trips,
-        "price_per_mile": total_price / total_trip_miles,
-        "price_per_minute": total_price / total_trip_minutes,
-        "driver_pay_per_trip": total_driver_pay / total_number_of_trips,
-        "driver_pay_per_mile": total_driver_pay / total_trip_miles,
-        "driver_pay_per_minute": total_driver_pay / total_trip_minutes,
-        "miles_per_hour": total_trip_miles / (total_trip_minutes / 60),
+        'total_driver_pay': total_driver_pay,
+        'total_price': total_price,
+        'total_trip_miles': total_trip_miles,
+        'total_trip_minutes': total_trip_minutes,
+        'total_number_of_trips': total_number_of_trips,
+        'price_per_trip': total_price / total_number_of_trips,
+        'price_per_mile': total_price / total_trip_miles,
+        'price_per_minute': total_price / total_trip_minutes,
+        'driver_pay_per_trip': total_driver_pay / total_number_of_trips,
+        'driver_pay_per_mile': total_driver_pay / total_trip_miles,
+        'driver_pay_per_minute': total_driver_pay / total_trip_minutes,
+        'miles_per_hour': total_trip_miles / (total_trip_minutes / 60),
     }
 
 
@@ -218,8 +218,8 @@ def flatten_group(element):
   """Flattens the key, value pair to a single record dictionary."""
   key, record = element
   service, day_of_the_week = key
-  record["service"] = service
-  record["day"] = day_of_the_week
+  record['service'] = service
+  record['day'] = day_of_the_week
   return record
 
 
@@ -233,8 +233,8 @@ def run(argv=None):
   parser.add_argument(
       '--input',
       dest='input',
-      help='Input file to process.',
-      required=True,
+      default='gs://dataflow-samples/avro_nyc_trips/*.avro',
+      help='Input file of NYC FHV data to process.',
   )
   parser.add_argument(
       '--output',
@@ -258,21 +258,21 @@ def run(argv=None):
         | beam.Filter(
             lambda record: all(
                 record[k] is not None for k in (
-                    "hvfhs_license_num",
-                    "trip_miles",
-                    "trip_time",
-                    "base_passenger_fare",
-                    "tips",
-                    "driver_pay")) and any(
+                    'hvfhs_license_num',
+                    'trip_miles',
+                    'trip_time',
+                    'base_passenger_fare',
+                    'tips',
+                    'driver_pay')) and any(
                         record[k] is not None for k in (
-                            "request_datetime",
-                            "on_scene_datetime",
-                            "pickup_datetime",
-                            "dropoff_datetime")))
+                            'request_datetime',
+                            'on_scene_datetime',
+                            'pickup_datetime',
+                            'dropoff_datetime')))
         | beam.ParDo(CreateKeyWithServiceAndDay())
         | beam.CombinePerKey(CalculatePricePerAttribute())
         | beam.Map(flatten_group)
-        | WriteToAvro(known_args.output, SCHEMA, file_name_suffix=".avro"))
+        | WriteToAvro(known_args.output, SCHEMA, file_name_suffix='.avro'))
 
 
 if __name__ == '__main__':
