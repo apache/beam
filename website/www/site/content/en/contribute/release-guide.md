@@ -1169,8 +1169,8 @@ After pushing the tag, the tag should be visible on Github's [Tags](https://gith
 ### Publish release to Github
 
 Once the tag is uploaded, publish the release notes to Github. From the [Beam release page on Github](https://github.com/apache/beam/releases) select
-"Draft a new release." Title the release "Beam ${RELEASE_VERSION} release" and set the release at the version tag created above. Use the content of the 
-release blog post as the body of the release notes, set this version as the latest release, and publish it. 
+"Draft a new release." Title the release "Beam ${RELEASE_VERSION} release" and set the release at the version tag created above. Use the content of the
+release blog post as the body of the release notes, set this version as the latest release, and publish it.
 
 The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
