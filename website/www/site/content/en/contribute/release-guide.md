@@ -511,6 +511,31 @@ is perfectly safe since the script does not depend on the current working tree.
 
 See the source of the script for more details, or to run commands manually in case of a problem.
 
+### Run build_release_candidate GitHub Action to create a release candidate
+
+Note: This step is partially automated (in progress), so part of the rc creation is done by GitHub Actions and the rest is done by a script.
+You don't need to wait for the action to complete to start running the script.
+
+* **Action** [build_release_candidate](https://github.com/damccorm/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
+
+* **The script will:**
+  1. Clone the repo at the selected RC tag.
+  1. Run gradle publish to push java artifacts into Maven staging repo.
+
+#### Tasks you need to do manually
+
+  1. Publish staging artifacts
+      1. Log in to the [Apache Nexus](https://repository.apache.org/#stagingRepositories) website.
+      1. Navigate to Build Promotion -> Staging Repositories (in the left sidebar).
+      1. Select repository `orgapachebeam-NNNN`.
+      1. Click the Close button.
+      1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
+      1. Review all staged artifacts on `https://repository.apache.org/content/repositories/orgapachebeam-NNNN/`.
+         They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
+         Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
+         Carefully review any new artifacts.
+         Some additional validation should be done during the rc validation step.
+
 ### Run build_release_candidate.sh to create a release candidate
 
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
@@ -521,7 +546,6 @@ See the source of the script for more details, or to run commands manually in ca
 
 * **The script will:**
   1. Clone the repo at the selected RC tag.
-  1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
@@ -552,16 +576,6 @@ help with this step. Please email `dev@` and ask a member of the `beammaintainer
           docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
-  1. Publish staging artifacts
-      1. Log in to the [Apache Nexus](https://repository.apache.org/#stagingRepositories) website.
-      1. Navigate to Build Promotion -> Staging Repositories (in the left sidebar).
-      1. Select repository `orgapachebeam-NNNN`.
-      1. Click the Close button.
-      1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
-      1. Review all staged artifacts on `https://repository.apache.org/content/repositories/orgapachebeam-NNNN/`.
-         They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
-         Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
-         Carefully review any new artifacts.
 
 ### Upload release candidate to PyPi
 

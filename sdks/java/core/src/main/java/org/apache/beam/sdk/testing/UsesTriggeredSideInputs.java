@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.testing;
+
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * That's an automatically generated file. It contains the list of Committers' GitHub usernames. It's
- * used to populate the list of allowed people that can trigger the jobs that are not allowed to be
- * triggered by non-committers from GitHub pull requests.
+ * Category tag for validation tests which use triggered sideinputs. Tests tagged with {@link
+ * UsesTriggeredSideInputs} should be run for runners which support triggered sideinputs.
  */
-
-class Committers {
-    final static List GITHUB_USERNAMES = [
-        {%- for username in github_usernames|sort %}
-        '{{ username|lower }}'{%- if not loop.last -%},{%- endif -%}
-        {% endfor %}
-    ]
-}
+@Internal
+public interface UsesTriggeredSideInputs {}

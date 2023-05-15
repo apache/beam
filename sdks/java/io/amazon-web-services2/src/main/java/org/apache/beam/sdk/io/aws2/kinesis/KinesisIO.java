@@ -225,7 +225,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * <p>When EFO is enabled, the following configurations are ignored:
  *
  * <ul>
- *   <li>{@link Read#withMaxCapacityPerShard(Integer)}
  *   <li>{@link Read#withRequestRecordsLimit(int)}
  *   <li>{@link Read#withCustomRateLimitPolicy(RateLimitPolicyFactory)}
  *   <li>{@link Read#withFixedDelayRateLimitPolicy()}
@@ -339,7 +338,6 @@ public final class KinesisIO {
         .setUpToDateThreshold(Duration.ZERO)
         .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
         .setRateLimitPolicyFactory(RateLimitPolicyFactory.withDefaultRateLimiter())
-        .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD)
         .build();
   }
 
@@ -387,7 +385,7 @@ public final class KinesisIO {
 
     abstract RateLimitPolicyFactory getRateLimitPolicyFactory();
 
-    abstract Integer getMaxCapacityPerShard();
+    abstract @Nullable Integer getMaxCapacityPerShard();
 
     abstract Builder toBuilder();
 
@@ -615,7 +613,15 @@ public final class KinesisIO {
       return toBuilder().setRateLimitPolicyFactory(rateLimitPolicyFactory).build();
     }
 
-    /** Specifies the maximum number of messages per one shard. */
+    /**
+     * Specifies the maximum number of messages per one shard.
+     *
+     * <p>Note: When using consumers with dedicated throughput (Enhanced Fan-Out), this capacity
+     * corresponds to the number of in-flight shard events which itself can contain multiple,
+     * potentially even aggregated records.
+     *
+     * @see {@link #withConsumerArn(String)}
+     */
     public Read withMaxCapacityPerShard(Integer maxCapacity) {
       checkArgument(maxCapacity > 0, "maxCapacity must be positive, but was: %s", maxCapacity);
       return toBuilder().setMaxCapacityPerShard(maxCapacity).build();

@@ -201,8 +201,11 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def set_environment_vars(self):
     """Sets environment variables using a dictionary provided via kwargs.
-    Keys are the env variable name, and values are the env variable value."""
-    for env_variable, env_value in self._env_vars.items():
+    Keys are the env variable name, and values are the env variable value.
+    Child ModelHandler classes should set _env_vars via kwargs in __init__,
+    or else call super().__init__()."""
+    env_vars = getattr(self, '_env_vars', {})
+    for env_variable, env_value in env_vars.items():
       os.environ[env_variable] = env_value
 
   def with_preprocess_fn(

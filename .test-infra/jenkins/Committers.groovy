@@ -18,13 +18,92 @@
 
 
 /**
- * That's a placeholder of a file that should be automatically generated as a first step of the Seed
- * job. It should contain the list of Committers' GitHub usernames. It's used to populate the list of
- * allowed people that can trigger the jobs that are not allowed to be triggered by non-committers from
- * GitHub pull requests.
+ * This is used to populate the list of allowed people that can trigger the jobs
+ * that are not allowed to be triggered by non-committers from GitHub pull requests.
  */
 
-// TODO(https://github.com/apache/beam/issues/26602) Auto generating stopped working and temporarily removed
 class Committers {
-  final static List GITHUB_USERNAMES = []
+  final static List GITHUB_USERNAMES = [
+    "suztomo",
+    "bjchambers",
+    "angoenka",
+    "ihji",
+    "aljoscha",
+    "iemejia",
+    "udim",
+    "jbonofre",
+    "timrobertson100",
+    "tweise",
+    "dmvk",
+    "jkff",
+    "xumingming",
+    "tgroh",
+    "kanterov",
+    "robertwb",
+    "dhalperi",
+    "jwills",
+    "kennknowles",
+    "alexvanboxel",
+    "swegner",
+    "TheNeuralBit",
+    "aaltay",
+    "damondouglas",
+    "mxm",
+    "griscz",
+    "charlesccychen",
+    "manuzhang",
+    "pabloem",
+    "mosche",
+    "StephanEwen",
+    "youngoli",
+    "steveniemitz",
+    "lgajowy",
+    "amaliujia",
+    "jasonkuster",
+    "kileys",
+    "kkucharc",
+    "emilymye",
+    "markflyhigh",
+    "KevinGG",
+    "matthiasa4",
+    "brucearctor",
+    "alanmyrvold",
+    "y1chi",
+    "aviemzur",
+    "apilloud",
+    "kw2542",
+    "rezarokni",
+    "egalpin",
+    "Abacn",
+    "davorbonaci",
+    "echauchot",
+    "tvalentyn",
+    "JingsongLi",
+    "lukecwik",
+    "robinyqiu",
+    "chamikaramj",
+    "Ardagan",
+    "lostluck",
+    "je-ik",
+    "herohde",
+    "aijamalnk",
+    "Hannah-Jiang",
+    "ibzib",
+    "kamilwu",
+    "melap",
+    "reuvenlax",
+    "sunjincheng121",
+    "xinyuiscool",
+    "adude3141",
+    "riteshghorse",
+    "mwalenia",
+    "akedin",
+    "aromanenko-dev",
+    "AnandInguva",
+    "jrmccluskey",
+    "yifanzou",
+    "boyuanzz",
+    "damccorm",
+    "johnjcasey"
+  ]
 }

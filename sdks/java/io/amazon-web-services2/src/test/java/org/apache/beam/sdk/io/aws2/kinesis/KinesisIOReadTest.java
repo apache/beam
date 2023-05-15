@@ -103,7 +103,7 @@ public class KinesisIOReadTest {
     assertThat(readSpec.getWatermarkPolicyFactory())
         .isEqualTo(WatermarkPolicyFactory.withArrivalTimePolicy());
     assertThat(readSpec.getUpToDateThreshold()).isEqualTo(Duration.ZERO);
-    assertThat(readSpec.getMaxCapacityPerShard()).isEqualTo(10_000);
+    assertThat(readSpec.getMaxCapacityPerShard()).isEqualTo(null);
     assertThat(readSpec.getMaxNumRecords()).isEqualTo(Long.MAX_VALUE);
     assertThat(readSpec.getClientConfiguration()).isEqualTo(ClientConfiguration.builder().build());
   }
