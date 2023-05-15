@@ -68,8 +68,8 @@ gh_pat_secret_id = "playground-github-pat-ci"                               # Se
 data_for_github_pat_secret = "github_pat_*"                                 # Actual GitHub PAT
 trigger_source_repo = "https://github.com/beamplayground/deploy-workaround" # Trigger source repository. The repository must be connected to Cloud Build
 trigger_source_branch = "main"                                              # Branch name for the trigger source repository
-cloudbuild_bucket_private = "<private-logs-bucket>"                         # Name of an existing bucket for private Cloud Build logs 
-cloudbuild_bucket_public = "<public-logs-bucket>"                           # Name of an existing bucket for public Cloud Build logs 
+cloudbuild_bucket_private = "<private-logs-bucket>"                         # Name of an existing bucket for private Cloud Build logs
+cloudbuild_bucket_public = "<public-logs-bucket>"                           # Name of an existing bucket for public Cloud Build logs
 ```
 
 2. Configure authentication for the Google Cloud Platform
@@ -117,7 +117,7 @@ terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="
 
 # Deploy Playgorund environment from Cloud Build triggers:
 1. Run "Initialize-Playground-environment" trigger
-2. Run "Deploy-Update-Playground-environment" trigger when previous job successfully completed. 
+2. Run "Deploy-Update-Playground-environment" trigger when previous job successfully completed
 This trigger can be restarted to rebuild GKE cluster container images from _REPO_NAME repository _BRANCH_NAME branch.
 
 Each of these steps provides substitutions to customize Playgorund environment deployment:
