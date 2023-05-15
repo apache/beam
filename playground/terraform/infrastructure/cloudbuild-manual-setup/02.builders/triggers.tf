@@ -170,7 +170,7 @@ resource "google_cloudbuild_trigger" "playground_ci" {
       _DATASTORE_NAMESPACE  = "playground-$${_ENVIRONMENT_NAME}"
       _PUBLIC_LOG_LOCAL: "/tmp/$${_PUBLIC_LOG}"
       _PUBLIC_LOG: "CI_PR$${_PR_NUMBER}_$${_PR_COMMIT}_$${BUILD_ID}.txt"
-      _PUBLIC_BUCKET: "${var.cloudbuild_bucket_private}"
+      _PUBLIC_BUCKET: "${var.cloudbuild_bucket_public}"
       _PUBLIC_LOG_URL: "https://storage.googleapis.com/$${_PUBLIC_BUCKET}/$${_PUBLIC_LOG}"
     }
   }

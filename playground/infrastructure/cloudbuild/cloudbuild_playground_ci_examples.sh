@@ -72,7 +72,7 @@ if [[ ${PR_TYPE} == @(opened|synchronize) ]]; then
     
     ci_script_status=$?
 
-    gcloud storage cp ${PUBLIC_LOG_LOCAL} ${PUBLIC_BUCKET}
+    gcloud storage cp ${PUBLIC_LOG_LOCAL} gs://${PUBLIC_BUCKET}
     
     if [ $ci_script_status -eq 0 ]; then
         
