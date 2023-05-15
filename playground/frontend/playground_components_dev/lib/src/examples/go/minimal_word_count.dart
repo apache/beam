@@ -23,7 +23,7 @@ import '../example_descriptor.dart';
 const goMinimalWordCount = ExampleDescriptor(
   //
   'MinimalWordCount',
-  contextLine1Based: 69,
+  contextLine1Based: 38,
   dbPath: 'SDK_GO_MinimalWordCount',
   path: '/sdks/go/examples/minimal_wordcount/minimal_wordcount.go',
   sdk: Sdk.go,
