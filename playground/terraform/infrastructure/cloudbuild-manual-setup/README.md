@@ -55,21 +55,21 @@ Cloud Build triggers created by terraform scripts from this directory automate s
 
 # Prepare deployment configuration
 
-1. Provide values for Terraform variables in `beam/playground/terraform/infrastructure/cloudbuild-manual-setup/common.tfvars` file:
+1. Generate a Terraform variable file called `beam/playground/terraform/infrastructure/cloudbuild-manual-setup/common.tfvars`. Place the values listed below into the file, adjusting them as needed:
 ```
 playground_deploy_sa = "pg-cb-deploy"                                       # Service account for Initialize-Playground-environment trigger
 playground_update_sa = "pg-cb-update"                                       # Service account for Deploy-Update-Playground-environment trigger
 playground_ci_sa = "pg-cb-ci"                                               # SA name used for CI trigger
 playground_cd_sa = "pg-cb-cd"                                               # SA name used for CD trigger
-project_id = "PROJECT_ID"                                                   # GCP Project ID
+project_id = "<PROJECT_ID>"                                                   # GCP Project ID
 webhook_trigger_secret_id = "playground-cicd-webhook"                       # Secret ID for webhook
-data_for_cicd_webhook_secret = "secret_string"                              # Secret used when creating the Github webhook
-gh_pat_secret_id = "playground-github-pat-ci"                               # Secret ID with github PAT
-data_for_github_pat_secret = "github_pat_*"                                 # Actual Github PAT
+data_for_cicd_webhook_secret = "secret_string"                              # Secret used when creating the GitHub webhook
+gh_pat_secret_id = "playground-github-pat-ci"                               # Secret ID with GitHub PAT
+data_for_github_pat_secret = "github_pat_*"                                 # Actual GitHub PAT
 trigger_source_repo = "https://github.com/beamplayground/deploy-workaround" # Trigger source repository. The repository must be connected to Cloud Build
 trigger_source_branch = "main"                                              # Branch name for the trigger source repository
-cloudbuild_bucket_private = "playground-logs-private-project"               # Name of an exisitng bucket for private Cloud Build logs <private-logs-bucket>
-cloudbuild_bucket_public = "playground-logs-public-project"                 # Name of an exisitng bucket for public Cloud Build logs <public-logs-bucket>
+cloudbuild_bucket_private = "<private-logs-bucket>"                         # Name of an existing bucket for private Cloud Build logs 
+cloudbuild_bucket_public = "<public-logs-bucket>"                           # Name of an existing bucket for public Cloud Build logs 
 ```
 
 2. Configure authentication for the Google Cloud Platform
@@ -113,4 +113,38 @@ terraform init -backend-config="bucket=<triggers-state-bucket>"
 ```
 ```
 terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
+```
+
+# Deploy Playgorund environment from Cloud Build triggers:
+1. Run "Initialize-Playground-environment" trigger
+2. Run "Deploy-Update-Playground-environment" trigger when previous job successfully completed. 
+This trigger can be restarted to rebuild GKE cluster container images from _REPO_NAME repository _BRANCH_NAME branch.
+
+Each of these steps provides substitutions to customize Playgorund environment deployment:
+```
+_REPO_NAME - URL to GitHub repository to deploy Playground environment (e.g. "https://github.com/apache/beam")
+_BRANCH_NAME - Branch name for the _REPO_NAME repository (e.g. "master")
+_ENVIRONMENT_NAME - Environment name used to generate GCP resource names for Datastore database, GKE cluster, network, Redis instance, etc. (e.g. "prod")
+_GKE_MACHINE_TYPE - Machines for GKE cluster nodes. (e.g. "e2-standard-8" for a test environment, "c2-standard-16" for a production environment)
+_MAX_COUNT - Number of GKE cluster nodes to scale up to
+_MIN_COUNT - Minimum number of GKE cluster nodes. At least 2 nodes required
+_PLAYGROUND_REGION - GCP Region to deploy Playground resources. See [Cloud Build locations](https://cloud.google.com/build/docs/locations) for the list of supported locations. (e.g. "us-central1")
+_PLAYGROUND_ZONE - GCP Zone (location) to deploy Playground resources (e.g. "us-central1-a")
+_SKIP_APPENGINE_DEPLOY - Set to "true" if App Engine API has already been enabled in the GCP project. Set "false" otherwise
+_STATE_BUCKET - Provide a unique name for a bucket to store Terraform state file for the Playground environment. Bucket is created for you
+_DNS_NAME - FQDN to access Playgorund. (e.g "play.beam.apache.org")
+_SDK_TAG - BEAM SDK version (e.g. "2.44.0")
+_CONTAINER_TAG - Tag for Docker containers created in Artifact Registry (e.g. "prod-1.0")
+```
+
+3. Run "Playground-CD-stable-manual" trigger to deploy Playground examples.
+Provide values for substitutions:
+```
+_DATASTORE_NAMESPACE - Datastore namespace to store examples. Equal to "playground-<environment>", where <environment> is the value for  _ENVIRONMENT_NAME substitution from the previous step.
+_DNS_NAME - FQDN to access Playgorund. Equal to _DNS_NAME substitution from the previous step.  (e.g "play.beam.apache.org")
+_MERGE_COMMIT - Source Git branch or commit hash to deploy examples from. Examples are always deployed from [Apache/Beam](https://github.com/apache/beam) repository.  (e.g. "master")
+_ORIGIN - Examples origin to search in _SUBDIRS
+_SDKS - List of supported SDKs to deploy to the Playground environment. (e.g. "java go python")
+_SUBDIRS - List of paths relative to Apache Beam repository root folder to search examples (e.g. "./learning/katas ./examples ./sdks")
+_BEAM_CONCURRENCY - Number of examples that can be executed simultaneously during validation. (e.g. "4")
 ```
