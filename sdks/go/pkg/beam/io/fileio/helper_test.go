@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // openFile opens a file for reading.
@@ -85,4 +86,15 @@ func writeGzip(t *testing.T, path string, data []byte) {
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func modTime(t *testing.T, path string) time.Time {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return info.ModTime()
 }
