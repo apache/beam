@@ -1834,10 +1834,10 @@ git tag -s &amp;quot;$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
 git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
 &lt;/code>&lt;/pre>&lt;p>After pushing the tag, the tag should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/tags">Tags&lt;/a> page.&lt;/p>
 &lt;h3 id="publish-release-to-github">Publish release to Github&lt;/h3>
-&lt;p>Once the tag is uploaded, publish the release notes to Github, as follows:&lt;/p>
-&lt;pre>&lt;code>./beam/release/src/main/scripts/publish_github_release_notes.sh
-&lt;/code>&lt;/pre>&lt;p>Note this script reads the release notes from the blog post, so you should make sure to run this from master &lt;em>after&lt;/em> merging the blog post PR.&lt;/p>
-&lt;p>After running the script, the release notes should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/releases">Releases&lt;/a> page.&lt;/p>
+&lt;p>Once the tag is uploaded, publish the release notes to Github. From the &lt;a href="https://github.com/apache/beam/releases">Beam release page on Github&lt;/a> select
+&amp;ldquo;Draft a new release.&amp;rdquo; Title the release &amp;ldquo;Beam ${RELEASE_VERSION} release&amp;rdquo; and set the release at the version tag created above. Use the content of the
+release blog post as the body of the release notes, set this version as the latest release, and publish it.&lt;/p>
+&lt;p>The release notes should now be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/releases">Releases&lt;/a> page.&lt;/p>
 &lt;h3 id="mark-the-version-as-released-in-github">Mark the version as released in GitHub&lt;/h3>
 &lt;p>In GitHub, in the &lt;a href="https://github.com/apache/beam/milestones">milestone page&lt;/a>, click close on the current release.&lt;/p>
 &lt;h3 id="pmc-only-finalization">PMC-Only Finalization&lt;/h3>
