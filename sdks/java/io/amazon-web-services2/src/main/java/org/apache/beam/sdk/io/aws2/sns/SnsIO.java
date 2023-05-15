@@ -19,10 +19,8 @@ package org.apache.beam.sdk.io.aws2.sns;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import java.io.Serializable;
 import java.net.URI;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -39,9 +37,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -128,47 +124,16 @@ public final class SnsIO {
     return new AutoValue_SnsIO_WriteAsync.Builder<T>().build();
   }
 
-  /**
-   * Legacy retry configuration.
-   *
-   * <p><b>Warning</b>: Max accumulative retry latency is silently ignored as it is not supported by
-   * the AWS SDK.
-   *
-   * @deprecated Use {@link org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead to
-   *     delegate retries to the AWS SDK.
-   */
-  @AutoValue
-  @Deprecated
-  public abstract static class RetryConfiguration implements Serializable {
-    abstract int getMaxAttempts();
-
-    /** @deprecated Use {@link org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead. */
-    @Deprecated
-    public static RetryConfiguration create(int maxAttempts, Duration ignored) {
-      checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
-      return new AutoValue_SnsIO_RetryConfiguration(maxAttempts);
-    }
-
-    org.apache.beam.sdk.io.aws2.common.RetryConfiguration convertLegacyConfig() {
-      int totalAttempts = getMaxAttempts() * 3; // 3 SDK attempts per user attempt
-      return org.apache.beam.sdk.io.aws2.common.RetryConfiguration.builder()
-          .numRetries(totalAttempts - 1)
-          .build();
-    }
-  }
-
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T>
       extends PTransform<PCollection<T>, PCollection<PublishResponse>> {
 
-    abstract @Nullable ClientConfiguration getClientConfiguration();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract @Nullable String getTopicArn();
 
     abstract @Nullable SerializableFunction<T, PublishRequest.Builder> getPublishRequestBuilder();
-
-    abstract @Nullable SnsClientProvider getSnsClientProvider();
 
     abstract @Nullable Coder<PublishResponse> getCoder();
 
@@ -183,8 +148,6 @@ public final class SnsIO {
 
       abstract Builder<T> setPublishRequestBuilder(
           SerializableFunction<T, PublishRequest.Builder> requestBuilder);
-
-      abstract Builder<T> setSnsClientProvider(SnsClientProvider snsClientProvider);
 
       abstract Builder<T> setCoder(Coder<PublishResponse> coder);
 
@@ -222,60 +185,10 @@ public final class SnsIO {
       return builder().setPublishRequestBuilder(m -> publishRequestFn.apply(m).toBuilder()).build();
     }
 
-    /**
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
-     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
-     */
-    @Deprecated
-    public Write<T> withSnsClientProvider(SnsClientProvider clientProvider) {
-      checkArgument(clientProvider != null, "SnsClientProvider cannot be null");
-      return builder().setClientConfiguration(null).setSnsClientProvider(clientProvider).build();
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Write<T> withSnsClientProvider(AwsCredentialsProvider credentials, String region) {
-      return updateClientConfig(
-          b -> b.credentialsProvider(credentials).region(Region.of(region)).build());
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Write<T> withSnsClientProvider(
-        AwsCredentialsProvider credentials, String region, URI endpoint) {
-      return updateClientConfig(
-          b ->
-              b.credentialsProvider(credentials)
-                  .region(Region.of(region))
-                  .endpoint(endpoint)
-                  .build());
-    }
-
     /** Configuration of SNS client. */
     public Write<T> withClientConfiguration(ClientConfiguration config) {
-      return updateClientConfig(ignore -> config);
-    }
-
-    private Write<T> updateClientConfig(
-        Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
-      checkState(
-          getSnsClientProvider() == null,
-          "Legacy SnsClientProvider is set, but incompatible with ClientConfiguration.");
-      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
       checkArgument(config != null, "ClientConfiguration cannot be null");
       return builder().setClientConfiguration(config).build();
-    }
-
-    /**
-     * Retry configuration of SNS client.
-     *
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} with {@link
-     *     org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead to delegate retries to the
-     *     AWS SDK.
-     */
-    @Deprecated
-    public Write<T> withRetryConfiguration(RetryConfiguration retry) {
-      return updateClientConfig(b -> b.retry(retry.convertLegacyConfig()).build());
     }
 
     /**
@@ -316,10 +229,8 @@ public final class SnsIO {
       checkArgument(getPublishRequestBuilder() != null, "withPublishRequestBuilder() is required");
 
       AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-      if (getSnsClientProvider() == null) {
-        checkArgument(getClientConfiguration() != null, "withClientConfiguration() is required");
-        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
-      }
+      checkArgument(getClientConfiguration() != null, "withClientConfiguration() is required");
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
       if (getTopicArn() != null) {
         checkArgument(checkTopicExists(awsOptions), "Topic arn %s does not exist", getTopicArn());
       }
@@ -343,13 +254,8 @@ public final class SnsIO {
     }
 
     private SnsClient buildClient(AwsOptions options) {
-      if (getSnsClientProvider() != null) {
-        // build client using legacy SnsClientProvider
-        return getSnsClientProvider().getSnsClient();
-      } else {
-        return ClientBuilderFactory.buildClient(
-            options.as(AwsOptions.class), SnsClient.builder(), getClientConfiguration());
-      }
+      return ClientBuilderFactory.buildClient(
+          options.as(AwsOptions.class), SnsClient.builder(), getClientConfiguration());
     }
 
     static class SnsWriterFn<T> extends DoFn<T, PublishResponse> {

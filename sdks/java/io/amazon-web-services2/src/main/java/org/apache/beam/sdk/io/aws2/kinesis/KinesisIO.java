@@ -27,7 +27,6 @@ import static software.amazon.awssdk.services.kinesis.model.ShardFilterType.AT_L
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -38,7 +37,6 @@ import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
@@ -81,9 +79,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
@@ -369,9 +365,7 @@ public final class KinesisIO {
 
     abstract @Nullable StartingPoint getInitialPosition();
 
-    abstract @Nullable ClientConfiguration getClientConfiguration();
-
-    abstract @Nullable AWSClientsProvider getAWSClientsProvider();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract long getMaxNumRecords();
 
@@ -399,8 +393,6 @@ public final class KinesisIO {
       abstract Builder setInitialPosition(StartingPoint startingPoint);
 
       abstract Builder setClientConfiguration(ClientConfiguration config);
-
-      abstract Builder setAWSClientsProvider(AWSClientsProvider clientProvider);
 
       abstract Builder setMaxNumRecords(long maxNumRecords);
 
@@ -442,61 +434,8 @@ public final class KinesisIO {
       return toBuilder().setInitialPosition(new StartingPoint(initialTimestamp)).build();
     }
 
-    /**
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
-     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
-     */
-    @Deprecated
-    public Read withAWSClientsProvider(AWSClientsProvider clientProvider) {
-      checkArgument(clientProvider != null, "AWSClientsProvider cannot be null");
-      return toBuilder().setClientConfiguration(null).setAWSClientsProvider(clientProvider).build();
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Region region) {
-      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withAWSClientsProvider(
-        String awsAccessKey, String awsSecretKey, Region region, String serviceEndpoint) {
-      AwsCredentialsProvider awsCredentialsProvider =
-          StaticCredentialsProvider.create(AwsBasicCredentials.create(awsAccessKey, awsSecretKey));
-      return withAWSClientsProvider(awsCredentialsProvider, region, serviceEndpoint);
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withAWSClientsProvider(
-        AwsCredentialsProvider awsCredentialsProvider, Region region) {
-      return withAWSClientsProvider(awsCredentialsProvider, region, null);
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withAWSClientsProvider(
-        AwsCredentialsProvider awsCredentialsProvider, Region region, String serviceEndpoint) {
-      URI endpoint = serviceEndpoint != null ? URI.create(serviceEndpoint) : null;
-      return updateClientConfig(
-          b ->
-              b.credentialsProvider(awsCredentialsProvider)
-                  .region(region)
-                  .endpoint(endpoint)
-                  .build());
-    }
-
     /** Configuration of Kinesis & Cloudwatch clients. */
     public Read withClientConfiguration(ClientConfiguration config) {
-      return updateClientConfig(ignore -> config);
-    }
-
-    private Read updateClientConfig(Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
-      checkState(
-          getAWSClientsProvider() == null,
-          "Legacy AWSClientsProvider is set, but incompatible with ClientConfiguration.");
-      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
       checkArgument(config != null, "ClientConfiguration cannot be null");
       return toBuilder().setClientConfiguration(config).build();
     }
@@ -631,11 +570,8 @@ public final class KinesisIO {
     public PCollection<KinesisRecord> expand(PBegin input) {
       checkArgument(getWatermarkPolicyFactory() != null, "WatermarkPolicyFactory is required");
       checkArgument(getRateLimitPolicyFactory() != null, "RateLimitPolicyFactory is required");
-      if (getAWSClientsProvider() == null) {
-        checkArgument(getClientConfiguration() != null, "ClientConfiguration is required");
-        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
-      }
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
 
       Unbounded<KinesisRecord> unbounded =
           org.apache.beam.sdk.io.Read.from(new KinesisSource(this));
