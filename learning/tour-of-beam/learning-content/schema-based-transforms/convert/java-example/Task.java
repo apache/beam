@@ -30,11 +30,14 @@
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
@@ -110,7 +113,6 @@ public class Task {
     }
 
 
-
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
@@ -127,26 +129,44 @@ public class Task {
         Schema schema = Schema.builder()
                 .addStringField("userId")
                 .addStringField("userName")
-                .addRowField("game",gameSchema)
+                .addRowField("game", gameSchema)
                 .build();
 
         PCollection<Row> pCollection = input
-                .apply(Convert.toRows())
-                .setRowSchema(schema);
+                .setSchema(schema,
+                        TypeDescriptor.of(User.class), user ->
+                        {
+                            Game game = user.game;
+
+                            Row gameRow = Row.withSchema(gameSchema)
+                                    .addValues(game.userId, game.score, game.gameId, game.date)
+                                    .build();
+
+                            return Row.withSchema(schema)
+                                    .addValues(user.userId, user.userName, gameRow).build();
+                        },
+                        row -> {
+                            String userId = row.getValue("userId");
+                            String userName = row.getValue("userName");
+                            Row game = row.getValue("game");
+
+                            String gameId = game.getValue("gameId");
+                            Integer gameScore = game.getValue("score");
+                            String gameDate = game.getValue("date");
+                            return new User(userId, userName, new Game(userId, gameScore, gameId, gameDate));
+                        })
+                .apply(Convert.to(Row.class))
+                .setCoder(RowCoder.of(schema));
 
         pCollection
-                .apply(Convert.to(User.class))
-                .setCoder(CustomCoder.of())
                 .apply("User", ParDo.of(new LogOutput<>("Convert to Result")));
-
 
         pipeline.run();
     }
-
     public static PCollection<User> getProgressPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
-        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn())).setCoder(CustomCoder.of());
     }
 
     static class ExtractUserProgressFn extends DoFn<String, User> {

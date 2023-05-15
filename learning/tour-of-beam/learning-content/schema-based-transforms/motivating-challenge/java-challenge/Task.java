@@ -27,26 +27,17 @@
 //   tags:
 //     - hellobeam
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.Convert;
-import org.apache.beam.sdk.schemas.transforms.Filter;
-import org.apache.beam.sdk.schemas.transforms.Group;
-import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,8 +46,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
-import java.io.Serializable;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -118,8 +107,10 @@ public class Task {
         PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
         userInfo
-                .setCoder(UserCoder.of())
-                .apply("User", ParDo.of(new LogOutput<>("Result")));
+                .apply("User", ParDo.of(new LogOutput<>("Users")));
+
+        gameInfo
+                .apply("Game", ParDo.of(new LogOutput<>("Games")));
 
         pipeline.run();
     }
@@ -127,13 +118,13 @@ public class Task {
     public static PCollection<User> getUserPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
-        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn()));
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn())).setCoder(UserCoder.of());
     }
 
     public static PCollection<Game> getGamePCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
-        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn())).setCoder(GameCoder.of());
     }
 
     static class ExtractUserFn extends DoFn<String, User> {
@@ -170,6 +161,37 @@ public class Task {
             final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
             String[] params = serializedDTOs.split(",");
             return new Task.User(params[0], params[1]);
+        }
+
+        @Override
+        public List<? extends Coder<?>> getCoderArguments() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void verifyDeterministic() {
+        }
+    }
+
+
+    static class GameCoder extends Coder<Task.Game> {
+        private static final GameCoder INSTANCE = new GameCoder();
+
+        public static GameCoder of() {
+            return INSTANCE;
+        }
+
+        @Override
+        public void encode(Task.Game game, OutputStream outStream) throws IOException {
+            String line = game.userId + "," + game.score + "," + game.gameId + "," + game.date;
+            outStream.write(line.getBytes());
+        }
+
+        @Override
+        public Task.Game decode(InputStream inStream) throws IOException {
+            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
+            String[] params = serializedDTOs.split(",");
+            return new Task.Game(params[0], Integer.valueOf(params[1]), params[2], params[3]);
         }
 
         @Override

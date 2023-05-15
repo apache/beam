@@ -116,75 +116,51 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> userInfo = getUserPCollection(pipeline);
-        PCollection<Game> gameInfo = getGamePCollection(pipeline);
-
         Schema userSchema = Schema.builder()
                 .addStringField("userId")
                 .addStringField("userName")
                 .build();
 
-        PCollection<Row> pCollection = userInfo
-                .setSchema(userSchema,
-                        TypeDescriptor.of(User.class), input ->
-                        {
+        Schema gameSchema = Schema.builder()
+                .addStringField("userId")
+                .addInt32Field("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
+
+        PCollection<User> userInfo = getUserPCollection(pipeline)
+                .setSchema(userSchema, TypeDescriptor.of(User.class), input -> {
                             User user = input;
-                            return Row.withSchema(userSchema)
-                                    .addValues(user.userId, user.userName)
-                                    .build();
-                        },
-                        input -> new User(input.getString(0), input.getString(1))
-                )
-                .apply(Join.<User,Game>innerJoin(gameInfo).using("userId"))
+                            return Row.withSchema(userSchema).addValues(user.userId, user.userName).build();
+                        }, input -> new User(input.getString(0), input.getString(1))
+                );
+
+        PCollection<Game> gameInfo = getGamePCollection(pipeline).setSchema(gameSchema, TypeDescriptor.of(Game.class), row -> {
+            Game game = row;
+            return Row.withSchema(gameSchema).addValues(game.userId, game.score, game.gameId, game.date).build();
+        }, row -> new Game(row.getString(0), row.getInt32(1), row.getString(2), row.getString(3)));
+
+        PCollection<Row> pCollection = userInfo
+                .apply(Join.<User, Game>innerJoin(gameInfo).using("userId"))
                 .apply(Group.<Row>byFieldNames("lhs.userId").aggregateField("rhs.score", Sum.ofIntegers(), "total"))
                 .apply(Filter.<Row>create().whereFieldName("value.total", s -> (int) s > 11));
 
         pCollection
-                .apply("User", ParDo.of(new LogOutput<>("Result")));
+                .apply("User", ParDo.of(new LogOutput<>("Results")));
 
         pipeline.run();
-    }
-
-    static class CustomCoder extends Coder<Object> {
-        final ObjectMapper objectMapper = new ObjectMapper();
-        private static final CustomCoder INSTANCE = new CustomCoder();
-
-        public static CustomCoder of() {
-            return INSTANCE;
-        }
-
-        @Override
-        public void encode(Object user, OutputStream outStream) throws IOException {
-            String line = user.toString();
-            outStream.write(line.getBytes());
-        }
-
-        @Override
-        public Object decode(InputStream inStream) throws IOException {
-            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
-            return objectMapper.readValue(serializedDTOs, Object.class);
-        }
-
-        @Override
-        public List<? extends Coder<?>> getCoderArguments() {
-            return Collections.emptyList();
-        }
-
-        @Override
-        public void verifyDeterministic() {
-        }
     }
 
     public static PCollection<User> getUserPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
-        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn()));
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn())).setCoder(UserCoder.of());
     }
 
     public static PCollection<Game> getGamePCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
-        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn())).setCoder(GameCoder.of());
     }
 
     static class ExtractUserFn extends DoFn<String, User> {
@@ -200,6 +176,66 @@ public class Task {
         public void processElement(ProcessContext c) {
             String[] items = c.element().split(",");
             c.output(new Game(items[0], Integer.valueOf(items[2]), items[3], items[4]));
+        }
+    }
+
+    static class UserCoder extends Coder<Task.User> {
+        private static final UserCoder INSTANCE = new UserCoder();
+
+        public static UserCoder of() {
+            return INSTANCE;
+        }
+
+        @Override
+        public void encode(Task.User user, OutputStream outStream) throws IOException {
+            String line = user.userId + "," + user.userName;
+            outStream.write(line.getBytes());
+        }
+
+        @Override
+        public Task.User decode(InputStream inStream) throws IOException {
+            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
+            String[] params = serializedDTOs.split(",");
+            return new Task.User(params[0], params[1]);
+        }
+
+        @Override
+        public List<? extends Coder<?>> getCoderArguments() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void verifyDeterministic() {
+        }
+    }
+
+    static class GameCoder extends Coder<Task.Game> {
+        private static final GameCoder INSTANCE = new GameCoder();
+
+        public static GameCoder of() {
+            return INSTANCE;
+        }
+
+        @Override
+        public void encode(Task.Game game, OutputStream outStream) throws IOException {
+            String line = game.userId + "," + game.score + "," + game.gameId + "," + game.date;
+            outStream.write(line.getBytes());
+        }
+
+        @Override
+        public Task.Game decode(InputStream inStream) throws IOException {
+            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
+            String[] params = serializedDTOs.split(",");
+            return new Task.Game(params[0], Integer.valueOf(params[1]), params[2], params[3]);
+        }
+
+        @Override
+        public List<? extends Coder<?>> getCoderArguments() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void verifyDeterministic() {
         }
     }
 
