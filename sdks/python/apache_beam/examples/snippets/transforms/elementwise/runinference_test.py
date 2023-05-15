@@ -83,6 +83,7 @@ PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dt
 [END sklearn_unkeyed_model_handler]  '''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
+
 # pylint:disable=line-too-long
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(

@@ -791,14 +791,8 @@ class SnippetsTest(unittest.TestCase):
         sorted(' '.join(lines).split(' ')), self.get_output(result_path))
 
   @parameterized.parameterized.expand([
-      [
-          snippets_examples_wordcount_minimal.
-          examples_wordcount_minimal
-      ],
-      [
-          snippets_examples_wordcount_wordcount.
-          examples_wordcount_wordcount
-      ],
+      [snippets_examples_wordcount_minimal.examples_wordcount_minimal],
+      [snippets_examples_wordcount_wordcount.examples_wordcount_wordcount],
       [snippets.pipeline_monitoring],
       [snippets.examples_wordcount_templated],
   ])
@@ -828,10 +822,9 @@ class SnippetsTest(unittest.TestCase):
     temp_path = self.create_temp_file(
         'Flourish Flourish Flourish stomach abc def')
     result_path = self.create_temp_file()
-    snippets_examples_wordcount_debugging.examples_wordcount_debugging(
-        {
-            'read': temp_path, 'write': result_path
-        })
+    snippets_examples_wordcount_debugging.examples_wordcount_debugging({
+        'read': temp_path, 'write': result_path
+    })
     self.assertEqual(
         self.get_output(result_path), ['Flourish: 3', 'stomach: 1'])
 
