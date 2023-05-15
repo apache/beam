@@ -18,6 +18,7 @@
 
 # pytype: skip-file
 
+
 def combineglobally_side_inputs_dict(test=None):
   # [START combineglobally_side_inputs_dict]
   import apache_beam as beam

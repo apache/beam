@@ -32,6 +32,7 @@
 #     - timestamps
 #     - latest
 
+
 def latest_per_key(test=None):
   # [START latest_per_key]
   import apache_beam as beam

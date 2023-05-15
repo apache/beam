@@ -32,6 +32,7 @@
 #     - strings
 #     - regex
 
+
 def regex_replace_all(test=None):
   # [START regex_replace_all]
   import apache_beam as beam

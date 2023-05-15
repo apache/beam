@@ -32,6 +32,7 @@
 #     - numbers
 #     - pairs
 
+
 def mean_per_key(test=None):
   # [START mean_per_key]
   import apache_beam as beam

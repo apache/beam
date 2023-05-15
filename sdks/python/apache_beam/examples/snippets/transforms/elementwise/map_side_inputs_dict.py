@@ -32,6 +32,7 @@
 #     - strings
 #     - map
 
+
 def map_side_inputs_dict(test=None):
   # [START map_side_inputs_dict]
   import apache_beam as beam

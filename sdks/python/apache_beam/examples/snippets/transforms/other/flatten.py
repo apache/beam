@@ -31,6 +31,7 @@
 #     - transforms
 #     - strings
 
+
 def flatten(test=None):
   # [START flatten]
   import apache_beam as beam
@@ -40,10 +41,7 @@ def flatten(test=None):
     pc2 = pipeline | 'Create produce 2' >> beam.Create(['🍅', '🥔'])
     pc3 = pipeline | 'Create produce 3' >> beam.Create(['🍎', '🍐', '🍊'])
 
-    icons = (
-        (pc1, pc2, pc3)
-        | beam.Flatten()
-        | beam.Map(print))
+    icons = ((pc1, pc2, pc3) | beam.Flatten() | beam.Map(print))
     # [END flatten]
 
     if test:

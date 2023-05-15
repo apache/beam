@@ -31,6 +31,7 @@
 #     - transforms
 #     - timestamps
 
+
 def withtimestamps_logical_clock(test=None):
   # [START withtimestamps_logical_clock]
   import apache_beam as beam

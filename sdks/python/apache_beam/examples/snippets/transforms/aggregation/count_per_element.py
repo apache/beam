@@ -31,6 +31,7 @@
 #     - transforms
 #     - strings
 
+
 def count_per_element(test=None):
   # [START count_per_element]
   import apache_beam as beam

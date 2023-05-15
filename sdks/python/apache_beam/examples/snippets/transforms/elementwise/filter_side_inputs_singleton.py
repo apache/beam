@@ -32,6 +32,7 @@
 #     - strings
 #     - filter
 
+
 def filter_side_inputs_singleton(test=None):
   # [START filter_side_inputs_singleton]
   import apache_beam as beam

@@ -32,6 +32,7 @@
 #     - strings
 #     - map
 
+
 def flatmap_simple(test=None):
   # [START flatmap_simple]
   import apache_beam as beam

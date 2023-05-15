@@ -41,8 +41,7 @@ def check_window(actual):
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch(
-    'apache_beam.examples.snippets.transforms.other.window.print', str)
+@mock.patch('apache_beam.examples.snippets.transforms.other.window.print', str)
 class WindowTest(unittest.TestCase):
   def test_window(self):
     window.window(check_window)

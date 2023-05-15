@@ -32,6 +32,7 @@
 #     - strings
 #     - lists
 
+
 def tostring_iterables(test=None):
   # [START tostring_iterables]
   import apache_beam as beam

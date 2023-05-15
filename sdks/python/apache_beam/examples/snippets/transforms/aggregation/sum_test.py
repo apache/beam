@@ -45,9 +45,11 @@ def check_totals_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.sum_globally.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.sum_globally.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.sum_per_key.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.sum_per_key.print',
+    str)
 class SumTest(unittest.TestCase):
   def test_sum_globally(self):
     beam_sum_globally.sum_globally(check_total)

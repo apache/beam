@@ -31,6 +31,7 @@
 #     - transforms
 #     - numbers
 
+
 def max_globally(test=None):
   # [START max_globally]
   import apache_beam as beam

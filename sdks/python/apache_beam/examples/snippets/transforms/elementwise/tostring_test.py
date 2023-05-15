@@ -65,11 +65,14 @@ def check_plants_csv(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.tostring_kvs.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.tostring_kvs.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.tostring_element.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.tostring_element.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.tostring_iterables.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.tostring_iterables.print',
+    str)
 class ToStringTest(unittest.TestCase):
   def test_tostring_kvs(self):
     tostring_kvs.tostring_kvs(check_plants)

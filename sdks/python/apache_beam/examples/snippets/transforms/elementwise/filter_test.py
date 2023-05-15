@@ -54,17 +54,23 @@ def check_valid_plants(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.filter_function.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.filter_function.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.filter_lambda.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.filter_lambda.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.filter_multiple_arguments.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.filter_multiple_arguments.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.filter_side_inputs_singleton.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.filter_side_inputs_singleton.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.filter_side_inputs_iter.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.filter_side_inputs_iter.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.filter_side_inputs_dict.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.filter_side_inputs_dict.print',
+    str)
 class FilterTest(unittest.TestCase):
   def test_filter_function(self):
     filter_function.filter_function(check_perennials)

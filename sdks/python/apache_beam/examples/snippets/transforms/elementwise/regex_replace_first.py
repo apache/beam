@@ -32,6 +32,7 @@
 #     - strings
 #     - regex
 
+
 def regex_replace_first(test=None):
   # [START regex_replace_first]
   import apache_beam as beam

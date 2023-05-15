@@ -32,6 +32,7 @@
 #     - strings
 #     - map
 
+
 def map_simple(test=None):
   # [START map_simple]
   import apache_beam as beam

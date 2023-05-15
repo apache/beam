@@ -33,6 +33,7 @@
 #     - pairs
 #     - group
 
+
 def groupbykey(test=None):
   # [START groupbykey]
   import apache_beam as beam

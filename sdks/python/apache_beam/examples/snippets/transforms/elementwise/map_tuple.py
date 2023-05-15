@@ -32,6 +32,7 @@
 #     - strings
 #     - map
 
+
 def map_tuple(test=None):
   # [START map_tuple]
   import apache_beam as beam

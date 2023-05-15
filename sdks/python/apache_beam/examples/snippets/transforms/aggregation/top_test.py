@@ -82,17 +82,22 @@ def check_shortest_elements_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.top_largest.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.top_largest.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.top_largest_per_key.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.top_largest_per_key.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.top_smallest.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.top_smallest.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.top_smallest_per_key.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.top_smallest_per_key.print',
+    str)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.aggregation.top_of.print', str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.top_per_key.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.top_per_key.print',
+    str)
 class TopTest(unittest.TestCase):
   def test_top_largest(self):
     top_largest.top_largest(check_largest_elements)

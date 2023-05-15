@@ -97,7 +97,8 @@ class RunInferenceTest(unittest.TestCase):
         check_sklearn_unkeyed_model_handler)
 
   def test_sklearn_keyed_model_handler(self):
-    runinference_sklearn_keyed_model_handler.sklearn_keyed_model_handler(check_sklearn_keyed_model_handler)
+    runinference_sklearn_keyed_model_handler.sklearn_keyed_model_handler(
+        check_sklearn_keyed_model_handler)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)

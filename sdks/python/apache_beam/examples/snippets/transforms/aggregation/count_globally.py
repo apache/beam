@@ -31,6 +31,7 @@
 #     - transforms
 #     - strings
 
+
 def count_globally(test=None):
   # [START count_globally]
   import apache_beam as beam

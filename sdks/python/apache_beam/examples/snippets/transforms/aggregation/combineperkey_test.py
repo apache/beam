@@ -110,16 +110,20 @@ class CombinePerKeyTest(unittest.TestCase):
     combineperkey_lambda.combineperkey_lambda(check_saturated_total)
 
   def test_combineperkey_multiple_arguments(self):
-    combineperkey_multiple_arguments.combineperkey_multiple_arguments(check_saturated_total)
+    combineperkey_multiple_arguments.combineperkey_multiple_arguments(
+        check_saturated_total)
 
   def test_combineperkey_side_inputs_singleton(self):
-    combineperkey_side_inputs_singleton.combineperkey_side_inputs_singleton(check_saturated_total)
+    combineperkey_side_inputs_singleton.combineperkey_side_inputs_singleton(
+        check_saturated_total)
 
   def test_combineperkey_side_inputs_iter(self):
-    combineperkey_side_inputs_iter.combineperkey_side_inputs_iter(check_bounded_total)
+    combineperkey_side_inputs_iter.combineperkey_side_inputs_iter(
+        check_bounded_total)
 
   def test_combineperkey_side_inputs_dict(self):
-    combineperkey_side_inputs_dict.combineperkey_side_inputs_dict(check_bounded_total)
+    combineperkey_side_inputs_dict.combineperkey_side_inputs_dict(
+        check_bounded_total)
 
   def test_combineperkey_combinefn(self):
     combineperkey_combinefn.combineperkey_combinefn(check_average)

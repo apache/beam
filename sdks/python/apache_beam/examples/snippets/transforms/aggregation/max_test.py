@@ -47,9 +47,11 @@ def check_elements_with_max_value_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.max_globally.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.max_globally.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.max_per_key.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.max_per_key.print',
+    str)
 class MaxTest(unittest.TestCase):
   def test_max_globally(self):
     beam_max_globally.max_globally(check_max_element)

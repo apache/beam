@@ -32,6 +32,7 @@
 #     - strings
 #     - map
 
+
 def flatmap_side_inputs_iter(test=None):
   # [START flatmap_side_inputs_iter]
   import apache_beam as beam

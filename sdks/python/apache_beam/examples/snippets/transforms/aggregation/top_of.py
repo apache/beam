@@ -29,6 +29,7 @@
 #     - transforms
 #     - strings
 
+
 def top_of(test=None):
   # [START top_of]
   import apache_beam as beam

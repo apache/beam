@@ -18,7 +18,6 @@
 
 # pytype: skip-file
 
-
 # beam-playground:
 #   name: MeanGlobally
 #   description: Demonstration of Mean transform usage.
@@ -32,6 +31,7 @@
 #     - transforms
 #     - numbers
 #     - pairs
+
 
 def mean_globally(test=None):
   # [START mean_globally]

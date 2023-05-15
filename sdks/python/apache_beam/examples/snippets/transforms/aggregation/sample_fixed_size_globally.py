@@ -32,6 +32,7 @@
 #     - pairs
 #     - group
 
+
 def sample_fixed_size_globally(test=None):
   # [START sample_fixed_size_globally]
   import apache_beam as beam

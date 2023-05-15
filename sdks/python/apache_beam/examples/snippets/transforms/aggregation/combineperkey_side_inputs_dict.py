@@ -18,6 +18,7 @@
 
 # pytype: skip-file
 
+
 def combineperkey_side_inputs_dict(test=None):
   # [START combineperkey_side_inputs_dict]
   import apache_beam as beam
@@ -54,6 +55,7 @@ def combineperkey_side_inputs_dict(test=None):
     # [END combineperkey_side_inputs_dict]
     if test:
       test(bounded_total)
+
 
 if __name__ == '__main__':
   combineperkey_side_inputs_dict()

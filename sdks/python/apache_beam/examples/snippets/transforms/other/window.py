@@ -34,6 +34,7 @@
 #     - timestamps
 #     - windows
 
+
 def window(test=None):
   # [START window]
   import apache_beam as beam

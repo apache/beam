@@ -18,6 +18,7 @@
 
 # pytype: skip-file
 
+
 def combineglobally_side_inputs_singleton(test=None):
   # [START combineglobally_side_inputs_singleton]
   import apache_beam as beam

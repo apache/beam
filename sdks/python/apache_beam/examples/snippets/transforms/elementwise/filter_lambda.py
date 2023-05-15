@@ -32,6 +32,7 @@
 #     - strings
 #     - filter
 
+
 def filter_lambda(test=None):
   # [START filter_lambda]
   import apache_beam as beam

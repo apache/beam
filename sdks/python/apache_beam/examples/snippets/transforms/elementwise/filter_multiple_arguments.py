@@ -32,6 +32,7 @@
 #     - strings
 #     - filter
 
+
 def filter_multiple_arguments(test=None):
   # [START filter_multiple_arguments]
   import apache_beam as beam

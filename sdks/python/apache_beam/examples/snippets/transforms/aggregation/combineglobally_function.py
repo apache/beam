@@ -32,6 +32,7 @@
 #     - strings
 #     - group
 
+
 def combineglobally_function(test=None):
   # [START combineglobally_function]
   import apache_beam as beam

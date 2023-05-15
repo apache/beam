@@ -85,9 +85,11 @@ teardown
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.pardo_dofn.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.pardo_dofn.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.pardo_dofn_params.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.pardo_dofn_params.print',
+    str)
 class ParDoTest(unittest.TestCase):
   def test_pardo_dofn(self):
     pardo_dofn.pardo_dofn(check_plants)

@@ -32,6 +32,7 @@
 #     - strings
 #     - filter
 
+
 def filter_side_inputs_iter(test=None):
   # [START filter_side_inputs_iter]
   import apache_beam as beam

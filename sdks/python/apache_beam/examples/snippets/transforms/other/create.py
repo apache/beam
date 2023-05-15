@@ -31,14 +31,16 @@
 #     - transforms
 #     - strings
 
+
 def create(test=None):
   # [START create]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
-    produce = (pipeline
-                 | 'Garden plants' >> beam.Create(['🍓', '🥕', '🍆', '🍅', '🥔'])
-                 | 'Print results' >> beam.Map(print))
+    produce = (
+        pipeline
+        | 'Garden plants' >> beam.Create(['🍓', '🥕', '🍆', '🍅', '🥔'])
+        | 'Print results' >> beam.Map(print))
     # [END create]
     if test:
       test(produce)

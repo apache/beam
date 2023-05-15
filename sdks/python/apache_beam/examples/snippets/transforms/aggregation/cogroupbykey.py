@@ -36,6 +36,7 @@
 #     - pairs
 #     - group
 
+
 def cogroupbykey(test=None):
   # [START cogroupbykey]
   import apache_beam as beam

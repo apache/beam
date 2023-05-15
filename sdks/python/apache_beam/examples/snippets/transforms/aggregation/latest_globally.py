@@ -32,6 +32,7 @@
 #     - timestamps
 #     - latest
 
+
 def latest_globally(test=None):
   # [START latest_globally]
   import apache_beam as beam

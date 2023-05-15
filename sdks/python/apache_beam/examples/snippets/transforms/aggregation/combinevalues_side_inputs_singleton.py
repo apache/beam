@@ -32,6 +32,7 @@
 #     - pairs
 #     - combine
 
+
 def combinevalues_side_inputs_singleton(test=None):
   # [START combinevalues_side_inputs_singleton]
   import apache_beam as beam

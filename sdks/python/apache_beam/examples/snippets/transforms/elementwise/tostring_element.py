@@ -32,6 +32,7 @@
 #     - strings
 #     - lists
 
+
 def tostring_element(test=None):
   # [START tostring_element]
   import apache_beam as beam

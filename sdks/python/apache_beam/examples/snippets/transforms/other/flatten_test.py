@@ -43,8 +43,7 @@ def check_flatten(actual):
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch(
-    'apache_beam.examples.snippets.transforms.other.flatten.print', str)
+@mock.patch('apache_beam.examples.snippets.transforms.other.flatten.print', str)
 class FlattenTest(unittest.TestCase):
   def test_flatten(self):
     flatten.flatten(check_flatten)

@@ -32,6 +32,7 @@
 #     - strings
 #     - regex
 
+
 def regex_split(test=None):
   # [START regex_split]
   import apache_beam as beam

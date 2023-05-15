@@ -85,10 +85,12 @@ class WithTimestampsTest(unittest.TestCase):
     withtimestamps_event_time.withtimestamps_event_time(check_plant_timestamps)
 
   def test_logical_clock(self):
-    withtimestamps_logical_clock.withtimestamps_logical_clock(check_plant_events)
+    withtimestamps_logical_clock.withtimestamps_logical_clock(
+        check_plant_events)
 
   def test_processing_time(self):
-    withtimestamps_processing_time.withtimestamps_processing_time(check_plant_processing_times)
+    withtimestamps_processing_time.withtimestamps_processing_time(
+        check_plant_processing_times)
 
   def test_time_tuple2unix_time(self):
     unix_time = withtimestamps.time_tuple2unix_time()

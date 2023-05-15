@@ -31,6 +31,7 @@
 #     - transforms
 #     - partitions
 
+
 def partition_lambda(test=None):
   # pylint: disable=line-too-long, expression-not-assigned
   # [START partition_lambda]

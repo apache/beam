@@ -31,6 +31,7 @@
 #     - transforms
 #     - numbers
 
+
 def min_globally(test=None):
   # [START min_globally]
   import apache_beam as beam

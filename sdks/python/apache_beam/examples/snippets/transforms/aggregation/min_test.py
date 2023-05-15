@@ -45,9 +45,11 @@ def check_elements_with_min_value_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.min_globally.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.min_globally.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.min_per_key.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.min_per_key.print',
+    str)
 class MinTest(unittest.TestCase):
   def test_min_globally(self):
     beam_min_globally.min_globally(check_min_element)

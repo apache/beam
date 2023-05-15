@@ -32,6 +32,7 @@
 #     - strings
 #     - map
 
+
 def map_multiple_arguments(test=None):
   # [START map_multiple_arguments]
   import apache_beam as beam

@@ -32,6 +32,7 @@
 #     - strings
 #     - group
 
+
 def combineperkey_lambda(test=None):
   # [START combineperkey_lambda]
   import apache_beam as beam

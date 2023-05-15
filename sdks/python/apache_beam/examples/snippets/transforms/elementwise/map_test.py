@@ -34,6 +34,7 @@ from . import map_side_inputs_singleton
 from . import map_simple
 from . import map_tuple
 
+
 def check_plants(actual):
   expected = '''[START plants]
 🍓Strawberry
@@ -58,7 +59,8 @@ def check_plant_details(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.map_simple.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.map_simple.print',
+    str)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.map_function.print',
     str)

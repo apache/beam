@@ -29,6 +29,7 @@
 #     - transforms
 #     - numbers
 
+
 def sum_globally(test=None):
   # [START sum_globally]
   import apache_beam as beam

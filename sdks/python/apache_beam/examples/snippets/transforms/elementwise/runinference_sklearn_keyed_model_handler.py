@@ -33,6 +33,7 @@
 #     - inference
 #     - sklearn
 
+
 def sklearn_keyed_model_handler(test=None):
   # [START sklearn_keyed_model_handler]
   import apache_beam as beam

@@ -30,6 +30,7 @@
 #     - strings
 #     - group
 
+
 def groupintobatches(test=None):
   # [START groupintobatches]
   import apache_beam as beam

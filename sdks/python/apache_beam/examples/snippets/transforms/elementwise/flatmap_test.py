@@ -59,18 +59,23 @@ def check_valid_plants(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.flatmap_simple.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_simple.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.flatmap_function.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_function.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.flatmap_lambda.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_lambda.print',
+    str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.flatmap_generator.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_generator.print',
+    str)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.flatmap_multiple_arguments.print',
     str)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.flatmap_tuple.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_tuple.print',
+    str)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.flatmap_side_inputs_singleton.print',
     str)

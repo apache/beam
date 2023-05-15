@@ -101,19 +101,24 @@ class CombineValuesTest(unittest.TestCase):
     combinevalues_lambda.combinevalues_lambda(check_saturated_total)
 
   def test_combinevalues_multiple_arguments(self):
-    combinevalues_multiple_arguments.combinevalues_multiple_arguments(check_saturated_total)
+    combinevalues_multiple_arguments.combinevalues_multiple_arguments(
+        check_saturated_total)
 
   def test_combinevalues_side_inputs_singleton(self):
-    combinevalues_side_inputs_singleton.combinevalues_side_inputs_singleton(check_saturated_total)
+    combinevalues_side_inputs_singleton.combinevalues_side_inputs_singleton(
+        check_saturated_total)
 
   def test_combinevalues_side_inputs_iter(self):
-    combinevalues_side_inputs_iter.combinevalues_side_inputs_iter(check_bounded_total)
+    combinevalues_side_inputs_iter.combinevalues_side_inputs_iter(
+        check_bounded_total)
 
   def test_combinevalues_side_inputs_dict(self):
-    combinevalues_side_inputs_dict.combinevalues_side_inputs_dict(check_bounded_total)
+    combinevalues_side_inputs_dict.combinevalues_side_inputs_dict(
+        check_bounded_total)
 
   def test_combinevalues_combinefn(self):
-    combinevalues_combinefn.combinevalues_combinefn(check_percentages_per_season)
+    combinevalues_combinefn.combinevalues_combinefn(
+        check_percentages_per_season)
 
 
 if __name__ == '__main__':

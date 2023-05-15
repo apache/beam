@@ -95,5 +95,3 @@ def torch_keyed_model_handler(test=None):
     # [END torch_keyed_model_handler]
     if test:
       test(predictions)
-
-

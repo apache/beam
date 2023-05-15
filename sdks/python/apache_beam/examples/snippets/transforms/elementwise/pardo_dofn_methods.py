@@ -31,6 +31,7 @@
 #     - transforms
 #     - strings
 
+
 def pardo_dofn_methods(test=None):
   # [START pardo_dofn_methods]
   import apache_beam as beam

@@ -60,7 +60,8 @@ def check_total_unique_elements(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.count_globally.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.count_globally.print',
+    str)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.aggregation.count_per_key.print',
     str)

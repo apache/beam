@@ -32,6 +32,7 @@
 #     - strings
 #     - filter
 
+
 def filter_function(test=None):
   # [START filter_function]
   import apache_beam as beam

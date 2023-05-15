@@ -97,7 +97,8 @@ class PartitionTest(unittest.TestCase):
     partition_lambda.partition_lambda(check_partitions)
 
   def test_partition_multiple_arguments(self):
-    partition_multiple_arguments.partition_multiple_arguments(check_split_datasets)
+    partition_multiple_arguments.partition_multiple_arguments(
+        check_split_datasets)
 
 
 if __name__ == '__main__':

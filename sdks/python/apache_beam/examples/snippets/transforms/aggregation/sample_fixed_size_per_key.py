@@ -32,6 +32,7 @@
 #     - pairs
 #     - group
 
+
 def sample_fixed_size_per_key(test=None):
   # [START sample_fixed_size_per_key]
   import apache_beam as beam

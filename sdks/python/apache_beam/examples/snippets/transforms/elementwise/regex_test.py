@@ -128,7 +128,8 @@ def check_split(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.regex_matches.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.regex_matches.print',
+    str)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.regex_all_matches.print',
     str)

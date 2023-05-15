@@ -32,6 +32,7 @@
 #     - strings
 #     - group
 
+
 def combineglobally_combinefn(test=None):
   # [START combineglobally_combinefn]
   import apache_beam as beam
@@ -80,6 +81,7 @@ def combineglobally_combinefn(test=None):
     # [END combineglobally_combinefn]
     if test:
       test(percentages)
+
 
 if __name__ == '__main__':
   combineglobally_combinefn()

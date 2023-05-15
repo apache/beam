@@ -32,6 +32,7 @@
 #     - pairs
 #     - combine
 
+
 def combinevalues_simple(test=None):
   # [START combinevalues_simple]
   import apache_beam as beam
