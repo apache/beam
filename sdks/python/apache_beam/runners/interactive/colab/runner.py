@@ -25,21 +25,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-# import testlib
-
-from collections import OrderedDict
-
 import argparse
 import glob
 import itertools
 import os
 import sys
+from collections import OrderedDict
+
 import yaml
 
+import apache_beam as beam
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 
-import apache_beam as beam
+# import testlib
+
 IS_BEAM_DEV = False
 if "dev" in beam.__version__:
   IS_BEAM_DEV = True
