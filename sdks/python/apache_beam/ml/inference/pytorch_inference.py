@@ -260,12 +260,12 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
     model, device = _load_model(
-        self._model_class,
-        self._state_dict_path,
-        self._device,
-        self._model_params,
-        self._torch_script_model_path,
-        self._load_model_args
+        model_class=self._model_class,
+        state_dict_path=self._state_dict_path,
+        device=self._device,
+        model_params=self._model_params,
+        torch_script_model_path=self._torch_script_model_path,
+        load_model_args=self._load_model_args
     )
     self._device = device
     return model
@@ -483,12 +483,12 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
     model, device = _load_model(
-        self._model_class,
-        self._state_dict_path,
-        self._device,
-        self._model_params,
-        self._torch_script_model_path,
-        self._load_model_args
+        model_class=self._model_class,
+        state_dict_path=self._state_dict_path,
+        device=self._device,
+        model_params=self._model_params,
+        torch_script_model_path=self._torch_script_model_path,
+        load_model_args=self._load_model_args
     )
     self._device = device
     return model
