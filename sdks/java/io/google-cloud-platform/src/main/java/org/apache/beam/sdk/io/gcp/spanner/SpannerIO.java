@@ -72,6 +72,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.CleanUpReadChangeStreamDoFn;
@@ -89,7 +90,6 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -1625,12 +1625,8 @@ public class SpannerIO {
                 .build();
       }
       final SpannerConfig partitionMetadataSpannerConfig =
-          changeStreamSpannerConfig
-              .toBuilder()
-              .setInstanceId(StaticValueProvider.of(partitionMetadataInstanceId))
-              .setDatabaseId(StaticValueProvider.of(partitionMetadataDatabaseId))
-              .setDatabaseRole(null)
-              .build();
+          MetadataSpannerConfigFactory.create(
+              changeStreamSpannerConfig, partitionMetadataInstanceId, partitionMetadataDatabaseId);
       Dialect changeStreamDatabaseDialect = getDialect(changeStreamSpannerConfig);
       Dialect metadataDatabaseDialect = getDialect(partitionMetadataSpannerConfig);
       LOG.info(

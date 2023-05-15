@@ -100,6 +100,9 @@ public abstract class UnboundedSource<
    * org.apache.beam.sdk.io.UnboundedSource.UnboundedReader}.
    *
    * <p>For example, this could be offsets in a set of files being read.
+   *
+   * <p>Note that: The implementations of this interface should be encodable (have an associated
+   * Coder).
    */
   public interface CheckpointMark {
     /**

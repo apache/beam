@@ -22,8 +22,13 @@ import 'example_loading_descriptor.dart';
 
 /// Describes a loadable example previously saved by some user.
 class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
+
   final String snippetId;
+
+  @override
+  String get token => snippetId;
 
   const UserSharedExampleLoadingDescriptor({
     required this.sdk,
@@ -39,9 +44,17 @@ class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
+  UserSharedExampleLoadingDescriptor copyWithoutViewOptions() =>
+      UserSharedExampleLoadingDescriptor(
+        sdk: sdk,
+        snippetId: snippetId,
+      );
+
+  @override
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         'shared': snippetId,
+        ...viewOptions.toShortMap(),
       };
 
   static UserSharedExampleLoadingDescriptor? tryParse(

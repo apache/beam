@@ -45,11 +45,9 @@ class GrpcExampleClient implements ExampleClient {
   final grpc.PlaygroundServiceClient _defaultClient;
 
   factory GrpcExampleClient({
-    required String url,
+    required Uri url,
   }) {
-    final channel = IisWorkaroundChannel.xhr(
-      Uri.parse(url),
-    );
+    final channel = IisWorkaroundChannel.xhr(url);
 
     return GrpcExampleClient._(
       client: grpc.PlaygroundServiceClient(channel),
@@ -59,6 +57,15 @@ class GrpcExampleClient implements ExampleClient {
   GrpcExampleClient._({
     required grpc.PlaygroundServiceClient client,
   }) : _defaultClient = client;
+
+  @override
+  Future<grpc.GetMetadataResponse> getMetadata() async {
+    return _runSafely(
+      () => _defaultClient.getMetadata(
+        grpc.GetMetadataRequest(),
+      ),
+    );
+  }
 
   @override
   Future<GetPrecompiledObjectsResponse> getPrecompiledObjects(
@@ -328,18 +335,20 @@ class GrpcExampleClient implements ExampleClient {
 
   ExampleBase _toExampleModel(Sdk sdk, grpc.PrecompiledObject example) {
     return ExampleBase(
+      alwaysRun: example.alwaysRun,
       complexity: example.complexity.model,
       contextLine: example.contextLine,
-      datasets: example.datasets.map((e) => e.model).toList(growable: false),
       description: example.description,
+      datasets: example.datasets.map((e) => e.model).toList(growable: false),
       isMultiFile: example.multifile,
-      link: example.link,
       name: example.name,
       path: example.cloudPath,
       pipelineOptions: example.pipelineOptions,
       sdk: sdk,
       tags: example.tags,
       type: _exampleTypeFromString(example.type),
+      urlNotebook: example.urlNotebook,
+      urlVcs: example.urlVcs,
     );
   }
 

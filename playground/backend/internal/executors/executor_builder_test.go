@@ -25,7 +25,7 @@ var handlers []handler
 func TestMain(m *testing.M) {
 	handlers = []handler{
 		func(e *Executor) {
-			e.testArgs.fileName = "file name"
+			e.testArgs.fileNames = append(e.testArgs.fileNames, "file name")
 		},
 		func(e *Executor) {
 			e.runArgs.pipelineOptions = []string{"--opt val"}

@@ -33,13 +33,17 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -48,6 +52,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Data access object for the Connector metadata tables. */
 public class PartitionMetadataDao {
@@ -84,7 +90,8 @@ public class PartitionMetadataDao {
     try (ResultSet queryResultSet =
         databaseClient
             .singleUseReadOnlyTransaction()
-            .executeQuery(Statement.of(checkTableExistsStmt))) {
+            .executeQuery(
+                Statement.of(checkTableExistsStmt), Options.tag("query=checkTableExists"))) {
       return queryResultSet.next();
     }
   }
@@ -121,7 +128,8 @@ public class PartitionMetadataDao {
               .to(partitionToken)
               .build();
     }
-    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+    try (ResultSet resultSet =
+        databaseClient.singleUse().executeQuery(statement, Options.tag("query=getPartition"))) {
       if (resultSet.next()) {
         return resultSet.getCurrentRowAsStruct();
       }
@@ -170,7 +178,10 @@ public class PartitionMetadataDao {
               .to(State.FINISHED.name())
               .build();
     }
-    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+    try (ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(statement, Options.tag("query=getUnfinishedMinWatermark"))) {
       if (resultSet.next()) {
         return resultSet.getTimestamp(COLUMN_WATERMARK);
       }
@@ -221,7 +232,9 @@ public class PartitionMetadataDao {
               .to(timestamp)
               .build();
     }
-    return databaseClient.singleUse().executeQuery(statement);
+    return databaseClient
+        .singleUse()
+        .executeQuery(statement, Options.tag("query=getAllPartitionsCreatedAfter"));
   }
 
   /**
@@ -254,7 +267,10 @@ public class PartitionMetadataDao {
               .build();
     }
 
-    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+    try (ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(statement, Options.tag("query=countPartitionsCreatedAfter"))) {
       if (resultSet.next()) {
         return resultSet.getLong("count");
       } else {
@@ -275,7 +291,7 @@ public class PartitionMetadataDao {
    */
   public Timestamp insert(PartitionMetadata row) {
     final TransactionResult<Void> transactionResult =
-        runInTransaction(transaction -> transaction.insert(row));
+        runInTransaction(transaction -> transaction.insert(row), "InsertsPartitionMetadata");
     return transactionResult.getCommitTimestamp();
   }
 
@@ -287,7 +303,8 @@ public class PartitionMetadataDao {
    */
   public Timestamp updateToScheduled(List<String> partitionTokens) {
     final TransactionResult<Void> transactionResult =
-        runInTransaction(transaction -> transaction.updateToScheduled(partitionTokens));
+        runInTransaction(
+            transaction -> transaction.updateToScheduled(partitionTokens), "updateToScheduled");
     return transactionResult.getCommitTimestamp();
   }
 
@@ -299,7 +316,8 @@ public class PartitionMetadataDao {
    */
   public Timestamp updateToRunning(String partitionToken) {
     final TransactionResult<Void> transactionResult =
-        runInTransaction(transaction -> transaction.updateToRunning(partitionToken));
+        runInTransaction(
+            transaction -> transaction.updateToRunning(partitionToken), "updateToRunning");
     return transactionResult.getCommitTimestamp();
   }
 
@@ -311,7 +329,8 @@ public class PartitionMetadataDao {
    */
   public Timestamp updateToFinished(String partitionToken) {
     final TransactionResult<Void> transactionResult =
-        runInTransaction(transaction -> transaction.updateToFinished(partitionToken));
+        runInTransaction(
+            transaction -> transaction.updateToFinished(partitionToken), "updateToFinished");
     return transactionResult.getCommitTimestamp();
   }
 
@@ -322,7 +341,8 @@ public class PartitionMetadataDao {
    * @param watermark the new partition watermark
    */
   public void updateWatermark(String partitionToken, Timestamp watermark) {
-    runInTransaction(transaction -> transaction.updateWatermark(partitionToken, watermark));
+    runInTransaction(
+        transaction -> transaction.updateWatermark(partitionToken, watermark), "updateWatermark");
   }
 
   /**
@@ -347,8 +367,23 @@ public class PartitionMetadataDao {
     return new TransactionResult<>(result, readWriteTransaction.getCommitTimestamp());
   }
 
+  public <T> TransactionResult<T> runInTransaction(
+      Function<InTransactionContext, T> callable, String tagName) {
+    final TransactionRunner readWriteTransaction =
+        databaseClient.readWriteTransaction(Options.tag(tagName));
+    final T result =
+        readWriteTransaction.run(
+            transaction -> {
+              final InTransactionContext transactionContext =
+                  new InTransactionContext(metadataTableName, transaction, this.dialect);
+              return callable.apply(transactionContext);
+            });
+    return new TransactionResult<>(result, readWriteTransaction.getCommitTimestamp());
+  }
+
   /** Represents the execution of a read / write transaction in Cloud Spanner. */
   public static class InTransactionContext {
+    private static final Logger LOG = LoggerFactory.getLogger(InTransactionContext.class);
 
     private final String metadataTableName;
     private final TransactionContext transaction;
@@ -390,11 +425,26 @@ public class PartitionMetadataDao {
      * @param partitionTokens the partitions' unique identifiers
      */
     public Void updateToScheduled(List<String> partitionTokens) {
-      final List<Mutation> mutations =
-          partitionTokens.stream()
-              .map(token -> createUpdateMetadataStateMutationFrom(token, State.SCHEDULED))
-              .collect(Collectors.toList());
-      transaction.buffer(mutations);
+      HashSet<String> tokens = new HashSet<>();
+      Statement statement = getPartitionsMatchingState(partitionTokens, State.CREATED);
+      try (ResultSet resultSet =
+          transaction.executeQuery(statement, Options.tag("getPartitionsMatchingState=CREATED"))) {
+        while (resultSet.next()) {
+          tokens.add(resultSet.getString(COLUMN_PARTITION_TOKEN));
+        }
+      }
+
+      for (String partitionToken : partitionTokens) {
+        if (!tokens.contains(partitionToken)) {
+          LOG.info("[{}] Did not update to be SCHEDULED", partitionToken);
+          continue;
+        }
+
+        LOG.info("[{}] Successfully updating to be SCHEDULED", partitionToken);
+        transaction.buffer(
+            ImmutableList.of(
+                createUpdateMetadataStateMutationFrom(partitionToken, State.SCHEDULED)));
+      }
       return null;
     }
 
@@ -404,6 +454,18 @@ public class PartitionMetadataDao {
      * @param partitionToken the partition unique identifier
      */
     public Void updateToRunning(String partitionToken) {
+      Statement statement =
+          getPartitionsMatchingState(Collections.singletonList(partitionToken), State.SCHEDULED);
+
+      try (ResultSet resultSet =
+          transaction.executeQuery(
+              statement, Options.tag("getPartitionsMatchingState=SCHEDULED"))) {
+        if (!resultSet.next()) {
+          LOG.info("[{}] Did not update to be RUNNING", partitionToken);
+          return null;
+        }
+      }
+      LOG.info("[{}] Successfully updating to be RUNNING", partitionToken);
       transaction.buffer(
           ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.RUNNING)));
       return null;
@@ -415,6 +477,7 @@ public class PartitionMetadataDao {
      * @param partitionToken the partition unique identifier
      */
     public Void updateToFinished(String partitionToken) {
+      LOG.info("[{}] Successfully updating to be FINISHED", partitionToken);
       transaction.buffer(
           ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.FINISHED)));
       return null;
@@ -465,7 +528,9 @@ public class PartitionMetadataDao {
                 .to(partitionToken)
                 .build();
       }
-      try (ResultSet resultSet = transaction.executeQuery(statement)) {
+      try (ResultSet resultSet =
+          transaction.executeQuery(
+              statement, Options.tag("getPartitionMetadataRowForGivenPartitionToken"))) {
         if (resultSet.next()) {
           return resultSet.getCurrentRowAsStruct();
         }
@@ -492,6 +557,42 @@ public class PartitionMetadataDao {
           .set(COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
           .build();
+    }
+
+    private Statement getPartitionsMatchingState(List<String> partitionTokens, State state) {
+      Statement statement;
+      if (this.dialect == Dialect.POSTGRESQL) {
+        StringBuilder sqlStringBuilder =
+            new StringBuilder("SELECT * FROM \"" + metadataTableName + "\"");
+        sqlStringBuilder.append(" WHERE \"");
+        sqlStringBuilder.append(COLUMN_STATE + "\" = " + "'" + state.toString() + "'");
+        if (!partitionTokens.isEmpty()) {
+          sqlStringBuilder.append(" AND \"");
+          sqlStringBuilder.append(COLUMN_PARTITION_TOKEN);
+          sqlStringBuilder.append("\"");
+          sqlStringBuilder.append(" = ANY (Array[");
+          sqlStringBuilder.append(
+              partitionTokens.stream().map(s -> "'" + s + "'").collect(Collectors.joining(",")));
+          sqlStringBuilder.append("])");
+        }
+        statement = Statement.newBuilder(sqlStringBuilder.toString()).build();
+      } else {
+        statement =
+            Statement.newBuilder(
+                    "SELECT * FROM "
+                        + metadataTableName
+                        + " WHERE "
+                        + COLUMN_PARTITION_TOKEN
+                        + " IN UNNEST(@partitionTokens) AND "
+                        + COLUMN_STATE
+                        + " = @state")
+                .bind("partitionTokens")
+                .to(Value.stringArray(new ArrayList<>(partitionTokens)))
+                .bind("state")
+                .to(state.toString())
+                .build();
+      }
+      return statement;
     }
 
     private Mutation createUpdateMetadataStateMutationFrom(String partitionToken, State state) {

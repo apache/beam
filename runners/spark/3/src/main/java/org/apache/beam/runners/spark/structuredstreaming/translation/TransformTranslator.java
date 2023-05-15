@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.TranslationState;
+import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.UnresolvedTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -58,6 +59,15 @@ import scala.reflect.ClassTag;
 @Internal
 public abstract class TransformTranslator<
     InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>> {
+
+  // Factor to help estimate the complexity of the Spark execution plan. This is used to limit
+  // complexity by break linage where necessary to avoid overly large plans. Such plans can become
+  // very expensive during planning in the Catalyst optimizer.
+  protected final float complexityFactor;
+
+  protected TransformTranslator(float complexityFactor) {
+    this.complexityFactor = complexityFactor;
+  }
 
   protected abstract void translate(TransformT transform, Context cxt) throws IOException;
 
@@ -150,8 +160,14 @@ public abstract class TransformTranslator<
     }
 
     @Override
-    public boolean isLeave(PCollection<?> pCollection) {
-      return state.isLeave(pCollection);
+    public <InputT, T> void putUnresolved(
+        PCollection<T> out, UnresolvedTranslation<InputT, T> unresolved) {
+      state.putUnresolved(out, unresolved);
+    }
+
+    @Override
+    public boolean isLeaf(PCollection<?> pCollection) {
+      return state.isLeaf(pCollection);
     }
 
     @Override

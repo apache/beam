@@ -53,7 +53,7 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
@@ -70,10 +70,10 @@ public class ExpansionServiceSchemaTransformProviderTest {
 
   private static final Schema TEST_SCHEMATRANSFORM_CONFIG_SCHEMA =
       Schema.of(
-          Field.of("str1", FieldType.STRING),
-          Field.of("str2", FieldType.STRING),
           Field.of("int1", FieldType.INT32),
-          Field.of("int2", FieldType.INT32));
+          Field.of("int2", FieldType.INT32),
+          Field.of("str1", FieldType.STRING),
+          Field.of("str2", FieldType.STRING));
 
   private ExpansionService expansionService = new ExpansionService();
 
@@ -381,10 +381,10 @@ public class ExpansionServiceSchemaTransformProviderTest {
                 .values());
     Row configRow =
         Row.withSchema(TEST_SCHEMATRANSFORM_CONFIG_SCHEMA)
-            .withFieldValue("str1", "aaa")
-            .withFieldValue("str2", "bbb")
             .withFieldValue("int1", 111)
             .withFieldValue("int2", 222)
+            .withFieldValue("str1", "aaa")
+            .withFieldValue("str2", "bbb")
             .build();
 
     ByteStringOutputStream outputStream = new ByteStringOutputStream();
@@ -440,10 +440,10 @@ public class ExpansionServiceSchemaTransformProviderTest {
 
     Row configRow =
         Row.withSchema(TEST_SCHEMATRANSFORM_CONFIG_SCHEMA)
-            .withFieldValue("str1", "aaa")
-            .withFieldValue("str2", "bbb")
             .withFieldValue("int1", 111)
             .withFieldValue("int2", 222)
+            .withFieldValue("str1", "aaa")
+            .withFieldValue("str2", "bbb")
             .build();
 
     ByteStringOutputStream outputStream = new ByteStringOutputStream();

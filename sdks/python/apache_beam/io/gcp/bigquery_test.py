@@ -25,8 +25,8 @@ import json
 import logging
 import os
 import pickle
-import random
 import re
+import secrets
 import time
 import unittest
 import uuid
@@ -1351,7 +1351,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               ignore_insert_ids=False,
               ignore_unknown_columns=False,
               with_auto_sharding=False,
-              test_client=client))
+              test_client=client,
+              num_streaming_keys=500))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       self.assertEqual(json.load(f1), json.load(f2))
@@ -1447,7 +1448,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
                 ignore_insert_ids=False,
                 ignore_unknown_columns=False,
                 with_auto_sharding=False,
-                test_client=client))
+                test_client=client,
+                num_streaming_keys=500))
 
         failed_values = (
             bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
@@ -1523,7 +1525,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
                 ignore_unknown_columns=False,
                 with_auto_sharding=False,
                 test_client=client,
-                max_retries=10))
+                max_retries=10,
+                num_streaming_keys=500))
 
         failed_values = (
             bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS]
@@ -1589,7 +1592,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               ignore_insert_ids=False,
               ignore_unknown_columns=False,
               with_auto_sharding=with_auto_sharding,
-              test_client=client))
+              test_client=client,
+              num_streaming_keys=500))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       out1 = json.load(f1)
@@ -1607,10 +1611,8 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
-    self.dataset_id = '%s%s%d' % (
-        self.BIG_QUERY_DATASET_ID,
-        str(int(time.time())),
-        random.randint(0, 10000))
+    self.dataset_id = '%s%d%s' % (
+        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
@@ -1907,10 +1909,8 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
-    self.dataset_id = '%s%s%s' % (
-        self.BIG_QUERY_DATASET_ID,
-        str(int(time.time())),
-        random.randint(0, 10000))
+    self.dataset_id = '%s%d%s' % (
+        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = '%s.output_table' % (self.dataset_id)

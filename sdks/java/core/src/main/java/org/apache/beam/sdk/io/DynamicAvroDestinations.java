@@ -28,7 +28,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A specialization of {@link DynamicDestinations} for {@link AvroIO}. In addition to dynamic file
  * destinations, this allows specifying other AVRO properties (schema, metadata, codec, datum
  * writer) per destination.
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.io.DynamicAvroDestinations</code> instead of this one.
  */
+@Deprecated
 public abstract class DynamicAvroDestinations<UserT, DestinationT, OutputT>
     extends DynamicDestinations<UserT, DestinationT, OutputT> {
   /** Return an AVRO schema for a given destination. */

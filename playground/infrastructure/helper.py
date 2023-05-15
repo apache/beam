@@ -44,6 +44,7 @@ from api.v1.api_pb2 import (
 )
 from config import Config, TagFields, PrecompiledExampleType
 from grpc_client import GRPCClient
+from constants import BEAM_ROOT_DIR_ENV_VAR_KEY
 
 from models import Example, Tag, SdkEnum, Dataset
 
@@ -151,7 +152,10 @@ async def get_statuses(
             semaphore.release()
 
     for example in examples:
-        tasks.append(_semaphored_task(example))
+        if example.tag.never_run:
+            logging.info("skipping non runnable example %s", example.filepath)
+        else:
+            tasks.append(_semaphored_task(example))
     await tqdm.gather(*tasks)
 
 
@@ -261,7 +265,7 @@ def _get_url_vcs(filepath: str) -> str:
     """
     Construct VCS URL from example's filepath
     """
-    root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
+    root_dir = os.getenv(BEAM_ROOT_DIR_ENV_VAR_KEY, "../..")
     rel_path = os.path.relpath(filepath, root_dir)
     url_vcs = "{}/{}".format(Config.URL_VCS_PREFIX, urllib.parse.quote(rel_path))
     return url_vcs
@@ -279,6 +283,10 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
     Returns:
         Parsed Example object.
     """
+
+    # Calculate context line with tag removed. Note: context_line is 1-based, line_start and line_finish are 0-based.
+    context_line = tag.context_line if tag.context_line <= tag.line_start else tag.context_line - (tag.line_finish - tag.line_start)
+    
     return Example(
         sdk=SdkEnum(sdk),
         tag=tag,
@@ -287,7 +295,7 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
         type=_get_object_type(filename, filepath),
         code=_get_content(filepath, tag.line_start, tag.line_finish),
         url_vcs=_get_url_vcs(filepath),  # type: ignore
-        context_line=tag.context_line - (tag.line_finish - tag.line_start),
+        context_line=context_line,
     )
 
 

@@ -134,7 +134,7 @@ import org.slf4j.LoggerFactory;
  *  .apply( ... ) // other transformations
  * }</pre>
  *
- * <p>There’s also possibility to start reading using arbitrary point in time - in this case you
+ * <p>There's also possibility to start reading using arbitrary point in time - in this case you
  * need to provide {@link Instant} object:
  *
  * <pre>{@code

@@ -18,57 +18,63 @@
 package main
 
 import (
-  "reflect"
-  "testing"
+	"context"
+	"reflect"
+	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 )
 
 func TestBuildOptionsEmpty(t *testing.T) {
-  dir := "test/empty"
-  metaOptions, err := LoadMetaOptions(dir)
-  if err != nil {
-    t.Fatalf("Got error %v running LoadMetaOptions", err)
-  }
-  if metaOptions != nil {
-    t.Fatalf("LoadMetaOptions(%v) = %v, want nil", dir, metaOptions)
-  }
+	ctx, logger := context.Background(), &tools.Logger{}
+	dir := "test/empty"
+	metaOptions, err := LoadMetaOptions(ctx, logger, dir)
+	if err != nil {
+		t.Fatalf("Got error %v running LoadMetaOptions", err)
+	}
+	if metaOptions != nil {
+		t.Fatalf("LoadMetaOptions(%v) = %v, want nil", dir, metaOptions)
+	}
 
-  javaOptions := BuildOptions(metaOptions)
-  if len(javaOptions.JavaArguments) != 0 || len(javaOptions.Classpath) != 0 || len(javaOptions.Properties) != 0 {
-    t.Errorf("BuildOptions(%v) = %v, want nil", metaOptions, javaOptions)
-  }
+	javaOptions := BuildOptions(ctx, logger, metaOptions)
+	if len(javaOptions.JavaArguments) != 0 || len(javaOptions.Classpath) != 0 || len(javaOptions.Properties) != 0 {
+		t.Errorf("BuildOptions(%v) = %v, want nil", metaOptions, javaOptions)
+	}
 }
 
 func TestBuildOptionsDisabled(t *testing.T) {
-  metaOptions, err := LoadMetaOptions("test/disabled")
-  if err != nil {
-    t.Fatalf("Got error %v running LoadMetaOptions", err)
-  }
+	ctx, logger := context.Background(), &tools.Logger{}
+	metaOptions, err := LoadMetaOptions(ctx, logger, "test/disabled")
+	if err != nil {
+		t.Fatalf("Got error %v running LoadMetaOptions", err)
+	}
 
-  javaOptions := BuildOptions(metaOptions)
-  if len(javaOptions.JavaArguments) != 0 || len(javaOptions.Classpath) != 0 || len(javaOptions.Properties) != 0 {
-    t.Errorf("BuildOptions(%v) = %v, want nil", metaOptions, javaOptions)
-  }
+	javaOptions := BuildOptions(ctx, logger, metaOptions)
+	if len(javaOptions.JavaArguments) != 0 || len(javaOptions.Classpath) != 0 || len(javaOptions.Properties) != 0 {
+		t.Errorf("BuildOptions(%v) = %v, want nil", metaOptions, javaOptions)
+	}
 }
 
 func TestBuildOptions(t *testing.T) {
-  metaOptions, err := LoadMetaOptions("test/priority")
-  if err != nil {
-    t.Fatalf("Got error %v running LoadMetaOptions", err)
-  }
+	ctx, logger := context.Background(), &tools.Logger{}
+	metaOptions, err := LoadMetaOptions(ctx, logger, "test/priority")
+	if err != nil {
+		t.Fatalf("Got error %v running LoadMetaOptions", err)
+	}
 
-  javaOptions := BuildOptions(metaOptions)
-  wantJavaArguments := []string{"java_args=low", "java_args=high"}
-  wantClasspath := []string{"classpath_high", "classpath_low"}
-  wantProperties := map[string]string{
-                        "priority":"high",
-                    }
-  if !reflect.DeepEqual(javaOptions.JavaArguments, wantJavaArguments) {
-    t.Errorf("BuildOptions(%v).JavaArguments = %v, want %v", metaOptions, javaOptions.JavaArguments, wantJavaArguments)
-  }
-  if !reflect.DeepEqual(javaOptions.Classpath, wantClasspath) {
-    t.Errorf("BuildOptions(%v).Classpath = %v, want %v", metaOptions, javaOptions.Classpath, wantClasspath)
-  }
-  if !reflect.DeepEqual(javaOptions.Properties, wantProperties) {
-    t.Errorf("BuildOptions(%v).JavaProperties = %v, want %v", metaOptions, javaOptions.Properties, wantProperties)
-  }
+	javaOptions := BuildOptions(ctx, logger, metaOptions)
+	wantJavaArguments := []string{"java_args=low", "java_args=high"}
+	wantClasspath := []string{"classpath_high", "classpath_low"}
+	wantProperties := map[string]string{
+		"priority": "high",
+	}
+	if !reflect.DeepEqual(javaOptions.JavaArguments, wantJavaArguments) {
+		t.Errorf("BuildOptions(%v).JavaArguments = %v, want %v", metaOptions, javaOptions.JavaArguments, wantJavaArguments)
+	}
+	if !reflect.DeepEqual(javaOptions.Classpath, wantClasspath) {
+		t.Errorf("BuildOptions(%v).Classpath = %v, want %v", metaOptions, javaOptions.Classpath, wantClasspath)
+	}
+	if !reflect.DeepEqual(javaOptions.Properties, wantProperties) {
+		t.Errorf("BuildOptions(%v).JavaProperties = %v, want %v", metaOptions, javaOptions.Properties, wantProperties)
+	}
 }

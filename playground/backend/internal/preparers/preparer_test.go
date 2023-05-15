@@ -54,7 +54,7 @@ func setupPreparedFiles() error {
 	return nil
 }
 
-//createFile create file with fileName and write text to it
+// createFile create file with fileName and write text to it
 func createFile(fileName, text string) error {
 	f, err := os.Create(fileName)
 	if err != nil {

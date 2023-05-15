@@ -24,6 +24,7 @@ class Assets {
 
   static const AssetGenImage beam = AssetGenImage('assets/beam.png');
   static const AssetGenImage beamLg = AssetGenImage('assets/beam_lg.png');
+  static const String colab = 'assets/colab.svg';
   static const String copy = 'assets/copy.svg';
   static const String github = 'assets/github.svg';
   static const String link = 'assets/link.svg';
@@ -44,6 +45,7 @@ class Assets {
   List<dynamic> get values => [
         beam,
         beamLg,
+        colab,
         copy,
         github,
         link,

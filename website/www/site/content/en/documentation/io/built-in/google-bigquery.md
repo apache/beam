@@ -323,6 +323,11 @@ in the following example:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query_std_sql >}}
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
+#### Query execution project
+By default the pipeline executes the query in the Google Cloud project associated with the pipeline (in case of the Dataflow runner it's the project where the pipeline runs). There are cases where the query execution project should be different from the pipeline project. If you use Java SDK, you can define the query execution project by setting the pipeline option "[bigQueryProject](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html#getBigQueryProject--)" to the desired Google Cloud project id.
+{{< /paragraph >}}
+
 ### Using the Storage Read API {#storage-api}
 
 The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
@@ -336,8 +341,8 @@ BigQuery. SDK versions before 2.25.0 support the BigQuery Storage API as an
 and use the pre-GA BigQuery Storage API surface. Callers should migrate
 pipelines which use the BigQuery Storage API to use SDK version 2.25.0 or later.
 
-The Beam SDK for Python does not support the BigQuery Storage API. See
-[Issue 20687](https://github.com/apache/beam/issues/20687)).
+The Beam SDK for Python supports the BigQuery Storage API. Enable it
+by passing `method=DIRECT_READ` as a parameter to `ReadFromBigQuery`.
 
 #### Updating your code
 
@@ -975,6 +980,14 @@ BigQueryIO currently has the following limitations.
    the dataset (for example, using Beam's `Partition` transform) and write to
    multiple BigQuery tables. The Beam SDK for Java does not have this limitation
    as it partitions your dataset for you.
+
+3. When you [load data](https://cloud.google.com/bigquery/docs/loading-data) into BigQuery, [these limits](https://cloud.google.com/bigquery/quotas#load_jobs) are applied.
+By default, BigQuery uses a shared pool of slots to load data.
+This means that the available capacity is not guaranteed, and your load may be queued until
+a slot becomes available. If a slot does not become available within 6 hours,
+the load will fail due to the limits set by BigQuery. To avoid this situation,
+it is highly recommended that you use [BigQuery reservations](https://cloud.google.com/bigquery/docs/reservations-intro#benefits_of_reservations),
+which ensure that your load does not get queued and fail due to capacity issues.
 
 ## Additional examples
 

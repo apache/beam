@@ -44,7 +44,7 @@ func init() {
 	register.Iter1[string]()
 }
 
-// stitch constructs two composite PTranformations that provide input to each other. It
+// stitch constructs two composite PTransforms that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
 func stitch(s beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection) {
 	ping := s.Scope("ping")

@@ -17,7 +17,6 @@
  */
 
 import 'package:app_state/app_state.dart';
-import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';

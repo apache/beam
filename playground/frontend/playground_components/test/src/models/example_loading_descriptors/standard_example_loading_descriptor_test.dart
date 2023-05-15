@@ -22,10 +22,13 @@ import 'package:playground_components/playground_components.dart';
 import 'common.dart';
 
 void main() {
+  const path = 'path';
+
   group('StandardExampleLoadingDescriptor', () {
     const descriptor = StandardExampleLoadingDescriptor(
+      path: path,
       sdk: Sdk.go,
-      path: 'path',
+      viewOptions: viewOptions,
     );
 
     test('toJson -> tryParse', () {
@@ -35,11 +38,18 @@ void main() {
       expect(parsed, descriptor);
     });
 
-    test('parses viewOptions', () {
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = StandardExampleLoadingDescriptor.tryParse(map);
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        StandardExampleLoadingDescriptor(
+          path: descriptor.path,
+          sdk: descriptor.sdk,
+        ),
+      );
+    });
 
-      expect(parsed?.viewOptions, viewOptions);
+    test('token', () {
+      expect(descriptor.token, path);
     });
   });
 }

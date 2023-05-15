@@ -16,11 +16,19 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
+import '../enums/complexity.dart';
+import 'dataset.dart';
 import 'example_base.dart';
+import 'example_view_options.dart';
 import 'sdk.dart';
 import 'snippet_file.dart';
 
+part 'example.g.dart';
+
 /// A [ExampleBase] that also has all large fields fetched.
+@JsonSerializable()
 class Example extends ExampleBase {
   final List<SnippetFile> files;
   final String? graph;
@@ -40,12 +48,19 @@ class Example extends ExampleBase {
     this.graph,
     super.isMultiFile,
     this.logs,
-    super.link,
     this.outputs,
     super.pipelineOptions,
     super.tags,
+    super.urlNotebook,
+    super.urlVcs,
     super.viewOptions,
   });
+
+  factory Example.fromJson(Map<String, dynamic> json) =>
+      _$ExampleFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$ExampleToJson(this);
 
   Example.fromBase(
     ExampleBase example, {
@@ -59,13 +74,14 @@ class Example extends ExampleBase {
           datasets: example.datasets,
           description: example.description,
           isMultiFile: example.isMultiFile,
-          link: example.link,
           name: example.name,
           path: example.path,
           pipelineOptions: example.pipelineOptions,
           sdk: example.sdk,
           tags: example.tags,
           type: example.type,
+          urlNotebook: example.urlNotebook,
+          urlVcs: example.urlVcs,
           viewOptions: example.viewOptions,
         );
 

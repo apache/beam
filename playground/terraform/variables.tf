@@ -27,17 +27,26 @@ variable "environment" {
   description = "prod,dev,beta"
 }
 
+variable "env" {
+  description = "prod,dev,beta"
+}
+
 variable "region" {
   description = "Infrastructure Region"
 }
 
+variable "zone" {
+  description = "Infrastructure Zone"
+}
+
+variable "state_bucket" {}
 # Infrastructure variables
 
 #GKE
 
 variable "gke_machine_type" {
   description = "Node pool machine types"
-  default     = "e2-standard-4"
+  default     = "e2-standard-8"
 }
 
 variable "gke_name" {
@@ -66,6 +75,30 @@ variable "repository_id" {
   default     = "playground-repository"
 }
 
+#IAM
+variable "service_account_id" {
+  description = "Service account ID"
+  default     = "beam-playground"
+}
+
+#Network
+variable "ip_address_name" {
+  description = "Static IP address name"
+  default     = "pg-static-ip"
+}
+
+variable "subnetwork_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc-sub"
+}
+
+#AppEngine Flag
+variable "skip_appengine_deploy" {
+  description = "AppEngine enabled"
+  type        = bool
+  default     = false
+}
+
 #Redis
 
 variable "redis_version" {
@@ -80,12 +113,12 @@ variable "redis_name" {
 
 variable "redis_tier" {
   description = "Tier of Redis"
-  default     = "STANDARD_HA"
+  default     = "BASIC"
 }
 
 variable "redis_replica_count" {
   description = "Redis's replica count"
-  default     = 1
+  default     = 0
 }
 
 variable "redis_memory_size_gb" {
@@ -116,185 +149,3 @@ variable "docker_image_name" {
   default     = "beam_playground"
   description = "Base prefix for docker images"
 }
-
-# Frontend variables
-
-variable "frontend_service_name" {
-  default = "frontend"
-}
-
-# Backend variables
-
-variable "cache_type" {
-  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
-  default     = "remote"
-}
-variable "backend_service_name" {
-  default = "backend"
-}
-
-# For scio backend service
-variable "scio_volume_size" {
-  description = "Size of the in memory file system to be used by the application, in GB"
-  type        = number
-  default     = 1
-}
-
-variable "scio_max_instance" {
-  description = "Max count instance app"
-  type        = number
-  default     = 7
-}
-
-variable "scio_min_instance" {
-  description = "Min count instance app"
-  type        = number
-  default     = 1
-}
-
-variable "scio_memory" {
-  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
-  type        = number
-  default     = 16
-}
-
-variable "scio_cpu" {
-  description = "CPU on instance"
-  type        = number
-  default     = 8
-}
-
-# For go backend service
-variable "go_volume_size" {
-  description = "Size of the in memory file system to be used by the application, in GB"
-  type        = number
-  default     = 1
-}
-
-variable "go_max_instance" {
-  description = "Max count instance app"
-  type        = number
-  default     = 7
-}
-
-variable "go_min_instance" {
-  description = "Min count instance app"
-  type        = number
-  default     = 1
-}
-
-variable "go_memory" {
-  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
-  type        = number
-  default     = 16
-}
-
-variable "go_cpu" {
-  description = "CPU on instance"
-  type        = number
-  default     = 8
-}
-
-# For python backend service
-variable "python_volume_size" {
-  description = "Size of the in memory file system to be used by the application, in GB"
-  type        = number
-  default     = 1
-}
-
-variable "python_max_instance" {
-  description = "Max count instance app"
-  type        = number
-  default     = 7
-}
-
-variable "python_min_instance" {
-  description = "Min count instance app"
-  type        = number
-  default     = 1
-}
-
-variable "python_memory" {
-  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
-  type        = number
-  default     = 16
-}
-
-variable "python_cpu" {
-  description = "CPU on instance"
-  type        = number
-  default     = 8
-}
-
-# For java backend service
-variable "java_volume_size" {
-  description = "Size of the in memory file system to be used by the application, in GB"
-  type        = number
-  default     = 1
-}
-
-variable "java_max_instance" {
-  description = "Max count instance app"
-  type        = number
-  default     =7
-}
-
-variable "java_min_instance" {
-  description = "Min count instance app"
-  type        = number
-  default     = 1
-}
-
-variable "java_memory" {
-  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
-  type        = number
-  default     = 16
-}
-
-variable "java_cpu" {
-  description = "CPU on instance"
-  type        = number
-  default     = 8
-}
-
-# For route backend service
-variable "router_volume_size" {
-  description = "Size of the in memory file system to be used by the application, in GB"
-  type        = number
-  default     = 1
-}
-
-variable "router_max_instance" {
-  description = "Max count instance app"
-  type        = number
-  default     = 3
-}
-
-variable "router_min_instance" {
-  description = "Min count instance app"
-  type        = number
-  default     = 1
-}
-
-variable "router_memory" {
-  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
-  type        = number
-  default     = 4
-}
-
-variable "router_cpu" {
-  description = "CPU on instance"
-  type        = number
-  default     = 2
-}
-
-variable "state_bucket" {
-  description = "GCP bucket that used to store terraform state"
-  default     = "beam_playground_terraform"
-}
-
-variable "state_prefix" {
-  description = "terraform state prefix on GCP"
-  default     = ""
-}
-variable "location" {}

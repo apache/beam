@@ -631,8 +631,8 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d-fnapi:%s' %
-            (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:%s' % (
                 sys.version_info[0],
                 sys.version_info[1],
                 names.BEAM_FNAPI_CONTAINER_VERSION)))
@@ -670,7 +670,7 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-            '/python%d%d-fnapi:2.2.0' %
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
     # batch, legacy pipeline.
@@ -704,7 +704,7 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-            '/python%d%d-fnapi:2.2.0' %
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
     # batch, legacy pipeline.
@@ -766,7 +766,7 @@ class UtilTest(unittest.TestCase):
         '--transform_name_mapping',
         '{\"from\":\"to\"}'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertIsNotNone(job.proto.transformNameMapping)
 
   def test_created_from_snapshot_id(self):
@@ -780,7 +780,7 @@ class UtilTest(unittest.TestCase):
         '--create_from_snapshot',
         'test_snapshot_id'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertEqual('test_snapshot_id', job.proto.createdFromSnapshotId)
 
   def test_labels(self):
@@ -792,7 +792,7 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://test-location/temp'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertIsNone(job.proto.labels)
 
     pipeline_options = PipelineOptions([
@@ -813,7 +813,7 @@ class UtilTest(unittest.TestCase):
         '--labels',
         'key5'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertEqual(5, len(job.proto.labels.additionalProperties))
     self.assertEqual('key1', job.proto.labels.additionalProperties[0].key)
     self.assertEqual('value1', job.proto.labels.additionalProperties[0].value)
@@ -825,6 +825,25 @@ class UtilTest(unittest.TestCase):
     self.assertEqual('value4', job.proto.labels.additionalProperties[3].value)
     self.assertEqual('key5', job.proto.labels.additionalProperties[4].key)
     self.assertEqual('', job.proto.labels.additionalProperties[4].value)
+
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--labels',
+        '{ "name": "wrench", "mass": "1_3kg", "count": "3" }'
+    ])
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
+    self.assertEqual(3, len(job.proto.labels.additionalProperties))
+    self.assertEqual('name', job.proto.labels.additionalProperties[0].key)
+    self.assertEqual('wrench', job.proto.labels.additionalProperties[0].value)
+    self.assertEqual('mass', job.proto.labels.additionalProperties[1].key)
+    self.assertEqual('1_3kg', job.proto.labels.additionalProperties[1].value)
+    self.assertEqual('count', job.proto.labels.additionalProperties[2].key)
+    self.assertEqual('3', job.proto.labels.additionalProperties[2].value)
 
   def test_experiment_use_multiple_sdk_containers(self):
     pipeline_options = PipelineOptions([
@@ -953,7 +972,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 11, 0))
+      (3, 12, 0))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
@@ -983,7 +1002,7 @@ class UtilTest(unittest.TestCase):
         '--experiments',
         'upload_graph'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
     with mock.patch.object(client, 'stage_file', side_effect=None):
@@ -1006,7 +1025,7 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://test-location/temp',
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
@@ -1048,7 +1067,7 @@ class UtilTest(unittest.TestCase):
     with mock.patch('apache_beam.runners.dataflow.internal.apiclient.Job.'
                     'job_id_for_name',
                     return_value=replace_job_id) as job_id_for_name_mock:
-      job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+      job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     job_id_for_name_mock.assert_called_once()
 
     self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
@@ -1090,7 +1109,7 @@ class UtilTest(unittest.TestCase):
         '--template_location',
         'gs://test-location/template'
     ])
-    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     job.proto.steps.append(dataflow.Step(name='test_step_name'))
 
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True

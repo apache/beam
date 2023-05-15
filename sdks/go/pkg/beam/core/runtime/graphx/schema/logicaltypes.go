@@ -18,6 +18,7 @@ package schema
 import (
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -51,6 +52,8 @@ type LogicalTypeProvider = func(reflect.Type) (reflect.Type, error)
 
 // Registry retains mappings from go types to Schemas and LogicalTypes.
 type Registry struct {
+	rwmu sync.RWMutex
+
 	typeToSchema    map[reflect.Type]*pipepb.Schema
 	idToType        map[string]reflect.Type
 	syntheticToUser map[reflect.Type]reflect.Type

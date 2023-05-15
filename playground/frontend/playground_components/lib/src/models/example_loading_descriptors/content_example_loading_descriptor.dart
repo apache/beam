@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:convert';
+
 import '../../enums/complexity.dart';
 import '../example_view_options.dart';
 import '../sdk.dart';
@@ -24,13 +26,16 @@ import 'example_loading_descriptor.dart';
 
 /// Fully contains an example data to be loaded.
 class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  final Complexity? complexity;
+
   final List<SnippetFile> files;
 
   /// The name of the example, if any, to show in the dropdown.
   final String? name;
 
-  final Complexity? complexity;
+  final String pipelineOptions;
 
+  @override
   final Sdk sdk;
 
   const ContentExampleLoadingDescriptor({
@@ -38,12 +43,13 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     required this.sdk,
     this.complexity,
     this.name,
+    this.pipelineOptions = '',
     super.viewOptions,
   });
 
   static ContentExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {
-    final files = map['files'];
-    if (files is! List) {
+    final files = _getFilesFromMap(map);
+    if (files == null) {
       return null;
     }
 
@@ -53,14 +59,32 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     }
 
     return ContentExampleLoadingDescriptor(
-      files: (map['files'] as List<dynamic>)
+      complexity: Complexity.fromString(map['complexity']),
+      files: files
           .map((file) => SnippetFile.fromJson(file as Map<String, dynamic>))
           .toList(growable: false),
       name: map['name']?.toString(),
+      pipelineOptions: map['pipelineOptions'] ?? '',
       sdk: sdk,
-      complexity: Complexity.fromString(map['complexity']),
       viewOptions: ExampleViewOptions.fromShortMap(map),
     );
+  }
+
+  static List? _getFilesFromMap(Map<String, dynamic> map) {
+    final files = map['files'];
+
+    if (files is List) {
+      return files;
+    }
+
+    if (files is String) {
+      final list = jsonDecode(files);
+      if (list is List) {
+        return list;
+      }
+    }
+
+    return null;
   }
 
   @override
@@ -68,14 +92,28 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         complexity,
         files,
         name,
+        pipelineOptions,
         sdk.id,
+        viewOptions,
       ];
+
+  @override
+  ContentExampleLoadingDescriptor copyWithoutViewOptions() =>
+      ContentExampleLoadingDescriptor(
+        complexity: complexity,
+        files: files,
+        name: name,
+        pipelineOptions: pipelineOptions,
+        sdk: sdk,
+      );
 
   @override
   Map<String, dynamic> toJson() => {
         'complexity': complexity?.name,
         'files': files.map((e) => e.toJson()).toList(growable: false),
         'name': name,
+        'pipelineOptions': pipelineOptions,
         'sdk': sdk.id,
+        ...viewOptions.toShortMap(),
       };
 }

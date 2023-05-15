@@ -17,14 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground/constants/font_weight.dart';
+import 'package:playground/constants/sizes.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../constants/font_weight.dart';
-import '../../../../constants/sizes.dart';
-import '../../../../src/assets/assets.gen.dart';
+import '../example_actions.dart';
 
 const kDescriptionWidth = 300.0;
 
@@ -35,18 +32,20 @@ class DescriptionPopover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasLink = example.link?.isNotEmpty ?? false;
     return SizedBox(
       width: kDescriptionWidth,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(kLgSpacing),
-          child: Wrap(
-            runSpacing: kMdSpacing,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               title,
+              const SizedBox(height: kMdSpacing),
               description,
-              if (hasLink) getViewOnGithub(context),
+              const SizedBox(height: kMdSpacing),
+              ...buildExampleActions(example, showButtonsText: true),
             ],
           ),
         ),
@@ -63,15 +62,4 @@ class DescriptionPopover extends StatelessWidget {
       );
 
   Widget get description => Text(example.description);
-
-  Widget getViewOnGithub(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
-    return TextButton.icon(
-      icon: SvgPicture.asset(Assets.github),
-      onPressed: () {
-        launchUrl(Uri.parse(example.link ?? ''));
-      },
-      label: Text(appLocale.viewOnGithub),
-    );
-  }
 }

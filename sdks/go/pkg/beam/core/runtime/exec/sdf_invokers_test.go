@@ -16,6 +16,8 @@
 package exec
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -48,13 +50,59 @@ func TestInvokes(t *testing.T) {
 	}
 	statefulWeFn := (*graph.SplittableDoFn)(dfn)
 
+	initialRestErrDfn, err := graph.NewDoFn(
+		&VetCreateInitialRestrictionErrSdf{},
+		graph.NumMainInputs(graph.MainSingle),
+	)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	initialRestErrSdf := (*graph.SplittableDoFn)(initialRestErrDfn)
+
+	splitRestErrDfn, err := graph.NewDoFn(
+		&VetSplitRestrictionErrSdf{},
+		graph.NumMainInputs(graph.MainSingle),
+	)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	splitRestErrSdf := (*graph.SplittableDoFn)(splitRestErrDfn)
+
+	restSizeErrDfn, err := graph.NewDoFn(
+		&VetRestrictionSizeErrSdf{},
+		graph.NumMainInputs(graph.MainSingle),
+	)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	restSizeErrSdf := (*graph.SplittableDoFn)(restSizeErrDfn)
+
+	trackerErrDfn, err := graph.NewDoFn(
+		&VetCreateTrackerErrSdf{},
+		graph.NumMainInputs(graph.MainSingle),
+	)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	trackerErrSdf := (*graph.SplittableDoFn)(trackerErrDfn)
+
+	truncateRestErrDfn, err := graph.NewDoFn(
+		&VetTruncateRestrictionErrSdf{},
+		graph.NumMainInputs(graph.MainSingle),
+	)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	truncateRestErrSdf := (*graph.SplittableDoFn)(truncateRestErrDfn)
+
 	// Tests.
 	t.Run("CreateInitialRestriction Invoker (cirInvoker)", func(t *testing.T) {
 		tests := []struct {
-			name string
-			sdf  *graph.SplittableDoFn
-			elms *FullValue
-			want *VetRestriction
+			name    string
+			sdf     *graph.SplittableDoFn
+			elms    *FullValue
+			want    *VetRestriction
+			wantErr bool
 		}{
 			{
 				name: "SingleElem",
@@ -68,6 +116,12 @@ func TestInvokes(t *testing.T) {
 				elms: &FullValue{Elm: 1, Elm2: 2},
 				want: &VetRestriction{ID: "KvSdf", CreateRest: true, Key: 1, Val: 2},
 			},
+			{
+				name:    "Error",
+				sdf:     initialRestErrSdf,
+				elms:    &FullValue{Elm: 1},
+				wantErr: true,
+			},
 		}
 		for _, test := range tests {
 			test := test
@@ -77,7 +131,15 @@ func TestInvokes(t *testing.T) {
 				if err != nil {
 					t.Fatalf("newCreateInitialRestrictionInvoker failed: %v", err)
 				}
-				got := invoker.Invoke(test.elms)
+
+				got, err := invoker.Invoke(context.Background(), test.elms)
+				if (err != nil) != test.wantErr {
+					t.Fatalf("Invoke(%v) error = %v, wantErr %v", test.elms, err, test.wantErr)
+				}
+				if test.wantErr {
+					return
+				}
+
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("Invoke(%v) has incorrect output: got: %v, want: %v",
 						test.elms, got, test.want)
@@ -94,11 +156,12 @@ func TestInvokes(t *testing.T) {
 
 	t.Run("SplitRestriction Invoker (srInvoker)", func(t *testing.T) {
 		tests := []struct {
-			name string
-			sdf  *graph.SplittableDoFn
-			elms *FullValue
-			rest *VetRestriction
-			want []any
+			name    string
+			sdf     *graph.SplittableDoFn
+			elms    *FullValue
+			rest    *VetRestriction
+			want    []any
+			wantErr bool
 		}{
 			{
 				name: "SingleElem",
@@ -119,6 +182,13 @@ func TestInvokes(t *testing.T) {
 					&VetRestriction{ID: "KvSdf.2", SplitRest: true, Key: 1, Val: 2},
 				},
 			},
+			{
+				name:    "Error",
+				sdf:     splitRestErrSdf,
+				elms:    &FullValue{Elm: 1},
+				rest:    &VetRestriction{ID: "Sdf"},
+				wantErr: true,
+			},
 		}
 		for _, test := range tests {
 			test := test
@@ -128,8 +198,16 @@ func TestInvokes(t *testing.T) {
 				if err != nil {
 					t.Fatalf("newSplitRestrictionInvoker failed: %v", err)
 				}
+
 				rest := *test.rest // Create a copy because our test SDF edits the restriction.
-				got := invoker.Invoke(test.elms, &rest)
+				got, err := invoker.Invoke(context.Background(), test.elms, &rest)
+				if (err != nil) != test.wantErr {
+					t.Fatalf("Invoke(%v, %v) error = %v, wantErr %v", test.elms, test.rest, err, test.wantErr)
+				}
+				if test.wantErr {
+					return
+				}
+
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("Invoke(%v, %v) has incorrect output: got: %v, want: %v",
 						test.elms, test.rest, got, test.want)
@@ -152,6 +230,7 @@ func TestInvokes(t *testing.T) {
 			rest     *VetRestriction
 			want     float64
 			restWant *VetRestriction
+			wantErr  bool
 		}{
 			{
 				name:     "SingleElem",
@@ -168,6 +247,13 @@ func TestInvokes(t *testing.T) {
 				want:     3,
 				restWant: &VetRestriction{ID: "KvSdf", RestSize: true, Key: 1, Val: 2},
 			},
+			{
+				name:    "Error",
+				sdf:     restSizeErrSdf,
+				elms:    &FullValue{Elm: 1},
+				rest:    &VetRestriction{ID: "Sdf"},
+				wantErr: true,
+			},
 		}
 		for _, test := range tests {
 			test := test
@@ -178,7 +264,15 @@ func TestInvokes(t *testing.T) {
 					t.Fatalf("newRestrictionSizeInvoker failed: %v", err)
 				}
 				rest := *test.rest // Create a copy because our test SDF edits the restriction.
-				got := invoker.Invoke(test.elms, &rest)
+
+				got, err := invoker.Invoke(context.Background(), test.elms, &rest)
+				if (err != nil) != test.wantErr {
+					t.Fatalf("Invoke(%v, %v) error = %v, wantErr %v", test.elms, test.rest, err, test.wantErr)
+				}
+				if test.wantErr {
+					return
+				}
+
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("Invoke(%v, %v) has incorrect output: got: %v, want: %v",
 						test.elms, test.rest, got, test.want)
@@ -199,10 +293,11 @@ func TestInvokes(t *testing.T) {
 
 	t.Run("CreateTracker Invoker (ctInvoker)", func(t *testing.T) {
 		tests := []struct {
-			name string
-			sdf  *graph.SplittableDoFn
-			rest *VetRestriction
-			want *VetRTracker
+			name    string
+			sdf     *graph.SplittableDoFn
+			rest    *VetRestriction
+			want    *VetRTracker
+			wantErr bool
 		}{
 			{
 				name: "SingleElem",
@@ -215,6 +310,12 @@ func TestInvokes(t *testing.T) {
 				rest: &VetRestriction{ID: "KvSdf"},
 				want: &VetRTracker{&VetRestriction{ID: "KvSdf", CreateTracker: true}},
 			},
+			{
+				name:    "Error",
+				sdf:     trackerErrSdf,
+				rest:    &VetRestriction{ID: "Sdf"},
+				wantErr: true,
+			},
 		}
 		for _, test := range tests {
 			test := test
@@ -224,7 +325,15 @@ func TestInvokes(t *testing.T) {
 				if err != nil {
 					t.Fatalf("newCreateTrackerInvoker failed: %v", err)
 				}
-				got := invoker.Invoke(test.rest)
+
+				got, err := invoker.Invoke(context.Background(), test.rest)
+				if (err != nil) != test.wantErr {
+					t.Fatalf("Invoke(%v) error = %v, wantErr %v", test.rest, err, test.wantErr)
+				}
+				if test.wantErr {
+					return
+				}
+
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("Invoke(%v) has incorrect output: got: %v, want: %v",
 						test.rest, got, test.want)
@@ -310,11 +419,12 @@ func TestInvokes(t *testing.T) {
 
 	t.Run("TruncateRestriction Invoker (trInvoker)", func(t *testing.T) {
 		tests := []struct {
-			name string
-			sdf  *graph.SplittableDoFn
-			elms *FullValue
-			rest *VetRestriction
-			want any
+			name    string
+			sdf     *graph.SplittableDoFn
+			elms    *FullValue
+			rest    *VetRestriction
+			want    any
+			wantErr bool
 		}{
 			{
 				name: "SingleElem",
@@ -329,6 +439,13 @@ func TestInvokes(t *testing.T) {
 				rest: &VetRestriction{ID: "KvSdf"},
 				want: &VetRestriction{ID: "KvSdf", CreateTracker: true, TruncateRest: true, RestSize: true, Key: 1, Val: 2},
 			},
+			{
+				name:    "Error",
+				sdf:     truncateRestErrSdf,
+				elms:    &FullValue{Elm: 1},
+				rest:    &VetRestriction{ID: "Sdf"},
+				wantErr: true,
+			},
 		}
 		for _, test := range tests {
 			test := test
@@ -336,24 +453,38 @@ func TestInvokes(t *testing.T) {
 			ctFn := test.sdf.CreateTrackerFn()
 			rsFn := test.sdf.RestrictionSizeFn()
 			t.Run(test.name, func(t *testing.T) {
+				ctx := context.Background()
 				rest := test.rest // Create a copy because our test SDF edits the restriction.
 				ctInvoker, err := newCreateTrackerInvoker(ctFn)
 				if err != nil {
 					t.Fatalf("newCreateTrackerInvoker failed: %v", err)
 				}
-				rt := ctInvoker.Invoke(rest)
+				rt, err := ctInvoker.Invoke(ctx, rest)
+				if err != nil {
+					t.Fatalf("ctInvoker.Invoke(%v) failed: %v", rest, err)
+				}
 
 				trInvoker, err := newTruncateRestrictionInvoker(fn)
 				if err != nil {
 					t.Fatalf("newTruncateRestrictionInvoker failed: %v", err)
 				}
-				trRest := trInvoker.Invoke(rt, test.elms)
+
+				trRest, err := trInvoker.Invoke(ctx, rt, test.elms)
+				if (err != nil) != test.wantErr {
+					t.Fatalf("trInvoker.Invoke(%v, %v) = %v, wantErr %v", rt, test.elms, err, test.wantErr)
+				}
+				if test.wantErr {
+					return
+				}
 
 				rsInvoker, err := newRestrictionSizeInvoker(rsFn)
 				if err != nil {
 					t.Fatalf("newRestrictionSizeInvoker failed: %v", err)
 				}
-				_ = rsInvoker.Invoke(test.elms, trRest)
+				if _, err := rsInvoker.Invoke(ctx, test.elms, trRest); err != nil {
+					t.Fatalf("rsInvoker.Invoke(%v, %v) failed: %v", test.elms, trRest, err)
+				}
+
 				if !cmp.Equal(trRest, test.want) {
 					t.Errorf("Invoke(%v, %v) has incorrect output: got: %v, want: %v",
 						test.elms, test.rest, trRest, test.want)
@@ -411,24 +542,35 @@ func TestInvokes(t *testing.T) {
 			ctFn := test.sdf.CreateTrackerFn()
 			rsFn := test.sdf.RestrictionSizeFn()
 			t.Run(test.name, func(t *testing.T) {
+				ctx := context.Background()
 				rest := test.rest // Create a copy because our test SDF edits the restriction.
 				ctInvoker, err := newCreateTrackerInvoker(ctFn)
 				if err != nil {
 					t.Fatalf("newCreateTrackerInvoker failed: %v", err)
 				}
-				rt := ctInvoker.Invoke(rest)
+				rt, err := ctInvoker.Invoke(ctx, rest)
+				if err != nil {
+					t.Fatalf("ctInvoker.Invoke(%v) failed: %v", rest, err)
+				}
 
 				trInvoker, err := newDefaultTruncateRestrictionInvoker()
 				if err != nil {
 					t.Fatalf("newTruncateRestrictionInvoker failed: %v", err)
 				}
-				trRest := trInvoker.Invoke(rt, test.elms)
+				trRest, err := trInvoker.Invoke(ctx, rt, test.elms)
+				if err != nil {
+					t.Fatalf("trInvoker.Invoke(%v, %v) failed: %v", rt, test.elms, err)
+				}
+
 				if trRest != nil {
 					rsInvoker, err := newRestrictionSizeInvoker(rsFn)
 					if err != nil {
 						t.Fatalf("newRestrictionSizeInvoker failed: %v", err)
 					}
-					_ = rsInvoker.Invoke(test.elms, trRest)
+					if _, err := rsInvoker.Invoke(ctx, test.elms, trRest); err != nil {
+						t.Fatalf("rsInvoker.Invoke(%v, %v) failed: %v", test.elms, trRest, err)
+					}
+
 					if !cmp.Equal(trRest, test.want) {
 						t.Errorf("Invoke(%v, %v) has incorrect output: got: %v, want: %v",
 							test.elms, test.rest, trRest, test.want)
@@ -731,4 +873,56 @@ func (fn *VetEmptyInitialSplitSdf) ProcessElement(rt *VetRTracker, i int, emit f
 	rest.ProcessElm = true
 	emit(rest)
 	return sdf.ResumeProcessingIn(1 * time.Second)
+}
+
+var errSdf = errors.New("SDF error")
+
+// VetCreateInitialRestrictionErrSdf is an SDF with a CreateInitialRestriction method
+// that returns a non-nil error.
+type VetCreateInitialRestrictionErrSdf struct {
+	VetSdf
+}
+
+func (fn *VetCreateInitialRestrictionErrSdf) CreateInitialRestriction(i int) (*VetRestriction, error) {
+	return nil, errSdf
+}
+
+// VetSplitRestrictionErrSdf is an SDF with a SplitRestriction method
+// that returns a non-nil error.
+type VetSplitRestrictionErrSdf struct {
+	VetSdf
+}
+
+func (fn *VetSplitRestrictionErrSdf) SplitRestriction(int, *VetRestriction) ([]*VetRestriction, error) {
+	return nil, errSdf
+}
+
+// VetRestrictionSizeErrSdf is an SDF with a RestrictionSize method
+// that returns a non-nil error.
+type VetRestrictionSizeErrSdf struct {
+	VetSdf
+}
+
+func (fn *VetRestrictionSizeErrSdf) RestrictionSize(int, *VetRestriction) (float64, error) {
+	return -1, errSdf
+}
+
+// VetCreateTrackerErrSdf is an SDF with a CreateTracker method
+// that returns a non-nil error.
+type VetCreateTrackerErrSdf struct {
+	VetSdf
+}
+
+func (fn *VetCreateTrackerErrSdf) CreateTracker(*VetRestriction) (*VetRTracker, error) {
+	return nil, errSdf
+}
+
+// VetTruncateRestrictionErrSdf is an SDF with a TruncateRestriction method
+// that returns a non-nil error.
+type VetTruncateRestrictionErrSdf struct {
+	VetSdf
+}
+
+func (fn *VetTruncateRestrictionErrSdf) TruncateRestriction(*VetRTracker, int) (*VetRestriction, error) {
+	return nil, errSdf
 }

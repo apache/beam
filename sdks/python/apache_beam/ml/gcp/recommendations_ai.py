@@ -78,7 +78,7 @@ def get_recommendation_user_event_client():
 
 class CreateCatalogItem(PTransform):
   """Creates catalogitem information.
-    The ``PTranform`` returns a PCollectionTuple with a PCollections of
+    The ``PTransform`` returns a PCollectionTuple with a PCollections of
     successfully and failed created CatalogItems.
 
     Example usage::

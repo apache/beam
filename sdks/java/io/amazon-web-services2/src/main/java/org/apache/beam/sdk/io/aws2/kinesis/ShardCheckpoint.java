@@ -24,9 +24,11 @@ import static software.amazon.awssdk.services.kinesis.model.ShardIteratorType.AT
 import static software.amazon.awssdk.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
 
 import java.io.Serializable;
+import java.util.Objects;
 import org.joda.time.Instant;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
+import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
 
 /**
@@ -46,6 +48,15 @@ import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ShardCheckpoint implements Serializable {
+  /**
+   * Extracted from org.apache.beam:beam-sdks-java-io-amazon-web-services2:2.46.0.
+   *
+   * <pre>{@code
+   * serialver -classpath "..<dependencies dir>/*" \
+   *     org.apache.beam.sdk.io.aws2.kinesis.ShardCheckpoint
+   * }</pre>
+   */
+  private static final long serialVersionUID = 103536540299998471L;
 
   private final String streamName;
   private final String shardId;
@@ -137,10 +148,24 @@ class ShardCheckpoint implements Serializable {
   @Override
   public String toString() {
     return String.format(
-        "Checkpoint %s for stream %s, shard %s: %s",
-        shardIteratorType, streamName, shardId, sequenceNumber);
+        "Checkpoint %s for stream %s, shard %s: %s %s",
+        shardIteratorType, streamName, shardId, sequenceNumber, subSequenceNumber);
   }
 
+  /**
+   * Returns new iterator using the ack-ed checkpoint.
+   *
+   * <p>Note that {@link #checkpointIsInTheMiddleOfAUserRecord} is always true for cases when at
+   * least one record was ack-ed. {@link #sequenceNumber} will be never null, and only {@link
+   * ShardIteratorType#AFTER_SEQUENCE_NUMBER} is checkpoint-ed.
+   *
+   * <p>This means that iterator will always deliver some redundant records in the beginning, which
+   * are for {@link RecordFilter} to deal with.
+   *
+   * @param kinesisClient
+   * @return
+   * @throws TransientKinesisException
+   */
   public String getShardIterator(SimplifiedKinesisClient kinesisClient)
       throws TransientKinesisException {
     if (checkpointIsInTheMiddleOfAUserRecord()) {
@@ -157,6 +182,9 @@ class ShardCheckpoint implements Serializable {
 
   /**
    * Used to advance checkpoint mark to position after given {@link Record}.
+   *
+   * <p>Note that only {@link ShardIteratorType#AFTER_SEQUENCE_NUMBER} is persisted, as soon as
+   * {@link #moveAfter(KinesisRecord)} called at least once.
    *
    * @param record
    * @return new checkpoint object pointing directly after given {@link Record}
@@ -176,5 +204,56 @@ class ShardCheckpoint implements Serializable {
 
   public String getShardId() {
     return shardId;
+  }
+
+  /**
+   * Converts stored checkpoint into start position.
+   *
+   * <p>It follows the semantics of {@link #getShardIterator(SimplifiedKinesisClient)} which
+   * effectively forces {@link ShardIteratorType#AT_SEQUENCE_NUMBER} for fetching first batch, all
+   * the time.
+   *
+   * <p>{@link #moveAfter(KinesisRecord)} never stores {@link ShardIteratorType#AT_SEQUENCE_NUMBER}
+   * and, instead, relies on {@link RecordFilter} to drop first redundant de-aggregated records or
+   * entire batch of de-aggregated or "normal" records.
+   */
+  StartingPosition toEFOStartingPosition() {
+    StartingPosition.Builder builder = StartingPosition.builder().type(shardIteratorType);
+    switch (shardIteratorType) {
+      case AT_TIMESTAMP:
+        return builder.timestamp(TimeUtil.toJava(checkNotNull(timestamp))).build();
+      case AT_SEQUENCE_NUMBER:
+      case AFTER_SEQUENCE_NUMBER:
+        return StartingPosition.builder()
+            .type(AT_SEQUENCE_NUMBER)
+            .sequenceNumber(checkNotNull(sequenceNumber))
+            .build();
+
+      default:
+        return builder.build();
+    }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ShardCheckpoint that = (ShardCheckpoint) o;
+    return streamName.equals(that.streamName)
+        && shardId.equals(that.shardId)
+        && Objects.equals(sequenceNumber, that.sequenceNumber)
+        && shardIteratorType == that.shardIteratorType
+        && Objects.equals(subSequenceNumber, that.subSequenceNumber)
+        && Objects.equals(timestamp, that.timestamp);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        streamName, shardId, sequenceNumber, shardIteratorType, subSequenceNumber, timestamp);
   }
 }

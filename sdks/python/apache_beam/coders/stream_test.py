@@ -139,6 +139,15 @@ class StreamTest(unittest.TestCase):
     for v in values:
       self.assertEqual(v, in_s.read_bigendian_int32())
 
+  def test_read_write_bigendian_int16(self):
+    values = 0, 1, -1, 2**15 - 1, -2**15, int(2**13 * math.pi)
+    out_s = self.OutputStream()
+    for v in values:
+      out_s.write_bigendian_int16(v)
+    in_s = self.InputStream(out_s.get())
+    for v in values:
+      self.assertEqual(v, in_s.read_bigendian_int16())
+
   def test_byte_counting(self):
     bc_s = self.ByteCountingOutputStream()
     self.assertEqual(0, bc_s.get_count())
