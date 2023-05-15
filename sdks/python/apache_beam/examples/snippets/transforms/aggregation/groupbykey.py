@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: GroupByKeySort
 #   description: Demonstration of GroupByKey transform usage with per-key sorting.
 #   multifile: false
 #   default_example: false
-#   context_line: 38
+#   context_line: 40
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

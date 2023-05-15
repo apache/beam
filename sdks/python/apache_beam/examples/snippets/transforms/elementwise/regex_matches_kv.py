@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: RegexMatchesKV
 #   description: Demonstration of Regex.matches_kv transform usage.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 41
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

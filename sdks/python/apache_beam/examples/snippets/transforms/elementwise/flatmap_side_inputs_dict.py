@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: FlatMapSideInputsDict
 #   description: Demonstration of FlatMap transform usage with a side input from a dictionary.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 41
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

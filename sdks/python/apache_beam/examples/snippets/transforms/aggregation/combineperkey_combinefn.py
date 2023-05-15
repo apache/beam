@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: CombinePerKeyCombineFn
 #   description: Demonstration of CombinePerKey transform usage with side inputs.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 39
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

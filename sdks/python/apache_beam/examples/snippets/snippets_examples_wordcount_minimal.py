@@ -18,12 +18,22 @@
 
 # pytype: skip-file
 
+# Quiet some pylint warnings that happen because of the somewhat special
+# format for the code snippets.
+# pylint:disable=invalid-name
+# pylint:disable=expression-not-assigned
+# pylint:disable=redefined-outer-name
+# pylint:disable=reimported
+# pylint:disable=unused-variable
+# pylint:disable=wrong-import-order, wrong-import-position
+# pylint:disable=line-too-long
+
 # beam-playground:
 #   name: WordCountMinimalSnippet
 #   description: An example that counts words in Shakespeare's works.
 #   multifile: false
 #   pipeline_options: --input-file gs://dataflow-samples/shakespeare/kinglear.txt --output-path output.txt
-#   context_line: 42
+#   context_line: 85
 #   categories:
 #     - IO
 #     - Core Transforms

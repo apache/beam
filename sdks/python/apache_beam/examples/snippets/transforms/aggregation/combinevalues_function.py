@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: CombineValuesFunction
 #   description: Demonstration of CombineValue transform usage with a function.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 39
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

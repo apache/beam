@@ -18,12 +18,21 @@
 
 # pytype: skip-file
 
+# Quiet some pylint warnings that happen because of the somewhat special
+# format for the code snippets.
+# pylint:disable=invalid-name
+# pylint:disable=expression-not-assigned
+# pylint:disable=redefined-outer-name
+# pylint:disable=reimported
+# pylint:disable=unused-variable
+# pylint:disable=wrong-import-order, wrong-import-position
+
 # beam-playground:
 #   name: WordCountSnippet
 #   description: An example that counts words in Shakespeare's works.
 #   multifile: false
 #   pipeline_options: --output output.txt
-#   context_line: 40
+#   context_line: 50
 #   categories:
 #     - Combiners
 #     - Options

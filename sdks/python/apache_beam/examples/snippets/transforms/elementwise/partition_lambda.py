@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: PartitionLambda
 #   description: Demonstration of Partition transform usage with a lambda function.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 41
 #   categories:
 #     - Core Transforms
 #   complexity: MEDIUM
@@ -33,7 +34,7 @@
 
 
 def partition_lambda(test=None):
-  # pylint: disable=line-too-long, expression-not-assigned
+  # pylint:disable=expression-not-assigned
   # [START partition_lambda]
   import apache_beam as beam
 

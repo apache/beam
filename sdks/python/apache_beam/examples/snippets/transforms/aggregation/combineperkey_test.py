@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 
@@ -29,8 +30,8 @@ from . import combineperkey_combinefn
 from . import combineperkey_function
 from . import combineperkey_lambda
 from . import combineperkey_multiple_arguments
-from . import combineperkey_side_inputs_iter
 from . import combineperkey_side_inputs_dict
+from . import combineperkey_side_inputs_iter
 from . import combineperkey_side_inputs_singleton
 from . import combineperkey_simple
 

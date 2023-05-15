@@ -17,15 +17,13 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 from io import StringIO
 
 import mock
 
-import apache_beam.examples.snippets.transforms.elementwise.pardo_dofn
-import apache_beam.examples.snippets.transforms.elementwise.pardo_dofn_methods
-import apache_beam.examples.snippets.transforms.elementwise.pardo_dofn_params
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that

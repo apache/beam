@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: CombineValuesMultipleArguments
 #   description: Demonstration of CombineValue transform usage with a lambda function with multiple arguments.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 39
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

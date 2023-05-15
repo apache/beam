@@ -27,15 +27,15 @@ import pytest
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
+from . import runinference_sklearn_keyed_model_handler
+from . import runinference_sklearn_unkeyed_model_handler
+
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
 try:
   import torch
   from . import runinference
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
-
-from . import runinference_sklearn_keyed_model_handler
-from . import runinference_sklearn_unkeyed_model_handler
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
 try:
@@ -83,7 +83,7 @@ PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dt
 [END sklearn_unkeyed_model_handler]  '''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
-
+# pylint:disable=line-too-long
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.runinference_sklearn_unkeyed_model_handler.print',

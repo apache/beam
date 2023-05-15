@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: ToStringIterables
 #   description: Demonstration of ToString.Iterables transform usage.
 #   multifile: false
 #   default_example: false
-#   context_line: 36
+#   context_line: 41
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

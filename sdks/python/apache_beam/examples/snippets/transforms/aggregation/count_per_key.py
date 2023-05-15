@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: CountPerKey
 #   description: Demonstration of Count transform usage to count elements per key.
 #   multifile: false
 #   default_example: false
-#   context_line: 36
+#   context_line: 38
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

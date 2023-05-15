@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: PartitionFunction
 #   description: Demonstration of Partition transform usage with a function.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 41
 #   categories:
 #     - Core Transforms
 #   complexity: MEDIUM
@@ -33,7 +34,7 @@
 
 
 def partition_function(test=None):
-  # pylint: disable=line-too-long, expression-not-assigned
+  # pylint:disable=expression-not-assigned
   # [START partition_function]
   import apache_beam as beam
 
@@ -61,7 +62,6 @@ def partition_function(test=None):
     perennials | 'Perennials' >> beam.Map(
         lambda x: print('perennial: {}'.format(x)))
     # [END partition_function]
-    # pylint: enable=line-too-long, expression-not-assigned
     if test:
       test(annuals, biennials, perennials)
 

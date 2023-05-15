@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: PartitionMultipleArguments
 #   description: Demonstration of Partition transform usage with a lambda function with multiple arguments.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 42
 #   categories:
 #     - Core Transforms
 #   complexity: MEDIUM

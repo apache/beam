@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: Window
 #   description: Demonstration of Window transform usage.
 #   multifile: false
 #   default_example: false
-#   context_line: 54
+#   context_line: 43
 #   categories:
 #     - Core Transforms
 #     - Windowing

@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 
@@ -28,8 +29,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 from . import withtimestamps
 from . import withtimestamps_event_time
-from . import withtimestamps_processing_time
 from . import withtimestamps_logical_clock
+from . import withtimestamps_processing_time
 
 
 def check_plant_timestamps(actual):

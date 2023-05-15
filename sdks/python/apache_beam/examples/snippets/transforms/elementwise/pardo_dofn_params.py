@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: ParDoDoFnParams
 #   description: Demonstration of ParDo transform usage with a DoFn with parameters.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 41
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

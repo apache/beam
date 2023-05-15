@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: MinGlobally
 #   description: Demonstration of Min transform usage.
 #   multifile: false
 #   default_example: false
-#   context_line: 36
+#   context_line: 40
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

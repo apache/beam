@@ -30,13 +30,13 @@ import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-from .groupby_expr_aggregate import expr_aggregate
-from .groupby_global_aggregate import global_aggregate
 from .groupby_attr import groupby_attr
 from .groupby_attr_expr import groupby_attr_expr
 from .groupby_expr import groupby_expr
-from .groupby_two_exprs import groupby_two_exprs
+from .groupby_expr_aggregate import expr_aggregate
+from .groupby_global_aggregate import global_aggregate
 from .groupby_simple_aggregate import simple_aggregate
+from .groupby_two_exprs import groupby_two_exprs
 
 
 class UnorderedList(object):

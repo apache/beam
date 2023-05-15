@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: MeanPerKey
 #   description: Demonstration of Mean transform usage per key.
 #   multifile: false
 #   default_example: false
-#   context_line: 36
+#   context_line: 41
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

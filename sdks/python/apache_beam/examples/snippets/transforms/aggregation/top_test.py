@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pylint:disable=line-too-long
+
 import unittest
 
 import mock

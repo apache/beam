@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: WithTimestampsLogicalClock
 #   description: Demonstration of WithTimestamps transform usage with logical clock.
 #   multifile: false
 #   default_example: false
-#   context_line: 36
+#   context_line: 40
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

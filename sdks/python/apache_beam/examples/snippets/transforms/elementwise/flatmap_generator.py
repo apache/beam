@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: FlatMapGenerator
 #   description: Demonstration of FlatMap transform usage with a generator.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 45
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

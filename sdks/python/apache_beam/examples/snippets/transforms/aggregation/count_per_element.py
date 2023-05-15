@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: CountPerElement
 #   description: Demonstration of Count transform usage to count the number of unique elements.
 #   multifile: false
 #   default_example: false
-#   context_line: 36
+#   context_line: 38
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

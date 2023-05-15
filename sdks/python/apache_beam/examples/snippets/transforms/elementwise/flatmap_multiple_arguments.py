@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: FlatMapMultipleArguments
 #   description: Demonstration of FlatMap transform usage with a function that takes multiple arguments.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 44
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

@@ -21,15 +21,12 @@
 # Wrapping hurts the readability of the docs.
 # pylint: disable=line-too-long
 
-# Wrapping hurts the readability of the docs.
-# pylint: disable=line-too-long
-
 # beam-playground:
 #   name: GroupByExpr
 #   description: Demonstration of GroupBy transform usage using an expression.
 #   multifile: false
 #   default_example: false
-#   context_line: 44
+#   context_line: 41
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

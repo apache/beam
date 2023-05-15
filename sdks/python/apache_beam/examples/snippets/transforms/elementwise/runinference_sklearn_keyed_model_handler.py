@@ -18,13 +18,14 @@
 
 # pytype: skip-file
 # pylint: disable=reimported
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: RunInferenceSklearnKeyed
 #   description: Demonstration of RunInference transform usage with Sklearn keyed model handler.
 #   multifile: false
 #   default_example: false
-#   context_line: 37
+#   context_line: 46
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

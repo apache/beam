@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: CoGroupByKeyMerge
 #   description: Demonstration of CoGroupByKey transform usage.
 #   multifile: false
 #   default_example: false
-#   context_line: 41
+#   context_line: 43
 #   categories:
 #     - Core Transforms
 #     - Joins

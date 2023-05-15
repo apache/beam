@@ -16,12 +16,15 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+# pylint:disable=line-too-long
+
 # beam-playground:
 #   name: TopLargestPerKey
 #   description: Demonstration of Top transform usage with the largest values per key.
 #   multifile: false
 #   default_example: false
-#   context_line: 34
+#   context_line: 40
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC

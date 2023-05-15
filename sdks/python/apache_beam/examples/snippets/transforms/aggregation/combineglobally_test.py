@@ -25,12 +25,12 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# from . import combineglobally_side_inputs_dict
+# from . import combineglobally_side_inputs_iter
 from . import combineglobally_combinefn
 from . import combineglobally_function
 from . import combineglobally_lambda
 from . import combineglobally_multiple_arguments
-from . import combineglobally_side_inputs_dict
-from . import combineglobally_side_inputs_iter
 from . import combineglobally_side_inputs_singleton
 
 

@@ -17,13 +17,14 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 # beam-playground:
 #   name: LatestPerKey
 #   description: Demonstration of Latest transform usage per key.
 #   multifile: false
 #   default_example: false
-#   context_line: 49
+#   context_line: 45
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC
