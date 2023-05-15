@@ -17,30 +17,72 @@
 
 # pylint: skip-file
 
+"""
+Observations and some constants: 
+
+Containers: non-scalars, such as list, numpy.ndarray
+
+List[Any]: VarLenFeature
+Numpy: VarLenFeature or FixedLenFeature with shape
+
+int: FixedLenFeature
+str: FixedLenFeature
+float: FixedLenFeature
+bytes: FixedLenFeature
+"""
+
 import tempfile
 from abc import abstractmethod
-from typing import Dict
-import pyarrow as pa
+from typing import Dict, List, Tuple
+
+import apache_beam as beam
 import numpy as np
+import pyarrow as pa
 import tensorflow as tf
 import tensorflow_transform as tft
 import tensorflow_transform.beam as tft_beam
-from typing import List
+from apache_beam.typehints import native_type_compatibility
+from tensorflow_transform.tf_metadata import schema_utils
+from tensorflow_transform.tf_metadata import dataset_metadata
+from tfx_bsl.tfxio import tf_example_record
+from tensorflow_transform.beam.tft_beam_io import transform_fn_io
+
+_default_type_to_tensor_type_map = {
+    int: tf.int64,
+    float: tf.float32,
+    str: tf.string,
+    bytes: tf.string,
+    np.int64: tf.int64,
+    np.int32: tf.int64,
+    np.float32: tf.float32,
+    np.float64: tf.float32
+}
 
 
 class ProcessHandler:
   @abstractmethod
-  def process_data(self, data):
+  def process_data(self, data) -> beam.PTransform:
     """
     Logic to process the data. This will be the entrypoint in beam.MLTransform to process 
     incoming data:
     """
-    pass
+    raise NotImplementedError
 
 
 class TFTProcessHandler(ProcessHandler):
-  def __init__(self, transforms):
-    self._transforms = transforms
+  def __init__(
+      self,
+      *,
+      input_types: Dict[str, type],
+      output_record_batches=False,
+      transforms=None,
+      artifact_location=None,
+  ):
+    self._input_types = input_types
+    self._transforms = transforms if transforms else []
+    self._input_types = input_types
+    self._output_record_batches = output_record_batches
+    self._artifact_location = artifact_location
 
   # def preprocessing_fn(self, inputs: Dict) -> Dict:
   #   outputs = inputs.copy()
@@ -52,62 +94,94 @@ class TFTProcessHandler(ProcessHandler):
   #     for col in columns:
   #       outputs[col] = transform.apply(inputs[col])
 
+  @property
+  def get_raw_data_feature_spec(self):
+    raw_data_feature_spec = {}
+    for key, value in self._input_types.items():
+      raw_data_feature_spec[key] = self._get_raw_data_feature_spec_per_element(
+          typ=value)
+    raw_data_metadata = dataset_metadata.DatasetMetadata(
+        schema_utils.schema_from_feature_spec(raw_data_feature_spec))
+    return raw_data_metadata
+
+  def _get_raw_data_feature_spec_per_element(self, typ: type):
+    containers_type = (List._name, Tuple._name)
+    is_container = False
+    if typ in native_type_compatibility._BUILTINS_TO_TYPING:
+      typ = native_type_compatibility.convert_builtin_to_typing(type)
+
+    # we get typing types here.
+    if hasattr(typ, '_name') and typ._name in containers_type:
+      args = typ.__args__
+      if len(args) > 1:
+        raise RuntimeError(
+            f"Multiple types are specified in the container type {typ}")
+      dtype = args[0]
+      is_container = True
+    else:
+      dtype = typ
+
+    if issubclass(dtype, np.generic):
+      is_container = True
+
+    if is_container:
+      return tf.io.VarLenFeature(_default_type_to_tensor_type_map[dtype])
+    else:
+      return tf.io.FixedLenFeature([], _default_type_to_tensor_type_map[dtype])
+
+  # TODO: remove this and uncomment the above lines
   def preprocessing_fn(self, inputs):
     outputs = inputs.copy()
+    # reshape needed because of https://github.com/tensorflow/transform/issues/128
+    outputs['y_min'] = tf.reshape(tft.min(inputs['y']), [-1])
     outputs['y'] = tft.scale_to_0_1(inputs['y'])
     return outputs
 
-  def get_raw_data_feature_spec(self, data):
-    if isinstance(data, str):
-      return tf.io.VarLenFeature(tf.string)
-    elif isinstance(data, int):
-      return tf.io.FixedLenFeature([], tf.int64)
-    elif isinstance(data, float):
-      return tf.io.FixedLenFeature([], tf.float32)
-    elif isinstance(data, list):
-      return self.get_raw_data_feature_spec(data[0])
-    else:
-      raise NotImplementedError
-
-  def process_data(self, raw_data: List):
+  @abstractmethod
+  def get_metadata(self):
     """
-    Instance dict
-    1. raw_data needs to be a list so that it can be passed to AnalyzeAndTransformDataset
+    Return metadata to be used with tft_beam.AnalyzeAndTransformDataset
     """
-    # find raw_data_metadata
-    if isinstance(raw_data, pa.RecordBatch):
-      raise NotImplementedError
 
-    # TODO: change this elif condition.
-    elif isinstance(raw_data, list):
-      raw_data_feature_spec = {}
-      d = raw_data[0]
-      for key, value in d.items():
-        raw_data_feature_spec[key] = self.get_raw_data_feature_spec(value)
+  def write_transform_artifacts(self, transform_fn, location):
+    return (
+        transform_fn
+        | 'Write Transform Artifacts' >>
+        transform_fn_io.WriteTransformFn(location))
 
-    elif isinstance(raw_data, dict):
-      raw_data_feature_spec = {}
-      for key, value in raw_data.items():
-        raw_data_feature_spec[key] = self.get_raw_data_feature_spec(value)
-
-    else:
-      raise NotImplementedError
-
-    raw_data_metadata = tft.DatasetMetadata.from_feature_spec(
-        raw_data_feature_spec)
-
-    if isinstance(raw_data, list):
-      data = (raw_data, raw_data_metadata)
-    else:
-      data = ([raw_data], raw_data_metadata)
-    # print(type(raw_data))
-    # while True:pass
-
-    with tft_beam.Context(temp_dir=tempfile.mkdtemp()):
-      transformed_dataset, transform_fn = (
-        data
-        | "AnalyzeAndTransformDataset"  >> tft_beam.AnalyzeAndTransformDataset(
-        self.preprocessing_fn,
+  def process_data(self):
+    @beam.ptransform_fn
+    def ptransform_fn(raw_data):
+      metadata = self.get_metadata()
+      with tft_beam.Context(temp_dir=tempfile.mkdtemp()):
+        data = (raw_data, metadata)
+        transformed_dataset, transform_fn = (
+          data
+          | "AnalyzeAndTransformDataset"  >> tft_beam.AnalyzeAndTransformDataset(
+          self.preprocessing_fn,
+          output_record_batches=self._output_record_batches
+          )
         )
-      )
-      return transformed_dataset, transform_fn
+
+        if self._artifact_location:
+          self.write_transform_artifacts(transform_fn, self._artifact_location)
+        return transformed_dataset[0]
+
+    return ptransform_fn()
+
+
+class TFTProcessHandlerPyArrow(TFTProcessHandler):
+  def get_metadata(self):
+    raw_data_feature_spec = self.get_raw_data_feature_spec
+    schema = raw_data_feature_spec.schema
+    _tfxio = tf_example_record.TFExampleBeamRecord(
+        physical_format='inmem',
+        telemetry_descriptors=['StandaloneTFTransform'],
+        schema=schema)
+    tensor_adapter_config = _tfxio.TensorAdapterConfig()
+    return tensor_adapter_config
+
+
+class TFTProcessHandlerDict(TFTProcessHandler):
+  def get_metadata(self):
+    return self.get_raw_data_feature_spec

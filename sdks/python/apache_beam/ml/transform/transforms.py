@@ -21,9 +21,11 @@ from typing import Any
 from typing import Callable
 from typing import List
 from typing import Optional
+from typing import Dict
 
 import apache_beam as beam
-from apache_beam.ml.transform.handlers import TFTProcessHandler
+from apache_beam.ml.transform.handlers import TFTProcessHandlerDict, TFTProcessHandlerPyArrow, TFTProcessHandler
+from apache_beam.ml.transform.handlers import ProcessHandler
 import tensorflow as tf
 import tensorflow_transform as tft
 from tensorflow_transform import analyzers
@@ -41,8 +43,7 @@ class _BaseTransform:
     if not columns:
       # (TODO): Shoud we apply the transform or skip the transform?
       logging.warning(
-          "Columns are not specified. Applying the "
-          "transform %s on all columns." % self)
+          "Columns are not specified. Ignoring the transform %s" % self)
 
   def apply(self, data):
     raise NotImplementedError
@@ -127,48 +128,46 @@ def scale_to_z_score(
 
 
 # MLTransform - framework agnostic PTransform
-
-
+# can we automatically infer the schema?
 class MLTransform(beam.PTransform):
-  def __init__(self, transforms: Optional[List[_BaseTransform]] = None):
-    self._transforms = transforms if transforms else []
-    self._process_handler = TFTProcessHandler(self._transforms)
+  def __init__(
+      self,
+      process_handler: TFTProcessHandler,
+  ):
+    self._process_handler = process_handler
 
   def expand(self, pcoll):
-    return (
-        pcoll
-        | beam.ParDo(_MLTransformDoFn(process_handler=self._process_handler)))
+    return (pcoll | self._process_handler.process_data())
 
   def with_transform(self, transform: _BaseTransform):
-    self._transforms.append(transform)
+    self._process_handler._transforms.append(transform)
     return self
 
 
-class _MLTransformDoFn(beam.DoFn):
-  def __init__(self, process_handler):
-    self._process_handler = process_handler
+if __name__ == "__main__":
 
-  def process(self, element):
-    transformed_dataset, transform_fn = self._process_handler.process_data(element)
-    yield transformed_dataset[0]
+  import pyarrow as pa
 
+  # list_ is not supported since it creates schema with large_list
+  # https://source.corp.google.com/piper///depot/google3/third_party/py/tfx_bsl/tfxio/record_based_tfxio.py;rcl=531814261;l=170
+  # raw_data = [
+  #     pa.record_batch(
+  #         data=[
+  #             pa.array([[1], [2], [3], [10], [15], [20], [10]],
+  #                      pa.large_list(pa.float32())),
+  #         ],
+  #         names=['y'])
+  # ]
 
-if __name__ == '__main__':
-  # row-oriented instance dict dataset
-  data = [[{
-      'x': "hello", 'y': 1.0
-  }, {
-      'x': "world", 'y': 2.0
-  }, {
-      "x": "hello", 'y': 3.0
-  }]]
-
-  pipeline = beam.Pipeline()
-
-  with pipeline as p:
+  raw_data = [{'y': [1, 2, 3]}, {'y': [4, 5]}, {'y': [1, 2, 30]}]
+  raw_data_type = {'y': List[int]}
+  with beam.Pipeline() as p:
     (
-        p
-        | beam.Create(data)
-        | MLTransform().with_transform(
-            compute_and_apply_vocabulary(columns=['x']))
+        p | beam.Create(raw_data)
+        | MLTransform(
+            TFTProcessHandlerDict(
+                input_types=raw_data_type,
+                # output_record_batches=True
+                # artifact_location='/Users/anandinguva/projects/beam/sdks/python/apache_beam/ml/transform'
+            )).with_transform(compute_and_apply_vocabulary())
         | beam.Map(print))
