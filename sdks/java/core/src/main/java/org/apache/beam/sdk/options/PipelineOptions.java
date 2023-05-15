@@ -358,6 +358,12 @@ public interface PipelineOptions extends HasDisplayData {
   Map<String, Map<String, Object>> outputRuntimeOptions();
 
   /**
+   * A monotonically increasing revision number of this {@link PipelineOptions} object that can be
+   * used to detect changes.
+   */
+  int revision();
+
+  /**
    * Provides a process wide unique ID for this {@link PipelineOptions} object, assigned at graph
    * construction time.
    */
