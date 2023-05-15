@@ -19,12 +19,18 @@
 
 sdk:
   - Java
-  - Python
-  - Go
+id: schema-based-transforms
+name: Schema-based transforms
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
+  - schema-concept
+  - select
+  - join
+  - group
+  - filter
+  - co-group
+  - convert
+  - rename
+  - coder
+
+

@@ -19,12 +19,10 @@
 
 sdk:
   - Java
-  - Python
-  - Go
+id: schema-concepts
+name: Schema Concepts
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
+- creating-schema
+- logical-type
+
+
