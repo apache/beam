@@ -444,7 +444,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       torch_script_model_path: Path to the torch script model.
          the model will be loaded using `torch.jit.load()`.
         `state_dict_path`, `model_class` and `model_params`
-         arguments will be disregarded..
+         arguments will be disregarded.
       min_batch_size: the minimum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
       max_batch_size: the maximum batch size to use when batching inputs. This
