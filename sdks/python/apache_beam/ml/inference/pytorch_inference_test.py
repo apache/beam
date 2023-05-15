@@ -920,12 +920,12 @@ class PytorchInferenceTestWithMocks(unittest.TestCase):
         load_model_args=load_model_args)
     model_handler.load_model()
     pytorch_inference._load_model.assert_called_with(
-        PytorchLinearRegression,
-        self.torch_path,
-        torch.device('cpu'),
-        self.model_params,
-        None,
-        load_model_args)
+        model_class=PytorchLinearRegression,
+        state_dict_path=self.torch_path,
+        device=torch.device('cpu'),
+        model_params=self.model_params,
+        torch_script_model_path=None,
+        load_model_args=load_model_args)
 
   def test_load_model_args_keyed_tensor(self):
     load_model_args = {'weights_only': True}
@@ -936,12 +936,12 @@ class PytorchInferenceTestWithMocks(unittest.TestCase):
         load_model_args=load_model_args)
     model_handler.load_model()
     pytorch_inference._load_model.assert_called_with(
-        PytorchLinearRegression,
-        self.torch_path,
-        torch.device('cpu'),
-        self.model_params,
-        None,
-        load_model_args)
+        model_class=PytorchLinearRegression,
+        state_dict_path=self.torch_path,
+        device=torch.device('cpu'),
+        model_params=self.model_params,
+        torch_script_model_path=None,
+        load_model_args=load_model_args)
 
 
 if __name__ == '__main__':
