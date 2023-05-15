@@ -155,20 +155,32 @@ message SampleDataRequest {
   repeated string pcollection_ids = 1;
 }
 
-
 // An element sampled when the SDK is processing a bundle. This is a proto
 // message to allow for additional per-element metadata.
 message SampledElement {
-  // Required. Sampled raw bytes for an element. This is a
+  // (Required) Sampled raw bytes for an element. This is a
   // single encoded element in the nested context.
   bytes element = 1;
 
-  // FUTURE WORK: Capture lull detections and exceptions.
-  //
-  // Optional. Present if there was an exception
-  // processing the above element.
-  //
-  // LogEntry exception_entry = 2;
+  // (Required) Timestamp of when the sample was taken.
+  google.protobuf.Timestamp sample_timestamp = 2;
+
+  message Exception {
+    // (Required) The instruction ID of the associated ProcessBundleRequest.
+    string instruction_id = 1;
+
+    // (Required) The transform ID of the executing PTransform during the
+    // exception.
+    string transform_id = 2;
+
+    // (Required) The error message to be displayed to the user. Can use the
+    // other fields to query for contextual logs.
+    string error = 3;
+  }
+
+  // (Optional) This will be set if this element was sampled because of a user
+  // exception.
+  Exception exception = 3;
 }
 
 // If supported, the `SampleDataResponse` will contain samples from PCollections
@@ -181,27 +193,6 @@ message SampleDataResponse {
 
   // Map from PCollection id to sampled elements.
   map<string, ElementList> element_samples = 1;
-
-  // FUTURE WORK: Investigate ways of storing multiple interesting types of
-  // sampled elements. There are two ways of accomplishing this:
-  // 1) Maps of typed elements: include multiple maps here with typed element
-  // proto messages, ex.
-  //
-  // message SlowElement {...}
-  // message ErroredElement {...}
-  // map<string, SlowElement> slow_elements
-  // map<string, ErroredElement> errored_elements
-  //
-  // However, this forces an element into a single category. It disallows
-  // classification across multiple characteristics (like a slow and errored
-  // element).
-  //
-  // 2) Compositional types: allow for URN and payloads on the base
-  // SampledElement message for interesting characteristics. The base class
-  // can then be queried for specific URNs. This allows for multiple
-  // attributes on the same element.
-  //
-  // For a longer conversation, see https://github.com/apache/beam/pull/25065.
 }
 
 // A request to provide full MonitoringInfo associated with the entire SDK
