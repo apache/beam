@@ -604,7 +604,7 @@ class SyntheticSDFAsSource(beam.DoFn):
           SyntheticSDFSourceRestrictionProvider())):
     cur = restriction_tracker.current_restriction().start
     while restriction_tracker.try_claim(cur):
-      r = get_generator(seed=cur)
+      r = get_generator(algorithm=element.get('algorithm', None), seed=cur)
       time.sleep(element['sleep_per_input_record_sec'])
       yield (
           r.rand_bytes(element['key_size']),
