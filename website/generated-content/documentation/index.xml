@@ -918,7 +918,7 @@ verifying some of the properties of your &lt;code>BoundedSource&lt;/code> implem
 can use &lt;code>SourceTestUtils&lt;/code> to increase your implementation&amp;rsquo;s test coverage
 using a wide range of inputs with relatively few lines of code. For
 examples that use &lt;code>SourceTestUtils&lt;/code>, see the
-&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/io/AvroSourceTest.java">AvroSourceTest&lt;/a> and
+&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/avro/src/test/java/org/apache/beam/sdk/extensions/avro/io/AvroSourceTest.java">AvroSourceTest&lt;/a> and
 &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOReadTest.java">TextIOReadTest&lt;/a>
 source code.&lt;/p>
 &lt;/li>
@@ -1183,7 +1183,7 @@ sinks that interact with files, including:&lt;/p>
 implementations for examples:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextSink.java">TextSink&lt;/a> and&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroSink.java">AvroSink&lt;/a>.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/avro/src/main/java/org/apache/beam/sdk/extensions/avro/io/AvroSink.java">AvroSink&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;h2 id="ptransform-wrappers">PTransform wrappers&lt;/h2>
 &lt;p>When you create a source or sink that end-users will use, avoid exposing your

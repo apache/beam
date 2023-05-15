@@ -20,7 +20,6 @@ See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page
 &lt;/ul>
 &lt;h2 id="ios">I/Os&lt;/h2>
 &lt;ul>
-&lt;li>Support for X source added (Java/Python) (&lt;a href="https://github.com/apache/beam/issues/X">#X&lt;/a>).&lt;/li>
 &lt;li>BigQuery Storage Write API is now available in Python SDK via cross-language (&lt;a href="https://github.com/apache/beam/issues/21961">#21961&lt;/a>).&lt;/li>
 &lt;li>Added HbaseIO support for writing RowMutations (ordered by rowkey) to Hbase (Java) (&lt;a href="https://github.com/apache/beam/issues/25830">#25830&lt;/a>).&lt;/li>
 &lt;li>Added fileio transforms MatchFiles, MatchAll and ReadMatches (Go) (&lt;a href="https://github.com/apache/beam/issues/25779">#25779&lt;/a>).&lt;/li>
@@ -34,7 +33,6 @@ See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page
 like &lt;code>df | (Transform1 | Transform2 | ...)&lt;/code> to avoid excessive conversions.)&lt;/li>
 &lt;li>The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
 for slowly updating side input patterns. (&lt;a href="https://github.com/apache/beam/issues/23106">#23106&lt;/a>)&lt;/li>
-&lt;li>Python SDK now requires &lt;code>protobuf&amp;gt;=4.21.1,&amp;lt;4.23.0&lt;/code> and no longer supports protobuf 3.x. (&lt;a href="https://github.com/apache/beam/pull/24599">#24599&lt;/a>)&lt;/li>
 &lt;li>Several Google client libraries in Python SDK dependency chain were updated to latest available major versions. (&lt;a href="https://github.com/apache/beam/pull/24599">#24599&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
@@ -46,8 +44,7 @@ for slowly updating side input patterns. (&lt;a href="https://github.com/apache/
 &lt;h2 id="deprecations">Deprecations&lt;/h2>
 &lt;ul>
 &lt;li>Cloud Debugger support and its pipeline options are deprecated and will be removed in the next Beam version,
-in response to the Google Cloud Debugger service &lt;a href="https://cloud.google.com/debugger/docs/deprecations">turning down&lt;/a>.
-(Java) (&lt;a href="https://github.com/apache/beam/issues/25959">#25959&lt;/a>).&lt;/li>
+in response to the Google Cloud Debugger service &lt;a href="https://cloud.google.com/debugger/docs/deprecations">turning down&lt;/a>. (Java) (&lt;a href="https://github.com/apache/beam/issues/25959">#25959&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="bugfixes">Bugfixes&lt;/h2>
 &lt;ul>

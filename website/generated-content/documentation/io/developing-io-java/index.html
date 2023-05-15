@@ -58,7 +58,7 @@ verifying some of the properties of your <code>BoundedSource</code> implementati
 can use <code>SourceTestUtils</code> to increase your implementation&rsquo;s test coverage
 using a wide range of inputs with relatively few lines of code. For
 examples that use <code>SourceTestUtils</code>, see the
-<a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/io/AvroSourceTest.java>AvroSourceTest</a> and
+<a href=https://github.com/apache/beam/blob/master/sdks/java/extensions/avro/src/test/java/org/apache/beam/sdk/extensions/avro/io/AvroSourceTest.java>AvroSourceTest</a> and
 <a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOReadTest.java>TextIOReadTest</a>
 source code.</p></li></ol><p>In addition, see the <a href=/contribute/ptransform-style-guide/>PTransform style guide</a>
 for Beam&rsquo;s transform style guidance.</p><h2 id=implementing-the-source-interface>Implementing the Source interface</h2><p>To create a data source for your pipeline, you must provide the format-specific
@@ -194,7 +194,7 @@ and passes your <code>FileBasedSink</code> as a parameter. A user should not nee
 call <code>WriteFiles</code> directly.</p></li></ul><p>The <code>FileBasedSink</code> abstract base class implements code that is common to Beam
 sinks that interact with files, including:</p><ul><li>Setting file headers and footers</li><li>Sequential record writing</li><li>Setting the output MIME type</li></ul><p><code>FileBasedSink</code> and its subclasses support writing files to any Beam-supported
 <code>FileSystem</code> implementations. See the following Beam-provided <code>FileBasedSink</code>
-implementations for examples:</p><ul><li><a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextSink.java>TextSink</a> and</li><li><a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroSink.java>AvroSink</a>.</li></ul><h2 id=ptransform-wrappers>PTransform wrappers</h2><p>When you create a source or sink that end-users will use, avoid exposing your
+implementations for examples:</p><ul><li><a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextSink.java>TextSink</a> and</li><li><a href=https://github.com/apache/beam/blob/master/sdks/java/extensions/avro/src/main/java/org/apache/beam/sdk/extensions/avro/io/AvroSink.java>AvroSink</a>.</li></ul><h2 id=ptransform-wrappers>PTransform wrappers</h2><p>When you create a source or sink that end-users will use, avoid exposing your
 source or sink code. To avoid exposing your sources and sinks to end-users, your
 new classes should be protected or private. Then, implement a user-facing
 wrapper <code>PTransform</code>. By exposing your source or sink as a transform, your
