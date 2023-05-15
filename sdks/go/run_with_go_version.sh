@@ -95,5 +95,5 @@ else
     GOCMD=${GOCMD/GOBIN/$GOBIN}
 
     echo $GOCMD $@
-    $GOCMD $@
+    CGO_ENABLED=0 $GOCMD $@
 fi
