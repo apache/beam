@@ -35,23 +35,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * SamzaInputGBKMetricOp is a {@link Op} that emits & maintains default metrics for input
- * PCollection for GroupByKey. It emits the input throughput and maintains avg input time for input
+ * SamzaGBKMetricOp is a {@link Op} that emits & maintains default metrics for input or output
+ * PCollection for GroupByKey.
+ *
+ * <p>For Input PCollection: It emits the input throughput and maintains avg input time for input
  * PCollection per windowId.
  *
- * <p>Assumes that {@code SamzaInputGBKMetricOp#processWatermark(Instant, OpEmitter)} is exclusive
- * of {@code SamzaInputGBKMetricOp#processElement(Instant, OpEmitter)}. Specifically, the
- * processWatermark method assumes that no calls to processElement will be made during its
- * execution, and vice versa.
+ * <p>For Output PCollection: It emits the output throughput and maintains avg output time for
+ * output PCollection per windowId. It is also responsible for emitting latency metric per windowId
+ * once the watermark passes the end of window timestamp.
+ *
+ * <p>Assumes that {@code SamzaGBKMetricOp#processWatermark(Instant, OpEmitter)} is exclusive of
+ * {@code SamzaGBKMetricOp#processElement(Instant, OpEmitter)}. Specifically, the processWatermark
+ * method assumes that no calls to processElement will be made during its execution, and vice versa.
  *
  * @param <T> The type of the elements in the input PCollection.
  */
-public class SamzaInputGBKMetricOp<T> implements Op<T, T, Void> {
-  private static final Logger LOG = LoggerFactory.getLogger(SamzaInputGBKMetricOp.class);
+class SamzaGBKMetricOp<T> implements Op<T, T, Void> {
+  private static final Logger LOG = LoggerFactory.getLogger(SamzaGBKMetricOp.class);
   // Unique name of the PTransform this MetricOp is associated with
   private final String transformFullName;
   private final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
-  // Name or identifier of the PCollection which PTransform is processing
+  // Type of the processing operation
+  private final SamzaMetricOpFactory.OpType opType;
+
   private final String pValue;
   // Counters for keeping sum of arrival time and count of elements per windowId
   @SuppressFBWarnings("SE_BAD_FIELD")
@@ -77,12 +84,14 @@ public class SamzaInputGBKMetricOp<T> implements Op<T, T, Void> {
 
   // Some fields are initialized in open() method, which is called after the constructor.
   @SuppressWarnings("initialization.fields.uninitialized")
-  public SamzaInputGBKMetricOp(
+  public SamzaGBKMetricOp(
       String pValue,
       String transformFullName,
+      SamzaMetricOpFactory.OpType opType,
       SamzaTransformMetricRegistry samzaTransformMetricRegistry) {
     this.pValue = pValue;
     this.transformFullName = transformFullName;
+    this.opType = opType;
     this.samzaTransformMetricRegistry = samzaTransformMetricRegistry;
     this.sumOfTimestampsPerWindowId = new ConcurrentHashMap<>();
     this.sumOfCountPerWindowId = new ConcurrentHashMap<>();
@@ -107,10 +116,21 @@ public class SamzaInputGBKMetricOp<T> implements Op<T, T, Void> {
             return value.add(BigInteger.valueOf(System.nanoTime()));
           });
     }
-    samzaTransformMetricRegistry
-        .getTransformMetrics()
-        .getTransformInputThroughput(transformFullName)
-        .inc();
+
+    switch (opType) {
+      case INPUT:
+        samzaTransformMetricRegistry
+            .getTransformMetrics()
+            .getTransformInputThroughput(transformFullName)
+            .inc();
+        break;
+      case OUTPUT:
+        samzaTransformMetricRegistry
+            .getTransformMetrics()
+            .getTransformOutputThroughput(transformFullName)
+            .inc();
+        break;
+    }
     emitter.emitElement(inputElement);
   }
 
@@ -131,7 +151,8 @@ public class SamzaInputGBKMetricOp<T> implements Op<T, T, Void> {
 
               if (LOG.isDebugEnabled()) {
                 LOG.debug(
-                    "Processing Input Watermark for Transform: {}, WindowId:{}, count: {}, sumOfTimestamps: {}, task: {}",
+                    "Processing {} Watermark for Transform: {}, WindowId:{}, count: {}, sumOfTimestamps: {}, task: {}",
+                    opType,
                     transformFullName,
                     windowId,
                     count,
@@ -141,14 +162,33 @@ public class SamzaInputGBKMetricOp<T> implements Op<T, T, Void> {
 
               // if the window is closed and there is some data
               if (sumOfTimestamps > 0 && count > 0) {
-                samzaTransformMetricRegistry.updateArrivalTimeMap(
-                    transformFullName, windowId, Math.floorDiv(sumOfTimestamps, count));
+                switch (opType) {
+                  case INPUT:
+                    // Update the arrival time for the window
+                    samzaTransformMetricRegistry.updateArrivalTimeMap(
+                        transformFullName, windowId, Math.floorDiv(sumOfTimestamps, count));
+                    break;
+                  case OUTPUT:
+                    // Compute the latency if there is some data for the window
+                    samzaTransformMetricRegistry.emitLatencyMetric(
+                        transformFullName, windowId, Math.floorDiv(sumOfTimestamps, count), task);
+                    break;
+                }
               }
             });
 
     // remove the closed windows
     sumOfCountPerWindowId.keySet().removeAll(closedWindows);
     sumOfTimestampsPerWindowId.keySet().removeAll(closedWindows);
+
+    // Update the watermark progress for the transform output
+    if (opType == SamzaMetricOpFactory.OpType.OUTPUT) {
+      samzaTransformMetricRegistry
+          .getTransformMetrics()
+          .getTransformWatermarkProgress(transformFullName)
+          .set(watermark.getMillis());
+    }
+
     emitter.emitWatermark(watermark);
   }
 }

@@ -97,6 +97,7 @@ public class SamzaTransformMetricRegistry implements Serializable {
     }
   }
 
+  @SuppressWarnings("nullness")
   public void emitLatencyMetric(
       String transformName, BoundedWindow windowId, long avgArrivalEndTime, String taskName) {
     Long avgArrivalStartTime =
@@ -125,6 +126,10 @@ public class SamzaTransformMetricRegistry implements Serializable {
     transformMetrics
         .getTransformLatencyMetric(transformName)
         .update(avgArrivalEndTime - avgArrivalStartTime);
+
+    transformMetrics
+        .getTransformCacheSize(transformName)
+        .set((long) avgArrivalTimeMapForGbk.get(transformName).size());
   }
 
   // Checker framework bug: https://github.com/typetools/checker-framework/issues/979
@@ -173,6 +178,14 @@ public class SamzaTransformMetricRegistry implements Serializable {
     final long endTime = Collections.max(outputPValuesAvgArrivalTimes);
     final long latency = endTime - startTime;
     transformMetrics.getTransformLatencyMetric(transformName).update(latency);
+
+    transformMetrics
+        .getTransformCacheSize(transformName)
+        .set(
+            avgArrivalTimeMapForTransform.values().stream()
+                .mapToLong(ConcurrentHashMap::size)
+                .sum());
+
     LOG.debug(
         "Success Emit Metric Transform: {} for watermark: {} for task: {}",
         transformName,

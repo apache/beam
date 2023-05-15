@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.samza.context.Context;
+import org.apache.samza.metrics.Gauge;
 import org.apache.samza.metrics.Timer;
 import org.apache.samza.system.WatermarkMessage;
 import org.joda.time.Instant;
@@ -44,9 +45,11 @@ public class TestSamzaTransformMetricsRegistry {
     final long avgInputArrivalTime = System.currentTimeMillis();
 
     Timer latency = new Timer("filter-latency");
+    Gauge<Long> cacheSize = new Gauge<Long>("filter-cache-size", 0L);
     SamzaTransformMetrics samzaTransformMetrics = mock(SamzaTransformMetrics.class);
     doNothing().when(samzaTransformMetrics).register(any(), any());
     when(samzaTransformMetrics.getTransformLatencyMetric("filter")).thenReturn(latency);
+    when(samzaTransformMetrics.getTransformCacheSize("filter")).thenReturn(cacheSize);
 
     SamzaTransformMetricRegistry samzaTransformMetricRegistry =
         spy(new SamzaTransformMetricRegistry(samzaTransformMetrics));
@@ -98,14 +101,19 @@ public class TestSamzaTransformMetricsRegistry {
             .getAverageArrivalTimeMap("filter")
             .get("dummy-pvalue.out")
             .containsKey(watermarkMessage.getTimestamp()));
+    // Cache size must be 0
+    assertEquals(0, cacheSize.getValue().intValue());
   }
 
   @Test
   public void testSamzaTransformMetricsRegistryForDataShuffleOperators() {
-    Timer latency = new Timer("filter-latency");
+    Timer latency = new Timer("Count-perKey-latency");
+    Gauge<Long> cacheSize = new Gauge<Long>("Count-perKey-cache-size", 0L);
+
     SamzaTransformMetrics samzaTransformMetrics = mock(SamzaTransformMetrics.class);
     doNothing().when(samzaTransformMetrics).register(any(), any());
     when(samzaTransformMetrics.getTransformLatencyMetric("Count.perKey")).thenReturn(latency);
+    when(samzaTransformMetrics.getTransformCacheSize("Count.perKey")).thenReturn(cacheSize);
 
     SamzaTransformMetricRegistry samzaTransformMetricRegistry =
         spy(new SamzaTransformMetricRegistry(samzaTransformMetrics));
@@ -177,5 +185,7 @@ public class TestSamzaTransformMetricsRegistry {
     samzaTransformMetricRegistry.emitLatencyMetric("random-transform", first, 0, "task 0");
     // Check the latency metric is same
     assertTrue(1000 == latency.getSnapshot().getAverage());
+    // Cache size must be 0
+    assertEquals(0, cacheSize.getValue().intValue());
   }
 }

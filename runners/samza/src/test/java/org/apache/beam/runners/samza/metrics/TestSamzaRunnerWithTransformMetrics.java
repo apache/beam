@@ -185,6 +185,7 @@ public class TestSamzaRunnerWithTransformMetrics {
     Counter inputCounter = new Counter("filter-input-counter");
     Counter outputCounter = new Counter("filter-output-counter");
     Gauge<Long> watermarkProgress = new Gauge<>("filter-output-watermark", 0L);
+    Gauge<Long> cacheSize = new Gauge<>("filter-arrival-time-cache-size", 0L);
     Timer latency = new Timer("filter-latency");
 
     SamzaTransformMetrics samzaTransformMetrics = mock(SamzaTransformMetrics.class);
@@ -194,6 +195,7 @@ public class TestSamzaRunnerWithTransformMetrics {
     when(samzaTransformMetrics.getTransformWatermarkProgress("filter"))
         .thenReturn(watermarkProgress);
     when(samzaTransformMetrics.getTransformLatencyMetric("filter")).thenReturn(latency);
+    when(samzaTransformMetrics.getTransformCacheSize("filter")).thenReturn(cacheSize);
 
     SamzaTransformMetricRegistry samzaTransformMetricRegistry =
         spy(new SamzaTransformMetricRegistry(samzaTransformMetrics));
@@ -230,6 +232,8 @@ public class TestSamzaRunnerWithTransformMetrics {
     assertEquals(watermarkMessage.getTimestamp(), watermarkProgress.getValue().longValue());
     // Latency must be positive
     assertTrue(latency.getSnapshot().getAverage() > 0);
+    // Cache size must be 0
+    assertEquals(0, cacheSize.getValue().intValue());
   }
 
   @Test
@@ -249,6 +253,7 @@ public class TestSamzaRunnerWithTransformMetrics {
     Counter outputCounter = new Counter("Count-perKey-output-counter");
     Gauge<Long> watermarkProgress = new Gauge<>("Count-perKey-output-watermark", 0L);
     Timer latency = new Timer("Count-perKey-latency");
+    Gauge<Long> cacheSize = new Gauge<>("Count-perKey-arrival-time-cache-size", 0L);
 
     SamzaTransformMetrics samzaTransformMetrics = mock(SamzaTransformMetrics.class);
     doNothing().when(samzaTransformMetrics).register(any(), any());
@@ -259,15 +264,19 @@ public class TestSamzaRunnerWithTransformMetrics {
     when(samzaTransformMetrics.getTransformWatermarkProgress("Count-perKey"))
         .thenReturn(watermarkProgress);
     when(samzaTransformMetrics.getTransformLatencyMetric("Count-perKey")).thenReturn(latency);
+    when(samzaTransformMetrics.getTransformCacheSize("Count-perKey")).thenReturn(cacheSize);
 
     SamzaTransformMetricRegistry samzaTransformMetricRegistry =
         spy(new SamzaTransformMetricRegistry(samzaTransformMetrics));
     samzaTransformMetricRegistry.register("Count-perKey", "window-assign.in", mock(Context.class));
     samzaTransformMetricRegistry.register("Count-perKey", "window-assign.out", mock(Context.class));
 
-    SamzaInputGBKMetricOp<String> inputMetricOp =
-        new SamzaInputGBKMetricOp<>(
-            "window-assign.in", "Count-perKey", samzaTransformMetricRegistry);
+    SamzaGBKMetricOp<String> inputMetricOp =
+        new SamzaGBKMetricOp<>(
+            "window-assign.in",
+            "Count-perKey",
+            SamzaMetricOpFactory.OpType.INPUT,
+            samzaTransformMetricRegistry);
 
     inputMetricOp.processElement(windowedValue, opEmitter);
     inputMetricOp.processElement(windowedValue2, opEmitter);
@@ -279,9 +288,12 @@ public class TestSamzaRunnerWithTransformMetrics {
     assertEquals(
         1, samzaTransformMetricRegistry.getAverageArrivalTimeMapForGBK("Count-perKey").size());
 
-    SamzaOutputGBKMetricOp<String> outputMetricOp =
-        new SamzaOutputGBKMetricOp<>(
-            "window-assign.out", "Count-perKey", samzaTransformMetricRegistry);
+    SamzaGBKMetricOp<String> outputMetricOp =
+        new SamzaGBKMetricOp<>(
+            "window-assign.out",
+            "Count-perKey",
+            SamzaMetricOpFactory.OpType.OUTPUT,
+            samzaTransformMetricRegistry);
 
     outputMetricOp.processElement(windowedValue, opEmitter);
     outputMetricOp.processElement(windowedValue2, opEmitter);
@@ -293,5 +305,7 @@ public class TestSamzaRunnerWithTransformMetrics {
     assertEquals(watermarkMessage.getTimestamp(), watermarkProgress.getValue().longValue());
     // Latency must be positive
     assertTrue(latency.getSnapshot().getAverage() > 0);
+    // Cache size must be 0
+    assertEquals(0, cacheSize.getValue().intValue());
   }
 }

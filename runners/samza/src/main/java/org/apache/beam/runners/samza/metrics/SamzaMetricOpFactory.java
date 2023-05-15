@@ -63,12 +63,14 @@ public class SamzaMetricOpFactory {
     switch (opType) {
       case INPUT:
         if (isDataShuffleTransform(urn)) {
-          return new SamzaInputGBKMetricOp<>(pValue, transformName, samzaTransformMetricRegistry);
+          return new SamzaGBKMetricOp<>(
+              pValue, transformName, opType, samzaTransformMetricRegistry);
         }
         return new SamzaInputMetricOp(pValue, transformName, samzaTransformMetricRegistry);
       case OUTPUT:
         if (isDataShuffleTransform(urn)) {
-          return new SamzaOutputGBKMetricOp<>(pValue, transformName, samzaTransformMetricRegistry);
+          return new SamzaGBKMetricOp<>(
+              pValue, transformName, opType, samzaTransformMetricRegistry);
         }
         return new SamzaOutputMetricOp(pValue, transformName, samzaTransformMetricRegistry);
       default:
