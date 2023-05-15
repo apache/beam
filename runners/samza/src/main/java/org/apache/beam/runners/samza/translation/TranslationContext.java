@@ -195,9 +195,13 @@ public class TranslationContext {
     }
 
     for (PValue pValue : getPValueForTransform(opType, transform, node)) {
-      // skip attach transform if pValue is not registered i.e. if not translated with a samza translator
+      // skip attach transform if pValue is not registered i.e. if not translated with a samza
+      // translator
       if (!messsageStreams.containsKey(pValue)) {
-        LOG.debug("Skip attach transform metric op for pValue: {} for transform: {}", pValue, getTransformFullName());
+        LOG.debug(
+            "Skip attach transform metric op for pValue: {} for transform: {}",
+            pValue,
+            getTransformFullName());
         continue;
       }
 
