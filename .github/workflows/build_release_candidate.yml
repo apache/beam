@@ -1,0 +1,61 @@
+name: build_release_candidate
+
+# Workflow added after https://github.com/apache/beam/commit/4183e747becebd18becee5fff547af365910fc9c
+# If help is needed debugging issues, you can view the release guide at that commit for guidance on how to do this manually.
+# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/website/www/site/content/en/contribute/release-guide.md)
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Beam version of current release (e.g. 2.XX.0)
+        required: true
+        default: '2.XX.0'
+      RC:
+        description: Integer RC version for the release (e.g. 3 for RC3)
+        required: true
+      PUBLISH_JAVA_ARTIFACTS:
+        description: Whether to publish java artifacts to https://repository.apache.org/#stagingRepositories (yes/no)
+        required: true
+        default: 'no'
+
+jobs:
+  publish_java_artifacts:
+    if: ${{github.event.inputs.PUBLISH_JAVA_ARTIFACTS == 'yes'}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+      - name: Install Java 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Auth for nexus
+        run: |
+          mkdir -p ${HOME}/.m2
+          echo "<settings>
+           <servers>
+             <server>
+               <id>apache.releases.https</id>
+               <username>${{ secrets.NEXUS_USER }}</username>
+               <password>${{ secrets.NEXUS_PW }}</password>
+             </server>
+             <server>
+               <id>apache.snapshots.https</id>
+               <username>${{ secrets.NEXUS_USER }}</username>
+               <password>${{ secrets.NEXUS_PW }}</password>
+             </server>
+           </servers>
+          </settings>" > ${HOME}/.m2/settings.xml
+      - name: Configure git
+        run: git config credential.helper store
+      - name: Stage Java Artifacts into Maven
+        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease --no-daemon --no-parallel

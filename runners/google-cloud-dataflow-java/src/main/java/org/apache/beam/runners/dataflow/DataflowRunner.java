@@ -87,7 +87,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -1561,7 +1560,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /** Sets callbacks to invoke during execution see {@code DataflowRunnerHooks}. */
-  @Experimental
   public void setHooks(DataflowRunnerHooks hooks) {
     this.hooks = hooks;
   }

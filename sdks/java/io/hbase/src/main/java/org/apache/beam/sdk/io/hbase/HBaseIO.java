@@ -31,8 +31,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -179,14 +177,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Note that the transformation emits the number of RowMutations written as an integer after
  * successfully writing to HBase.
- *
- * <h3>Experimental</h3>
- *
- * <p>The design of the API for HBaseIO is currently related to the BigtableIO one, it can evolve or
- * be different in some aspects, but the idea is that users can easily migrate from one to the other
- * .
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

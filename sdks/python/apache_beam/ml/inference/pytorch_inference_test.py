@@ -832,6 +832,66 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       predictions = pcoll | RunInference(model_handler)
       _ = predictions | beam.Map(check_torch_script_model_id)
 
+  def test_env_vars_set_correctly_tensor_handler(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+
+    torch_script_model = torch.jit.script(torch_model)
+
+    torch_script_path = os.path.join(self.tmpdir, 'torch_script_model.pt')
+
+    torch.jit.save(torch_script_model, torch_script_path)
+
+    handler_with_vars = PytorchModelHandlerTensor(
+        torch_script_model_path=torch_script_path, env_vars={'FOO': 'bar'})
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    with TestPipeline() as pipeline:
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
+
+  def test_env_vars_set_correctly_keyed_tensor_handler(self):
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    with TestPipeline() as pipeline:
+      inference_args = {
+          'prediction_param_array': torch.from_numpy(
+              np.array([1, 2], dtype="float32")),
+          'prediction_param_bool': True
+      }
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      handler_with_vars = PytorchModelHandlerKeyedTensor(
+          env_vars={'FOO': 'bar'},
+          state_dict_path=path,
+          model_class=PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          })
+      inference_args_side_input = (
+          pipeline | 'create side' >> beam.Create(inference_args))
+
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
+          | RunInference(
+              model_handler=handler_with_vars,
+              inference_args=beam.pvalue.AsDict(inference_args_side_input)))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * Factory class for creating instances that will handle different functions of DoFns. The instances
@@ -55,7 +57,6 @@ public class ActionFactory implements Serializable {
   public synchronized ChangeStreamAction changeStreamAction(
       ChangeStreamMetrics metrics,
       ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator) {
-
     if (changeStreamAction == null) {
       changeStreamAction = new ChangeStreamAction(metrics, throughputEstimator);
     }
@@ -73,10 +74,12 @@ public class ActionFactory implements Serializable {
   public synchronized DetectNewPartitionsAction detectNewPartitionsAction(
       ChangeStreamMetrics metrics,
       MetadataTableDao metadataTableDao,
+      @Nullable Instant endTime,
       GenerateInitialPartitionsAction generateInitialPartitionsAction) {
     if (detectNewPartitionsAction == null) {
       detectNewPartitionsAction =
-          new DetectNewPartitionsAction(metrics, metadataTableDao, generateInitialPartitionsAction);
+          new DetectNewPartitionsAction(
+              metrics, metadataTableDao, endTime, generateInitialPartitionsAction);
     }
     return detectNewPartitionsAction;
   }
@@ -90,10 +93,10 @@ public class ActionFactory implements Serializable {
    * @return singleton instance of the {@link GenerateInitialPartitionsAction}
    */
   public synchronized GenerateInitialPartitionsAction generateInitialPartitionsAction(
-      ChangeStreamMetrics metrics, ChangeStreamDao changeStreamDao) {
+      ChangeStreamMetrics metrics, ChangeStreamDao changeStreamDao, @Nullable Instant endTime) {
     if (generateInitialPartitionsAction == null) {
       generateInitialPartitionsAction =
-          new GenerateInitialPartitionsAction(metrics, changeStreamDao);
+          new GenerateInitialPartitionsAction(metrics, changeStreamDao, endTime);
     }
     return generateInitialPartitionsAction;
   }

@@ -15,31 +15,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
 plugins {
-  id("com.gradle.enterprise") version "3.4.1" apply false
+  id("com.gradle.enterprise") version "3.13.2"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
 }
 
-
-// Plugins which require online access should not be enabled when running in offline mode.
-if (!gradle.startParameter.isOffline) {
-  apply(plugin = "com.gradle.enterprise")
-}
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it) != null }
 // GITHUB_REPOSITORY and GITHUB_RUN_ID set automatically during Github Actions run
 val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
-if (isJenkinsBuild || isGithubActionsBuild) {
-  gradleEnterprise {
-    buildScan {
-      // Build Scan enabled and TOS accepted for Jenkins lab build. This does not apply to builds on
-      // non-Jenkins machines. Developers need to separately enable and accept TOS to use build scans.
-      termsOfServiceUrl = "https://gradle.com/terms-of-service"
-      termsOfServiceAgree = "yes"
-      publishAlways()
+val isCi = isJenkinsBuild || isGithubActionsBuild
+
+gradleEnterprise {
+  server = "https://ge.apache.org"
+  allowUntrustedServer = false
+
+  buildScan {
+    capture { isTaskInputFiles = true }
+    isUploadInBackground = !isCi
+    publishAlways()
+    this as BuildScanExtensionWithHiddenFeatures
+    publishIfAuthenticated()
+    obfuscation {
+      ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
     }
+  }
+}
+
+buildCache {
+  local {
+    isEnabled = !isCi
+  }
+  remote(gradleEnterprise.buildCache) {
+    isEnabled = false
   }
 }
 
@@ -140,6 +151,7 @@ include(":sdks:java:container:java17")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
+include(":sdks:java:expansion-service:container")
 include(":sdks:java:expansion-service:app")
 include(":sdks:java:extensions:arrow")
 include(":sdks:java:extensions:avro")
@@ -237,6 +249,8 @@ include(":sdks:java:testing:load-tests")
 include(":sdks:java:testing:test-utils")
 include(":sdks:java:testing:tpcds")
 include(":sdks:java:testing:watermarks")
+include(":sdks:java:transform-service")
+include(":sdks:java:transform-service:controller-container")
 include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
@@ -246,6 +260,7 @@ include(":sdks:python:container:py38")
 include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
+include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
 include(":sdks:python:test-suites:dataflow:py37")
 include(":sdks:python:test-suites:dataflow:py38")

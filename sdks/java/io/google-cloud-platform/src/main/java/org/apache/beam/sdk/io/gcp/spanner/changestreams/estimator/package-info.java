@@ -17,7 +17,4 @@
  */
 
 /** Classes related to estimating the throughput of the change streams SDFs. */
-@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator;
-
-import org.apache.beam.sdk.annotations.Experimental;

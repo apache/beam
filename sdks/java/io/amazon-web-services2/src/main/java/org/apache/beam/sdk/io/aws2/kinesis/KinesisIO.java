@@ -43,8 +43,6 @@ import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
@@ -227,7 +225,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * <p>When EFO is enabled, the following configurations are ignored:
  *
  * <ul>
- *   <li>{@link Read#withMaxCapacityPerShard(Integer)}
  *   <li>{@link Read#withRequestRecordsLimit(int)}
  *   <li>{@link Read#withCustomRateLimitPolicy(RateLimitPolicyFactory)}
  *   <li>{@link Read#withFixedDelayRateLimitPolicy()}
@@ -331,7 +328,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * then opt to retry the current partition in entirety or abort if the max number of retries of the
  * runner is reached.
  */
-@Experimental(Kind.SOURCE_SINK)
 public final class KinesisIO {
 
   /** Returns a new {@link Read} transform for reading from Kinesis. */
@@ -342,7 +338,6 @@ public final class KinesisIO {
         .setUpToDateThreshold(Duration.ZERO)
         .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
         .setRateLimitPolicyFactory(RateLimitPolicyFactory.withDefaultRateLimiter())
-        .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD)
         .build();
   }
 
@@ -390,7 +385,7 @@ public final class KinesisIO {
 
     abstract RateLimitPolicyFactory getRateLimitPolicyFactory();
 
-    abstract Integer getMaxCapacityPerShard();
+    abstract @Nullable Integer getMaxCapacityPerShard();
 
     abstract Builder toBuilder();
 
@@ -618,7 +613,15 @@ public final class KinesisIO {
       return toBuilder().setRateLimitPolicyFactory(rateLimitPolicyFactory).build();
     }
 
-    /** Specifies the maximum number of messages per one shard. */
+    /**
+     * Specifies the maximum number of messages per one shard.
+     *
+     * <p>Note: When using consumers with dedicated throughput (Enhanced Fan-Out), this capacity
+     * corresponds to the number of in-flight shard events which itself can contain multiple,
+     * potentially even aggregated records.
+     *
+     * @see {@link #withConsumerArn(String)}
+     */
     public Read withMaxCapacityPerShard(Integer maxCapacity) {
       checkArgument(maxCapacity > 0, "maxCapacity must be positive, but was: %s", maxCapacity);
       return toBuilder().setMaxCapacityPerShard(maxCapacity).build();

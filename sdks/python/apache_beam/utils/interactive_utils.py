@@ -15,10 +15,7 @@
 # limitations under the License.
 #
 
-"""Common interactive utility module.
-
-For experimental usage only; no backwards-compatibility guarantees.
-"""
+"""Common interactive utility module."""
 # pytype: skip-file
 
 import logging

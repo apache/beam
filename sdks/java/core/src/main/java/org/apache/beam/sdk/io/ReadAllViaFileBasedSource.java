@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -37,7 +35,6 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To obtain the collection of {@link ReadableFile} from a filepattern, use {@link
  * FileIO#readMatches()}.
  */
-@Experimental(Kind.SOURCE_SINK)
 public class ReadAllViaFileBasedSource<T> extends ReadAllViaFileBasedSourceTransform<T, T> {
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,

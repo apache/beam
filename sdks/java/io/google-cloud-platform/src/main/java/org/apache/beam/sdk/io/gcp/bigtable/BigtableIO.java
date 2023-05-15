@@ -40,8 +40,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -249,6 +247,13 @@ import org.slf4j.LoggerFactory;
  *            .withStartTime(startTime));
  * }</pre>
  *
+ * <h3>Enable client side metrics</h3>
+ *
+ * <p>Client side metrics can be enabled with an experiments flag when you run the pipeline:
+ * --experiments=bigtable_enable_client_side_metrics. These metrics can provide additional insights
+ * to your job. You can read more about client side metrics in this documentation:
+ * https://cloud.google.com/bigtable/docs/client-side-metrics.
+ *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
@@ -317,7 +322,6 @@ public class BigtableIO {
    *       generated string.
    * </ul>
    */
-  @Experimental
   public static ReadChangeStream readChangeStream() {
     return ReadChangeStream.create();
   }
@@ -552,7 +556,6 @@ public class BigtableIO {
      * <p>When we have a builder, we initialize the value. When they call the method then we
      * override the value
      */
-    @Experimental(Kind.SOURCE_SINK)
     public Read withMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
@@ -1000,6 +1003,26 @@ public class BigtableIO {
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
           .setBigtableWriteOptions(options.toBuilder().setMaxOutstandingBytes(bytes).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with flow control enabled if enableFlowControl is
+     * true.
+     *
+     * <p>When enabled, traffic to Bigtable is automatically rate-limited to prevent overloading
+     * Bigtable clusters while keeping enough load to trigger Bigtable Autoscaling (if enabled) to
+     * provision more nodes as needed. It is different from the flow control set by {@link
+     * #withMaxOutstandingElements(long)} and {@link #withMaxOutstandingBytes(long)}, which is
+     * always enabled on batch writes and limits the number of outstanding requests to the Bigtable
+     * server.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withFlowControl(boolean enableFlowControl) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setFlowControl(enableFlowControl).build())
           .build();
     }
 
@@ -1780,6 +1803,8 @@ public class BigtableIO {
 
     abstract @Nullable Instant getStartTime();
 
+    abstract @Nullable Instant getEndTime();
+
     abstract @Nullable Duration getHeartbeatDuration();
 
     abstract @Nullable String getChangeStreamName();
@@ -1851,6 +1876,12 @@ public class BigtableIO {
      */
     public ReadChangeStream withStartTime(Instant startTime) {
       return toBuilder().setStartTime(startTime).build();
+    }
+
+    /** Used only for integration tests. Unsafe to use in production. */
+    @VisibleForTesting
+    ReadChangeStream withEndTime(Instant endTime) {
+      return toBuilder().setEndTime(endTime).build();
     }
 
     /**
@@ -1986,7 +2017,7 @@ public class BigtableIO {
       InitializeDoFn initializeDoFn =
           new InitializeDoFn(daoFactory, metadataTableConfig.getAppProfileId().get(), startTime);
       DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(actionFactory, daoFactory, metrics);
+          new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
 
@@ -2021,6 +2052,8 @@ public class BigtableIO {
       abstract ReadChangeStream.Builder setMetadataTableId(String tableId);
 
       abstract ReadChangeStream.Builder setStartTime(Instant startTime);
+
+      abstract ReadChangeStream.Builder setEndTime(Instant endTime);
 
       abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
 

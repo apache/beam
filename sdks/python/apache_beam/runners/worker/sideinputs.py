@@ -31,8 +31,6 @@ from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
 from apache_beam.utils.sentinel import Sentinel
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 # Maximum number of reader threads for reading side input sources, per side
 # input.
 MAX_SOURCE_READER_THREADS = 15

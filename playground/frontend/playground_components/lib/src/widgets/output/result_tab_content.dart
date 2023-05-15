@@ -39,7 +39,9 @@ class ResultTabContent extends StatefulWidget {
 
 class _ResultTabContentState extends State<ResultTabContent> {
   final ScrollController _scrollController = ScrollController();
-  final CodeController _codeController = CodeController();
+  final CodeController _codeController = CodeController(
+    readOnly: true,
+  );
 
   @override
   void initState() {
@@ -104,7 +106,6 @@ class _ResultTabContentState extends State<ResultTabContent> {
                     return CodeTheme(
                       data: ext.codeTheme,
                       child: CodeField(
-                        readOnly: true,
                         controller: _codeController,
                         gutterStyle: GutterStyle.none,
                         textStyle: ext.codeRootStyle,
