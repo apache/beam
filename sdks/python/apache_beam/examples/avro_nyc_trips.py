@@ -44,7 +44,7 @@ pipeline configuration in addition to the above:::
   --temp_location gs://YOUR_TEMPORARY_DIRECTORY
   --runner DataflowRunner
 
-The default input is ``gs://dataflow-samples/avro_nyc_trips/*.avro`` and can
+The default input is ``gs://apache-beam-samples/nyc_trip/avro/*.avro`` and can
 be overridden with --input.
 """
 
@@ -235,7 +235,7 @@ def run(argv=None):
   parser.add_argument(
       '--input',
       dest='input',
-      default='gs://dataflow-samples/avro_nyc_trips/*.avro',
+      default='gs://apache-beam-samples/nyc_trip/avro/*.avro',
       help='Input file of NYC FHV data to process.',
   )
   parser.add_argument(
