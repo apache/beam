@@ -38,7 +38,8 @@ import org.slf4j.LoggerFactory;
 //   description: An example that reads the public samples of weather data from BigQuery.
 //   multifile: false
 //   default_example: false
-//   context_line: 101
+//   pipeline_options: --project apache-beam-testing
+//   context_line: 102
 //   categories:
 //     - Filtering
 //     - IO
