@@ -20,10 +20,10 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python_Colab',
+    nameBase: 'Python_Notebooks',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
-      '-Pposargs=apache_beam/runners/interactive/'
+      '-Pposargs=apache_beam/testing/'
     ],
     timeoutMins: 180,
     triggerPathPatterns: [
