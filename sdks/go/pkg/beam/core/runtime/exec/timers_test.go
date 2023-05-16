@@ -17,11 +17,16 @@ package exec
 
 import (
 	"bytes"
+	"fmt"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
+	"github.com/google/go-cmp/cmp"
 )
 
 func equalTimers(a, b TimerRecv) bool {
@@ -92,4 +97,196 @@ func TestTimerEncodingDecoding(t *testing.T) {
 		})
 	}
 
+}
+
+func TestSortableTimer_Less(t *testing.T) {
+	f := "family"
+
+	now := mtime.FromTime(time.Now())
+
+	baseTimer := sortableTimer{
+		Domain: timers.EventTimeDomain,
+		TimerMap: timers.TimerMap{
+			Family:        f,
+			Tag:           "",
+			Clear:         false,
+			FireTimestamp: now,
+			HoldTimestamp: now,
+		},
+	}
+	eventTimer := baseTimer
+	processingTimer := baseTimer
+	processingTimer.Domain = timers.ProcessingTimeDomain
+
+	clearedTimer := baseTimer
+	clearedTimer.Clear = true
+
+	lesserFireTimer := baseTimer
+	lesserFireTimer.FireTimestamp -= 10
+	greaterFireTimer := baseTimer
+	greaterFireTimer.FireTimestamp += 10
+
+	lesserHoldTimer := baseTimer
+	lesserHoldTimer.HoldTimestamp -= 10
+	greaterHoldTimer := baseTimer
+	greaterHoldTimer.HoldTimestamp += 10
+
+	leastTagTimer := baseTimer
+
+	lesserTagTimer := baseTimer
+	lesserTagTimer.Tag = "Bar"
+
+	greaterTagTimer := baseTimer
+	greaterTagTimer.Tag = "Foo"
+
+	tests := []struct {
+		name        string
+		left, right sortableTimer
+		want        bool
+	}{
+		{
+			name: "equal ",
+			left: baseTimer, right: baseTimer,
+			want: false,
+		}, {
+			name: "processing time lesser",
+			left: processingTimer, right: eventTimer,
+			want: true,
+		}, {
+			name: "event time greater",
+			left: eventTimer, right: processingTimer,
+			want: false,
+		}, {
+			name: "cleared lesser",
+			left: clearedTimer, right: baseTimer,
+			want: true,
+		}, {
+			name: "uncleared greater",
+			left: baseTimer, right: clearedTimer,
+			want: false,
+		}, {
+			name: "greater firing time",
+			left: baseTimer, right: greaterFireTimer,
+			want: true,
+		}, {
+			name: "lesser firing time",
+			left: baseTimer, right: lesserFireTimer,
+			want: false,
+		}, {
+			name: "greater hold time",
+			left: baseTimer, right: greaterHoldTimer,
+			want: true,
+		}, {
+			name: "lesser hold time",
+			left: baseTimer, right: lesserHoldTimer,
+			want: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.left.Less(test.right) != test.want {
+				t.Errorf("(%+v).Less(%+v) not true", test.left, test.right)
+			}
+		})
+	}
+
+	t.Run("sorted", func(t *testing.T) {
+		wantedOrder := timerHeap{
+			processingTimer,
+			clearedTimer,
+			lesserFireTimer,
+			lesserHoldTimer,
+			leastTagTimer, // equal to base
+			baseTimer,  // basic version of everything.
+			eventTimer, //equal to base
+			lesserTagTimer,
+			greaterTagTimer,
+			greaterHoldTimer,
+			greaterFireTimer,
+		}
+		if sort.IsSorted(wantedOrder) {
+			return // success!
+		}
+		for i, v := range wantedOrder[1:] {
+			left, right := wantedOrder[i], v
+			if !left.Less(right) && left != right {
+				t.Errorf("%v \n%+v not < \n%+v", i, left, right)
+			}
+		}
+	})
+
+}
+
+func TestTimerHeap_HeadSet(t *testing.T) {
+	f := "family"
+
+	now := mtime.FromTime(time.Now())
+
+	nextTimer := sortableTimer{
+		Domain: timers.EventTimeDomain,
+		TimerMap: timers.TimerMap{
+			Family:        f,
+			Tag:           "",
+			Clear:         false,
+			FireTimestamp: now,
+			HoldTimestamp: now,
+		},
+	}
+	lesserFireTimer := nextTimer
+	lesserFireTimer.FireTimestamp -= 10
+	greaterFireTimer := nextTimer
+	greaterFireTimer.FireTimestamp += 10
+
+	tests := []struct {
+		name    string
+		inserts []sortableTimer
+		key     sortableTimer
+		want    []sortableTimer
+	}{
+		{
+			name:    "empty",
+			inserts: nil,
+			key:     nextTimer,
+			want:    nil,
+		},
+		{
+			name:    "single-Greater",
+			inserts: []sortableTimer{greaterFireTimer},
+			key:     nextTimer,
+			want:    nil,
+		},
+		{
+			name:    "single-Equal",
+			inserts: []sortableTimer{nextTimer},
+			key:     nextTimer,
+			want:    []sortableTimer{nextTimer},
+		},
+		{
+			name:    "single-Lesser",
+			inserts: []sortableTimer{lesserFireTimer},
+			key:     nextTimer,
+			want:    []sortableTimer{lesserFireTimer},
+		},
+		{
+			name:    "lessthan or equal",
+			inserts: []sortableTimer{lesserFireTimer, nextTimer, greaterFireTimer},
+			key:     nextTimer,
+			want:    []sortableTimer{lesserFireTimer, nextTimer},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var h timerHeap
+			for _, timer := range test.inserts {
+				h.Add(timer)
+			}
+			fmt.Println(test.name, len(h), h.Len())
+			got := h.HeadSet(test.key)
+
+			if diff := cmp.Diff(test.want, got); diff != "" {
+				t.Errorf("h.HeadSet(%+v) diff (-want, +got):\n%v", test.key, diff)
+			}
+		})
+	}
 }

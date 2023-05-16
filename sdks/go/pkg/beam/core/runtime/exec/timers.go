@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"container/heap"
 	"context"
 	"fmt"
 	"io"
@@ -124,4 +125,88 @@ type TimerRecv struct {
 	Clear                        bool
 	FireTimestamp, HoldTimestamp mtime.Time
 	Pane                         typex.PaneInfo
+}
+
+// timerHeap is a min heap for inserting user set timers, and allowing for inline
+// processing of timers in the bundle.
+type timerHeap []sortableTimer
+
+type sortableTimer struct {
+	Domain timers.TimeDomain
+	timers.TimerMap
+}
+
+func (left sortableTimer) Less(right sortableTimer) bool {
+	// Sort Processing time timers before event time timers, as they tend to be more latency sensitive.
+	// There's also the "unspecified" timer, which is treated like an Event Time at present.
+	if left.Domain != right.Domain {
+		return left.Domain == timers.ProcessingTimeDomain && right.Domain != timers.ProcessingTimeDomain
+	}
+
+	// Sort cleared timers first, so newly written fire-able timers can fire.
+	if left.Clear != right.Clear {
+		return left.Clear && !right.Clear
+	}
+
+	if left.FireTimestamp != right.FireTimestamp {
+		return left.FireTimestamp < right.FireTimestamp
+	}
+	if left.HoldTimestamp != right.HoldTimestamp {
+		return left.HoldTimestamp < right.HoldTimestamp
+	}
+
+	return left.Tag < right.Tag
+}
+
+var _ heap.Interface = (*timerHeap)(nil)
+
+// Len satisfies the sort interface invariant.
+func (h timerHeap) Len() int { return len(h) }
+
+// Less satisfies the sort interface invariant.
+func (h timerHeap) Less(i, j int) bool {
+	left, right := h[i], h[j]
+	return left.Less(right)
+}
+
+// Swap satisfies the sort interface invariant.
+// Intended for use only by the timerHeap itself.
+func (h timerHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+
+// Push satisfies the heap interface invariant.
+// Intended for use only by the timerHeap itself.
+func (h *timerHeap) Push(x any) {
+	// Push and Pop use pointer receivers because they modify the slice's length,
+	// not just its contents.
+	*h = append(*h, x.(sortableTimer))
+}
+
+// Pop satisfies the heap interface invariant.
+// Intended for use only by the timerHeap itself.
+func (h *timerHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
+}
+
+// Add timers to the heap.
+func (h *timerHeap) Add(timer sortableTimer) {
+	heap.Push(h, timer)
+}
+
+// HeadSet gets all timers sorted less than or equal to the given timer.
+func (h *timerHeap) HeadSet(timer sortableTimer) []sortableTimer {
+	if h.Len() == 0 {
+		return nil
+	}
+	var ret []sortableTimer
+	for h.Len() > 0 && (*h)[0].Less(timer) {
+		ret = append(ret, heap.Pop(h).(sortableTimer))
+	}
+	if h.Len() > 0 && (*h)[0] == timer {
+		ret = append(ret, heap.Pop(h).(sortableTimer))
+	}
+	return ret
 }
