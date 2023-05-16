@@ -21,11 +21,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.util.function.Consumer;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
-import org.apache.beam.sdk.io.aws2.schemas.AwsSchemaProvider;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,9 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.awscore.AwsResponseMetadata;
 import software.amazon.awssdk.core.exception.SdkException;
-import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.InvalidParameterException;
@@ -68,12 +64,6 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  *   <li>SNS topic ARN you're going to publish to (optional, but required for most use cases)
  *   <li>Request builder function to create SNS publish requests from your input
  * </ul>
- *
- * <p>By default, the output {@link PublishResponse} contains only the SNS messageId, all other
- * fields are null. If you need to include the full {@link SdkHttpResponse} and {@link
- * AwsResponseMetadata}, you can call {@link Write#withFullPublishResponse()}. If you need the HTTP
- * status code only but no headers, you can use {@link
- * Write#withFullPublishResponseWithoutHeaders()}.
  *
  * <h3>Configuration of AWS clients</h3>
  *
@@ -121,8 +111,6 @@ public final class SnsIO {
 
     abstract @Nullable SerializableFunction<T, PublishRequest.Builder> getPublishRequestBuilder();
 
-    abstract @Nullable Coder<PublishResponse> getCoder();
-
     abstract Builder<T> builder();
 
     @AutoValue.Builder
@@ -134,8 +122,6 @@ public final class SnsIO {
 
       abstract Builder<T> setPublishRequestBuilder(
           SerializableFunction<T, PublishRequest.Builder> requestBuilder);
-
-      abstract Builder<T> setCoder(Coder<PublishResponse> coder);
 
       abstract Write<T> build();
     }
@@ -177,39 +163,6 @@ public final class SnsIO {
       return builder().setClientConfiguration(config).build();
     }
 
-    /**
-     * Encode the full {@link PublishResponse} object, including sdkResponseMetadata and
-     * sdkHttpMetadata with the HTTP response headers.
-     *
-     * @deprecated Writes fail exceptionally in case of errors, there is no need to check headers.
-     */
-    @Deprecated
-    public Write<T> withFullPublishResponse() {
-      return withCoder(PublishResponseCoders.fullPublishResponse());
-    }
-
-    /**
-     * Encode the full {@link PublishResponse} object, including sdkResponseMetadata and
-     * sdkHttpMetadata but excluding the HTTP response headers.
-     *
-     * @deprecated Writes fail exceptionally in case of errors, there is no need to check headers.
-     */
-    @Deprecated
-    public Write<T> withFullPublishResponseWithoutHeaders() {
-      return withCoder(PublishResponseCoders.fullPublishResponseWithoutHeaders());
-    }
-
-    /**
-     * Encode the {@link PublishResponse} with the given coder.
-     *
-     * @deprecated Explicit usage of coders is deprecated. Inferred schemas provided by {@link
-     *     AwsSchemaProvider} will be used instead.
-     */
-    @Deprecated
-    public Write<T> withCoder(Coder<PublishResponse> coder) {
-      return builder().setCoder(coder).build();
-    }
-
     @Override
     public PCollection<PublishResponse> expand(PCollection<T> input) {
       checkArgument(getPublishRequestBuilder() != null, "withPublishRequestBuilder() is required");
@@ -221,11 +174,7 @@ public final class SnsIO {
         checkArgument(checkTopicExists(awsOptions), "Topic arn %s does not exist", getTopicArn());
       }
 
-      PCollection<PublishResponse> result = input.apply(ParDo.of(new SnsWriterFn<>(this)));
-      if (getCoder() != null) {
-        result.setCoder(getCoder());
-      }
-      return result;
+      return input.apply(ParDo.of(new SnsWriterFn<>(this)));
     }
 
     private boolean checkTopicExists(AwsOptions options) {

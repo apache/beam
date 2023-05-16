@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import static org.apache.beam.sdk.io.aws2.sns.PublishResponseCoders.defaultPublishResponse;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -29,8 +27,6 @@ import static org.mockito.Mockito.when;
 import java.io.Serializable;
 import java.util.List;
 import java.util.function.Consumer;
-import org.apache.beam.sdk.coders.DelegateCoder;
-import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
 import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.sns.SnsIO.Write;
 import org.apache.beam.sdk.testing.PAssert;
@@ -134,41 +130,6 @@ public class SnsIOTest implements Serializable {
     verify(sns, times(0)).getTopicAttributes(any(Consumer.class));
     for (String msg : input) {
       verify(sns).publish(requestBuilder(msg, topicArn).build());
-    }
-  }
-
-  @Test
-  public void testWriteWithCustomCoder() {
-    List<String> input = ImmutableList.of("message1");
-
-    when(sns.publish(any(PublishRequest.class)))
-        .thenReturn(PublishResponse.builder().messageId("id").build());
-
-    // Mockito mocks cause NotSerializableException even with withSettings().serializable()
-    final CountingFn<PublishResponse> countingFn = new CountingFn<>();
-
-    Write<String> snsWrite =
-        SnsIO.<String>write()
-            .withPublishRequestBuilder(msg -> requestBuilder(msg, topicArn))
-            .withCoder(DelegateCoder.of(defaultPublishResponse(), countingFn, x -> x));
-
-    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(snsWrite);
-    PAssert.that(results.apply(Count.globally())).containsInAnyOrder(1L);
-    p.run();
-
-    assertThat(countingFn.count).isGreaterThan(0);
-    for (String msg : input) {
-      verify(sns).publish(requestBuilder(msg, topicArn).build());
-    }
-  }
-
-  private static class CountingFn<T> implements CodingFunction<T, T> {
-    int count;
-
-    @Override
-    public T apply(T input) throws Exception {
-      count++;
-      return input;
     }
   }
 
