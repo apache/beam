@@ -45,10 +45,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * <p>TODO: Move to an async persist model where persistence is signalled based upon cache memory
  * pressure and its need to flush.
  */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BagUserState<T> {
   private final Cache<?, ?> cache;
   private final BeamFnStateClient beamFnStateClient;
@@ -58,6 +54,8 @@ public class BagUserState<T> {
   private List<T> newValues;
   private boolean isCleared;
   private boolean isClosed;
+
+  static final int BAG_APPEND_BATCHING_LIMIT = 10 * 1024 * 1024;
 
   /** The cache must be namespaced for this state object accordingly. */
   public BagUserState(
@@ -128,15 +126,39 @@ public class BagUserState<T> {
           request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
     if (!newValues.isEmpty()) {
+      // Batch values up to a arbitrary limit to reduce overhead of write
+      // requests. We treat this limit as strict to ensure that large elements
+      // are not batched as they may otherwise exceed runner limits.
       ByteStringOutputStream out = new ByteStringOutputStream();
       for (T newValue : newValues) {
-        // TODO: Replace with chunking output stream
+        int previousSize = out.size();
         valueCoder.encode(newValue, out);
+        if (out.size() > BAG_APPEND_BATCHING_LIMIT && previousSize > 0) {
+          // Respect the batching limit by outputting the previous batch of
+          // elements.
+          beamFnStateClient.handle(
+              request
+                  .toBuilder()
+                  .setAppend(
+                      StateAppendRequest.newBuilder()
+                          .setData(out.consumePrefixToByteString(previousSize))));
+        }
+        if (out.size() > BAG_APPEND_BATCHING_LIMIT) {
+          // The last element was over the batching limit by itself. To avoid
+          // exceeding runner state limits due to large elements, we output
+          // without additional batching.
+          beamFnStateClient.handle(
+              request
+                  .toBuilder()
+                  .setAppend(StateAppendRequest.newBuilder().setData(out.toByteStringAndReset())));
+        }
       }
-      beamFnStateClient.handle(
-          request
-              .toBuilder()
-              .setAppend(StateAppendRequest.newBuilder().setData(out.toByteString())));
+      if (out.size() > 0) {
+        beamFnStateClient.handle(
+            request
+                .toBuilder()
+                .setAppend(StateAppendRequest.newBuilder().setData(out.toByteStringAndReset())));
+      }
     }
 
     // Modify the underlying cached state depending on the mutations performed
