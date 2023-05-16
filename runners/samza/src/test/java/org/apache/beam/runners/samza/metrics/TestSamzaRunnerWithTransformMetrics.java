@@ -202,8 +202,12 @@ public class TestSamzaRunnerWithTransformMetrics {
     samzaTransformMetricRegistry.register("filter", "dummy-pvalue.in", mock(Context.class));
     samzaTransformMetricRegistry.register("filter", "dummy-pvalue.out", mock(Context.class));
 
-    SamzaInputMetricOp<String> inputMetricOp =
-        new SamzaInputMetricOp<>("dummy-pvalue.in", "filter", samzaTransformMetricRegistry);
+    SamzaMetricOp<String> inputMetricOp =
+        new SamzaMetricOp<>(
+            "dummy-pvalue.in",
+            "filter",
+            SamzaMetricOpFactory.OpType.INPUT,
+            samzaTransformMetricRegistry);
 
     inputMetricOp.processElement(windowedValue, opEmitter);
     inputMetricOp.processElement(windowedValue2, opEmitter);
@@ -218,8 +222,12 @@ public class TestSamzaRunnerWithTransformMetrics {
             .get("dummy-pvalue.in")
             .containsKey(watermarkMessage.getTimestamp()));
 
-    SamzaOutputMetricOp<String> outputMetricOp =
-        new SamzaOutputMetricOp<>("dummy-pvalue.out", "filter", samzaTransformMetricRegistry);
+    SamzaMetricOp<String> outputMetricOp =
+        new SamzaMetricOp<>(
+            "dummy-pvalue.out",
+            "filter",
+            SamzaMetricOpFactory.OpType.OUTPUT,
+            samzaTransformMetricRegistry);
     outputMetricOp.init(ImmutableList.of("dummy-pvalue.in"), ImmutableList.of("dummy-pvalue.out"));
 
     outputMetricOp.processElement(windowedValue, opEmitter);

@@ -60,22 +60,10 @@ public class SamzaMetricOpFactory {
       @NonNull String transformName,
       @NonNull OpType opType,
       @NonNull SamzaTransformMetricRegistry samzaTransformMetricRegistry) {
-    switch (opType) {
-      case INPUT:
-        if (isDataShuffleTransform(urn)) {
-          return new SamzaGBKMetricOp<>(
-              pValue, transformName, opType, samzaTransformMetricRegistry);
-        }
-        return new SamzaInputMetricOp(pValue, transformName, samzaTransformMetricRegistry);
-      case OUTPUT:
-        if (isDataShuffleTransform(urn)) {
-          return new SamzaGBKMetricOp<>(
-              pValue, transformName, opType, samzaTransformMetricRegistry);
-        }
-        return new SamzaOutputMetricOp(pValue, transformName, samzaTransformMetricRegistry);
-      default:
-        throw new IllegalArgumentException("Unknown OpType: " + opType);
+    if (isDataShuffleTransform(urn)) {
+      return new SamzaGBKMetricOp<>(pValue, transformName, opType, samzaTransformMetricRegistry);
     }
+    return new SamzaMetricOp<>(pValue, transformName, opType, samzaTransformMetricRegistry);
   }
 
   private static boolean isDataShuffleTransform(String urn) {
