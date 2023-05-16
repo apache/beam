@@ -226,7 +226,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Tensors.
       load_model_args: a dictionary of parameters passed to the torch.load
-          function of to specify custom config for loading models.
+        function to specify custom config for loading models.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -450,7 +450,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
       load_model_args: a dictionary of parameters passed to the torch.load
-          function of to specify custom config for loading models.
+        function to specify custom config for loading models.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
