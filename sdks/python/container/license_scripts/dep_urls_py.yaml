@@ -95,7 +95,7 @@ pip_dependencies:
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
   keras:
-    licence: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
+    license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   keras-nightly:
     license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   mmh3:
