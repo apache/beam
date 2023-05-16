@@ -42,7 +42,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
-from transformers import BertForMaskedLM
 from transformers import BertTokenizer
 
 
@@ -88,7 +87,7 @@ class PostProcessor(beam.DoFn):
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction_result = element
     inputs = prediction_result.example
-    logits = prediction_result.inference['logits']
+    logits = prediction_result.inference.logits
     mask_token_index = (
         inputs['input_ids'] == self.bert_tokenizer.mask_token_id).nonzero(
             as_tuple=True)[0]
@@ -123,10 +122,7 @@ def parse_known_args(argv):
 
 
 def run(
-    argv=None,
-    model_class=None,
-    save_main_session=True,
-    test_pipeline=None) -> PipelineResult:
+    argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   """
   Args:
     argv: Command line arguments defined for this example.
@@ -141,9 +137,6 @@ def run(
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-
-  if not model_class:
-    model_class = BertForMaskedLM
 
   pipeline = test_pipeline
   if not test_pipeline:

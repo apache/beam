@@ -42,15 +42,16 @@ class HuggingFaceInference(unittest.TestCase):
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
-    model_name = 'bert-base-uncased'
+    model_name = 'againeureka/my_awesome_eli5_mlm_model'
     extra_opts = {
         'input': file_of_sentences,
         'output': output_file,
         'model_name': model_name,
+        '--bert_tokenizer': model_name
     }
     huggingface_language_modeling.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
-        save_main_session=False)
+        save_main_session=True)
 
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = process_outputs(filepath=output_file)
