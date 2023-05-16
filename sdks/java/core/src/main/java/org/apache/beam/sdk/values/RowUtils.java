@@ -173,7 +173,11 @@ class RowUtils {
           processedValue = cases.processByte(rowPosition, (Byte) value, this);
           break;
         case BYTES:
-          processedValue = cases.processBytes(rowPosition, (byte[]) value, this);
+          processedValue =
+              cases.processBytes(
+                  rowPosition,
+                  (byte[]) ((value instanceof ByteBuffer) ? ((ByteBuffer) value).array() : value),
+                  this);
           break;
         case INT16:
           processedValue = cases.processInt16(rowPosition, (Short) value, this);
