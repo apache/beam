@@ -26,9 +26,8 @@ import string
 import time
 import unittest
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from random import choice
-from collections import OrderedDict
 
 from mock import MagicMock
 from mock import patch
@@ -62,10 +61,10 @@ except ImportError as e:
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-# @unittest.skipUnless(
-#   os.environ.get('EXPANSION_PORT'),
-#   "EXPANSION_PORT environment var is not provided.")
-# @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
+@unittest.skipUnless(
+  os.environ.get('EXPANSION_PORT'),
+  "EXPANSION_PORT environment var is not provided.")
+@unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestReadFromBigTable(unittest.TestCase):
   INSTANCE = "bt-read-tests"
   TABLE_ID = "test-table"
