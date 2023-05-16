@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Bigtable Read jobs configured via
  * {@link BigtableReadSchemaTransformConfiguration}.

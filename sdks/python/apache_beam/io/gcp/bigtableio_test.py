@@ -19,194 +19,134 @@
 
 # pytype: skip-file
 import os
+import secrets
+import logging
 import pytest
 import string
+import time
 import unittest
 import uuid
 from datetime import datetime, timezone
 from random import choice
+from collections import OrderedDict
 
 from mock import MagicMock
 from mock import patch
 
+import apache_beam as beam
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigtableio
 from apache_beam.io.gcp import resource_identifiers
-from apache_beam.io.gcp.bigtableio import BigtableRow
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+_LOGGER = logging.getLogger(__name__)
 
 # Protect against environments where bigtable library is not available.
 try:
+  from apitools.base.py.exceptions import HttpError
   from google.cloud.bigtable import client
   from google.cloud.bigtable.instance import Instance
   from google.cloud.bigtable.row import Cell, DirectRow, PartialRowData
   from google.cloud.bigtable.row_filters import TimestampRange
   from google.cloud.bigtable.table import Table
+  from google.cloud.bigtable_admin_v2.types import instance
   from google.rpc.code_pb2 import OK, ALREADY_EXISTS
   from google.rpc.status_pb2 import Status
 except ImportError as e:
   client = None
+  HttpError = None
 
 
-@unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
-class TestBigtableRow(unittest.TestCase):
-  def test_access_attributes_from_parent_class(self):
-    row = BigtableRow("test_key", "test_table")
-    self.assertEqual(row.row_key, "test_key")
-    self.assertEqual(row.table, "test_table")
+@pytest.mark.uses_gcp_java_expansion_service
+# @unittest.skipUnless(
+#   os.environ.get('EXPANSION_PORT'),
+#   "EXPANSION_PORT environment var is not provided.")
+# @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
+class TestReadFromBigTable(unittest.TestCase):
+  INSTANCE = "bt-read-tests"
+  TABLE_ID = "test-table"
 
-  def test_set_cell(self):
-    row = BigtableRow("key")
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.args = self.test_pipeline.get_full_options_as_args()
+    self.project = self.test_pipeline.get_option('project')
 
-    timestamp_seconds = 123456
-    dt = datetime.fromtimestamp(timestamp_seconds, timezone.utc)
-    row.set_cell("fam_id", "col_id", "test_value", dt)
+    instance_id = '%s-%s-%s' % (
+        self.INSTANCE, str(int(time.time())), secrets.token_hex(3))
 
-    cell: Cell = row.find_cells("fam_id", "col_id")[0]
-    self.assertEqual(cell.timestamp, dt)
-    self.assertEqual(cell.timestamp_micros, timestamp_seconds * 1e6)
-    self.assertEqual(cell.value, "test_value")
+    self.client = client.Client(admin=True, project=self.project)
+    # create cluster and instance
+    self.instance = self.client.instance(
+        instance_id,
+        display_name=self.INSTANCE,
+        instance_type=instance.Instance.Type.DEVELOPMENT)
+    cluster = self.instance.cluster("test-cluster", "us-central1-a")
+    operation = self.instance.create(clusters=[cluster])
+    operation.result(timeout=500)
+    _LOGGER.info(
+        "Created instance [%s] in project [%s]",
+        self.instance.instance_id,
+        self.project)
 
-  def test_set_many_cells(self):
-    row = BigtableRow("key")
-    num_cells = 100
+    # create table inside instance
+    self.table = self.instance.table(self.TABLE_ID)
+    self.table.create()
+    _LOGGER.info("Created table [%s]", self.table.table_id)
 
-    timestamps = [
-        datetime.fromtimestamp(t, timezone.utc)
-        for t in range(1, num_cells + 1)
-    ]
-    for i in range(num_cells):
-      dt = timestamps[i]
-      val = i
-      row.set_cell("fam_id", "col_id", val, dt)
+  def tearDown(self):
+    try:
+      _LOGGER.info(
+          "Deleting table [%s] and instance [%s]",
+          self.table.table_id,
+          self.instance.instance_id)
+      self.table.delete()
+      self.instance.delete()
+    except HttpError:
+      _LOGGER.debug(
+          "Failed to clean up table [%s] and instance [%s]",
+          self.table.table_id,
+          self.instance.instance_id)
 
-    cells = row.find_cells("fam_id", "col_id")
-    self.assertEqual(len(cells), num_cells)
-    for i in range(num_cells):
-      self.assertEqual(cells[i].timestamp, timestamps[i])
-      self.assertEqual(cells[i].value, i)
+  def add_rows(self, num_rows, num_families, num_columns_per_family):
+    cells = []
+    for i in range(1, num_rows + 1):
+      key = 'key-' + str(i)
+      row = DirectRow(key, self.table)
+      for j in range(num_families):
+        fam_name = 'test_col_fam_' + str(j)
+        # create the table's column families one time only
+        if i == 1:
+          col_fam = self.table.column_family(fam_name)
+          col_fam.create()
+        for k in range(1, num_columns_per_family + 1):
+          row.set_cell(fam_name, f'col-{j}-{k}', f'value-{i}-{j}-{k}')
 
-  def test_multiple_columns(self):
-    row = BigtableRow("key")
+      # after all mutations on the row are done, commit to Bigtable
+      row.commit()
+      # read the same row back from Bigtable to get the expected data
+      # accumulate rows in `cells`
+      read_row: PartialRowData = self.table.read_row(key)
+      cells.append(read_row.cells)
 
-    data = [{
-        'col': 'col_1',
-        'val': 'val1',
-        'dt': datetime.fromtimestamp(123, timezone.utc)
-    },
-            {
-                'col': 'col_2',
-                'val': 'val2',
-                'dt': datetime.fromtimestamp(456, timezone.utc)
-            },
-            {
-                'col': 'col_3',
-                'val': 'val3',
-                'dt': datetime.fromtimestamp(789, timezone.utc)
-            }]
+    return cells
 
-    for d in data:
-      row.set_cell('fam_id', d['col'], d['val'], d['dt'])
-    self.assertEqual(
-        set(row.cells['fam_id'].keys()), set(['col_1', 'col_2', 'col_3']))
+  def test_read_xlang(self):
+    # create rows and retrieve expected cells
+    expected_cells = self.add_rows(
+        num_rows=5, num_families=3, num_columns_per_family=4)
 
-    for d in data:
-      cells = row.find_cells('fam_id', d['col'])
+    with beam.Pipeline(argv=self.args) as p:
+      cells = (
+          p
+          | bigtableio.ReadFromBigtable(
+              self.table.table_id, self.instance.instance_id, self.project)
+          | "Extract cells" >> beam.Map(lambda row: row._cells))
 
-      self.assertEqual(len(cells), 1)
-      self.assertEqual(cells[0].value, d['val'])
-      self.assertEqual(cells[0].timestamp, d['dt'])
-
-  def test_multiple_families(self):
-    row = BigtableRow("key")
-
-    data = [{
-        'fam': 'fam_1',
-        'val': 'val1',
-        'dt': datetime.fromtimestamp(123, timezone.utc)
-    },
-            {
-                'fam': 'fam_2',
-                'val': 'val2',
-                'dt': datetime.fromtimestamp(456, timezone.utc)
-            },
-            {
-                'fam': 'fam_3',
-                'val': 'val3',
-                'dt': datetime.fromtimestamp(789, timezone.utc)
-            }]
-
-    for d in data:
-      row.set_cell(d['fam'], 'col', d['val'], d['dt'])
-    self.assertEqual(set(row.cells.keys()), set(['fam_1', 'fam_2', 'fam_3']))
-
-    for d in data:
-      cells = row.find_cells(d['fam'], 'col')
-
-      self.assertEqual(len(cells), 1)
-      self.assertEqual(cells[0].value, d['val'])
-      self.assertEqual(cells[0].timestamp, d['dt'])
-
-  def test_delete_all_cells(self):
-    row = BigtableRow("key")
-
-    for i in range(100):
-      row.set_cell('fam_id', 'col_id', 'val')
-
-    self.assertEqual(len(row.find_cells('fam_id', 'col_id')), 100)
-
-    row.delete_cell('fam_id', 'col_id')
-    # deleting all cells will delete the column, so we get an error at access
-    with self.assertRaises(KeyError):
-      row.find_cells('fam_id', 'col_id')
-    self.assertEqual(row.cells, {})
-
-  def test_delete_cells_in_timestamp_range(self):
-    row = BigtableRow("key")
-    num_cells = 10
-
-    timestamps = [
-        datetime.fromtimestamp(t, timezone.utc)
-        for t in range(1, num_cells + 1)
-    ]
-    for i in range(num_cells):
-      dt = timestamps[i]
-      val = i
-      row.set_cell('fam_id', 'col_id', val, dt)
-
-    cells = row.find_cells('fam_id', 'col_id')
-    self.assertEqual(len(cells), num_cells)
-
-    # delete all but the extremities
-    start = datetime.fromtimestamp(2, timezone.utc)
-    end = datetime.fromtimestamp(10, timezone.utc)
-
-    # range: start is inclusive, end is exclusive
-    row.delete_cell('fam_id', 'col_id', TimestampRange(start, end))
-    cells = row.find_cells('fam_id', 'col_id')
-    self.assertEqual(len(cells), 2)
-    self.assertEqual(cells[0].timestamp, timestamps[0])
-    self.assertEqual(cells[-1].timestamp, timestamps[-1])
-
-  def test_delete_all_columns(self):
-    row = BigtableRow("key")
-
-    row.set_cell('fam', 'col_1', 'val1')
-    row.set_cell('fam', 'col_2', 'val2')
-    row.set_cell('fam', 'col_3', 'val3')
-    row.set_cell('other_fam', 'col', 'val')
-
-    self.assertEqual(len(row.cells['fam'].keys()), 3)
-
-    row.delete_cells('fam', row.ALL_COLUMNS)
-
-    # deleting all columns will delete the column family, so it is no longer
-    # in our cells dictionary
-    self.assertTrue('fam' not in row.cells)
-    # other column families still exists
-    self.assertTrue('other_fam' in row.cells)
+      assert_that(cells, equal_to(expected_cells))
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
