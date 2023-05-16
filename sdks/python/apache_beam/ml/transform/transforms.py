@@ -39,6 +39,7 @@ class _BaseTransform:
     self.columns = columns
     self._args = args
     self._kwargs = kwargs
+    self.has_artifacts = False
 
     if not columns:
       # (TODO): Shoud we apply the transform or skip the transform?
@@ -71,7 +72,29 @@ class _Scale_To_Z_Score(_BaseTransform):
     return "scale_to_z_score"
 
 
+class _Scale_0_to_1(_BaseTransform):
+  def __init__(self, columns, *args, **kwargs):
+    super().__init__(columns, *args, **kwargs)
+    self.has_artifacts = True
+
+  def get_analyzer_artifacts(self, data, col_name) -> Dict[str, tf.Tensor]:
+    return {
+        col_name + '_min': tf.reshape(tft.min(data), [-1]),
+        col_name + '_max': tf.reshape(tft.max(data), [-1])
+    }
+
+  def apply(self, data: tf.Tensor):
+    return tft.scale_to_0_1(x=data, *self._args, **self._kwargs)
+
+  def __str__(self):
+    return 'scale_0_to_1'
+
+
 # API visible to the user.
+def scale_0_to_1(columns, ):
+  return _Scale_0_to_1(columns=columns)
+
+
 def compute_and_apply_vocabulary(
     columns: Optional[List[str]] = None,
     *,
@@ -120,6 +143,7 @@ def scale_to_z_score(
     elementwise: bool = False,
     name: Optional[str] = None,
     output_dtype: Optional[tf.DType] = None):
+
   return _Scale_To_Z_Score(
       columns=columns,
       elementwise=elementwise,
@@ -142,32 +166,3 @@ class MLTransform(beam.PTransform):
   def with_transform(self, transform: _BaseTransform):
     self._process_handler._transforms.append(transform)
     return self
-
-
-if __name__ == "__main__":
-
-  import pyarrow as pa
-
-  # list_ is not supported since it creates schema with large_list
-  # https://source.corp.google.com/piper///depot/google3/third_party/py/tfx_bsl/tfxio/record_based_tfxio.py;rcl=531814261;l=170
-  # raw_data = [
-  #     pa.record_batch(
-  #         data=[
-  #             pa.array([[1], [2], [3], [10], [15], [20], [10]],
-  #                      pa.large_list(pa.float32())),
-  #         ],
-  #         names=['y'])
-  # ]
-
-  raw_data = [{'y': [1, 2, 3]}, {'y': [4, 5]}, {'y': [1, 2, 30]}]
-  raw_data_type = {'y': List[int]}
-  with beam.Pipeline() as p:
-    (
-        p | beam.Create(raw_data)
-        | MLTransform(
-            TFTProcessHandlerDict(
-                input_types=raw_data_type,
-                # output_record_batches=True
-                # artifact_location='/Users/anandinguva/projects/beam/sdks/python/apache_beam/ml/transform'
-            )).with_transform(compute_and_apply_vocabulary())
-        | beam.Map(print))

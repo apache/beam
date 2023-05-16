@@ -84,15 +84,23 @@ class TFTProcessHandler(ProcessHandler):
     self._output_record_batches = output_record_batches
     self._artifact_location = artifact_location
 
-  # def preprocessing_fn(self, inputs: Dict) -> Dict:
-  #   outputs = inputs.copy()
-  #   for transform in self._transforms:
-  #     columns = transform.columns
-  #     if not columns:
-  #       # if columns are not specified, apply the transform on every column.
-  #       columns = inputs.keys()
-  #     for col in columns:
-  #       outputs[col] = transform.apply(inputs[col])
+  def preprocessing_fn(self, inputs: Dict) -> Dict:
+    outputs = inputs.copy()
+    for transform in self._transforms:
+      columns = transform.columns
+      if not columns:
+        # if columns are not specified, apply the transform on every column.
+        # columns = inputs.keys()
+        # TODO: Make a decision here.
+        raise NotImplementedError
+      for col in columns:
+        if transform.has_artifacts:
+          artifacts = transform.get_analyzer_artifacts(
+              inputs[col], col_name=col)
+          for key, value in artifacts.items():
+            outputs[key] = value
+        outputs[col] = transform.apply(inputs[col])
+    return outputs
 
   @property
   def get_raw_data_feature_spec(self):
@@ -130,12 +138,12 @@ class TFTProcessHandler(ProcessHandler):
       return tf.io.FixedLenFeature([], _default_type_to_tensor_type_map[dtype])
 
   # TODO: remove this and uncomment the above lines
-  def preprocessing_fn(self, inputs):
-    outputs = inputs.copy()
-    # reshape needed because of https://github.com/tensorflow/transform/issues/128
-    outputs['y_min'] = tf.reshape(tft.min(inputs['y']), [-1])
-    outputs['y'] = tft.scale_to_0_1(inputs['y'])
-    return outputs
+  # def preprocessing_fn(self, inputs):
+  #   outputs = inputs.copy()
+  #   # reshape needed because of https://github.com/tensorflow/transform/issues/128
+  #   outputs['y_min'] = tf.reshape(tft.min(inputs['y']), [-1])
+  #   outputs['y'] = tft.scale_to_0_1(inputs['y'])
+  #   return outputs
 
   @abstractmethod
   def get_metadata(self):
