@@ -32,6 +32,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import tensorrt as trt
+  from apache_beam.ml.inference import utils
   from apache_beam.ml.inference.base import PredictionResult, RunInference
   from apache_beam.ml.inference.tensorrt_inference import \
       TensorRTEngineHandlerNumPy
@@ -364,6 +365,67 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           max_batch_size=4,
           engine_path=
           'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+      pcoll = pipeline | 'start' >> beam.Create(SINGLE_FEATURE_EXAMPLES)
+      predictions = pcoll | RunInference(engine_handler)
+      assert_that(
+          predictions,
+          equal_to(
+              SINGLE_FEATURE_PREDICTIONS, equals_fn=_compare_prediction_result))
+
+  @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
+  def test_pipeline_single_tensor_feature_built_engine_large_engine(self):
+    with TestPipeline() as pipeline:
+
+      def fake_inference_fn(batch, engine, inference_args=None):
+        multi_process_shared_loaded = "multi_process_shared" in str(
+            type(engine))
+        if not multi_process_shared_loaded:
+          raise Exception(
+              f'Loaded engine of type {type(engine)}, was ' +
+              'expecting multi_process_shared engine')
+        from cuda import cuda
+        (
+            engine,
+            context,
+            context_lock,
+            inputs,
+            outputs,
+            gpu_allocations,
+            cpu_allocations,
+            stream) = engine.get_engine_attrs()
+
+        # Process I/O and execute the network
+        with context_lock:
+          _assign_or_fail(
+              cuda.cuMemcpyHtoDAsync(
+                  inputs[0]['allocation'],
+                  np.ascontiguousarray(batch),
+                  inputs[0]['size'],
+                  stream))
+          context.execute_async_v2(gpu_allocations, stream)
+          for output in range(len(cpu_allocations)):
+            _assign_or_fail(
+                cuda.cuMemcpyDtoHAsync(
+                    cpu_allocations[output],
+                    outputs[output]['allocation'],
+                    outputs[output]['size'],
+                    stream))
+          _assign_or_fail(cuda.cuStreamSynchronize(stream))
+
+          predictions = []
+          for idx in range(len(batch)):
+            predictions.append(
+                [prediction[idx] for prediction in cpu_allocations])
+
+          return utils._convert_to_result(batch, predictions)
+
+      engine_handler = TensorRTEngineHandlerNumPy(
+          min_batch_size=4,
+          max_batch_size=4,
+          engine_path=
+          'gs://apache-beam-ml/models/single_tensor_features_engine.trt',
+          inference_fn=fake_inference_fn,
+          large_model=True)
       pcoll = pipeline | 'start' >> beam.Create(SINGLE_FEATURE_EXAMPLES)
       predictions = pcoll | RunInference(engine_handler)
       assert_that(

@@ -170,6 +170,52 @@ class TFRunInferenceTest(unittest.TestCase):
               expected_predictions,
               equals_fn=_compare_tensor_prediction_result))
 
+  def test_predict_tensor_with_large_model(self):
+    model = _create_mult2_model()
+    model_path = os.path.join(self.tmpdir, 'mult2')
+    tf.keras.models.save_model(model, model_path)
+    with TestPipeline() as pipeline:
+
+      def fake_batching_inference_fn(
+          model: tf.Module,
+          batch: Union[Sequence[numpy.ndarray], Sequence[tf.Tensor]],
+          inference_args: Dict[str, Any],
+          model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+        multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+        if not multi_process_shared_loaded:
+          raise Exception(
+              f'Loaded model of type {type(model)}, was ' +
+              'expecting multi_process_shared_model')
+        batch = tf.stack(batch, axis=0)
+        predictions = model(batch)
+        return utils._convert_to_result(batch, predictions, model_id)
+
+      model_handler = TFModelHandlerTensor(
+          model_uri=model_path,
+          inference_fn=fake_batching_inference_fn,
+          large_model=True)
+      examples = [
+          tf.convert_to_tensor(numpy.array([1.1, 2.2, 3.3], dtype='float32')),
+          tf.convert_to_tensor(
+              numpy.array([10.1, 20.2, 30.3], dtype='float32')),
+          tf.convert_to_tensor(
+              numpy.array([100.1, 200.2, 300.3], dtype='float32')),
+          tf.convert_to_tensor(
+              numpy.array([200.1, 300.2, 400.3], dtype='float32')),
+      ]
+      expected_predictions = [
+          PredictionResult(ex, pred) for ex,
+          pred in zip(examples, [tf.math.multiply(n, 2) for n in examples])
+      ]
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(
+              expected_predictions,
+              equals_fn=_compare_tensor_prediction_result))
+
   def test_predict_numpy_with_batch_size(self):
     model = _create_mult2_model()
     model_path = os.path.join(self.tmpdir, 'mult2_numpy')
@@ -193,6 +239,49 @@ class TFRunInferenceTest(unittest.TestCase):
           inference_fn=fake_batching_inference_fn,
           min_batch_size=2,
           max_batch_size=2)
+      examples = [
+          numpy.array([1.1, 2.2, 3.3], dtype='float32'),
+          numpy.array([10.1, 20.2, 30.3], dtype='float32'),
+          numpy.array([100.1, 200.2, 300.3], dtype='float32'),
+          numpy.array([200.1, 300.2, 400.3], dtype='float32'),
+      ]
+      expected_predictions = [
+          PredictionResult(ex, pred) for ex,
+          pred in zip(examples, [numpy.multiply(n, 2) for n in examples])
+      ]
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(
+              expected_predictions,
+              equals_fn=_compare_tensor_prediction_result))
+
+  def test_predict_numpy_with_large_model(self):
+    model = _create_mult2_model()
+    model_path = os.path.join(self.tmpdir, 'mult2_numpy')
+    tf.keras.models.save_model(model, model_path)
+    with TestPipeline() as pipeline:
+
+      def fake_inference_fn(
+          model: tf.Module,
+          batch: Sequence[numpy.ndarray],
+          inference_args: Dict[str, Any],
+          model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+        multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+        if not multi_process_shared_loaded:
+          raise Exception(
+              f'Loaded model of type {type(model)}, was ' +
+              'expecting multi_process_shared_model')
+        vectorized_batch = numpy.stack(batch, axis=0)
+        predictions = model.predict(vectorized_batch, **inference_args)
+        return utils._convert_to_result(batch, predictions, model_id)
+
+      model_handler = TFModelHandlerNumpy(
+          model_uri=model_path,
+          inference_fn=fake_inference_fn,
+          large_model=True)
       examples = [
           numpy.array([1.1, 2.2, 3.3], dtype='float32'),
           numpy.array([10.1, 20.2, 30.3], dtype='float32'),
