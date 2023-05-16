@@ -28,7 +28,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-var userAgent = option.WithUserAgent("GPN:Beam")
+var userAgent = option.WithUserAgent("(GPN:Beam)")
 
 // NewClient creates a new GCS client with default application credentials, and supplied
 // OAuth scope. The OAuth scopes are defined in https://pkg.go.dev/cloud.google.com/go/storage#pkg-constants.
