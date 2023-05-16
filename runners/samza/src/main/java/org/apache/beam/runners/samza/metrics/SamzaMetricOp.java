@@ -144,12 +144,14 @@ class SamzaMetricOp<T> implements Op<T, T, Void> {
       // Update MetricOp Registry with avg arrival for the pValue
       samzaTransformMetricRegistry.updateArrivalTimeMap(
           transformFullName, pValue, watermark.getMillis(), avg);
+      if (opType == SamzaMetricOpFactory.OpType.OUTPUT) {
+        // compute & emit the latency metric if the opType is OUTPUT
+        samzaTransformMetricRegistry.emitLatencyMetric(
+            transformFullName, transformInputs, transformOutputs, watermark.getMillis(), task);
+      }
     }
 
     if (opType == SamzaMetricOpFactory.OpType.OUTPUT) {
-      // compute & emit the latency metric if the opType is OUTPUT
-      samzaTransformMetricRegistry.emitLatencyMetric(
-          transformFullName, transformInputs, transformOutputs, watermark.getMillis(), task);
       // update output watermark progress metric
       samzaTransformMetricRegistry
           .getTransformMetrics()
